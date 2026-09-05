@@ -108,7 +108,7 @@ export {
 } from "./lib/stage-keeper-plan.ts";
 // `shortSha`/`stageRowBaseUrl` are the row's DERIVED fields (#1276 stopped storing them — a serialized copy
 // of a derived value is a second home that drifts), so every consumer derives them through this door.
-export { shortSha, stageBandClaim, stageBandRefusal, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
+export { shortSha, stageBandClaim, stageBandRefusal, stageKeeperLogPath, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).

@@ -16,19 +16,19 @@
 // held it and watching the same timer reap — otherwise "it did not reap" would be satisfied by a keeper
 // that had simply died. And the reserved-port arm plants a row on the DEV STACK's own pair to prove the
 // refusal exists at all.
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import type { Socket } from "node:net";
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 import { DEV_PORTS } from "@orb/tooling/_shared/ports";
 import type { NicedChild } from "@orb/tooling/_shared/proc";
-import { inheritedProcessEnv, spawnNicedChild } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv, runNicedSync, spawnNiced, spawnNicedChild } from "@orb/tooling/_shared/proc";
 import type { StageRow } from "@orb/tooling/snap";
-import { readBands, readStageReaps } from "@orb/tooling/snap";
+import { readBands, readStageReaps, stageKeeperLogPath } from "@orb/tooling/snap";
 import { afterEach, describe, expect, test, vi } from "vitest";
 // The table's WRITERS are not front-door members (the door exports the readers a sibling tool needs), so
 // this proof reaches them at their source path — the spelling tests/tooling/snap/ops/stage-marker.int.test.ts
@@ -146,10 +146,17 @@ function plantRow(home: string, stage: PlantedStage, idleMs: number, over: Parti
   return row;
 }
 
+/** Start the keeper the way PRODUCTION does — with a `logPath`, never a pipe. `spawnNicedChild` gives a
+ *  child with neither `logPath` nor `onOutput` two pipes nobody reads: the keeper's first write after its
+ *  launcher exits would be EPIPE, and the launcher's own stream handles would keep its event loop
+ *  referenced. Reading the LOG here is therefore not a convenience — it is the proof that the shipped
+ *  detachment shape delivers the one line #1163 asks the timer to print. */
 function startKeeper(home: string): { readonly child: NicedChild; readonly log: () => string } {
-  let output = "";
+  const logPath = stageKeeperLogPath(home, BAND);
+  mkdirSync(dirname(logPath), { recursive: true });
   const child = spawnNicedChild(process.execPath, [SNAP_CLI, "--stage-keeper", String(BAND)], {
     cwd: REPO_ROOT,
+    logPath,
     // Through the ambient-env door, and as a pair LIST so the four SCREAMING_SNAKE knobs are data rather
     // than identifiers a naming rule has an opinion about (the stage-death-control suite's spelling).
     env: inheritedProcessEnv(
@@ -160,12 +167,9 @@ function startKeeper(home: string): { readonly child: NicedChild; readonly log: 
         ["ORB_STAGE_CAP", "10"],
       ]),
     ),
-    onOutput: (chunk) => {
-      output += chunk.toString();
-    },
   });
   started.push(child);
-  return { child, log: () => output };
+  return { child, log: () => (existsSync(logPath) ? readFileSync(logPath, "utf8") : "") };
 }
 
 function rowOf(home: string): StageRow | undefined {
@@ -179,6 +183,19 @@ function pidAlive(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+/** How many `--stage-keeper` processes exist on the box RIGHT NOW. Counted by argv rather than by the
+ *  table, because the property under test is about PROCESSES a run may leave behind, not about rows —
+ *  and `ps` is the only thing that can see a child whose row was never written. The `--file` arm asserts
+ *  a DELTA against its own baseline, so a sibling lane's live keeper cannot make it lie either way. */
+function keeperProcessCount(): number {
+  // Through the house subprocess door (`_shared/proc.ts`), like every other `ps` read in this tree — it
+  // carries the nice-19 floor and never throws, so a non-zero status reads as the zero this counter
+  // reports. A proof that cannot enumerate processes has already failed its own planted control.
+  return runNicedSync("ps", ["-eo", "args="])
+    .stdout.split("\n")
+    .filter((line) => line.includes("--stage-keeper")).length;
 }
 
 /** The session-registry row a live daemon writes — `daemonPid` is THIS process, so `liveSessionNames`
@@ -299,6 +316,40 @@ describe("the stage's own idle timer", () => {
     socket.destroy();
     openSockets.splice(openSockets.indexOf(socket), 1);
     expect(await until(() => rowOf(home) === undefined, CASE_BUDGET_MS), `closing the client did not free the band — ${keeper.log()}`).toBe(true);
+  });
+
+  test("a STAGELESS run arms nothing and exits: `--file` leaves no keeper behind and does not hold its own event loop", async () => {
+    const home = scratchHome("stageless");
+    const fixture = join(home, "stageless.html");
+    writeFileSync(fixture, '<!doctype html><html><body><button id="ok">okay</button></body></html>');
+    const before = keeperProcessCount();
+
+    // The real snap CLI, in the shape the `--file` suites use. `armStageKeeper` is reachable only from
+    // `ensureStage`, which `configureStage` only reaches under `--isolated` — so a file run must allocate
+    // no band, arm no timer, and above all EXIT: a detached child holding a pipe to this process would
+    // keep its event loop referenced and turn every `--file` suite into a timeout.
+    const startedAtMs = Date.now();
+    const run = await spawnNiced(process.execPath, [SNAP_CLI, "--file", fixture, "--no-shot", "--no-deadcss", "--no-failure-evidence"], {
+      // `spawnNiced` merges its `env` over the ambient one itself, so only the OVERRIDE goes here.
+      env: Object.fromEntries([["ORB_SNAP_STAGE_HOME", home]]),
+      timeoutMs: CASE_BUDGET_MS,
+    });
+    const elapsed = Date.now() - startedAtMs;
+
+    expect(run.timedOut, `the CLI did not exit within ${CASE_BUDGET_MS}ms — ${run.stdout}${run.stderr}`).toBe(false);
+    expect(run.code, run.stdout).toBe(0);
+    expect(elapsed, "a stageless run must not sit at its budget waiting on a child").toBeLessThan(CASE_BUDGET_MS / 2);
+    expect(readBands(home), "a `--file` run allocates no band").toEqual([]);
+    expect(keeperProcessCount(), "no idle timer was armed, so none can be left behind").toBe(before);
+
+    // THE PLANTED CONTROL: arm one on purpose against a real row and the SAME assertion catches it — so
+    // the zero above is a measurement, not an instrument that cannot see a keeper at all.
+    const stage = await plantStage(home);
+    plantRow(home, stage, 0);
+    const planted = startKeeper(home);
+    expect(await until(() => keeperProcessCount() > before, CASE_BUDGET_MS), "the control never armed — the counter cannot see a keeper").toBe(true);
+    planted.child.killGroup("SIGKILL");
+    expect(await until(() => keeperProcessCount() === before, CASE_BUDGET_MS)).toBe(true);
   });
 
   test("the timer NEVER targets the default stack: a row naming the dev pair is refused, exit 2, nothing touched", async () => {
