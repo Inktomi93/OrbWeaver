@@ -12,6 +12,8 @@ updated: 2026-09-05
 > Indexed from `docs/architecture/core/AGENTS.md` §7. Supersedes `UI-Gates-and-Lessons.md` §12 (that
 > section is the short form; where they differ, this doc wins). The gate catalog itself is
 > `docs/architecture/core/Core-Enforcement-Active-Gates.md`.
+> Before using raw ts-morph, read [TS-MORPH-CAPABILITIES.md](TS-MORPH-CAPABILITIES.md); it maps the installed API to the shared readers/providers and records the performance and node-lifecycle traps.
+> Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md) before adding a walker or dependency.
 
 ## 0. The one-screen version
 
