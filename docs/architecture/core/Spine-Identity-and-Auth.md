@@ -81,7 +81,7 @@ This page never duplicates the ownership map; it names where the machine-checked
 
 | Question | The answer's home |
 | - | - |
-| Which tables may stamp an `ownerId` at all? | `tooling/src/verify/gates/ownerid-registry.ts` — `OWNERID_ALLOWLIST`, every row carrying its D23 justification (true producer · parentless per-user aggregate · sanctioned scope-subject). Two-direction ratchet: a new stamp is RED, a stale row is RED. |
+| Which tables may stamp an `ownerId` at all? | `tooling/src/verify/gates/ownerid-registry.ts` — `OWNERID_CLASSIFICATIONS`, every row carrying its D23 justification (true producer · parentless per-user aggregate · sanctioned scope-subject). Two-direction ratchet: a new stamp is RED, a stale row is RED. |
 | Which DOMAIN owns which table? | `tooling/src/verify/gates/own-tables-only.ts` — the map is READ OFF `packages/db/src/schema/<file>.ts` at run time (schema file ↔ same-named domain), TOTAL, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign WRITE is unconditionally RED; a foreign READ belongs in `persistence/` or an injected op. |
 | Who owns a row with no `ownerId`? | §2b — the FK chain to the owning root, gated at the producer verb. Walk the chain BEFORE flagging "missing scope". |
 | Who owns a CHAT? | Nobody (D18). Membership is the scope, host is the transferable role — see §2c. |
