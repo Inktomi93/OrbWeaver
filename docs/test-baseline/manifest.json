@@ -1009,6 +1009,7 @@
     "tests/server/domain/chat/substrate/greeting-seed.test.ts",
     "tests/server/domain/chat/substrate/group-bucket.int.test.ts",
     "tests/server/domain/chat/substrate/handoff-copy.int.test.ts",
+    "tests/server/domain/chat/substrate/host-fenced-write.int.test.ts",
     "tests/server/domain/chat/substrate/member-visibility.test.ts",
     "tests/server/domain/chat/substrate/participants-host.test.ts",
     "tests/server/domain/chat/substrate/participants-humans.test.ts",
