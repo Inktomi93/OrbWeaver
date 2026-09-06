@@ -138,14 +138,15 @@ population, because a population exclusion would be a silent law change made by 
 hand-picked one manufactures unknown-policy waiver alarms), the fourteen selected, `reviewedGrantsFor`:
 
 ```
-knownPolicies=92 selected=14 loadedSources=7208
-workspaceMs=4336 passMs=17877
+knownPolicies=92 selected=14 loadedSources=7211
+workspaceMs=4514 passMs=27005
 toolErrors=0 factErrors=0 authorityToolErrors=0 alarms=0 withheld=[]
 raw=30 waived=0 granted=30 effective=0
 ```
 
-`/usr/bin/time -v`: **23.47 s wall, 5,379,644 KB peak RSS**, 0 swaps, 0 major page faults. Every grant row was
-consumed exactly once — zero stale, zero over-broad. Per-policy cost is concentrated in `no-raw-zustand-persist`
+`/usr/bin/time -v`: **35.54 s wall, 5,350,632 KB peak RSS**, 0 swaps, 0 major page faults (a quieter earlier
+run of the same pass measured 23.47 s / 5,379,644 KB — the wall moves with box load, the RSS does not). Every
+grant row was consumed exactly once — zero stale, zero over-broad. Per-policy cost is concentrated in `no-raw-zustand-persist`
 (4.9 s over 1,311 files: its `setState`/`reset`/`setOptions` prefilter resolves a type member per candidate),
 `client-cache-surgery-only-in-data` (1.2 s) and `no-effect-on-shared-selection` (1.0 s over 1,001 files,
 including its identifier index); the other eleven total under 2 s combined.
@@ -178,7 +179,8 @@ including its identifier index); the other eleven total under 2 s combined.
 | legacy replay + real-tree final pass | 0 legacy findings; 30 raw = 30 granted = 0 effective |
 | tooling type program (`ts7.cjs -p tooling/tsconfig.json`) | green |
 | scoped biome + eslint over the full base-to-tip changed set | green |
-| both line-coupled ledgers | re-derived and fresh |
+| both line-coupled ledgers | re-derived and fresh (manifest 2,522 specs; caught-failure population 573 sites) |
+| remaining `lib/sanctioned-home.ts` consumers | 15 legacy modules, none of them this family's — nine belong to the sibling server family and six to the static-class-blocked set, so the helper stays |
 
 ## Known limits, written down
 
