@@ -81,12 +81,11 @@ function importDeclarationOf(node: MorphNode): import("ts-morph").ImportDeclarat
 const requiresResolvedSource = (moduleSpecifier: string): boolean =>
   moduleSpecifier.startsWith(".") || moduleSpecifier.startsWith("/") || moduleSpecifier.startsWith("#");
 
-const projectTarget = (declaration: MorphNode, exportedName: string, declarationCount: number): CanonicalModuleTarget => ({
+const projectTarget = (declaration: MorphNode, exportedName: string): CanonicalModuleTarget => ({
   kind: "project",
   sourceFile: declaration.getSourceFile(),
   exportedName,
   declaration,
-  declarationCount,
 });
 
 /** The ONE declaration kind a MODULE EXPORT symbol may legitimately carry more than once and still name one
@@ -188,7 +187,7 @@ function resolveExportSpecifier(
   if (!enterDeclaration(target, aliased)) {
     return unresolved("cycle", aliased, target, `module export cycle at ${aliased.getText()}`);
   }
-  return validatedProjectTarget(aliased, exportName, target, aliasedTargets.length);
+  return validatedProjectTarget(aliased, exportName, target);
 }
 
 function starExportCandidates(sourceFile: SourceFile, exportName: string): readonly import("ts-morph").ExportDeclaration[] {
@@ -227,12 +226,12 @@ function isBindingAliasInitializer(node: MorphNode, services: ReferenceResolutio
   return Node.isIdentifier(current) || Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current);
 }
 
-function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState, declarationCount = 1): ReferenceFact<CanonicalModuleTarget> {
+function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
   const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
   if (initializer !== undefined && isBindingAliasInitializer(initializer, target.services)) {
     return unresolved("unsupported", initializer, target, `export ${exportedName} aliases another binding whose canonical origin is not proven`);
   }
-  return resolved(projectTarget(declaration, exportedName, declarationCount), target, declaration);
+  return resolved(projectTarget(declaration, exportedName), target, declaration);
 }
 
 function uniqueExportSymbol(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphSymbol> {
@@ -277,7 +276,7 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `module export cycle at ${declaration.getText()}`);
   }
-  return validatedProjectTarget(declaration, exportName, target, declarations.length);
+  return validatedProjectTarget(declaration, exportName, target);
 }
 
 function moduleOriginFromDoor(

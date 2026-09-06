@@ -94,6 +94,55 @@ test(
 );
 
 test(
+  "a bus the PRODUCER fact belts and the definition fact cannot see REFUSES — the two rosters must agree",
+  () => {
+    // THE RETIRED OWNER GATE'S GUARANTEE, half three, and the one direction a fixture can actually reach:
+    // the definition fact collects union ALIASES from `packages/contracts/src/` only, so a union declared
+    // outside it whose belt lives inside it is belted for the producer fact and INVISIBLE to the definition
+    // family's belt/consumer ratchets. Judged here, unratcheted there — which is the shape of a bus nobody
+    // is quantifying over, so the run refuses instead of reporting the rest of the corpus clean.
+    //
+    // The assertion is on the MESSAGE, not merely on `incomplete`: this corpus also has a definition-fact
+    // refusal behind it, so a run that has lost the roster check still refuses — with the OTHER message.
+    // Neutering `assertRosterAgreement` therefore reds this row rather than sliding past it.
+    const divergent = {
+      "packages/server/src/domain/x/bus.ts": 'export type XBusEvent = { type: "changed" };\n',
+      "packages/contracts/src/x/index.ts":
+        'import type { XBusEvent } from "../../../server/src/domain/x/bus.ts";\nexport const X_EVENT_TYPES = { changed: true } satisfies Record<XBusEvent["type"], true>;\n',
+    };
+    const result = passOf(busProducerCoverage, divergent);
+
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(result.toolErrors.map(({ phase }) => phase)).toEqual(["evaluate"]);
+    expect(result.toolErrors[0]?.message).toContain("bus rosters disagree about belted unions");
+    expect(result.toolErrors[0]?.message).toContain("is belted for the producer fact and invisible to the definition fact");
+  },
+  PER_ROW_TIMEOUT_MS,
+);
+
+test(
+  "the owner deferral is keyed by (union, member): the SAME member name on another bus is still reported",
+  () => {
+    // The deferral list is `(union, member)` rows, and this is the row that says why. `connectionsChanged` is
+    // deferred on the USER bus (#1822). A different belted bus declaring a member of the same NAME has no
+    // deferral at all, so it must still be reported — while the user bus's own member stays silent. A
+    // bare-name key passes the second assertion and FAILS the first, which is the cross-bus leak.
+    const sameNameTwoBuses = {
+      "packages/contracts/src/user-bus/index.ts":
+        'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
+      "packages/contracts/src/chat/bus.ts":
+        'export type ChatBusEvent = { type: "connectionsChanged" };\nexport const CHAT_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<ChatBusEvent["type"], true>;\n',
+    };
+    const findings = passOf(busProducerCoverage, sameNameTwoBuses).authority.effectiveFindings;
+
+    expect(findings.map(({ message }) => message ?? "")).toEqual([expect.stringContaining("Union: ChatBusEvent. Member: connectionsChanged")]);
+    expect(findings.map(({ message }) => message ?? "").filter((message) => message.includes("Union: UserBusEvent"))).toEqual([]);
+  },
+  PER_ROW_TIMEOUT_MS,
+);
+
+test(
   "ONE policy quantifies over EVERY belted union: a new bus is covered the day its belt lands",
   () => {
     // THE RETIRED OWNER GATE'S GUARANTEE, half two — and the property that made the owner gate structural

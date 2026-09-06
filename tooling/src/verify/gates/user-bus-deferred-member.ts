@@ -20,7 +20,7 @@
 //     vanished subject is how a standing exception becomes a loaded gun, so the run reports a tool error
 //     instead. A refusal cannot be expressed as a proof row, so it is pinned through `runPolicyPass` in
 //     `tests/tooling/verify/gates/bus-pair.test.ts`.
-import type { BusMemberDeferral } from "../contract/bus-fact.ts";
+import type { BusDeclarationIdentity, BusMemberDeferral } from "../contract/bus-fact.ts";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
@@ -33,6 +33,17 @@ const UNION = { path: "packages/contracts/src/user-bus/index.ts", exportName: "U
  *  removal. The union half is load-bearing since the coverage policy became generic over every belted bus —
  *  a bare member NAME would defer a same-named member of any other bus with it. */
 export const BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[] = Object.freeze([{ union: UNION, member: "connectionsChanged" }]);
+
+/** The deferred members of ONE bus — the only way either policy is allowed to read the list, so the union
+ *  half of the key cannot be dropped in one reader and honoured in the other.
+ *
+ *  `rows` is injectable because the union filter is otherwise UNREACHABLE: the live list holds exactly one
+ *  row today, so a reader that ignored the union entirely would behave identically and no proof could tell
+ *  the two apart (measured — an unfiltered mutant left every bus spec green). A proof plants a second bus's
+ *  row and the filter becomes observable. */
+export function deferralsFor(union: BusDeclarationIdentity, rows: readonly BusMemberDeferral[] = BUS_MEMBER_DEFERRALS): readonly string[] {
+  return rows.filter((row) => row.union.path === union.path && row.union.exportName === union.exportName).map(({ member }) => member);
+}
 
 const MESSAGE =
   "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete tooling/src/verify/gates/user-bus-deferred-member.ts (its sibling `bus-producer-coverage` then owns the member by construction) and close the work item.";
@@ -58,7 +69,10 @@ export const gate = defineGate({
       if (bus === undefined) {
         throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
       }
-      for (const { member: deferred } of BUS_MEMBER_DEFERRALS) {
+      // THE UNION HALF OF THE KEY IS LOAD-BEARING HERE TOO: this policy owns ONE union, and a deferral row
+      // minted for another bus is not its subject — reading the rows unfiltered would make a second row throw
+      // "no longer declared" against a union that never declared it.
+      for (const deferred of deferralsFor(UNION)) {
         const member = bus.declaredMembers.find(({ name }) => name === deferred);
         if (member === undefined) {
           throw new Error(`deferred ${UNION.exportName} member ${deferred} is no longer declared — this deferral outlived its subject`);
