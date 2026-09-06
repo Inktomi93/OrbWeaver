@@ -55,6 +55,10 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
     return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} />;
   }
 
+  // THIS LOOKUP IS NOT AN ESCAPE PATH (owner ruling 2026-09-06, #1789) — same intrinsic-door class as
+  // `rail.tsx`'s `mobile-tab` read (see its comment there for the full telling): the focus-return fallback
+  // reads its own target the only place that target is declared, rather than re-filing it as a
+  // parallel id.
   const mobileSheetModalId = registry.list().find((modal) => modal.trigger.placement === "mobile-tab")?.id;
   return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} />;
 }
