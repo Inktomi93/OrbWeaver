@@ -1,53 +1,173 @@
-// Gate: no-inline-invalidate-outside-seam (UI-Gates-and-Lessons.md §11.3 — "the central invalidation
-// seam"). All invalidation routes through ONE chokepoint — `data/invalidation.ts` owns the exhaustive
-// event→`queryFilter()` maps and the sole `queryClient.invalidateQueries` call; everything else calls
-// `invalidate(event)`/`invalidateUser(event)` or hands filters to `createEntityMutation`. Flags a
-// `.invalidateQueries(` call anywhere in packages/client/src/** outside that one file. Does not flag `.cancelQueries(`/`.setQueryData(` (a different concern).
+// Policy: no-inline-invalidate-outside-seam (UI-Gates-and-Lessons.md §11.3 — "the central invalidation
+// seam"). ALL invalidation routes through ONE chokepoint: `data/invalidation.ts` owns the exhaustive
+// event→`queryFilter()` maps and the sole `invalidateQueries` call. Everything else calls
+// `invalidate(event)`/`invalidateUser(event)` or hands `invalidates` filters to `createEntityMutation`.
+//
+// WHY THIS IS ITS OWN POLICY BESIDE `client-cache-surgery-only-in-data`. The sibling fences the six
+// imperative cache operations at the `data/` DIRECTORY grain; this one fences ONE operation at a single
+// FILE. They overlap on the seam's own call by design and each licenses it with its own row — that is what
+// the two doc rows say, and collapsing them would lose the file-grain claim (a new `data/` module may not
+// invalidate).
+//
+// AUTHORITY IS reviewed-grant: the seam's own call is a recurring repository PERMISSION with an exact
+// `(subject, operation)` row in `lib/reviewed-grants.ts`, not a per-occurrence mistake. The legacy predicate
+// SUBTRACTED the seam file from the corpus, which the final law forbids — a subtracted path carries its
+// exemption silently through a rename, while a grant row that stops matching goes RED.
+//
+// IDENTITY, NOT SPELLING: the legacy check was `getName() === "invalidateQueries"` on any receiver, so any
+// object with that method name was the offense and `client["invalidateQueries"]()` was invisible. The
+// subject is the METHOD DECLARED BY `@tanstack/query-core`.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyPackageMemberOrigin } from "../lib/project-home-origin.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
-/** The ONE file that owns `invalidateQueries` — the central seam (UI-Gates-and-Lessons.md §11.3). */
-const SEAM_FILE = "packages/client/src/data/invalidation.ts";
+const METHOD = "invalidateQueries";
+const QUERY_CORE = "@tanstack/query-core";
+const OPERATION = "inline-invalidate-queries";
 
 const MESSAGE =
-  "inline invalidateQueries outside the central seam — route invalidation through data/invalidation.ts " +
-  "(invalidate(event)/invalidateUser(event)), or pass `invalidates` filters to createEntityMutation. A " +
-  "loose call recreates neo's 81-site invalidation sprawl (UI-Gates-and-Lessons.md §11.3).";
-export const gate: GateDescriptor = {
-  name: "no-inline-invalidate-outside-seam",
-  docRow: "UI-Gates-and-Lessons.md §11.3",
-  status: "active",
-  scopeSafety: "incremental-safe",
+  "an inline `invalidateQueries` call outside the central seam — route invalidation through " +
+  "data/invalidation.ts (`invalidate(event)`/`invalidateUser(event)`), or pass `invalidates` filters to " +
+  "`createEntityMutation`. A loose call recreates neo's 81-site invalidation sprawl " +
+  "(UI-Gates-and-Lessons.md §11.3).";
+const UNREADABLE =
+  "this call names `invalidateQueries` on a receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+const FIX =
+  "call invalidate(event)/invalidateUser(event) from data/invalidation.ts, or pass `invalidates` filters to createEntityMutation; the seam's own call is licensed by an exact reviewed grant.";
+
+/** The method name a callee reads, across dotted and computed-literal spellings. */
+function calledMemberName(callee: MorphNode): string | null {
+  let name: string | null = null;
+  if (Node.isPropertyAccessExpression(callee)) {
+    name = callee.getName();
+  }
+  if (Node.isElementAccessExpression(callee)) {
+    const argument = callee.getArgumentExpression();
+    const literal = argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument));
+    name = literal ? argument.getLiteralText() : null;
+  }
+  return name;
+}
+
+export const gate = defineGate({
+  id: "no-inline-invalidate-outside-seam",
+  family: "tanstack-query-origin",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "route invalidation through data/invalidation.ts (invalidate(event)/invalidateUser(event)), or pass `invalidates` filters to createEntityMutation.",
-  scanRoot: (p) => p.includes("packages/client/src/") && p !== SEAM_FILE,
-  kinds: [SyntaxKind.PropertyAccessExpression],
-  visit: (node, _sf, ctx) => {
-    if (!Node.isPropertyAccessExpression(node) || node.getName() !== "invalidateQueries") {
-      return;
-    }
-    // Only a genuine CALL (`x.invalidateQueries(...)`) — a bare `.invalidateQueries` reference isn't sprawl.
-    if (Node.isCallExpression(node.getParent())) {
-      ctx.report(node, { token: "invalidateQueries", offset: 0 });
-    }
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            const callee = node.getExpression();
+            if (calledMemberName(callee) !== METHOD) {
+              return;
+            }
+            const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE]);
+            if (verdict === "other") {
+              return;
+            }
+            candidates.push({
+              node: callee,
+              subject: ctx.relativePath(sourceFile),
+              operation: OPERATION,
+              unreadable: verdict === "unreadable",
+              token: METHOD,
+              offset: Math.max(callee.getText().lastIndexOf(METHOD), 0),
+            });
+          },
+        },
+      ],
+      evaluate: (): void => {
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
-      at: "packages/client/src/features/a/mutation.ts",
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/mutation.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function run(): void {\n  useQueryClient().invalidateQueries();\n}\n',
+      },
+      expect: { count: 1, token: METHOD },
       why: "a loose invalidateQueries call outside the seam — the neo 81-site sprawl reborn",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/data/invalidation.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function invalidate(): void {\n  useQueryClient().invalidateQueries();\n}\n',
+      },
+      expect: { count: 1 },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the ONE sanctioned call reds like any other and is licensed by an exact grant row keyed on the seam FILE, so the same call in a NEW data/ module is a finding",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/mutation.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function run(): void {\n  useQueryClient()["invalidateQueries"]();\n}\n',
+      },
+      expect: { count: 1 },
+      why: "the COMPUTED-LITERAL spelling of the same method, invisible to the legacy PropertyAccess-only check (#1506)",
     },
   ],
   mustPass: [
     {
-      files: "export function f(qc: { cancelQueries: (x?: unknown) => void }) {\n  qc.cancelQueries();\n}\n",
-      at: "packages/client/src/features/a/mutation2.ts",
-      why: ".cancelQueries (createEntityMutation's optimistic flow) is a different concern — not flagged",
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/mutation2.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport async function run(): Promise<void> {\n  await useQueryClient().cancelQueries();\n}\n',
+      },
+      why: "`cancelQueries` (createEntityMutation's optimistic flow) is a different concern this policy does not own — the sibling `client-cache-surgery-only-in-data` does",
     },
     {
-      files: "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
-      at: "packages/client/src/data/invalidation.ts",
-      why: "the ONE sanctioned invalidateQueries call — the seam file itself is scanRoot-excluded, passes",
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/local.ts":
+          "interface LocalBus {\n  invalidateQueries(): void;\n}\nexport function run(bus: LocalBus): void {\n  bus.invalidateQueries();\n}\n",
+      },
+      why: "SAME METHOD NAME, LOCAL TYPE: a project interface with an `invalidateQueries` method is not the query cache — the legacy name-only check red it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        ...vendorLookalikeProof(),
+        "packages/client/src/features/a/vendor.ts":
+          'import { useQueryClient } from "vendor-lookalike";\nexport function run(): void {\n  useQueryClient().invalidateQueries();\n}\n',
+      },
+      why: `SAME METHOD NAME, WRONG PACKAGE: the identical call on another library's client declared in ${LOOKALIKE_HOME} is not this seam's subject`,
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/reference.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport const handle = (): unknown => useQueryClient().invalidateQueries;\n',
+      },
+      why: "a bare METHOD REFERENCE is not a call and is not sprawl — the legacy gate required a CallExpression parent and this keeps that narrowing, with its row",
     },
   ],
-};
+});
