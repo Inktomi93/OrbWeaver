@@ -82,6 +82,20 @@ test("the brand's icon COLOUR carries the state, like every nav sibling — no a
   await expect.poll(async () => active.getByRole("button", { name: "Home" }).evaluate(readGlyphColor)).toBe(navActiveColor);
 });
 
+// ── THE RECORDED EXCEPTION'S OWN PROOF (#1790) ──────────────────────────────────────────────────────
+// The brand affordance is two DOM nodes (desktop `RailBrand`, mobile `RailButton`), CSS-toggled rather
+// than reflowed as one node like every other rail entry (see rail.tsx's header + the block comment at
+// its second render site). This is the pin that makes the exception safe: at NO width may both render.
+test("the Home affordance is exactly one button at desktop width and at phone width (#1790)", async ({ mount, page }) => {
+  const desktopRail = await mount(<RailStory />);
+  await expect(desktopRail.getByRole("button", { name: "Home" })).toHaveCount(1);
+  await desktopRail.unmount();
+
+  await page.setViewportSize({ width: 375, height: 800 });
+  const phoneRail = await mount(<RailStory />);
+  await expect(phoneRail.getByRole("button", { name: "Home" })).toHaveCount(1);
+});
+
 test("clicking the glyph fires setActiveSection('home') — assert the STORE, not a rendered echo", async ({ mount }) => {
   const rail = await mount(<RailBrandNavStory />);
   const probe = rail.locator("output");
