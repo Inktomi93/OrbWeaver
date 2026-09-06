@@ -417,21 +417,45 @@ function declaredUnionIdentity(declaration: VariableDeclaration): BusDeclaration
   return { path: path.value, exportName: exportName.value };
 }
 
-function identitiesByFile(state: OwnerState): ReadonlyMap<string, readonly BusDeclarationIdentity[]> {
-  const rows = new Map<string, BusDeclarationIdentity[]>();
+/** Every union identity const in the corpus, keyed by its DECLARATION node — the join below is on that
+ *  node, never on the file the const happens to live in. */
+function identityByDeclaration(state: OwnerState): ReadonlyMap<object, BusDeclarationIdentity> {
+  const rows = new Map<object, BusDeclarationIdentity>();
   for (const declaration of state.identities) {
     const identity = declaredUnionIdentity(declaration);
     if (identity !== undefined) {
-      const path = declaration.getSourceFile().getFilePath();
-      rows.set(path, [...(rows.get(path) ?? []), identity]);
+      rows.set(declaration.compilerNode, identity);
     }
   }
   return rows;
 }
 
+/** The union identities the DESCRIPTOR ITSELF reaches: every identifier inside the `defineGate` argument
+ *  whose binding is one of those consts. Reading the module instead credits a policy for a const it never
+ *  consumes — measured on this tree, where the warning-debt sibling's own `UNION` made it read as the
+ *  owner of `UserBusEvent`, so deleting the real coverage policy left the gate green.
+ *
+ *  The descendant read is BOUNDED to one already-selected node (the descriptor literal). It is navigation
+ *  of a delivered subject, not population discovery: no file is opened, no glob is resolved. */
+function descriptorUnions(descriptor: MorphNode, identities: ReadonlyMap<object, BusDeclarationIdentity>): readonly BusDeclarationIdentity[] {
+  const found = new Map<string, BusDeclarationIdentity>();
+  for (const identifier of descriptor.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
+      const identity = identities.get(declaration.compilerNode);
+      if (identity !== undefined) {
+        found.set(busIdentityKey(identity), identity);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
 interface DescriptorLabels {
   readonly id: string;
   readonly family: string;
+  readonly severity: string;
+  readonly workItem: number | null;
+  readonly descriptor: MorphNode;
 }
 
 function descriptorLabels(context: GateFactContext, call: CallExpression, unresolved: BusUnresolvedIdentity[]): DescriptorLabels | undefined {
@@ -442,25 +466,51 @@ function descriptorLabels(context: GateFactContext, call: CallExpression, unreso
   }
   const idNode = authoredProperty(context, descriptor, "id", unresolved);
   const familyNode = authoredProperty(context, descriptor, "family", unresolved);
+  const severityNode = authoredProperty(context, descriptor, "severity", unresolved);
   const id = idNode === undefined ? undefined : readStaticAuthoredScalar(idNode);
   const family = familyNode === undefined ? undefined : readStaticAuthoredScalar(familyNode);
-  if (id?.kind !== "resolved" || family?.kind !== "resolved" || typeof id.value !== "string" || typeof family.value !== "string") {
-    unresolved.push(busRefusal({ context, stage: "union", reason: "unsupported", detail: "defineGate descriptor has no static id/family", node: call }));
+  const severity = severityNode === undefined ? undefined : readStaticAuthoredScalar(severityNode);
+  if (
+    id?.kind !== "resolved" ||
+    family?.kind !== "resolved" ||
+    severity?.kind !== "resolved" ||
+    typeof id.value !== "string" ||
+    typeof family.value !== "string" ||
+    typeof severity.value !== "string"
+  ) {
+    unresolved.push(
+      busRefusal({ context, stage: "union", reason: "unsupported", detail: "defineGate descriptor has no static id/family/severity", node: call }),
+    );
     return;
   }
-  return { id: id.value, family: family.value };
+  const workItemNode = authoredProperty(context, descriptor, "workItem", []);
+  const workItem = workItemNode === undefined ? undefined : readStaticAuthoredScalar(workItemNode);
+  return {
+    id: id.value,
+    family: family.value,
+    severity: severity.value,
+    workItem: workItem?.kind === "resolved" && typeof workItem.value === "number" ? workItem.value : null,
+    descriptor,
+  };
 }
 
 function ownerRows(context: GateFactContext, state: OwnerState, unresolved: BusUnresolvedIdentity[]): BusCoverageOwner[] {
-  const rows = identitiesByFile(state);
+  const identities = identityByDeclaration(state);
   const owners: BusCoverageOwner[] = [];
   for (const call of state.descriptors) {
     const labels = descriptorLabels(context, call, unresolved);
     if (labels === undefined) {
       continue;
     }
-    for (const union of rows.get(call.getSourceFile().getFilePath()) ?? []) {
-      owners.push({ policyId: labels.id, family: labels.family, union, anchor: busAnchor(context, call) });
+    for (const union of descriptorUnions(labels.descriptor, identities)) {
+      owners.push({
+        policyId: labels.id,
+        family: labels.family,
+        severity: labels.severity,
+        workItem: labels.workItem,
+        union,
+        anchor: busAnchor(context, call),
+      });
     }
   }
   return owners;

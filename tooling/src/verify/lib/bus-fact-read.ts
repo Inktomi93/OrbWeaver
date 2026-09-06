@@ -10,6 +10,9 @@ import { resolveCallableOrigin } from "./reference-fact-call.ts";
 import { readStaticAuthoredScalar, readStaticAuthoredValue } from "./static-authored-value.ts";
 
 export const BUS_UNION_SUFFIX = "BusEvent";
+/** The one live-fan member name. A candidate FILTER only — every candidate is proven by the declaration
+ *  home of the property symbol (see {@link emitterSink}). */
+export const PUBLISH_MEMBER = "publish";
 export const NAMED_BUS_UNIONS = new Set(["DomainEvent"]);
 export const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 
@@ -362,7 +365,12 @@ export function emitterSink(context: GateFactContext, call: CallExpression): Emi
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
     const declarations = expression.getSymbol()?.getDeclarations() ?? [];
-    return declarations.length === 1 && Node.isParameterDeclaration(declarations[0]) ? "injected" : undefined;
+    if (declarations.length === 1 && Node.isParameterDeclaration(declarations[0])) {
+      return "injected";
+    }
+    // NOT a dead end: `const publish = bus.publish; publish(userId, event)` is the same door one binding
+    // later, and `resolveCallableMember` follows an immutable const alias to the member it holds. Stopping
+    // here would let a LOCAL NAME decide identity, which is the thing this family exists to refuse.
   }
   const member = resolveCallableMember(expression);
   if (member === undefined) {
@@ -372,7 +380,7 @@ export function emitterSink(context: GateFactContext, call: CallExpression): Emi
     const declarations = member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? [];
     return declarations.some((declaration) => Node.isPropertySignature(declaration)) ? "injected" : undefined;
   }
-  return member.name === "publish" && busChannelPublisher(context, member.receiver, member.name) ? "channel" : undefined;
+  return member.name === PUBLISH_MEMBER && busChannelPublisher(context, member.receiver, member.name) ? "channel" : undefined;
 }
 
 export function operationIdentity(context: GateFactContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
