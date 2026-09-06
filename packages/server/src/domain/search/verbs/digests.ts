@@ -14,7 +14,10 @@
 // by a newer .570 one. So the whole knob was removed rather than blessed with a production blend. Ranking here
 // is CSLS relevance and nothing else; recall tuning returns as a fresh, separately-ruled feature or not at all.
 
+import type { EmbedResult } from "@orb/contracts/providers";
 import { getLog } from "#foundation/observability";
+import type { ProviderRole } from "#infra/providers";
+import { ProviderError } from "#infra/providers";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DigestsParams } from "../contract/params.ts";
@@ -47,6 +50,39 @@ function keywordHit(keywords: readonly string[], terms: ReadonlySet<string>): bo
   return keywords.some((k) => terms.has(k.toLowerCase()));
 }
 
+/** The two side roles this verb spends, spelled from the provider vocabulary (a typo is a tsc error) — the
+ *  ROLE is what a failure here has to name, because it is the one thing the caller cannot infer. */
+const EMBED_ROLE: ProviderRole = "embed";
+const RERANK_ROLE: ProviderRole = "rerank";
+
+/** OWN the query embed's failure (#1603) — the catch that holds a side-role generation is the only place that
+ *  still knows WHICH role produced it.
+ *
+ *  Why it matters beyond a nicer message: a role client resolves its OWN credential per call, so this can be a
+ *  401 on a key the CHAT connection has never seen. Escaping bare, it reached the turn as an anonymous failure
+ *  — the engine's whole-body catch cannot say "your embed key was rejected" (and, since #1373 leg 3, correctly
+ *  refuses to strike the chat credential for it), so the user was told the turn failed and never which of
+ *  their keys to fix. The role name travels in the message, which is the surface a turn failure actually
+ *  reaches a human through.
+ *
+ *  RETHROWN, never degraded: there is no query vector, so there is no retrieval — returning `[]` would report
+ *  "nothing in this chat matches" for an outage, the exact silent lie the rerank arm below is careful not to
+ *  tell (it degrades only because it already HOLDS a usable vector result). `rewrap` carries every
+ *  classification + provenance field forward, so `kind`/`retryable`/`apiErrorStatus` still read true
+ *  downstream. A non-provider failure (a db fault, a bug of ours) is NOT ours to re-frame and passes through
+ *  untouched. */
+async function embedQuery(ctx: SearchContext, text: string): Promise<EmbedResult> {
+  try {
+    return await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
+  } catch (err) {
+    if (!(err instanceof ProviderError)) {
+      throw err;
+    }
+    getLog().warn({ ...err.toLog(), role: EMBED_ROLE }, "search: the embed role's provider call failed — digest recall cannot run without a query vector");
+    throw err.rewrap(`the ${EMBED_ROLE} role's provider rejected this call (${err.kind}) — memory recall could not embed the query: ${err.message}`);
+  }
+}
+
 /** mixC's local honest-degrade boundary. `applyRerank` itself stays strict for its other callers; only this
  * digest-recall path has a usable already-retrieved vector result to preserve. */
 async function rerankOrKeep<T extends { readonly id: string; readonly sourceText: string | null }>(env: {
@@ -68,7 +104,9 @@ async function rerankOrKeep<T extends { readonly id: string; readonly sourceText
     // `onRerankUnavailable()` carries no payload — it is a client-facing "you got mixB" bit — so without this
     // line an operator diagnosing a rerank outage had ZERO server-side signal: the fallback is honest to the
     // user and invisible to the person who has to fix it.
-    getLog().warn({ err: rerankErr }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
+    // #1603 — the ROLE rides the line too, for the same reason the embed arm above names it: two different
+    // side roles fail into this one verb, each with its own credential and its own provider.
+    getLog().warn({ err: rerankErr, role: RERANK_ROLE }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
     events?.onRerankUnavailable();
     return retrieved;
   }
@@ -84,7 +122,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
       throw new SearchError(SEARCH_EMPTY_QUERY, "digests requires a queryText to embed + scan");
     }
 
-    const embedded = await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
+    const embedded = await embedQuery(ctx, text);
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
