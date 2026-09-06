@@ -14,9 +14,16 @@
 // hardcoded accent goes unjudged; drop the slot half and the exemption becomes the rule's real target.
 //
 // THE RULING SURVIVES — ITS INPUT GAINED A CARRIER (#1823). #485 exempted the idiom while it had exactly
-// one carrier, the `ListRow`; #1725 left the config LIST with no marked location at all, and the fix gave
-// the config BAND the identical class pair through `@orb/ui`'s `SELECTION_RAIL` fragment. The exemption is
-// about the IDIOM, so its population follows the FRAGMENT's carriers rather than one primitive's slots.
+// one carrier, the `ListRow`; #1725 left the config LIST with no marked location at all — every
+// `[data-slot=config-band]` painted `rgba(0,0,0,0)` in every state, the `aria-current="true"` one included
+// (side-eye 2026-09-06, runs main-1922535 / main-1952313) — and the fix gave the config BAND the identical
+// class pair through `@orb/ui`'s `SELECTION_RAIL` fragment, on a `Button` that cannot inherit ListRow's
+// skin. The exemption is about the IDIOM, so its population follows the FRAGMENT's carriers rather than one
+// primitive's slots; the both-halves keying above is unchanged, which is what still keeps an unselected
+// band and any other rounded box with a left accent fully judged.
 // A new carrier of `SELECTION_RAIL` owes a clause here, or the audit reports an owner ruling as a tell.
+//
+// This module is the ONE home for that telling: `ops/walker/core.ts` and `contract/samples.ts` both sit
+// against the 450-line `tooling-size` cap, so they carry the ruling sentence and a pointer here.
 export const SELECTION_RAIL_SEL =
   "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected]";
