@@ -1,11 +1,15 @@
 // Browser-free validation of analyzer-owned problem rows. Thresholds are written by the analyzer that
 // owns them; this reader preserves and renders those facts without importing or re-running verdict code.
 import { readFile } from "node:fs/promises";
-import type { SnapAnalyzerProblem, SnapAnalyzerProducer } from "../contract/analyzer.ts";
-import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
+import type { SnapAnalyzerProblem, SnapAnalyzerProblemKind, SnapAnalyzerProducer } from "../contract/analyzer.ts";
+import { isSnapAnalyzerProducer, SNAP_ANALYZER_PROBLEM_KINDS, snapAnalyzerArm } from "../contract/analyzer.ts";
 import type { SnapRunArtifact } from "../contract/run-index.ts";
 
 type AnalyzerArm = SnapAnalyzerProblem["arm"];
+
+function isProblemKind(value: unknown): value is SnapAnalyzerProblemKind {
+  return SNAP_ANALYZER_PROBLEM_KINDS.some((candidate) => candidate === value);
+}
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null;
@@ -19,7 +23,7 @@ function problemRow(value: unknown, path: string, producer: SnapAnalyzerProducer
   const expectedArm: AnalyzerArm = snapAnalyzerArm(producer);
   if (
     arm !== expectedArm ||
-    !(kind === "threshold" || kind === "failure" || kind === "evidence-gap") ||
+    !isProblemKind(kind) ||
     typeof metric !== "string" ||
     typeof subject !== "string" ||
     typeof observed !== "string" ||

@@ -211,7 +211,10 @@ function inheritedCallFields(
     actions: [...bootArgs.actions, ...call.actions],
     eval: [...bootArgs.eval, ...call.eval],
     watchMs: call.watchMs === 0 ? bootArgs.watchMs : call.watchMs,
-    watchEveryMs: call.watchMs === 0 ? bootArgs.watchEveryMs : call.watchEveryMs,
+    // Each field inherits on ITS OWN zero-check (#1509). Branching the cadence on `watchMs` broke both
+    // asymmetric calls: one stating only `--watch-every` had its explicit cadence REPLACED by the boot
+    // value, and one stating only `--watch` dropped the boot cadence it should have inherited.
+    watchEveryMs: call.watchEveryMs === 0 ? bootArgs.watchEveryMs : call.watchEveryMs,
     fullPage: bootArgs.fullPage || call.fullPage,
     shot: bootArgs.shot && call.shot,
     shotOf: call.shotOf ?? bootArgs.shotOf,

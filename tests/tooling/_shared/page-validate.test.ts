@@ -13,8 +13,10 @@ import {
   pageArray,
   pageBoolean,
   pageBooleanFields,
+  pageCount,
   pageNumber,
   pageNumberFields,
+  pageNumberInRange,
   pageNumberMap,
   pageObject,
   pageString,
@@ -53,6 +55,41 @@ describe("the page→node primitives", () => {
   test("a counter map is checked TOTALLY, so a counter added later is covered without an edit", () => {
     expect(pageNumberMap({ a: 1, b: 2 }, "read")).toEqual({ a: 1, b: 2 });
     expect(() => pageNumberMap({ a: 1, addedLater: "3" }, "read")).toThrow(/counter "addedLater" returned string/u);
+  });
+});
+
+// #1509: `pageNumber` ruled out only NaN, so a negative count, a negative width and an opacity of 12 all
+// passed structural validation into `contrastFacts`/`deadCssCensus`, where they are printed as evidence
+// and compared against budgets. The two bounded doors below are what those call sites now use; the RANGES
+// live at the call sites because only the consumer knows what its own field can legally be.
+describe("the bounded number doors", () => {
+  test("a count is a NON-NEGATIVE WHOLE number — a negative population and a fractional one both refuse", () => {
+    expect(pageCount(0, 'the dead-css census field "sheets"')).toBe(0);
+    expect(pageCount(37, "read")).toBe(37);
+    expect(() => pageCount(-1, 'the dead-css census field "sheets"')).toThrow(/returned -1, not a non-negative whole count/u);
+    expect(() => pageCount(2.5, "read")).toThrow(/returned 2.5, not a non-negative whole count/u);
+    // The inherited floor still applies: a count is a number first.
+    expect(() => pageCount("7", "read")).toThrow(/returned string, not a finite number/u);
+    expect(() => pageCount(Number.NaN, "read")).toThrow(/not a finite number/u);
+  });
+
+  test("a range door refuses on both sides and states the range it wanted", () => {
+    expect(pageNumberInRange(0.5, "read", { min: 0, max: 1 })).toBe(0.5);
+    expect(pageNumberInRange(0, "read", { min: 0, max: 1 })).toBe(0);
+    expect(pageNumberInRange(1, "read", { min: 0, max: 1 })).toBe(1);
+    expect(() => pageNumberInRange(12, 'the contrast read field "foregroundOpacity"', { min: 0, max: 1 })).toThrow(
+      /returned 12, outside the expected range 0\.\.1/u,
+    );
+    expect(() => pageNumberInRange(-0.2, "read", { min: 0, max: 1 })).toThrow(/outside the expected range 0\.\.1/u);
+  });
+
+  test("an OPEN end is a real answer — a length has a floor and no ceiling", () => {
+    expect(pageNumberInRange(4096, "read", { min: 0 })).toBe(4096);
+    expect(() => pageNumberInRange(-3, 'the contrast read box "width"', { min: 0 })).toThrow(/outside the expected range 0\.\.any/u);
+  });
+
+  test("the UNBOUNDED door is unchanged — a negative viewport coordinate is an honest off-screen reading", () => {
+    expect(pageNumber(-320, 'the contrast read box "x"')).toBe(-320);
   });
 });
 

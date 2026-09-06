@@ -3,8 +3,8 @@
 export type { MutantPopulation, MutantReceipt, PlantableStatus, ProbeSummary, SuiteVerdict } from "./contract/types.ts";
 export { MUTANT_POPULATIONS, PLANTABLE_STATUSES, SUITE_VERDICTS } from "./contract/types.ts";
 export { mirrorCandidates, resolveMirrors } from "./lib/mirror.ts";
-export type { SourceLocation } from "./lib/offsets.ts";
-export { lineStarts, offsetOf } from "./lib/offsets.ts";
+export type { SourceLocation, SourceRange } from "./lib/offsets.ts";
+export { lineStarts, offsetOf, offsetRangeOf } from "./lib/offsets.ts";
 export { classifySuiteExit } from "./lib/outcome.ts";
 export type { ReportFile, ReportMutant } from "./lib/report.ts";
 export { mutantsOf, survivorsOf, totalMutants } from "./lib/report.ts";

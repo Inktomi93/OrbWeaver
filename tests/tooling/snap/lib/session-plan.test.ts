@@ -39,6 +39,7 @@ import {
   sessionOnlyFlagsRefusal,
   sessionStageDeadRefusal,
 } from "../../../../tooling/src/snap/lib/session-refusals.ts";
+import { watchIntervalMs } from "../../../../tooling/src/snap/ops/flags-support.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -218,6 +219,40 @@ test("the one partition carries scale/load truth and outer call work into each s
   expect(merged.watchMs).toBe(2000);
   expect(merged.watchEveryMs).toBe(250);
   expect(sessionOnlyFlagsIn(["--no-failure-evidence", "--eval", "1"])).toEqual(["--no-failure-evidence"]);
+});
+
+// #1509 item 8, and what it actually is: `watchEveryMs` inherited on `watchMs`'s zero-check, naming a
+// different field than the value it decided. The two asymmetric shapes that made that WRONG are both
+// unreachable through the CLI today — `--every` without `--watch` is a parse refusal (ops/parse.ts
+// `--every requires --watch`) and a scenario checkpoint refuses `--watch` outright — so the old branch
+// was constant, not incorrect. The fix is the SENTINEL that makes the honest question askable:
+// `watchEveryMs` now parses to 0 for "the argv stated no cadence" (`ops/flags-support.ts` resolves it),
+// so each field inherits on its own zero-check and `--every 1000` stops being indistinguishable from
+// silence. These rows pin the pure function on all three shapes, including the two the CLI currently
+// refuses — a later relaxation of that refusal must not silently reintroduce the coupling.
+test("watch window and watch cadence each inherit on their OWN zero-check", () => {
+  const boot = parseSnapArgs(["--watch", "2000", "--every", "250"]);
+
+  // Cadence stated, window not: the call's explicit 100ms survives rather than being replaced by 250.
+  const cadenceOnly = inheritSessionArgs(boot, parseSnapArgs(["--every", "100"]), "x", true);
+  expect([cadenceOnly.watchMs, cadenceOnly.watchEveryMs]).toEqual([2000, 100]);
+
+  // Window stated, cadence not: the boot cadence is inherited rather than reset to the global default.
+  const windowOnly = inheritSessionArgs(boot, parseSnapArgs(["--watch", "500"]), "x", true);
+  expect([windowOnly.watchMs, windowOnly.watchEveryMs]).toEqual([500, 250]);
+
+  // Both stated: neither is touched.
+  const both = inheritSessionArgs(boot, parseSnapArgs(["--watch", "500", "--every", "100"]), "x", true);
+  expect([both.watchMs, both.watchEveryMs]).toEqual([500, 100]);
+});
+
+// The sentinel is only safe because a STATED cadence can never be 0 and an unstated one always is.
+test("the unstated-cadence sentinel: 0 from the parser, never 0 from --every", () => {
+  expect(parseSnapArgs(["/x"]).watchEveryMs).toBe(0);
+  expect(parseSnapArgs(["/x", "--watch", "500", "--every", "0"]).watchEveryMs).toBe(1000);
+  expect(parseSnapArgs(["/x", "--watch", "500", "--every", "1"]).watchEveryMs).toBe(1);
+  expect(watchIntervalMs({ watchEveryMs: 0 })).toBe(1000);
+  expect(watchIntervalMs({ watchEveryMs: 250 })).toBe(250);
 });
 
 test("the checkpoint refusal rows judge the modes on the inherited args and the shims on the raw parse", () => {

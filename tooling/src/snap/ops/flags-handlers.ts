@@ -212,6 +212,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.watchMs = Math.max(0, Number(rest.shift() ?? "0") || 0);
   },
   "--every": (a, rest) => {
+    // Floored at 1 so a STATED cadence can never collide with the unstated-0 sentinel.
     a.watchEveryMs = Math.max(1, Number(rest.shift() ?? "0") || MS_PER_SECOND);
   },
   "--dark": (a) => {
