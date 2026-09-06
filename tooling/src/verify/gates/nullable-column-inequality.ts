@@ -1,43 +1,28 @@
-// Gate: nullable-column-inequality (Core-Enforcement-Active-Gates.md) — `ne(T.col, …)` / `notInArray(T.col, …)`
-// on a column that is NULLABLE in packages/db/src/schema/**. SQL three-valued logic makes `NULL <> x` NULL, so
-// every NULL row silently VANISHES from the result; widening a NOT NULL FK to nullable turns every such
-// predicate into a silent row-dropper with no typecheck, no test and no other gate seeing it (the D124 class).
-// Nullability is DERIVED from the schema sources. LIMITS: no `not(eq())`; a `.primaryKey()` column counts NOT NULL.
-
-import { compositePrimaryKeyColumns, isSchemaFile, schemaTables } from "@orb/tooling/_shared/schema-read";
-import type { Node, SourceFile } from "ts-morph";
-import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { repoRel } from "../lib/pass.ts";
+// D124: `ne(T.col, …)` / `notInArray(T.col, …)` on a column the Drizzle schema declares NULLABLE, with
+// nothing deciding the NULLs. SQL is three-valued — `NULL <> 'x'` is NULL, not TRUE — so every unset row
+// silently VANISHES, and widening a NOT NULL column to nullable converts every such predicate into a silent
+// row-dropper with no typecheck and no test failure. Nullability comes from the shared Drizzle fact, and the
+// drizzle callee identity from the shared module-origin reader, so a local same-named `ne` is not SQL and an
+// aliased/namespaced import still is. DECLARED LIMITS live in the mustPass rows.
+import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const DRIZZLE_MODULE = "drizzle-orm";
-// The two predicates whose SQL form is an INEQUALITY over a column — the shapes NULL silently defeats.
-// (`not(eq(...))` is the same defect one wrapper out; it appears nowhere on the tree and is a DECLARED LIMIT.)
-const INEQUALITY_FNS: ReadonlySet<string> = new Set<string>(["ne", "notInArray"]);
-// `notInArray(col, values)` — only argument 0 is a column operand; `ne(a, b)` can carry one on EITHER side
-// (`ne(messageVariants.id, messages.selectedVariantId)` — the RHS column is the nullable one there).
+/** The two predicates whose SQL form is an INEQUALITY over a column — the shapes NULL silently defeats.
+ *  `not(eq(...))` is the same defect one wrapper out; it appears nowhere on the tree and is a DECLARED
+ *  LIMIT with its own mustPass row. */
 const COLUMN_ARG_COUNT: Readonly<Record<string, number>> = { ne: 2, notInArray: 1 };
-// The explicit null-guards that make the predicate total: `or(isNull(T.c), ne(T.c, x))` (keep the NULLs) or
-// `and(isNotNull(T.c), ne(T.c, x))` (drop them ON PURPOSE). Either one, anywhere in the same statement.
-const NULL_GUARD_FNS: ReadonlySet<string> = new Set<string>(["isNull", "isNotNull"]);
-
-// The marker vocabulary, for a site where the NULLs are provably unreachable by a fact the AST cannot see (a
-// join that already excludes them, a post-commit non-null invariant). POSITION-NAMED — `@nullable-cmp-ok(T.col):`
-// — because one function can carry several guarded comparisons and a bare marker would rubber-stamp all of them.
-const MARKER_RE = /@nullable-cmp-ok(?:\((?<name>[^)\n]*)\))?(?<colon>:)?(?<reason>[^\n]*)/u;
-const MARKER = "@nullable-cmp-ok";
-const GATE_SELF = "tooling/src/verify/gates/nullable-column-inequality.ts";
-const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
-const LINE_COMMENT_RE = /^\s*(?:\/\/|\*|\/\*)/u;
-
-/** Where the marker vocabulary is DOCUMENTED rather than USED. A tool issues no drizzle predicate, so every
- *  `@nullable-cmp-ok` under `tooling/src/` is prose about the grammar — this gate's own message strings and
- *  conformance examples most of all, which is why a mention there must never be swept as a live marker.
- *  (Pre-`@orb/tooling` the same fence read `scripts/`, the corpus's old home; the move re-pointed it, and the
- *  mustPass row below is the written proof it still holds.) */
-function isVocabularyHome(rel: string): boolean {
-  return rel.startsWith("tooling/src/");
-}
+/** The explicit null-guards that make the predicate total: `or(isNull(c), ne(c, x))` keeps the NULLs,
+ *  `and(isNotNull(c), ne(c, x))` drops them ON PURPOSE. */
+const NULL_GUARD_FNS = new Set(["isNull", "isNotNull"]);
+/** The drizzle boolean COMBINATORS. A guard only guards through one of these: it has to participate in the
+ *  same controlling boolean expression as the inequality, not merely sit near it. */
+const COMBINATOR_FNS = new Set(["and", "or"]);
 
 const MESSAGE =
   "an inequality predicate (`ne` / `notInArray`) is applied to a column that is NULLABLE in " +
@@ -45,419 +30,486 @@ const MESSAGE =
   "NULL, not TRUE, so every row whose column is NULL is silently DROPPED from the result — the predicate " +
   "reads as 'everything except x' and behaves as 'everything except x, and also nothing that is unset'. " +
   "Widening a NOT NULL column to nullable converts every such predicate into a silent row-dropper with no " +
-  "typecheck and no test failure (Tier-1-DB.md).";
+  "typecheck and no test failure (Tier-1-DB.md, D124).";
 
 const FIX =
   "decide what the NULL rows mean and SAY it in the predicate: `or(isNull(T.col), ne(T.col, x))` keeps them " +
   "(the usual intent — 'not x' includes 'unset'), `and(isNotNull(T.col), ne(T.col, x))` drops them " +
   "deliberately. If a fact outside this statement already excludes them (an inner join on that same column, " +
-  "a post-commit non-null invariant), mark the site `// @nullable-cmp-ok(Table.column): <why, and what would " +
-  "end it>` in the enclosing function or its leading comment block — the reason after the colon is REQUIRED " +
-  "(tooling/src/verify/gates/GATE-AUTHORING.md §4).";
+  "a post-commit non-null invariant), attach `@orb-waive nullable-column-inequality(<the reported token>): " +
+  "<why the NULLs cannot reach here, and what would end it>` to that exact occurrence.";
 
-// ── the schema-derived nullability map ────────────────────────────────────────────────────────────────
-/** `tableVariableName` → the set of columns that may be NULL. Derived from the drizzle sources every run —
- *  no hand-kept list, so widening a column to nullable arms the gate on the next run by itself. */
-function nullableColumnMap(ctx: GateRunCtx): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const sf of ctx.project.getSourceFiles()) {
-    if (!isSchemaFile(repoRel(ctx.root, sf.getFilePath()))) {
+/** The legacy `scanRoot` was `p.startsWith("packages/") || p.startsWith("tests/")`, and its separate marker
+ *  sweep fenced `tooling/src/` out as the vocabulary home. Both become POPULATION: the central waiver engine
+ *  derives its marker universe from the effective population, so a tool file MENTIONING the grammar is
+ *  outside the policy entirely and needs no gate-owned fence.
+ *
+ *  RECORDED DELTA, measured on the frozen 7,138-path candidate set: legacy admitted 6,113 paths, this
+ *  expression admits 6,112. The single dropped path is `packages/showcase-plugins/src/index.ts` — the
+ *  `@packages` set names the six cake packages and showcase-plugins is not one of them. It admits nothing:
+ *  that package is ONE file with ZERO `drizzle-orm` references (rg, with a packages/server positive
+ *  control), and guest showcase code has no db reach through the plugin membrane to acquire one. */
+const NULLABLE_INEQUALITY_POPULATION = { in: ["@packages", "@tests"], ext: ["ts", "tsx"] } as const;
+
+interface Operand {
+  /** The `T.col` argument node — the report anchor and the waiver position token. */
+  readonly node: MorphNode;
+  /** Every drizzle `and`/`or` call between this predicate and its enclosing statement, innermost first.
+   *  A guard counts only when it hangs off ONE OF THESE — see {@link combinatorChain}. */
+  readonly combinators: readonly object[];
+}
+
+interface Guard {
+  /** The guarded column argument. */
+  readonly node: MorphNode;
+  readonly combinators: readonly object[];
+}
+
+/** The four drizzle exports this policy reads, by their CANONICAL names. */
+const RECOGNIZED = new Set([...Object.keys(COLUMN_ARG_COUNT), ...NULL_GUARD_FNS]);
+
+/** The local callee SPELLINGS in one file that could be one of {@link RECOGNIZED} — the canonical names,
+ *  every local alias a direct `drizzle-orm*` import binds to them, and the `<ns>.<name>` form of every
+ *  namespace import of that module.
+ *
+ *  WHY A PREFILTER AT ALL (the id-brand lane's measured lesson, id-brand-family-1584.md): resolving a
+ *  canonical module origin on EVERY CallExpression in a 6,112-file population does not finish in ten
+ *  minutes. The index is built once per source, from that source's OWN import declarations, and only a
+ *  spelling it contains pays for the full origin resolution — which still runs, so a SHADOWED local of a
+ *  candidate name is refused exactly as before.
+ *
+ *  DECLARED LIMIT: a local barrel that RE-EXPORTS `ne` under a DIFFERENT name is not in the index. The
+ *  legacy reader (`importedFromDrizzle`, direct drizzle imports only) missed that case too, so this is not
+ *  a regression; the canonical names cover a name-preserving re-export. */
+function calleeSpellings(sourceFile: SourceFile): ReadonlySet<string> {
+  const spellings = new Set(RECOGNIZED);
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    if (!declaration.getModuleSpecifierValue().startsWith(DRIZZLE_MODULE)) {
       continue;
     }
-    for (const table of schemaTables(sf)) {
-      const composite = new Set<string>(
-        (table.extra?.getDescendantsOfKind(SyntaxKind.CallExpression) ?? [])
-          .filter((call) => call.getExpression().getText() === "primaryKey")
-          .flatMap((call) => compositePrimaryKeyColumns(call)),
-      );
-      const nullable = new Set<string>(
-        table.columns
-          // `.primaryKey()` counts NOT NULL: SQLite's legacy quirk allows NULL in a non-INTEGER PK, but every
-          // PK on this tree is an app-minted TypeID written on insert — a mustPass row records the limit.
-          .filter((c) => !(c.text.includes(".notNull(") || c.text.includes(".primaryKey(") || composite.has(c.name)))
-          .map((c) => c.name),
-      );
-      map.set(table.variableName, nullable);
+    for (const named of declaration.getNamedImports()) {
+      if (RECOGNIZED.has(named.getName())) {
+        spellings.add((named.getAliasNode() ?? named.getNameNode()).getText());
+      }
+    }
+    const namespace = declaration.getNamespaceImport();
+    if (namespace !== undefined) {
+      for (const name of RECOGNIZED) {
+        spellings.add(`${namespace.getText()}.${name}`);
+      }
     }
   }
-  return map;
+  return spellings;
 }
 
-// ── candidate collection (the shared walk) ────────────────────────────────────────────────────────────
-interface Candidate {
-  readonly node: Node;
-  readonly table: string;
-  readonly column: string;
-  /** The enclosing function (or top-level statement) the marker window is derived from. */
-  readonly window: Node;
-}
-
-const candidates: Candidate[] = [];
-
-/** Is `name` imported into this file from `drizzle-orm`? The gate keys on the NAMES `ne`/`notInArray`, so
- *  this is the §4.6 blindness tripwire in reverse: a same-named LOCAL helper must never be judged as SQL. */
-function importedFromDrizzle(sf: SourceFile, name: string): boolean {
-  for (const decl of sf.getImportDeclarations()) {
-    if (!decl.getModuleSpecifierValue().startsWith(DRIZZLE_MODULE)) {
+/** THE OVERLOAD DOOR — `drizzle-orm`'s comparison operators are OVERLOADED (`notInArray` has THREE
+ *  declarations, measured on this tree), and the shared origin reader correctly refuses an ambiguous
+ *  multi-declaration symbol. `schema-fact-value.ts` already solved the same problem for the sqlite-core
+ *  builders: when the refusal reason is `ambiguous`, read the binding the trace already walked — an import
+ *  or export specifier whose own module specifier is drizzle's — which is evidence about the BINDING, not
+ *  about the name. Without this the live `notInArray(characters.avatarAssetId, …)` site produced ZERO
+ *  findings and its waiver read as stale (measured 2026-09-05, before the fallback landed). */
+function overloadedDrizzleDoor(declarations: readonly MorphNode[]): string | null {
+  for (const declaration of declarations) {
+    if (!(Node.isImportSpecifier(declaration) || Node.isExportSpecifier(declaration))) {
       continue;
     }
-    if (decl.getNamedImports().some((n) => (n.getAliasNode() ?? n.getNameNode()).getText() === name)) {
-      return true;
+    const specifier =
+      declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue() ??
+      declaration.getFirstAncestorByKind(SyntaxKind.ExportDeclaration)?.getModuleSpecifierValue();
+    if (specifier?.startsWith(DRIZZLE_MODULE) === true) {
+      return declaration.getName();
     }
   }
-  return false;
+  return null;
 }
 
-/** `T.col` → its parts, when the operand is a plain two-part property access on an identifier. */
-function columnRef(arg: Node | undefined): { readonly table: string; readonly column: string } | undefined {
-  if (arg === undefined || !TsNode.isPropertyAccessExpression(arg)) {
-    return;
+/** The exported drizzle name this call resolves to, or null. Spelling-independent: a named import, an
+ *  alias, a namespace member and a re-export all resolve to the same origin, and a same-named LOCAL
+ *  helper resolves to none of them. */
+function drizzleCallee(call: CallExpression): string | null {
+  const origin = resolveModuleMemberOrigin(call.getExpression());
+  if (origin.kind !== "resolved") {
+    return origin.reason === "ambiguous" ? overloadedDrizzleDoor(origin.trace.declarations) : null;
   }
-  const receiver = arg.getExpression();
-  return TsNode.isIdentifier(receiver) ? { table: receiver.getText(), column: arg.getName() } : undefined;
+  const canonical = origin.value.canonical;
+  const moduleSpecifier = canonical.kind === "external-door" ? canonical.moduleSpecifier : origin.value.moduleSpecifier;
+  return moduleSpecifier.startsWith(DRIZZLE_MODULE) ? canonical.exportedName : null;
 }
 
-/** The enclosing STATEMENT — the scope a null-guard must share with the predicate to count. */
-function enclosingStatement(node: Node): Node {
-  let cur = node;
-  let parent = cur.getParent();
-  while (parent !== undefined && !(TsNode.isBlock(parent) || TsNode.isSourceFile(parent) || TsNode.isModuleBlock(parent))) {
-    cur = parent;
-    parent = cur.getParent();
+/** The enclosing STATEMENT — the upper BOUND of the ancestor walk below. Walked upward through parents,
+ *  never a descendant sweep. */
+function enclosingStatement(node: MorphNode): object {
+  let current = node;
+  let parent = current.getParent();
+  while (parent !== undefined && !(Node.isBlock(parent) || Node.isSourceFile(parent) || Node.isModuleBlock(parent))) {
+    current = parent;
+    parent = current.getParent();
   }
-  return cur;
+  return current.compilerNode;
 }
 
-/** The marker WINDOW for a call: the enclosing function, else the enclosing top-level statement. A marker
- *  binds to this block (or its leading `//` comment block) — never to the whole file. */
-function markerWindow(node: Node): Node {
-  return (
-    node.getFirstAncestor(
-      (a) => TsNode.isFunctionDeclaration(a) || TsNode.isMethodDeclaration(a) || TsNode.isArrowFunction(a) || TsNode.isFunctionExpression(a),
-    ) ?? enclosingStatement(node)
+/** The drizzle `and`/`or` calls this node hangs off, innermost first, bounded by its enclosing statement.
+ *
+ *  CO-LOCATION IS NOT GUARDING (superseding the legacy "anywhere in the same statement" rule, #1584 review
+ *  2026-09-06). `choose(isNull(c), ne(c, "x"))` puts a guard and a predicate in one statement and in one
+ *  argument list, and the NULL rows still vanish — `choose` is not a boolean combinator, so the guard never
+ *  reaches the predicate's truth value. Sharing a drizzle `and`/`or` ANCESTOR is the exact relation that
+ *  makes `or(isNull(c), ne(c, x))` total, and it composes: nesting inside further and/or still shares one.
+ *  The callee is resolved through the shared origin reader (memoized per call), never matched by name. */
+function combinatorChain(call: CallExpression, statement: object, resolved: Map<object, string | null>): readonly object[] {
+  const chain: object[] = [];
+  let node = call.getParent();
+  while (node !== undefined && node.compilerNode !== statement) {
+    if (Node.isCallExpression(node)) {
+      const identity: object = node.compilerNode;
+      if (!resolved.has(identity)) {
+        resolved.set(identity, drizzleCallee(node));
+      }
+      const name = resolved.get(identity) ?? null;
+      if (name !== null && COMBINATOR_FNS.has(name)) {
+        chain.push(identity);
+      }
+    }
+    node = node.getParent();
+  }
+  return chain;
+}
+
+/** Column keys the schema declares NULLABLE: no `.notNull()`, not a `.primaryKey()`, and not a term of a
+ *  composite primary key. A `.primaryKey()` column counts NOT NULL — SQLite's legacy quirk allows NULL in a
+ *  non-INTEGER PK, but every PK here is an app-minted TypeID written on insert (a mustPass records it). */
+function nullableColumnKeys(schema: SchemaModel): ReadonlySet<string> {
+  const composite = new Set(
+    schema.tables.flatMap((table) =>
+      table.indexes.filter((index) => index.kind === "primary-key").flatMap((index) => index.columns.map((column) => column.key)),
+    ),
+  );
+  return new Set(
+    schema.tables.flatMap((table) =>
+      table.columns.filter((column) => !(column.notNull || column.primaryKey || composite.has(column.identity.key))).map((column) => column.identity.key),
+    ),
   );
 }
 
-/** Is `T.col`'s nullness explicitly decided anywhere in the same statement (`isNull`/`isNotNull`)? */
-function nullGuarded(node: Node, ref: { readonly table: string; readonly column: string }): boolean {
-  const wanted = `${ref.table}.${ref.column}`;
-  return enclosingStatement(node)
-    .getDescendantsOfKind(SyntaxKind.CallExpression)
-    .some((call) => NULL_GUARD_FNS.has(call.getExpression().getText()) && columnRefText(call.getArguments()[0]) === wanted);
-}
-
-function columnRefText(arg: Node | undefined): string | undefined {
-  const ref = columnRef(arg);
-  return ref === undefined ? undefined : `${ref.table}.${ref.column}`;
-}
-
-function collect(node: Node, sf: SourceFile): void {
-  if (!TsNode.isCallExpression(node)) {
-    return;
-  }
-  const callee = node.getExpression().getText();
-  if (!(INEQUALITY_FNS.has(callee) && importedFromDrizzle(sf, callee))) {
-    return;
-  }
-  const args = node.getArguments();
-  for (const arg of args.slice(0, COLUMN_ARG_COUNT[callee] ?? 1)) {
-    const ref = columnRef(arg);
-    if (ref !== undefined && !nullGuarded(node, ref)) {
-      candidates.push({ node: arg, table: ref.table, column: ref.column, window: markerWindow(node) });
-    }
-  }
-}
-
-// ── the marker reader (two-sided, position-named) ─────────────────────────────────────────────────────
-interface Marker {
-  readonly line: number;
-  /** The `(Table.column)` / `(column)` position name, or undefined for a bare marker. */
-  readonly name: string | undefined;
-  readonly wellFormed: boolean;
-}
-
-/** Every `@nullable-cmp-ok` marker in a file, with its 1-based line and its position name. */
-function markersIn(sf: SourceFile): Marker[] {
-  const out: Marker[] = [];
-  sf.getFullText()
-    .split("\n")
-    .forEach((text, index) => {
-      const m = MARKER_RE.exec(text);
-      if (m === null) {
-        return;
-      }
-      const name = m.groups?.["name"]?.trim();
-      const reason = m.groups?.["reason"]?.trim() ?? "";
-      out.push({
-        line: index + 1,
-        name: name === undefined || name.length === 0 ? undefined : name,
-        wellFormed: m.groups?.["colon"] === ":" && reason.length > 0,
-      });
-    });
-  return out;
-}
-
-/** The window's line span, extended UPWARD across the contiguous `//` comment block above it — where the
- *  reason for a marked site is naturally written. */
-function windowSpan(window: Node): { readonly start: number; readonly end: number } {
-  const sf = window.getSourceFile();
-  const lines = sf.getFullText().split("\n");
-  const end = sf.getLineAndColumnAtPos(window.getEnd()).line;
-  let start = sf.getLineAndColumnAtPos(window.getStart()).line;
-  while (start > 1 && LINE_COMMENT_RE.test(lines[start - 2] ?? "")) {
-    start -= 1;
-  }
-  return { start, end };
-}
-
-/** Does a position name identify this candidate? `Table.column` or the bare `column`. */
-function nameMatches(name: string, c: Candidate): boolean {
-  return name === `${c.table}.${c.column}` || name === c.column;
-}
-
-const STALE_MARKER = (name: string | undefined): string =>
-  `a \`${MARKER}${name === undefined ? "" : `(${name})`}\` marker guards NO live nullable-column inequality in ` +
-  "its block — the site was fixed, moved or renamed and the marker outlived it. A stale marker is a loaded " +
-  "gun: the next `ne()` written in this block inherits an exemption nobody granted it. Delete it " +
-  `(${GATE_SELF}; tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
-
-const MALFORMED_MARKER =
-  `a \`${MARKER}\` marker carries no reason. The grammar is \`${MARKER}(Table.column): <why the NULLs cannot ` +
-  "reach here, and what would end the exemption>` — the text after the colon is REQUIRED and a bare marker " +
-  `exempts NOTHING (${GATE_SELF}; tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
-
-const AMBIGUOUS_MARKER = (names: readonly string[]): string =>
-  `a bare \`${MARKER}\` marker sits in a block carrying ${names.length} nullable-column inequalities ` +
-  `(${names.join(", ")}) — it cannot say which one it forgives, so it rubber-stamps all of them. POSITION-NAME ` +
-  `it: \`${MARKER}(${names[0] ?? "Table.column"}): <why>\`, one marker per site ` +
-  `(${GATE_SELF}; tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
-
-/** The per-file judging state: what one well-formed marker resolved to. */
-interface MarkerVerdict {
-  /** Candidates this marker forgives (empty ⇒ the marker is STALE). */
-  readonly exempt: readonly Candidate[];
-  /** Set when the marker is bare AND its block carries several sites — it cannot say which it forgives. */
-  readonly ambiguous: readonly string[] | undefined;
-}
-
-function resolveMarker(marker: Marker, inFile: readonly Candidate[]): MarkerVerdict {
-  const inWindow = inFile.filter((c) => {
-    const span = windowSpan(c.window);
-    return marker.line >= span.start && marker.line <= span.end;
-  });
-  if (marker.name === undefined) {
-    return inWindow.length > 1 ? { exempt: inWindow, ambiguous: inWindow.map((c) => `${c.table}.${c.column}`) } : { exempt: inWindow, ambiguous: undefined };
-  }
-  const name = marker.name;
-  return { exempt: inWindow.filter((c) => nameMatches(name, c)), ambiguous: undefined };
-}
-
-/** Judge ONE file's candidates against its markers. Everything is reported through ctx. */
-function judgeFile(sf: SourceFile, inFile: readonly Candidate[], ctx: GateRunCtx): void {
-  const file = repoRel(ctx.root, sf.getFilePath());
-  const exempt = new Set<Candidate>();
-  for (const marker of markersIn(sf)) {
-    if (!marker.wellFormed) {
-      ctx.report({ file, line: marker.line, column: 0, message: MALFORMED_MARKER });
+/** Guards keyed (drizzle combinator call → the column keys guarded beneath it). A guard on a SIBLING
+ *  column cannot absolve this column, and a guard that reaches no shared combinator absolves nothing at
+ *  all. Built fresh per invocation from `create`-local state; no module binding survives the pass. */
+function guardedColumnsByCombinator(
+  fact: { readonly column: (node: MorphNode) => { readonly kind: string; readonly value?: SchemaColumn } },
+  guards: readonly Guard[],
+): ReadonlyMap<object, ReadonlySet<string>> {
+  const guarded = new Map<object, Set<string>>();
+  for (const guard of guards) {
+    const column = fact.column(guard.node);
+    if (column.kind !== "resolved" || column.value === undefined) {
       continue;
     }
-    const verdict = resolveMarker(marker, inFile);
-    for (const c of verdict.exempt) {
-      exempt.add(c);
-    }
-    if (verdict.ambiguous !== undefined) {
-      ctx.report({ file, line: marker.line, column: 0, message: AMBIGUOUS_MARKER(verdict.ambiguous) });
-    } else if (verdict.exempt.length === 0) {
-      ctx.report({ file, line: marker.line, column: 0, message: STALE_MARKER(marker.name) });
+    for (const combinator of guard.combinators) {
+      const keys = guarded.get(combinator) ?? new Set<string>();
+      keys.add(column.value.identity.key);
+      guarded.set(combinator, keys);
     }
   }
-  for (const c of inFile) {
-    if (!exempt.has(c)) {
-      ctx.report(c.node);
-    }
-  }
+  return guarded;
 }
 
-export const gate: GateDescriptor = {
-  name: "nullable-column-inequality",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "whole-project", // the verdict needs the db schema sources, never just the queried file
+export const gate = defineGate({
+  id: "nullable-column-inequality",
+  family: "drizzle-schema",
+  authority: "ordinary",
+  severity: "error",
+  population: NULLABLE_INEQUALITY_POPULATION,
+  analysis: "types",
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.startsWith("packages/") || p.startsWith("tests/"),
-  kinds: [SyntaxKind.CallExpression],
-  begin: () => {
-    candidates.length = 0;
-  },
-  visit: collect,
-  finalize: (ctx) => {
-    const nullable = nullableColumnMap(ctx);
-    const live = candidates.filter((c) => nullable.get(c.table)?.has(c.column) === true);
-    const byFile = new Map<SourceFile, Candidate[]>();
-    for (const c of live) {
-      const sf = c.node.getSourceFile();
-      byFile.set(sf, [...(byFile.get(sf) ?? []), c]);
-    }
-    // A file carrying ONLY markers (every site fixed) still owes its stale arm — union both key sets.
-    const markerFiles = ctx.project
-      .getSourceFiles()
-      .filter((sf) => sf.getFullText().includes(MARKER) && !isVocabularyHome(repoRel(ctx.root, sf.getFilePath())));
-    for (const sf of new Set<SourceFile>([...byFile.keys(), ...markerFiles])) {
-      judgeFile(sf, byFile.get(sf) ?? [], ctx);
-    }
-    // §4.6 blindness tripwire: this gate is keyed on the drizzle schema HOME. If that home stops resolving
-    // (a rename/move), the nullability map is empty and the gate reports ✓ forever.
-    if (ctx.project.getSourceFile(`${ctx.root}/${REAL_TREE_ANCHOR}`) !== undefined && nullable.size === 0) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `the drizzle schema barrel ${REAL_TREE_ANCHOR} resolves but yielded ZERO tables — the reader in tooling/src/_shared/schema-read.ts no longer matches the schema shape, so this gate is a silent no-op. Repoint it.`,
-      });
-    }
+  create: (ctx) => {
+    const operands: Operand[] = [];
+    const guards: Guard[] = [];
+    /** Ancestor callee identities resolved once per invocation — an `and(...)` wrapping ten predicates is
+     *  otherwise re-resolved ten times. */
+    const resolvedCallees = new Map<object, string | null>();
+    let spellings: ReadonlySet<string> = RECOGNIZED;
+    return {
+      visitFile: (sourceFile) => {
+        spellings = calleeSpellings(sourceFile);
+      },
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            if (!(Node.isCallExpression(node) && spellings.has(node.getExpression().getText()))) {
+              return;
+            }
+            const callee = drizzleCallee(node);
+            if (callee === null) {
+              return;
+            }
+            if (NULL_GUARD_FNS.has(callee)) {
+              const argument = node.getArguments()[0];
+              if (argument !== undefined) {
+                guards.push({ node: argument, combinators: combinatorChain(node, enclosingStatement(node), resolvedCallees) });
+              }
+              return;
+            }
+            const columnArgs = COLUMN_ARG_COUNT[callee];
+            if (columnArgs === undefined) {
+              return;
+            }
+            const combinators = combinatorChain(node, enclosingStatement(node), resolvedCallees);
+            for (const argument of node.getArguments().slice(0, columnArgs)) {
+              operands.push({ node: argument, combinators });
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const fact = ctx.fact(drizzleSchemaFact);
+        const schema = fact.schema();
+        recordReadySchemaFact(ctx, schema);
+        const nullable = nullableColumnKeys(schema.value);
+        const guarded = guardedColumnsByCombinator(fact, guards);
+        for (const operand of operands) {
+          const column = fact.column(operand.node);
+          // A table this run's schema fact does not carry is UNKNOWN, not nullable — the reader fails QUIET
+          // rather than flagging every alias or subquery it cannot resolve (a DECLARED LIMIT with its row).
+          if (column.kind !== "resolved" || !nullable.has(column.value.identity.key)) {
+            continue;
+          }
+          const key = column.value.identity.key;
+          if (operand.combinators.some((combinator) => guarded.get(combinator)?.has(key) === true)) {
+            continue;
+          }
+          ctx.report.node(operand.node, { token: operand.node.getText(), offset: 0 });
+        }
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport const p = ne(characters.avatarAssetId, "a");\n',
+          'import { ne } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = ne(characters.avatarAssetId, "a");\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: "characters.avatarAssetId" },
       why: "the founding shape (D124) — `ne()` on a column with no `.notNull()`: every row whose avatar is unset silently vanishes from a predicate that reads as 'any avatar but this one'",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { notInArray } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport const p = notInArray(characters.avatarAssetId, ["a", "b"]);\n',
+          'import { notInArray } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = notInArray(characters.avatarAssetId, ["a", "b"]);\n',
       },
       expect: { count: 1 },
       why: "`notInArray` is the SAME three-valued defect (`NULL NOT IN (…)` is NULL) — covering only `ne` would be a half-gate",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const messages = sqliteTable("messages", { id: text("id").primaryKey(), selectedVariantId: text("selected_variant_id") });\nexport const messageVariants = sqliteTable("message_variants", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { messages, messageVariants } from "@orb/db";\nexport const p = ne(messageVariants.id, messages.selectedVariantId);\n',
+          'import { ne } from "drizzle-orm";\nimport { messages, messageVariants } from "../../../../../db/src/schema/x";\nexport const p = ne(messageVariants.id, messages.selectedVariantId);\n',
       },
-      expect: { count: 1 },
-      why: "the nullable column on the RIGHT-hand side — the live shape in chat/persistence/queries.ts; an arg-0-only reader would have passed it silently",
+      expect: { count: 1, token: "messages.selectedVariantId" },
+      why: "the nullable column on the RIGHT-hand side — the live chat/persistence/queries.ts shape; an arg-0-only reader would have passed it silently",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { characters } from "@orb/db";\n// @nullable-cmp-ok\nexport const p = ne(characters.avatarAssetId, "a");\n',
+          'import { ne as different } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = different(characters.avatarAssetId, "a");\n',
       },
-      expect: { messageIncludes: "carries no reason" },
-      why: "MALFORMED marker — a bare `@nullable-cmp-ok` with no `: <reason>` is a rubber stamp; it must RED and exempt nothing (GATE-AUTHORING.md §4.3)",
+      expect: { count: 1 },
+      why: "an IMPORT ALIAS is the same drizzle predicate — the legacy reader keyed on the written name `ne`, so renaming the import was a silent escape (#1506)",
     },
     {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts":
+          "export function notInArray(column: unknown, values: readonly string[]): boolean;\n" +
+          "export function notInArray(column: unknown, values: readonly number[]): boolean;\n" +
+          "export function notInArray(column: unknown, values: readonly unknown[]): boolean {\n  return Boolean(column) && values.length > 0;\n}\n",
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { notInArray } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = notInArray(characters.avatarAssetId, ["a"]);\n',
+      },
+      expect: { count: 1, token: "characters.avatarAssetId" },
+      why: "THE OVERLOAD DOOR, planted so a virtual proof can reach it: the real `drizzle-orm` declares `notInArray` THREE times, the shared origin reader refuses an ambiguous multi-declaration symbol, and the live site therefore read as CLEAN with a stale-looking waiver until the trace-declaration fallback landed",
+    },
+    {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id"), coverAssetId: text("cover_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { and, ne } from "drizzle-orm";\nimport { characters } from "@orb/db";\n// @nullable-cmp-ok: the join excludes them\nexport function p(): unknown {\n  return and(ne(characters.avatarAssetId, "a"), ne(characters.coverAssetId, "b"));\n}\n',
+          'import { and, isNull, ne, or } from "drizzle-orm";\n' +
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          'export const p = and(or(isNull(characters.avatarAssetId), ne(characters.avatarAssetId, "a")), ne(characters.coverAssetId, "b"));\n',
       },
-      expect: { messageIncludes: "POSITION-NAME" },
-      why: "OVER-MARK — one bare marker in a block carrying TWO guarded comparisons cannot say which it forgives, so it must demand a position name (the one-line-two-guarded-things law)",
+      expect: { count: 1, token: "characters.coverAssetId" },
+      why: "a guard is PER COLUMN, not per statement: the guarded avatar passes while the unguarded cover in the SAME statement still reds — a statement-wide guard would rubber-stamp the sibling",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
-          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n' +
+          'export const personas = sqliteTable("personas", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { eq } from "drizzle-orm";\nimport { characters } from "@orb/db";\n// @nullable-cmp-ok(characters.avatarAssetId): the inner join already drops NULL avatars\nexport const p = eq(characters.avatarAssetId, "a");\n',
+          'import { isNull, ne, or } from "drizzle-orm";\n' +
+          'import { characters, personas } from "../../../../../db/src/schema/x";\n' +
+          'export const p = or(isNull(personas.avatarAssetId), ne(characters.avatarAssetId, "a"));\n',
       },
-      expect: { messageIncludes: "guards NO live" },
-      why: "STALE marker — the two-sided arm: the `ne` became an `eq`, the marker survived, and the next inequality written in that block would inherit an exemption nobody granted it",
+      expect: { count: 1, token: "characters.avatarAssetId" },
+      why: "SAME COLUMN NAME, DIFFERENT TABLE: `personas.avatarAssetId` is spelled identically to the guarded column and guards NOTHING here. The guard key is the fact's canonical column identity, not the member name, so a name-keyed reader would have rubber-stamped the real defect",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id"), coverAssetId: text("cover_asset_id") });\n',
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { isNull, ne } from "drizzle-orm";\n' +
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          "declare function choose(a: unknown, b: unknown): unknown;\n" +
+          'export const p = choose(isNull(characters.avatarAssetId), ne(characters.avatarAssetId, "a"));\n',
+      },
+      expect: { count: 1, token: "characters.avatarAssetId" },
+      why: "CO-LOCATION IS NOT GUARDING: the guard and the predicate share a statement AND an argument list, but `choose` is not a boolean combinator, so the guard never reaches the predicate's truth value and every NULL row still vanishes. A same-statement rule passed this — the exact false clean the combinator-ancestor rule closes",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id"), coverAssetId: text("cover_asset_id") });\n',
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { and, isNull, ne } from "drizzle-orm";\n' +
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          'export const p = and(isNull(characters.coverAssetId), ne(characters.avatarAssetId, "a"));\n',
+      },
+      expect: { count: 1, token: "characters.avatarAssetId" },
+      why: "A GUARD ON A DIFFERENT COLUMN, correctly wired into the same `and`: the boolean relation is right and the SUBJECT is wrong, so the avatar's NULLs are still unowned",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const users = sqliteTable("users", { id: text("id").primaryKey(), role: text("role").notNull() });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { users } from "@orb/db";\nexport const p = ne(users.role, "owner");\n',
+          'import { ne } from "drizzle-orm";\nimport { users } from "../../../../../db/src/schema/x";\nexport const p = ne(users.role, "owner");\n',
       },
-      why: "a `.notNull()` column — three-valued logic cannot bite, and this is the overwhelming majority of the live corpus (17 of 19 sites)",
+      why: "a `.notNull()` column — three-valued logic cannot bite, and this is the overwhelming majority of the live corpus",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const rpgSnapshots = sqliteTable("rpg_snapshots", { id: text("id").primaryKey(), messageId: text("message_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { isNull, ne, or } from "drizzle-orm";\nimport { rpgSnapshots } from "@orb/db";\nexport const p = or(isNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, "m"));\n',
+          'import { isNull, ne, or } from "drizzle-orm";\nimport { rpgSnapshots } from "../../../../../db/src/schema/x";\nexport const p = or(isNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, "m"));\n',
       },
       why: "the SANCTIONED total form — `or(isNull(col), ne(col, x))`, the live rpg/persistence/snapshots.ts shape and exactly what the fix names",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const rpgSnapshots = sqliteTable("rpg_snapshots", { id: text("id").primaryKey(), messageId: text("message_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { and, isNotNull, ne } from "drizzle-orm";\nimport { rpgSnapshots } from "@orb/db";\nexport const p = and(isNotNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, "m"));\n',
+          'import { and, isNotNull, ne } from "drizzle-orm";\nimport { rpgSnapshots } from "../../../../../db/src/schema/x";\nexport const p = and(isNotNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, "m"));\n',
       },
-      why: "the other sanctioned form — dropping the NULLs DELIBERATELY with `isNotNull` in the same statement is a decision, not an accident",
+      why: "the other sanctioned form — dropping the NULLs DELIBERATELY with `isNotNull` through the same `and` is a decision, not an accident",
     },
     {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id"), coverAssetId: text("cover_asset_id") });\n',
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { and, eq, isNull, ne, or } from "drizzle-orm";\n' +
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          'export const p = or(eq(characters.id, "x"), and(isNull(characters.avatarAssetId), ne(characters.avatarAssetId, "a")));\n',
+      },
+      why: "NESTING COMPOSES: the guard and the predicate share the inner `and`, which is itself an argument of an `or`. Requiring the OUTERMOST combinator to be shared would red this correct shape",
+    },
+    {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { characters } from "@orb/db";\n// @nullable-cmp-ok(characters.avatarAssetId): every consumer inner-joins on this column, so NULL rows are already gone. Ends if a consumer left-joins.\nexport function p(): unknown {\n  return ne(characters.avatarAssetId, "a");\n}\n',
+          'import { ne } from "drizzle-orm";\n' +
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          "// @orb-waive nullable-column-inequality(characters.avatarAssetId): every consumer inner-joins on this column, so NULL rows are already gone. Ends if a consumer left-joins.\n" +
+          'export const p = ne(characters.avatarAssetId, "a");\n',
       },
-      why: "a POSITION-NAMED marker with a reason, in the leading comment block of the enclosing function — the sanctioned escape for a fact the AST cannot see (the live discovery/persistence/embed-store-reads.ts site)",
+      why: "the ONE central positioned waiver, naming the exact reported token — the sanctioned escape for a fact the AST cannot see (the live discovery/persistence/embed-store-reads.ts site). Malformed, stale and over-broad markers are proven CENTRALLY, once, not re-proved per policy",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
           'function ne(a: string, b: string): boolean {\n  return a !== b;\n}\nexport const p = ne("x", "y");\n',
       },
-      why: "DECLARED LIMIT / no-false-positive: a same-named LOCAL `ne` is not drizzle SQL. The import check is the §4.6 tripwire that keeps the name-keyed match honest",
+      why: "DECLARED LIMIT / no-false-positive: a same-named LOCAL `ne` is not drizzle SQL. The shared module-origin reader is what keeps a name-keyed match honest",
     },
     {
-      files: {
-        "packages/db/src/schema/x.ts":
-          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
-        "tooling/src/verify/gates/some-gate.ts":
-          "// the grammar is `@nullable-cmp-ok(Table.column): <why>` — a bare marker exempts NOTHING\nexport const doc = 1;\n",
-      },
-      why: "the VOCABULARY-HOME fence: a tool file MENTIONING the marker is documentation, never a live marker — this gate's own message strings are the case, and before the fence was re-pointed at the @orb/tooling move it swept them and reported 10 phantom stale/malformed markers against itself",
-    },
-    {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { eq, not } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport const p = not(eq(characters.avatarAssetId, "a"));\n',
+          'import { eq, not } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = not(eq(characters.avatarAssetId, "a"));\n',
       },
       why: "DECLARED LIMIT — `not(eq(...))` is the same three-valued defect one wrapper out. It appears nowhere on this tree, so the reader deliberately does not chase it; this row is the written baseline of that choice",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { chats } from "@orb/db";\nexport const p = ne(chats.id, "c");\n',
+          'import { ne } from "drizzle-orm";\nimport { chats } from "../../../../../db/src/schema/x";\nexport const p = ne(chats.id, "c");\n',
       },
-      why: "DECLARED LIMIT — a `.primaryKey()` column is read as NOT NULL. SQLite's legacy quirk permits NULL in a non-INTEGER PK, but every PK here is an app-minted TypeID written on insert, so treating it as nullable would be 40 false positives",
+      why: "DECLARED LIMIT — a `.primaryKey()` column is read as NOT NULL. SQLite's legacy quirk permits NULL in a non-INTEGER PK, but every PK here is an app-minted TypeID written on insert, so treating it as nullable would be dozens of false positives",
     },
     {
+      mode: "types",
       files: {
+        "packages/db/src/schema/x.ts":
+          'import { primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const chatTags = sqliteTable("chat_tags", { chatId: text("chat_id"), tagId: text("tag_id") }, (t) => [primaryKey({ columns: [t.chatId, t.tagId] })]);\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'import { ne } from "drizzle-orm";\nimport { someTable } from "@orb/db";\nexport const p = ne(someTable.whatever, "a");\n',
+          'import { ne } from "drizzle-orm";\nimport { chatTags } from "../../../../../db/src/schema/x";\nexport const p = ne(chatTags.chatId, "c");\n',
       },
-      why: "DECLARED LIMIT — a table this run's project carries no schema source for is UNKNOWN, not nullable: the gate fails QUIET rather than flagging every alias/subquery it cannot resolve",
+      why: "DECLARED LIMIT — a COMPOSITE primary-key term is NOT NULL too; the fact's index terms are what make that readable without a second parser",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { ne } from "drizzle-orm";\ndeclare const someTable: { whatever: string };\nexport const p = ne(someTable.whatever, "a");\n',
+      },
+      why: "DECLARED LIMIT — a table this run's schema fact does not carry is UNKNOWN, not nullable: the policy fails QUIET rather than flagging every alias or subquery it cannot resolve",
     },
   ],
-};
+});
