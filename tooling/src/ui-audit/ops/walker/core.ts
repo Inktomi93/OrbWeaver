@@ -5,6 +5,7 @@
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INTERACTIVE_SELECTOR_JS } from "../../lib/checks-interactive.ts";
+import { SELECTION_RAIL_SEL } from "../../lib/selection-rail-sel.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -121,9 +122,10 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   // \`SELECTION_RAIL\` (packages/ui/src/lib/selection-rail.ts), on a \`Button\` that cannot inherit ListRow's
   // skin. The exemption is about the IDIOM, not about one primitive, so its population follows the
   // fragment's carriers; the both-halves keying is unchanged, which is what still keeps an unselected band
-  // and any other rounded box with a left accent fully judged.
-  var SELECTION_RAIL_SEL =
-    "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected]";
+  // and any other rounded box with a left accent fully judged. The selector is INTERPOLATED (the
+  // \`INTERACTIVE_SELECTOR_JS\` precedent) so the planted-control arm can run the same string a browser runs
+  // — a selector spelled inside this source STRING is unreachable from every test.
+  var SELECTION_RAIL_SEL = ${JSON.stringify(SELECTION_RAIL_SEL)};
   // THE ILLUSTRATED PICKER'S ART APERTURE (#1642). @orb/ui's PickerCell is the ONE anatomy every
   // single-choice PICTURE picker wears, and its art slot holds a DIAGRAM OF A DESIGN — the chat-style
   // cell renders mini transcript lines in the real skin's own classes and inherits that skin's accent

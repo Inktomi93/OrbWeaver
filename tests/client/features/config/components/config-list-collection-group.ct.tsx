@@ -25,6 +25,9 @@ import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, relativeLuminance } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+// The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
+// a re-spelling would pass while the instrument matched something else (see the module's header).
+import { SELECTION_RAIL_SEL } from "../../../../../tooling/src/ui-audit/lib/selection-rail-sel.ts";
 import { pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
@@ -277,6 +280,45 @@ test.describe("#1823 at a COARSE pointer", () => {
     expect(current.fill).not.toBe(TRANSPARENT);
     expect(await paintOf(component.locator(SIBLING_BAND))).toEqual({ rail: TRANSPARENT, fill: TRANSPARENT });
   });
+});
+
+// ── #1823 · THE WIDENED design-audit EXEMPTION IS A MEASUREMENT, NOT A SHRUG ─────────────────────────
+// The #485 ruling exempted the ratified rail while it had ONE carrier; #1823 gave the band the identical
+// pair, so the exemption's population followed the FRAGMENT's carriers. An exemption that widened without
+// a control is how a rule quietly stops biting, so this runs the instrument's OWN selector against the
+// real surface plus two PLANTED negatives: an unselected band, and a rounded non-carrier box that wears
+// `data-selected` and a left accent. Both must still be judged (i.e. NOT matched by the exemption).
+test("#1823: the exemption matches the CURRENT band only — an unselected band and a non-carrier box stay judged", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  await enterTags(component);
+
+  const verdict = await page.evaluate((selector: string) => {
+    const planted = document.createElement("div");
+    // The non-carrier control: the rule's REAL target — a rounded box with a 2px accent left edge, wearing
+    // the selection attribute but none of the ratified carrier identities.
+    planted.setAttribute("data-selected", "");
+    planted.setAttribute("data-slot", "cbcf-planted-card");
+    planted.className = "rounded-control border-l-2 border-l-primary";
+    document.body.append(planted);
+    const matched = [...document.querySelectorAll<HTMLElement>(selector)];
+    const answer = {
+      // The band that IS the location: exempt.
+      current: matched.filter((el) => el.dataset.configGroup === "tags").length,
+      // Planted negative 1 — the rule's real target.
+      plantedCard: matched.includes(planted),
+      // Planted negative 2 — a real band that is NOT selected (the state half of the predicate).
+      unselectedBands: [...document.querySelectorAll<HTMLElement>('[data-slot="config-band"]')].filter(
+        (el) => !el.hasAttribute("data-selected") && matched.includes(el),
+      ).length,
+    };
+    planted.remove();
+    return answer;
+  }, SELECTION_RAIL_SEL);
+
+  expect(verdict.current, "the band that IS the location wears the ratified rail and is exempt").toBe(1);
+  expect(verdict.plantedCard, "a rounded non-carrier box with a left accent must stay JUDGED").toBe(false);
+  expect(verdict.unselectedBands, "an UNSELECTED band must stay JUDGED — the state half of the predicate").toBe(0);
 });
 
 // ── #1823 · THE RAIL, DECODED FROM THE FRAMEBUFFER, IN BOTH POLARITIES ───────────────────────────────
