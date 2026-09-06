@@ -564,20 +564,20 @@ const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({}
 
 const themeSettingsSchema = z
   .object({
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/deleted theme id degrades to the Hearth default at resolution (the profile.avatarAssetId precedent), so it stays plain; null = "the default palette" (no sentinel id leaked into contracts).
+    // @orb-waive no-raw-id(selectedThemeId): lenient UserSettings tier — a stale/deleted theme id degrades to the Hearth default at resolution (the profile.avatarAssetId precedent), so it stays plain; null = "the default palette" (no sentinel id leaked into contracts).
     selectedThemeId: z.string().nullable().catch(null).default(null),
   })
   .prefault({});
 
 const seedsSchema = z
   .object({
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-waive no-raw-id(defaultPersonaId): lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     defaultPersonaId: z.string().nullable().catch(null).default(null),
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-waive no-raw-id(currentPersonaId): lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     currentPersonaId: z.string().nullable().catch(null).default(null),
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-waive no-raw-id(welcomeAssistantCharacterId): lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     welcomeAssistantCharacterId: z.string().nullable().catch(null).default(null),
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
+    // @orb-waive no-raw-id(defaultPresetId): lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
     defaultPresetId: z.string().nullable().catch(null).default(null),
   })
   .prefault({});
@@ -860,7 +860,7 @@ const onboardingSchema = z
 
 const profileSchema = z
   .object({
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — a stale/deleted asset id degrades at consumption (not a validated entity boundary), so it stays plain.
+    // @orb-waive no-raw-id(avatarAssetId): lenient UserSettings tier — a stale/deleted asset id degrades at consumption (not a validated entity boundary), so it stays plain.
     avatarAssetId: z.string().nullable().optional(),
   })
   .prefault({});

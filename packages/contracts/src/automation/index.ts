@@ -685,13 +685,16 @@ export const automationActionsSchema = z.array(automationActionSchema).min(AUTOM
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
 const triggerFactPayloadSchema = z.object({
+  // @orb-waive no-raw-id(chatId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
   chatId: z.string().nullable(),
   // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
     .object({
       id: z.string(),
       role: z.enum(MESSAGE_ROLES),
+      // @orb-waive no-raw-id(authorUserId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       authorUserId: z.string().nullable(),
+      // @orb-waive no-raw-id(characterId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       characterId: z.string().nullable(),
       seq: z.number(),
       content: z.string(),
@@ -704,6 +707,7 @@ const triggerFactPayloadSchema = z.object({
       api: z.string(),
       source: z.string(),
       model: z.string(),
+      // @orb-waive no-raw-id(speakerCharacterId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       speakerCharacterId: z.string().nullable(),
       abortReason: z.string().optional(), // turnAborted only
       automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
@@ -721,7 +725,9 @@ const triggerFactPayloadSchema = z.object({
    *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
   reaction: z
     .object({
+      // @orb-waive no-raw-id(messageId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       messageId: z.string(),
+      // @orb-waive no-raw-id(variantId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       variantId: z.string(),
       emoji: z.string(),
       added: z.boolean(),
@@ -743,8 +749,11 @@ const triggerFactPayloadSchema = z.object({
    *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
    *  demands. */
   character: z.object({ id: z.string(), contentChanged: z.boolean() }).optional(),
+  // @orb-waive no-raw-id(assetId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
   assetId: z.string().optional(), // asset.created
+  // @orb-waive no-raw-id(personaId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
   personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
+  // @orb-waive no-raw-id(worldBookId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
   worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
 export const triggerFactSchema = z.discriminatedUnion("bus", [
