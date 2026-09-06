@@ -10,9 +10,9 @@ import type {
   GatePolicyFileFindingDetails,
   GatePolicyFindingDetails,
   GatePolicyNodeFindingDetails,
-  GatePolicyReceipt,
 } from "../contract/policy.ts";
 import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
