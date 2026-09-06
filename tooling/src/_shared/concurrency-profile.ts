@@ -43,7 +43,12 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
  *  · `ctWorkers`               → playwright-ct.config.ts `workers` (a CLI `--workers` still overrides)
  *  · `ts7Checkers`             → scripts/ts7.cjs injects `--checkers` when the caller named none
  *  · `pnpmWorkspaceConcurrency`→ scripts/typecheck.cjs `pnpm -r --workspace-concurrency`
- *  · `hookBiomeSlots`          → .claude/hooks/biome-check.sh's HOST-WIDE flock pool
+ *  · `eslintConcurrency`       → scripts/eslint.cjs `--concurrency` (ESLint's own default is `off`, i.e.
+ *                                SINGLE-THREADED — the one cap here that RAISES parallelism)
+ *  · `hookPoolSlots`           → .claude/hooks/biome-check.sh's HOST-WIDE flock pool, shared by its
+ *                                file-scoped legs (biome + dep-cruiser)
+ *  · `hookTs7Checkers`         → the `--checkers` that hook's WHOLE-PROGRAM ts7 leg passes (smaller than
+ *                                `ts7Checkers`: it fires on every edit, beside whatever else is running)
  *  · `ctRunnersHostWide`       → tooling/src/verify/lib/ct-runner-lock.ts's host slot pool
  *  · `sessionCpuQuotaPct`      → .claude/hooks/cpu-fence.sh `CPUQuota=` (0 = set no ceiling)
  *  · `sessionMemoryHigh`       → .claude/hooks/cpu-fence.sh `MemoryHigh=` ("" = set no ceiling)
@@ -54,7 +59,9 @@ export interface ConcurrencyProfile {
   readonly ctWorkers: number;
   readonly ts7Checkers: number;
   readonly pnpmWorkspaceConcurrency: number;
-  readonly hookBiomeSlots: number;
+  readonly eslintConcurrency: number;
+  readonly hookPoolSlots: number;
+  readonly hookTs7Checkers: number;
   readonly ctRunnersHostWide: number;
   readonly sessionCpuQuotaPct: number;
   readonly sessionMemoryHigh: string;
@@ -118,7 +125,9 @@ function profileFrom(file: ProfileFile, name: ConcurrencyProfileName): Concurren
     ctWorkers: intField(row, name, "ctWorkers"),
     ts7Checkers: intField(row, name, "ts7Checkers"),
     pnpmWorkspaceConcurrency: intField(row, name, "pnpmWorkspaceConcurrency"),
-    hookBiomeSlots: intField(row, name, "hookBiomeSlots"),
+    eslintConcurrency: intField(row, name, "eslintConcurrency"),
+    hookPoolSlots: intField(row, name, "hookPoolSlots"),
+    hookTs7Checkers: intField(row, name, "hookTs7Checkers"),
     ctRunnersHostWide: intField(row, name, "ctRunnersHostWide"),
     sessionCpuQuotaPct: intField(row, name, "sessionCpuQuotaPct"),
     sessionMemoryHigh: memoryHigh,
