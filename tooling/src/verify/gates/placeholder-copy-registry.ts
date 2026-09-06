@@ -1,220 +1,255 @@
-// Gate: placeholder-copy-registry (client-architecture-lockdown.md §6a / §16 G13) — a SectionDefinition's
-// `placeholder: { title, description }` gives every rail SectionId its own honest "not built yet" copy.
-// Reconciles ACROSS the co-located `features/*/lib/*-section.{ts,tsx}` files: every section's pair is
-// DISTINCT (the "all sections look identical" root cause) and non-empty (a title/description that types
-// as a string but is blank is the same silent-sparkle failure). Cross-file, so whole-project.
+// Policy: placeholder-copy-registry (client-architecture-lockdown.md §6a / §16 G13) — a SectionDefinition's
+// `placeholder: { title, description }` gives every rail section its own honest "not built yet" copy. The
+// comparison is CROSS-FILE: every section's pair must be non-empty and DISTINCT (the "all sections look
+// identical" root cause).
 //
-// THE SUBJECT IS BOTH SANCTIONED AUTHORING SHAPES (#944, 2026-09-01) — the const definition AND the
-// FACTORY (`export function makeChatsSection(…): SectionDefinition { return {…}; }`, ratified at
-// client-architecture-lockdown.md §6b/M3 and live on chats/characters/home/config). Reading only typed
-// `const` declarations left FOUR of the ten live sections unjudged while the gate reported a healthy file
-// count — a distinctness gate that never saw four of the pairs it exists to compare. It also FAILS CLOSED
-// on an initializer it cannot resolve to a co-located literal (an imported definition), and declares its
-// SECTION POPULATION (#946) so the next shrink is loud instead of silent.
+// The subject is the shared `registryDefinitionFact`'s section view, so BOTH sanctioned authoring shapes —
+// the annotated const and the `make<X>Section(): SectionDefinition` factory — are one population, and the
+// copy is read through the shared authored-value reader. That reader follows a stable alias, so a pair
+// written `title: CHARACTERS_SECTION_LABEL` is COMPARED rather than counted as an unreadable skip; the two
+// live sections in that shape were outside the legacy comparison entirely.
+//
+// A placeholder the reader cannot resolve now FAILS CLOSED: an unjudgeable pair is a section whose copy is
+// invisible to the distinctness comparison, which is exactly what a re-home behind a builder produces.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { Node } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-import type { SectionDef, SectionSite } from "../lib/section-defs.ts";
-import { SECTION_FILE_RE, sectionDefsIn } from "../lib/section-defs.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
+import { registryDefinitionFact } from "../lib/registry-fact.ts";
 
-/** The string value of a named string-literal property (`title: "Corpus"` → "Corpus"), through any
- *  as/satisfies/paren wrapper, or undefined. */
-function stringProp(obj: ObjectLiteralExpression, name: string): string | undefined {
-  const prop = obj.getProperty(name);
-  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
-    return;
-  }
-  const init = prop.getInitializer();
-  return init === undefined ? undefined : readStringValue(init);
+/** U+241F (SYMBOL FOR UNIT SEPARATOR) cannot appear in copy — an unambiguous (title, description) key. */
+const PAIR_SEPARATOR = "␟";
+
+const MESSAGE =
+  "a SectionDefinition's placeholder is unreadable, empty, or duplicates another section's — every section's " +
+  "placeholder must be a DISTINCT, non-empty (title, description) pair, and a pair this policy cannot resolve is a " +
+  "section whose copy is invisible to the comparison entirely (client-architecture-lockdown.md §6a).";
+const FIX =
+  "write the definition as an authored object literal (or a `make<X>Section(): SectionDefinition` factory returning one) and give the section its own honest, non-empty (title, description) placeholder copy — no two sections share a pair.";
+
+interface Claim {
+  readonly name: string;
 }
 
-/** A section definition's `placeholder` object literal, or undefined when it declares none. */
-function placeholderOf(section: ObjectLiteralExpression): ObjectLiteralExpression | undefined {
-  const prop = section.getProperty("placeholder");
-  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
-    return;
-  }
-  const placeholder = prop.getInitializer();
-  return placeholder !== undefined && Node.isObjectLiteralExpression(placeholder) ? placeholder : undefined;
+function declaredName(definition: RegistryDefinitionFact): string {
+  const declaration = definition.declaration;
+  return Node.isVariableDeclaration(declaration) || Node.isFunctionDeclaration(declaration) ? (declaration.getName() ?? "<anonymous>") : "<anonymous>";
 }
 
-/** The population's stable name — what a reader diffs run over run (#946). */
-const POPULATION = "SectionDefinition";
+type CopyRead =
+  | { readonly kind: "absent" }
+  | { readonly kind: "refused"; readonly detail: string }
+  | { readonly kind: "pair"; readonly title: string; readonly description: string };
 
-/** What one `run` counted: the members it JUDGED, the definitions it could not read (denominator loss),
- *  and the ONE declared limit (a placeholder written as something other than a string literal). */
-interface Tally {
-  members: number;
-  unresolved: number;
-  nonLiteralCopy: number;
-}
-
-/** Judge ONE discovered section: fail closed when unreadable, else compare its pair against the others. */
-function judgeSection(ctx: GateRunCtx, def: SectionDef, seen: Map<string, SectionSite>, tally: Tally): void {
-  // FAIL CLOSED (#944): an unreadable definition is not "no placeholder to judge" — it is a section whose
-  // copy this gate cannot see, which is exactly what a re-home behind an import produces.
-  if (def.read.kind === "unresolved") {
-    tally.unresolved += 1;
-    ctx.report({
-      file: def.site.file,
-      line: def.site.line,
-      column: 0,
-      message: `section "${def.site.name}" has an UNREADABLE definition — ${def.read.shape} — so its placeholder copy is invisible to the distinctness comparison. Write the definition as a co-located object literal, or a factory returning one (client-architecture-lockdown.md §6a).`,
-    });
-    return;
-  }
-  tally.members += 1;
-  const placeholder = placeholderOf(def.read.object);
+/** One section's declared placeholder copy: absent, refused with its reason, or the resolved pair. */
+function readCopy(object: ObjectLiteralExpression): CopyRead {
+  const placeholder = definitionObjectField(object, "placeholder");
   if (placeholder === undefined) {
-    return; // the section declares no placeholder at all — tsc owns whether that is legal
+    return { kind: "absent" };
   }
-  const title = stringProp(placeholder, "title");
-  const description = stringProp(placeholder, "description");
-  if (title === undefined || description === undefined) {
-    tally.nonLiteralCopy += 1; // the declared limit — counted, not silent
-    return;
+  if (placeholder.kind === "unresolved") {
+    return { kind: "refused", detail: `\`placeholder\` — ${placeholder.reason}: ${placeholder.detail}` };
   }
-  judgePair(ctx, { entry: def.site, title, description }, seen);
-}
-
-/** One section's placeholder copy, ready to judge. */
-interface Pair {
-  readonly entry: SectionSite;
-  readonly title: string;
-  readonly description: string;
-}
-
-/** The two live arms: a blank half of the pair, and a pair another section already owns. */
-function judgePair(ctx: GateRunCtx, { entry, title, description }: Pair, seen: Map<string, SectionSite>): void {
-  if (title.length === 0 || description.length === 0) {
-    ctx.report({
-      file: entry.file,
-      line: entry.line,
-      column: 0,
-      message: `section "${entry.name}" has an empty placeholder title/description — every section's placeholder must be a non-empty (title, description) pair (client-architecture-lockdown.md §6a).`,
-    });
-    return;
-  }
-  // U+241F (SYMBOL FOR UNIT SEPARATOR) can't appear in copy — an unambiguous pair join key.
-  const key = `${title}␟${description}`;
-  const firstOwner = seen.get(key);
-  if (firstOwner === undefined) {
-    seen.set(key, entry);
-    return;
-  }
-  ctx.report({
-    file: entry.file,
-    line: entry.line,
-    column: 0,
-    message: `section "${entry.name}" has the SAME (title, description) placeholder as "${firstOwner.name}" — every section's placeholder must be DISTINCT (client-architecture-lockdown.md §6a).`,
-  });
-}
-
-export const gate: GateDescriptor = {
-  name: "placeholder-copy-registry",
-  docRow: "client-architecture-lockdown.md §6a / §16 G13",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a SectionDefinition's placeholder is unreadable, empty, or duplicates another section's — a definition this gate cannot resolve to a co-located object literal (an imported definition) hides its copy from the comparison entirely, and every section's placeholder must be a DISTINCT, non-empty (title, description) pair (the 'all sections look identical' root cause) — client-architecture-lockdown.md §6a.",
-  fix: "write the definition as a co-located object literal or a `make<X>Section(): SectionDefinition` factory (both are read); give the section its own honest, non-empty (title, description) placeholder copy — no two sections share a pair.",
-  run: (ctx) => {
-    const tally: Tally = { members: 0, unresolved: 0, nonLiteralCopy: 0 };
-    // pair signature (`title␟description`) → the first section that used it; a second is a duplicate.
-    const seen = new Map<string, SectionSite>();
-    for (const sf of ctx.project.getSourceFiles()) {
-      if (!SECTION_FILE_RE.test(sf.getFilePath())) {
-        continue;
-      }
-      for (const def of sectionDefsIn(sf)) {
-        judgeSection(ctx, def, seen, tally);
-      }
+  const parts: string[] = [];
+  for (const field of ["title", "description"] as const) {
+    const read = definitionStringField(placeholder.value, field);
+    if (read === undefined) {
+      return definitionField(placeholder.value, field) === undefined
+        ? { kind: "refused", detail: `\`placeholder.${field}\` is absent` }
+        : { kind: "refused", detail: `\`placeholder.${field}\` is not an authored data property` };
     }
-    // The SEMANTIC denominator (#946) beside the harness's file one: `members` is what this distinctness
-    // comparison actually ran over, `unresolved` is denominator loss (exit 2), and `non-literal-copy` is
-    // this gate's ONE declared limit — counted, never silent.
-    ctx.scan({
-      unit: "section",
-      scanned: tally.members,
-      candidates: tally.members + tally.unresolved,
-      skipped: tally.nonLiteralCopy > 0 ? { "non-literal-copy": tally.nonLiteralCopy } : {},
-      population: [{ source: POPULATION, members: tally.members, unresolved: tally.unresolved }],
-    });
+    if (read.kind === "unresolved") {
+      return { kind: "refused", detail: `\`placeholder.${field}\` — ${read.reason}: ${read.detail}` };
+    }
+    parts.push(read.value);
+  }
+  const [title, description] = parts;
+  return title === undefined || description === undefined
+    ? { kind: "refused", detail: "placeholder copy did not resolve" }
+    : { kind: "pair", title, description };
+}
+
+export const gate = defineGate({
+  id: "placeholder-copy-registry",
+  family: "registry-definitions",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [registryDefinitionFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const claimedPairs = new Map<string, Claim>();
+    const report = (definition: RegistryDefinitionFact, detail: string): void =>
+      ctx.report.node(definition.declaration, { message: `${MESSAGE} ${detail}`, fix: FIX });
+
+    const judgePair = (definition: RegistryDefinitionFact, name: string, title: string, description: string): void => {
+      if (title.length === 0 || description.length === 0) {
+        report(definition, `Empty copy: section "${name}" declares an empty placeholder title or description.`);
+        return;
+      }
+      const key = `${title}${PAIR_SEPARATOR}${description}`;
+      const owner = claimedPairs.get(key);
+      if (owner === undefined) {
+        claimedPairs.set(key, { name });
+        return;
+      }
+      report(definition, `Duplicate copy: section "${name}" has the SAME (title, description) placeholder as "${owner.name}".`);
+    };
+
+    const judge = (definition: RegistryDefinitionFact): void => {
+      const name = declaredName(definition);
+      if (definition.object.kind === "unresolved") {
+        report(definition, `Unreadable definition: section "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
+        return;
+      }
+      const copy = readCopy(definition.object.value);
+      if (copy.kind === "absent") {
+        return;
+      }
+      if (copy.kind === "refused") {
+        report(definition, `Unreadable copy: section "${name}" ${copy.detail}.`);
+        return;
+      }
+      judgePair(definition, name, copy.title, copy.description);
+    };
+
+    return {
+      evaluate: () => {
+        const view = ctx.fact(registryDefinitionFact).forKind("section");
+        ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
+        for (const definition of view.definitions) {
+          judge(definition);
+        }
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T", description: "D" } };\n',
         "packages/client/src/features/b/lib/b-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
       },
-      expect: { messageIncludes: "SAME" },
-      why: "two co-located sections with the SAME (title, description) — an identical-sparkle duplicate",
+      expect: { count: 1, token: "bSection", messageIncludes: "Duplicate copy" },
+      why: "two sections with the SAME (title, description) — the identical-sparkle duplicate",
     },
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "" as string, description: "D" } };\n',
       },
-      expect: { messageIncludes: "empty" },
-      why: "an empty placeholder title — the non-empty arm",
+      expect: { count: 1, token: "aSection", messageIncludes: "Empty copy" },
+      why: 'an empty title written `"" as string` — the wrapped-literal shape a plain StringLiteral reader treats as out of reach and silently passes',
     },
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/builder.ts": 'export const buildSection = (): { readonly id: string } => ({ id: "a" });\n',
         "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "" as string, description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { buildSection } from "./builder.ts";\nexport const aSection: SectionDefinition = buildSection();\n',
       },
-      expect: { messageIncludes: "empty" },
-      why: 'an empty title written `"" as string` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader treated as "out of reach" (undefined) and silently PASSED before hardening',
+      expect: { count: 1, token: "aSection", messageIncludes: "Unreadable definition" },
+      why: "a BUILDER definition fails closed — its copy is invisible to the distinctness comparison, which is the escape a silent skip leaves open",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-definition.ts":
-          'export const aDef = { id: "a", placeholder: { title: "T", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nimport { aDef } from "./a-definition.ts";\nexport const aSection: SectionDefinition = aDef;\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: computeTitle(), description: "D" } };\ndeclare function computeTitle(): string;\n',
       },
-      expect: { messageIncludes: "UNREADABLE definition" },
-      why: "THE #944 CONTROL: the definition moved behind an IMPORT. The section file is still co-located so every path check stays green, and before the fail-closed arm this section's copy simply vanished from the distinctness comparison",
+      expect: { count: 1, token: "aSection", messageIncludes: "Unreadable copy" },
+      why: "a computed title fails closed — a pair the comparison cannot see is not a pair that passed it",
     },
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.tsx":
-          'import type { SectionDefinition } from "#state";\nexport function makeASection(): SectionDefinition {\n  return { id: "a", placeholder: { title: "T", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n}\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport function makeASection(): SectionDefinition {\n  return { id: "a", placeholder: { title: "T", description: "D" } };\n}\n',
         "packages/client/src/features/b/lib/b-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
       },
-      expect: { messageIncludes: "SAME" },
-      why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory duplicating a const section's copy. Four of the ten live sections are authored this way (chats/characters/home/config) and NONE of them was a subject before #944 — the gate compared six pairs and called it complete",
+      expect: { count: 1, messageIncludes: "Duplicate copy" },
+      why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory duplicating a const section's copy — four of the ten live sections are authored this way",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/labels.ts": 'export const SHARED_TITLE = "T";\n',
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { SHARED_TITLE } from "./labels.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: SHARED_TITLE, description: "D" } };\n',
+        "packages/client/src/features/b/lib/b-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
+      },
+      expect: { count: 1, messageIncludes: "Duplicate copy" },
+      why: "THE ALIASED-COPY RED: a title reached through an imported label constant is the SAME copy. The legacy literal-only reader counted this pair as an unreadable skip and compared nine sections while reporting ten",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T1", description: "D1" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T1", description: "D1" } };\n',
         "packages/client/src/features/b/lib/b-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T2", description: "D2" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T2", description: "D2" } };\n',
       },
-      why: "each section's (title, description) pair is distinct and non-empty — the sanctioned honest copy, passes",
+      why: "each section's pair is distinct and non-empty — the sanctioned honest copy",
     },
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/copy.ts": 'export const A_PLACEHOLDER = { title: "T1", description: "D1" };\n',
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { A_PLACEHOLDER } from "./copy.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: A_PLACEHOLDER };\n',
+        "packages/client/src/features/b/lib/b-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T2", description: "D2" } };\n',
+      },
+      why: "a WHOLE placeholder object reached through an imported constant resolves and compares as distinct — the live extensions section is authored this way and was silently outside the comparison before",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a" };\n',
+      },
+      why: "a section that declares NO placeholder at all is tsc's business, not this policy's — the absent arm stays silent",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nconst aDef = { id: "a", placeholder: { title: "T1", description: "D1" } };\nexport const aSection: SectionDefinition = aDef;\n',
+      },
+      why: "SAME-FILE indirection resolves and is judged normally",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.tsx":
-          'import type { SectionDefinition } from "#state";\nexport function makeASection(): SectionDefinition {\n  return { id: "a", placeholder: { title: "T1", description: "D1" }, content: { planned: "x" }, context: { kind: "none" } };\n}\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport function makeASection(): SectionDefinition {\n  return { id: "a", placeholder: { title: "T1", description: "D1" } };\n}\n',
         "packages/client/src/features/b/lib/b-section.ts":
-          'import type { SectionDefinition } from "#state";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T2", description: "D2" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T2", description: "D2" } };\n',
       },
-      why: "the factory arm's FALSE branch — a factory section with its own distinct copy passes, so the widened subject is not a blanket accusation",
-    },
-    {
-      files: {
-        "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "#state";\nconst aDef = { id: "a", placeholder: { title: "T1", description: "D1" }, content: { planned: "x" }, context: { kind: "none" } };\nexport const aSection: SectionDefinition = aDef;\n',
-      },
-      why: "SAME-FILE indirection — still co-located, so it resolves and is judged normally. The declared limit this row writes down: only an import/builder fails closed",
+      why: "the factory arm's FALSE branch — a factory section with its own distinct copy passes, so widening the subject is not a blanket accusation",
     },
   ],
-};
+});

@@ -1,141 +1,207 @@
-// Gate: modal-body-not-placeholder (client-architecture-lockdown.md §6d / §16 G13) — a ModalDefinition
-// (features/**/lib/*-modal.tsx) whose FUNCTION-arm `body` renders a `<SectionPlaceholder>` is RED. An
-// unbuilt modal uses the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`); a placeholder-rendering
-// function body is the silent-sparkle anti-pattern, now unspellable. Walks every `**/lib/*-modal.tsx`.
+// Policy: modal-body-not-placeholder (client-architecture-lockdown.md §6d / §16 G13) — a ModalDefinition
+// whose FUNCTION-arm `body` renders `<SectionPlaceholder>` is RED. An unbuilt modal uses the
+// DECLARED-PLANNED arm (`body: { planned: "<reason>" }`); a placeholder-rendering function body is the
+// silent-sparkle anti-pattern, and it is unspellable.
 //
-// SUPPRESSION: the finding is NODE-anchored and carries the modal's own name as its token, so
-// `// @orb-gate-ignore modal-body-not-placeholder("themeModal"): <reason>` works. It reported through the
-// explicit-`Finding` overload until 2026-08-08, which bypasses `hasGateIgnore` by construction
-// (GATE-AUTHORING §1) — every marker on this gate was inert and nothing said so.
-//
-// FAIL-CLOSED DISCOVERY (#944, 2026-09-01). The reader used to `return` on any initializer that was not a
-// bare object literal, so `export const xModal: ModalDefinition = importedDefinition;` made the whole gate
-// silently absent while the file still sat at its sanctioned `*-modal.tsx` path. §6d gives the definition
-// ONE home and sanctions no builder for modals, so an unreadable initializer is not a shape to resolve —
-// it is the co-location law being unestablishable, and it REDS. Same-file indirection and
-// `as`/`satisfies` wrappers ARE resolved (`readObjectLiteral`): both are still co-located. The gate also
-// declares its DEFINITION POPULATION (#946) so a shrinking subject can never hide behind a healthy file count.
+// Both identities are semantic rather than textual. The modal population is the shared
+// `registryDefinitionFact`, so an aliased or re-exported `ModalDefinition` annotation is the same subject
+// and a local type that merely shares the name is not. The placeholder component is resolved to its
+// canonical module export, so `import { SectionPlaceholder as Empty }` is caught and an unrelated local
+// component named `SectionPlaceholder` is not. The import-name set is a CANDIDATE filter only.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { readObjectLiteral } from "../lib/ast-read.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionField } from "../lib/registry-definition-field.ts";
+import { readJsxTagFact, registryDefinitionFact } from "../lib/registry-fact.ts";
+import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
-const PLACEHOLDER_TAG = "SectionPlaceholder";
-/** A co-located modal definition file: `features/<owner>/lib/<id>-modal.tsx`. */
-const MODAL_FILE_RE = /\/lib\/[^/]+-modal\.tsx$/;
+const PLACEHOLDER = "SectionPlaceholder";
 
-/** Does this subtree render a `<SectionPlaceholder …>` (open or self-closing) JSX element? */
-function rendersPlaceholder(node: Node): boolean {
-  for (const el of node.getDescendantsOfKind(SyntaxKind.JsxOpeningElement)) {
-    if (el.getTagNameNode().getText() === PLACEHOLDER_TAG) {
-      return true;
-    }
-  }
-  for (const el of node.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
-    if (el.getTagNameNode().getText() === PLACEHOLDER_TAG) {
-      return true;
-    }
-  }
-  return false;
+const MESSAGE =
+  "a ModalDefinition is unreadable or dishonest: a definition this policy cannot resolve to an authored object literal " +
+  "(§6d gives the definition ONE home, so the placeholder law cannot be established through it), or a function `body` " +
+  'that renders <SectionPlaceholder> — an unbuilt modal is the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`), ' +
+  "never a placeholder-rendering function body (client-architecture-lockdown.md §6d).";
+const FIX = 'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body.';
+
+function declaredName(definition: RegistryDefinitionFact): string {
+  const declaration = definition.declaration;
+  return Node.isVariableDeclaration(declaration) || Node.isFunctionDeclaration(declaration) ? (declaration.getName() ?? "<anonymous>") : "<anonymous>";
 }
 
-/** The declaration population this pass judged, reset in `begin` and declared in `finalize` (#946): the
- *  DEFINITIONS behind the verdict, which the harness's file count cannot see. Lifetime = the pass. */
-let definitionsSeen = 0;
-let definitionsUnresolved = 0;
-/** The population's stable name — what a reader diffs run over run. */
-const POPULATION = "ModalDefinition";
+/** The local names an import binds to the canonical placeholder — a candidate filter, never a verdict. */
+function notePlaceholderImport(node: MorphNode, names: Set<string>): void {
+  if (Node.isImportSpecifier(node) && node.getName() === PLACEHOLDER) {
+    names.add(node.getAliasNode()?.getText() ?? node.getName());
+  }
+}
 
-export const gate: GateDescriptor = {
-  name: "modal-body-not-placeholder",
-  docRow: "client-architecture-lockdown.md §6d / §16 G13",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "a ModalDefinition is unreadable or dishonest: an initializer this gate cannot resolve to a co-located " +
-    "object literal (an imported/builder definition — §6d gives the definition ONE home, so the placeholder " +
-    "law cannot be established through it), or a function `body` that renders <SectionPlaceholder> — an " +
-    'unbuilt modal is the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`), never a ' +
-    "placeholder-rendering function body (client-architecture-lockdown.md §6d).",
-  fix: 'write the definition as a co-located object literal (a same-file const and an `as`/`satisfies` wrapper both read fine — an IMPORT does not); use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body.',
-  scanRoot: (p) => MODAL_FILE_RE.test(p),
-  kinds: [SyntaxKind.VariableDeclaration],
-  begin: () => {
-    definitionsSeen = 0;
-    definitionsUnresolved = 0;
-  },
-  finalize: (ctx) => {
-    ctx.scan({ population: [{ source: POPULATION, members: definitionsSeen, unresolved: definitionsUnresolved }] });
-  },
-  visit: (node, _sf, ctx) => {
-    if (!Node.isVariableDeclaration(node)) {
-      return;
-    }
-    const typeNode = node.getTypeNode();
-    if (typeNode === undefined || !typeNode.getText().startsWith("ModalDefinition")) {
-      return;
-    }
-    // FAIL CLOSED: an initializer that is not a co-located object literal is the law being unestablishable,
-    // never a silent skip. `readObjectLiteral` still resolves same-file indirection + as/satisfies wrappers.
-    const read = readObjectLiteral(node.getInitializer());
-    if (read.kind === "unresolved") {
-      definitionsUnresolved += 1;
-      ctx.report(node, { token: `"${node.getName()}" — unreadable definition: ${read.shape}`, offset: 0 });
-      return;
-    }
-    definitionsSeen += 1;
-    const init = read.object;
-    const bodyProp = init.getProperty("body");
-    if (bodyProp === undefined || !Node.isPropertyAssignment(bodyProp)) {
-      return;
-    }
-    const body = bodyProp.getInitializer();
-    // Only a FUNCTION body can render JSX; the `{ planned }` arm is an object literal (legal, skip).
-    if (body === undefined || !(Node.isArrowFunction(body) || Node.isFunctionExpression(body))) {
-      return;
-    }
-    if (!rendersPlaceholder(body)) {
-      return;
-    }
-    ctx.report(node, { token: `"${node.getName()}"`, offset: 0 });
+function tagNameText(node: MorphNode): string | undefined {
+  if (!(Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node))) {
+    return;
+  }
+  const tagName = node.getTagNameNode();
+  return Node.isPropertyAccessExpression(tagName) ? tagName.getName() : tagName.getText();
+}
+
+/** Is this element the canonical placeholder component, proven through its module origin? */
+function isCanonicalPlaceholder(node: MorphNode): boolean {
+  const fact = readJsxTagFact(node);
+  return fact.kind === "resolved" && fact.value.origin.canonical.exportedName === PLACEHOLDER;
+}
+
+/** The FUNCTION arm of a modal body, resolved through stable aliases; the `{ planned }` arm is not one. */
+function functionBody(definition: RegistryDefinitionFact): MorphNode | undefined {
+  if (definition.object.kind === "unresolved") {
+    return;
+  }
+  const body = definitionField(definition.object.value, "body");
+  if (body === undefined) {
+    return;
+  }
+  const resolved = resolveAuthoredComposite(body);
+  if (resolved.kind === "unresolved") {
+    return;
+  }
+  return Node.isArrowFunction(resolved.value) || Node.isFunctionExpression(resolved.value) ? resolved.value : undefined;
+}
+
+function contains(outer: MorphNode, inner: MorphNode): boolean {
+  return outer.getSourceFile().compilerNode === inner.getSourceFile().compilerNode && outer.getStart() <= inner.getStart() && inner.getEnd() <= outer.getEnd();
+}
+
+export const gate = defineGate({
+  id: "modal-body-not-placeholder",
+  family: "registry-definitions",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [registryDefinitionFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const placeholderNames = new Set<string>([PLACEHOLDER]);
+    const candidates: MorphNode[] = [];
+    const report = (definition: RegistryDefinitionFact, detail: string): void =>
+      ctx.report.node(definition.declaration, { message: `${MESSAGE} ${detail}`, fix: FIX });
+
+    return {
+      visitors: [
+        { kinds: [SyntaxKind.ImportSpecifier], visit: (node) => notePlaceholderImport(node, placeholderNames) },
+        {
+          kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
+          visit: (node) => {
+            const name = tagNameText(node);
+            if (name !== undefined && placeholderNames.has(name)) {
+              candidates.push(node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const view = ctx.fact(registryDefinitionFact).forKind("modal");
+        ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
+        const placeholders = candidates.filter(isCanonicalPlaceholder);
+        for (const definition of view.definitions) {
+          const name = declaredName(definition);
+          if (definition.object.kind === "unresolved") {
+            report(definition, `Unreadable definition: "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
+            continue;
+          }
+          const body = functionBody(definition);
+          if (body !== undefined && placeholders.some((element) => contains(body, element))) {
+            report(definition, `Placeholder body: "${name}" renders <${PLACEHOLDER}> from its function \`body\`.`);
+          }
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <SectionPlaceholder /> };\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      expect: { count: 1, token: '"themeModal"' },
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <SectionPlaceholder /> };\n',
+      },
+      expect: { count: 1, token: "themeModal", messageIncludes: "Placeholder body" },
       why: "a ModalDefinition function body rendering <SectionPlaceholder> — the silent-sparkle anti-pattern",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/x/lib/definition.tsx": "export const def = { id: 'x', body: () => <SectionPlaceholder /> };\n",
-        "packages/client/src/features/x/lib/x-modal.tsx": 'import { def } from "./definition.tsx";\nexport const xModal: ModalDefinition = def;\n',
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { SectionPlaceholder as Empty } from "../../app-shell/components/section-placeholder.tsx";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <Empty /> };\n',
       },
-      expect: {
-        token: '"xModal" — unreadable definition: the identifier `def` (not an object literal declared in this file — an imported or re-exported definition)',
+      expect: { count: 1, token: "themeModal", messageIncludes: "Placeholder body" },
+      why: "THE ALIAS RED: the placeholder imported under another local name is the same component. A tag-text match leaves the whole class unspelled",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = buildModal();\ndeclare function buildModal(): ModalDefinition;\n',
       },
-      why: "THE #944 CONTROL: the definition body lives in an IMPORTED object and the placeholder is invisible from the sanctioned `*-modal.tsx` file. Before the fail-closed arm this returned silently — the file was still co-located, so every path check stayed green while the gate judged nothing",
+      expect: { count: 1, token: "xModal", messageIncludes: "Unreadable definition" },
+      why: "a BUILDER definition fails closed — the placeholder law cannot be established through an initializer this policy cannot resolve",
     },
   ],
   mustPass: [
     {
-      files: "export const draftModal: ModalDefinition = { id: 'draft', body: { planned: 'build pending' } };\n",
-      at: "packages/client/src/features/x/lib/draft-modal.tsx",
-      why: "the DECLARED-PLANNED arm (object literal, not a function) — the sanctioned unbuilt state, passes",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/draft-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const draftModal: ModalDefinition = { id: "draft", body: { planned: "build pending" } };\n',
+      },
+      why: "the DECLARED-PLANNED arm (an object literal, not a function) — the sanctioned unbuilt state",
     },
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <ThemePanel /> };\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "a function body rendering a REAL body (no <SectionPlaceholder>) — the false branch, passes",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <ThemePanel /> };\ndeclare function ThemePanel(): null;\n',
+      },
+      why: "a function body rendering a REAL body — the false branch",
     },
     {
-      files: "const themeModalDef = { id: 'theme', body: () => <ThemePanel /> };\nexport const themeModal: ModalDefinition = themeModalDef;\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "SAME-FILE indirection — still co-located, so `readObjectLiteral` follows it and the gate judges the real body. The declared limit this row writes down: only an import/builder fails closed, never a local const",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nfunction SectionPlaceholder(): null {\n  return null;\n}\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <SectionPlaceholder /> };\n',
+      },
+      why: "THE SHADOW CONTROL: a LOCAL component that merely shares the name is not the canonical placeholder, so the tag-text match's false positive is unspellable here",
     },
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <ThemePanel /> } satisfies ModalDefinition;\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "a WHOLE-literal `satisfies` wrapper — the shape the plain ObjectLiteral check treated as unreadable and silently passed before #944 (the same wrapper class config-group-completeness's `literalInit` closed on 2026-08-30)",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+        "packages/client/src/features/settings/lib/theme-panel.tsx":
+          'import { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\nexport const ThemePanel = (): null => <SectionPlaceholder />;\n',
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { ThemePanel } from "./theme-panel.tsx";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <ThemePanel /> };\n',
+      },
+      why: "THE DECLARED LIMIT, written down: the rule is about the body's OWN render. A placeholder rendered deeper inside a real component the body mounts is that component's business, not a dishonest modal body",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nconst themeModalDef = { id: "theme", body: () => <ThemePanel /> };\nexport const themeModal: ModalDefinition = themeModalDef;\ndeclare function ThemePanel(): null;\n',
+      },
+      why: "SAME-FILE indirection resolves, so the real body is judged",
     },
   ],
-};
+});
