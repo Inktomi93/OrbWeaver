@@ -1,98 +1,196 @@
+// Spine-TypeScript-and-Patterns.md §8: an awaited Drizzle query inside a loop is an N+1 — one round trip per
+// iteration. The query identity comes from the shared `readDrizzleClientCall` reader (the called METHOD is
+// declared inside the installed drizzle-orm package), so `deps.db.select()`, an aliased handle and
+// `db["insert"]()` are the same query while a same-named method on a local class is not. The loop test is a
+// BOUNDED ancestor walk up from the delivered await, stopping at the first function boundary — an await
+// inside a nested callback is not executed by the loop body. DECLARED LIMITS live in the mustPass rows.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
-const DB_QUERY_RE = /\b(db|tx)\.(query\.|select\b|insert\b|update\b|delete\b|run\b|execute\b|executeMultiple\b|batch\b|transaction\b)/;
+/** The legacy `DB_QUERY_RE` verb vocabulary, retained ONLY as the fail-closed backstop below: when the
+ *  checker cannot bind the called member at all, a method spelled like a query verb is reported rather than
+ *  silently admitted. A resolved NON-drizzle declaration is acquitted — that is the identity claim. */
+const QUERY_VERBS = new Set(["query", "select", "insert", "update", "delete", "run", "execute", "executeMultiple", "batch", "transaction"]);
 
-export const gate: GateDescriptor = {
-  name: "no-await-db-in-loop",
-  docRow: "Spine-TypeScript-and-Patterns.md §8",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "await on a db/tx query inside a loop — N+1 shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...]) for multi-statement writes, .values([...]) for bulk inserts. If the serialization is deliberate (heartbeats, backpressure, per-row error observation), suppress WITH the reason. See Spine-TypeScript-and-Patterns.md §8.",
-  kinds: [SyntaxKind.AwaitExpression],
-  scanRoot: (p) => !(p.includes(".test.") || p.startsWith("tests/")),
-  visit(node, _sf, ctx): void {
-    if (!Node.isAwaitExpression(node)) {
-      return;
-    }
-    const expr = node.getExpression();
-    if (!Node.isCallExpression(expr)) {
-      return;
-    }
+const LOOP_KINDS = new Set([SyntaxKind.ForStatement, SyntaxKind.ForOfStatement, SyntaxKind.ForInStatement, SyntaxKind.WhileStatement, SyntaxKind.DoStatement]);
 
-    const text = expr.getText();
-    if (!DB_QUERY_RE.test(text)) {
-      return;
-    }
+const MESSAGE =
+  "an awaited Drizzle query runs inside a loop — the N+1 shape: one round trip per iteration. Batch it: " +
+  "`inArray()` for per-id reads, a JOIN, `db.batch([...])` for multi-statement writes, `.values([...])` for " +
+  "bulk inserts (Spine-TypeScript-and-Patterns.md §8).";
 
-    let current: Node | undefined = node.getParent();
-    while (current && !Node.isSourceFile(current)) {
-      if (
-        Node.isForStatement(current) ||
-        Node.isForOfStatement(current) ||
-        Node.isForInStatement(current) ||
-        Node.isWhileStatement(current) ||
-        Node.isDoStatement(current)
-      ) {
-        ctx.report(node);
-        return;
-      }
-      if (Node.isFunctionDeclaration(current) || Node.isArrowFunction(current) || Node.isFunctionExpression(current) || Node.isMethodDeclaration(current)) {
-        // A function boundary means the await is not directly executed in the loop body
-        break;
-      }
-      current = current.getParent();
+const FIX =
+  "collapse the loop into one round trip (`inArray` / a JOIN / `db.batch` / bulk `.values`). When the " +
+  "serialization is DELIBERATE — heartbeats, backpressure over a bound-variable cap, per-row error " +
+  "observation — attach `@orb-waive no-await-db-in-loop(<the reported method>): <why one round trip per " +
+  "iteration is the intent, and what would end it>` to that exact occurrence.";
+
+/** Legacy `scanRoot` was `!(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus;
+ *  the nine authored roots minus the test tree and every `*.test.*` basename is the same admitted set. */
+const PRODUCTION_POPULATION = { in: ["@authored"], notUnder: ["tests/**"], notNamed: ["*.test.*"], ext: ["ts", "tsx"] } as const;
+
+/** BOUNDED ancestor navigation on the delivered node — never a descendant sweep. Walks up from the await
+ *  until it either enters a loop statement (RED) or crosses a function boundary, which means the await is
+ *  executed by that inner function and not by the loop body. */
+function awaitedInLoopBody(node: MorphNode): boolean {
+  let current: MorphNode | undefined = node.getParent();
+  while (current !== undefined && !Node.isSourceFile(current)) {
+    if (LOOP_KINDS.has(current.getKind())) {
+      return true;
     }
-  },
+    if (Node.isFunctionDeclaration(current) || Node.isArrowFunction(current) || Node.isFunctionExpression(current) || Node.isMethodDeclaration(current)) {
+      return false;
+    }
+    current = current.getParent();
+  }
+  return false;
+}
+
+export const gate = defineGate({
+  id: "no-await-db-in-loop",
+  family: "no-await-db-in-loop",
+  authority: "ordinary",
+  severity: "error",
+  population: PRODUCTION_POPULATION,
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.AwaitExpression],
+        visit: (node) => {
+          if (!Node.isAwaitExpression(node)) {
+            return;
+          }
+          const call = node.getExpression();
+          // THE LOOP TEST RUNS FIRST, and it is pure syntax: resolving a property symbol on every awaited
+          // call in a 7,000-file population is the ten-minute shape the id-brand lane measured. Only an
+          // await the loop body actually executes ever pays for the checker.
+          if (!(Node.isCallExpression(call) && awaitedInLoopBody(node))) {
+            return;
+          }
+          const verdict = readDrizzleClientCall(call);
+          if (verdict.kind === "foreign") {
+            return;
+          }
+          // FAIL-CLOSED: a member the checker cannot bind, spelled like a query verb, is reported. An
+          // unbindable receiver is exactly where a real db handle hides (an `any` seam, a broken door).
+          const failClosed = verdict.kind === "unresolved" && verdict.method !== null && QUERY_VERBS.has(verdict.method);
+          if (verdict.kind === "drizzle" || failClosed) {
+            const anchor = verdict.nameNode;
+            const method = verdict.method as string;
+            if (anchor !== null) {
+              // A bracket-spelled member's name node is the STRING LITERAL, so the authored token starts
+              // one character in; deriving the offset from the node's own text covers both spellings.
+              ctx.report.node(anchor, { token: method, offset: anchor.getText().indexOf(method) });
+            }
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      why: "await db.select in loop",
+      mode: "types",
       files: {
-        "src/x.ts": `
-          export async function f() {
-            for (const x of xs) {
-              await db.select().from(y);
-            }
-          }
-        `,
+        "node_modules/drizzle-orm/index.ts":
+          "export declare class Db {\n  select(): Db;\n  insert(table: unknown): Db;\n  batch(statements: readonly unknown[]): Promise<void>;\n  from(table: unknown): Promise<readonly unknown[]>;\n}\n",
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.select().from({});\n  }\n}\n',
       },
+      expect: { count: 1, token: "from" },
+      why: "the founding shape (§8) — an awaited `db.select().from(…)` in a for-of body: one round trip per iteration. The awaited call's own method is `from`, which the legacy `db.<verb>` text regex could only reach because the whole chain text still began with `db.`",
     },
     {
-      why: "await tx.insert in while loop",
+      mode: "types",
       files: {
-        "src/x.ts": `
-          export async function f() {
-            while (true) {
-              await tx.insert(y).values(z);
-            }
-          }
-        `,
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/writes.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(deps: { readonly handle: Db }, xs: readonly string[]): Promise<void> {\n  while (xs.length > 0) {\n    await deps.handle.insert({});\n  }\n}\n',
       },
+      expect: { count: 1, token: "insert" },
+      why: "THE RECEIVER IS NOT NAMED `db`: a client reached through a deps object is the same round trip, and the legacy `\\b(db|tx)\\.` regex was blind to every handle whose binding was spelled anything else",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/bracket.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db["insert"]({});\n  }\n}\n',
+      },
+      expect: { count: 1, token: "insert" },
+      why: "the BRACKET spelling of the same write — an ElementAccessExpression is not a PropertyAccessExpression and the text regex never matched it (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  query: { readonly chats: { findMany(): Promise<readonly unknown[]> } };\n}\n",
+        "packages/server/src/domain/x/persistence/relational.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.query.chats.findMany();\n  }\n}\n',
+      },
+      expect: { count: 1, token: "findMany" },
+      why: "the RELATIONAL query API — `findMany` is not in any verb vocabulary, and the method's own drizzle declaration is what identifies it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/persistence/untyped.ts":
+          "export async function f(db: Record<string, (table: unknown) => Promise<void>>, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.insert({});\n  }\n}\n",
+      },
+      expect: { count: 1, token: "insert" },
+      why: "FAIL-CLOSED — the backstop's control: an INDEX-SIGNATURE receiver gives the checker no named property symbol for `insert`, so the drizzle claim cannot be proven either way. An unprovable query-verb call inside a loop is reported rather than silently admitted, because an untyped seam is exactly where a real handle hides",
     },
   ],
   mustPass: [
     {
-      why: "exempt in tests",
+      mode: "types",
       files: {
-        "tests/x.test.ts": `
-          export async function f() {
-            for (const x of xs) {
-              await db.select().from(y);
-            }
-          }
-        `,
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/single.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db): Promise<void> {\n  await db.insert({});\n}\n',
       },
+      why: "one awaited query outside any loop is the ordinary shape — the whole corpus does this",
     },
     {
-      why: "no loop",
+      mode: "types",
       files: {
-        "src/x.ts": `
-          export async function f() {
-            await db.select().from(y);
-          }
-        `,
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/local-method.ts":
+          "export class Cache {\n  insert(value: unknown): Promise<void> {\n    void value;\n    return Promise.resolve();\n  }\n}\nexport async function f(cache: Cache, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await cache.insert({});\n  }\n}\n",
       },
+      why: "THE IDENTITY COUNTERFACTUAL: a same-named `insert` declared by a LOCAL class, awaited in a loop, with the drizzle package present in the same project. Everything the detector keys on matches except the method's declaration home — deleting the drizzle-path comparison turns this row red",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/nested.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  const runs = xs.map(async (x) => {\n    void x;\n    await db.insert({});\n  });\n  await Promise.all(runs);\n}\n',
+      },
+      why: "the FUNCTION BOUNDARY: an await inside a callback the loop merely CONSTRUCTS is not executed per iteration — the walk stops there deliberately, which is what makes the batched `Promise.all` fan-out legal",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  batch(statements: readonly unknown[]): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/waived.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, chunks: readonly (readonly unknown[])[]): Promise<void> {\n  for (const chunk of chunks) {\n    // @orb-waive no-await-db-in-loop(batch): bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap. Ends if the driver lifts the cap.\n    await db.batch(chunk);\n  }\n}\n',
+      },
+      why: "the ONE central positioned waiver naming the exact reported method — the live `discovery/verbs/distill.ts` chunked-batch shape, and the exact marker its legacy `@orb-gate-ignore` translated to",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/persistence/unrelated.ts":
+          "export async function f(io: { readonly write: (value: unknown) => Promise<void> }, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    await io.write(x);\n  }\n}\n",
+      },
+      why: "DECLARED LIMIT — an awaited call in a loop that is neither drizzle-proven nor spelled like a query verb is out of subject. This policy is about database round trips, not about awaiting in loops generally",
     },
   ],
-};
+});
