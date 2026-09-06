@@ -1,54 +1,135 @@
-import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+// React 19 deprecates `forwardRef`; `ref` is an ordinary prop now. TWO ARMS, both keyed on ORIGIN rather
+// than spelling: the import DOOR that brings React's `forwardRef` into a file, and the CALL whose callee
+// resolves to it. The legacy gate compared `expr.getText()` against "forwardRef" and "React.forwardRef",
+// which meant an import alias (`forwardRef as fr`) and a namespace member (`import * as R; R.forwardRef(…)`)
+// were silent greens while a LOCAL helper named `forwardRef` was a false red. THIRD ANSWER, never silence:
+// a candidate whose origin the shared readers cannot resolve is REPORTED as unreadable (GATE-AUTHORING §5).
+import type { Node } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { reactExportVisitors } from "../lib/react-origin.ts";
+import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
 
-export const gate: GateDescriptor = {
-  name: "no-forward-ref",
-  docRow: "Spine-TypeScript-and-Patterns.md §1",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "React 19 deprecates `forwardRef`. Pass `ref` as a normal prop instead (e.g. `function MyInput({ ref, ...props })`). Drop the `forwardRef` wrapper. (Spine-TypeScript-and-Patterns.md §1)",
-  kinds: [SyntaxKind.CallExpression, SyntaxKind.ImportSpecifier],
-  visit(node, _sf, ctx): void {
-    if (Node.isCallExpression(node)) {
-      const expr = node.getExpression();
-      if ((Node.isIdentifier(expr) && expr.getText() === "forwardRef") || (Node.isPropertyAccessExpression(expr) && expr.getText() === "React.forwardRef")) {
-        ctx.report(node);
-      }
-    } else if (Node.isImportSpecifier(node) && node.getName() === "forwardRef") {
-      ctx.report(node);
-    }
-  },
+const EXPORT = "forwardRef";
+const MESSAGE =
+  "React 19 deprecates `forwardRef`. Pass `ref` as a normal prop instead (e.g. `function MyInput({ ref, ...props })`). Drop the `forwardRef` wrapper. (Spine-TypeScript-and-Patterns.md §1)";
+const UNREADABLE =
+  "this reference is spelled like React's `forwardRef` but the shared readers cannot resolve where it comes from — it may be a mutable binding, a dynamic member, or a door with no resolvable source, so the React-19 claim CANNOT be established either way. Reported rather than passed: the spelling alone is not the identity.";
+
+const REACT_PROOF = { [REACT_TYPES_HOME]: reactProofModule() };
+
+function anchor(node: Node): { readonly token: string; readonly offset: number } | undefined {
+  const offset = node.getText().lastIndexOf(EXPORT);
+  return offset < 0 ? undefined : { token: EXPORT, offset };
+}
+
+export const gate = defineGate({
+  id: "no-forward-ref",
+  family: "react-origin",
+  authority: "ordinary",
+  severity: "error",
+  population: "@authored",
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: "delete the forwardRef wrapper and destructure `ref` out of props; the component keeps the same call signature.",
+  create: (ctx) => ({
+    visitors: reactExportVisitors(EXPORT, (node, verdict) => {
+      const at = anchor(node);
+      ctx.report.node(node, { ...(verdict === "unreadable" ? { message: UNREADABLE } : {}), ...(at ?? {}) });
+    }),
+  }),
   mustFlag: [
     {
-      why: "Using forwardRef from react",
+      mode: "types",
       files: {
-        "packages/client/src/feature/ui.tsx": `
-          import { forwardRef } from "react";
-          export const MyInput = forwardRef((props, ref) => <input ref={ref} />);
-        `,
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import { forwardRef } from "react";\nexport const MyInput = forwardRef((props: object, ref: object) => null);\n',
       },
+      expect: { count: 2, token: "forwardRef" },
+      why: "the founding shape — the import door AND the call both name React's forwardRef, which is the legacy gate's own two-finding verdict preserved exactly",
     },
     {
-      why: "Using React.forwardRef",
+      mode: "types",
       files: {
-        "packages/client/src/feature/ui.tsx": `
-          import React from "react";
-          export const MyInput = React.forwardRef((props, ref) => <input ref={ref} />);
-        `,
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import React from "react";\nexport const MyInput = React.forwardRef((props: object, ref: object) => null);\n',
       },
+      expect: { count: 1 },
+      why: "the MEMBER arm — a default React import carries no forwardRef ImportSpecifier, so the call site is the only door; the origin resolves through the default member path",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import { forwardRef as fr } from "react";\nexport const MyInput = fr((props: object, ref: object) => null);\n',
+      },
+      expect: { count: 2 },
+      why: "AN IMPORT ALIAS: the local spelling `fr` carries none of the identity, so the legacy text check saw only the specifier and never the call — the resolved origin sees both",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import * as R from "react";\nexport const MyInput = R.forwardRef((props: object, ref: object) => null);\n',
+      },
+      expect: { count: 1 },
+      why: "A NAMESPACE MEMBER: a namespace import produces no ImportSpecifier whatsoever and `R.forwardRef` is not the string `React.forwardRef`, so the legacy gate was offered nothing it recognised (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import * as R from "react";\nexport const MyInput = R["forwardRef"]((p: object, r: object) => null);\n',
+      },
+      expect: { count: 1 },
+      why: "A COMPUTED-LITERAL MEMBER is the same reference — the shared member reader normalizes the bracket spelling, so it cannot buy an escape (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/shim.ts": 'export { forwardRef } from "react";\n',
+        "packages/client/src/feature/ui.tsx": 'import { forwardRef } from "../shim.ts";\nexport const MyInput = forwardRef((p: object, r: object) => null);\n',
+      },
+      expect: { count: 2 },
+      why: "A RE-EXPORT DOOR still delivers React's forwardRef: the authored specifier is a project module, and only traversing to the canonical target proves it is the deprecated API",
     },
   ],
   mustPass: [
     {
-      why: "Using ref as a normal prop",
+      mode: "types",
       files: {
-        "packages/client/src/feature/ui.tsx": `
-          export function MyInput({ ref, value }: { ref: React.Ref<HTMLInputElement>, value: string }) {
-            return <input ref={ref} value={value} />;
-          }
-        `,
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx":
+          "export function MyInput({ ref, value }: { ref: unknown; value: string }): unknown {\n  void ref;\n  return value;\n}\n",
       },
+      why: "the React-19 replacement this policy exists to drive traffic to — `ref` as an ordinary prop",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/feature/ui.tsx":
+          "function forwardRef(render: (props: object) => unknown): unknown {\n  return render;\n}\nexport const MyInput = forwardRef((props: object) => null);\n",
+      },
+      why: "A LOCAL SHADOW: a same-file helper named `forwardRef` is a different symbol entirely. The legacy text check RED'd this; only the resolved origin can tell the two apart",
+    },
+    {
+      mode: "types",
+      files: {
+        [REACT_LOOKALIKE_HOME]: reactLookalikeProofModule(),
+        "packages/client/src/feature/ui.tsx": 'import { forwardRef } from "not-react";\nexport const MyInput = forwardRef((p: object, r: object) => null);\n',
+      },
+      why: "SAME NAME, WRONG PACKAGE: another package exporting `forwardRef` is not React's deprecated API, and nothing but the resolved module home distinguishes it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import { useContext } from "react";\nexport const read = useContext;\n',
+      },
+      why: "a DIFFERENT React export is untouched — the matcher is keyed on one exported name, not on the react door",
     },
   ],
-};
+});

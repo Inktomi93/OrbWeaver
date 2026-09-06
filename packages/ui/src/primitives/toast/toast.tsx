@@ -37,7 +37,6 @@ function TypeGlyph({ type }: { readonly type: string | undefined }): ReactElemen
 
 /** App-wide toast state — seals the Base UI Toast manager. Mount ONCE near the root. */
 export function ToastProvider(props: BaseProviderProps): ReactElement {
-  // @orb-gate-ignore no-context-provider: Base UI's Toast.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
   return <BaseToast.Provider {...props} />;
 }
 
