@@ -62,8 +62,8 @@ async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: read
 
 /** The DISTINCT seated character ids for one imported chat: the run's primary first (it is the header character —
  *  `loadExistingHashes`/`resolveBranches` scope on it), then this chat's extra roster seats in order. */
-function seatedCharacterIds(primary: CharacterId, roster: readonly CharacterId[] | undefined): readonly CharacterId[] {
-  return [primary, ...(roster ?? []).filter((id) => id !== primary)];
+function seatedCharacterIds(primary: CharacterId, additionalCharacterIds: readonly CharacterId[] | undefined): readonly CharacterId[] {
+  return [primary, ...(additionalCharacterIds ?? []).filter((id) => id !== primary)];
 }
 
 /** The character a slot NAMES as its speaker, or null when it names none (the optional field is absent, or
@@ -77,7 +77,7 @@ function namedSpeaker(m: BulkImportChatInput["messages"][number]): CharacterId |
  *  (transcript speaker names, member cards, the group arbitration feed) would then resolve to a ghost. */
 function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): void {
   // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
-  const seated = new Set(seatedCharacterIds(primary, ci.roster));
+  const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const m of ci.messages) {
     const named = namedSpeaker(m);
     if (named !== null && !seated.has(named)) {
@@ -94,7 +94,7 @@ function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void 
     return;
   }
   // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
-  const seated = new Set(seatedCharacterIds(primary, ci.roster));
+  const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const knob of ci.seatKnobs) {
     if (!seated.has(knob.characterId)) {
       throw new DomainNotFoundError("chat_participant", knob.characterId);
@@ -505,7 +505,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
       ctx,
       chatId,
       ownerId,
-      characterIds: seatedCharacterIds(characterId, ci.roster),
+      characterIds: seatedCharacterIds(characterId, ci.characterIds),
       anchorPersonaId: ci.anchorPersonaId,
       seatKnobs: ci.seatKnobs,
       now: ci.createdAt,
@@ -553,7 +553,7 @@ function buildChatStatements(args: OneChatArgs): {
 function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImportChatInput[]): CharacterId[] {
   const ids: CharacterId[] = [primary];
   for (const c of input) {
-    ids.push(...(c.roster ?? []));
+    ids.push(...(c.characterIds ?? []));
     // A knob names a seat; an id that reaches the ownership gate here can never be one the seat gate below
     // then refuses for the wrong reason (foreign reads as unseated).
     ids.push(...(c.seatKnobs ?? []).map((knob) => knob.characterId));

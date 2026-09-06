@@ -136,8 +136,8 @@ export interface GroupChatInputDeps {
   /** The room's PRIMARY seat — the voice every assistant slot that names no resolvable speaker falls back to. */
   readonly primaryCharacterId: CharacterId;
   /** The ADDITIONAL seats (the cast minus the primary), in ST's own member order. */
-  readonly roster: readonly CharacterId[];
-  /** The seats ST had DISABLED, which the room seats MUTED (#1687) — a subset of the primary + `roster`, so
+  readonly characterIds: readonly CharacterId[];
+  /** The seats ST had DISABLED, which the room seats MUTED (#1687) — a subset of the primary + `characterIds`, so
    *  the write op's seat gate can never refuse one. Empty ⇒ every seat arrives at the column defaults. */
   readonly mutedSeats: readonly CharacterId[];
   /** Card FILENAME → seat: the identity match, keyed exactly as ST's `original_avatar` writes it. */

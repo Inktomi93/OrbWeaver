@@ -147,7 +147,7 @@ test("the executor receives the AUTHOR's identity frame — their Principal, tri
   expect(exec?.chatId).toBe(chatId);
   // A rule dispatch is not a turn, and the roster is fail-CLOSED null (the compose header's two claims).
   expect(exec?.turnId).toBeNull();
-  expect(exec?.roster).toBeNull();
+  expect(exec?.membership).toBeNull();
 });
 
 test("a tool the author never installed is refused at the MINT — the rule is never stored and nothing runs", async ({ app, db }) => {

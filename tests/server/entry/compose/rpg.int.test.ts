@@ -158,7 +158,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   const records = await app.toolUse.executeToolCalls(
     set,
     [{ toolCallId: "call_1", name: "update_scene", arguments: JSON.stringify({ location: "the cave mouth", recentEvent: "entered the cave" }) }],
-    { principal: hostPrincipal(hostId), triggeredBy: hostId, chatId, turnId: TURN, roster: null },
+    { principal: hostPrincipal(hostId), triggeredBy: hostId, chatId, turnId: TURN, membership: null },
   );
   expect(records[0]?.isError).toBe(false); // the real handler staged the scene write (errors-as-data would set true)
 

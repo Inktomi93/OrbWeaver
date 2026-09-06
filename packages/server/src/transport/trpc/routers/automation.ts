@@ -1,7 +1,7 @@
 // transport/trpc/routers/automation — the client-facing surface of the automation LEAF (the rule editor +
 // list/reorder + fire log + budget panels the chat Rules section and the Automation settings pane consume).
 // AUTHORITY FOLLOWS THE RULE'S SCOPE, decided in the domain guard, never here:
-//   • a CHAT-scoped rule — `can(principal, "host", {kind:"chat", roster})` over the chat's membership; a
+//   • a CHAT-scoped rule — `can(principal, "host", {kind:"chat", membership})` over the chat's membership; a
 //     non-member collapses to a leak-free NOT_FOUND, a member-not-host propagates `can()`'s FORBIDDEN.
 //   • an OWNER-GLOBAL rule (C5) — the caller must BE the author; anyone else gets NOT_FOUND, because that
 //     lane is visible to exactly one person and FORBIDDEN would make a rule id an existence oracle.

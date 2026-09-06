@@ -24,7 +24,7 @@ async function requireSuggestionHost(ctx: AutomationContext, principal: Principa
   if (role === undefined) {
     throw new SuggestionNotFoundError(pending.id);
   }
-  ctx.can(principal, "host", { kind: "chat", roster: { role } });
+  ctx.can(principal, "host", { kind: "chat", membership: { role } });
 }
 
 export function createDismissSuggestion(ctx: AutomationContext): AutomationService["dismissSuggestion"] {

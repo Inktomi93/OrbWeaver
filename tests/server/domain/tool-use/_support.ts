@@ -55,7 +55,7 @@ export function execOf(over: Partial<ToolExecutionContext> = {}): ToolExecutionC
     principal: principalOf(castId<Handle>("host")),
     triggeredBy: castId("user_trigger"),
     chatId: null,
-    roster: null,
+    membership: null,
     turnId: null,
     ...over,
   };

@@ -33,7 +33,7 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
 const POOLS_MAX_RE = /pools|max/i;
 
 function exec(chatId: ChatId, turnId: ChatTurnId): ToolExecutionContext {
-  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
+  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, membership: null };
 }
 
 test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flushed (owner ruling 2026-07-27)", async () => {
