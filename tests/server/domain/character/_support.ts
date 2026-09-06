@@ -242,6 +242,9 @@ interface SeedRawCharacterOverrides {
   /** The `token_size` denorm — set explicitly to author deliberate `largestCards`/`smallestCards` orderings
    *  + ties (a raw insert bypasses the write-side `cardTokenSize` stamp). Defaults to the column default (0). */
   readonly tokenSize?: number;
+  /** Residual `data.extensions` vendor keys — seeded raw to author a plugin's reserved `plugin_<slug>`
+   *  card-state key (#1708 backfill fixtures) without running the plugin capability. */
+  readonly extensions?: Record<string, unknown> | null;
 }
 
 /** Insert a flat `characters` row DIRECTLY (bypassing the service) — for seeding import-provenance /
@@ -263,6 +266,7 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
     avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: overrides.createdAt ?? FROZEN_AT,
     ...(overrides.tokenSize !== undefined ? { tokenSize: overrides.tokenSize } : {}),
+    ...(overrides.extensions !== undefined ? { extensions: overrides.extensions } : {}),
   });
   return id;
 }

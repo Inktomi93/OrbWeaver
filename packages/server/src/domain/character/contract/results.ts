@@ -89,3 +89,13 @@ export interface ListCharacterTagGroupsResult {
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per no-inline-types §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+
+/** The #1708 pre-#1702 plugin-provenance backfill verdict (`persistence/backfill-plugin-provenance.ts`).
+ *  Homed HERE per no-inline-types §7.4. */
+export interface BackfillPluginProvenanceResult {
+  /** Rows whose `importedFrom` was minted from a recovered plugin identity. */
+  readonly backfilled: number;
+  /** Candidates left `authored` — no reserved `plugin_<slug>` key, or the named slug names no installed
+   *  plugin for that owner (uninstalled since, or the key predates any install this owner still holds). */
+  readonly leftAuthored: number;
+}

@@ -47,6 +47,7 @@ export type {
   StampRefinerySignalsOp,
 } from "./contract/refinery-ops.ts";
 export type {
+  BackfillPluginProvenanceResult,
   CharacterRef,
   GeneratedGreeting,
   ListCharactersResult,
@@ -62,6 +63,7 @@ export type {
 } from "./contract/service.ts";
 export type { CharacterDetail, CharacterSummary } from "./contract/views.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
+export { backfillPluginProvenance } from "./persistence/backfill-plugin-provenance.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
 export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
 export { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
