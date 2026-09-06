@@ -14,7 +14,7 @@ export const gate = defineGate({
   family: "bus-fact",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
   resources: [],
@@ -23,7 +23,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const query = createBusFactQuery<AutomationBusEvent>(ctx);
     return {
-      visitors: query.visitors,
+      ...query.hooks,
       evaluate: () => {
         const fact = query.finish();
         recordReadyBusFact(ctx, fact);

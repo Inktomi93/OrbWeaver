@@ -14,7 +14,7 @@ export const gate = defineGate({
   family: "bus-fact",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
   resources: [],
@@ -23,7 +23,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const query = createBusFactQuery<ChatBusEvent>(ctx);
     return {
-      visitors: query.visitors,
+      ...query.hooks,
       evaluate: () => {
         const fact = query.finish();
         recordReadyBusFact(ctx, fact);
@@ -73,6 +73,27 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "a same-typed emit method on an unrelated receiver is not a canonical chat emitter",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts":
+          'export type ChatBusEvent = { type: "opened" };\nexport const CHAT_BUS_EVENT_TYPES = { opened: true } satisfies Record<ChatBusEvent["type"], true>;\n',
+        "packages/server/src/transport/trpc/stream/sources/chat.ts":
+          'import type { ChatBusEvent } from "../../../../../../contracts/src/chat/bus.ts";\nexport function* stream(event: ChatBusEvent) { yield { channel: "chat", event }; }\n',
+      },
+      expect: { count: 1 },
+      why: "relaying an arbitrary typed bus event does not prove where any declared member is produced",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts":
+          'export type ChatBusEvent = { type: "opened" };\nexport const CHAT_BUS_EVENT_TYPES = { opened: true } satisfies Record<ChatBusEvent["type"], true>;\n',
+        "packages/server/src/transport/trpc/stream/sources/chat.ts": 'export function* stream() { yield { channel: "user", event: { type: "opened" } }; }\n',
+      },
+      expect: { count: 1 },
+      why: "only a frame synthesized on the chat channel is a chat-bus producer",
+    },
   ],
   mustPass: [
     {
@@ -90,10 +111,19 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/chat/bus.ts":
           'export type ChatBusEvent = { type: "opened" };\nexport const CHAT_BUS_EVENT_TYPES = { opened: true } satisfies Record<ChatBusEvent["type"], true>;\n',
-        "packages/server/src/transport/trpc/stream/sources/chat.ts":
-          'import type { ChatBusEvent } from "../../../../../../contracts/src/chat/bus.ts";\nexport function* stream(event: ChatBusEvent) { yield { channel: "chat", event }; }\n',
+        "packages/server/src/transport/trpc/stream/sources/chat.ts": 'export function* stream() { yield { channel: "chat", event: { type: "opened" } }; }\n',
       },
-      why: "the canonical chat stream's yielded event frame is an executable producer",
+      why: "a literal event synthesized on the chat channel is an executable producer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts":
+          'export type ChatBusEvent = { type: "memoryRecall" };\nexport const CHAT_BUS_EVENT_TYPES = { memoryRecall: true } satisfies Record<ChatBusEvent["type"], true>;\n',
+        "packages/server/src/domain/chat/memory/recall/recall.ts":
+          'import type { ChatBusEvent } from "../../../../../../contracts/src/chat/bus.ts";\ntype MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;\ninterface Ctx { emitRecallPhase?: (event: MemoryRecallBusEvent) => void; }\nexport function recall(ctx: Ctx): void { ctx.emitRecallPhase?.({ type: "memoryRecall" }); }\n',
+      },
+      why: "an optional injected callback carrying a derived bus arm is a real domain producer",
     },
   ],
 });
