@@ -2,7 +2,7 @@
 // the PRODUCTION path over the stubbed network: `notifications.list` (the durable inbox read) + the
 // `notifications` ROOM on the tab's ONE multiplexed socket (SSE-1 S3 — `routeOrbSocket` serves the real
 // `stream.connect` body and records the `stream.attach` for the room) + the invite verbs. Asserts: the
-// unread badge + accessible name; open→markAllRead (ONE bulk mutation, not a per-row markRead loop); the
+// unread DOT (#1798 — a mark, never a number) + accessible name; open→markAllRead (ONE bulk mutation, not a per-row markRead loop); the
 // inline Accept (fires `invites.acceptInvite` with the notification's `inviteId`, then dismisses);
 // Decline→`declineInvite`+dismiss; a LIVE arrival re-rendering the list without a refresh; and a room-level
 // server fault surfacing as a toast instead of being read as an arrival.
@@ -589,4 +589,143 @@ test("Review sends the shell to the Plugins group and closes the inbox", async (
   await expect(destination).toHaveText("config/plugins");
   // …and the popover is gone, the same close-then-navigate the invite/handoff arms perform.
   await expect(page.getByText("9 plugins are installed but not allowed to do anything yet")).toBeHidden();
+});
+
+// ── THE UNREAD MARK IS A DOT, NOT A NUMBER (#1798, owner ruling) ─────────────────────────────────────
+// THE DEFECT: the trigger rendered `<Badge intent="primary" size="sm">{unreadCount}</Badge>` — a full
+// status pill, the same lozenge that marks `always` on a lore entry — INLINE beside the 16px bell glyph
+// inside the topbar icon button, with no corner positioning. The owner's verdict on the pill was "ugly as
+// fuck". The count was never the mark's job: it is already in the button's accessible name and in the rows
+// the popover lists, and the pins below are deliberately written against those RENDERED facts (a childless
+// circle in the corner) rather than against the new `size="dot"` axis, so they judge the pixels and not the
+// API. The mark stays `aria-hidden` in both regimes — the name is the a11y contract.
+//
+// RED-FIRST RECEIPT (2026-09-06 — this block run against the UNMODIFIED bell AND Badge, the rest of the
+// branch in place; `CT SUMMARY — FAILED · 38 passed · 4 failed`):
+//   ✘ the unread mark is a dot with no number in it (#1798)
+//     expect(locator).toHaveText   Expected: ""   Received: "2"
+//     …resolved to `<span data-slot="badge" data-size="sm" … class="… px-row py-field text-label …">2</span>`
+//   ✘ the dot sits in the button's top-end corner … — BOTH pointer arms
+//     toMatchObject   corner: false · small: false · square: false   (the pill measured 24×28)
+//   ✔ no unread → no mark at all   (a FENCE, green in both regimes: it pins that the DOT did not become
+//     an always-on ornament, which is the one way this fix could have regressed the zero state.)
+/** The dot's whole geometric verdict, measured IN THE BROWSER from the mark outwards. One evaluate, three
+ *  boxes: the relationships under test are BETWEEN them, so separate round-trips would let a re-layout land
+ *  between the reads. It returns booleans plus the raw boxes, so a failure prints which claim broke AND at
+ *  what pixels. Hoisted to module scope because the per-pointer describe already nests four deep. */
+function markVerdict(node: Element): Record<string, unknown> {
+  const host = node.closest("button");
+  const svg = host?.querySelector("svg");
+  if (host === null || svg === null || svg === undefined) {
+    return { reachable: false };
+  }
+  const r = (el: Element): { x: number; y: number; w: number; h: number } => {
+    const b = el.getBoundingClientRect();
+    return { x: b.left, y: b.top, w: b.width, h: b.height };
+  };
+  const dot = r(node);
+  const button = r(host);
+  const glyph = r(svg);
+  const radius = Number.parseFloat(getComputedStyle(node).borderRadius);
+  return {
+    reachable: true,
+    // A DOT: square, small and circular — the pill it replaced measured 24×28 here.
+    square: dot.w === dot.h,
+    small: dot.w <= 8,
+    // `rounded-full` resolves to a huge px radius in Tailwind v4, so the circle claim is an inequality.
+    circular: radius >= dot.w / 2,
+    // INSIDE the control's own box on every edge — a mark hanging outside the button can be clipped by the
+    // topbar and sits outside the control's own focus ring.
+    insideButton: dot.x >= button.x && dot.y >= button.y && dot.x + dot.w <= button.x + button.w && dot.y + dot.h <= button.y + button.h,
+    // THE TOP-END CORNER, out of the glyph's way: the whole dot is above the glyph's vertical centre and
+    // past its horizontal centre, which is what makes it read as an ornament ON the bell rather than a blot
+    // IN it. This is the appearance-proof substitute for a `ring-2 ring-background` halo, whose colour
+    // cannot be right on all three grounds this button sits on (see the variant's note).
+    corner: dot.y + dot.h <= glyph.y + glyph.h / 2 && dot.x >= glyph.x + glyph.w / 2,
+    // REST-STATE RASTER: at DPR 1 every edge of the circle lands on a device pixel
+    // (docs/design/integer-line-boxes.md). The DPR is asserted below, never assumed.
+    dpr: window.devicePixelRatio,
+    onGrid: [dot.x, dot.y, dot.w, dot.h].every((v) => Number.isInteger(v)),
+    boxes: { dot, button, glyph },
+  };
+}
+
+test.describe("the unread mark (#1798)", () => {
+  /** Two unread rows, so a number-carrying mark would have to print "2" — the count is what is on trial. */
+  async function routeTwoUnread(page: Page): Promise<void> {
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow(), inviteRow({ id: "ntf_ct_2", seq: 2 })], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 2 }),
+    });
+    await routeInboxStream(page, []);
+  }
+
+  test("the unread mark is a dot with no number in it (#1798)", async ({ mount, page }) => {
+    await routeTwoUnread(page);
+    await mount(<NotificationBellStory />);
+
+    const bell = page.getByRole("button", { name: "Notifications (2 unread)" });
+    await expect(bell).toBeVisible();
+    const mark = bell.locator('[data-slot="badge"]');
+    await expect(mark).toHaveCount(1);
+    // THE RULING, rendered: nothing is printed inside it.
+    await expect(mark).toHaveText("");
+    // …and the count it used to print is still reachable — in the name, and in the rows.
+    await expect(mark).toHaveAttribute("aria-hidden", "true");
+  });
+
+  test("no unread → no mark at all", async ({ mount, page }) => {
+    await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "notifications.list": () => ({ items: [], nextCursor: null }) });
+    await routeInboxStream(page, []);
+    await mount(<NotificationBellStory />);
+
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(bell).toBeVisible();
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(0);
+  });
+
+  // GEOMETRY, at BOTH pointer sizes — the button's own box is pointer-conditional (`--spacing-control-md`
+  // plus `.shell-topbar-icon-btn`'s coarse touch floor), so "the dot is inside the control and out of the
+  // glyph's way" is two different measurements, not one. Integer device px at DPR 1 is the rest-state
+  // raster requirement (docs/design/integer-line-boxes.md): a fractional box resamples the circle's edge
+  // for the element's whole life.
+  for (const pointer of [
+    { name: "a fine pointer", use: { viewport: { width: 900, height: 600 }, hasTouch: false } },
+    { name: "a coarse pointer", use: { viewport: { width: 430, height: 800 }, hasTouch: true } },
+  ] as const) {
+    test.describe(pointer.name, () => {
+      test.use(pointer.use);
+
+      test("the dot sits in the button's top-end corner, inside its box, on the device-pixel grid (#1798)", async ({ mount, page }) => {
+        await routeTwoUnread(page);
+        await mount(<NotificationBellStory />);
+
+        const bell = page.getByRole("button", { name: "Notifications (2 unread)" });
+        const mark = bell.locator('[data-slot="badge"]');
+        const glyph = bell.locator("svg");
+        await expect(mark).toBeVisible();
+        await expect(glyph).toBeVisible();
+
+        // ONE retrying read of ALL three boxes, from the DOT outwards, reduced to the claims in the browser.
+        // Three reasons it is shaped this way: the relationships under test are BETWEEN the boxes, so
+        // separate round-trips would let a re-layout land between them; `expect.poll` is what makes a
+        // geometry read settle rather than sample a mid-layout frame (the DEF-14 class the
+        // `ct-no-oneshot-live-read-assert` gate exists for); and a failure prints the whole verdict object,
+        // so the receipt names WHICH claim broke and at what pixels.
+        await expect
+          .poll(async () => mark.evaluate(markVerdict))
+          .toMatchObject({
+            reachable: true,
+            square: true,
+            small: true,
+            circular: true,
+            insideButton: true,
+            corner: true,
+            dpr: 1,
+            onGrid: true,
+          });
+      });
+    });
+  }
 });

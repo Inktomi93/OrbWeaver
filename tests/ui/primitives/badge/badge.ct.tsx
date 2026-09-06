@@ -480,3 +480,41 @@ test("size=inline keeps a leading glyph ON the line — it does not split the in
     .not.toBeNull();
   expect(Math.abs((glyph?.svgCenter ?? 0) - (glyph?.labelCenter ?? 0))).toBeLessThan(2);
 });
+
+// ── THE INDICATOR ARM (#1798) — the childless dot ────────────────────────────────────────────────────
+// `size="dot"` exists because the topbar bell's unread mark was a full status pill printing a COUNT
+// (owner: "ugly as fuck"). The claim this pin makes is that the arm is a real geometric shape and not a
+// squashed pill: a fixed square from the spacing belt, fully circular, and — the property that made this
+// an axis rather than a call-site className — carrying NONE of the `sm` pill's padding, because the size
+// axis is exclusive. It still takes its fill from the intent axis, which is what keeps ONE dot in the app
+// rather than a family of hand-painted spans.
+test("size=dot is a childless square circle with none of the pill's padding", async ({ mount }) => {
+  const dot = await mount(<Badge intent="primary" size="dot" aria-hidden={true} />);
+  await expect(dot).toBeVisible();
+
+  // ONE retrying read reduced to the claims (the `ct-no-oneshot-live-read-assert` settle rule); a failure
+  // prints the whole verdict object, so the receipt names which property broke and at what pixels.
+  await expect
+    .poll(async () =>
+      dot.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return {
+          // The belt step (`size-field`), read as a square rather than against a px literal.
+          square: box.width === box.height,
+          small: box.width > 0 && box.width <= 8,
+          // Circular: `rounded-full` resolves to a huge px radius in Tailwind v4, so the claim is an inequality.
+          circular: Number.parseFloat(style.borderRadius) >= box.width / 2,
+          // NO padding — the `sm` arm's `px-row py-field` is not applied at all (the size axis is
+          // exclusive), so the box is exactly the declared square and cannot be half-overridden into a
+          // lozenge. This is the property that made `dot` an AXIS rather than a call-site className.
+          padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].join(" "),
+          box: { w: box.width, h: box.height },
+        };
+      }),
+    )
+    .toMatchObject({ square: true, small: true, circular: true, padding: "0px 0px 0px 0px" });
+
+  // …and the fill is the intent's own token, not a hand-picked colour.
+  await expect(dot).toHaveCSS("background-color", resolvedTokenColor("color.primary"));
+});

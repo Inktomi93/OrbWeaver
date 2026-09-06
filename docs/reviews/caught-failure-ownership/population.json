@@ -631,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 292,
+      "line": 303,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 290
+      "markerLine": 301
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
