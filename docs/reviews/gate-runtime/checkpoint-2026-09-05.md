@@ -38,16 +38,19 @@ This checkpoint deliberately preserves incomplete and red work. A committed WIP 
 - CSS inventory access is bound through the existing `authored-css` or `product-css` declaration identity, so the WIP cannot bypass declared-resource accounting.
 - Resource proof mode may contain TS/TSX files when a closed resource declaration classifies them; source/types proof modes remain TS/TSX-only.
 
+## Post-fold integration repair
+
+Commit `00017c0bf` repaired the mechanical conflicts after all checkpoints were folded: one canonical TS/TSX predicate, explicit `resources: []` on the five bus drafts, an `authored-css` declaration and valid regexes on the CSS draft, and the three incomplete-return paths in bus/static-class facts. `pnpm exec tsc -p tooling/tsconfig.json --noEmit --pretty false` passes on the combined worktree. The focused CSS slice remains 4/6: ordinary-waiver/SourceFile composition and static-class empty-policy parity are the two known failures.
+
 ## Resume order
 
-1. Run focused TypeScript on the folded checkpoint and repair only merge/fold compile defects. Add the missing resource declaration to the `no-raw-color-in-css` draft before treating it as loadable.
+1. Resolve the two focused CSS failures without weakening ordinary-waiver identity or static-class parity.
 2. Finish cold review of the resource-declaration seam, waiver plane, and schema fact. Re-run the orphan-grant, exact-loaded-descriptor, TS/TSX, and same-path hybrid controls.
 3. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
 4. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
 5. Finish registry fact tests/review, then convert its closed gate set.
 6. Repair static-class parity before converting any class/style gate; rerun the `no-raw-color-in-css` proof and ResourceHost CSS integration first.
-7. Rebase the still-running family results only by checkpoint SHA into this branch; do not recover state from disposable worktrees.
-8. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
+7. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
 
 ## Known red state
 
