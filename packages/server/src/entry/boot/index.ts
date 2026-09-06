@@ -4,6 +4,8 @@ export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./a
 export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { HealLegacyBackgroundPinsDeps } from "./heal-legacy-background-pins.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
+export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-provenance.ts";
+export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
 export type { MigrateDeps } from "./migrate.ts";
 export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";
