@@ -1,22 +1,14 @@
 // Copy-surface quality: text overflow, TEXT TRUNCATED TO NOTHING (#816), repeated container text,
-// clipped positioned children, edge-flush scroller cards, uncaught page errors, duplicate action doors
-// (the runtime half of issue #252), and the two PLACEMENT-COLLISION arms — a display headline
-// overhanging an opaque card, and an `inline` element whose padding leaks off its line (#816 arms ii and
-// iii; their walker is ops/walker/census-occlusion.ts). Pure. Provenance: lib/collect.ts header.
-import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+// clipped positioned children, edge-flush scroller cards, uncaught page errors, and the two
+// PLACEMENT-COLLISION arms — a display headline overhanging an opaque card, and an `inline` element whose
+// padding leaks off its line (#816 arms ii and iii; their walker is ops/walker/census-occlusion.ts). Pure.
+// Provenance: lib/collect.ts header. Duplicate action doors (the runtime half of issue #252) moved to
+// ./checks-duplicate-door.ts (#1720) once its allowance mechanism pushed this file over the size cap.
+import type { Finding } from "../contract/findings.ts";
 import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
-import type {
-  ActionDoorInput,
-  ClippedOverflowInput,
-  EdgeFlushInput,
-  EmptyStateInput,
-  RepeatedTextInput,
-  TextOverflowInput,
-  TruncatedTextInput,
-} from "../contract/samples.ts";
+import type { ClippedOverflowInput, EdgeFlushInput, EmptyStateInput, RepeatedTextInput, TextOverflowInput, TruncatedTextInput } from "../contract/samples.ts";
 import type { HeadlineOverhangInput, InlinePaddingLeakInput } from "../contract/samples-occlusion.ts";
 import type { TierDriftInput } from "../contract/samples-populations.ts";
-import { settledPopulationAccounting } from "./population.ts";
 
 /** TWO LAYERS ON ONE SET OF PIXELS (#816 arm ii). The walker has already proven the whole shape — an
  *  opaque bordered card, a display-scale line whose CENTRE is outside it, an overlap of at most half the
@@ -173,151 +165,6 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
     });
   }
   return findings;
-}
-
-/** Two through six homes retain their historical full selector evidence; only presentation is bounded
- * above that point. Cardinality never disables the rule. */
-const DOOR_REPRESENTATIVE_CAP = 6;
-
-/** THE HOMES ONE (role, name) IS OFFERED FROM — the whole judgement of this rule, in one fold.
- *
- *  Outside a list, a home is a distinct structural PATH: the same path is one component rendered per
- *  datum, however many rows it has; distinct paths are distinct homes.
- *
- *  Inside a list the ROWS own that answer instead (#851). A path fingerprint assumes per-datum rows
- *  render an identical chain, and a row with a conditional wrapper does not: two transcript messages
- *  reached their "More message actions" button through `theme-scope` and `message-content-column`
- *  respectively and were reported as two homes — on every virtualized list, at coarse pointer only,
- *  because a permanent (rather than hover-revealed) action cluster is what puts two rows' doors on one
- *  plane. So a container contributes the doors of its BUSIEST single item: sibling rows fold into one
- *  home, while an action offered twice inside ONE row still counts twice and still fires. */
-function doorHomes(bucket: readonly ActionDoorInput[]): ActionDoorInput[] {
-  const free = new Map<string, ActionDoorInput>();
-  const lists = new Map<string, Map<string, Map<string, ActionDoorInput>>>();
-  for (const door of bucket) {
-    const home = door.listKey === null || door.itemKey === null ? free : nestedMap(nestedMap(lists, door.listKey), door.itemKey);
-    if (!home.has(door.path)) {
-      home.set(door.path, door);
-    }
-  }
-  const homes = [...free.values()];
-  for (const items of lists.values()) {
-    homes.push(...busiestItemDoors(items));
-  }
-  return homes;
-}
-
-/** get-or-create, so the two-level door bucketing reads as one expression. */
-function nestedMap<V>(parent: Map<string, Map<string, V>>, key: string): Map<string, V> {
-  const existing = parent.get(key);
-  if (existing !== undefined) {
-    return existing;
-  }
-  const fresh = new Map<string, V>();
-  parent.set(key, fresh);
-  return fresh;
-}
-
-/** A list container contributes the doors of its BUSIEST single row — the per-datum count, which is what
- *  "how many homes does this list offer" means. Ties do not matter: the count is what the rule reads. */
-function busiestItemDoors(items: ReadonlyMap<string, Map<string, ActionDoorInput>>): ActionDoorInput[] {
-  let busiest: ActionDoorInput[] = [];
-  for (const paths of items.values()) {
-    if (paths.size > busiest.length) {
-      busiest = [...paths.values()];
-    }
-  }
-  return busiest;
-}
-
-interface DuplicateDoorPopulationResult {
-  readonly findings: readonly Finding[];
-  readonly accounting: RulePopulationAccounting;
-}
-
-/** A TOOLBAR CELL IS A VIEW SWITCH, NOT A SECOND DOOR (#1705, from #891's side-eye ruling). On home, the
- *  primary `nav`'s "Chats" button NAVIGATES THE APP, while `#context-cell-chats` inside
- *  `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats —
- *  `docs/architecture/core/UI-Architecture-and-Layout.md` §4.1–4.3 assigns those two jobs to two regions,
- *  so they are two verbs that happen to share a noun, not one verb with two homes. The rule's own message
- *  ("one verb wants one home per plane") is the thing that does not apply.
- *
- *  Scoped to `role="toolbar"` deliberately, and no wider: the same rule's five per-character-name findings
- *  on the landing (a list row against the "Recently chatted" shelf) are a RULING (#1662, ruled
- *  DIFFERENTIATE), not a mechanism fence, and must keep firing.
- *
- *  EXCLUDED, not dropped: the cell stays in `candidates` and prints as `excluded(viewSwitchCell=N)`, so a
- *  widening reach shows up in the denominator instead of as a quieter clean run. STATED RESIDUAL: two cells
- *  of ONE toolbar sharing an accessible name are now outside this rule's population entirely — that is a
- *  same-region collision, which `aria-name` and the region censuses own, and inventing a second pairing
- *  mode here would re-import the exact cross-region comparison the ruling refuses. */
-function isViewSwitchCell(door: ActionDoorInput): boolean {
-  return door.toolbarKey !== null;
-}
-
-export function checkDuplicateDoorPopulations(doors: readonly ActionDoorInput[]): DuplicateDoorPopulationResult {
-  const groups = new Map<string, ActionDoorInput[]>();
-  let viewSwitchCells = 0;
-  for (const door of doors) {
-    if (door.name.length === 0) {
-      continue;
-    }
-    if (isViewSwitchCell(door)) {
-      viewSwitchCells += 1;
-      continue;
-    }
-    const key = `${door.role}|${door.name}`;
-    const bucket = groups.get(key) ?? [];
-    bucket.push(door);
-    groups.set(key, bucket);
-  }
-  const findings: Finding[] = [];
-  let affected = 0;
-  let emitted = 0;
-  let capped = 0;
-  for (const [key, bucket] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
-    // ONE DOOR PER DISTINCT PATH outside a list; inside one, per BUSIEST ROW (doorHomes).
-    const homes = doorHomes(bucket);
-    if (homes.length < 2) {
-      continue;
-    }
-    const [role = "control", name = ""] = key.split("|");
-    const at = homes.slice(0, DOOR_REPRESENTATIVE_CAP).map((d) => d.selector);
-    const groupCapped = homes.length - at.length;
-    affected += homes.length;
-    emitted += at.length;
-    capped += groupCapped;
-    const omitted = groupCapped === 0 ? "" : ` AND ${String(groupCapped)} more home(s) retained in the population receipt`;
-    findings.push({
-      rule: "duplicate-action-door",
-      severity: "P3",
-      selector: at[0] ?? "page",
-      value: `${homes.length}x ${role} "${name}"`,
-      message: `the same action is offered from ${homes.length} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
-        " AND ",
-      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, the ruling is what makes it one`,
-      origin: "orbweaver",
-      representatives: at,
-      population: { affected: homes.length, judged: homes.length, capped: groupCapped },
-    });
-  }
-  return {
-    findings,
-    accounting: settledPopulationAccounting("duplicate-action-door", {
-      candidates: affected + viewSwitchCells,
-      judged: affected,
-      affected,
-      populations: findings.length,
-      emitted,
-      withheld: { cap: capped },
-      excluded: viewSwitchCells === 0 ? {} : { viewSwitchCell: viewSwitchCells },
-      collapsed: {},
-    }),
-  };
-}
-
-export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[] {
-  return [...checkDuplicateDoorPopulations(doors).findings];
 }
 
 /** One empty state is a pane telling you what to do. Two at once is two panes telling you DIFFERENT

@@ -30,6 +30,7 @@ import {
   checkClippedOverflow,
   checkContrast,
   checkControlAspect,
+  checkDuplicateDoorPopulations,
   checkDuplicateDoors,
   checkEdgeFlush,
   checkFontCensus,
@@ -46,6 +47,7 @@ import {
   checkRadialGlow,
   checkRepeatedText,
   checkScriptErrors,
+  checkStaleDuplicateDoorAllowances,
   checkTabIndexSmell,
   checkTapTarget,
   checkTapTargetPopulations,
@@ -1946,6 +1948,53 @@ test("duplicate-action-door stays observable and bounded above six distinct auth
     population: { affected: 7, judged: 7, capped: 1 },
   });
   expect(findings[0]?.representatives).toHaveLength(6);
+});
+
+// ── #1720: DUPLICATE_DOOR_ALLOWANCES — the runtime rule's own ruled-pairing home ──────────────────────
+// Every test below passes a FABRICATED allowance table (never the module's empty production
+// `DUPLICATE_DOOR_ALLOWANCES`, which stays empty per the header receipt in
+// tooling/src/ui-audit/lib/checks-duplicate-door.ts) so the mechanism is pinned without minting a
+// production ruling that would immediately read as stale.
+
+test("#1720: an allowed pairing does not fire, and is excluded (not silently dropped) from the population", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const { findings, accounting } = checkDuplicateDoorPopulations(doors, allowances);
+
+  expect(findings).toEqual([]);
+  expect(accounting).toMatchObject({ candidates: 2, judged: 0, excluded: { ruledDual: 2 } });
+});
+
+test("#1720: a THIRD door on an already-ruled pair still shows up in the denominator", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b"), door("#c", "button<home-c")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const { findings, accounting } = checkDuplicateDoorPopulations(doors, allowances);
+
+  expect(findings, "the allowance covers the RULED pairing, not an unbounded population").toEqual([]);
+  expect(accounting.excluded).toEqual({ ruledDual: 3 });
+});
+
+test("#1720: checkStaleDuplicateDoorAllowances is silent when the ruled pairing still offers two homes", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  expect(checkStaleDuplicateDoorAllowances(doors, allowances)).toEqual([]);
+});
+
+test("#1720: checkStaleDuplicateDoorAllowances FIRES when a ruled pairing no longer offers two homes (the pair was fixed, or renamed)", () => {
+  const oneHomeLeft = [door("#a", "button<home-a")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const stale = checkStaleDuplicateDoorAllowances(oneHomeLeft, allowances);
+
+  expect(stale).toHaveLength(1);
+  expect(stale[0]).toContain("button|more message actions");
+  expect(stale[0]).toContain("test-only ruling");
+
+  const renamedAway: readonly ActionDoorInput[] = [];
+  expect(checkStaleDuplicateDoorAllowances(renamedAway, allowances)).toHaveLength(1);
 });
 
 // ── measured-spill pass-throughs (impeccable) ────────────────────────────────

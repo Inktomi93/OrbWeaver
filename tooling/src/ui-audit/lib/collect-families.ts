@@ -24,6 +24,7 @@ import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { classifyAccentBorder, classifyGlowShadow } from "./checks-decor.ts";
+import { checkDuplicateDoorPopulations } from "./checks-duplicate-door.ts";
 import { checkFontCensus, fontCensusPopulations } from "./checks-font-census.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset } from "./checks-grid.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
@@ -32,7 +33,6 @@ import { checkIconTile, classifyBgPattern, classifyMotionStatic, classifyRadialG
 import {
   checkClippedOverflow,
   checkDoubleEmptyState,
-  checkDuplicateDoorPopulations,
   checkEdgeFlush,
   checkHeadlineOverhang,
   checkInlinePaddingLeak,
