@@ -107,17 +107,32 @@ population):
 | | before | after |
 | - | -: | -: |
 | declared members | 66 | 66 |
-| proven emitters | 269 | **273** |
+| proven emitters | 269 | **271** |
 | unresolved identities | 0 | 0 |
 | `UserBusEvent.chatsChanged` | declared-never-emitted | proven at `transport/trpc/user-events-bus.ts:43` |
 | `UserBusEvent.connectionsChanged` | unproduced | unproduced (the #1822 debt) |
 | policy findings | 0/0/0/0/0 | 0/0/0/0/0 |
 
-The one emitter anchor for `chatsChanged` is the `publishUserEvent(userId, event)` call inside
-`publishChatChanged` — the conditional local's own source call, not the union, not the coarse table, and
-not the `.publish` sink two lines below it. The brief's expectation of "\~10 source-call anchors" was
-wrong in a benign direction: the relay resolves the member at the point where it becomes provable and
-stops, so the domain call sites of `publishChatChanged` are not re-anchored.
+The +2 is a SET DIFFERENCE of the two anchor censuses, not a count:
+
+- `chatsChanged @ packages/server/src/transport/trpc/user-events-bus.ts:43` — the conditional publisher.
+  Its ONE anchor is the `publishUserEvent(userId, event)` call inside `publishChatChanged`: the
+  conditional local's own source call, not the union, not the coarse table, and not the `.publish` sink
+  two lines below it. The brief's expectation of "\~10 source-call anchors" was wrong in a benign
+  direction — the relay resolves the member where it becomes provable and stops, so the domain call sites
+  of `publishChatChanged` are not re-anchored.
+- `variantSelected @ packages/server/src/domain/chat/verbs/edit.ts:516` — a real producer the fact missed
+  for a different reason: `const emit = deps.emit;` then `emit({type:"variantSelected", …})`. `emitterSink`
+  used to RETURN at an Identifier callee, so an injected door held one binding later was a silent
+  non-producer. The identifier now falls through to the same member resolution, which follows the const.
+
+THE PRODUCER FENCE IS SYMMETRIC (repaired after review). An intermediate implementation credited relayed
+emissions wherever the relay chain reached, which added three `entry/`-tier anchors
+(`entry/auth/seam.ts:233`, `entry/http/auth-routes.ts:725`, `entry/compose/portability-runner.ts:289`)
+that a DIRECT call at those paths would not have earned. `isProducerPath` now gates the relayed emission
+exactly as it gates a direct one — "a compose-only publisher is wiring, not a producer" is this family's
+own ruling, and a tier fence that depends on how many hops an event took is not a fence. The relay itself
+still propagates through those frames, so a domain/transport caller further out is still credited.
 
 ## 2. The conversions
 
@@ -141,7 +156,7 @@ either exists or the bus is invisible. The one exception is the debt policy's se
 | `BELT_EXEMPT.LiveOnlyChatBusEvent` | DERIVED | the `Extract<>` half of the same row, same proof |
 | `BELT_EXEMPT.WiBusEvent` | DERIVED | a spliced sub-union's members are contained by the root's; `mustPass[1]`, and `mustFlag[2]` proves the two-sidedness — the same alias, no longer spliced, is RED |
 | `SERVER_INTERNAL_REACH.DomainEvent` | DERIVED | a `never`-typed argument at a `never`-parameter guard is the checker's exhaustiveness proof, and the argument's declared type names the union; `bus-consumer-belt` `mustPass[2]`, with `mustFlag[1]` proving a PARTIAL dispatch is not one |
-| the coverage-gate FILE-NAMING table (`hasCoverageGate`) | DERIVED | `bus-coverage-owner` reads `defineGate` descriptors by declaration identity plus their authored `{path, exportName}` subject; `mustFlag[0]` keeps the comment-posture control (a prose mention owns nothing) and `mustPass[1]` proves an import alias still counts |
+| the coverage-gate FILE-NAMING table (`hasCoverageGate`) | DERIVED | `bus-coverage-owner` reads `defineGate` descriptors by declaration identity, the union identity THE DESCRIPTOR REACHES, and the descriptor's own `family`/`severity`/`workItem`; four controls — comment-posture, wrong-union, warning-debt sibling, unused const |
 | `user-bus-coverage`'s `DEFERRED.connectionsChanged` | RE-HOMED as warning debt | `user-bus-deferred-member`, `workItem: 1822` |
 
 No reviewed grant was needed, and none was taken: every row was either a fact about a type or a fact about
@@ -168,21 +183,85 @@ descriptor may fake and the roster derives — and the FINDING is the retirement
   the debt module when #1822 lands makes the sibling own the member in the same edit, and `tsc` refuses
   any half of it.
 
+### What ownership means, after review
+
+The first cut credited ownership to any `{path, exportName}` const declared in the same FILE as a
+`defineGate` call, and counted every family member as an owner. Both are refuted, and the second one was
+live: `user-bus-deferred-member` declares `UserBusEvent` and reports ONLY the retirement of a deferral —
+it never reports a dead-wire member — so with `user-bus-coverage` deleted the gate stayed green while the
+bus had no ratchet at all, making this policy's own header ("a declared-never-emitted member is somebody's
+finding") false.
+
+An owner is now: a `defineGate` descriptor resolved to the contract's own declaration, whose ARGUMENT
+reaches the union identity const (a leftover const beside it proves nothing), in the producer family, with
+`severity: "error"` and no `workItem`. The last two are not taste — the descriptor contract requires
+`workItem` for `warning` and forbids it for `error`, so "declares warning debt" and "is a blocking
+ratchet" are mutually exclusive facts the descriptor already carries. Receipt (live, whole tree): with
+`tooling/src/verify/gates/user-bus-coverage.ts` moved out of the corpus, `bus-coverage-owner` reports
+`packages/contracts/src/user-bus/index.ts:68` — and the owner census still lists
+`user-bus-deferred-member [bus-fact/warning/#1822] -> UserBusEvent`, which is exactly the row that no
+longer launders ownership.
+
+### The consumer belt widened, and that is a ruling
+
+The retired `SERVER_INTERNAL_REACH` row licensed the server-guard arm for `DomainEvent` ALONE and carried
+a two-sided stale arm ("a reach-lane union that grows a client map is RED"). The derivation widens it: ANY
+belted union may satisfy the consumer belt with an exhaustive server dispatch. That is deliberate, and the
+stale arm has no successor because it has nothing to be stale about — there is no permission row to rot,
+only a proof that either exists or does not. The census that makes the widening safe today (whole tree):
+
+| union | client total maps | exhaustive server consumers |
+| - | - | - |
+| `AutomationBusEvent` | 2 (`features/automation/lib/apply-automation-bus-event.ts:63`, `apply-quick-reply-event.ts:43`) | 0 |
+| `ChatBusEvent` | 1 (`data/invalidation.ts:59`) | 0 |
+| `RpgBusEvent` | 1 (`data/invalidation-reads.ts:186`) | 0 |
+| `UserBusEvent` | 1 (`data/invalidation.ts:187`) | 0 |
+| `DomainEvent` | 0 | 2 (`entry/compose/search-discovery.ts:173`, `entry/compose/room-reach.ts:332`) |
+
+No union has both, so the widening changes no verdict on the current tree; `DomainEvent` is still the only
+bus riding the server arm, and the census found it a SECOND guard the legacy row never named. If a future
+bus satisfies the belt with a guard while also carrying a client map, that is a fact about the tree rather
+than a stale permission, and the census above is where it will show.
+
 ## 3. Verification
 
 - **Conformance** — `tests/tooling/verify/gates/bus-pair.test.ts`: 6 policies, 25 proof rows, plus four
   `runPolicyPass` pins (the deferral refusal, the deferred member's exclusive ownership in both states,
   the definition-fact and coverage-owner blindness refusals, and the derived-vs-name-table control that
-  REDs a same-named alias which stopped being a subset). A fixture-specifier resolution control covers
-  every proof row in the family; it caught three of this lane's own fixtures whose `../` count reached
-  above the virtual root — the wave-3 lesson, paid again.
+  REDs a same-named alias which stopped being a subset). Fixture-specifier resolution is controlled on BOTH
+  sides: every proof row in the family (this spec) and every fixture map the fact spec runs (inside its
+  own `runFact`, with a planted dangling specifier as the positive control for the check itself). It has
+  caught four of this lane's own fixtures whose `../` count reached above the virtual root, and the
+  fourth — the homonym-door decoy — is why the control is per-fixture rather than per-file: that row
+  asserted `emitted === []` while `ProbeBusEvent` never resolved, so it held byte-identically under a
+  NAME-CHECK mutant of the door it exists to pin. With the specifier repaired it goes RED under that
+  mutant (receipt in §3).
+
 - **Fact spec** — `tests/tooling/verify/lib/bus-fact-relay.test.ts`, 9 rows, red-first as above.
+
 - **Scoped suites** — 122 tests across 7 files green (`bus-pair`, `bus-fact-relay`, `bus-fact-health`,
   `bus-payload-allowlist`, `bus-coverage`, `reviewed-grants`, `policy-pass`).
-- **Real tree, both families** (12 policies, 3 providers, 7,213 loaded sources): 12/12 owners success,
-  nothing withheld, zero fact/tool/authority errors, zero alarms, **0 raw / 0 waived / 0 granted / 0
-  effective**. The definition fact reports 8 unions, 5 belts, 0 unresolved; the coverage-owner fact parses
-  267 gate modules with 0 unresolved.
+
+- **Real tree, both families** — 11 selected policies (`automation-bus-coverage`, `bus-belt-total`,
+  `bus-consumer-belt`, `bus-coverage`, `bus-coverage-owner`, `bus-definition-belts`, `bus-fact-health`,
+  `domain-events-coverage`, `rpg-bus-coverage`, `user-bus-coverage`, `user-bus-deferred-member`) and 3
+  providers over 7,213 loaded sources: 11/11 owners success, nothing withheld, zero fact/tool/authority
+  errors, zero alarms, **0 raw / 0 waived / 0 granted / 0 effective**. Provider receipts: producers 8
+  unions / 66 members / 271 emitters / 0 unresolved; definitions 8 unions / 5 belts / 101 discriminators /
+  5 client maps / 2 exhaustive consumers / 0 unresolved; coverage-owners 267 gate modules / 6 owner rows /
+  0 unresolved. (Every count in this file is read from that run's receipts; a run that also carries the
+  lane's census probe reports 12 selected, and that twelfth is the probe.)
+
+- **Mutation receipts** — three, each applied to a copy-aside original and moved back: the door reduced to
+  a name check REDs the homonym row; ownership widened to "any descriptor that reaches the identity" REDs
+  the warning-debt-sibling row; ownership read from the FILE again REDs the unused-const row.
+
+- **Type programs** — the program this lane ran is TOOLING TS7 (`scripts/ts7.cjs -p tooling/tsconfig.json`),
+  clean. `types:graph` (the root `tsconfig.json` program) is RED on this tree with 12 errors in five files
+  — `tests/tooling/verify/lib/{policy-loader,policy-plan,render.int,resource-declaration}.test.ts` and
+  `tests/tooling/verify/ops/scoped.int.test.ts` — and every one of them is the known-red legacy-loader
+  class this program owns at cutover, present identically at `f6078a884`. None of this lane's touched
+  files appears in that list, and none of those five is repaired here.
 
 ### Cost
 

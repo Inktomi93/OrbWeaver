@@ -47,10 +47,16 @@ export interface BusDefinitionFact {
   readonly receipt: BusDefinitionFactReceipt;
 }
 
-/** One producer-coverage OWNER: a final policy module that declares a bus union identity as its subject. */
+/** One producer-coverage OWNER: a final policy whose DESCRIPTOR reaches a bus union identity, and whose
+ *  own authority makes it a coverage ratchet rather than a debt notice. Every field is authored data read
+ *  off the `defineGate` argument — the module a const happens to sit in proves nothing. */
 export interface BusCoverageOwner {
   readonly policyId: string;
   readonly family: string;
+  /** `error` blocks and is the coverage ratchet; a `warning` policy is debt tracking and owns no bus. */
+  readonly severity: string;
+  /** Present exactly when the descriptor declares warning debt, which disqualifies it as an owner. */
+  readonly workItem: number | null;
   readonly union: BusDeclarationIdentity;
   readonly anchor: BusAnchor;
 }

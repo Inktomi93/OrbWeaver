@@ -26,6 +26,7 @@ import {
   emitterSink,
   NAMED_BUS_UNIONS,
   operationIdentity,
+  PUBLISH_MEMBER,
   parameterProjection,
   typeDiscriminators,
   typedDiscriminators,
@@ -356,7 +357,8 @@ function hasEmitterDoor(call: CallExpression, names: ReadonlySet<string>): boole
   }
   const expression = call.getExpression();
   const member = Node.isIdentifier(expression) ? resolveCallableMember(expression) : undefined;
-  return member !== undefined && names.has(member.name);
+  // The alias candidate is admitted on the MEMBER the binding holds, never on the local name it was given.
+  return member !== undefined && (member.name === PUBLISH_MEMBER || names.has(member.name));
 }
 
 interface DirectEmittersInput {
@@ -404,7 +406,14 @@ function propagateRelay({ context, call, relay, relays, unresolved, visited }: P
   const property = relay.memberPath[0] ?? "type";
   const emission = argumentEmission({ context, argument, property, record: relay.bus });
   if (emission.kind === "values") {
-    appendEmission({ context, record: relay.bus, call, values: emission.values, unresolved, translate: relay.translate });
+    // THE PRODUCER FENCE IS SYMMETRIC. A relayed call credits its member only where a DIRECT call would:
+    // a wrapper reached from `entry/` is composition wiring, and "a compose-only publisher is wiring, not a
+    // producer" is this family's own ruling (automation-bus-coverage mustFlag[1]). Crediting it through a
+    // relay while refusing it directly would make the tier fence depend on how many hops the event took.
+    // The relay itself still propagates: a domain/transport caller further out is a real producer.
+    if (isProducerPath(relay.bus, context.relativePath(call.getSourceFile()))) {
+      appendEmission({ context, record: relay.bus, call, values: emission.values, unresolved, translate: relay.translate });
+    }
     return false;
   }
   if (emission.kind === "refused") {

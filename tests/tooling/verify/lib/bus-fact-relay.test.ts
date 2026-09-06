@@ -151,15 +151,37 @@ interface FactRun {
   readonly result: ReturnType<typeof runPolicyPass>;
 }
 
+/** Fixture specifiers that reach NOTHING. A dangling relative import makes every identity read pass by
+ *  fail-closure while the suite reports green, so this is asserted for EVERY fixture map the spec runs —
+ *  not only the shared one. It has now caught two of this spec's own fixtures: five `../` from `trpc/`,
+ *  and five from `domain/settings/`, the second of which made the homonym-door row hold under a
+ *  name-check mutant of the door it exists to pin. */
+function danglingSpecifiers(project: Project): readonly string[] {
+  return project
+    .getSourceFiles()
+    .flatMap((sourceFile) => sourceFile.getImportDeclarations())
+    .filter((declaration) => declaration.getModuleSpecifierValue().startsWith(".") && declaration.getModuleSpecifierSourceFile() === undefined)
+    .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
+}
+
+function projectOf(files: Readonly<Record<string, string>>): Project {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  const dangling = danglingSpecifiers(project);
+  if (dangling.length > 0) {
+    throw new Error(`fixture import specifiers resolve to nothing: ${dangling.join("; ")}`);
+  }
+  return project;
+}
+
 function runFact(files: Readonly<Record<string, string>>): FactRun {
   let captured: BusFact | undefined;
   const policy = probePolicy((fact) => {
     captured = fact;
   });
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, source] of Object.entries(files)) {
-    project.createSourceFile(`${ROOT}/${path}`, source);
-  }
+  const project = projectOf(files);
   const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
   if (captured === undefined) {
     throw new Error(`the bus fact was never delivered: ${JSON.stringify(result.factErrors)} ${JSON.stringify(result.toolErrors)}`);
@@ -180,20 +202,18 @@ function emitterAnchors(fact: BusFact, exportName: string, member: string): read
   return (bus?.emitters ?? []).filter((emitter) => emitter.member.name === member).map(({ anchor }) => `${anchor.path}:${anchor.line}`);
 }
 
-test("every fixture import specifier resolves inside the virtual project", () => {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, source] of Object.entries(LIVE_FILES)) {
-    project.createSourceFile(`${ROOT}/${path}`, source);
-  }
-  // A relative specifier that reaches nothing makes every identity read pass by fail-closure while the
-  // suite reports green — the wave-3 lesson, and it bit this fixture once (five `../` from `trpc/`
-  // resolved above the root, so the bus argument typed as an unresolved alias).
-  const dangling = project
-    .getSourceFiles()
-    .flatMap((sourceFile) => sourceFile.getImportDeclarations())
-    .filter((declaration) => declaration.getModuleSpecifierValue().startsWith(".") && declaration.getModuleSpecifierSourceFile() === undefined)
-    .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
-  expect(dangling).toEqual([]);
+test("every fixture specifier resolves — and the check that says so REFUSES a planted dangling one", () => {
+  // `runFact` applies this to every fixture map in the file; the shared map is asserted by name here.
+  expect(() => projectOf(LIVE_FILES)).not.toThrow();
+  // The positive control: the same reader must REFUSE a fixture whose specifier climbs above the root.
+  // Without it, "zero dangling specifiers" could equally mean the reader stopped working.
+  expect(() =>
+    projectOf({
+      ...LIVE_FILES,
+      "packages/server/src/domain/settings/planted.ts":
+        'import type { ProbeBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport type Alias = ProbeBusEvent;\n',
+    }),
+  ).toThrow(/resolve to nothing/u);
 });
 
 test("the conditional publisher, the two-hop relay and the coarse republish all resolve to their real members", () => {
@@ -236,7 +256,7 @@ test("a homonym channel mint declared in another module is not the bus door", ()
     "packages/server/src/domain/settings/local-channel.ts":
       "export interface BusChannel<Key, Event> {\n  readonly publish: (key: Key, event: Event) => void;\n}\nexport function defineBusChannel<Key, Event>(): BusChannel<Key, Event> {\n  return { publish: () => undefined };\n}\n",
     "packages/server/src/domain/settings/decoy.ts":
-      'import type { ProbeBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./local-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>();\nexport function go(userId: string): void {\n  bus.publish(userId, { type: "chatsChanged" });\n}\n',
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./local-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>();\nexport function go(userId: string): void {\n  bus.publish(userId, { type: "chatsChanged" });\n}\n',
   });
   expect(fact.unresolved).toEqual([]);
   expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);

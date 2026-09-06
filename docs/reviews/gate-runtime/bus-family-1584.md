@@ -91,9 +91,15 @@ The producer fact proves three shapes it could not see before, and refuses one i
   cannot read at all (`any`/`unknown`/no literal discriminator).
 
 Real-tree differential on the same checkout, `f6078a884` vs the model: 66 declared members and zero
-unresolved identities in both; proven emitters 269 -> 273; `UserBusEvent.chatsChanged` moves from
-declared-never-emitted to proven at `transport/trpc/user-events-bus.ts:43`; `connectionsChanged` remains
-the only unproduced member on the tree. All five producer policies stay 0/0.
+unresolved identities in both; proven emitters 269 -> 271, as an anchor-set difference of exactly two —
+`chatsChanged @ transport/trpc/user-events-bus.ts:43` (the conditional publisher) and
+`variantSelected @ domain/chat/verbs/edit.ts:516` (`const emit = deps.emit`, an injected door held one
+binding later, which `emitterSink` used to drop at its Identifier early return). `connectionsChanged`
+remains the only unproduced member on the tree, and all five producer policies stay 0/0.
+
+The producer FENCE is symmetric: a relayed emission is credited only where a direct call would be, so a
+wrapper reached from `entry/` earns nothing (this family's own "a compose-only publisher is wiring, not a
+producer" ruling), while the relay still propagates to a domain/transport caller further out.
 
 ## Remaining bus work
 
