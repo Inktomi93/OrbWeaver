@@ -1,100 +1,59 @@
-// Gate: component-size (Core-Laws-and-Precedents.md) — a hard file-size cap on @orb/client sources so
-// "I'll split it later" can't survive a check run. `.ts` is gated alongside `.tsx` because sprawl hides
-// in a verb-dispatch hook or a mega-store just as readily as in a surface.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+// Gate: component-size (Core-Laws-and-Precedents.md / UI-Architecture-and-Layout.md §2.1). Client
+// sources have a hard line cap. The verdict is per-file, so scoped runs remain complete and no
+// filesystem walk or ResourceHost tree is required.
+import { defineGate } from "../contract/policy.ts";
+import { authoredLineCount } from "../lib/source-line-count.ts";
 
-const CLIENT_SRC = "packages/client/src";
-// Route shells orchestrate slots + suspense boundaries — a small allowance over the default.
 const ROUTES_PREFIX = "packages/client/src/routes/";
-// Caps. Bump in a review-visible commit alongside the file you're bumping for — never quietly.
 const CAP_DEFAULT = 450;
 const CAP_ROUTE = 500;
-const SKIP_DIRS = new Set(["node_modules", "dist", "__screenshots__"]);
-const SKIP_RE = /\.(?:test|spec|gen)\.tsx?$/u;
-const TRAILING_NL = /\n$/u;
+const MESSAGE =
+  "a client source file exceeds the hard line cap (default 450, routes 500) — split it into sub-files or extract pure logic; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.";
 
-function isGatedSource(name: string): boolean {
-  const isTs = name.endsWith(".tsx") || name.endsWith(".ts");
-  // Tests, generated files, and ambient declarations are exempt — they're not hand-authored surfaces.
-  const isExempt = SKIP_RE.test(name) || name.endsWith(".d.ts");
-  return isTs && !isExempt;
-}
-
-function walk(dir: string, out: string[]): void {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (SKIP_DIRS.has(e.name)) {
-      continue;
-    }
-    const full = join(dir, e.name);
-    if (e.isDirectory()) {
-      walk(full, out);
-    } else if (isGatedSource(e.name)) {
-      out.push(full);
-    }
-  }
-}
-
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanComponentSize(root: string): Violation[] {
-  const base = join(root, CLIENT_SRC);
-  if (!existsSync(base)) {
-    return [];
-  }
-  const files: string[] = [];
-  walk(base, files);
-  const out: Violation[] = [];
-  for (const file of files) {
-    const rel = relative(root, file);
-    // Trim a single trailing newline so a file ending in "\n" isn't counted one line over.
-    const lines = readFileSync(file, "utf8").replace(TRAILING_NL, "").split("\n").length;
-    const cap = rel.startsWith(ROUTES_PREFIX) ? CAP_ROUTE : CAP_DEFAULT;
-    if (lines > cap) {
-      out.push({
-        file: rel,
-        line: cap + 1,
-        message: `${lines} lines (cap ${cap}) — split into sub-files under a bucket or extract pure logic to a hook/lib (see this gate's \`fix\` for the VOCABULARY-extraction shape). A god-component is a UI-Architecture-and-Layout.md §2.1 smell.`,
-      });
-    }
-  }
-  return out;
-}
-
-export const gate: GateDescriptor = {
-  name: "component-size",
-  docRow: "Core-Laws-and-Precedents.md (UI-Architecture-and-Layout.md §2.1)",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
-  message:
-    "a client source file exceeds the hard line cap (default 450, routes 500) — split it into sub-files under a bucket or extract pure logic to a hook/lib; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.",
-  fix: "split the file into sub-files under a bucket, or extract pure logic to a hook/lib — the cap is a structural guard, not a style preference. If the excess is a self-contained VOCABULARY/CONFIG (an id tuple, a category map, a knob model) rather than component logic, pull it into its own `state/<name>.ts`/`lib/<name>.ts` module — the house precedent, both minted for exactly this: `state/section-ids.ts` (extracted out of `shell-store.ts` the first time this cap bit that file) and `state/settings-categories.ts` (the same move, #24). Re-export from the original so every existing import path keeps resolving. (#644: a lane can see this coming BEFORE it edits — `pnpm check:show` prints a near-cap advisory for files a few lines under this cap.)",
-  run: (ctx) => {
-    for (const v of scanComponentSize(ctx.root)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "component-size",
+  family: "component-size",
+  authority: "hard",
+  severity: "error",
+  population: {
+    in: ["@client"],
+    notUnder: ["**/node_modules/**", "**/dist/**", "**/__screenshots__/**"],
+    notNamed: ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx", "*.gen.ts", "*.gen.tsx", "*.d.ts"],
+    ext: ["ts", "tsx"],
   },
+  analysis: "syntax",
+  execution: "selected-files",
+  resources: [],
+  message: MESSAGE,
+  fix: "split the file into sub-files, or extract a self-contained vocabulary/config into state/ or lib/ and re-export it from the original front door.",
+  create: (ctx) => ({
+    visitFile: (sourceFile) => {
+      const path = ctx.relativePath(sourceFile);
+      const cap = path.startsWith(ROUTES_PREFIX) ? CAP_ROUTE : CAP_DEFAULT;
+      const lines = authoredLineCount(sourceFile);
+      if (lines > cap) {
+        ctx.report.file(path, { line: cap + 1, column: 1, message: `${lines} lines (cap ${cap}) — split the file; the cap is a structural guard.` });
+      }
+    },
+  }),
   mustFlag: [
     {
-      files: {
-        "packages/client/src/big/big.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT + 1),
-      },
-      expect: { messageIncludes: "cap 450" },
-      why: "a client file one line over the 450 default cap — a god-component (§2.1)",
+      mode: "source",
+      files: { "packages/client/src/big/big.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT + 1) },
+      expect: { count: 1, line: CAP_DEFAULT + 1, messageIncludes: "cap 450" },
+      why: "a client file one line over the default cap",
     },
   ],
   mustPass: [
     {
+      mode: "source",
       files: { "packages/client/src/small/small.tsx": "export const x = 1;\n" },
-      why: "a small client file well under the cap — passes",
+      why: "a small client file is below the cap",
     },
     {
-      files: {
-        "packages/client/src/boundary/boundary.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT),
-      },
-      why: "a client file EXACTLY at the 450 cap (lines > cap, so 450 is not over) — the boundary passes",
+      mode: "source",
+      files: { "packages/client/src/boundary/boundary.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT) },
+      why: "a client file exactly at the cap passes",
     },
   ],
-};
+});
