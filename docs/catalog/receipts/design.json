@@ -1852,14 +1852,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "6c47493d39e9fc3498d29981cce0e173b3405aae06e59681cdc4f376b77b2f60",
+      "assignedSha256": "355762dd299c1feacab21f3fa8af7143bee73e4a612892461252f7d9d2098864",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "6c47493d39e9fc3498d29981cce0e173b3405aae06e59681cdc4f376b77b2f60",
-      "verifiedCommit": "0610c06aaec6dc9e1c6e3be09c54251dfc162822",
+      "verifiedSha256": "355762dd299c1feacab21f3fa8af7143bee73e4a612892461252f7d9d2098864",
+      "verifiedCommit": "f62e701cb3890302e9e9e02125c8d0059c76686b",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
         "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "c68f32c3a (#1774: row 155 → LANDED FOR THE RPG DOMAIN; row 44 residue struck for the rpg family) — re-attested at the fold",
         "0c31b0905ccc0d35c8dfb87979ea12b8826301aa (#1774 map row: the rpg roster-family word ruling, DIVERGENT — word RULED) on 75d9a1176a9fffc879d05937f0d23a275bda3c9f (#1787: World-book row → landed, cross-ref fixed) — re-attested at the fold",

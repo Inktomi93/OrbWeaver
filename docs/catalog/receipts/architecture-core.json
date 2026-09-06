@@ -362,14 +362,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "9d8f91c81d7f0d2b3d7dc2c7a8c755ae69922a7d84e077d758564f087f7460be",
+      "assignedSha256": "89a65ff3121aaa2b2dae2fbaee5a1b7320c8de651783e9f4aeae4a5e353b1744",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "9d8f91c81d7f0d2b3d7dc2c7a8c755ae69922a7d84e077d758564f087f7460be",
-      "verifiedCommit": "c68f32c3a1e6a793fc04aac871009b53305964b9",
+      "verifiedSha256": "89a65ff3121aaa2b2dae2fbaee5a1b7320c8de651783e9f4aeae4a5e353b1744",
+      "verifiedCommit": "f62e701cb3890302e9e9e02125c8d0059c76686b",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "#1774 persona half: D122's resolvePersonasForRoster mentions repointed to resolvePersonasForParticipants",
         "c68f32c3a (#1774 rpg half, claude-b cb-rpg-roster-codemod linearized: D108 + its (F) paragraph — the rpg roster family renamed by codemod; symbols only) — re-attested at the fold",
         "9c2556187 (#1540 cb-preview-fit, D51 arm A: the parenthetical truth-repaired — the pipeline tail lives at domain/chat/substrate/wire-history.ts, content-part-seam its enforcer) — re-attested at the fold",
         "62d59caf2908adee3a963efd9b9a83a7f2a40c3a (#906): D121(F) dated in-place truth repair — the reserved cross-game arm is libraryNpc",
