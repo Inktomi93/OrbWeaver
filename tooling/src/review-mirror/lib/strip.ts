@@ -4,6 +4,14 @@ import { extname } from "node:path";
 import { ts } from "ts-morph";
 
 const HASH_LINE_RE = /^\s*#/u;
+// PRESERVED comments — suppression/directive markers are load-bearing (they change tooling behavior AND tell
+// a reviewer a line was deliberately exempted): a stripped-of-everything mirror hides exactly the
+// gate-suppression ownership a reviewer needs (#1496 — e.g. `@orb-gate-ignore caught-failure-ownership`
+// annotations were invisible here even though the review round exists to check them). Covers lint/type
+// suppressions AND this repo's own gate escape grammar: `// terse-ok:`, `// test-exempt`, `seated-exempt`,
+// the `@*-ok`/`@*-exempt` family, and `@orb-*`/`@instrument-*`/`@ds-*` annotations, plus SAFE:.
+const DIRECTIVE_RE =
+  /\b(biome-ignore|eslint-(disable|enable)|prettier-ignore|v8 ignore|c8 ignore|istanbul ignore|knip)\b|@(ts-expect-error|ts-ignore|ts-nocheck|public|alias|internal|deprecated|dsCard)\b|[\w-]+-(ok|exempt|allow)\b|@ds-[\w-]+|@orb-[\w-]+|@instrument-[\w-]+|\bSAFE:/iu;
 const TS_LIKE: Readonly<Record<string, ts.ScriptKind>> = {
   ".ts": ts.ScriptKind.TS,
   ".tsx": ts.ScriptKind.TSX,
@@ -50,7 +58,8 @@ function stripTsLike(text: string, scriptKind: ts.ScriptKind): string {
       continue;
     }
     output += text.slice(cursor, start);
-    output += ` ${"\n".repeat(text.slice(start, end).split("\n").length - 1)}`;
+    const span = text.slice(start, end);
+    output += DIRECTIVE_RE.test(span) ? span : ` ${"\n".repeat(span.split("\n").length - 1)}`;
     cursor = end;
   }
   return output + text.slice(cursor);
