@@ -12,7 +12,7 @@
 // `collectByKinds` is the dispatcher's inner loop promoted to neutral territory (§1.4/§6): ONE
 // forEachDescendant walk per file, dispatching each node only to the visitors subscribed to its kind.
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
-import type { Node, SourceFile, SyntaxKind } from "ts-morph";
+import type { KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
 
 export interface WorkspaceOptions {
@@ -67,6 +67,34 @@ export function getWorkspace(opts: WorkspaceOptions): Project {
 /** One node visitor keyed to the SyntaxKinds it wants to see. */
 export type KindVisitor = (node: Node, sf: SourceFile) => void;
 
+/** ts-morph's own wrap-on-demand door (the one `getChildren`/`forEachChild` use internally): returns the cached
+ *  wrapper when one exists, so identity is unchanged for a node any reader has already touched. The ONE place
+ *  the internal name is spelled; every raw-walk primitive below wraps through it. */
+function wrapDoor(sf: SourceFile): (compilerNode: ts.Node) => Node {
+  return (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
+}
+
+/** Every descendant of `kind`, in `forEachChild` (document) order, wrapped only on match. The replacement for
+ *  `sf.getDescendantsOfKind(kind)` in a whole-file reader: for a TOKEN kind (`Identifier`, `StringLiteral`,
+ *  `NoSubstitutionTemplateLiteral` — anything below `SyntaxKind.FirstNode`) ts-morph's version takes its
+ *  `getChildren` path, which materialises the file's entire token tree (SyntaxLists + punctuation + keywords)
+ *  and leaves it cached on TypeScript's per-file WeakMap for the life of the Program — measured 2026-09-06 as
+ *  the single largest slice inside the write-scan reader (`getCompilerChildren`/`hasParsedTokens`/`createChildren`)
+ *  and a permanent memory tax. `forEachChild` reaches every AST child, identifiers and literals included; what it
+ *  does NOT visit is JSDoc trivia, so a reader that needs a name inside a `@param {…}` tag keeps the ts-morph door. */
+export function descendantsOfKind<TKind extends SyntaxKind>(sf: SourceFile, kind: TKind): KindToNodeMappings[TKind][] {
+  const wrap = wrapDoor(sf);
+  const out: KindToNodeMappings[TKind][] = [];
+  const walk = (compilerNode: ts.Node): void => {
+    if (compilerNode.kind === kind) {
+      out.push(wrap(compilerNode) as KindToNodeMappings[TKind]);
+    }
+    ts.forEachChild(compilerNode, walk);
+  };
+  ts.forEachChild(sf.compilerNode, walk);
+  return out;
+}
+
 /** ONE forEachDescendant pass over `files`, dispatching each node only to the visitors subscribed to its
  *  kind. This is the single-pass primitive: no `Map<SyntaxKind, Node[]>` materialization (holding 1.4M
  *  wrapped nodes alive is a memory cliff) — dispatch happens DURING the streaming walk (§1.4). */
@@ -77,11 +105,9 @@ export function collectByKinds(files: readonly SourceFile[], byKind: ReadonlyMap
   // Walk the RAW compiler tree (`ts.forEachChild`, ~0.2 s for the repo's 5.9 M nodes) and wrap a node
   // into ts-morph only when a visitor is subscribed to its kind. `SourceFile#forEachDescendant` wraps
   // EVERY node (~5.8 s and +800 MB over the same tree, measured 2026-09-06) and the wrappers were the
-  // single largest slice of the composed pass's CPU profile. `_getNodeFromCompilerNode` is ts-morph's own
-  // wrap-on-demand door (the one `getChildren`/`forEachChild` use internally); it returns the cached
-  // wrapper when one exists, so identity is unchanged for a node any reader has already touched.
+  // single largest slice of the composed pass's CPU profile; wrapping goes through `wrapDoor` above.
   for (const sf of files) {
-    const wrap = (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
+    const wrap = wrapDoor(sf);
     const walk = (compilerNode: ts.Node): void => {
       const subs = byKind.get(compilerNode.kind);
       if (subs !== undefined) {

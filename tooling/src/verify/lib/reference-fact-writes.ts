@@ -1,4 +1,6 @@
 // One source-local write scan, including immutable alias closure, for every reference fact reader.
+
+import { descendantsOfKind } from "@orb/tooling/_shared/ts-workspace";
 import type { Identifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 
@@ -383,10 +385,10 @@ function connectDeclarationAlias(declaration: import("ts-morph").VariableDeclara
 
 function aliasEdges(sourceFile: SourceFile): Map<object, Set<object>> {
   const edges = new Map<object, Set<object>>();
-  for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+  for (const declaration of descendantsOfKind(sourceFile, SyntaxKind.VariableDeclaration)) {
     connectDeclarationAlias(declaration, edges);
   }
-  for (const assignment of sourceFile.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
+  for (const assignment of descendantsOfKind(sourceFile, SyntaxKind.BinaryExpression)) {
     if (assignment.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
       continue;
     }
@@ -436,7 +438,7 @@ function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>;
   const written = new Set<object>();
   const mutated = new Set<object>();
   const reassigned = new Set<object>();
-  for (const identifier of sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)) {
+  for (const identifier of descendantsOfKind(sourceFile, SyntaxKind.Identifier)) {
     const kind = isDeclarationName(identifier) ? undefined : writeKind(identifier);
     const symbol = kind === undefined ? undefined : lexicalReferenceSymbol(identifier);
     if (symbol === undefined) {
@@ -450,7 +452,7 @@ function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>;
       reassigned.add(symbol.compilerSymbol);
     }
   }
-  for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+  for (const call of descendantsOfKind(sourceFile, SyntaxKind.CallExpression)) {
     const target = objectAssignTarget(call);
     if (target !== undefined) {
       addCallArgumentMutation(target, written, mutated);
@@ -494,7 +496,7 @@ function invokedMemberRootedAt(reference: MorphNode): MorphNode | undefined {
 
 function collectInvokedMembers(sourceFile: SourceFile): Map<object, MorphNode> {
   const invoked = new Map<object, MorphNode>();
-  for (const identifier of sourceFile.getDescendantsOfKind(SyntaxKind.Identifier)) {
+  for (const identifier of descendantsOfKind(sourceFile, SyntaxKind.Identifier)) {
     if (isDeclarationName(identifier)) {
       continue;
     }
