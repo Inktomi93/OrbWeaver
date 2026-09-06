@@ -3282,7 +3282,7 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
   await page.locator(".shell-main").evaluate((main) => {
     const row = document.createElement("div");
     row.setAttribute("data-slot", "message-row");
-    row.setAttribute("data-testid", "pcp-1646-fab-row");
+    row.setAttribute("data-fixture", "pcp-1646-fab-row");
     main.appendChild(row);
   });
 
@@ -3322,7 +3322,7 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
         const translate = anim.effect.getKeyframes()[0]?.["translate"];
         return typeof translate === "string" ? translate : null;
       };
-      const result = { mainRaw: read(".shell-main"), rowRaw: read('[data-testid="pcp-1646-fab-row"]') };
+      const result = { mainRaw: read(".shell-main"), rowRaw: read('[data-fixture="pcp-1646-fab-row"]') };
       grid.removeAttribute("data-list-flip");
       return result;
     }, direction);
@@ -3358,7 +3358,7 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
   await page.locator(".shell-main").evaluate((main) => {
     const row = document.createElement("div");
     row.setAttribute("data-slot", "message-row");
-    row.setAttribute("data-testid", "pcp-1646-fab-row-settle");
+    row.setAttribute("data-fixture", "pcp-1646-fab-row-settle");
     main.appendChild(row);
   });
 
@@ -3389,7 +3389,7 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
         const target = document.querySelector(selector);
         return target === null ? "absent" : getComputedStyle(target).translate;
       };
-      const pair = { main: read(".shell-main"), row: read('[data-testid="pcp-1646-fab-row-settle"]') };
+      const pair = { main: read(".shell-main"), row: read('[data-fixture="pcp-1646-fab-row-settle"]') };
       el.removeAttribute("data-list-settle");
       return pair;
     }, direction);
