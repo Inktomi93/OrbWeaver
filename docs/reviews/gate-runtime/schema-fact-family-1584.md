@@ -8,11 +8,9 @@ updated: 2026-09-05
 
 ## Checkpoint state
 
-This lane stopped on the owner checkpoint before any gate conversion began. The useful completed artifact is
-the invocation-scoped Drizzle schema fact/query boundary at `10b367434`. It is based on
-`d42e89e51` from `codex/gate-tsmorph-standardization`; that source branch advanced independently after this
-worktree was created, so integration must use the exact commits named below rather than assuming branch-tip
-ancestry.
+The original lane stopped before conversion. The integrated branch now owns a first-class Drizzle provider,
+one hard health policy, and the first relational-integrity policy wave. Historical SHAs below remain review
+receipts; the current branch tip and the latest receipts in this document are the resume authority.
 
 The boundary is `contract/schema-fact.ts` plus `lib/schema-fact.ts` and
 `lib/schema-fact-value.ts`. It consumes only the already-loaded `SourceFile[]`, `relativePath`, and lazy
@@ -98,26 +96,63 @@ merge, push, or board transition ran in this lane.
 
 Commit `0caf7dac2` moves production schema discovery into `drizzleSchemaFact`, a first-class provider over the exact `packages/db/src/schema/**` TS/TSX population. The dispatcher now feeds top-level `VariableDeclaration` nodes once; the provider finishes the canonical table/column/FK/index/JSON model before policies evaluate. The prior `schemaTableCalls(files)` descendant sweep remains only behind the direct unit-query helper and is not used by production policies. It retires when the schema policy family fully consumes the provider.
 
-The merged local-main provider run is ready over 30 files: 97 tables, 850 columns, 162 foreign keys, 178 indexes, 72 JSON columns, 25 open JSON columns, and 1,287 total members. The column/member increase is the merged `refinery` schema change. Provider timing was 19.28 s with 25.88 s process wall and 2.69 GB peak RSS; fact and policy tool errors were zero. Fourteen focused schema tests plus the 47-test core pass suite are green. No schema policy conversion is credited by this provider-only change.
+The merged local-main provider run is ready over 30 files: 97 tables, 850 columns, 162 foreign keys, 178 indexes, 72 JSON columns, 25 open JSON columns, and 1,287 total members. The column/member increase is the merged `refinery` schema change. The provider-only receipt measured 19.28 s with 25.88 s process wall and 2.69 GB peak RSS; fact and policy tool errors were zero. Fourteen focused schema tests plus the 47-test core pass suite are green.
+
+## Family shape
+
+One provider owns canonical schema discovery. Policies keep separate ids when they have distinct fixes,
+authority, or suppression decisions. Consolidation removes duplicate parsing and traversal; it does not
+collapse unrelated findings into one mega-policy.
+
+- fact health: missing, empty, mutated, dynamic, ambiguous, or unresolved schema identity;
+- relational integrity: explicit primary keys, explicit FK deletion policies, and leading child indexes;
+- identity integrity: schema brands and exact FK parent/child brand agreement;
+- ownership and scope: direct ownership plus provider/producer-derived ownership through canonical FKs;
+- shape policy: ledger bans, JSON shape/write parity, enum derivation, and typed soft references;
+- external registries: schema-produced obligations reconciled against independently receipted registries.
+
+The installed Drizzle runtime is an independent oracle, not the source scanner. `getTableConfig` can compare
+the live schema's table, column, FK, index, and deletion metadata with the static provider. `drizzle-kit/api`
+continues to own generated-schema/baseline parity. Runtime metadata cannot replace ts-morph for source
+anchors, authored-shape refusal, comments, or erased TypeScript brands.
+
+## First relational policy wave
+
+The first wave converts `fk-columns-indexed`, `fk-ondelete-stated`, and
+`table-explicit-primary-key`, and adds `schema-fact-health`. All four consume the same
+`drizzleSchemaFact`; no policy walks source files or recognizes Drizzle by text. Impostor or unresolved
+builders are instrument-health failures, while complete facts feed the three semantic policies.
+
+Focused final-policy conformance is green. A real-project final pass loaded 7,130 project sources, selected
+the exact 30 schema files, derived 1,287 members once, and produced zero findings, policy errors, fact errors,
+authority errors, or authority alarms. The provider cost 23.08 s; the complete process took 30.18 s and
+peaked at 2,655,060 KiB RSS with zero swap and zero major page faults. The three policy evaluations together
+cost 23.14 ms. Performance remains a family-level acceptance item.
+
+`gate:contract` moved from 1,414 findings across 256 modules to 1,403 findings across 257 modules: the three
+legacy descriptors retired eleven authoring violations, while the new health policy adds a registered module.
+The production structure front door remains legacy until atomic cutover and correctly refuses final policy
+descriptors; no compatibility adapter is planned.
 
 ## Conversion eligibility at checkpoint
 
-The following six policies were proven self-contained after the schema fact is cold-stable:
+The following three policies remain in the next self-contained conversion slice:
 
-- `fk-columns-indexed`;
-- `fk-ondelete-stated`;
-- `table-explicit-primary-key`;
 - `schema-branding`;
 - `asset-refs-fk-coverage`;
 - `schema-banned-shapes`.
+
+They are not all pure schema policies. `asset-refs-fk-coverage` reconciles schema-produced obligations
+against RETAINING and DERIVED registry classes, each with an independent receipt. `schema-banned-shapes`
+combines schema table/column bans with contract declarations and repo-wide import bans. Their final policy
+populations must reflect those additional evidence planes.
 
 `ownerid-registry` is detector-ready, and its 27 ownership rows are authoritative classification data rather
 than grants. Its final family is coupled to blocked `no-untyped-soft-ref`, so the checkpoint leaves it
 unconverted rather than creating temporary family churn.
 
-The six conversions were expected to reduce `gate:contract` from 1,447 to 1,419. Including
-`ownerid-registry` would reduce it to 1,413. These are expected census deltas only; no conversion or post-change
-measurement was performed.
+The original six-policy estimate was based on the earlier 1,447 census. Current measured deltas supersede
+that estimate; future slices must record their own before/after counts.
 
 ## Explicit blockers
 

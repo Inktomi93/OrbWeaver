@@ -481,9 +481,15 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
   }
 }
 
+export const DRIZZLE_SCHEMA_POPULATION = {
+  in: ["@db"],
+  under: ["packages/db/src/schema/**"],
+  ext: ["ts", "tsx"],
+} as const;
+
 export const drizzleSchemaFact = defineFact({
   id: "drizzle-schema",
-  population: { in: ["@db"], under: ["packages/db/src/schema/**"], ext: ["ts", "tsx"] },
+  population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   resources: [],
   create: (ctx) => {
