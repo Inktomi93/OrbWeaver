@@ -16,6 +16,17 @@ export type StageGroup = (typeof STAGE_GROUPS)[number];
  *  with no files in its surface). */
 export type ScopedArgv = readonly [string, ...string[]] | "whole-only" | "skip-empty";
 
+/** What an OUTPUT AUDIT found in a stage's transcript (#1245). A stage exists whose child can exit CLEAN
+ *  while having measured NOTHING — biome under a broken `biome.json` processes zero files, prints no
+ *  diagnostic, and (with `--no-errors-on-unmatched`) exits 0 — so for that stage the exit code alone is not
+ *  the verdict. `refusal` ⇒ the run is not a verdict and the stage becomes a TOOL ERROR (exit 2, never a
+ *  green and never a mere violation); `notice` ⇒ the stage's verdict stands, but the reader is told
+ *  something the exit code does not carry (rendered through `StageResult.notices`). */
+export interface TranscriptAudit {
+  readonly kind: "refusal" | "notice";
+  readonly message: string;
+}
+
 export interface StageDef {
   /** kebab, unique — "lint:biome", "types:graph", "tests:node", … */
   readonly name: string;
@@ -34,6 +45,11 @@ export interface StageDef {
   readonly scopedArgv?: (sel: Selection) => ScopedArgv;
   /** Map the child's native exit into the 0/1/2/3 contract (generalizes the runner's speaksScheme). */
   readonly classify: (status: number | null) => 0 | 1 | 2 | 3;
+  /** OUTPUT HONESTY (#1245) — for a stage whose child can report a clean exit over an EMPTY measurement.
+   *  Runs only when `classify` already returned clean or violations (a stage that is already a tool error
+   *  has no transcript worth auditing), and a `refusal` OVERRIDES that verdict with exit 2. Absent for
+   *  every stage whose exit code IS its whole verdict — this is a per-tool fact, not a policy knob. */
+  readonly auditTranscript?: (transcript: string, root: string) => TranscriptAudit | null;
   /** For `manual`-tier stages: WHY it isn't automated (rendered in `verify --list`). */
   readonly manualReason?: string;
   /** CONDITIONAL MEMBERSHIP AT A WHOLE TIER (#1523). `tiers` is the ladder; this narrows one rung of it

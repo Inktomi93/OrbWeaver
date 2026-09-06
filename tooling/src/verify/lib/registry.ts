@@ -3,6 +3,7 @@
 // child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
 // impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
 import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
+import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { TOOLING_TOUCHED_REASON, toolingTouched } from "./registry-preconditions.ts";
@@ -45,6 +46,8 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "lint"],
     classify: asViolations,
+    // #1245 — biome can exit 0 having checked NOTHING; the mechanism and its control are in lib/biome-verdict.ts.
+    auditTranscript: biomeStageAudit,
     scopedArgv: (sel) =>
       sel.existingPaths.length === 0
         ? "skip-empty"

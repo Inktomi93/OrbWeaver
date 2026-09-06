@@ -40,7 +40,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry } from "../contract/history.ts";
 import type { Selection } from "../contract/selection.ts";
-import type { StageDef, StageMode, StageResult, Tier, VerifyReport } from "../contract/stage.ts";
+import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
 import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
@@ -170,6 +170,33 @@ export function noticesIn(output: string): string[] {
   return out;
 }
 
+/** The marker an OUTPUT AUDIT (#1245) writes into the stage's own transcript, so the per-stage log and the
+ *  `failureExcerpt` cut from it both carry the reason — a refusal that lived only in the summary would be
+ *  invisible to a bot reading `reports/verify/<stage>.log`. */
+const AUDIT_MARKER = "[verify-audit";
+
+/** Ask the stage's output audit, but only where a transcript can still change the verdict: a stage the
+ *  classifier already called a TOOL ERROR (or misuse) has no measurement to audit, and its own diagnosis is
+ *  the one the reader needs. */
+export function auditOf(stage: StageDef, classified: 0 | 1 | 2 | 3, transcript: string, root: string): TranscriptAudit | null {
+  if (classified !== EXIT.clean && classified !== EXIT.violations) {
+    return null;
+  }
+  return stage.auditTranscript?.(transcript, root) ?? null;
+}
+
+/** THE AUDIT'S AUTHORITY, in one place: a refusal makes the stage a TOOL ERROR whatever the child's exit
+ *  said — "the run is not a verdict" outranks both a green and a violation (a violation would send the
+ *  reader hunting for a lint finding that does not exist). A notice never moves the verdict. */
+export function auditedExit(classified: 0 | 1 | 2 | 3, audit: TranscriptAudit | null): 0 | 1 | 2 | 3 {
+  return audit?.kind === "refusal" ? EXIT.toolError : classified;
+}
+
+/** The audit's line as it lands at the END of the stage transcript (or "" when there was nothing to say). */
+export function auditLine(audit: TranscriptAudit | null): string {
+  return audit === null ? "" : `\n${AUDIT_MARKER} ${audit.kind}] ${audit.message}\n`;
+}
+
 /** What one stage needs that is the same for every stage in the run: where the tree is, which run slot its
  *  transcript belongs to, and whether output is mirrored live. */
 interface RunContext {
@@ -243,9 +270,15 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
 
   const body = result.transcript;
   const logFile = logPathFor(slot, stage.name);
-  writeFileAtomic(runFile(slot, STAGES_SEGMENT, `${stage.name.replace(/:/gu, "-")}.log`), `${header}${body}`);
+  // OUTPUT HONESTY (#1245): the child's exit is not always its whole verdict — biome under a config it
+  // failed to parse checks ZERO files, says nothing about it, and exits 0. The audit reads the transcript
+  // the run already captured, so it costs nothing for the stages whose exit IS their verdict.
+  const classified = stage.classify(result.code);
+  const audit = auditOf(stage, classified, body, root);
+  const transcript = `${body}${auditLine(audit)}`;
+  writeFileAtomic(runFile(slot, STAGES_SEGMENT, `${stage.name.replace(/:/gu, "-")}.log`), `${header}${transcript}`);
 
-  const exitCode = stage.classify(result.code);
+  const exitCode = auditedExit(classified, audit);
   const ok = exitCode === EXIT.clean;
   const line = stageLine({
     name: stage.name,
@@ -272,9 +305,9 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
     exitCode,
     durationMs,
     logFile,
-    failureExcerpt: ok ? null : failureExcerpt(body),
+    failureExcerpt: ok ? null : failureExcerpt(transcript),
     runsAt: null,
-    notices: noticesIn(body),
+    notices: [...noticesIn(body), ...(audit?.kind === "notice" ? [audit.message] : [])],
   };
 }
 
