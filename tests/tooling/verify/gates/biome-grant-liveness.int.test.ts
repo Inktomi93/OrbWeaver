@@ -284,6 +284,16 @@ describe("biome-grant-liveness — a rule verdict this arm cannot trust is a REF
     expect(() => judgeReport(grants, JSON.stringify({ hello: 1 }))).toThrow(/reporter shape changed/u);
   });
 
+  test("a report over ZERO processed files refuses — a config biome could not parse reads as ALL-DEAD (#1245)", () => {
+    const stdout = JSON.stringify({ summary: { diagnosticsNotPrinted: 0, changed: 0, unchanged: 0 }, diagnostics: [] });
+    expect(() => judgeReport(grants, stdout)).toThrow(/processed 0 of 1 probe files/u);
+  });
+
+  test("the same empty diagnostic list over files biome DID process is a live judgement, not a refusal", () => {
+    const stdout = JSON.stringify({ summary: { diagnosticsNotPrinted: 0, changed: 0, unchanged: 1 }, diagnostics: [] });
+    expect(judgeReport(grants, stdout).dead).toEqual(grants);
+  });
+
   test("a report where the rule DID fire leaves the grant live — the control's other direction", () => {
     const stdout = JSON.stringify({
       summary: { diagnosticsNotPrinted: 0 },

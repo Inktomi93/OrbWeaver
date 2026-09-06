@@ -2299,6 +2299,7 @@
     "tests/tooling/verify/gates/verb-naming.test.ts",
     "tests/tooling/verify/gates/zod-modern-spellings.test.ts",
     "tests/tooling/verify/lib/baseui-read.int.test.ts",
+    "tests/tooling/verify/lib/biome-verdict.int.test.ts",
     "tests/tooling/verify/lib/bus-coverage.test.ts",
     "tests/tooling/verify/lib/ct-runner-lock.test.ts",
     "tests/tooling/verify/lib/gate-ignore.test.ts",
