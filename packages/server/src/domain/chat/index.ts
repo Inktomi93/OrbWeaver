@@ -90,6 +90,9 @@ export { resolveTier0Range } from "./memory/recall/bridge.ts";
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
+// The #1391 plugin tool wire-name rewrite over `message_variants.tool_calls` — the same boot-step shape
+// (`entry/boot/migrate-plugin-tool-wire-names` runs it); chat owns it because chat owns the table.
+export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wire-names.ts";
 // The #1649 handoff-offer vocabulary data migration — a boot step (`entry/boot/migrate-handoff-offer-vocab`)
 // runs it; the SQL lives beside the offer's other writes.
 export { migrateHandoffOfferVocab } from "./persistence/participant.ts";

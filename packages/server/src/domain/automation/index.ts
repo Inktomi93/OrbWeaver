@@ -71,6 +71,9 @@ export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle }
 export type { BudgetView, GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
+// The #1391 plugin tool wire-name rewrite over the `run_tool` arm inside `automation_rules.actions` — a
+// boot step (`entry/boot/migrate-plugin-tool-wire-names`) runs it; automation owns it because it owns the table.
+export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wire-names.ts";
 export { createAutomationService } from "./service.ts";
 export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
 // The recipient AXIS's one resolver — the front door for the PLUGIN `notify` path, which compose wires to the
