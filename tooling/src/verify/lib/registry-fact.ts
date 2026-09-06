@@ -15,8 +15,8 @@ import type {
 } from "../contract/registry-fact.ts";
 import { REGISTRY_DEFINITION_KINDS } from "../contract/registry-fact.ts";
 import type { StaticAuthoredValue } from "../contract/static-authored-value.ts";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
+import { resolveModuleMemberOrigin } from "./reference-fact.ts";
+import { readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
 
 const TYPE_NAMES = {
   section: "SectionDefinition",
@@ -104,7 +104,11 @@ function authoredObject(
     return { object: missing, authoredValue: missing };
   }
   const authoredValue = readStaticAuthoredValue(node);
-  const stable = resolveStableExpression(node);
+  // Object PROVENANCE and field READABILITY are independent facts. Every live registry definition carries
+  // imported icons, components, and hooks, so the complete JSON-like value legitimately refuses; inheriting
+  // that refusal as a provenance refusal made this fact report zero members for section/modal/home-tile/
+  // config-group on the real tree while their definitions were all sitting at their sanctioned paths.
+  const stable = resolveAuthoredComposite(node);
   if (stable.kind === "unresolved") {
     return { object: stable, authoredValue };
   }
@@ -113,9 +117,6 @@ function authoredObject(
       object: unresolved("unsupported", stable.value, stable.trace.declarations, `${stable.value.getKindName()} is not an authored object literal`),
       authoredValue,
     };
-  }
-  if (authoredValue.kind === "unresolved" && ["write", "cycle", "ambiguous", "missing", "dynamic"].includes(authoredValue.reason)) {
-    return { object: authoredValue, authoredValue };
   }
   return { object: { kind: "resolved", value: stable.value, trace: stable.trace }, authoredValue };
 }
