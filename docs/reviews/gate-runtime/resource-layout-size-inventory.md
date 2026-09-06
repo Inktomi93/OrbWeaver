@@ -95,3 +95,14 @@ This report and its cold review describe base `2800f78b63e702fb98c117d2ce810c843
 Resume from the current parent tip, read the three intervening commits and the resulting planner/conformance/resource contracts in full, then repeat the structural 53-policy census, exact 13+40 set comparison, all thirteen eligibility decisions, the off-tree tree-policy proof, the LOC differential, `pnpm gate:contract`, and the focused 89-test command. Fold this report commit only after that re-derivation; preserve the base-scoped evidence and append a current-tip disposition rather than silently rewriting the historical verdict.
 
 Issue-summary handoff: at the reviewed base, the 53-policy resource census closes to a 13-policy layout/size/inventory family and 40 explicit out-of-family rows. All 13 were blocked by exercised final-proof population semantics or a named missing provider; zero descriptors converted, `gate:contract` reduced by zero, and the branch preserved the parent runtime/schema/CSS ownership fences. The parent branch advanced after review, so current-tip eligibility is explicitly not re-attested.
+
+## Current-tip re-derivation: first converted pair
+
+The resource declaration, same-path hybrid, TS/TSX source, and resource-waiver seams were folded and reverified before this re-derivation. Two low-coupling rows were then read in full and converted without using the remaining disposable task worktrees:
+
+| Policy | Final shape | Population proof | Finding proof |
+| - | - | - | - |
+| `feature-owns-definition` | hard, resource-only, entire population; `client-feature` tree | 25/25 direct feature dirs and 25/25 definition owners match the legacy filesystem scan exactly | four final proofs pass; current legacy/final findings 0/0 |
+| `package-layout` | reviewed-grant, source/resource hybrid, entire population; five package source roots plus `packages` tree | legacy/final loose-module subject sets are both empty and byte-equal; final pass sees 1,854 TS/TSX source paths and 4,123 resource paths | two final proofs pass; current legacy/final findings 0/0; any future exception requires exact `(path, loose-package-root-module)` grant identity |
+
+Resource conformance now treats implicit parent directories of declared fixture files as valid resource identities, allowing a directory-shaped structural finding without inventing a fake file. The focused conversion test passes 2/2, the coupled conformance slice passes 12/12, tooling TypeScript and scoped Biome pass, and the direct current-corpus final run completes both owners with no tool/authority error or finding. The other eleven rows remain uncredited until each is reread and re-derived against the current contracts.
