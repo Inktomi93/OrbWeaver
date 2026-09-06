@@ -10,6 +10,7 @@
 
 import { SettingCheckboxRow, SettingSwitchRow } from "@orb/client/components";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { readSwitchRowOrientation } from "../../support/ct/settings-geometry.ts";
 
 test("SettingSwitchRow honours disabled + renders its reason as the row's description", async ({ mount, page }) => {
   await mount(
@@ -57,4 +58,22 @@ test("SettingCheckboxRow honours the same pair, and both arms compose one descri
   const description = page.locator('[data-slot="field-description"]');
   await expect(description).toContainText("Keeps the library index current.");
   await expect(description).toContainText("Only the owner can change this.");
+});
+
+// ── #980 F22 · THIS ROW IS THE REFERENCE ORIENTATION ─────────────────────────────────────────────────
+// Three collection surfaces hand-rolled this row three other ways, one of them INVERTED (the tag member
+// editor drew switch x=561 / label x=615 — a control-left row in a pane where every other control is
+// label-left, three orientations in one 720px form; side-eye 2026-09-06, run main-1931103). They are
+// converted, and `readSwitchRowOrientation` is the ONE definition of what they were converted TO: this
+// test is the reference reading, and `tag-member-surface.ct.tsx` / `regex-context-body.ct.tsx` assert the
+// same helper against the same expectations, so the three cannot drift apart again.
+test("#980 F22: the shared row IS the house orientation — label left, control right, on one line, clickable", async ({ mount, page }) => {
+  await mount(<SettingSwitchRow checked={false} label="Show avatars in chat" onChange={(): void => undefined} />);
+
+  expect(await readSwitchRowOrientation(page, "Show avatars in chat")).toEqual({
+    label: "Show avatars in chat",
+    labelLeadsControl: true,
+    onOneLine: true,
+    labelIsLabel: true,
+  });
 });
