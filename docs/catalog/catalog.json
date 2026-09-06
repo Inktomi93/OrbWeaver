@@ -718,8 +718,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 304386,
-      "sha256": "0787a2d60860ae25f7c230c3236f46657c93c893399df87d092cd76ec4d8b750",
+      "bytes": 305227,
+      "sha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -732,14 +732,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "0787a2d60860ae25f7c230c3236f46657c93c893399df87d092cd76ec4d8b750",
+        "assignedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "0787a2d60860ae25f7c230c3236f46657c93c893399df87d092cd76ec4d8b750",
-        "verifiedCommit": "b0e62f3bdebc42d7d85b919a0c0cb7f6fd0387c2",
+        "verifiedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
+        "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1706 (D71 clause (1) truth-repair: loadSeedThemes' light-arm seed extra for light-dark outputRole tokens, tokens.build.ts:437-462) at e9ad555ac",
           "re-attested at b0e62f3bd by the orchestrator after reading the #1737 edit in full (p-castmember-migration): the F4 amendment's enumeration carries the prose-slot id rename chat.group.castMember → chat.group.characterHeading (a stamp-carrying boot data migration re-keys every host's stored override; the 2026-08-30 v2 warning about a silent id edit survives with its input changed); no other row changed.",
           "re-attested at 5fdea267b by the orchestrator after reading D160 in full (p-showcase-package, #1692): default content ships as a workspace package the server DECLARES and resolves by node resolution — the first is @orb/showcase-plugins (packages/showcase-plugins/: nine bundles, the authoring guide, the published host-v1.d.ts; enforcers = the pnpm workspace dependency (physics) + dep-cruiser); header roll to D160, next free D161+; the retired seed directory is named in prose, not as a live path.",
           "re-attested at 2eed0d66b by the orchestrator after reading the #1649 amendment in full (p-chat-vocab-migration): D131's lead and arm (A) take the vocabulary map's word — the seated-character drop, HandoffOffer {copyCharacters, copyGmPreset} — and the Homes list gains the boot step entry/boot/migrate-handoff-offer-vocab.ts (the persisted key renamed WITH a boot-time data migration, no shim; the ruling survives, its input changed). No other row changed.",
@@ -12015,29 +12016,30 @@
       "path": "docs/design/config-revamp-design.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1023,
-      "bytes": 154409,
-      "sha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
+      "lines": 1037,
+      "bytes": 155826,
+      "sha256": "00d7ea24d7c1bd19fa7edd348a210700f80d824a0e3041ceebb73dbe0123e48d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "draft",
+          "status": "active",
           "updated": "2026-09-05"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
+        "assignedSha256": "00d7ea24d7c1bd19fa7edd348a210700f80d824a0e3041ceebb73dbe0123e48d",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "47221dfcf3d134bd685c27320db1f8d238e1100621337e2415c0e2c248a90854",
-        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+        "verifiedSha256": "00d7ea24d7c1bd19fa7edd348a210700f80d824a0e3041ceebb73dbe0123e48d",
+        "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1722 (status: draft → active, p-docs-batch) and the #1741/#1747 amendments at e9ad555ac",
           "re-attested at 626a06121 by the orchestrator after reading NEW §8.1b in full (cb-config-list, #1725): the four-ruling verdict table — #925 ENTER (select survives, disclose retired), D121(D) Import (band → overflow), #1099 F5 intact, #1211 copy survives with a changed address; the member lists now live in CONTENT (config-collection-landing); updated 2026-09-05.",
           "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 amendment in full (cb-config-list): §8.1 clause 1 keeps the must-WORK bar and the four #925 landing rulings as built behaviour; NEW §8.1a carries the owner's verbatim 2026-09-05 word and retires the 'distinct species → do not converge' inference (the ruling survives, its INPUT changed); §8.3's 'clean seam for #1169' paragraph is replaced by the priced result (all six divergences hold on structural reasons; two more in-pane divergences hold by TYPE); frontmatter updated 2026-09-05. Not touched: the rest of the program.",
           "re-attested at 89ba3e6cf by the orchestrator after reading the #1175/#1152 diff in full (cb-client-seams): a RESOLVED bullet records that the “#920 cold contract” premise was in no doc and §498-506 was already true; no other line changed; frontmatter dated 2026-09-05.",
@@ -29775,6 +29777,48 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 107,
+      "bytes": 7077,
+      "sha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
+        "assignedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+        "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+        "verifiedAt": "2026-09-05",
+        "evidence": ["landed by p-docs-batch (69f35bef5) and read in full by the orchestrator at e9ad555ac"],
+        "claims": [
+          {
+            "claim": "Fourteen external-review claims were adjudicated against the tree and REFUTED or narrowed — three of them in the synthesis's own highest-risk tier (client-002 'chat lag never heals canonical reads' among them) — each with the path:line receipt that changed the verdict; the record exists so nobody works the external synthesis as a to-do list.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1514"
+              }
+            ]
+          }
+        ],
+        "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
       },
       "receiptCurrent": true
     },

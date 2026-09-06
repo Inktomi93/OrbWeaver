@@ -3241,6 +3241,29 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
+      "assignedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["landed by p-docs-batch (69f35bef5) and read in full by the orchestrator at e9ad555ac"],
+      "claims": [
+        {
+          "claim": "Fourteen external-review claims were adjudicated against the tree and REFUTED or narrowed — three of them in the synthesis's own highest-risk tier (client-002 'chat lag never heals canonical reads' among them) — each with the path:line receipt that changed the verdict; the record exists so nobody works the external synthesis as a to-do list.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1514"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
     }
   ]
 }

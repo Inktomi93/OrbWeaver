@@ -362,14 +362,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "0787a2d60860ae25f7c230c3236f46657c93c893399df87d092cd76ec4d8b750",
+      "assignedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "0787a2d60860ae25f7c230c3236f46657c93c893399df87d092cd76ec4d8b750",
-      "verifiedCommit": "b0e62f3bdebc42d7d85b919a0c0cb7f6fd0387c2",
+      "verifiedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
+      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after #1706 (D71 clause (1) truth-repair: loadSeedThemes' light-arm seed extra for light-dark outputRole tokens, tokens.build.ts:437-462) at e9ad555ac",
         "re-attested at b0e62f3bd by the orchestrator after reading the #1737 edit in full (p-castmember-migration): the F4 amendment's enumeration carries the prose-slot id rename chat.group.castMember → chat.group.characterHeading (a stamp-carrying boot data migration re-keys every host's stored override; the 2026-08-30 v2 warning about a silent id edit survives with its input changed); no other row changed.",
         "re-attested at 5fdea267b by the orchestrator after reading D160 in full (p-showcase-package, #1692): default content ships as a workspace package the server DECLARES and resolves by node resolution — the first is @orb/showcase-plugins (packages/showcase-plugins/: nine bundles, the authoring guide, the published host-v1.d.ts; enforcers = the pnpm workspace dependency (physics) + dep-cruiser); header roll to D160, next free D161+; the retired seed directory is named in prose, not as a live path.",
         "re-attested at 2eed0d66b by the orchestrator after reading the #1649 amendment in full (p-chat-vocab-migration): D131's lead and arm (A) take the vocabulary map's word — the seated-character drop, HandoffOffer {copyCharacters, copyGmPreset} — and the Homes list gains the boot step entry/boot/migrate-handoff-offer-vocab.ts (the persisted key renamed WITH a boot-time data migration, no shim; the ruling survives, its input changed). No other row changed.",
