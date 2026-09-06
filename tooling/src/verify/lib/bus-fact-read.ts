@@ -241,6 +241,58 @@ export function discriminatorValues(
   return typeof value.value === "string" ? [{ value: value.value, node: value.trace.origin }] : [];
 }
 
+export type BusTypedDiscriminators =
+  | { readonly kind: "resolved"; readonly values: readonly string[] }
+  | { readonly kind: "refused"; readonly reason: ReferenceUnresolvedReason; readonly detail: string };
+
+/** The FLOW type of one argument delivered to a proven emitter sink, read as its discriminator set.
+ *
+ *  WHY THE FLOW TYPE AND NOT MORE SYNTAX: TypeScript narrows a union-annotated binding to the constituents
+ *  it was actually assigned, so an argument the authored reader cannot walk — a conditional local, a
+ *  factory result, a narrowed parameter — still carries its exact member set at the CALL. Reading it is
+ *  the only way to prove those producers without re-implementing narrowing.
+ *
+ *  It answers a SET, never absence: `any`/`unknown`/`never`, a constituent with no `type` property, and a
+ *  non-literal discriminator are all refusals the caller turns into a `BusUnresolvedIdentity`. The
+ *  totality judgement (a set that is the WHOLE declared union proves no single producer) belongs to the
+ *  caller, which is the only side that knows the bus's declared members. */
+export function typedDiscriminators(node: MorphNode): BusTypedDiscriminators {
+  const type = node.getType();
+  if (type.isAny() || type.isUnknown() || type.isNever()) {
+    return { kind: "refused", reason: "unsupported", detail: `the checker gives ${node.getKindName()} no readable event type` };
+  }
+  const parts = type.isUnion() ? type.getUnionTypes() : [type];
+  const values: string[] = [];
+  for (const part of parts) {
+    const literal = part.getProperty("type")?.getTypeAtLocation(node).getLiteralValue();
+    if (typeof literal !== "string") {
+      return { kind: "refused", reason: "unsupported", detail: `an event constituent of ${node.getKindName()} carries no literal type discriminator` };
+    }
+    values.push(literal);
+  }
+  return values.length === 0
+    ? { kind: "refused", reason: "missing", detail: `${node.getKindName()} resolves no event constituent` }
+    : { kind: "resolved", values: [...new Set(values)].toSorted((left, right) => left.localeCompare(right)) };
+}
+
+/** A TOTALITY TABLE's key→discriminator translation: for `Record<Union["type"], Union>`-shaped consts, the
+ *  member each key republishes. The coarse per-user fan (`COARSE_USER_BUS_EVENT[event.type]`) is exactly
+ *  this shape, and reading the table as a producer is the measured false green the union's own header
+ *  records — the table names every member, so the caller must relay the KEY, not harvest the table. This
+ *  reader supplies the translation that makes the relayed key an honest emission. */
+export function discriminatorTranslation(receiver: MorphNode): ReadonlyMap<string, string> | undefined {
+  const properties = receiver.getType().getProperties();
+  const translation = new Map<string, string>();
+  for (const property of properties) {
+    const literal = property.getTypeAtLocation(receiver).getProperty("type")?.getTypeAtLocation(receiver).getLiteralValue();
+    if (typeof literal !== "string") {
+      return;
+    }
+    translation.set(property.getName(), literal);
+  }
+  return translation.size === 0 ? undefined : translation;
+}
+
 export function callName(call: CallExpression): string | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
@@ -268,22 +320,17 @@ export function callableDeclaration(call: CallExpression): MorphNode | undefined
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
-function busChannelReceiver(context: GateFactContext, receiver: MorphNode): boolean {
-  const stable = resolveStableExpression(receiver);
-  return stable.trace.declarations.filter(Node.isVariableDeclaration).some((declaration) => {
-    const initializer = declaration.getInitializer();
-    if (!Node.isCallExpression(initializer)) {
-      return false;
-    }
-    const origin = resolveCallableOrigin(initializer);
-    return (
-      origin.kind === "resolved" &&
-      origin.value.target.kind === "module" &&
-      origin.value.target.canonical.kind === "project" &&
-      deliveredSourceIs(context, origin.value.target.canonical.sourceFile, "packages/server/src/transport/trpc/bus-channel.ts") &&
-      origin.value.target.canonical.exportedName === "defineBusChannel"
-    );
-  });
+/** The one live-fan mint. A receiver handle is never the identity — `bus`, `channel` and `this.#bus` are
+ *  spellings — and the MINTING CALL cannot carry it either: `defineBusChannel` is an OVERLOADED export, so
+ *  `resolveModuleMemberOrigin` refuses it as `ambiguous` and every real `.publish` fell through as a
+ *  non-door (measured: the live `chatsChanged` relay was invisible for exactly this reason). The canonical
+ *  fact is the METHOD: `publish` is declared once, by this file's `BusChannel` interface, and every
+ *  channel — firehose or not — inherits that one declaration. */
+const BUS_CHANNEL_HOME = "packages/server/src/transport/trpc/bus-channel.ts";
+
+function busChannelPublisher(context: GateFactContext, receiver: MorphNode, name: string): boolean {
+  const declarations = receiver.getType().getNonNullableType().getProperty(name)?.getDeclarations() ?? [];
+  return declarations.length > 0 && declarations.every((declaration) => deliveredSourceIs(context, declaration.getSourceFile(), BUS_CHANNEL_HOME));
 }
 
 function injectedReceiver(receiver: MorphNode): boolean {
@@ -316,7 +363,7 @@ export function emitterSink(context: GateFactContext, call: CallExpression): Emi
     const declarations = member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? [];
     return declarations.some((declaration) => Node.isPropertySignature(declaration)) ? "injected" : undefined;
   }
-  return member.name === "publish" && busChannelReceiver(context, member.receiver) ? "channel" : undefined;
+  return member.name === "publish" && busChannelPublisher(context, member.receiver, member.name) ? "channel" : undefined;
 }
 
 export function operationIdentity(context: GateFactContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {

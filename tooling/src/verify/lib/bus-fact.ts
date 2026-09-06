@@ -19,6 +19,7 @@ import {
   callableDeclaration,
   callName,
   canonicalTypeAlias,
+  discriminatorTranslation,
   discriminatorValues,
   EVENT_TYPES_SUFFIX,
   emitterSink,
@@ -26,6 +27,7 @@ import {
   operationIdentity,
   parameterProjection,
   typeDiscriminators,
+  typedDiscriminators,
   typeForParameter,
 } from "./bus-fact-read.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
@@ -36,6 +38,10 @@ interface Relay {
   readonly parameterIndex: number;
   readonly memberPath: readonly string[];
   readonly bus: MutableBusRecord;
+  /** Present when the wrapper republishes a TRANSLATED form of the relayed member — the coarse per-user
+   *  fan indexes a totality table with the relayed discriminator. The map is the table's own key→member
+   *  translation, so the caller's proven members carry through it instead of the table being harvested. */
+  readonly translate: ReadonlyMap<string, string> | null;
 }
 
 interface QueryState {
@@ -128,6 +134,15 @@ function enclosingFunction(parameter: import("ts-morph").ParameterDeclaration): 
   return Node.isFunctionDeclaration(parent) ? parent : undefined;
 }
 
+function translationKey(translate: ReadonlyMap<string, string> | null): string {
+  return translate === null
+    ? ""
+    : [...translate]
+        .map(([key, value]) => `${key}=${value}`)
+        .toSorted((left, right) => left.localeCompare(right))
+        .join(",");
+}
+
 function addRelay(relays: Relay[], relay: Relay): boolean {
   if (
     relays.some(
@@ -135,7 +150,8 @@ function addRelay(relays: Relay[], relay: Relay): boolean {
         candidate.declaration.compilerNode === relay.declaration.compilerNode &&
         candidate.parameterIndex === relay.parameterIndex &&
         candidate.memberPath.join(".") === relay.memberPath.join(".") &&
-        candidate.bus === relay.bus,
+        candidate.bus === relay.bus &&
+        translationKey(candidate.translate) === translationKey(relay.translate),
     )
   ) {
     return false;
@@ -150,11 +166,27 @@ interface AppendEmissionInput {
   readonly call: CallExpression;
   readonly values: readonly { readonly value: string; readonly node: MorphNode }[];
   readonly unresolved: BusUnresolvedIdentity[];
+  readonly translate?: ReadonlyMap<string, string> | null;
 }
 
-function appendEmission({ context, record, call, values, unresolved }: AppendEmissionInput): void {
+function appendEmission({ context, record, call, values, unresolved, translate = null }: AppendEmissionInput): void {
   const members = new Map(record.declaredMembers.map((member) => [member.name, member]));
-  for (const value of values) {
+  for (const raw of values) {
+    const translated = translate === null ? raw.value : translate.get(raw.value);
+    if (translated === undefined) {
+      unresolved.push(
+        busRefusal({
+          context,
+          stage: "emitter",
+          reason: "missing",
+          detail: `${record.union.exportName} republish table has no entry for relayed member ${raw.value}`,
+          node: raw.node,
+          expected: record.union,
+        }),
+      );
+      continue;
+    }
+    const value = { value: translated, node: raw.node };
     const member = members.get(value.value);
     if (member === undefined) {
       unresolved.push(
@@ -174,14 +206,90 @@ function appendEmission({ context, record, call, values, unresolved }: AppendEmi
   }
 }
 
-function relayFromArgument(context: GateFactContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
-  const projection = parameterProjection(context, argument, property, []);
+function relayOf(projection: ParameterProjection | undefined, bus: MutableBusRecord, translate: ReadonlyMap<string, string> | null): Relay | undefined {
   const declaration = projection === undefined ? undefined : enclosingFunction(projection.parameter);
   if (projection === undefined || declaration === undefined) {
     return;
   }
   const parameterIndex = declaration.getParameters().findIndex((parameter) => parameter.compilerNode === projection.parameter.compilerNode);
-  return parameterIndex < 0 ? undefined : { declaration, parameterIndex, memberPath: projection.memberPath, bus };
+  return parameterIndex < 0 ? undefined : { declaration, parameterIndex, memberPath: projection.memberPath, bus, translate };
+}
+
+function relayFromArgument(context: GateFactContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
+  return relayOf(parameterProjection(context, argument, property, []), bus, null);
+}
+
+/** `TABLE[<projection of a wrapper parameter>]` — the coarse republish. The argument's own flow type is the
+ *  WHOLE table (every declared member), so harvesting it would mark every member produced; what is actually
+ *  produced is the translated form of whatever the CALLER passed, which is a relay of that parameter. */
+function republishRelayFromArgument(context: GateFactContext, argument: MorphNode, bus: MutableBusRecord): Relay | undefined {
+  if (!Node.isElementAccessExpression(argument)) {
+    return;
+  }
+  const key = argument.getArgumentExpression();
+  const translate = key === undefined ? undefined : discriminatorTranslation(argument.getExpression());
+  if (key === undefined || translate === undefined) {
+    return;
+  }
+  return relayOf(parameterProjection(context, key, "type", []), bus, translate);
+}
+
+type ArgumentEmission =
+  | { readonly kind: "values"; readonly values: readonly { readonly value: string; readonly node: MorphNode }[] }
+  | { readonly kind: "relay"; readonly relay: Relay }
+  /** A FORWARD: the argument carries the whole declared union, so it proves no member here. Whoever called
+   *  the forwarder is where the members are provable, and that call is separately subject to this fact. */
+  | { readonly kind: "forward" }
+  | { readonly kind: "refused"; readonly refusals: readonly BusUnresolvedIdentity[] };
+
+interface ArgumentEmissionInput {
+  readonly context: GateFactContext;
+  readonly argument: MorphNode;
+  readonly property: string;
+  readonly record: MutableBusRecord;
+}
+
+/** The ONE resolution ladder for an argument delivered to a proven emitter sink. Authored syntax first (it
+ *  carries the exact source anchor), then the two relay shapes, then the checker's flow type. Only when
+ *  every rung fails does the argument become an unresolved identity — and a flow type that is the whole
+ *  declared union is a refusal too, never seventeen free emissions. */
+function argumentEmission({ context, argument, property, record }: ArgumentEmissionInput): ArgumentEmission {
+  const authoredRefusals: BusUnresolvedIdentity[] = [];
+  const authored = discriminatorValues(context, argument, property, authoredRefusals);
+  if (authored.length > 0) {
+    return { kind: "values", values: authored };
+  }
+  const relay = relayFromArgument(context, argument, property, record) ?? republishRelayFromArgument(context, argument, record);
+  if (relay !== undefined) {
+    return { kind: "relay", relay };
+  }
+  // The flow read is the EXPENSIVE rung (a checker type per argument), so it runs only where the authored
+  // reader actually REFUSED. An authored read that returns no values without refusing has already said the
+  // argument is a projection the relay rungs above own; asking the checker again would re-derive the same
+  // forward at full price. The narrowing is receipted by real-tree census equality, not by assertion.
+  if (authoredRefusals.length === 0) {
+    return { kind: "forward" };
+  }
+  const typed = typedDiscriminators(argument);
+  if (typed.kind === "resolved") {
+    const declared = new Set(record.declaredMembers.map(({ name }) => name));
+    if (declared.size > 1 && typed.values.length === declared.size && typed.values.every((value) => declared.has(value))) {
+      // THE TOTALITY TRIPWIRE. Harvesting this set would mark every member produced — the measured false
+      // green the union's own header records for the coarse table, and the shape a subscriber forward
+      // (`handler(entry.event)`) takes as well. It is a forward, not a defect: the fact stays READY
+      // (the family's standing ruling that an unprovable emitter argument is an ordinary missing-emitter
+      // finding, never a fact-health failure) and simply proves nothing here.
+      return { kind: "forward" };
+    }
+    return { kind: "values", values: typed.values.map((value) => ({ value, node: argument })) };
+  }
+  if (authoredRefusals.length > 0) {
+    return { kind: "refused", refusals: authoredRefusals };
+  }
+  return {
+    kind: "refused",
+    refusals: [busRefusal({ context, stage: "emitter", reason: typed.reason, detail: typed.detail, node: argument, expected: record.union })],
+  };
 }
 
 interface DirectArgumentInput {
@@ -201,10 +309,13 @@ function collectDirectArgument({ context, call, index, argument, path, parentFor
   if (record === undefined || !isProducerPath(record, path)) {
     return;
   }
-  appendEmission({ context, record, call, values: discriminatorValues(context, argument, "type", []), unresolved });
-  const relay = relayFromArgument(context, argument, "type", record);
-  if (relay !== undefined) {
-    addRelay(relays, relay);
+  const emission = argumentEmission({ context, argument, property: "type", record });
+  if (emission.kind === "values") {
+    appendEmission({ context, record, call, values: emission.values, unresolved });
+  } else if (emission.kind === "relay") {
+    addRelay(relays, emission.relay);
+  } else if (emission.kind === "refused") {
+    unresolved.push(...emission.refusals);
   }
 }
 
@@ -290,9 +401,21 @@ function propagateRelay({ context, call, relay, relays, unresolved, visited }: P
     return false;
   }
   const property = relay.memberPath[0] ?? "type";
-  appendEmission({ context, record: relay.bus, call, values: discriminatorValues(context, argument, property, []), unresolved });
-  const next = relayFromArgument(context, argument, property, relay.bus);
-  return next !== undefined && addRelay(relays, next);
+  const emission = argumentEmission({ context, argument, property, record: relay.bus });
+  if (emission.kind === "values") {
+    appendEmission({ context, record: relay.bus, call, values: emission.values, unresolved, translate: relay.translate });
+    return false;
+  }
+  if (emission.kind === "refused") {
+    unresolved.push(...emission.refusals);
+    return false;
+  }
+  if (emission.kind === "forward") {
+    return false;
+  }
+  // A wrapper of a wrapper: the caller's own parameter carries the event one hop further out. A
+  // translation composes onto the outer hop, so a coarse republish keeps translating what its callers pass.
+  return addRelay(relays, { ...emission.relay, translate: emission.relay.translate ?? relay.translate });
 }
 
 function callsByName(calls: readonly CallExpression[]): ReadonlyMap<string, readonly CallExpression[]> {
