@@ -105,7 +105,7 @@ export const gate = defineGate({
       files: {
         [ID_BRAND_HOME]: idCastProofModule(),
         "tests/server/x.test.ts":
-          'import { nanoid } from "nanoid";\nimport { castId } from "../../../packages/kit/src/ids/index";\nexport const x = castId(nanoid());\n',
+          'import { nanoid } from "nanoid";\nimport { castId } from "../../packages/kit/src/ids/index";\nexport const x = castId(nanoid());\n',
       },
       why: "tests are outside this production mint policy",
     },
