@@ -65,7 +65,6 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
       principal,
       character: {
         create: async (p) => ({ id: (await characterSvc.create(p)).id }),
-        update: async (p) => ({ id: (await characterSvc.update(p)).id }),
         findByImportHash: (p) => characterSvc.findByImportHash(p),
         findByHandle: (p) => characterSvc.findByHandle(p),
       },
@@ -126,7 +125,6 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
       principal,
       character: {
         create: async (p) => ({ id: (await characterSvc.create(p)).id }),
-        update: async (p) => ({ id: (await characterSvc.update(p)).id }),
         findByImportHash: (p) => characterSvc.findByImportHash(p),
         findByHandle: (p) => characterSvc.findByHandle(p),
       },

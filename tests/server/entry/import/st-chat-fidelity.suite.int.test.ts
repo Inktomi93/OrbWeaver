@@ -151,7 +151,6 @@ function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaI
     createCharacter: inert,
     findByImportHash: inert,
     findByHandle: inert,
-    updateCharacter: inert,
     storeAsset: inert,
     attachCardTag: inert,
     profile: {

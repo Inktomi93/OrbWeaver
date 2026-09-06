@@ -1,13 +1,14 @@
 // Shared test harness for the import domain (NOT a test file — no `.test` suffix, so test-layout ignores
-// it). Builds an `ImportContext` whose SIX cross-feature ops are recording FAKES — the sanctioned "fake at
+// it). Builds an `ImportContext` whose FIVE cross-feature ops are recording FAKES — the sanctioned "fake at
 // the edges, inject at the root" doctrine (testing §3): real injected deps, not internal-module mocks. The
-// card-import slice touches NO db (it injects character.create/update + the by-importHash/by-handle lookups
-// + assets.store + tag.attachCardTagByName, and parses pure), so the harness needs no `freshDb` — the fakes
-// record their calls so the verb tests assert the flatten/provenance/dedup/handle-match/tag-attach
-// behaviour. `setExisting` seeds the byte-identical dedup oracle; `setExistingHandle` seeds the PD-108
-// (ownerId, handle) match oracle.
+// card-import slice touches NO db (it injects character.create + the by-importHash/by-handle lookups +
+// assets.store + tag.attachCardTagByName, and parses pure), so the harness needs no `freshDb` — the fakes
+// record their calls so the verb tests assert the flatten/provenance/dedup/handle-suffix/tag-attach
+// behaviour. `setExisting` seeds the byte-identical dedup oracle; `setExistingHandle` seeds the per-owner
+// handle EXISTENCE oracle `freeHandle`'s collision-suffix loop reads (#1470 replaced the PD-108 handle-MATCH
+// edit-in-place this used to back — see `domain/import/contract/service.ts`'s `FindCharacterByHandle`).
 
-import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
@@ -27,12 +28,6 @@ interface CreateCall {
   readonly input: CreateCharacterInput;
   readonly importedFrom: string | null;
   readonly importHash: string;
-}
-
-interface UpdateCall {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly input: UpdateCharacterInput;
 }
 
 interface StoreCall {
@@ -74,7 +69,6 @@ export interface ImportHarness {
   readonly ownerId: UserId;
   readonly storedAssetId: AssetId;
   readonly creates: CreateCall[];
-  readonly updates: UpdateCall[];
   readonly stores: StoreCall[];
   readonly finds: FindCall[];
   readonly findsByHandle: FindByHandleCall[];
@@ -94,8 +88,8 @@ export interface ImportHarness {
   readonly setPrimaryBookTaken: (taken: boolean) => void;
   /** Seed the byte-identical dedup oracle: a re-import with this `importHash` resolves to `characterId`. */
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
-  /** Seed the PD-108 (ownerId, handle) match oracle: a re-import deriving this `handle` resolves to
-   *  `characterId` (edit-in-place) instead of inserting. */
+  /** Seed the per-owner handle EXISTENCE oracle: a byte-new card deriving this `handle` sees it taken, so
+   *  `freeHandle` suffixes to the next free slot instead of inserting under it (#1470 — never dedupe by name). */
   readonly setExistingHandle: (handle: CharacterHandle, characterId: CharacterId) => void;
 }
 
@@ -103,7 +97,6 @@ export interface ImportHarness {
  *  (counter-backed, per harness) so created characters are distinguishable without a seeded global. */
 export function makeHarness(): ImportHarness {
   const creates: CreateCall[] = [];
-  const updates: UpdateCall[] = [];
   const stores: StoreCall[] = [];
   const finds: FindCall[] = [];
   const findsByHandle: FindByHandleCall[] = [];
@@ -136,10 +129,6 @@ export function makeHarness(): ImportHarness {
       findsByHandle.push({ ownerId, handle });
       return Promise.resolve(existingByHandle.get(handle) ?? null);
     },
-    updateCharacter: (args): Promise<void> => {
-      updates.push(args);
-      return Promise.resolve();
-    },
     storeAsset: (args): Promise<AssetId> => {
       stores.push(args);
       return Promise.resolve(STORED_ASSET_ID);
@@ -168,7 +157,6 @@ export function makeHarness(): ImportHarness {
     ownerId: OWNER_ID,
     storedAssetId: STORED_ASSET_ID,
     creates,
-    updates,
     stores,
     finds,
     findsByHandle,
@@ -307,7 +295,6 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     createCharacter: inert,
     findByImportHash: inert,
     findByHandle: inert,
-    updateCharacter: inert,
     storeAsset: inert,
     attachCardTag: inert,
     profile,
