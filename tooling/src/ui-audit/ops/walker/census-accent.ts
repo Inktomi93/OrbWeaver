@@ -35,7 +35,7 @@
 // chat-style preview stripes are a PICTURE of an accent edge inside `[data-slot=picker-cell-art]`).
 //
 // One IIFE, concatenated IN ORDER by ops/walker.ts: this segment reads `accentBorders`-adjacent core
-// vocabulary (`allEls`, `isVisible`, `describe`, `capPush`, `parseRgb`, `LIST_ROW_SELECTED_SEL`,
+// vocabulary (`allEls`, `isVisible`, `describe`, `capPush`, `parseRgb`, `SELECTION_RAIL_SEL`,
 // `PICKER_ART_SEL`, `BORDER_SAFE_TAGS`), so it must sit after WALKER_CORE and WALKER_RESOLVE. Raw JS in
 // a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string, not a
 // function). Provenance + attribution: ops/walker.ts.
@@ -85,7 +85,7 @@ export const WALKER_CENSUS_ACCENT = `  // ── accent borders (impeccable side
       statusContext: !!abel.closest("[role='status'],[role='alert'],[aria-live]"),
       // The ratified ListRow selection accent (issue #485) — matches on the ELEMENT itself, never an
       // ancestor: a decorative panel nested inside a selected row must keep being judged.
-      listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
+      listRowSelected: !!(abel.matches && abel.matches(SELECTION_RAIL_SEL)),
       // The illustrated-picker art aperture (#1642) — ANCESTOR-scoped on purpose, the inverse of the line
       // above: every box inside the picture is part of the picture, and the tell the diagram draws is the
       // very thing the cell exists to show. Keyed on the shared @orb/ui PickerCell slot, so all FOUR
@@ -191,7 +191,7 @@ export const WALKER_CENSUS_ACCENT = `  // ── accent borders (impeccable side
         badgeLike: abrTag === "span" && !!(abrHostBg && abrHostBg.a > 0.5),
         tabContext: !!(abrEl.closest("[role='tablist'],[role='tab'],nav") || abrEl.getAttribute("aria-selected") !== null),
         statusContext: !!abrEl.closest("[role='status'],[role='alert'],[aria-live]"),
-        listRowSelected: !!(abrEl.matches && abrEl.matches(LIST_ROW_SELECTED_SEL)),
+        listRowSelected: !!(abrEl.matches && abrEl.matches(SELECTION_RAIL_SEL)),
         artPane: !!(abrEl.closest && abrEl.closest(PICKER_ART_SEL)),
       });
     }

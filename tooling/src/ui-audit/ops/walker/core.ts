@@ -109,12 +109,21 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   }
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";
-  // The owner-RATIFIED ListRow selection accent (2026-08-22, issue #485): a 2px left ember bar on the
-  // selected row, which is the app-wide selection idiom. Both slots carry it — \`list-row-body\` is the
+  // The owner-RATIFIED selection accent (2026-08-22, issue #485): a 2px left ember bar on the selected
+  // row, which is the app-wide selection idiom. Both ListRow slots carry it — \`list-row-body\` is the
   // default \`rowTint\` arm, \`list-row-root\` the arm that paints the whole row — and BOTH halves of each
   // predicate are load-bearing: the slot identity says it is the primitive, \`[data-selected]\` says it is
   // the selection state. Without the state half an unselected row's hardcoded accent would go unjudged.
-  var LIST_ROW_SELECTED_SEL = "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected]";
+  //
+  // THE RULING SURVIVES — ITS INPUT GAINED A CARRIER (#1823). #1725 left the config LIST with no marked
+  // location at all (every \`config-band\` painted \`rgba(0,0,0,0)\` in every state, the \`aria-current\` one
+  // included), so the band took the SAME ratified idiom — literally the same class pair, composed from
+  // \`SELECTION_RAIL\` (packages/ui/src/lib/selection-rail.ts), on a \`Button\` that cannot inherit ListRow's
+  // skin. The exemption is about the IDIOM, not about one primitive, so its population follows the
+  // fragment's carriers; the both-halves keying is unchanged, which is what still keeps an unselected band
+  // and any other rounded box with a left accent fully judged.
+  var SELECTION_RAIL_SEL =
+    "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected]";
   // THE ILLUSTRATED PICKER'S ART APERTURE (#1642). @orb/ui's PickerCell is the ONE anatomy every
   // single-choice PICTURE picker wears, and its art slot holds a DIAGRAM OF A DESIGN — the chat-style
   // cell renders mini transcript lines in the real skin's own classes and inherits that skin's accent

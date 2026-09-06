@@ -93,12 +93,14 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   if (input.statusContext) {
     return [];
   }
-  // RATIFIED (owner, 2026-08-22, issue #485): the `@orb/ui` ListRow selected-row left accent — a 2px
-  // `border-l-primary` on a `rounded-control` row (packages/ui/src/primitives/list-row/variants.ts) — is
-  // the app-wide SELECTION idiom, not a decorative card tell, so it is exempt from both §6 accent-border
-  // bans. The sample's predicate is deliberately BOTH halves (slot identity AND `data-selected`): an
-  // unselected list row wearing a hardcoded accent, and any non-ListRow rounded box with a left edge,
-  // stay judged — that is what keeps this exemption from widening into the rule's real target.
+  // RATIFIED (owner, 2026-08-22, issue #485): the selected-row left accent — a 2px `border-l-primary` on a
+  // `rounded-control` row, homed as `@orb/ui`'s `SELECTION_RAIL` fragment (packages/ui/src/lib/
+  // selection-rail.ts) — is the app-wide SELECTION idiom, not a decorative card tell, so it is exempt from
+  // both §6 accent-border bans. The sample's predicate is deliberately BOTH halves (carrier identity AND
+  // `data-selected`): an unselected row wearing a hardcoded accent, and any non-carrier rounded box with a
+  // left edge, stay judged — that is what keeps this exemption from widening into the rule's real target.
+  // The carrier set is the FRAGMENT's, not one primitive's: #1823 gave the config band the same pair, which
+  // is why the walker's selector is `SELECTION_RAIL_SEL` rather than a list-row-only one.
   if (input.listRowSelected) {
     return [];
   }
