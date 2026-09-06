@@ -202,8 +202,8 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
     <Stack gap="field" data-slot="rpg-trackers-editor">
       <Kicker>Trackers</Kicker>
       <Text voice="gloss">
-        A tracker is one labelled value the story keeps — on the roster, on the scene's characters, or on the game itself. Defined once here; read and edited on
-        the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
+        A tracker is one labelled value the story keeps — on the room's participants, on the scene's characters, or on the game itself. Defined once here; read
+        and edited on the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
       {defs.length === 0 ? <RpgDoorwayLine>No trackers yet — name one below and the story starts keeping it.</RpgDoorwayLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows (#884 C3 — the #850

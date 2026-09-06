@@ -43,7 +43,7 @@ import { rekeyActor } from "../substrate/actor-rekey.ts";
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the roster");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the room's characters");
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
@@ -100,7 +100,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     if (!written.ok) {
       // The card + seat DID land (they are durable and this verb is not transactional across domains). Say so:
       // "nothing happened" would send the host looking for a character that is already in their library.
-      return { ok: false, reason: `${written.reason} — the card and roster seat were created, but the tracked state could not be moved onto them` };
+      return { ok: false, reason: `${written.reason} — the card and character seat were created, but the tracked state could not be moved onto them` };
     }
 
     // The whole panel re-resolves: she leaves the Scene tab's cast and appears on the Status participant list, under the

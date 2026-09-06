@@ -314,7 +314,7 @@ function missingReason(op: RpgActorOp): string {
   }
   if (isIdentityOp(op)) {
     // PROSE-OK: "a refusal a human reads" (this fn's own header) — never a model prompt
-    return "this actor carries no identity of its own — a roster member's name and standing prose live on the chat roster and its sheet";
+    return "this actor carries no identity of its own — her name and standing prose live on the room's participants and its sheet";
   }
   return `op ${op.op} could not be applied`;
 }
