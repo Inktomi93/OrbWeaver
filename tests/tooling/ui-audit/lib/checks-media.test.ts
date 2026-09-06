@@ -6,8 +6,14 @@
 // Owner ruling pinned here too: this detector is not built to fire on today's tree — a clean run is the
 // SUCCESS condition, never a failure, and the threshold is never loosened to manufacture a finding.
 import { describe } from "vitest";
+import type { ImageDistortionInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import type { BuriedRasterInput } from "../../../../tooling/src/ui-audit/contract/samples-media.ts";
-import { checkBuriedRaster, checkBuriedRasterPopulations } from "../../../../tooling/src/ui-audit/lib/checks-media.ts";
+import {
+  checkBuriedRaster,
+  checkBuriedRasterPopulations,
+  checkImageDistortion,
+  classifyImageDistortion,
+} from "../../../../tooling/src/ui-audit/lib/checks-media.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
@@ -129,5 +135,75 @@ describe("design-audit buried-raster", () => {
     expect(accounting.judged).toBe(2);
     expect(accounting.excluded["opacity-transition"]).toBe(1);
     expect(accounting.emitted).toBe(1);
+  });
+});
+
+// ── distorted-image: the two BOUNDARY questions the rule never asked (#1808, from #1504 claim 3) ──────
+//
+// `distorted-image` compares a rendered box's aspect against its source raster's, and took BOTH of its
+// inputs on trust. The `object-fit` keyword was tested against a two-member set (`cover`/`contain`) that
+// is not the CSS keyword space, so the two modes that perform NO independent axis scaling at all —
+// `none` and `scale-down` — were judged as if they stretched; and the four extents were range-checked
+// with `<= 0`, which every NaN passes, so an unreadable measurement printed a `NaN% aspect deviation`
+// finding instead of refusing. Both arms are pinned in both directions: the honest fire above them must
+// survive every fence added below it.
+describe("design-audit distorted-image — only input the rule can actually judge", () => {
+  function distorted(over: Partial<ImageDistortionInput> = {}): ImageDistortionInput {
+    // A 3:1 source rendered 1:1 — a 200% deviation, far past DISTORTION_SEVERE_PCT.
+    const base: ImageDistortionInput = {
+      selector: "img.banner",
+      naturalWidth: 1200,
+      naturalHeight: 400,
+      renderedWidth: 600,
+      renderedHeight: 600,
+      objectFit: "fill",
+    };
+    return { ...base, ...over };
+  }
+
+  test("object-fit: fill with a mismatched box still FIRES — none of the fences below buys silence", () => {
+    expect(checkImageDistortion(distorted())?.rule).toBe("distorted-image");
+    expect(classifyImageDistortion(distorted()).kind).toBe("judged");
+  });
+
+  // `none` paints the raster at its NATURAL size; `scale-down` picks the smaller of `none`/`contain`.
+  // Neither scales the axes independently, so neither can squish — the box/source aspect mismatch they
+  // produce is a crop, exactly like `cover`.
+  test.each(["none", "scale-down"] as const)("object-fit: %s cannot stretch — excluded, never a finding", (objectFit) => {
+    expect(checkImageDistortion(distorted({ objectFit }))).toBeNull();
+    const disposition = classifyImageDistortion(distorted({ objectFit }));
+    expect(disposition.kind).toBe("excluded");
+    expect(disposition.kind === "excluded" ? disposition.reason : "").toBe("objectFitDoesNotScale");
+  });
+
+  test("an object-fit value outside the CSS keyword space is WITHHELD by name, not judged as if it stretched", () => {
+    // The walker reads `getComputedStyle(img).objectFit || "fill"`; an empty or unrecognised value means
+    // the measurement did not arrive, which is missing evidence (NO VERDICT), never a licence to convict.
+    for (const objectFit of ["", "FILL", "stretch", "fill 50%"]) {
+      const disposition = classifyImageDistortion(distorted({ objectFit }));
+      expect(disposition.kind, objectFit).toBe("withheld");
+      expect(disposition.kind === "withheld" ? disposition.reason : "").toBe("unreadableObjectFit");
+    }
+  });
+
+  test.each([
+    "naturalWidth",
+    "naturalHeight",
+    "renderedWidth",
+    "renderedHeight",
+  ] as const)("a non-finite %s is WITHHELD — the `<= 0` range check passes every NaN and printed a NaN deviation verdict", (field) => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const input = distorted({ [field]: value });
+      expect(checkImageDistortion(input), `${field}=${String(value)}`).toBeNull();
+      const disposition = classifyImageDistortion(input);
+      expect(disposition.kind).toBe("withheld");
+      expect(disposition.kind === "withheld" ? disposition.reason : "").toBe("unreadableExtent");
+    }
+  });
+
+  test("a zero extent stays the EXCLUDED broken-image case it always was — the new refusal does not swallow it", () => {
+    const disposition = classifyImageDistortion(distorted({ naturalWidth: 0 }));
+    expect(disposition.kind).toBe("excluded");
+    expect(disposition.kind === "excluded" ? disposition.reason : "").toBe("noComparableExtent");
   });
 });

@@ -70,8 +70,10 @@ export interface ImageDistortionInput {
   readonly naturalHeight: number;
   readonly renderedWidth: number;
   readonly renderedHeight: number;
-  /** Computed `object-fit` — "cover"/"contain" deliberately crop/letterbox and are excluded;
-   *  only "fill" stretches to the box. */
+  /** Computed `object-fit`. Only "fill" stretches to the box, so every other keyword is excluded by a
+   *  named reason: "cover"/"contain" deliberately crop/letterbox, and "none"/"scale-down" scale no axis
+   *  independently at all (#1808 — they were judged as if they stretched until then). A value outside the
+   *  keyword space is a measurement that did not arrive and is WITHHELD (lib/checks-media.ts). */
   readonly objectFit: string;
 }
 

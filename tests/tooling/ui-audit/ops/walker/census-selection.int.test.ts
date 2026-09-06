@@ -256,6 +256,78 @@ test("selection-idiom recognizes an inset box-shadow ring as its own channel", a
   expect(res.stdout, "an inset ring must register as its own treatment, not read as 'none'").toContain("ringx1 · inset-ringx1 · bar-leftx1");
 });
 
+// ── #1808 (from #1504 claim 2): the comparison BASE is the cohort's modal rest paint ────────────────
+//
+// `var baseEl = group.unselected[0]` made the whole cohort's verdict a function of DOCUMENT ORDER. The
+// first unselected member in the DOM was the sole reference for every selected member, with no check
+// that the unselected members paint alike before one of them speaks for all of them — so one atypical
+// sibling (a hovered cell, a second authored variant under the same claim) either invented a delta or
+// erased one, and nothing in the output said which. The fixtures below plant exactly that skew: the
+// ATYPICAL member is first in document order, i.e. the one the old code picked.
+
+/** One authored cohort, deliberately skewed: the selected member paints `paint`, the FIRST unselected
+ *  member paints it too (the atypical sibling), and `modal` further unselected members paint the plain
+ *  rest state. Under the old base-by-index rule the selected member is compared against its own
+ *  treatment and the whole cohort reads "none". */
+function skewedCohort(slot: string, kind: "checked" | "current" | "selected", paint: string, modal: number): string {
+  const attributes = {
+    checked: { on: "data-checked", off: "data-unchecked" },
+    current: { on: 'aria-current="page"', off: 'aria-current="false"' },
+    selected: { on: "data-selected", off: 'aria-selected="false"' },
+  } as const;
+  const { on, off } = attributes[kind];
+  const cell = (id: string, state: string, style: string): string =>
+    `<div id="${id}" data-slot="${slot}-choice" ${state} style="color:#fff;width:120px;height:40px;background:#111;${style}"><span>${id}</span></div>`;
+  const rest = Array.from({ length: modal }, (_unused, index) => cell(`${slot}-rest-${String(index)}`, off, "")).join("");
+  return `<section data-slot="${slot}">${cell(`${slot}-on`, on, paint)}${cell(`${slot}-skew`, off, paint)}${rest}</section>`;
+}
+
+test("the comparison base is the cohort's MODAL rest paint — one atypical unselected sibling no longer erases the whole idiom", async ({ runCli, scratch }) => {
+  // Three cohorts, three channels, each skewed the same way. Every cohort's atypical member is the one
+  // `unselected[0]` used to select, so the old rule read ring/fill/bar as "no delta at all" and the
+  // surface's three selection vocabularies vanished from the census with a clean judged=3.
+  const skewed = [
+    skewedCohort("ring-group", "checked", "outline:2px solid orange", 2),
+    skewedCohort("fill-group", "selected", "background:#402000", 2),
+    skewedCohort("bar-group", "current", "border-left:3px solid orange", 2),
+  ].join("");
+  await writeFile(join(scratch, "modal-baseline-selection.html"), relationalDocument(skewed));
+  const res = await runCli("snap", ["--file", join(scratch, "modal-baseline-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout, "the majority rest paint is the reference, so each cohort's real channel registers").toContain("ringx1 · fillx1 · bar-leftx1");
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=3 judged=3 affected=1 populations=1 representatives=1 withheld() excluded()");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
+/** A cohort of VARIANTS: no rest paint holds a majority (1:1), and the odd sibling differs from the
+ *  selected member in a channel selection never touched. The old base-by-index rule read that variant
+ *  difference as part of the selection treatment. */
+function variantCohort(slot: string, paint: string): string {
+  const cell = (id: string, state: string, style: string): string =>
+    `<div id="${id}" data-slot="${slot}-choice" ${state} style="color:#fff;width:120px;height:40px;background:#111;${style}"><span>${id}</span></div>`;
+  return `<section data-slot="${slot}">${cell(`${slot}-on`, "data-selected", paint)}${cell(`${slot}-variant`, 'aria-selected="false"', "background:#402000")}${cell(`${slot}-rest`, 'aria-selected="false"', "")}</section>`;
+}
+
+test("with no majority rest paint the delta is the SMALLEST over the cohort's variants — a variant's own paint is not a selection treatment", async ({
+  runCli,
+  scratch,
+}) => {
+  // Each cohort's FIRST unselected member is a different authored variant (its own fill), so the old rule
+  // credited that fill to the selection idiom and printed compound signatures — `fill+ring` for a control
+  // whose selection paints a ring and nothing else. The minimum over the distinct rest paints is the only
+  // channel set selection is responsible for, and the fallback announces itself in the population row.
+  const variants = [
+    variantCohort("ring-variant", "outline:2px solid orange"),
+    variantCohort("fill-variant", "background:#204020"),
+    variantCohort("bar-variant", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "variant-baseline-selection.html"), relationalDocument(variants));
+  const res = await runCli("snap", ["--file", join(scratch, "variant-baseline-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout, "no compound signature may borrow the variant sibling's own fill").toContain("ringx1 · fillx1 · bar-leftx1");
+  expect(res.stdout, "the fallback is tagged, never silent").toContain("carried(heterogeneousRest=3)");
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=3 judged=3 affected=1 populations=1 representatives=1 withheld() excluded()");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
 test("a box-shadow combining an unchanged outer ring with a new inset ring counts inset-ring only, once", async ({ runCli, scratch }) => {
   const vocabularies = [
     stateTwin("checked", "outline:2px solid orange"),

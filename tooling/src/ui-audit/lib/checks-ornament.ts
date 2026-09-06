@@ -72,9 +72,69 @@ function parseRadialStopToken(arg: string): RadialStop {
 }
 
 /** Does this gradient argument carry a colour at all? A stop arg is `<colour> [position]`, so the
- *  position tokens (`0%`, `70%`) and the shape prelude (`circle`, `at 50% 40%`) answer no. */
+ *  position tokens (`0%`, `70%`) and the shape prelude (`circle`, `at 50% 40%`) answer no.
+ *
+ *  ANSWERING "no" IS NOT THE SAME AS "not a colour" — see `radialArgKind`: an arg this predicate
+ *  declines is either structural (a position/prelude token) or a colour the reader could not READ, and
+ *  conflating the two is what let an unresolved stop be dropped silently. */
 function isStopArg(arg: string): boolean {
   return TRANSPARENT_KEYWORD_RE.test(arg) || findColorToken(arg) !== null;
+}
+
+/** The radial prelude + `<position>` vocabulary: shape, extent keywords, `at`, the position keywords, and
+ *  the `in <colour-space> [<hue> hue]` interpolation clause. Closed by the grammar (CSS Images 3 §3.4 +
+ *  CSS Color 4 §12), so a token outside it is not something this reader is entitled to ignore. */
+const RADIAL_STRUCTURAL_WORD_RE =
+  /^(circle|ellipse|at|closest-side|closest-corner|farthest-side|farthest-corner|in|shorter|longer|increasing|decreasing|hue|top|bottom|left|right|center|srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|lab|oklab|xyz|xyz-d50|xyz-d65|hsl|hwb|lch|oklch)$/iu;
+
+/** A `<length-percentage>` or bare number — a stop position, a colour hint, or a prelude radius. */
+const RADIAL_LENGTH_TOKEN_RE = /^[+-]?(\d+\.?\d*|\.\d+)(px|em|rem|ex|ch|vw|vh|vmin|vmax|cm|mm|in|pt|pc|q|%)?$/iu;
+
+/** Math functions resolve to a length; their INNARDS are arithmetic, never a colour. */
+const RADIAL_MATH_FN_RE = /^(calc|min|max|clamp|round)\(/iu;
+
+/** Whitespace split at paren depth 0, with each balanced `fn(...)` span kept whole as one token — a bare
+ *  `.split(/\s+/)` shreds `calc(50% + 10px)` into three tokens, two of which look like garbage. */
+function splitTopLevelTokens(arg: string): string[] {
+  const tokens: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of arg) {
+    if (ch === "(") {
+      depth += 1;
+    } else if (ch === ")") {
+      depth -= 1;
+    }
+    if (/\s/u.test(ch) && depth === 0) {
+      if (cur !== "") {
+        tokens.push(cur);
+      }
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur !== "") {
+    tokens.push(cur);
+  }
+  return tokens;
+}
+
+/** THE THREE-WAY SPLIT THIS RULE ALWAYS OWED (#1808, from #1504 claim 4). `colour` = the reader read it;
+ *  `structural` = every token is prelude/position/math, i.e. the arg CARRIES no colour by construction;
+ *  `unresolved` = neither — a colour-shaped arg the reader declined (`color-mix()` and `hwb()` come back
+ *  null from `css-color.ts` BY DESIGN, per its header) or a token outside the grammar. Dropping the third
+ *  class into the second is what let a three-stop wash be judged on two stops. */
+function radialArgKind(arg: string): "colour" | "structural" | "unresolved" {
+  if (isStopArg(arg)) {
+    return "colour";
+  }
+  const tokens = splitTopLevelTokens(arg);
+  if (tokens.length === 0) {
+    return "structural";
+  }
+  const structural = tokens.every((token) => RADIAL_STRUCTURAL_WORD_RE.test(token) || RADIAL_LENGTH_TOKEN_RE.test(token) || RADIAL_MATH_FN_RE.test(token));
+  return structural ? "structural" : "unresolved";
 }
 
 /** Index of the `)` closing the paren opened at `openIdx`, or -1. */
@@ -93,9 +153,20 @@ function closingParenIndex(value: string, openIdx: number): number {
   return -1;
 }
 
-/** The FIRST non-repeating radial-gradient's color-stop args, or null (repeating-* is a
- *  pattern, not a glow; unparseable color spaces yield too few stops and refuse). */
-function extractRadialStopArgs(value: string): string[] | null {
+/** What the FIRST non-repeating radial-gradient in a value yielded (repeating-* is a pattern, not a
+ *  glow). `stops` = the whole colour-stop list, every arg accounted for; `unresolved` = at least one
+ *  colour-shaped arg the reader could not read, so no stop list exists to judge; `absent` = no radial
+ *  glow question here at all (no gradient, an unbalanced value, or fewer than `RADIAL_MIN_STOPS`
+ *  readable stops, which is this rule answering "no"). */
+type RadialStopScan = { readonly kind: "stops"; readonly args: readonly string[] } | { readonly kind: "unresolved" } | { readonly kind: "absent" };
+
+/** THE STOP LIST, WHOLE OR NOT AT ALL (#1808, from #1504 claim 4). This used to `.filter(isStopArg)` and
+ *  measure `RADIAL_MIN_STOPS` against the SURVIVORS, so a three-stop wash carrying one unreadable stop
+ *  cleared the two-stop minimum and was judged on an incomplete gradient — while this docstring claimed
+ *  "unparseable color spaces yield too few stops and refuse", which was true only when the unreadable
+ *  stops happened to outnumber the readable ones. Every arg is now classified, and one `unresolved` arg
+ *  refuses the whole gradient. */
+function scanRadialStops(value: string): RadialStopScan {
   RADIAL_GRADIENT_HEAD_RE.lastIndex = 0;
   let g = RADIAL_GRADIENT_HEAD_RE.exec(value);
   while (g !== null) {
@@ -103,14 +174,18 @@ function extractRadialStopArgs(value: string): string[] | null {
       const open = value.indexOf("(", g.index);
       const end = closingParenIndex(value, open);
       if (end < 0) {
-        return null;
+        return { kind: "absent" };
       }
-      const args = splitTopLevelCommas(value.slice(open + 1, end)).filter(isStopArg);
-      return args.length >= RADIAL_MIN_STOPS ? args : null;
+      const parts = splitTopLevelCommas(value.slice(open + 1, end));
+      if (parts.some((arg) => radialArgKind(arg) === "unresolved")) {
+        return { kind: "unresolved" };
+      }
+      const args = parts.filter(isStopArg);
+      return args.length >= RADIAL_MIN_STOPS ? { kind: "stops", args } : { kind: "absent" };
     }
     g = RADIAL_GRADIENT_HEAD_RE.exec(value);
   }
-  return null;
+  return { kind: "absent" };
 }
 
 /** True when the gradient's LAST stop fades out (transparent / near-zero alpha) — a gradient
@@ -124,15 +199,18 @@ function fadesOut(stops: readonly RadialStop[]): boolean {
   return lastAlpha <= RADIAL_FADE_MAX_ALPHA;
 }
 
+/** The judged verdict alone. An `unresolved` gradient answers `null` here because a `Finding | null`
+ *  return has no way to say "I could not read this" — the LOUD refusal is `classifyRadialGlow`'s, which
+ *  is the only leg that can reach the population row. */
 export function checkRadialGlow(input: RadialGlowInput): Finding | null {
   if (input.sanctioned || input.width < RADIAL_MIN_WIDTH_PX || input.height < RADIAL_MIN_HEIGHT_PX) {
     return null;
   }
-  const args = extractRadialStopArgs(input.value);
-  if (args === null) {
+  const scan = scanRadialStops(input.value);
+  if (scan.kind !== "stops") {
     return null;
   }
-  const stops = args.map(parseRadialStopToken);
+  const stops = scan.args.map(parseRadialStopToken);
   if (!fadesOut(stops)) {
     return null;
   }
@@ -166,14 +244,24 @@ export function checkRadialGlow(input: RadialGlowInput): Finding | null {
 }
 
 /** The two radial rules' shared disposition. The census is every visible radial-gradient layer, element
- *  and pseudo (ops/walker/census-glow.ts). The ONLY decline that is not this rule's own question is the
- *  owner-sanctioned effect carrier — every other `null` above (too small, does not fade out, neutral
- *  chroma, unparseable stop list) is the rule ANSWERING "no", which `grayOnColorOutcome` in
- *  checks-color.ts rules a judged pass rather than an exclusion. The two rules split ONE detector run,
- *  so each publishes the same denominator and only its own affected count. */
+ *  and pseudo (ops/walker/census-glow.ts). Two declines are not this rule's own question:
+ *
+ *  - the owner-sanctioned effect carrier — `excluded`, a measured fact, and it is checked FIRST so an
+ *    exempt carrier can never mint a NO VERDICT off a gradient nobody was going to judge anyway;
+ *  - a gradient carrying a colour-shaped arg the ONE reader could not read — `withheld` (#1808). The
+ *    stops that DID parse are not a smaller gradient, they are a partial measurement, and the polarity
+ *    law (contract/findings.ts) says absence of measurement is NO VERDICT.
+ *
+ *  Every other `null` from the check (too small, does not fade out, neutral chroma, too few stops) is the
+ *  rule ANSWERING "no", which `grayOnColorOutcome` in checks-color.ts rules a judged pass rather than an
+ *  exclusion. The two rules split ONE detector run, so each publishes the same denominator and only its
+ *  own affected count — and therefore the same refusal, which belongs to the gradient, not to one rule. */
 export function classifyRadialGlow(input: RadialGlowInput, rule: "radial-halo" | "radial-spotlight-glow"): CandidateDisposition {
   if (input.sanctioned) {
     return { kind: "excluded", reason: "sanctionedGlowCarrier" };
+  }
+  if (scanRadialStops(input.value).kind === "unresolved") {
+    return { kind: "withheld", reason: "unresolvedGradientStop" };
   }
   const finding = checkRadialGlow(input);
   return { kind: "judged", finding: finding?.rule === rule ? finding : null };
