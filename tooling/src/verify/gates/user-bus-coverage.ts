@@ -1,99 +1,121 @@
-// Gate: user-bus-coverage (PD user-bus lane) — the `UserBusEvent` emit-coverage RATCHET, the twin of
-// `bus-coverage.ts` (D50) for the per-USER bus: the union is compile-exhaustive on the CONSUMER side but
-// nothing machine-checks the PRODUCER side — a member can be declared, mapped on the client, and never
-// emitted (silently dead wire). Every `USER_BUS_EVENT_TYPES` discriminator must have a server-side emit
-// site OR a cited DEFERRED entry. DEFERRED is a self-cleaning ratchet (both directions). The reconcile is
-// shared with the chat/rpg twins. COMMENT POSTURE: comment-SAFE — AST emitter calls + event objects only.
+// UserBusEvent producer coverage: every declared member has a canonical executable server emitter. The
+// twin of `bus-coverage` for the per-USER bus (D50) — the union is compile-exhaustive on the CONSUMER
+// side, so nothing but this ratchet sees a member that is declared, mapped on the client, and never
+// emitted (a second device's write never reaches this one).
+//
+// The shared bus fact owns union/member/call identity, which is what retired the legacy reader: the
+// producers it now proves include the CONDITIONAL PUBLISHER (`publishChatChanged` -> `publishUserEvent`
+// -> `defineBusChannel.publish`, two hops below the domain call sites), so `chatsChanged` is proven by
+// identity rather than by a literal corpus.
+//
+// The owner-deferred member is not an allowlist row here: it is the subject of the warning-debt sibling
+// `user-bus-deferred-member`, which owns the work item and the retirement ratchet. Importing its list is
+// what makes the two halves one decision — when the deferral is deleted, this policy owns the member in
+// the same edit.
+import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
+import { defineGate } from "../contract/policy.ts";
+import { busProducerFact } from "../lib/bus-fact.ts";
+import { USER_BUS_DEFERRED_MEMBERS } from "./user-bus-deferred-member.ts";
 
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { BusCoverageSpec } from "../contract/readers.ts";
-import { reconcileBusCoverage } from "../lib/bus-coverage.ts";
+const UNION = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
+const MESSAGE =
+  "UserBusEvent member has NO server emit site — a declared-never-emitted user-bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
 
-const MISSING_MESSAGE_PREFIX =
-  "UserBusEvent member has NO server emit site and no DEFERRED entry — a declared-never-emitted user-bus member is silently dead wire (a second device's write never reaches this device). Wire the verb's `emitUserEvent` or add a cited DEFERRED entry in user-bus-coverage.ts (see @orb/contracts/user-bus + packages/client/src/data/invalidation.ts): ";
-const STALE_MESSAGE_PREFIX =
-  "DEFERRED user-bus member now HAS an emit site — delete its stale allowlist entry in user-bus-coverage.ts (see @orb/contracts/user-bus): ";
-
-/** Declared-not-emitted members, each with its tracked citation. Delete an entry the moment its emit site
- *  lands (the gate flags a stale entry — the STALE arm). */
-const SPEC: BusCoverageSpec = {
-  contractsFile: /\/packages\/contracts\/src\/user-bus\/index\.ts$/u,
-  typesConst: "USER_BUS_EVENT_TYPES",
-  keyShape: "object",
-  reportFile: "packages/contracts/src/user-bus/index.ts",
-  deferred: {
-    connectionsChanged:
-      "no per-user connection store exists — connection config lives in USER SETTINGS (settingsChanged); the model catalog is admin/global (refreshCatalog). Wire the emit when a per-user connection entity lands. See @orb/contracts/user-bus.",
-  },
-  missingPrefix: MISSING_MESSAGE_PREFIX,
-  stalePrefix: STALE_MESSAGE_PREFIX,
-};
-
-export const gate: GateDescriptor = {
-  name: "user-bus-coverage",
-  docRow: "PD user-bus lane (ledger D50 twin; @orb/contracts/user-bus)",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: MISSING_MESSAGE_PREFIX,
-  fix: "wire the verb's emitUserEvent for the member, or add a cited DEFERRED entry in user-bus-coverage.ts.",
-  run: (ctx) => {
-    for (const v of reconcileBusCoverage(ctx.project, SPEC)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
-  },
+export const gate = defineGate({
+  id: "user-bus-coverage",
+  family: "bus-fact",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [busProducerFact],
+  resources: [],
+  message: MESSAGE,
+  fix: "wire the verb's injected emitUserEvent operation for the member after its durable write commits.",
+  create: (ctx) => ({
+    evaluate: () => {
+      const fact = ctx.fact(busProducerFact);
+      recordReadyBusFact(ctx, fact);
+      const bus = busByUnion(fact, UNION);
+      if (bus === undefined) {
+        throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+      }
+      const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+      const deferred = new Set(USER_BUS_DEFERRED_MEMBERS);
+      for (const member of bus.declaredMembers) {
+        if (!(emitted.has(member.name) || deferred.has(member.name))) {
+          ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
+        }
+      }
+    },
+  }),
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/settings/x.ts":
-          'function emitUserEvent(_ownerId: string, _event: object) {}\nemitUserEvent(ownerId, { type: "emitted" });\n',
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "neverEmitted" };\nexport const USER_BUS_EVENT_TYPES = { neverEmitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts": 'export const decoy = "neverEmitted";\n',
       },
-      expect: { messageIncludes: "NO server emit site" },
+      expect: { count: 1, messageIncludes: "neverEmitted" },
+      why: "an arbitrary matching literal is not an emitUserEvent call — the declared member remains dead wire",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts":
+          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nfunction emitUserEvent(_userId: string, _event: UserBusEvent): void {}\nemitUserEvent("u", { type: "emitted" });\n',
+      },
+      expect: { count: 1 },
       why: "a locally shadowed same-named function is not the injected emitUserEvent operation",
     },
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
-        "packages/server/src/domain/settings/x.ts": 'export const q = "neverEmitted";\n',
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts":
+          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\ndeclare const logger: { emitUserEvent: (userId: string, event: UserBusEvent) => void };\nlogger.emitUserEvent("u", { type: "emitted" });\n',
       },
-      expect: { messageIncludes: "NO server emit site" },
-      why: "an arbitrary matching literal is not an emitUserEvent call — the declared member remains dead wire",
+      expect: { count: 1 },
+      why: "a same-typed emitter method on an unrelated receiver is not the canonical user-bus operation",
     },
   ],
-  // The STALE arm (a DEFERRED member that GAINS an emit site — `emitted && deferred`) is LIVE-RUN-COVERED:
-  // reproducing it synthetically would brittle-couple a fixture to today's DEFERRED map contents; the
-  // accepted-delta rule applies (see FLOOR-GATE-EXHAUSTIVE-MAP.md). Only the pure MISSING (flag) and
-  // EMITTED/DEFERRED-covered (pass) arms are ported as examples.
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/settings/x.ts": 'ctx.emitUserEvent(ownerId, { type: "emitted" });\n',
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts":
+          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "emitted" });\n}\n',
       },
-      why: "the member's discriminator is carried by the injected emitUserEvent call — covered, passes",
+      why: "the member is carried by the canonical injected user-bus operation",
     },
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "chatsChanged"; chatId?: string };\nexport const USER_BUS_EVENT_TYPES = { chatsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/transport/trpc/bus-channel.ts":
+          "export interface BusChannel<Key, Event> {\n  readonly publish: (key: Key, event: Event) => void;\n}\nexport function defineBusChannel<Key extends string, Event>(channelFor: (key: Key) => string): BusChannel<Key, Event>;\nexport function defineBusChannel<Key extends string, Event>(channelFor: (key: Key) => string, opts: { readonly firehose: true }): BusChannel<Key, Event>;\nexport function defineBusChannel<Key extends string, Event>(\n  channelFor: (key: Key) => string,\n  opts?: { readonly firehose: true },\n): BusChannel<Key, Event> {\n  return { publish: () => channelFor };\n}\n",
         "packages/server/src/transport/trpc/user-events-bus.ts":
-          'function publishUserEvent(_ownerId: string, _event: object) {}\nexport function publishChanged(ownerId: string) {\n  const event = { type: "emitted" };\n  publishUserEvent(ownerId, event);\n}\n',
+          'import type { UserBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./bus-channel.ts";\nconst bus = defineBusChannel<string, UserBusEvent>((userId) => `user:${userId}`);\nexport function publishUserEvent(userId: string, event: UserBusEvent): void {\n  bus.publish(userId, event);\n}\nexport function publishChatChanged(userId: string, chatId: string | undefined): void {\n  const event: UserBusEvent = chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };\n  publishUserEvent(userId, event);\n}\n',
       },
-      why: "the canonical transport publisher carries locally-bound event objects to the per-user bus",
+      why: "THE CONDITIONAL PUBLISHER, in the shape the live tree has it: a member built in a conditional local, relayed through the module publisher, and fanned by the one bus-channel mint whose OVERLOADED factory made the old reader blind",
     },
     {
+      mode: "types",
       files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
-        "packages/server/src/domain/plugin/substrate/surface-state.ts":
-          'export function createPublisher(emit: (ownerId: string, event: object) => void) {\n  return (ownerId: string) => emit(ownerId, { type: "emitted" });\n}\n',
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "connectionsChanged" } | { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true, emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts":
+          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "emitted" });\n}\n',
       },
-      why: "the plugin surface-state domain's injected `emit` parameter is its canonical user-bus producer door",
-    },
-    {
-      files: {
-        "packages/contracts/src/user-bus/index.ts": 'export const USER_BUS_EVENT_TYPES = { connectionsChanged: "connectionsChanged" } as const;\n',
-        "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
-      },
-      why: "a member with NO emit site but a DEFERRED entry present (connectionsChanged) — the deferred-covers-it branch, passes",
+      why: "the owner-deferred member is owned by the warning-debt sibling, not by this error policy — the exact split the retired DEFERRED allowlist used to express as a local table",
     },
   ],
-};
+});
