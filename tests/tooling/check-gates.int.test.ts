@@ -1148,7 +1148,7 @@ function writeFixtures(): void {
   // would then throw instead of reading its report.
   //
   // section-registry-completeness + placeholder-copy-registry (one pair drives BOTH — they share
-  // lib/section-defs.ts, which is the point of the shared discovery).
+  // the shared registryDefinitionFact in lib/registry-fact.ts, which is the point of the shared discovery).
   fx(
     "packages/client/src/features/__g_impsec/lib/__g_impsec-definition.ts",
     'export const gImpSecDef = { id: "__g_impsec", content: () => null, context: { kind: "none" } };\n',

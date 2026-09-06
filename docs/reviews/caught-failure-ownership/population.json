@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 553,
-    "enforced": 548,
-    "reported": 0,
+    "sites": 570,
+    "enforced": 565,
+    "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 548,
+      "deliberate-absorb": 549,
       "detached-owned": 5,
-      "unproven": 0
+      "unproven": 16
     },
     "byGrammar": {
       "promise": 142,
       "default": 150,
-      "empty": 261
+      "empty": 278
     }
   },
   "rows": [
@@ -2867,7 +2867,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 537,
+      "line": 543,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2875,12 +2875,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 531
+      "markerLine": 537
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 556,
+      "line": 562,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2888,12 +2888,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 550
+      "markerLine": 556
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 576,
+      "line": 582,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2901,12 +2901,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 565
+      "markerLine": 571
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 727,
+      "line": 733,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,7 +2914,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 716
+      "markerLine": 722
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
@@ -7051,6 +7051,58 @@
       "markerLine": 277
     },
     {
+      "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::1",
+      "path": "tooling/src/verify/lib/policy-pass.ts",
+      "line": 176,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::2",
+      "path": "tooling/src/verify/lib/policy-pass.ts",
+      "line": 195,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::3",
+      "path": "tooling/src/verify/lib/policy-pass.ts",
+      "line": 407,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::4",
+      "path": "tooling/src/verify/lib/policy-pass.ts",
+      "line": 474,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/program-routing.ts",
       "line": 303,
@@ -7062,6 +7114,58 @@
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.",
       "markerLine": 300
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::empty:error::1",
+      "path": "tooling/src/verify/lib/schema-fact.ts",
+      "line": 426,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::empty:error::2",
+      "path": "tooling/src/verify/lib/schema-fact.ts",
+      "line": 479,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/lib/schema-fact.ts::empty:error::3",
+      "path": "tooling/src/verify/lib/schema-fact.ts",
+      "line": 511,
+      "column": 15,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::empty:err::1",
+      "path": "tooling/src/verify/ops/asset-refs-coverage.ts",
+      "line": 196,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as TOOL ERROR and routed through EXIT.toolError per the exit-contract — a schema/registry import or reader failure is a BROKEN CHECKER, never a verdict. Ends if that exit code stops being surfaced.",
+      "markerLine": 193
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
@@ -7166,6 +7270,123 @@
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
       "markerLine": 245
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/policy-conformance.ts",
+      "line": 64,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::2",
+      "path": "tooling/src/verify/ops/policy-conformance.ts",
+      "line": 89,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-config.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/resource-config.ts",
+      "line": 82,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-config.ts::empty:error::2",
+      "path": "tooling/src/verify/ops/resource-config.ts",
+      "line": 112,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-host.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/resource-host.ts",
+      "line": 68,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/resource-reader.ts",
+      "line": 71,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::2",
+      "path": "tooling/src/verify/ops/resource-reader.ts",
+      "line": 129,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::3",
+      "path": "tooling/src/verify/ops/resource-reader.ts",
+      "line": 148,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::4",
+      "path": "tooling/src/verify/ops/resource-reader.ts",
+      "line": 254,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",

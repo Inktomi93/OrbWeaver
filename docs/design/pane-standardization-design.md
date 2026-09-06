@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-02
+updated: 2026-09-06
 ---
 
 # Pane standardization — what the shell forces vs what a section declares (#1191)
@@ -329,7 +329,7 @@ The §3 changes touch, by class:
 4. **Feature surfaces** — the seven `*-list-header.tsx` → hooks; per-section wrapper-padding deletions
    (§6); extensions' `LibraryListLayout` + anchor; analytics' empty level-up; refinery's context band +
    owned boundary.
-5. **Gates + conformance** — `section-registry-completeness` (edge-reason arm; its `lib/section-defs.ts`
+5. **Gates + conformance** — `section-registry-completeness` (edge-reason arm; the shared `registryDefinitionFact`
    reader sees the new fields), the new `list-empty-floor` arm, both with `mustFlag`/`mustPass` vitest
    rows (invisible to `pnpm check` — run the suites); `context-definition-shape` unchanged (arms are
    count/mint-based); `placeholder-copy-registry` untouched.
