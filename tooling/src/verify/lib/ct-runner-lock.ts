@@ -21,11 +21,23 @@
 //
 // STALE LOCKS SELF-HEAL: a killed run leaves its file behind, and a lock nobody holds must never wedge the
 // next run — so an unheld lock (its pid is gone) is STOLEN with a printed note, never obeyed.
+//
+// A THIRD CAP JOINED THEM (#1835): a HOST-WIDE slot pool, `ctRunnersHostWide` slots under
+// $XDG_RUNTIME_DIR. Everything above is about ONE WORKTREE, and the #1835 finding was precisely that
+// every cap on the tree was per-worktree: six lanes across two accounts each ran their own CT fleet, and
+// node_load1 peaked at 105.8 on 24 cores with the co-hosted homelab starved. The two caps answer
+// different questions and therefore behave differently — the local one REFUSES a corrupting sibling, the
+// host one WAITS for a busy box. `acquireCtRunnerSlots` is the door that composes them; its doc states
+// why in full.
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { checkoutName } from "@orb/tooling/_shared/artifacts";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.ts";
+import type { HostSlotDeps } from "./host-slots.ts";
+import { acquireHostSlot } from "./host-slots.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ct:scoped <paths…>");
 
@@ -99,8 +111,52 @@ export interface CtRunnerLockDeps {
   readonly argv?: readonly string[];
 }
 
+/** A CT batch is minutes, and a second lane legitimately waits that long for a host slot rather than being
+ *  refused. Load-scaled at acquire time; past it the pool degrades to uncapped, never to a wedge. */
+const CT_HOST_WAIT_BASE_MS = 2_700_000; // 45 minutes
+
+/** THE DOOR the runner uses. TWO caps, in this order, because they answer two different questions:
+ *
+ *  1. the per-WORKTREE lock (below) — "is another runner about to corrupt MY build directory?" It REFUSES,
+ *     instantly, because the answer to a corrupting sibling is not to wait for it (#1581).
+ *  2. the host-wide SLOT (#1835) — "are there already `ctRunnersHostWide` chromium fleets on this BOX?"
+ *     It WAITS, because the answer to a busy box IS to wait: a refused CT run is an exit-2 tool error in a
+ *     lane, which breaks a merge train and costs a re-dispatch, while waiting costs only wall clock. Six
+ *     lanes × 4 workers × 1 chromium each is what drove node_load1 to 105.8 with nothing saying a word.
+ *
+ *  The host slot is taken AFTER the worktree lock so a doomed run (a live sibling in the same tree) never
+ *  occupies a host slot it will immediately give back. `release()` frees both, in reverse order. */
+export async function acquireCtRunnerSlots(root: string, deps: CtRunnerLockDeps & { readonly host?: HostSlotDeps } = {}): Promise<CtRunnerLock> {
+  const local = acquireCtRunnerLock(root, deps);
+  if (local.kind === "busy") {
+    return local;
+  }
+  const host = await acquireHostSlot(
+    {
+      name: "ct",
+      label: `ct:scoped ${checkoutName(root)}`,
+      slots: readConcurrencyProfile().ctRunnersHostWide,
+      waitBaseMs: CT_HOST_WAIT_BASE_MS,
+    },
+    deps.host,
+  );
+  return {
+    kind: "held",
+    lease: {
+      ...local.lease,
+      hostSlot: host.slot,
+      hostWaitedMs: host.waitedMs,
+      release: (): void => {
+        host.release();
+        local.lease.release();
+      },
+    },
+  };
+}
+
 /** Take the worktree's CT runner lock, or report who holds it. On success the caller owns a fresh build
- *  cache and MUST `release()` (a `finally`, so a refused preflight frees it too). */
+ *  cache and MUST `release()` (a `finally`, so a refused preflight frees it too). This is the LOCAL half;
+ *  the runner's real door is {@link acquireCtRunnerSlots}, which adds the host-wide cap. */
 export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): CtRunnerLock {
   const now = deps.now ?? ((): Date => new Date());
   const pid = deps.pid ?? process.pid;
