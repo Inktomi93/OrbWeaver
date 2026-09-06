@@ -1,6 +1,6 @@
 // The evidence gaps that turn a design-audit run into an INSTRUMENT failure instead of a verdict
 // (tooling/src/ui-audit/lib/evidence.ts). The census and reach arms are exercised end-to-end in
-// tests/tooling/ui-audit/cli.int.test.ts; this file pins the READINESS arm's pure verdict, whose whole job
+// tests/tooling/ui-audit/index.int.test.ts; this file pins the READINESS arm's pure verdict, whose whole job
 // is to be true when the two count-based arms cannot see the problem.
 
 import type { SettingsShimEvidence } from "../../../../tooling/src/_shared/appearance.ts";
