@@ -23,8 +23,8 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -77,10 +77,11 @@ interface RulesSkeletonProps {
  * (side-eye 2026-08-30 §5-P3-Rules). Collapsing the injection rows above it moves it ~800px UP, which is
  * precisely where that geometry accident stops protecting it — so the two land together.
  *
- * Shape-matched to `RuleRow` element for element: the name/gloss/last-run stack beside the shrink-0 control
- * cluster, then the "Recent activity" disclosure at its own `control-sm` floor. The fire log is NOT
- * reserved — it lives inside a panel that is closed on arrival, so it costs this box nothing (and its own
- * skeleton mismatch is the term #815 fenced from the editing side and the owner deferred).
+ * Shape-matched to `RuleRow` element for element — and re-derived at #886, when the row became a COLLAPSE
+ * card: what it now reserves is the row's CLOSED face (a `!p-0` Card holding the name/gloss/last-run stack
+ * beside the enable switch), not the fully-open anatomy. Everything the disclosure hides — Test, the
+ * overflow menu, the B4 switch, the fire-log door — is behind a panel that is closed on arrival, so it costs
+ * this box nothing, and its own skeleton mismatch is the term #815 fenced from the editing side.
  */
 function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
   const rows = Array.from({ length: Math.max(count, 1) }, (_row, index) => index);
@@ -89,19 +90,18 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
       <Text voice="gloss">{RULES_INTRO}</Text>
       <Stack gap="section">
         {rows.map((index) => (
-          <Stack gap="block" key={index}>
-            <Row align="start" gap="block" justify="between">
+          // Byte-for-byte the settled row's closed box: the same `!p-0` Card, the same `p-block` trigger pad
+          // at the same `min-h-control-sm` pointer-conditional floor, the same three-line name column.
+          <Card className="!p-0" key={index}>
+            <Row align="center" className="min-h-control-sm p-block pr-block" gap="field">
               <Stack className="min-w-0 flex-1" gap="tight">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-1/2" />
               </Stack>
-              <Skeleton className="h-control-sm shrink-0 basis-1/4" />
+              <Skeleton className="h-4 w-1/6 shrink-0" />
             </Row>
-            <Row align="center" className="min-h-control-sm">
-              <Skeleton className="h-4 w-1/3" />
-            </Row>
-          </Stack>
+          </Card>
         ))}
       </Stack>
       <Skeleton className="h-control-sm w-1/3" />
@@ -122,9 +122,9 @@ export function RulesSectionBody({ chatId }: RulesSectionBodyProps): ReactElemen
   const trpc = useTRPC();
   const { data } = useQuery(trpc.automation.listRules.queryOptions({ chatId }));
   return (
-    // RESERVED (#1098), fallback UNCHANGED — `RulesSkeleton` is already the shape-and-COUNT match (the
-    // non-suspending `listRules` read above sizes it), so what was missing was only the HEIGHT. The read
-    // lives in THIS component, outside the measured wrapper, so it cannot poison the remembered box.
+    // RESERVED (#1098) — the non-suspending `listRules` read above sizes the fallback, so it is a shape AND
+    // count match; #886 re-derived the SHAPE against the row's new closed face. The read lives in THIS
+    // component, outside the measured wrapper, so it cannot poison the remembered box.
     <QueryBoundary
       fallback={<RulesSkeleton count={data?.length ?? 1} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
@@ -159,13 +159,16 @@ export function RulesSection({ chatId }: RulesSectionProps): ReactElement {
         </Text>
       ) : (
         <Stack gap="section">
-          {rules.map((rule: Rule, index: number) => (
-            <Stack key={rule.id} gap="section">
-              {/* ONE hairline between rules (side-eye #621 P2-7): with two rules and no separation, each
-                  "Recent activity" disclosure sat equidistant between its own title and the NEXT rule's. */}
-              {index === 0 ? null : <Separator />}
-              <RuleRow chatId={chatId} rule={rule} />
-            </Stack>
+          {/* THE HAIRLINE IS GONE, AND ITS RULING SURVIVES — its INPUT changed (#886 vs side-eye #621 P2-7).
+              #621 added `<Separator />` between rules because an unbounded stack gave each "Recent activity"
+              disclosure equal distance to its own title and to the NEXT rule's, so a reader could not tell
+              which rule it belonged to. At #886 every rule is a bounded `!p-0` Card and that disclosure lives
+              INSIDE the card's own panel: the boundary the hairline was standing in for is now painted, and a
+              rule between two card edges cannot be misread. A hairline between adjacent cards would be a
+              second boundary for one seam — which is what the Field-overrides and Injections lists, the idiom
+              this row now wears, already decline to draw. */}
+          {rules.map((rule: Rule) => (
+            <RuleRow chatId={chatId} key={rule.id} rule={rule} />
           ))}
         </Stack>
       )}
