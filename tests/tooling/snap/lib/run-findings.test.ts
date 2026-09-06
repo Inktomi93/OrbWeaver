@@ -209,6 +209,39 @@ test("an arm a PRODUCER already described gets no second row — de-duplicated b
   expect(findings.some((row) => row.what === "dropped frames over budget")).toBe(false);
 });
 
+// #1780: the exemption row is a note about a measurement that did NOT fail. Two things it must never do:
+// redden a clean run, and spend the agent-readable body budget on its 580-byte condition list.
+test("an EXEMPTION problem row reads as a non-counting annotation naming the carve-out, not as an error", async () => {
+  const artifact = join(SLOT_DIR, "motion", "motion.json");
+  await mkdir(dirname(artifact), { recursive: true });
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      problems: [
+        {
+          arm: "motion",
+          kind: "exemption",
+          metric: "loaf-style-layout-count",
+          subject: "measurement-window",
+          observed: "0 budgeted, 1 excused",
+          threshold: "bounded-input-dispatch-layout-frame",
+          detail:
+            "one style/layout Long Animation Frame was excused under the bounded-input-dispatch-layout-frame exemption (#1647), which requires all four of: …",
+        },
+      ],
+    }),
+  );
+
+  const findings = await collectSnapFindings({ ...input([armVerdict({ arm: "motion", state: "passed" })], "passed"), artifacts: [motionArtifact(artifact)] });
+  const row = findings.find((finding) => finding.what.includes("loaf-style-layout-count"));
+
+  expect(row?.severity).toBe("annotation");
+  expect(row?.what).toBe("loaf-style-layout-count: 0 budgeted, 1 excused (bounded-input-dispatch-layout-frame)");
+  // The carve-out is NAMED on the printed row; the conditions stay in the artifact behind `next=`.
+  expect(row?.what).not.toContain("requires all four of");
+  expect(findings.some((finding) => finding.severity === "error")).toBe(false);
+});
+
 test("THE FALLBACK STILL EXISTS: a non-passing run with no voting arm at all keeps the unattributed row", async () => {
   // The negative control for the two arms above. Without it, "the fallback did not fire" would be
   // satisfied by a fallback that can no longer fire at all — which would hide an exit nobody described.

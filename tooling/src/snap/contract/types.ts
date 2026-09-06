@@ -112,7 +112,9 @@ export interface Args {
   /** Timed observation series after nav+steps settle: total window (ms). 0 = disabled (single-shot).
    *  Every tick re-runs --eval exprs and, when shots are enabled, captures `<out>-t<elapsed>.png`. */
   watchMs: number;
-  /** --watch tick interval (ms). Default 1000. */
+  /** --watch tick interval (ms). 0 = the argv stated none; every reader resolves that through
+   *  `ops/flags-support.ts`'s `watchIntervalMs` (default 1000). The sentinel is load-bearing: session
+   *  inheritance must be able to tell "no --every" from "--every 1000". */
   watchEveryMs: number;
   /** Output basename override (reports/snaps/<out>.png), or — when path-shaped (absolute / `./` / `../`) —
    *  the exact file to write. Defaults to the route slug. Resolution lives in _shared/artifacts.ts. */

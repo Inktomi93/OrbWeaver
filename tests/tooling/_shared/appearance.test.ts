@@ -125,6 +125,23 @@ test("unknown keys and schema-healed values refuse instead of pretending the req
   });
 });
 
+// #1509 item 10, honestly labelled: this is a FENCE on the exported door, not a live-defect proof. The
+// contracts schema is TOTAL for every plain object (each leaf carries a `.catch`), and both in-file
+// callers guard with `isPlainObject` first — measured on the tree, the only inputs the schema throws on
+// are non-objects. But `validateAppearancePatch` is EXPORTED and its whole contract is the `{ error }`
+// shape a CLI turns into an ARG ERROR, so the throwing `.parse` was one un-guarded caller away from
+// putting a raw ZodError out of a probe's mouth. `safeParse` makes that structurally impossible.
+test("the exported validator RETURNS its refusal for a non-object, rather than throwing a ZodError", () => {
+  const notAnObject = 7 as unknown as Parameters<typeof validateAppearancePatch>[0];
+
+  expect(() => validateAppearancePatch(notAnObject, "--appearance")).not.toThrow();
+  expect(validateAppearancePatch(notAnObject, "--appearance")).toMatchObject({
+    error: expect.stringContaining("--appearance is not a readable appearance object"),
+  });
+  // The guarded callers keep their own, more specific refusals — this door did not take their job.
+  expect(parseAppearancePatch("7")).toEqual({ error: '--appearance expects a JSON object, got "7"' });
+});
+
 test("an unknown preset name is refused with the valid list, not treated as an empty patch", () => {
   const outcome = loadAppearancePreset("maximalist");
 

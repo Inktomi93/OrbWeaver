@@ -4232,7 +4232,7 @@
     {
       "siteId": "tooling/src/_shared/appearance-flags.ts::default:catch::1",
       "path": "tooling/src/_shared/appearance-flags.ts",
-      "line": 48,
+      "line": 59,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4240,7 +4240,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.",
-      "markerLine": 45
+      "markerLine": 56
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:catch::1",
@@ -5298,7 +5298,7 @@
     {
       "siteId": "tooling/src/snap/lib/run-bundle-files.ts::empty:catch::1",
       "path": "tooling/src/snap/lib/run-bundle-files.ts",
-      "line": 126,
+      "line": 137,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5306,12 +5306,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing/corrupt optional .inflight marker deliberately falls through to the slot birthtime, the documented lower-fidelity provenance source. Ends if birthtime is no longer recorded in run.json.",
-      "markerLine": 117
+      "markerLine": 128
     },
     {
       "siteId": "tooling/src/snap/lib/run-bundle-files.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-bundle-files.ts",
-      "line": 81,
+      "line": 92,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5319,12 +5319,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.",
-      "markerLine": 78
+      "markerLine": 89
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::1",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 67,
+      "line": 86,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5332,12 +5332,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 55
+      "markerLine": 74
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::2",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 103,
+      "line": 122,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5345,12 +5345,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 77
+      "markerLine": 96
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-analyzers.ts::empty:error::3",
       "path": "tooling/src/snap/lib/run-finding-analyzers.ts",
-      "line": 142,
+      "line": 161,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5358,7 +5358,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.",
-      "markerLine": 116
+      "markerLine": 135
     },
     {
       "siteId": "tooling/src/snap/lib/run-finding-browser.ts::empty:error::1",
@@ -5415,7 +5415,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 132,
+      "line": 134,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5423,20 +5423,20 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 129
+      "markerLine": 131
     },
     {
-      "siteId": "tooling/src/snap/ops/arms/assert.ts::promise:isVisible::1",
+      "siteId": "tooling/src/snap/ops/arms/assert.ts::promise:visibleLocators::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
-      "line": 116,
-      "column": 24,
+      "line": 120,
+      "column": 27,
       "grammar": "promise",
-      "position": "promise:isVisible",
+      "position": "promise:visibleLocators",
       "ordinal": 1,
-      "snippet": "const pass = await locator",
+      "snippet": "const matched = await visibleLocators(locator, false).catch((): Locator[] => []);",
       "verdict": "deliberate-absorb",
-      "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 115
+      "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::empty:error::1",
@@ -5922,7 +5922,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 279,
+      "line": 283,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5930,12 +5930,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 272
+      "markerLine": 276
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 253,
+      "line": 257,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5961,7 +5961,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 275,
+      "line": 279,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5969,7 +5969,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 274
+      "markerLine": 278
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
@@ -5987,7 +5987,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 267,
+      "line": 271,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5995,12 +5995,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 266
+      "markerLine": 270
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 405,
+      "line": 409,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -6008,7 +6008,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 403
+      "markerLine": 407
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
@@ -6572,7 +6572,7 @@
     {
       "siteId": "tooling/src/snap/ops/watch.ts::promise:screenshot::1",
       "path": "tooling/src/snap/ops/watch.ts",
-      "line": 23,
+      "line": 25,
       "column": 56,
       "grammar": "promise",
       "position": "promise:screenshot",
@@ -6580,7 +6580,7 @@
       "snippet": "const shotError = shotPath === null ? null : await page.screenshot({ path: shotPath, ...SHOT_BASE }).then(() => null, errorMessage);",
       "verdict": "deliberate-absorb",
       "reason": "captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read.",
-      "markerLine": 22
+      "markerLine": 24
     },
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::1",

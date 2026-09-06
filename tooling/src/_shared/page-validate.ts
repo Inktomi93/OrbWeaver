@@ -85,6 +85,32 @@ export function pageNumber(value: unknown, label: string): number {
   return value;
 }
 
+/** A finite number inside a stated inclusive range. `pageNumber` alone only rules out NaN, so a negative
+ *  count, a negative width or an opacity of 12 walked straight into a printed verdict; the ranges live at
+ *  the CALL SITES because only the consumer knows what its own field can legally be (#1509). `min`/`max`
+ *  are both optional: an open end is a real answer for a length, which has a floor and no ceiling. */
+export function pageNumberInRange(value: unknown, label: string, bounds: { readonly min?: number; readonly max?: number }): number {
+  const number = pageNumber(value, label);
+  const low = bounds.min ?? Number.NEGATIVE_INFINITY;
+  const high = bounds.max ?? Number.POSITIVE_INFINITY;
+  if (number < low || number > high) {
+    const range = `${bounds.min === undefined ? "any" : String(bounds.min)}..${bounds.max === undefined ? "any" : String(bounds.max)}`;
+    instrumentRefusal(`${label} returned ${String(number)}, outside the expected range ${range}`);
+  }
+  return number;
+}
+
+/** A population, an index or a monotonic generation: a NON-NEGATIVE INTEGER. Distinct from a bounded
+ *  measurement because a fractional count is as wrong as a negative one — both mean the page script
+ *  answered a different question than the one the reader is about to print. */
+export function pageCount(value: unknown, label: string): number {
+  const number = pageNumber(value, label);
+  if (!Number.isInteger(number) || number < 0) {
+    instrumentRefusal(`${label} returned ${String(number)}, not a non-negative whole count`);
+  }
+  return number;
+}
+
 /** Every own value of a flat counter map must be a finite number — a total check rather than a
  *  hand-listed key set, so a counter added later is covered without an edit here. */
 export function pageNumberMap(value: unknown, label: string): Record<string, number> {

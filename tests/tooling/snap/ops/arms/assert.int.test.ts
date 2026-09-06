@@ -85,3 +85,34 @@ test("absence stays the ANSWER for --expect-visible and --expect-count, and --in
   expect(attached.stdout).toContain("ASSERT text #hidden-only: PASS");
   await expect(attached).toExitWith(EXIT.clean);
 });
+
+/** A hidden duplicate FIRST in document order, then a visible match under the same selector — the shape a
+ *  conditional wrapper, an exit-animating twin or a mobile/desktop pair produces on the real tree. */
+const DUPLICATE_FIXTURE = `<!doctype html><html data-app-ready="settled"><head><style>
+  body { margin: 0; font: 16px system-ui; }
+  .twin[hidden] { display: none; }
+</style></head><body>
+  <div class="twin" hidden>Save</div>
+  <div class="twin">Save</div>
+</body></html>`;
+
+// #1509: `--expect-visible` asked `locator.first().isVisible()`, so the HIDDEN twin — first in document
+// order — answered for the whole population and the flag reported FAIL about an element the user can see.
+// Every other assertion in this file already goes through `visibleLocators`; this one did not.
+test("--expect-visible judges the whole population, not whichever match happens to be first", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "twins.html": DUPLICATE_FIXTURE });
+  const file = ["--file", `${root}/twins.html`];
+
+  const found = await runCli("snap", [...file, ...QUIET, "--expect-visible", ".twin"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  expect(found.stdout).toContain("ASSERT visible .twin: PASS");
+  await expect(found).toExitWith(EXIT.clean);
+
+  // THE CONTROL: with every twin hidden the answer must still be FAIL, so the fix cannot be "always PASS
+  // when something is attached".
+  const allHidden = await runCli("snap", [...file, ...QUIET, "--expect-visible", ".twin[hidden]"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  expect(allHidden.stdout).toContain("ASSERT visible .twin[hidden]: FAIL");
+  await expect(allHidden).toExitWith(EXIT.violations);
+});

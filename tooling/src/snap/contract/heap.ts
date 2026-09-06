@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { InstrumentArtifactLimitReceipt } from "../../_shared/artifact-out.ts";
 import { artifactLimitReceiptSchema } from "../../_shared/artifact-out.ts";
 import type { SnapAnalyzerProblem } from "./analyzer.ts";
+import { SNAP_ANALYZER_PROBLEM_KINDS } from "./analyzer.ts";
 
 export const HEAP_PARSER_PACKAGE = "chrome-devtools-mcp";
 export const HEAP_PARSER_VERSION = "1.8.0";
@@ -192,7 +193,7 @@ const heapClassSummarySchema: z.ZodType<HeapClassSummary> = z.object({
 });
 const heapProblemSchema: z.ZodType<SnapAnalyzerProblem> = z.object({
   arm: z.enum(["motion", "interaction-perf", "heap"]),
-  kind: z.enum(["threshold", "failure", "evidence-gap"]),
+  kind: z.enum(SNAP_ANALYZER_PROBLEM_KINDS),
   metric: z.string(),
   subject: z.string(),
   observed: z.string(),

@@ -24,6 +24,7 @@ import { motionReceiptFor } from "./arms/motion.ts";
 import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
+import { watchIntervalMs } from "./flags-support.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
 import { fileOriginNoiseCount, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
@@ -218,7 +219,8 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
       appearance,
       captures: outcomes,
-      ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
+      // The RESOLVED interval, never the raw sentinel: the artifact states what the series actually ran at.
+      ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: watchIntervalMs(opts), ticks: watchTicks } }),
     } as const;
     // The retention batch rides in (#1507): the core-capture populations REPORT what the bounded rings did
     // rather than asserting a clean zero over them. Sampled here, where the capture is settled — the same

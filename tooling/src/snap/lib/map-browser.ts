@@ -69,7 +69,11 @@ ${WALKER_ACCESSIBLE_NAME}
     function stateOf(el) {
       var disabled = "disabled" in el ? Boolean(el.disabled) : null;
       var ariaDisabled = el.getAttribute("aria-disabled");
-      if (ariaDisabled === "true" || ariaDisabled === "false") disabled = ariaDisabled === "true";
+      // NATIVE disabled WINS unless aria-disabled says true (#1509). aria-disabled is an ARIA-tree claim;
+      // the native property is what the browser enforces, so a natively disabled control carrying
+      // aria-disabled="false" is still un-clickable and must not read as actionable.
+      if (ariaDisabled === "true") disabled = true;
+      else if (ariaDisabled === "false" && disabled !== true) disabled = false;
       var checked = null;
       if ("indeterminate" in el && el.indeterminate) checked = "mixed";
       else if ("checked" in el) checked = Boolean(el.checked);

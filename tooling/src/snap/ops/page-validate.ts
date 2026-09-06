@@ -21,7 +21,7 @@
 //   • devtools proof     — the attach proof for the whole DevTools materialisation.
 //   • reset/animation    — the appearance-invariant row's own preconditions; each already has an
 //                          `instrumentError` arm for a FALSE answer, and none had one for a wrong SHAPE.
-import { pageArray, pageBoolean, pageNumber, pageObject, pageString } from "@orb/tooling/_shared/page-validate";
+import { pageArray, pageBoolean, pageCount, pageNumber, pageNumberInRange, pageObject, pageString } from "@orb/tooling/_shared/page-validate";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ContrastFacts } from "../contract/contrast.ts";
 import type { DeadCssEvidence } from "../contract/dead-css.ts";
@@ -54,14 +54,20 @@ export function contrastFacts(value: unknown): ContrastFacts {
   }
   const label = "the contrast read";
   const record = pageObject(value, label);
+  // THE RANGES, and why each is what it is (#1509). `total`/`inViewport`/`matchIndex` are populations and
+  // an index into one: non-negative whole numbers. `fontSizePx`, `width`, `height` and the four radii are
+  // CSS lengths: non-negative, no upper bound. `fontWeight` is the CSS `font-weight` domain, 1..1000.
+  // `foregroundOpacity` is a composited alpha, 0..1 — a value outside it silently rewrote a contrast
+  // verdict. `box.x`/`box.y` stay UNBOUNDED on purpose: a negative viewport coordinate is the honest
+  // reading of an off-screen element, which is a whole arm of this very union.
   if (record["offscreen"] === true) {
-    return { offscreen: true, total: pageNumber(record["total"], `${label} field "total"`) };
+    return { offscreen: true, total: pageCount(record["total"], `${label} field "total"`) };
   }
   if (record["occluded"] === true) {
     return {
       occluded: true,
-      total: pageNumber(record["total"], `${label} field "total"`),
-      inViewport: pageNumber(record["inViewport"], `${label} field "inViewport"`),
+      total: pageCount(record["total"], `${label} field "total"`),
+      inViewport: pageCount(record["inViewport"], `${label} field "inViewport"`),
       occluder: nullableString(record["occluder"], `${label} field "occluder"`),
     };
   }
@@ -73,29 +79,29 @@ export function contrastFacts(value: unknown): ContrastFacts {
   const radii = pageObject(record["radii"], `${label} field "radii"`);
   return {
     color: pageString(record["color"], `${label} field "color"`),
-    fontSizePx: pageNumber(record["fontSizePx"], `${label} field "fontSizePx"`),
-    fontWeight: pageNumber(record["fontWeight"], `${label} field "fontWeight"`),
+    fontSizePx: pageNumberInRange(record["fontSizePx"], `${label} field "fontSizePx"`, { min: 0 }),
+    fontWeight: pageNumberInRange(record["fontWeight"], `${label} field "fontWeight"`, { min: 1, max: 1000 }),
     backdrop,
     hasText: pageBoolean(record["hasText"], `${label} field "hasText"`),
     hasIconInk: pageBoolean(record["hasIconInk"], `${label} field "hasIconInk"`),
     inactive: pageBoolean(record["inactive"], `${label} field "inactive"`),
     role: pageString(record["role"], `${label} field "role"`),
     tag: pageString(record["tag"], `${label} field "tag"`),
-    foregroundOpacity: pageNumber(record["foregroundOpacity"], `${label} field "foregroundOpacity"`),
+    foregroundOpacity: pageNumberInRange(record["foregroundOpacity"], `${label} field "foregroundOpacity"`, { min: 0, max: 1 }),
     box: {
       x: pageNumber(box["x"], `${label} box "x"`),
       y: pageNumber(box["y"], `${label} box "y"`),
-      width: pageNumber(box["width"], `${label} box "width"`),
-      height: pageNumber(box["height"], `${label} box "height"`),
+      width: pageNumberInRange(box["width"], `${label} box "width"`, { min: 0 }),
+      height: pageNumberInRange(box["height"], `${label} box "height"`, { min: 0 }),
     },
     radii: {
-      tl: pageNumber(radii["tl"], `${label} radii "tl"`),
-      tr: pageNumber(radii["tr"], `${label} radii "tr"`),
-      br: pageNumber(radii["br"], `${label} radii "br"`),
-      bl: pageNumber(radii["bl"], `${label} radii "bl"`),
+      tl: pageNumberInRange(radii["tl"], `${label} radii "tl"`, { min: 0 }),
+      tr: pageNumberInRange(radii["tr"], `${label} radii "tr"`, { min: 0 }),
+      br: pageNumberInRange(radii["br"], `${label} radii "br"`, { min: 0 }),
+      bl: pageNumberInRange(radii["bl"], `${label} radii "bl"`, { min: 0 }),
     },
-    matchIndex: pageNumber(record["matchIndex"], `${label} field "matchIndex"`),
-    total: pageNumber(record["total"], `${label} field "total"`),
+    matchIndex: pageCount(record["matchIndex"], `${label} field "matchIndex"`),
+    total: pageCount(record["total"], `${label} field "total"`),
   };
 }
 
@@ -333,9 +339,10 @@ export function deadCssDrain(value: unknown): DeadCssEvidence["drain"] {
   }
   const label = "the motion-flagger drain receipt";
   const record = pageObject(value, label);
+  // Monotonic generation counters: whole and non-negative, never a fraction or a rewind below zero.
   return {
-    requestedGeneration: pageNumber(record["requestedGeneration"], `${label} field "requestedGeneration"`),
-    completedGeneration: pageNumber(record["completedGeneration"], `${label} field "completedGeneration"`),
+    requestedGeneration: pageCount(record["requestedGeneration"], `${label} field "requestedGeneration"`),
+    completedGeneration: pageCount(record["completedGeneration"], `${label} field "completedGeneration"`),
   };
 }
 
@@ -353,16 +360,18 @@ export function deadCssCensus(value: unknown): Omit<DeadCssEvidence, "drain"> {
     const row = pageObject(entry, `${label} dead row ${String(index)}`);
     return {
       token: pageString(row["token"], `${label} dead row ${String(index)} token`),
-      count: pageNumber(row["count"], `${label} dead row ${String(index)} count`),
+      count: pageCount(row["count"], `${label} dead row ${String(index)} count`),
     };
   });
   const empty = pageArray(record["empty"], `${label} field "empty"`).map((entry, index) => pageString(entry, `${label} empty row ${String(index)}`));
+  // Every number here is a POPULATION printed as evidence and compared against a budget — a negative or
+  // fractional one is a broken census, not a small one.
   return {
-    sheets: pageNumber(record["sheets"], `${label} field "sheets"`),
-    readableSheets: pageNumber(record["readableSheets"], `${label} field "readableSheets"`),
-    rules: pageNumber(record["rules"], `${label} field "rules"`),
-    defined: pageNumber(record["defined"], `${label} field "defined"`),
-    used: pageNumber(record["used"], `${label} field "used"`),
+    sheets: pageCount(record["sheets"], `${label} field "sheets"`),
+    readableSheets: pageCount(record["readableSheets"], `${label} field "readableSheets"`),
+    rules: pageCount(record["rules"], `${label} field "rules"`),
+    defined: pageCount(record["defined"], `${label} field "defined"`),
+    used: pageCount(record["used"], `${label} field "used"`),
     unreadable,
     dead,
     empty,
