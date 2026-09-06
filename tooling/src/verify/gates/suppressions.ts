@@ -15,7 +15,7 @@ import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import type { GovernedScope } from "../contract/suppressions.ts";
 import { GOVERNED_SCOPES } from "../contract/suppressions.ts";
-import { forEachTriviaCarrier } from "../lib/comment-spans.ts";
+import { forEachCommentRange } from "../lib/comment-spans.ts";
 
 export const BASELINE_REL = "tooling/src/verify/gates/suppressions.baseline.json";
 const PACKAGE_SOURCE_RE = /^packages\/[^/]+\/src\/.*\.tsx?$/u;
@@ -334,16 +334,14 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
     seenLines.add(line);
     sites.push({ line, token: directive.token, rule: directive.rule, block: !text.startsWith("//") });
   };
-  // A TOKEN-carrier walk (never `forEachDescendant`): a same-block trailing suppression — an `else if`
-  // arm's last statement — attaches its comment range to a token node (a CloseBraceToken), and a node-only
-  // traversal misses those carriers entirely, in the permissive direction. `forEachTriviaCarrier` is that
-  // walk over RAW compiler nodes: the same carrier set and the same document order as the kind-less
-  // `getDescendants()` it replaced, without wrapping every token (#967).
+  // A TOKEN-level walk (never `forEachDescendant`): a same-block trailing suppression — an `else if`
+  // arm's last statement — attaches its comment range to a token (a CloseBraceToken), and a node-only
+  // traversal misses those carriers entirely, in the permissive direction. `forEachCommentRange` is that
+  // walk over RAW compiler nodes: the same range set and the same document order as the kind-less
+  // `getDescendants()` it replaced, without wrapping — or even synthesising — a single token (#967).
   const fullText = sf.getFullText();
-  forEachTriviaCarrier(sf, (node) => {
-    for (const range of [...(ts.getLeadingCommentRanges(fullText, node.pos) ?? []), ...(ts.getTrailingCommentRanges(fullText, node.end) ?? [])]) {
-      record(range.pos, fullText.slice(range.pos, range.end));
-    }
+  forEachCommentRange(sf, (range, node) => {
+    record(range.pos, fullText.slice(range.pos, range.end));
     if (ts.isJsxExpression(node) && node.expression === undefined) {
       record(node.pos, fullText.slice(node.getStart(sf.compilerNode), node.end));
     }

@@ -16,8 +16,8 @@ function blankRange(text: string, start: number, end: number): string {
 }
 
 /** Every comment span in a parsed TS/TSX file, blanked. Comments are TRIVIA: they attach as leading
- *  ranges of some TOKEN, so the walk behind this (`forEachTriviaCarrier`) visits tokens and not just the
- *  `forEachChild` nodes — a comment before a `)` / `}` / EOF is covered too, which a node-only walk
+ *  ranges of some TOKEN, so the walk behind this (`forEachCommentRange`) scans the token gaps and not just
+ *  the `forEachChild` nodes — a comment before a `)` / `}` / EOF is covered too, which a node-only walk
  *  misses. Using the real parse rather than a hand-rolled scanner is what keeps a `//` inside a string or
  *  a regex literal from being mistaken for a comment opener.
  *
@@ -40,8 +40,8 @@ export function blankTsComments(sf: SourceFile): string {
  *  project. Gates are read-only by contract, so a cached blanking cannot go stale under one. */
 const blanked = new WeakMap<SourceFile, string>();
 
-/** Visit EVERY trivia carrier in a file — the SourceFile, every node, and every TOKEN — in document
- *  (pre-)order, as RAW compiler nodes. The ONE walk behind the blanker and the trivia-reading gates.
+/** Visit EVERY comment range in a parsed file, in document (pre-)order, with the RAW compiler node whose
+ *  trivia carries it. The ONE walk behind the blanker and the trivia-reading gates.
  *
  *  WHY TOKENS AND NOT `forEachDescendant`: a comment attaches as leading/trailing trivia of whatever token
  *  follows or precedes it, and that is routinely a `)` / `}` / EOF that a node-only walk never reaches.
@@ -49,32 +49,89 @@ const blanked = new WeakMap<SourceFile, string>();
  *  `forEachDescendant` lost 41 and 831 comment ranges respectively — in the PERMISSIVE direction, which is
  *  the dangerous one (GATE-AUTHORING.md §5; issue #117 is the incident).
  *
- *  WHY RAW AND NOT ts-morph's kind-less `getDescendants()`: identical carrier set — `getDescendants()`
- *  routes through this same `ExtendedParser.getCompilerChildren` path — minus the wrapper allocation for
- *  every token, which is the entire cost. Same measurement, same 1,712 files: byte-identical comment-range
- *  sets (0 lost, 0 extra) at 3,517ms to 192ms and 5,288ms to 122ms
- *  (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §4, #967). */
-export function forEachTriviaCarrier(sf: SourceFile, visit: (node: ts.Node) => void): void {
+ *  WHY A GAP SCANNER AND NOT `node.getChildren()`: the previous walk reached the tokens through TypeScript's
+ *  `getChildren`, which SYNTHESISES a token node for every keyword and punctuation mark and caches the whole
+ *  token tree on a per-file WeakMap for the life of the Program — over the composed pass that cache was
+ *  1.4 GB of the live heap (4,760 → 3,371 MB with the walk node-only, measured 2026-09-06) and ~2.5 s of
+ *  CPU. Tokens only ever live in the GAPS between a node's `forEachChild` children (that is exactly how
+ *  `getChildren` finds them), and a gap holds nothing but keywords, punctuation and trivia — every string,
+ *  template chunk, regex, JSX text and identifier is a node of its own — so a plain scanner over each gap
+ *  is context-free and finds every token a synthetic node would have stood for, with no node allocated.
+ *  Each gap token and each node is then read exactly as before (`getLeadingCommentRanges` at its `pos`,
+ *  `getTrailingCommentRanges` at its `end`), which keeps the range set byte-identical to the token walk
+ *  over the whole workspace (7,264 files, the `reports/scratch` differential, 2026-09-06). A gap comment's carrier is the node that owns the gap —
+ *  the token's `parent` in the old walk, and every consumer walked up to it anyway. */
+export function forEachCommentRange(sf: SourceFile, visit: (range: ts.CommentRange, carrier: ts.Node) => void): void {
   const root = sf.compilerNode;
-  const walk = (node: ts.Node): void => {
-    visit(node);
-    for (const child of node.getChildren(root)) {
-      walk(child);
+  const text = root.text;
+  const scanner = gapScanner(text);
+  const emit = (ranges: readonly ts.CommentRange[] | undefined, carrier: ts.Node): void => {
+    for (const range of ranges ?? []) {
+      visit(range, carrier);
     }
   };
+  // Every TOKEN in a gap is read exactly as the token walk read its synthetic node: leading ranges at the
+  // token's full start (the previous token's end — `addSyntheticNodes` gives the node that `pos`) and
+  // trailing ranges at its end. Both reads are load-bearing and not interchangeable: TypeScript's leading
+  // reader skips a comment that sits on the SAME LINE as the token before it, so `x: [], // note` reaches
+  // a walker ONLY as the trailing range of the comma — the class the first draft of this scanner lost on
+  // 140 files (the oracle, 2026-09-06). A comment between two gap tokens on a later line is the second
+  // token's leading range; a comment after the last gap token is that token's trailing range; a comment
+  // after a newline in a child's leading trivia is the child's own node-level leading range below.
+  const scanGap = (pos: number, end: number, carrier: ts.Node): void => {
+    if (pos >= end) {
+      return;
+    }
+    scanner.resetTokenState(pos);
+    for (;;) {
+      const kind = scanner.scan();
+      const tokenEnd = scanner.getTokenEnd();
+      if (kind === SyntaxKind.EndOfFileToken || tokenEnd > end) {
+        break;
+      }
+      emit(ts.getLeadingCommentRanges(text, scanner.getTokenFullStart()), carrier);
+      emit(ts.getTrailingCommentRanges(text, tokenEnd), carrier);
+      if (tokenEnd >= end) {
+        break;
+      }
+    }
+  };
+  const walk = (node: ts.Node): void => {
+    emit(ts.getLeadingCommentRanges(text, node.pos), node);
+    emit(ts.getTrailingCommentRanges(text, node.end), node);
+    // Gaps exist only inside a real syntax node (`kind >= FirstNode`, TypeScript's own `isNodeKind`); a
+    // TOKEN node — identifier, string, template chunk, JSX text, keyword — has no children and its whole
+    // span IS the token, which `getChildren` never scans either. Scanning it would read the `/*` inside a
+    // template string as a comment (the oracle caught exactly that on 33 files before this fence).
+    if (node.kind < SyntaxKind.FirstNode) {
+      return;
+    }
+    let cursor = node.pos;
+    ts.forEachChild(node, (child) => {
+      scanGap(cursor, child.pos, node);
+      walk(child);
+      cursor = child.end;
+    });
+    scanGap(cursor, node.end, node);
+  };
   walk(root);
+}
+
+/** One reusable token scanner per text (skipTrivia ON, the same posture as TypeScript's own `getChildren`
+ *  synthesiser). Standard variant on purpose: a gap never contains JSX text or a regex, the two places the
+ *  variant would matter. */
+function gapScanner(text: string): ts.Scanner {
+  return ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, text);
 }
 
 function blankTsCommentsUncached(sf: SourceFile): string {
   let text = sf.getFullText();
   const seen = new Set<number>();
   const spans: { readonly pos: number; readonly end: number }[] = [];
-  forEachTriviaCarrier(sf, (node) => {
-    for (const range of [...(ts.getLeadingCommentRanges(text, node.pos) ?? []), ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) {
-      if (!seen.has(range.pos)) {
-        seen.add(range.pos);
-        spans.push({ pos: range.pos, end: range.end });
-      }
+  forEachCommentRange(sf, (range) => {
+    if (!seen.has(range.pos)) {
+      seen.add(range.pos);
+      spans.push({ pos: range.pos, end: range.end });
     }
   });
   // Descending so an earlier blank can never move a later span's offsets (lengths are preserved anyway;

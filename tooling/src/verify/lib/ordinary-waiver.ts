@@ -11,7 +11,7 @@ import type {
   OrdinaryWaiverMatchResult,
 } from "../contract/ordinary-waiver.ts";
 import type { OrdinaryWaiverResourceFormat, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
-import { blankTsComments, commentSpansInText, forEachTriviaCarrier } from "./comment-spans.ts";
+import { blankTsComments, commentSpansInText, forEachCommentRange } from "./comment-spans.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 
 const MARKER = "@orb-waive";
@@ -130,18 +130,15 @@ function collectMarkers(sourceFile: SourceFile): MutableMarker[] {
       marker.jsxExpressions.add(jsxExpression);
     }
   };
-  forEachTriviaCarrier(sourceFile, (node) => {
-    const ranges = [...(ts.getLeadingCommentRanges(text, node.pos) ?? []), ...(ts.getTrailingCommentRanges(text, node.end) ?? [])];
-    for (const range of ranges) {
-      const jsxExpression = jsxExpressionOf(node);
-      record({
-        pos: range.pos,
-        end: range.end,
-        comment: text.slice(range.pos, range.end),
-        carrier: node,
-        ...(jsxExpression !== undefined && jsxExpression.pos <= range.pos && jsxExpression.end >= range.end ? { jsxExpression } : {}),
-      });
-    }
+  forEachCommentRange(sourceFile, (range, node) => {
+    const jsxExpression = jsxExpressionOf(node);
+    record({
+      pos: range.pos,
+      end: range.end,
+      comment: text.slice(range.pos, range.end),
+      carrier: node,
+      ...(jsxExpression !== undefined && jsxExpression.pos <= range.pos && jsxExpression.end >= range.end ? { jsxExpression } : {}),
+    });
     if (ts.isJsxExpression(node) && node.expression === undefined) {
       const nodeStart = node.getStart(sourceFile.compilerNode);
       const nodeText = text.slice(nodeStart, node.end);
