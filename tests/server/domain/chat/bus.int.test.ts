@@ -140,6 +140,31 @@ function failingBuilder(node: object, mode: "before-commit" | "after-commit"): o
   });
 }
 
+/** A Db whose FIRST `batch` RUNS FOR REAL and then reports failure — the `emitAfterClaim` twin of
+ *  `faultyAppendDb("after-commit")`, which cannot reach that door (it wraps `insert`, and the claim door's
+ *  statements ride `db.batch` unexecuted). This is the only fault shape that can leave a claim-carrying
+ *  event's two planes committed while the caller is told nothing landed. */
+function afterCommitBatchDb(real: Db): Db {
+  let batches = 0;
+  return new Proxy(real, {
+    get(target, prop, receiver): unknown {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (prop !== "batch" || typeof value !== "function") {
+        return value;
+      }
+      return async (...args: unknown[]): Promise<unknown> => {
+        batches += 1;
+        const ran = (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+        if (batches !== 1) {
+          return await ran;
+        }
+        await ran;
+        throw new Error("driver died after the batch committed");
+      };
+    },
+  }) as Db;
+}
+
 describe("createChatBus.emit — a failed durable append never rejects (the process-kill floor)", () => {
   test("the raw append into a DELETED chat is a FOREIGN-KEY violation — the exact crash `emit` must absorb", async () => {
     const chatId = await seedChat(db, "a");
@@ -327,6 +352,68 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     expect(bus.readRing(chatId)).toHaveLength(1);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
+  });
+
+  // ── #1522: `emitAfterClaim` has no retry, and that is the RULING — not a gap ──────────────────────────
+  // The row's premise is that a claim-carrying event lost to a transient fault is "terminal for replay". Both
+  // halves of that are refuted by the ATOMICITY the door is built on, and these two pins are the receipts.
+  // The pin above ("a claimed marker rolls back when the following append fails") is the BEFORE-commit half:
+  // neither the claim nor the event lands, so there is nothing to replay and nothing was announced — a retry
+  // would only re-do what the CALLER's own retry re-does. This is the AFTER-commit half, the one the row
+  // calls terminal: the batch COMMITTED and the driver died reporting it, so the claim is consumed AND the
+  // event row stands with its cursor. Only the LIVE FAN is lost, and a reconnect replays it from
+  // `chat_events` exactly once — the same recoverable half #1544 names for `emit`.
+  test("#1522 an AFTER-COMMIT batch fault leaves the claim consumed AND the event REPLAYABLE — never terminal", async () => {
+    const chatId = await seedChat(db, "claim-after-commit");
+    const acceptedByUserId = await seedUser(db, castId<Handle>("claim2"));
+    await db.insert(chatHandoffResumptions).values({
+      chatId,
+      acceptedByUserId,
+      actorRekeys: [],
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    });
+    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const bus = createChatBus(makeChatContext(afterCommitBatchDb(db)));
+
+    // The door reports "not published" — honest, because it cannot prove which seq landed.
+    await expect(bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim)).resolves.toBeNull();
+
+    // …but BOTH planes committed, in one transaction: the claim was consumed exactly once…
+    expect(await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))).toHaveLength(0);
+    // …and the event has a durable row with a cursor, which is what a reconnecting subscriber replays.
+    const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
+    expect(rows.map((r) => [r.seq, r.type])).toEqual([[1, "chatUpdated"]]);
+    // Only the LIVE fan was lost — the ring is empty, and that is the whole cost.
+    expect(bus.readRing(chatId)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
+  test("#1522 …and a RE-RUN of the same claim statement cannot double-consume (the guard is `changes() > 0`)", async () => {
+    const chatId = await seedChat(db, "claim-rerun");
+    const acceptedByUserId = await seedUser(db, castId<Handle>("claim3"));
+    await db.insert(chatHandoffResumptions).values({
+      chatId,
+      acceptedByUserId,
+      actorRekeys: [],
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    });
+    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
+    const bus = createChatBus(makeChatContext(db));
+
+    const first = await bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim);
+    // A SECOND call with the SAME claim — the shape a retry would take. The claim now changes zero rows, so
+    // the co-statement append is a converged no-op and the door answers `false`: "someone already owned this
+    // claim; there is nothing to publish". No second event row, no second consumption.
+    const second = await bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim);
+
+    expect(first).toMatchObject({ seq: 1 });
+    expect(second).toBe(false);
+    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).toHaveLength(1);
+    expect(bus.readRing(chatId)).toHaveLength(1);
   });
 
   test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns what it logged, and fans the ring", async () => {
