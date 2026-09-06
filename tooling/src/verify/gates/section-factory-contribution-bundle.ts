@@ -9,23 +9,32 @@
 //
 // Both identities are now TYPE STRUCTURE, not rendered text and not an alias walk with a hop cap. The
 // factory population is the shared `registryDefinitionFact`'s section view, so the return annotation must
-// resolve to the canonical exported `SectionDefinition`. A parameter is a registry when its type's own
-// declaration IS the canonical exported `ContributorRegistry`, which follows an alias chain of any depth
-// for free (`type ChatSeams = ContributorRegistry<X>` is the same positional seam wearing a name — the
-// legacy text reader recorded that escape as a blessed declared limit). A parameter is callable when its
-// type HAS call signatures, so an aliased function type is a render prop too.
+// resolve to the canonical exported `SectionDefinition`. A parameter is callable when its type HAS call
+// signatures, so an aliased function type is a render prop too.
 //
-// The two blindness tripwires are the runtime's own refusal rather than findings this policy must remember
-// to raise: if the canonical `SectionDefinition` or `ContributorRegistry` stops resolving, or the tree holds
-// no factory at all, a receipt goes to zero members and the verdict is withheld.
-import type { ParameterDeclaration, Type } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+// REGISTRY IDENTITY IS ONE DECLARATION IN ONE MODULE, NEVER A NAME. The canonical registry is whatever
+// `packages/client/src/lib/registry.ts` exports as `ContributorRegistry`; a parameter is a registry when
+// its resolved TYPE declares itself at THAT node. Consequences, each with its own proof row: a barrel
+// re-export, a renamed import and an alias chain of any depth all still ARE the registry; an unrelated
+// exported interface of the same name in another feature file is NOT — and, critically, it does not
+// disturb this policy at all, because the name was never the key. If the declaring module is gone, or
+// stops exporting exactly one `ContributorRegistry` type, the receipt goes unresolved and the verdict is
+// withheld: that is this policy's rename tripwire, and it is the runtime's refusal rather than a finding
+// the policy has to remember to raise.
+//
+// The canonical `SectionDefinition` is the shared fact's own type target, so a tree that holds no factory
+// at all takes the factory receipt to zero members and is withheld the same way.
+import type { Node as MorphNode, ParameterDeclaration, Type } from "ts-morph";
+import { Node } from "ts-morph";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { registryDefinitionFact } from "../lib/registry-fact.ts";
 
 const REGISTRY = "ContributorRegistry";
+/** The ONE module that declares the contributor registry. A rename here is the tripwire, not a silent no-op. */
+const REGISTRY_HOME = "packages/client/src/lib/registry.ts";
 const FACTORY_POPULATION = "SectionDefinition factory";
 
 const MESSAGE =
@@ -54,8 +63,23 @@ function annotatedType(parameter: ParameterDeclaration): Type | undefined {
   return parameter.getTypeNode()?.getType();
 }
 
-function declaresCanonicalRegistry(type: Type | undefined, canonical: ReadonlySet<object>): boolean {
-  return (type?.getSymbol()?.getDeclarations() ?? []).some((declaration) => canonical.has(declaration.compilerNode));
+/** The ONE `ContributorRegistry` type the declaring module exports, or undefined when it cannot be bound.
+ *
+ *  This is a MODULE binding, not a name search: an unrelated exported interface of the same name anywhere
+ *  else in the client package is a different declaration and never reaches this policy. `getExportedDeclarations`
+ *  resolves through the module's own re-exports, so the registry may move behind a barrel without a rename. */
+function canonicalRegistry(ctx: GatePolicyContext): MorphNode | undefined {
+  if (!ctx.files.some((file) => ctx.relativePath(file) === REGISTRY_HOME)) {
+    return;
+  }
+  const declarations = (ctx.sourceFile(REGISTRY_HOME).getExportedDeclarations().get(REGISTRY) ?? []).filter(
+    (declaration) => Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration),
+  );
+  return declarations.length === 1 ? declarations[0] : undefined;
+}
+
+function declaresCanonicalRegistry(type: Type | undefined, canonical: MorphNode): boolean {
+  return (type?.getSymbol()?.getDeclarations() ?? []).some((declaration) => declaration.compilerNode === canonical.compilerNode);
 }
 
 export const gate = defineGate({
@@ -71,9 +95,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const registryDeclarations = new Set<object>();
-
-    const judge = (definition: RegistryDefinitionFact): void => {
+    const judge = (definition: RegistryDefinitionFact, registry: MorphNode): void => {
       const name = definitionName(definition.declaration);
       const anchor = definitionAnchor(definition.declaration);
       const parameters = factoryParameters(definition);
@@ -81,7 +103,7 @@ export const gate = defineGate({
       const callables: string[] = [];
       for (const parameter of parameters) {
         const type = annotatedType(parameter);
-        if (declaresCanonicalRegistry(type, registryDeclarations)) {
+        if (declaresCanonicalRegistry(type, registry)) {
           registries.push(parameter.getName());
         } else if ((type?.getCallSignatures().length ?? 0) > 0) {
           callables.push(parameter.getName());
@@ -104,26 +126,17 @@ export const gate = defineGate({
     };
 
     return {
-      visitors: [
-        {
-          kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration],
-          visit: (node) => {
-            if ((Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) && node.isExported() && node.getName() === REGISTRY) {
-              registryDeclarations.add(node.compilerNode);
-            }
-          },
-        },
-      ],
       evaluate: () => {
         const sections = ctx.fact(registryDefinitionFact).forKind("section");
         const factories = sections.definitions.filter(({ shape }) => shape === "factory");
+        const registry = canonicalRegistry(ctx);
         ctx.receipt({ kind: "population", source: FACTORY_POPULATION, members: factories.length, unresolved: 0 });
-        ctx.receipt({ kind: "population", source: REGISTRY, members: registryDeclarations.size, unresolved: registryDeclarations.size === 1 ? 0 : 1 });
-        if (registryDeclarations.size !== 1) {
+        ctx.receipt({ kind: "population", source: REGISTRY, members: registry === undefined ? 0 : 1, unresolved: registry === undefined ? 1 : 0 });
+        if (registry === undefined) {
           return;
         }
         for (const factory of factories) {
-          judge(factory);
+          judge(factory, registry);
         }
       },
     };
@@ -156,13 +169,14 @@ export const gate = defineGate({
       files: {
         "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/lib/registry.ts": "export interface ContributorRegistry<Def> {\n  readonly name: string;\n  readonly def: Def;\n}\n",
+        "packages/client/src/lib/index.ts": 'export type { ContributorRegistry } from "./registry.ts";\n',
         "packages/client/src/features/chat/lib/types.ts":
-          'import type { ContributorRegistry } from "../../../lib/registry.ts";\nexport type ChatTabSeam = ContributorRegistry<string>;\nexport type ChatRegionSeam = ChatTabSeam;\n',
+          'import type { ContributorRegistry as Seam } from "../../../lib/index.ts";\nexport type ChatTabSeam = Seam<string>;\nexport type ChatRegionSeam = ChatTabSeam;\n',
         "packages/client/src/features/chat/lib/chats-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ChatRegionSeam, ChatTabSeam } from "./types.ts";\nexport function makeChatsSection(a: ChatTabSeam, b: ChatRegionSeam): SectionDefinition {\n  return { id: "chats" };\n}\n',
       },
       expect: { count: 1, token: "makeChatsSection", messageIncludes: "ContributorRegistry parameters" },
-      why: "THE ALIAS RED, at TWO hops: both seams arrive through imported aliases of the registry. Type structure follows the whole chain with no hop cap, where the legacy reader compared parameter TEXT and recorded the escape as a blessed limit",
+      why: "THE IDENTITY RED: both seams reach the registry through a BARREL RE-EXPORT, a renamed import, and two alias hops. Type identity is the declaration, so every spelling on the way is irrelevant — the legacy reader compared parameter TEXT and recorded the escape as a blessed limit",
     },
     {
       mode: "types",
@@ -289,6 +303,27 @@ export const gate = defineGate({
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { A, B } from "./types.ts";\nexport function makeChatsSection(a: A, b: B): SectionDefinition {\n  return { id: "chats" };\n}\n',
       },
       why: "THE RETIRED CYCLE REFUSAL: a circular alias pair has no resolvable declaration, so it is simply not the registry. The legacy resolver walked the chain itself and threw a tool error; the checker answers this without recursion of ours, and a failed alias is not an accusation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/lib/registry.ts": "export interface ContributorRegistry<Def> {\n  readonly name: string;\n  readonly def: Def;\n}\n",
+        "packages/client/src/features/x/lib/x-section.tsx":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\ninterface ContributorRegistry<Def> {\n  readonly local: Def;\n}\nexport function makeXSection(a: ContributorRegistry<string>, b: ContributorRegistry<number>): SectionDefinition {\n  void a;\n  void b;\n  return { id: "x" };\n}\n',
+      },
+      why: "THE COUNTERFACTUAL: two parameters spelled `ContributorRegistry` whose type is a LOCAL declaration of that name are not the canonical contributor registry, so the bundle arm must not fire. Identity is the declaration this policy resolved, never the word at the call site",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/lib/registry.ts": "export interface ContributorRegistry<Def> {\n  readonly name: string;\n  readonly def: Def;\n}\n",
+        "packages/client/src/features/x/lib/impostor.ts": "export interface ContributorRegistry<Def> {\n  readonly other: Def;\n}\n",
+        "packages/client/src/features/x/lib/x-section.tsx":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ContributorRegistry } from "./impostor.ts";\nimport type { ContributorRegistry as Real } from "../../../lib/registry.ts";\nexport function makeXSection(a: ContributorRegistry<string>, b: ContributorRegistry<number>, c: Real<string>): SectionDefinition {\n  void a;\n  void b;\n  void c;\n  return { id: "x" };\n}\n',
+      },
+      why: "THE SAME-NAME/WRONG-MODULE COUNTERFACTUAL: another client module EXPORTS an interface called `ContributorRegistry`. Two parameters typed with it are not two registry seams, the ONE parameter typed with the real registry is, and the impostor does not disturb the binding at all — the name was never the key",
     },
   ],
 });
