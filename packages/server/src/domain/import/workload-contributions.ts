@@ -219,7 +219,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           if (report_.imported > 0) {
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
-          return { imported: report_.imported, skipped: report_.skipped, failed: report_.failed };
+          // #1710 — a background run surfaces the SAME per-file notes (#1688) a sync door would: what a file
+          // that DID import still left behind (a kept edited lorebook, a dropped overlay). Named on the run's
+          // own progress stream, not only buried in the terminal result.
+          for (const note of report_.notes) {
+            report({ message: note });
+          }
+          return { imported: report_.imported, skipped: report_.skipped, failed: report_.failed, notes: report_.notes };
         } finally {
           await rmContained(ownerRoot, stagedPath);
         }

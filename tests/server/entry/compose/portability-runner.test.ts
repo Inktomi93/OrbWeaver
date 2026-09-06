@@ -22,14 +22,15 @@
 // The registry half is pinned as "composed with the shared slice" (its per-descriptor behaviour is
 // `portability.test.ts`'s).
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { CharacterService } from "@orb/server/domain/character";
 import { DEFAULT_IMPORT_STAGING_DIR } from "@orb/server/domain/import";
 import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/workloads";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
@@ -129,7 +130,38 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
 
     // 0/0/0 here is the HONEST answer for an empty tree — the point is that a value came back at all
     // (a `withQuietBulkFanout` that dropped the return would surface `undefined`).
-    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0 });
+    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
+  });
+
+  // #1710 — through the WORKLOAD door (`runStagedDirImport`, not the verb directly): a card whose character
+  // already holds a primary book skips the embedded-book re-assert (#1598) and the character descriptor
+  // records that as a note (#1688). Before #1710 the runner's own collapse to `{imported,skipped,failed}`
+  // dropped it before it ever reached a background `import-bundle` workload's result.
+  test("a real staged card whose primary book is taken surfaces the #1598 kept-book note on the workload result", async () => {
+    const cardJson =
+      '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["kingdom"],"content":"A realm of dusk.","comment":"The Kingdom","insertion_order":10}]}}}';
+    await mkdir(join(stagedRoot, "characters"), { recursive: true });
+    await writeFile(join(stagedRoot, "characters", "Aria.json"), cardJson);
+    const characterId = castId<CharacterId>("chr_aria");
+    const { importWorkloads } = build({
+      importStagingDir: stagedRoot,
+      // FABRICATION-OK: only the four ops `buildOwnerImport` reads off `deps.character` matter here — the
+      // rest of the real `CharacterService` surface is never touched by a staged card import.
+      character: {
+        listEmbeddableCharacterIds: vi.fn(),
+        create: vi.fn(() => Promise.resolve({ id: characterId })),
+        update: vi.fn(),
+        findByImportHash: vi.fn(() => Promise.resolve(null)),
+        findByHandle: vi.fn(() => Promise.resolve(null)),
+      } as unknown as CharacterService,
+      importWorldInfo: { importLorebook: vi.fn(), linkCarriedBooks: vi.fn(), hasPrimaryBook: vi.fn(() => Promise.resolve(true)) },
+    });
+
+    const counts = await importWorkloads.runStagedDirImport({ stagedPath: stagedRoot, ownerId: OWNER, signal: new AbortController().signal });
+
+    expect(counts.imported).toBe(1);
+    expect(counts.notes).toHaveLength(1);
+    expect(counts.notes[0]).toContain("was NOT re-asserted");
   });
 });
 
