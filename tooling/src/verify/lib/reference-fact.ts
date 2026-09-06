@@ -55,7 +55,12 @@ export function endReferencePass(): void {
 
 function state(): ResolutionState {
   const caches = openPass ?? { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
-  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: caches.writtenSymbolsBySource, reassignedSymbolsBySource: caches.reassignedSymbolsBySource };
+  return {
+    declarations: [],
+    visited: new Set<object>(),
+    writtenSymbolsBySource: caches.writtenSymbolsBySource,
+    reassignedSymbolsBySource: caches.reassignedSymbolsBySource,
+  };
 }
 
 function appendDeclaration(target: ResolutionState, declaration: MorphNode): void {
