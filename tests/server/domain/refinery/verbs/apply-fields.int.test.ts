@@ -597,3 +597,26 @@ test("a creatorNotes-only edit in the same window ALSO refuses — the fence is 
   // …and the rewrite did NOT land: the refusal is total, not per-field.
   expect(live?.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
 });
+
+test("#1551: a stale_basis refusal leaves ZERO new history rows — the belt-13 snapshot is the apply's witness, not its prelude", async () => {
+  const { db, hold } = await freshHeldDb();
+  const owner = await seedUser(db, { id: "user_af_witness" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-witness");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  // Same race as #1446 above, but the assertion here is on the HISTORY table rather than the live card: the
+  // belt-13 snapshot commits BEFORE the conditional write can refuse, so a naive apply left one spurious
+  // "auto: before refinery apply" row behind for a write that never happened.
+  const snapshotting = hold(SNAPSHOT_INSERT, 1);
+  const applying = h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] });
+  await snapshotting.reached;
+  await h.character.update({ principal: principal(owner), characterId, input: { description: "the user's own edit, mid-apply" } });
+  snapshotting.release();
+
+  await expect(applying).rejects.toThrow(/changed while the edit was being prepared/u);
+  const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
+  expect(snaps).toHaveLength(0);
+});

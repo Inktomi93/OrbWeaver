@@ -23,6 +23,7 @@
 //     nothing on screen (EDITSNAP-OK). The `refusal` arm is what makes it visible; the partial-apply twin
 //     proves the arm is narrow (a write that DID land must not be toasted as a failure).
 
+import { CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -205,6 +206,29 @@ test("an apply that dropped EVERY accepted entry toasts the refusal — the writ
   const toast = page.locator(TOAST);
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText("Nothing was applied — every accepted rewrite was dropped.");
+  await expect(toast).toHaveAttribute("data-type", "error");
+});
+
+test("#1551: a stale_basis apply refusal toasts CLIENT-OWNED copy — never the server's raw sentence", async ({ mount, page }) => {
+  // `CHARACTER_STALE_BASIS` is a CHARACTER code (thrown by the injected `character.update` belt 14 rides),
+  // not one of refinery's own three — before #1551 it fell through `codedRefusalAwareToast`'s fallback,
+  // which reads as a generic "couldn't apply" with no hint that reloading would fix it.
+  const serverSentence = "This character changed while the edit was being prepared — reload it and apply the change again.";
+  await routeTrpc(page, {
+    ...REFINERY_SESSION_ROUTES,
+    "refinery.listSessions": () => [rosterRow("Rev")],
+    "refinery.applyFields": () => trpcError({ code: "BAD_REQUEST", message: serverSentence, reason: CHARACTER_STALE_BASIS_OP_CODE }),
+  });
+
+  const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  await expect(component.getByTestId("roster")).toHaveText("rows=1");
+
+  await component.getByRole("button", { name: "apply" }).click();
+
+  const toast = page.locator(TOAST);
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText("Reload it and try again.");
+  await expect(toast).not.toContainText(serverSentence);
   await expect(toast).toHaveAttribute("data-type", "error");
 });
 

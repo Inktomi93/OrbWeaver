@@ -40,6 +40,7 @@ export type {
 // The refinery-consumed ops (R1 + the R4 sweep enumeration) — factories here, types in
 // contract/refinery-ops.ts, wired at compose.
 export type {
+  DeleteSnapshotOp,
   ListRefineryScoreTargetsOp,
   LoadOwnedCardOp,
   RefineryScoreTarget,
@@ -66,7 +67,7 @@ export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 export { backfillPluginProvenance } from "./persistence/backfill-plugin-provenance.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
 export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
-export { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
+export { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export {
   CARD_PACK_VERSION,
