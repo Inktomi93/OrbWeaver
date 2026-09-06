@@ -13,7 +13,7 @@
 // Both halves now ride ONE {@link rpgActorEntrySchema} row, and `presentCharacters` slims to a pure PRESENCE
 // list of actor-ref keys. Departure = presence drop; EVERYTHING is retained; return = presence add.
 //
-// Actor-ref arms: `character`/`user` address roster identities directly (no membership shadow — §4.3);
+// Actor-ref arms: `character`/`user` address participant identities directly (no membership shadow — §4.3);
 // `cast` addresses scene-only NPCs by a real normalized SLUG ({@link rpgNpcSlug}) with the display name
 // carried separately on `identity.name` — the tracker unification's own key/label lesson applied to people
 // (the doc used to CLAIM a "normalized-name key" while storing the verbatim model-authored name, so a rename
@@ -99,7 +99,7 @@ export function rpgNpcSlug(name: string): string {
   return points === "" ? NPC_SLUG_FALLBACK : `${NPC_SLUG_FALLBACK}${NPC_SLUG_FALLBACK_MARK}${points}`;
 }
 
-/** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
+/** A durable/scene actor identity. `character`/`user` = participant identities; `cast` = a scene-only NPC by
  *  its stable {@link rpgNpcSlug} `key`. Full ADDS `{kind:"libraryNpc"}` — the reserved cross-game library
  *  arm (additive — `assertNever` consumers error).
  *
@@ -118,7 +118,7 @@ export const rpgNpcRefSchema = z.object({
     .refine((key) => key === rpgNpcSlug(key), { message: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
 });
 /** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
- *  turns an npc into a roster character, so a `character`/`user` target is not "refused" — it is
+ *  turns an npc into a participant character, so a `character`/`user` target is not "refused" — it is
  *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the npc-key
  *  refine above already takes). The union below is composed FROM this, never a second spelling of the arm. */
 export type RpgNpcRef = z.infer<typeof rpgNpcRefSchema>;
@@ -178,8 +178,8 @@ export const rpgRelationshipSchema = z.object({
 });
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
-/** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Roster actors
- *  (character/user) carry NO identity here: their name/avatar come from the chat roster and their standing
+/** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Participant actors
+ *  (character/user) carry NO identity here: their name/avatar come from chat and their standing
  *  prose from `rpg_sheets` (one home per fact, never a second name to reconcile).
  *
  *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgNpcSlug}), which is what
@@ -258,17 +258,17 @@ const NPC_GUIDE_CARD_LABEL: Readonly<Record<RpgNpcGuideField, string>> = {
 };
 
 /** PROMOTION'S IDENTITY CARRY (R4) — the standing guides an NPC accumulated, rendered as the card description
- *  her freshly-minted roster card is born with.
+ *  her freshly-minted character card is born with.
  *
- *  Promotion RE-KEYS the actor row from `npc:<slug>` to `character:<id>`, and a roster actor carries NO
- *  identity half ({@link rpgActorIdentitySchema}) — her name is the chat roster's and her standing prose the
+ *  Promotion RE-KEYS the actor row from `npc:<slug>` to `character:<id>`, and a participant actor carries NO
+ *  identity half ({@link rpgActorIdentitySchema}) — her name is chat's and her standing prose the
  *  sheet's. So the identity row does not survive the re-key, and everything on it that has a DURABLE home must
  *  be carried there in the same gesture or it is destroyed: the display `name` becomes the card's `name`, and
  *  the three standing guides — the persistent look/dress/inner-life the story spent the whole acquaintance
  *  writing — become the card's description, which is exactly the prose a card exists to hold.
  *
  *  What deliberately does NOT carry: `mood` (a per-beat observation, not a standing fact) and `relationship`
- *  (ruled a NPC actor's datum — a roster member's stance toward the player is the story's, not a tracked
+ *  (ruled a NPC actor's datum — a participant's stance toward the player is the story's, not a tracked
  *  plane's). The promotion door SAYS SO to the host rather than letting them discover it; this function is the
  *  one home for what the carry contains, so the copy and the behavior cannot drift.
  *
@@ -289,7 +289,7 @@ export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `wallet` is
  *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker
  *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the npc row's
- *  opaque `customFields` string record, so every tracked value on every actor (roster member OR scene NPC)
+ *  opaque `customFields` string record, so every tracked value on every actor (participant OR scene NPC)
  *  reads from ONE home with ONE addressing rule.
  *
  *  `hp` IS NOT HERE (R3, owner-RULED): health folded into the unified tracker system. It was the one labelled
@@ -308,7 +308,7 @@ export const rpgActorVolatileSchema = z.object({
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
 
 /** THE actor row on the snapshot's `actorState` plane (R2) — one person, both halves, one lifecycle. `identity`
- *  is present for `npc` actors and absent for roster ones (see {@link rpgActorIdentitySchema}); `volatile` is
+ *  is present for `npc` actors and absent for participant ones (see {@link rpgActorIdentitySchema}); `volatile` is
  *  always whole. The plane is keyed by {@link actorRefKey} over `actorRef` (the merge engine's computed element
  *  key), and it is ADDITIVE: an actor leaves it by `rpg.dismissActor`, never by going unmentioned. */
 export const rpgActorEntrySchema = z.object({
@@ -322,7 +322,7 @@ export type RpgActorEntry = z.infer<typeof rpgActorEntrySchema>;
 
 // ── THE OP-SHAPED HAND VOCABULARY (R1 — `rpg.patchActor`) ────────────────────────────────────────────────
 // The hand used to author this plane as a whole-ARRAY IMAGE through `editSnapshot`, which asked a client that
-// could only SEE the plane in projections (the roster half + a bolted-on `castVolatile` map, never the
+// could only SEE the plane in projections (the participant half + a bolted-on `castVolatile` map, never the
 // offstage rows — both retired by R2's one `RpgActorView`) to
 // re-author every actor's every field on every click. Three shipped defects and one latent clobber came out of
 // that one contract (the actor-state stickler review §2/§5 R1). The ops below replace it: one actor, one
@@ -377,7 +377,7 @@ const rpgInventoryItemInputSchema = rpgInventoryItemSchema.omit({ id: true }).pa
  *  ordinary meter tracker since R3, so it is written by `setTracker` like every other one. */
 export const rpgActorOpSchema = z.discriminatedUnion("op", [
   // The IDENTITY arms (R2) — an npc's own half. They REFUSE on an actor that carries no identity (a
-  // roster member: her name is the roster's and her standing prose is the sheet's), which is errors-as-data,
+  // participant: her name is chat's and her standing prose is the sheet's), which is errors-as-data,
   // not a silent no-op. `setIdentityText` on `name` is the RENAME the slug key was minted to make possible.
   z.object({ op: z.literal("setIdentityText"), field: z.enum(RPG_ACTOR_IDENTITY_TEXT_FIELDS), text: z.string() }),
   z.object({ op: z.literal("setRelationship"), relationship: rpgRelationshipSchema }),

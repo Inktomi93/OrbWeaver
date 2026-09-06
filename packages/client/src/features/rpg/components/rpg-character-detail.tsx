@@ -1,5 +1,5 @@
 // The CHARACTER TAKEOVER (tracked-field unification §3 — SETTLED, owner 2026-07-31): expanding a Status
-// roster entry IS the sheet. Not an accordion — a FULL PANEL TAKEOVER with a breadcrumb back to the roster,
+// participant entry IS the sheet. Not an accordion — a FULL PANEL TAKEOVER with a breadcrumb back to the participants,
 // holding everything Sheet-the-tab held (title · level · wallet · the d20 attribute values) PLUS this actor's
 // live tracker readings, conditions and status line. Sheet-the-tab is GONE: a tab whose content migrated to
 // another tab depending on the stat profile was a hallway, not a home, and nobody asks "Status or Sheet?"
@@ -7,7 +7,7 @@
 //
 // The takeover is a VIEW SWAP inside the tab viewport, which is what makes it work at every width: docked at
 // 17rem or as the mobile full-width sheet, the panel's own scroll region simply shows the character instead
-// of the roster, and the breadcrumb (a real ≥44px-on-coarse button) is the only way back — it never opens a
+// of the participant list, and the breadcrumb (a real ≥44px-on-coarse button) is the only way back — it never opens a
 // second navigation layer to fight the shell drawer, so the sanctioned modal fallback is not needed.
 //
 // EDIT authz mirrors the verbs: `patchSheet` (title/flavor/level/attributes) — host any actor, a member their OWN
@@ -281,7 +281,7 @@ function ConditionSection({ actor, edit }: { readonly actor: RpgActorView; reado
 export interface RpgCharacterDetailProps {
   readonly state: RpgPanelState;
   readonly actor: RpgActorView;
-  /** The volatile-plane callbacks (host) — the SAME set the collapsed roster row uses. */
+  /** The volatile-plane callbacks (host) — the SAME set the collapsed participant row uses. */
   readonly edit?: ActorEdit;
   /** Back to the characters (the breadcrumb) — the takeover's only exit. */
   readonly onBack: () => void;
@@ -343,7 +343,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
   return (
     <Stack gap="section" data-slot="rpg-character-detail">
       {/* The breadcrumb — a real button (keyboard-reachable, ≥44px on a coarse pointer through the shared
-          control tokens), naming where it goes. The roster is one step away from every character. */}
+          control tokens), naming where it goes. The participant list is one step away from every character. */}
       <Row gap="field" align="center">
         <Button intent="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
           <Icon icon={ChevronLeft} size="xs" />

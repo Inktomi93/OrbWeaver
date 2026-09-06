@@ -1,6 +1,6 @@
 // tests/server/domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (rpg-design/05 §4.8), the
-// one the `getTrackerView` verb AND the gather both read. A principal-free build over a resolved game: roster ∪
-// sheets (a rosterless-sheet actor renders the default sheet), the resolved snapshot's volatile, `trackersReadOnly`
+// one the `getTrackerView` verb AND the gather both read. A principal-free build over a resolved game: participants ∪
+// sheets (a sheetless participant actor renders the default sheet), the resolved snapshot's volatile, `trackersReadOnly`
 // passed through. The verb's member-gate + the swipe-consistency are covered by their own suites; this pins the
 // projection is byte-shared (no drift between the panel and the steering injection).
 
@@ -33,7 +33,7 @@ import {
   test,
 } from "../_support.ts";
 
-test("projects roster ∪ sheets — a roster actor with no sheet row renders the default sheet", async () => {
+test("projects participants ∪ sheets — a participant actor with no sheet row renders the default sheet", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { participants: [participantCharacter("kael", "Kael")] });
   const game = await findGameByChat(db, chatId);
@@ -102,7 +102,7 @@ test("recentBeatsKeepLast=0 drops the Recent-beats block entirely (durable log u
 /** Seed one CHARACTER-actor game whose CONFIG defines trackers AND whose committed snapshot carries that
  *  actor's readings — the both-planes shape the retired pool max lived in (a def max on the sheet, a second
  *  max on the volatile row). Seeds a REAL character: the sheet FKs it, and its branded id is what the volatile
- *  actorRef + the roster both key on (a `npc` ref carries no sheet, so it can't exercise the carrier join). */
+ *  actorRef + the participants both key on (a `npc` ref carries no sheet, so it can't exercise the carrier join). */
 async function seedGameWithTrackers(
   db: Db,
   key: string,
@@ -132,7 +132,7 @@ async function seedGameWithTrackers(
   if (game === undefined) {
     throw new Error("game not found");
   }
-  // The roster fake carries the SAME real character id (its ref keys the volatile the projection joins).
+  // The participants fake carries the SAME real character id (its ref keys the volatile the projection joins).
   const participants = [{ actorRef: { kind: "character" as const, characterId }, name: "Kael" }];
   return { game, ctx: makeRpgService(db, { participants }).ctx };
 }
@@ -212,7 +212,7 @@ test("the band renders the PINNED trackers with a numeric reading — never a de
   expect(orbs).toEqual([{ key: "focus", label: "Focus", value: 12, max: 20, color: null }]);
 });
 
-// An npc's volatile plane lives on the SAME per-actor rows a roster member's does (`npc:<key>`), and
+// An npc's volatile plane lives on the SAME per-actor rows a participant's does (`npc:<key>`), and
 // `RpgPresentCharacter` has no volatile plane at all — so until the view projected it, everything a beat wrote
 // onto an NPC (hp/status/conditions/inventory/wallet) reached NO reader, and the steering reminder could not
 // state the affliction, the wound or the purse the tool round had just given that NPC. The WHOLE row is
@@ -259,7 +259,7 @@ test("a scene-npc is an ORDINARY actor row in the view — identity, presence, v
     throw new Error("game not found");
   }
   const view = await buildTrackerView(ctx, game, false);
-  // ONE list, one shape: the npc is an `RpgActorView` beside the roster, not a bolted-on projection.
+  // ONE list, one shape: the npc is an `RpgActorView` beside the participants, not a bolted-on projection.
   const mari = view.actors.find((a) => a.name === "Mari");
   expect(mari?.presence).toBe(true);
   expect(mari?.volatile?.conditions.map((c) => c.name)).toEqual(["poisoned"]);

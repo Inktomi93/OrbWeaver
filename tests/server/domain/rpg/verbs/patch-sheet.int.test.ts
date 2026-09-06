@@ -40,7 +40,7 @@ async function seedGame(): Promise<{
   return { chatId, userId, service, fakes };
 }
 
-/** A game with BOTH seats on the roster — the grid the tracker-exception gate is decided over (a host, and a
+/** A game with BOTH seats among the participants — the grid the tracker-exception gate is decided over (a host, and a
  *  present member whose OWN `user` sheet `assertOwnUserRef` already lets them write). */
 async function seedGameWithMember(): Promise<{
   chatId: ChatId;
@@ -271,7 +271,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
 
   test("a member reaching a CHARACTER ref with grants is refused by the ROW gate first — no emit", async () => {
     // The two floors compose, and their ORDER is deliberate: `assertOwnUserRef` (whose row) runs before the
-    // field floor (which fields), so a member aiming grants at a roster CHARACTER never reaches the tracker
+    // field floor (which fields), so a member aiming grants at a participant CHARACTER never reaches the tracker
     // check at all and gets the row-gate sentence. Pinned because the sentence is the contract and the
     // ordering is what makes the coarser refusal the one a member sees — both refusals are `Forbidden`, so
     // neither arm tells a member anything the other would not.

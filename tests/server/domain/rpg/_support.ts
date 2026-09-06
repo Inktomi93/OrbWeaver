@@ -212,7 +212,7 @@ export function principal(handle: Handle): Principal {
 }
 
 /** The fakes the harness lets a test program. `membership` maps a userId → role (absent = not a member,
- *  the leak-free null). `roster` is the tracker projection. `trackersReadOnly`/`foldGuarded` are the two honest-arms delivery verdicts.
+ *  the leak-free null). `participants` is the tracker projection. `trackersReadOnly`/`foldGuarded` are the two honest-arms delivery verdicts.
  *  `toolRoundDelta` is the post-commit state round fake's return (default: an empty delta = no-op). */
 export interface RpgFakes {
   membership: Map<string, ParticipantRole>;
@@ -493,7 +493,7 @@ export function makeRpgService(
       item: () => `item_hand_${handItemSeq++}`,
     },
     staging: createRpgStagingStore(),
-    // The REAL kernel, not a fake: `can` is pure (no db, no I/O — it decides over the Principal + the roster fed
+    // The REAL kernel, not a fake: `can` is pure (no db, no I/O — it decides over the Principal + the participants fed
     // in), so faking it would only let the authority suite pass against a stub of the thing under test.
     can,
     getMembership: (_chatId, userId) => {
@@ -525,9 +525,9 @@ export function makeRpgService(
       return Promise.resolve();
     },
     resolveParticipants,
-    // R4 — the PROMOTION's durable half. The real impl mints a character card + a chat roster seat over the
-    // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.roster`, because the seat
-    // is not decoration: the tracker view projects a `character:` actor only when the roster carries it, so a
+    // R4 — the PROMOTION's durable half. The real impl mints a character card + a chat participant seat over the
+    // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.participants`, because the seat
+    // is not decoration: the tracker view projects a `character:` actor only when the participants carry it, so a
     // fake that skipped it would let a promotion "pass" while the panel showed nobody.
     promoteToCharacter: ({ chatId, hostUserId, sourceActorKey, participants, name, handle, description }) => {
       if (fakes.promoteRefusal !== undefined) {
@@ -545,7 +545,7 @@ export function makeRpgService(
       ) {
         return Promise.resolve({
           ok: false,
-          reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
+          reason: `"${name}" is already among this chat's participants — rename this character first, or the story could only ever address one of them`,
         });
       }
       if (existing !== undefined) {
@@ -635,7 +635,7 @@ export function makeRpgService(
 }
 
 /** A seeded lite game with a `host` membership — the shared per-verb test setup. `over` forwards the harness
- *  fakes (roster/trackersReadOnly/foldGuarded/dice). Returns the chat + game ids + the harness. */
+ *  fakes (participants/trackersReadOnly/foldGuarded/dice). Returns the chat + game ids + the harness. */
 export interface SeededLiteGame {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
@@ -677,12 +677,12 @@ export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractio
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode });
 }
 
-/** A `character` roster actor entry for the tracker projection. */
+/** A `character` participant actor entry for the tracker projection. */
 export function participantCharacter(key: string, name: string): RpgParticipantActor {
   return { actorRef: { kind: "character", characterId: castId(`character_${key}`) }, name };
 }
 
-/** A `user` roster actor entry. */
+/** A `user` participant actor entry. */
 export function participantUser(handle: Handle, name: string): RpgParticipantActor {
   return { actorRef: { kind: "user", userId: castId<UserId>(`user_${handle}`) }, name };
 }

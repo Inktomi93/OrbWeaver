@@ -5,7 +5,7 @@
 // arithmetic, so the whole op vocabulary is unit-testable without a db.
 //
 // WHY OPS AND NOT AN IMAGE. The hand door used to ask the client for the plane's whole array image. The client
-// can only SEE the plane in projections (the roster half + `castVolatile`; the offstage rows appear in
+// can only SEE the plane in projections (the participant half + `castVolatile`; the offstage rows appear in
 // neither), so every image it could build was partial — and each of the three shipped defects was that
 // contract failing a different way (a partial image deleting unnamed actors; unvalidated image keys; a
 // FABRICATED empty row wiping a populated NPC). The fourth, latent, one is the stale-image clobber: the image
@@ -25,8 +25,8 @@ import type { ApplyActorOpsResult } from "../contract/results.ts";
 /** The empty ACTOR ROW a first write on an actor with no state row seeds — zero volatile state, plus (for a
  *  `npc` ref only) a born IDENTITY whose display name falls back to the slug until something authors a real
  *  one. An npc IS an identity-bearing person by construction: born without one, the very first
- *  `presentUpsert`/`setIdentityText` would have nothing to write onto. A roster actor is born WITHOUT an
- *  identity and stays that way — her name is the chat roster's, her standing prose the sheet's — which is what
+ *  `presentUpsert`/`setIdentityText` would have nothing to write onto. A participant actor is born WITHOUT an
+ *  identity and stays that way — her name is chat's, her standing prose the sheet's — which is what
  *  makes the identity ops' refusal arm meaningful rather than a shape accident.
  *
  *  The ONE home for "a fresh actor's zero state": the tool appliers mint through here too, so a hand-minted and
@@ -273,8 +273,8 @@ function applyVolatileOp(actor: RpgActorVolatile, op: Extract<RpgActorOp, { op: 
   }
 }
 
-/** Apply ONE IDENTITY op (R2). `null` = refused, and the reachable refusal is the honest one: a ROSTER actor
- *  carries no identity half at all (her name is the chat roster's, her standing prose the sheet's), so writing
+/** Apply ONE IDENTITY op (R2). `null` = refused, and the reachable refusal is the honest one: a PARTICIPANT actor
+ *  carries no identity half at all (her name is chat's, her standing prose the sheet's), so writing
  *  one would mint a second name home for the same person — exactly the split R2 exists to dissolve. */
 function applyIdentityOp(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: IdentityOpName }>): RpgActorEntry | null {
   const identity = entry.identity;

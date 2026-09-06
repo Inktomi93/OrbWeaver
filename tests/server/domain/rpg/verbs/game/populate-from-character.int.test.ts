@@ -23,7 +23,7 @@ import { freshDb } from "../../../../../support/db.ts";
 import type { RpgHarness } from "../../_support.ts";
 import { expect, principal, seedCharacter, seedLiteGame, seedUser, test } from "../../_support.ts";
 
-/** A seeded game whose roster carries ONE real character actor — the populate subject. The character id is a
+/** A seeded game whose participants carry ONE real character actor — the populate subject. The character id is a
  *  REAL minted TypeID because the snapshot write re-validates the volatile `actorRef` (a fabricated id would
  *  be dropped at the F1 backstop and the fill would silently vanish). */
 async function seedCharacterGame(

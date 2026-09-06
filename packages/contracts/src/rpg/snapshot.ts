@@ -79,8 +79,8 @@ export const rpgSnapshotStateSchema = z.object({
   calendarDate: z.string().nullable(),
   location: z.string().default(""),
   weather: rpgWeatherSchema.nullable(),
-  // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (roster refs
-  // included: a roster character on stage is `character:<id>`). Nothing else lives here any more. It used to
+  // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
+  // included: a participant character on stage is `character:<id>`). Nothing else lives here any more. It used to
   // carry the npc's whole identity row, which made departure a DESTRUCTION of her name, mood,
   // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
   // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
@@ -119,7 +119,7 @@ export const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
 /** THE OP-SHAPED PLANES — state planes that LEFT the `editSnapshot` image vocabulary (R1, the actor-state
  *  review §5): `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
  *  `rpg.dismissActor`. An image over this plane is unauthorable by construction — the client sees it only in
- *  projections (roster half + `castVolatile`, never the offstage rows), so every image it could build was
+ *  projections (participant half + `castVolatile`, never the offstage rows), so every image it could build was
  *  partial, and the additive merge policy was the only thing standing between a hand click and data loss.
  *  `editSnapshot` refuses these keys as DATA, naming the verb that owns them. */
 export const RPG_OP_SHAPED_PLANES: ReadonlySet<string> = new Set<string>(["actorState" satisfies keyof RpgSnapshotState]);

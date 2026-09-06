@@ -47,7 +47,7 @@ test("the row moves IN PLACE — position, volatile half and sibling rows all su
   if (!result.ok) {
     return;
   }
-  // Position preserved: the panel's roster/npc projections and the band's first-actor-with-state derivation
+  // Position preserved: the panel's participant/npc projections and the band's first-actor-with-state derivation
   // read this array in ORDER, so a re-append would silently reorder what the host sees.
   const keys = result.state.actorState.map((a) => (a.actorRef.kind === "npc" ? `npc:${a.actorRef.npcKey}` : "character"));
   expect(keys).toEqual(["npc:thorn", "character"]);
@@ -55,7 +55,7 @@ test("the row moves IN PLACE — position, volatile half and sibling rows all su
   expect(moved?.volatile.status).toBe("limping");
   expect(moved?.volatile.trackerValues["trust"]?.value).toBe(4);
   expect(moved?.volatile.wallet).toEqual([{ name: "gold", amount: 12 }]);
-  // Dropped by CONSTRUCTION (a roster ref's born row has no identity), never by a field delete a later shape
+  // Dropped by CONSTRUCTION (a participant ref's born row has no identity), never by a field delete a later shape
   // change could miss.
   expect(moved?.identity).toBeUndefined();
   // The sibling is untouched — a re-key is scoped to its actor.

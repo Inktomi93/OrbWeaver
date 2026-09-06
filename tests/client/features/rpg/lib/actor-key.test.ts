@@ -15,7 +15,7 @@ function actor(name: string, characterId = mintTypeId(ID_PREFIX.character)): Rpg
   };
 }
 
-test("actor keys are collision-free for same-name roster actors and survive display-name changes", () => {
+test("actor keys are collision-free for same-name participant actors and survive display-name changes", () => {
   const first = actor("Mara");
   const second = actor("Mara");
 

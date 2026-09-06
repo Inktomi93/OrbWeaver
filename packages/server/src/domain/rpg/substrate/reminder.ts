@@ -4,7 +4,7 @@
 // §3.3), delivered as ONE depth-0 `role:"system"` injection.
 //
 // Assembly order (§4.7 + the §2.7 delta insert): (1) the STATE BLOCK — the two VOCABULARY lines (trackers,
-// attributes) then the readings per entity, label-as-mini-prompt throughout (each roster actor + its sheet
+// attributes) then the readings per entity, label-as-mini-prompt throughout (each participant actor + its sheet
 // flavor prose, each npc row
 // + that member's standing appearance/outfit/thoughts guides, the game-subject trackers, the ambient line,
 // active quests + open objectives, the recent journal beats);
@@ -172,7 +172,7 @@ function weatherLine(weather: RpgWeather): string {
   return weather.description !== undefined && weather.description !== "" ? `${head} (${weather.description})` : head;
 }
 
-/** THE ONE tracker reading path (the tracked-field unification): every tracker on every carrier — a roster
+/** THE ONE tracker reading path (the tracked-field unification): every tracker on every carrier — a participant
  *  actor's row, a scene npc row, the game-wide readings — renders through `trackerReading`, the one
  *  `label value/max` grammar. It replaces the three drifted per-concept builders this file carried (pool segs ·
  *  cast-field segs · widget lines), which is exactly how R4b was born: the cast-field builder silently dropped
@@ -197,8 +197,8 @@ function trackerVocabularyLine(defs: readonly RpgTrackerDef[]): string {
 }
 
 /** THE ONE conditions reading — `conditions: poisoned, bleeding`, or null when the carrier has none. Read
- *  through {@link volatileSegs}, which BOTH carrier surfaces now share (a roster actor's line AND the cast
- *  line), because an npc's volatile plane reached the model NOWHERE: the reminder rendered it for roster
+ *  through {@link volatileSegs}, which BOTH carrier surfaces now share (a participant actor's line AND the cast
+ *  line), because an npc's volatile plane reached the model NOWHERE: the reminder rendered it for participant
  *  actors only, and the accidental channel it used to leak through (the pre-F4 constraint enums, which
  *  enumerated every live condition name) is correctly gone. An affliction the tool round had just applied to an
  *  NPC was therefore invisible to the very turn that had to play it — and unremovable, since the model could
@@ -241,7 +241,7 @@ function itemSeg(item: RpgActorVolatile["inventory"][number]): string {
  *  volatile row, so they render off `actor.trackers` in `actorLine` (the null-volatile actor — the user
  *  actor on a game whose beats only ever touched the NPC — otherwise lost every tracker it carries).
  *
- *  ONE builder for BOTH carrier surfaces (the reachability-suite fix): the roster line and the scene-npc line
+ *  ONE builder for BOTH carrier surfaces (the reachability-suite fix): the participant line and the scene-npc line
  *  read the SAME plane through the SAME segs, so an npc's hp/wallet/inventory/status can never again be
  *  writable-but-unreadable while a party member's identical row renders. Two builders is how that split was
  *  born (only `conditions` had been hand-carried across). */
@@ -266,7 +266,7 @@ function volatileSegs(v: RpgActorVolatile): string[] {
 }
 
 /** ONE actor's whole line — identity, the trackers it CARRIES, its volatile plane, and the standing-prose
- *  continuations. ONE builder for EVERY actor since R2 (a roster member and a scene NPC are two shapes of the
+ *  continuations. ONE builder for EVERY actor since R2 (a participant and a scene NPC are two shapes of the
  *  same row, not two row types): the identity head differs by which half the actor carries, and everything
  *  below it — trackers, volatile segs, guides — is shared. The retired `castLine`/`actorLine` split is exactly
  *  how an npc's wounds, pack and purse came to render on the model's side and nowhere else.
@@ -359,7 +359,7 @@ export function npcHeader(actors: readonly RpgTrackerView["actors"][number][], p
   return actors.some((a) => guideLines(a.identity).length > 0) ? resolveProse("rpg.reminder.castHeader", prose).text : "Present:";
 }
 
-/** The `Known, offstage:` roster (R2) — the terse continuity line for every tracked npc who is NOT on
+/** The `Known, offstage:` list (R2) — the terse continuity line for every tracked npc who is NOT on
  *  stage. It exists because retention without VISIBILITY steers nothing: an NPC the story established, then
  *  walked out of the room, is exactly the character the model should be able to bring back consistently, and
  *  before R2 she was unrepresentable (departure destroyed her identity outright). Deliberately ONE line per
@@ -460,7 +460,7 @@ function teachingBlocks(input: LiteReminderInput): string[] {
   return blocks;
 }
 
-/** THE THREE ACTOR BLOCKS (R2), partitioned off ONE actor list by two booleans — `actorRef.kind` (a roster
+/** THE THREE ACTOR BLOCKS (R2), partitioned off ONE actor list by two booleans — `actorRef.kind` (a participant
  *  person vs a scene NPC) and `presence` (on stage vs known-but-offstage). All three render through the SAME
  *  {@link actorLine}/{@link offstageLine} grammar, so a plane written onto an NPC can never again reach a
  *  party member's line and not hers. Hoisted out of {@link buildLiteReminder} for the complexity ceiling. */
@@ -509,7 +509,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     stateLines.push(`Story: ${plotLine(view.plot)}`);
   }
   // The tracker VOCABULARY, taught ONCE (label + hint) — the attribute line's twin, and INDEPENDENT of the
-  // party (a game-subject tracker on a rosterless game still has to teach itself). Every reading below —
+  // party (a game-subject tracker on a game with no characters seated still has to teach itself). Every reading below —
   // party, npcs, game — then carries only `label value/max` under these same labels.
   if (view.trackerDefs.length > 0) {
     stateLines.push(trackerVocabularyLine(view.trackerDefs));

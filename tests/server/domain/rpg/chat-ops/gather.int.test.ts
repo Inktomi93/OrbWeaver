@@ -180,13 +180,13 @@ test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's thre
 
 // Ruling B (Chat-Macro-Resolution.md): a host/null-speaker `{{char}}` is the CAST — the JOINED cast names in a
 // multi-character room (== {{group}}), the single name in solo. Chat computes the joined value and threads it;
-// the reminder splices it verbatim (NOT a re-derived first-roster protagonist, the corrected binding).
+// the reminder splices it verbatim (NOT a re-derived first-participant protagonist, the corrected binding).
 test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINED CAST (chat's value, not one protagonist)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
 
-  // Chat threads the Ruling-B joined candidate names (`joinedCandidateName(room.speakerCandidates)` — roster order): "Niko, Aria".
+  // Chat threads the Ruling-B joined candidate names (`joinedCandidateName(room.speakerCandidates)` — participant order): "Niko, Aria".
   const out = await h.chatOps.gatherTurnContext({
     chatId,
     pendingUserText: undefined,
@@ -224,8 +224,8 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
 });
 
 // The WHOLE path (snapshot → tracker view → injection) for an NPC's affliction. `update_party` writes conditions
-// onto an npc's `npc:<key>` row exactly as it does a roster member's, but the reminder rendered
-// `conditions:` for ROSTER actors only — so a poisoned NPC was model-INVISIBLE and the model could neither play
+// onto an npc's `npc:<key>` row exactly as it does a participant's, but the reminder rendered
+// `conditions:` for PARTICIPANT actors only — so a poisoned NPC was model-INVISIBLE and the model could neither play
 // the affliction nor retire it (the reminder is the model's knowledge, D113 #4).
 test("a scene-npc's CONDITIONS reach the reminder injection (snapshot → view → wire)", async () => {
   const db = await freshDb();
@@ -346,7 +346,7 @@ test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gat
 // CEL tree from the SAME tracker view the reminder reads (one projection, three consumers). A READ mirror.
 
 /** Seed a COMMITTED snapshot carrying a scene (location + present characters with a relationship + an active quest) —
- *  the populated-feed input. The tracker view resolves this current head; roster (party sheets) stays empty. */
+ *  the populated-feed input. The tracker view resolves this current head; participants (party sheets) stay empty. */
 async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq: number }): Promise<void> {
   const { variantId } = await seedMessage(db, opts.chatId, opts.seq, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
@@ -551,7 +551,7 @@ const CORRUPTION = trackerDef({
 });
 const ALARM = trackerDef({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game", max: 5, hint: "how alerted the guards are", sort: 1 });
 
-/** Seed the live-shaped game: an `everyone` actor tracker + a game tracker, a roster of a USER and a
+/** Seed the live-shaped game: an `everyone` actor tracker + a game tracker, participants of a USER and a
  *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-npc
  *  member (the three carrier homes) plus the game-subject value. */
 async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness }> {
