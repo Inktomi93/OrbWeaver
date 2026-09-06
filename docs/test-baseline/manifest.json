@@ -2229,6 +2229,7 @@
     "tests/tooling/ui-audit/lib/surface-state.test.ts",
     "tests/tooling/ui-audit/ops/hover-validate.test.ts",
     "tests/tooling/ui-audit/ops/hover-walker.int.test.ts",
+    "tests/tooling/ui-audit/ops/hover.int.test.ts",
     "tests/tooling/ui-audit/ops/page-validate.test.ts",
     "tests/tooling/ui-audit/ops/report.test.ts",
     "tests/tooling/ui-audit/ops/walker/activity-retention.suite.int.test.ts",

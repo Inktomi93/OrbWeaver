@@ -4531,7 +4531,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 105,
+      "line": 210,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4539,12 +4539,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 91
+      "markerLine": 195
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 222,
+      "line": 329,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4552,7 +4552,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 219
+      "markerLine": 326
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -6858,7 +6858,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/hover.ts",
-      "line": 414,
+      "line": 418,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -6866,7 +6866,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
-      "markerLine": 335
+      "markerLine": 339
     },
     {
       "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::empty:catch::1",

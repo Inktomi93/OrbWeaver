@@ -38,6 +38,7 @@ import type { HoverAttrGroupRow, HoverCensusRestRow, HoverContrastInput, HoverFo
 import type { HoverPass, HoverPassOutcome } from "../contract/types.ts";
 import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pageJsonString } from "./hover-validate.ts";
 import { HOVER_CENSUS } from "./hover-walker.ts";
+import { HOVER_DENOMINATOR } from "./hover-walker-groups.ts";
 import { HOVER_FORCE_READ } from "./hover-walker-read.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_GROUP_VARIANT } from "./walker/group-variant.ts";
@@ -54,9 +55,12 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
  *  walker.ts exports that fragment separately. WALKER_STATE_PAINT sits after RESOLVE and before the
  *  census halves — the same var-initialization ordering COLLECT_SAMPLES_JS obeys — and
  *  WALKER_GROUP_VARIANT (#1084) sits between them: it READS state-paint's strippers and is composed
- *  ONLY here, because the main walk builds no state pairs and would carry the bytes for nothing. */
+ *  ONLY here, because the main walk builds no state pairs and would carry the bytes for nothing.
+ *  The census itself is THREE segments in strict order — rules+pairs (HOVER_CENSUS), the denominator +
+ *  grouping (HOVER_DENOMINATOR), the read/verify closures (HOVER_FORCE_READ) — one function scope, so
+ *  each reads the `var`s the previous one initialized. */
 const HOVER_CENSUS_JS = `(async () => {
-${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_GROUP_VARIANT}${HOVER_CENSUS}${HOVER_FORCE_READ}})()`;
+${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_GROUP_VARIANT}${HOVER_CENSUS}${HOVER_DENOMINATOR}${HOVER_FORCE_READ}})()`;
 
 /** The RESULT line's `hover-pass=` word. ONE token, never a sentence — the machine line is split on
  *  whitespace by its readers, so the `broke` arm's full reason rides the printed `HOVER REFUSED` line,

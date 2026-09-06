@@ -2,8 +2,9 @@
 // read/restore closures Node drives (`window.__orbHover`), the release-proof verify, and the census
 // return object. Split from ops/hover-walker.ts (2026-09-01) when the attribute mechanism took that
 // file past the tooling-size cap — the same rule-family segmentation ops/walker.ts runs on. ONE
-// function scope with its sibling: ops/hover.ts concatenates STATE_PAINT + HOVER_CENSUS + THIS
-// segment in order, so every `var` the census half initialized (hoverCandidates, hoverGroups,
+// function scope with its siblings: ops/hover.ts concatenates STATE_PAINT + HOVER_CENSUS +
+// HOVER_DENOMINATOR (ops/hover-walker-groups.ts, the 2026-09-06 half of the same split) + THIS
+// segment in order, so every `var` the earlier halves initialized (hoverCandidates, hoverGroups,
 // attrGroups, the counters) is live when these lines run — and the ORDER IS LOAD-BEARING rule from
 // ops/walker.ts applies unchanged. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
