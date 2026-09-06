@@ -9,9 +9,22 @@
 // room-public chat-book posture), and those are not theirs to give away. They are skipped, silently — the
 // nominee is no worse off than before the handoff, and the honest alternative (refusing the accept over
 // someone else's lore) is not an alternative.
+//
+// …AND EVERY DESTINATION READ CARRIES `toOwnerId` (#1819). The paragraph above is the SOURCE axis; the card
+// half also has a DESTINATION, and it is a caller-supplied id (`cardCopies[].characterId`). Nothing here
+// used to ask whose card that was, so a copy id naming a THIRD PARTY's character got a `character_books`
+// row pointing at a book this call had just minted under the recipient: a write into another tenant's
+// entity graph, deletable by them through their own card's CASCADE, while the recipient's "copy" stayed
+// inert (the character-book pool is owner-filtered and they own no card it hangs off). `pendingCardCopies`
+// therefore joins `characters` on `toOwnerId` and a foreign or absent id is dropped BEFORE any mint — the
+// local belt an injected op's signature owes its next call site, exactly as the `duplicate-carry` twin
+// (#1516) and the six #1480 seams took it. The one production caller derives the ids under `toOwnerId`
+// (`chat/substrate/handoff-copy.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
+// a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room and stays
+// chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority, #1396).
 
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, characters, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -72,7 +85,7 @@ export function createCopyHandoffBooks(ctx: WorldInfoHandoffCopyContext): CopyHa
     };
 
     // ── the CARD half. A card copy that already carries junctions is a completed prior attempt: leave it.
-    const copiesNeedingBooks = await pendingCardCopies(db, cardCopies);
+    const copiesNeedingBooks = await pendingCardCopies(db, toOwnerId, cardCopies);
     const sourceIds = copiesNeedingBooks.map((c) => c.sourceCharacterId);
     // @orb-gate-ignore persistence-no-in-memory-state: query-local source→copy character lookup.
     const targetOf = new Map(copiesNeedingBooks.map((c) => [c.sourceCharacterId, c.characterId]));
@@ -137,24 +150,38 @@ export function createCountHandoffBooks(db: Db): CountHandoffBooks {
   };
 }
 
-/** The card copies that do NOT yet carry any attached book — the ones a (possibly retried) accept still owes
- *  lore to. A copy WITH junctions is a completed prior attempt and is left exactly as it is. */
-async function pendingCardCopies<T extends { readonly characterId: CharacterId }>(db: Db, cardCopies: readonly T[]): Promise<T[]> {
+/** The card copies that belong to the RECIPIENT and do NOT yet carry any attached book — the ones a
+ *  (possibly retried) accept still owes lore to. Two filters resolved in ONE read, because the read is a
+ *  `characters` LEFT JOIN: an owned copy with no junction row yet must still come back (an inner join
+ *  through `character_books` cannot see it), and its ownership must still be decided.
+ *   • OWNERSHIP (#1819) — a copy id `toOwnerId` does not own is dropped BEFORE any mint or junction; see
+ *     the header's destination-axis paragraph. An id that does not exist drops for the same reason, and
+ *     silently: this op has no report channel, and one bad pairing must not fail the whole accept (the
+ *     `duplicate-carry` skip-don't-refuse precedent).
+ *   • PENDING — a copy that ALREADY carries junctions is a completed prior attempt and is left exactly as
+ *     it is. */
+async function pendingCardCopies<T extends { readonly characterId: CharacterId }>(db: Db, toOwnerId: UserId, cardCopies: readonly T[]): Promise<T[]> {
   if (cardCopies.length === 0) {
     return [];
   }
   const rows = await db
-    .select({ characterId: characterBooks.characterId })
-    .from(characterBooks)
+    .select({ characterId: characters.id, attachedBookId: characterBooks.worldBookId })
+    .from(characters)
+    .leftJoin(characterBooks, eq(characterBooks.characterId, characters.id))
     .where(
-      inArray(
-        characterBooks.characterId,
-        cardCopies.map((c) => c.characterId),
+      and(
+        inArray(
+          characters.id,
+          cardCopies.map((c) => c.characterId),
+        ),
+        eq(characters.ownerId, toOwnerId),
       ),
     );
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local set of the RECIPIENT's own copy ids.
+  const owned = new Set(rows.map((r) => r.characterId));
   // @orb-gate-ignore persistence-no-in-memory-state: query-local set of already-served copy ids.
-  const done = new Set(rows.map((r) => r.characterId));
-  return cardCopies.filter((c) => !done.has(c.characterId));
+  const done = new Set(rows.flatMap((r) => (r.attachedBookId === null ? [] : [r.characterId])));
+  return cardCopies.filter((c) => owned.has(c.characterId) && !done.has(c.characterId));
 }
 
 /** name → bookId for the books the RECIPIENT already owns on this chat — the retry convergence key (world-
