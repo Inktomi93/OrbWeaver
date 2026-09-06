@@ -778,11 +778,14 @@ const ARM4_ALLOW: ExemptionTable = {
   SQLITE_BUSY: {
     why: "Tier-1-DB.md cites SQLite's own C-API error code name (`sqlite3_busy_timeout`), never a repo-declared symbol. Ends if this ever becomes a repo-defined constant.",
   },
-  SERIAL_INT: {
-    why: "declared in the repo-root `vitest.config.ts` (Spine-Testing.md), outside the gate harness workspace (packages/*/src, tests/, tooling/src/ — harnessGlobs). Ends if arm 4's index widens to root config files.",
+  SERIAL_INT_PRODUCT: {
+    why: "declared in the repo-root `vitest.config.ts` (Spine-Testing.md), outside the gate harness workspace (packages/*/src, tests/, tooling/src/ — harnessGlobs). Was `SERIAL_INT` until #1842 split the serial set into its product and tooling halves. Ends if arm 4's index widens to root config files.",
+  },
+  SERIAL_INT_TOOLING: {
+    why: "the SERIAL_INT_PRODUCT case exactly — the instrument half of the same split (#1842), declared in the same repo-root `vitest.config.ts` and cited by the same law docs. Ends with its twin, when arm 4's index widens to root config files.",
   },
   LIVE_DRIVE: {
-    why: "the SERIAL_INT case exactly, same file and same blind spot: declared in the repo-root `vitest.config.ts` (#1040, cited by Spine-Testing.md) and therefore outside the gate harness workspace. Ends with SERIAL_INT's row, when arm 4's index widens to root config files.",
+    why: "the same file and the same blind spot: declared in the repo-root `vitest.config.ts` (#1040, cited by Spine-Testing.md) and therefore outside the gate harness workspace. Ends with the SERIAL_INT_* rows, when arm 4's index widens to root config files.",
   },
   HUB_ADAPTERS: { why: CERD_WHY },
   ANTH_DIRECT_SAMPLING: { why: CERD_WHY },

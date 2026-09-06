@@ -129,14 +129,19 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
   // notice already in it, so deleting the line in `ops/run.ts` that ATTACHES the notice left it green —
   // a renderer pin wearing a producer's clothes. It now drives the real pair: `planStage` decides (with a
   // precondition that answers FALSE), and `nonRunningStageResult` shapes the row the runner returns.
-  const stageDef = stagesForTier("push").find((row) => row.name === "tests:tooling");
-  expect(stageDef?.tierPrecondition?.reason, "tests:tooling has no push-tier precondition to render").toBeTypeOf("string");
-  const reason = String(stageDef?.tierPrecondition?.reason);
-  // A repo-less directory would answer `null` (cannot tell ⇒ RUN); this test needs the FALSE arm, so the
-  // stage is copied with a precondition that says so. Everything else is the REAL registry row.
+  // THE SUBJECT ROW IS SYNTHETIC SINCE #1842, and deliberately so: the owner took the instrument battery
+  // off `--push` entirely, so NO registry row declares a `tierPrecondition` today (pinned by
+  // tests/tooling/verify/lib/registry.test.ts). The FIELD and the runner path below are still live
+  // contract — the next expensive stage that wants a conditional rung inherits both — so the mechanism
+  // keeps its producer-driven proof rather than being deleted with the row that motivated it. Everything
+  // outside the precondition is copied from a REAL registry row (`tests:tooling`), and the `satisfied`
+  // arm answers FALSE because that is the case this test exists for (a `null` would mean RUN).
+  const stageDef = stagesForTier("full").find((row) => row.name === "tests:tooling");
+  expect(stageDef, "tests:tooling is not in the full tier — the row this test borrows moved").toBeDefined();
+  const reason = "the branch diff (vs its merge base, plus the working tree) touches tooling/** or tests/tooling/**";
   const declining: StageDef = {
     ...(stageDef as StageDef),
-    tierPrecondition: { ...((stageDef as StageDef).tierPrecondition as NonNullable<StageDef["tierPrecondition"]>), satisfied: () => false },
+    tierPrecondition: { tiers: ["push"], reason, satisfied: () => false },
   };
   const plan = planStage(declining, undefined, "push", "/nonexistent");
 
@@ -161,9 +166,9 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
   // prints, which is simply false on a whole-tier run.
   expect(out).toContain("tests:tooling  skipped — tier precondition not met; runs at verify --full");
   expect(out).not.toContain("tests:tooling  skipped (no files in scope)");
-  // …and the CONDITION reaches the tail, verbatim from the registry.
+  // …and the CONDITION reaches the tail, verbatim from the row.
   expect(out).toContain("NOTICES (not failures)");
-  expect(out).toContain(`tests:tooling: tier precondition: ${String(reason)}`);
+  expect(out).toContain(`tests:tooling: tier precondition: ${reason}`);
   expect(out).toContain("tooling/**");
   // A skip is not a failure: the verdict is untouched.
   expect(out).toContain("VERDICT: PASS");
