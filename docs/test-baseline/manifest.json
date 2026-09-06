@@ -383,6 +383,7 @@
     "tests/client/features/regex/lib/regex-pipeline.test.ts",
     "tests/client/features/regex/lib/regex-preview.test.ts",
     "tests/client/features/regex/surfaces/regex-member-surface.ct.tsx",
+    "tests/client/features/roster-preset/components/roster-collection-rows.ct.tsx",
     "tests/client/features/roster-preset/components/roster-picker.ct.tsx",
     "tests/client/features/roster-preset/surfaces/roster-member-surface.ct.tsx",
     "tests/client/features/rpg/components/rpg-actor-trackers.ct.tsx",

@@ -121,6 +121,7 @@
     "tests/support/ct/contained-within.ts",
     "tests/support/ct/drop-files.ts",
     "tests/support/ct/held-portrait-image.ts",
+    "tests/support/ct/ink-void.ts",
     "tests/support/ct/measure-clamp.ts",
     "tests/support/ct/measure-content-column.ts",
     "tests/support/ct/part-vs-surface.ts",

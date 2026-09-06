@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/ct/ink-void.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { TagCollectionRowsStory } from "../_ct-stories.tsx";
@@ -311,50 +312,9 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
 // edge, which is the 848px hole. Every other collection row (regex scent, world-info bookScent, roster
 // members, databank, preset) already carries a subtitle — tags was the one that did not.
 
-/** One row's ink-to-ink void: the widest horizontal gap between consecutive rendered GLYPH RUNS, as a
- *  fraction of the row's own width. Text nodes only — an invisible hover-revealed kebab is not ink, and a
- *  swatch is not ink either. */
-function inkVoid(page: Page, index: number): Promise<{ readonly width: number; readonly pct: number; readonly at: string; readonly runs: number }> {
-  return page.evaluate((at: number) => {
-    const row = document.querySelectorAll<HTMLElement>('[data-slot="list-row-root"]')[at];
-    if (row === undefined) {
-      throw new Error(`inkVoid: no row at index ${String(at)}`);
-    }
-    const inked = (node: Node): boolean => {
-      const parent = node.parentElement;
-      if (parent === null || (node.textContent ?? "").trim() === "") {
-        return false;
-      }
-      const style = getComputedStyle(parent);
-      return style.visibility !== "hidden" && style.display !== "none" && style.opacity !== "0";
-    };
-    const runRect = (node: Node): DOMRect => {
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      return range.getBoundingClientRect();
-    };
-    const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node): number => (inked(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
-    });
-    const runs: { readonly left: number; readonly right: number; readonly text: string }[] = [];
-    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      const rect = runRect(node);
-      runs.push({ left: rect.left, right: rect.right, text: (node.textContent ?? "").trim() });
-    }
-    runs.sort((a, b) => a.left - b.left);
-    const width = row.getBoundingClientRect().width;
-    const widest = runs
-      .slice(1)
-      .map((run, i) => ({ gap: run.left - (runs[i]?.right ?? run.left), at: `"${runs[i]?.text ?? ""}" → "${run.text}"` }))
-      .reduce((best, candidate) => (candidate.gap > best.gap ? candidate : best), { gap: 0, at: "" });
-    return { width: Math.round(width), pct: Math.round((widest.gap / width) * 100), at: widest.at, runs: runs.length };
-  }, index);
-}
-
-// 382 is the coarse arm's real row width (430px phone), 990 the desktop CONTENT pane with the context
-// collapsed, 660 the crossover between them — a point measurement at one width would have missed this in
-// either direction (the coarse arm already read 48% while desktop read 86%).
-for (const width of [382, 660, 990] as const) {
+// The three widths and the 25% bar are the CT kit's (`support/ct/ink-void.ts`) since #1838, because
+// DESIGN.md §5.6 owes this matrix to EVERY collection row and the roster rows now take the same one.
+for (const width of INK_VOID_WIDTHS) {
   test(`#1824: a tag row's ink-to-ink void stays inside the 25% bar at ${String(width)}px`, async ({ mount, page }) => {
     await stub(page, THREE);
     const rows = await mount(<TagCollectionRowsStory width={width} />);
@@ -363,7 +323,9 @@ for (const width of [382, 660, 990] as const) {
     for (const index of [0, 1, 2]) {
       const void_ = await inkVoid(page, index);
       expect(void_.runs, "a row must have rendered ink to measure").toBeGreaterThan(0);
-      expect(void_.pct, `row ${String(index)} at ${String(void_.width)}px: widest ink gap ${String(void_.pct)}% ${void_.at}`).toBeLessThanOrEqual(25);
+      expect(void_.pct, `row ${String(index)} at ${String(void_.width)}px: widest ink gap ${String(void_.pct)}% ${void_.at}`).toBeLessThanOrEqual(
+        INK_VOID_BAR_PCT,
+      );
     }
   });
 }
