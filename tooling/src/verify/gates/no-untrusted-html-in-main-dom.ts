@@ -1,90 +1,119 @@
-// Gate: no-untrusted-html-in-main-dom (UI-Theming-and-Content.md §12.2, D44) — raw HTML reaches the user
-// through the sandboxed iframe or the sanitized markdown seal, never through the app document.
+// Policy: no-untrusted-html-in-main-dom (UI-Theming-and-Content.md §12.2, D44) — raw HTML reaches the user
+// through the sandboxed iframe (`<SandboxFrame>`: srcdoc + per-frame CSP) or the sanitized `@orb/ui/markdown`
+// seal, never through the app document.
 //
-// THE EXEMPT ZONES ARE THE TWO SEALS THEMSELVES. TWO-SIDED (gate-hub #10) at the path-rot grain: a zone
-// matching NO file in the project is RED (a rename kills the exemption's meaning while it still reads as
-// live law). The stronger "the seal doesn't inject today" arm would be WRONG here and was measured before
-// being rejected: NEITHER seal spells `dangerouslySetInnerHTML` right now (markdown goes through
-// Streamdown's sanitized render, sandbox-frame through `srcdoc`) — their permission is the architecture's
-// standing answer to "where may raw HTML go", not a live-usage claim. The arm self-guards on a REAL-TREE
-// ANCHOR (gate-hub #11): the token vocabulary, which a conformance mini-project never carries by accident.
+// AUTHORITY IS reviewed-grant, WITH NO ROWS TODAY, and that is the honest translation of the legacy table.
+// The two seal homes were `SANCTIONED_HOMES` rows whose own `why` said the permission is "the architecture's
+// standing answer to where rendered HTML may go, WHETHER OR NOT it spells the injection today" — and on this
+// tree NEITHER seal spells it (markdown renders through Streamdown's sanitizer, sandbox-frame through
+// `srcdoc`). A grant row consumed zero times after a complete run is STALE by contract, so a row for an
+// UNEXERCISED permission is not representable and must not be invented. The seals are simply SCANNED and
+// clean. What survives is the authority: an exception to a D44 security rule is a REVIEWED row, never an
+// inline marker a single author can write — so if a seal ever does inject, it reds and the review mints the
+// row then.
+//
+// THE SUBJECT IS A RESERVED JSX ATTRIBUTE, and this is the one policy in the family whose identity is a
+// keyword rather than a binding: `dangerouslySetInnerHTML` is React's DOM contract, not an importable
+// symbol, so there is nothing to alias, re-export or shadow. DECLARED LIMIT with its own row: prop injection
+// through a SPREAD (`<div {...{ dangerouslySetInnerHTML: html }} />`) carries no attribute node and is not
+// seen — the same limit the legacy gate carried and the census recorded.
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { repoRel } from "../lib/pass.ts";
-import { reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const SCOPE = /\/packages\/(?:client|ui)\/src\//u;
-/** The two seal homes — SCANNED, exempted by a cited row, swept by the shared rename tripwire. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/ui/src/markdown/": {
-    why: "the sanitized markdown seal — the architecture's standing answer to 'where may rendered HTML go', whether or not it spells the injection today (it currently goes through Streamdown's sanitized render). Ends when the seal moves: the rename tripwire reds the row at its dead path",
-  },
-  "packages/ui/src/content/sandbox-frame/": {
-    why: "the sandboxed iframe host (srcdoc + per-frame CSP) — the other sanctioned destination for untrusted HTML, same standing permission and the same end condition",
-  },
-};
+const ATTRIBUTE = "dangerouslySetInnerHTML";
+const OPERATION = "raw-html-injection";
 
-const GATE_SELF = "tooling/src/verify/gates/no-untrusted-html-in-main-dom.ts";
-/** Real-tree anchor (gate-hub #11). */
-const ANCHOR = "packages/ui/src/tokens/index.ts";
+const MESSAGE =
+  "`dangerouslySetInnerHTML` in the app DOM — untrusted HTML MUST go through `<SandboxFrame>` (sandboxed " +
+  "iframe + per-frame CSP) or the sanitized `@orb/ui/markdown` seal (D44 — UI-Theming-and-Content.md §12.2). " +
+  "Never inject raw HTML into the main document.";
+const FIX =
+  "render through <SandboxFrame> or the @orb/ui/markdown seal; a genuinely new sanctioned destination needs an exact reviewed grant, not an inline waiver.";
 
-export const gate: GateDescriptor = {
-  name: "no-untrusted-html-in-main-dom",
-  docRow: "UI-Theming-and-Content.md §12.2",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "dangerouslySetInnerHTML in the app DOM — untrusted HTML MUST go through <SandboxFrame> (sandboxed iframe + per-frame CSP) or the sanitized @orb/ui/markdown seal (D44 — UI-Theming-and-Content.md §12.2). Never inject raw HTML into the main document.",
-  fix: "use <SandboxFrame> or the @orb/ui/markdown seal",
-  scanRoot: (p) => SCOPE.test(`/${p}`),
-  kinds: [SyntaxKind.JsxAttribute],
-  visit: (node, sf, ctx) => {
-    if (!Node.isJsxAttribute(node)) {
-      return;
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (node.getNameNode().getText() === "dangerouslySetInnerHTML") {
-      ctx.report(node, { token: "dangerouslySetInnerHTML", offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "raw-HTML seal", anchor: ANCHOR });
+export const gate = defineGate({
+  id: "no-untrusted-html-in-main-dom",
+  family: "no-untrusted-html-in-main-dom",
+  authority: "reviewed-grant",
+  severity: "error",
+  // The legacy scope regex was `/packages/(client|ui)/src/`; the seal homes are NOT subtracted.
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.JsxAttribute],
+          visit: (node, sourceFile): void => {
+            if (!Node.isJsxAttribute(node) || node.getNameNode().getText() !== ATTRIBUTE) {
+              return;
+            }
+            candidates.push({ node, subject: ctx.relativePath(sourceFile), operation: OPERATION, token: ATTRIBUTE, offset: 0 });
+          },
+        },
+      ],
+      evaluate: (): void => {
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n",
-      at: "packages/client/src/components/foo.tsx",
-      why: "dangerouslySetInnerHTML used outside sanctioned seals",
+      mode: "source",
+      files: { "packages/client/src/components/foo.tsx": "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n" },
+      expect: { count: 1, token: ATTRIBUTE },
+      why: "the founding shape — raw HTML injected into the app document",
     },
     {
+      mode: "source",
+      files: { "packages/ui/src/markdown/index.tsx": "export const M = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n" },
+      expect: { count: 1 },
+      why: "THE SEAL REDS TOO: the markdown home carries no live injection on this tree, so it holds no grant row. If it ever injects, this is the finding that brings the decision to review — which is what replaced a standing directory exemption that licensed nothing",
+    },
+    {
+      mode: "source",
       files: {
-        [ANCHOR]: "export const tokens = {};\n",
-        "packages/ui/src/markdown/index.tsx": "export const M = null;\n",
+        "packages/client/src/components/two.tsx":
+          "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\nexport const B = () => <span dangerouslySetInnerHTML={{ __html: 'y' }} />;\n",
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the anchor is loaded and the markdown seal still resolves, but the sandbox-frame home resolves to no file — that row exempts nothing and ratchets down",
+      expect: { count: 1 },
+      why: "GRANT GRANULARITY: two injections in one file are ONE `(subject, operation)` finding, because a row matching both would be OVER-BROAD and would license neither",
     },
   ],
   mustPass: [
     {
-      files: "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n",
-      at: "packages/ui/src/markdown/index.tsx",
-      why: "THE ALLOWLIST ITSELF: the markdown seal is now SCANNED and its injection passes only on a cited SANCTIONED_HOMES row",
+      mode: "source",
+      files: { "packages/client/src/components/foo.tsx": "export const A = () => <div>{'x'}</div>;\n" },
+      why: "ordinary JSX with no injection at all",
     },
     {
-      files: "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n",
-      at: "packages/ui/src/content/sandbox-frame/index.tsx",
-      why: "exempt sandbox seal — and with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
-    },
-    {
+      mode: "source",
       files: {
-        [ANCHOR]: "export const tokens = {};\n",
-        "packages/ui/src/markdown/index.tsx": "export const M = null;\n",
-        "packages/ui/src/content/sandbox-frame/index.tsx": "export const S = null;\n",
+        "packages/client/src/components/config.ts": "export const options = { dangerouslySetInnerHTML: false };\n",
       },
-      why: "both seal homes STILL EARNED, judged against the real-tree anchor: each resolves to a live file, so the tripwire stays quiet",
+      why: "A PROPERTY of the same name in a plain object is not a JSX attribute — the subject is the reserved attribute POSITION, not the word",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/components/spread.tsx": "const html = { __html: 'x' };\nexport const A = () => <div {...{ dangerouslySetInnerHTML: html }} />;\n",
+      },
+      why: "THE DECLARED LIMIT, written down: prop injection through a SPREAD carries no attribute node and is not seen. The legacy gate had the same limit and the exception census recorded it; closing it needs a JSX prop-provenance fact no shared reader supplies today",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/x/render.ts": 'export const html = "<div dangerouslySetInnerHTML>";\n',
+        "packages/client/src/components/foo.tsx": "export const A = () => <div>{'x'}</div>;\n",
+      },
+      why: "THE POPULATION: the app DOM is client and ui source, so a server module is not judged at all — the client file is present because a population that admits zero paths REFUSES by contract, which would make this row prove nothing",
     },
   ],
-};
+});
