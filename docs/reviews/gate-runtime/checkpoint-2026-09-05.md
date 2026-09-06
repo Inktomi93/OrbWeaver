@@ -54,6 +54,8 @@ Commit `3d8abaf5b` replaces that prototype with first-class `defineFact` provide
 
 Merge `f4fd77dbf` integrates 167 local-main commits without a gate-runtime conflict; only `package.json` and `client-architecture-lockdown.md` overlapped and merged cleanly. The merged provider foundation passes 132/132 focused tests plus tooling TypeScript. The refreshed bus run has 7,128 loaded files, a 1,585-file provider population, 66 members, zero unresolved identities/findings/tool errors, and measures 17.23 s fact / 19.30 s pass / 35.31 s wall / 3.22 GB RSS. The refreshed temporary census remains 1,414 findings across 256 modules.
 
+Commit `0caf7dac2` moves schema discovery onto first-class `drizzleSchemaFact`. Its production path receives top-level variable declarations from the dispatcher instead of calling `SourceFile#getDescendantsOfKind`; the direct eager helper remains only for focused query tests until all consumers migrate. Fourteen schema tests plus the core pass suite are green. The merged live provider owns 30 exact `packages/db/src/schema/**` files and reports ready: 97 tables, 850 columns, 162 foreign keys, 178 indexes, 72 JSON columns, 25 open JSON columns, and 1,287 total members. It measured 19.28 s fact / 25.88 s process wall / 2.69 GB RSS; no schema policies are converted yet.
+
 ## Resume order
 
 1. Continue re-deriving the eleven remaining layout/size/resource candidates against the folded resource declarations; convert only complete rows.

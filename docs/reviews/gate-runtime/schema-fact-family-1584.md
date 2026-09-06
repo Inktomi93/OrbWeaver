@@ -94,6 +94,12 @@ not part of this checkpoint unless appended by a later resume.
 No broad structure, Knip, graph typecheck, full test battery, global baseline/catalog regeneration, main
 merge, push, or board transition ran in this lane.
 
+## First-class provider integration
+
+Commit `0caf7dac2` moves production schema discovery into `drizzleSchemaFact`, a first-class provider over the exact `packages/db/src/schema/**` TS/TSX population. The dispatcher now feeds top-level `VariableDeclaration` nodes once; the provider finishes the canonical table/column/FK/index/JSON model before policies evaluate. The prior `schemaTableCalls(files)` descendant sweep remains only behind the direct unit-query helper and is not used by production policies. It retires when the schema policy family fully consumes the provider.
+
+The merged local-main provider run is ready over 30 files: 97 tables, 850 columns, 162 foreign keys, 178 indexes, 72 JSON columns, 25 open JSON columns, and 1,287 total members. The column/member increase is the merged `refinery` schema change. Provider timing was 19.28 s with 25.88 s process wall and 2.69 GB peak RSS; fact and policy tool errors were zero. Fourteen focused schema tests plus the 47-test core pass suite are green. No schema policy conversion is credited by this provider-only change.
+
 ## Conversion eligibility at checkpoint
 
 The following six policies were proven self-contained after the schema fact is cold-stable:
