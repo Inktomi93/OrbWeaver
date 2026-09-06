@@ -8,6 +8,7 @@ export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.
 export { CSS_MERGE_FAMILY_NAMES, cn, tv } from "./class-merge.ts";
+export { coarsePointerNow } from "./coarse-pointer-now.ts";
 export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
 export {
   CSS_MERGE_TRACE_INPUT_LIMIT,
