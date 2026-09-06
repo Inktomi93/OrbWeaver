@@ -64,6 +64,33 @@ const GROUP_ATTR_FIXTURE = `<style>
 </style>
 <div class="group" style="padding:8px"><span class="attr-label group-data-[selected]:text-foreground">ancestor-attribute label</span></div>`;
 
+/** TWO subjects, ONE painted element (#1092). Both rules paint `.two-subject-label`; the subjects are an
+ *  ancestor pair, so a pointer can produce EITHER state — inside `.card` (both hovered, the `.card` rule
+ *  wins the equal-specificity tie) or elsewhere in `.row` (only the `.row` rule applies). Two reachable
+ *  paints, two questions. Specificity is deliberately equal (0,3,0 each) so the second declaration wins
+ *  by ORDER: a specificity fight would make the shallow subject's paint unreachable and the fixture would
+ *  be proving the opposite of what it claims. */
+const TWO_SUBJECT_FIXTURE = `<style>
+.two-subject-label { color: #8a8a8a; }
+.row:hover .two-subject-label { color: #d2d2d2; }
+.card:hover .two-subject-label { color: #ffffff; }
+</style>
+<div class="row" style="padding:24px"><div class="card" style="padding:8px"><span class="two-subject-label">two-subject label</span></div></div>`;
+
+test("an element painted by TWO hover subjects asks TWO questions — the pair map keys by subject, as the attribute side does", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "two-subject-hover.html"), relationalDocument(TWO_SUBJECT_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "two-subject-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  // RED-FIRST (#1092): `hoverPaintOf` was a single-subject map with deepest-wins, so the `.row` state was
+  // never asked and this read `candidates=1 judged=1 … hover-subjects-forced=1` — a denominator that
+  // silently dropped a reachable state, while the ATTRIBUTE side keyed by state and kept both.
+  expect(res.stdout, "one element, two reachable hover states, two candidate rows").toMatch(/POPULATION\s+hover-contrast candidates=2 judged=2 /u);
+  // Both subjects were really HELD: a second candidate that shared the deeper subject's single force
+  // would be two rows describing one measurement.
+  expect(res.stdout).toMatch(/hover-subjects-forced=2\b/u);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
 test("a compiled group-hover rule is JUDGED against its resolved ancestor, not the painted element", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "group-hover.html"), relationalDocument(GROUP_HOVER_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "group-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
