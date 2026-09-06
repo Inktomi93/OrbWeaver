@@ -6,6 +6,8 @@
 // I/O of its own beyond that read, so a real server is not required to prove the dispatch contract.
 
 import { buildAgentNav } from "@orb/client/agent-nav";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 // biome-ignore lint/performance/noNamespaceImport: vi.spyOn needs the module namespace object to wrap the REAL exported action (the dispatch-proof this file exists for).
 import * as state from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -193,6 +195,73 @@ test("openConfig() REFUSES a setting handed over without its section, and dispat
   // mistake (the group vocabulary), which is what `reject()` already spells out for the other arms.
   expect(result.ok ? "" : result.reason).toContain("chat-width");
   expect(spy).not.toHaveBeenCalled();
+});
+
+// ── #1638: the registry-backed leg — a `sub`/`setting` that NAMES nothing real ────────────────────────
+// Every test above builds `nav` with NO third argument, so `openConfig` validates `sub`/`setting`
+// structurally only (byte-identical to pre-#1638) — that is the coverage proving the injection is truly
+// OPTIONAL. These build `nav` WITH a fake registry (the shape `compose/config-sections.ts` assembles) to
+// prove the arm that needed it.
+const FIXTURE_GROUP = "appearance" as ConfigGroupId;
+const fixtureSection: ConfigSectionContribution = {
+  id: "appearance-sizing",
+  anchor: FIXTURE_GROUP,
+  nav: { id: "sizing", label: "Sizing", settings: [{ id: "chat-width", label: "Chat width", teach: { none: "test fixture" } }] },
+  body: () => null,
+};
+
+test("openConfig() validates sub/setting against an INJECTED registry — a real target dispatches", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
+
+  expect(nav.openConfig("appearance", "sizing", "chat-width")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", "sizing", "chat-width");
+});
+
+test("openConfig() REFUSES an unknown sub against an injected registry — no dispatch, nearest real sub named", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
+
+  const result = nav.openConfig("appearance", "bogus-sub");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("bogus-sub");
+  expect(result.ok ? "" : result.reason).toContain("sizing");
+  expect(spy).not.toHaveBeenCalled();
+});
+
+test("openConfig() REFUSES an unknown setting against an injected registry — no dispatch, nearest real leaf named", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const registry = createContributorRegistry<ConfigSectionContribution>("test-fixture", [fixtureSection]);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => registry);
+
+  const result = nav.openConfig("appearance", "sizing", "bogus-setting");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("bogus-setting");
+  expect(result.ok ? "" : result.reason).toContain("chat-width");
+  expect(spy).not.toHaveBeenCalled();
+});
+
+test("openConfig() with a sub, when the injected thunk has not loaded the registry yet, REFUSES loudly — never validates vacuously", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => null);
+
+  const result = nav.openConfig("appearance", "sizing");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("not loaded yet");
+  expect(spy).not.toHaveBeenCalled();
+});
+
+test("openConfig() with NO sub, when the injected thunk has not loaded, still dispatches — no lookup needed", () => {
+  const spy = vi.spyOn(state, "openConfigTo");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient, () => null);
+
+  expect(nav.openConfig("appearance")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("appearance", undefined, undefined);
 });
 
 // ── contextTab: the arm that must not report a landing it cannot see (issue #656) ────────────────────
