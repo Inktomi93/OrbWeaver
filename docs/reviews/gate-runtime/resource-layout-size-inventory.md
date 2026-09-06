@@ -98,11 +98,12 @@ Issue-summary handoff: at the reviewed base, the 53-policy resource census close
 
 ## Current-tip re-derivation: first converted pair
 
-The resource declaration, same-path hybrid, TS/TSX source, and resource-waiver seams were folded and reverified before this re-derivation. Two low-coupling rows were then read in full and converted without using the remaining disposable task worktrees:
+The resource declaration, same-path hybrid, TS/TSX source, and resource-waiver seams were folded and reverified before this re-derivation. Three low-coupling rows were then read in full and converted without using the remaining disposable task worktrees:
 
 | Policy | Final shape | Population proof | Finding proof |
 | - | - | - | - |
 | `feature-owns-definition` | hard, resource-only, entire population; `client-feature` tree | 25/25 direct feature dirs and 25/25 definition owners match the legacy filesystem scan exactly | four final proofs pass; current legacy/final findings 0/0 |
 | `package-layout` | reviewed-grant, source/resource hybrid, entire population; five package source roots plus `packages` tree | legacy/final loose-module subject sets are both empty and byte-equal; final pass sees 1,854 TS/TSX source paths and 4,123 resource paths | two final proofs pass; current legacy/final findings 0/0; any future exception requires exact `(path, loose-package-root-module)` grant identity |
+| `ui-exports-map-complete` | hard, resource-only, entire population; package tree plus typed UI package metadata | module/family membership and export targets are derived from the same authored tree and string-only exports map as the legacy policy; no family list survives | seven final proofs pass; current legacy/final findings 0/0; unreadable package metadata is now an incomplete owner instead of an A4 ordinary finding |
 
-Resource conformance now treats implicit parent directories of declared fixture files as valid resource identities, allowing a directory-shaped structural finding without inventing a fake file. The focused conversion test passes 2/2, the coupled conformance slice passes 12/12, tooling TypeScript and scoped Biome pass, and the direct current-corpus final run completes both owners with no tool/authority error or finding. The other eleven rows remain uncredited until each is reread and re-derived against the current contracts.
+Resource conformance now treats implicit parent directories of declared fixture files as valid resource identities, allowing a directory-shaped structural finding without inventing a fake file. The focused conversion test covers all three descriptors, the coupled conformance slice passes 12/12, tooling TypeScript and scoped Biome pass, and direct current-corpus runs complete all three owners with no tool/authority error or finding. The other ten rows remain uncredited until each is reread and re-derived against the current contracts.
