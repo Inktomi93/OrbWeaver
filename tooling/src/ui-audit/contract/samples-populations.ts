@@ -48,6 +48,9 @@ interface RelationalPopulationAccountingInput {
   readonly "pane-ink": RelationalCensusAccountingInput;
   readonly "promoted-layer-offset"?: RelationalCensusAccountingInput;
   readonly "quiet-state"?: RelationalCensusAccountingInput;
+  /** Rest-hidden reveal clusters (#1077) — present ONLY when the fine-pointer walk found at least one,
+   *  so absence is absence (see `census-collision.ts`'s conditional assignment), never a zeroed row. */
+  readonly "reveal-coverage"?: RelationalCensusAccountingInput;
   readonly "row-void": RelationalCensusAccountingInput;
   readonly "selection-idiom"?: RelationalCensusAccountingInput;
   readonly "tier-drift"?: RelationalCensusAccountingInput;
