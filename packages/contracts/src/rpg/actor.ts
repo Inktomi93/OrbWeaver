@@ -17,9 +17,11 @@
 // `cast` addresses scene-only NPCs by a real normalized SLUG ({@link rpgCastSlug}) with the display name
 // carried separately on `identity.name` — the tracker unification's own key/label lesson applied to people
 // (the doc used to CLAIM a "normalized-name key" while storing the verbatim model-authored name, so a rename
-// was impossible and case variance minted sibling identities). Full ADDS the `{kind:"npc"}` arm when
-// `rpg_npcs` lands — an additive union member every `assertNever` consumer is compile-forced to handle
-// (shipping it now would mint a dead `RpgNpcId` brand FK-ing a nonexistent table).
+// was impossible and case variance minted sibling identities). Full ADDS the `{kind:"libraryNpc"}` arm
+// when the cross-game `rpg_npcs` library lands — an additive union member every `assertNever` consumer is
+// compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
+// table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
+// above: a cross-game library ROW and a scene-only extra are two different addresses.
 
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -98,7 +100,8 @@ export function rpgCastSlug(name: string): string {
 }
 
 /** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
- *  its stable {@link rpgCastSlug} `key`. Full ADDS `{kind:"npc"}` (additive — `assertNever` consumers error).
+ *  its stable {@link rpgCastSlug} `key`. Full ADDS `{kind:"libraryNpc"}` — the reserved cross-game library
+ *  arm (additive — `assertNever` consumers error).
  *
  *  PREVENT-AT-SCHEMA on the cast key (the R6 enum-constraint / stamped-id write-boundary precedent): a cast
  *  key must ALREADY BE its own slug, so a non-canonical one is unrepresentable at the wire rather than
