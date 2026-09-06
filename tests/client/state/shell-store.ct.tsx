@@ -9,7 +9,7 @@
 // explicitly set.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ShellStoreProbe } from "./_ct-stories.tsx";
+import { ContentSwapFloatProbe, ShellStoreProbe } from "./_ct-stories.tsx";
 
 // The BORN default is `home` (owner decision H1 = D-1) — a fresh install lands on the section that HAS a
 // launcher, not on "nothing selected".
@@ -365,4 +365,78 @@ test("a persisted activeSection naming a RETIRED section heals to its successor,
   await expect(state).toContainText("section=config");
   // The retired section's panel overrides do NOT ride along — `config` keeps its own declared defaults.
   await expect(state).toContainText("list=none");
+});
+
+// ── THE CONTENT-SWAP FLOAT LIFETIME (#1795, UI-Arch §4a) ──────────────────────────────────────────────
+// The View Transition is scoped to `.shell-content` and every modal portals to a root OUTSIDE it, so a
+// swap neither captures nor hides an open float: whether a task-scoped dialog outlives the content it was
+// opened against is a PRODUCT rule, and these two tests are the rule. The observable is the rendered
+// dialog's accessible name — the store's `openModal` field is not what a person is looking at.
+
+test("a CONTENT-scoped float does not outlive a rail-section swap, and a GLOBAL one does", async ({ mount }) => {
+  const probe = await mount(<ContentSwapFloatProbe />);
+  const page = probe.page();
+
+  // The imagery lightbox — its subject is an image inside the room the reader is standing in.
+  await probe.getByRole("button", { name: "view the room image" }).click();
+  await expect(page.getByRole("dialog", { name: "Image" })).toBeVisible();
+
+  await probe.getByTestId("ct-go-corpus").dispatchEvent("click");
+  await expect(probe.locator("output")).toContainText("section=corpus");
+  await expect(page.getByRole("dialog", { name: "Image" })).toHaveCount(0);
+
+  // The ingest ceremony is reachable from every section, so the same swap must leave it standing.
+  await probe.getByRole("button", { name: "add a document" }).click();
+  await expect(page.getByRole("dialog", { name: "Add a document" })).toBeVisible();
+
+  await probe.getByTestId("ct-go-chats").dispatchEvent("click");
+  await expect(probe.locator("output")).toContainText("section=chats");
+  await expect(page.getByRole("dialog", { name: "Add a document" })).toBeVisible();
+});
+
+test("a CONTENT-scoped float does not outlive a ROOM swap either — the swap door is the rule, not the rail", async ({ mount }) => {
+  const probe = await mount(<ContentSwapFloatProbe />);
+  const page = probe.page();
+
+  await probe.getByRole("button", { name: "view the room image" }).click();
+  await expect(page.getByRole("dialog", { name: "Image" })).toBeVisible();
+
+  await probe.getByTestId("ct-open-room").dispatchEvent("click");
+  await expect(page.getByRole("dialog", { name: "Image" })).toHaveCount(0);
+
+  await probe.getByRole("button", { name: "add a document" }).click();
+  await probe.getByTestId("ct-open-room").dispatchEvent("click");
+  await expect(page.getByRole("dialog", { name: "Add a document" })).toBeVisible();
+});
+
+test("withContentSwap dismisses the CONTENT-scoped float on its own — the door, not the caller's write", async ({ mount }) => {
+  const probe = await mount(<ContentSwapFloatProbe />);
+  const page = probe.page();
+
+  await probe.getByRole("button", { name: "view the room image" }).click();
+  await expect(page.getByRole("dialog", { name: "Image" })).toBeVisible();
+
+  // No section change, no room change — the swap door alone, so what the assertion below can be about is
+  // the lifetime rule and nothing else.
+  await probe.getByTestId("ct-bare-swap").dispatchEvent("click");
+  await expect(page.getByRole("dialog", { name: "Image" })).toHaveCount(0);
+  await expect(probe.locator("output")).toContainText("section=home");
+
+  // …and it is genuinely selective, not "close whatever is open".
+  await probe.getByRole("button", { name: "add a document" }).click();
+  await probe.getByTestId("ct-bare-swap").dispatchEvent("click");
+  await expect(page.getByRole("dialog", { name: "Add a document" })).toBeVisible();
+});
+
+// The ordering half of the same rule: the float to strand is the one open when the swap is RAISED, not
+// whatever is open when the deferred transition callback finally runs. A launcher that navigates and then
+// opens a content-scoped float for its destination is an ordinary intent (the app-shell per-slot modal
+// stories are exactly that shape), and reading the slot inside the callback swallows it one tick later.
+test("a CONTENT-scoped float opened AFTER the swap was raised survives it", async ({ mount }) => {
+  const probe = await mount(<ContentSwapFloatProbe />);
+  const page = probe.page();
+
+  await probe.getByRole("button", { name: "go corpus and open the lightbox" }).click();
+  await expect(probe.locator("output")).toContainText("section=corpus");
+  await expect(page.getByRole("dialog", { name: "Image" })).toBeVisible();
 });

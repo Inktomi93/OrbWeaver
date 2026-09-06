@@ -1048,7 +1048,15 @@
  * shearing against the FLIP moving the chrome around it.
  *
  * REDUCED MOTION needs nothing here: `withViewTransition` starts no transition at all under
- * `motionIsReduced()` (guide §3.9 — REMOVE, not shorten). */
+ * `motionIsReduced()` (guide §3.9 — REMOVE, not shorten).
+ *
+ * AND EVERYTHING NOT NAMED HERE STAYS LIVE (#1795). Opting the root out does not merely stop the double
+ * paint — it leaves chrome AND every portalled float (the ModalHost dialog/drawer, popovers, menus,
+ * tooltips) painting and hit-testable over the swap, because the portal root is a SIBLING of `.shell-grid`
+ * (see `app-shell.tsx`) and only `.shell-content` is captured. So a float does not go away because the
+ * content under it changed. Which floats MAY outlive a swap is declared in `state/modal-slot-ids.ts`
+ * (`MODAL_CONTENT_LIFETIME`) and applied in `state/shell-store.ts` (`withContentSwap`) — never in CSS, and
+ * never by adding a second `view-transition-name` to reach a float. */
 :root {
   view-transition-name: none;
 }

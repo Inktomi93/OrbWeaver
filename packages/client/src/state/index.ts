@@ -434,6 +434,7 @@ export {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  withContentSwap,
 } from "./shell-store.ts";
 export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";

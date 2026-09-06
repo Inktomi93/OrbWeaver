@@ -7,6 +7,16 @@
 // the document root opts OUT of capture and `.shell-content` is the single named region, so a swap
 // cross-fades content while the shell's chrome keeps its own FLIP/transform motion. Read that block
 // before adding a `view-transition-name` anywhere — a second name is a second captured region.
+// WHAT STAYS LIVE follows from the same ruling, and it is not the CSS default a caller assumes: chrome and
+// every PORTALLED FLOAT (dialog, drawer, popover, menu, tooltip, toast) are neither snapshotted nor hidden
+// by a swap — the shell's portal root is a SIBLING of `.shell-grid`, outside the one captured region — so
+// they keep painting, and stay hit-testable, over content that has already changed. Whether a given float
+// MAY do that is a product rule with a declared answer, and it is NOT decided here: this module is `#lib`,
+// below `#state`, so reading the open modal slot from it would be an upward import. The rule lives one
+// tier up — `MODAL_CONTENT_LIFETIME` (state/modal-slot-ids.ts) declares it per slot, `withContentSwap`
+// (state/shell-store.ts) applies it. A `#state` action that swaps what CONTENT shows calls THAT; this
+// function stays the wrapper for a transition that is not a content swap (and the one `withContentSwap`
+// itself composes) — UI-Arch §4a, #1795.
 // DOM access rides `globalThis` with self-contained structural types (not the `dom` lib): the node
 // typecheck lane (vitest `test:types`) follows imports into this file through the lib barrel, and
 // the root tsconfig deliberately has no `dom` lib — browser reality is unchanged, the types are
