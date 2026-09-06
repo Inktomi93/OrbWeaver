@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { SurfaceManifest } from "../../../../tooling/src/verify/index.ts";
 import {
   BASE_UI_MANIFEST_REL,
@@ -25,6 +25,13 @@ import {
   truncatedParts,
 } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// Three cases SPAWN the real generator CLI (`verify baseline baseui-surface`) over a scratch tree, paying
+// a real `node` boot + ts-morph import — measured 2.7-6.9s even on a near-quiet box (per-core 0.93, no
+// contention scaling in force), well past vitest's 5s DEFAULT (#1248). Declared explicitly so this file
+// never depends on inheriting the ambient default.
+vi.setConfig({ testTimeout: scaledBudget(20_000), hookTimeout: scaledBudget(20_000) });
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 // The generator is a cli VERB now (`cli.ts baseline baseui-surface`), never a runnable file — the tool
