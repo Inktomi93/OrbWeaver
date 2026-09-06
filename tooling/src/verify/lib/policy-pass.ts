@@ -482,21 +482,21 @@ function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFact
 
 interface CreateRunsInput {
   readonly runs: readonly PolicyRun[];
-  readonly input: PolicyPassInput;
+  readonly paths: ReadonlyMap<object, string>;
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
   readonly errors: PolicyToolError[];
   readonly factValues: PolicyFactValueRegistry;
 }
 
-function createRuns({ runs, input, resources, checker, errors, factValues }: CreateRunsInput): void {
+function createRuns({ runs, paths, resources, checker, errors, factValues }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
     }
     const runtime = makePolicyContext({
       policy: run.policy,
-      root: input.root,
+      paths,
       files: run.files,
       resourcePaths: run.population.effectiveResourcePaths,
       resources,
@@ -519,13 +519,13 @@ function createRuns({ runs, input, resources, checker, errors, factValues }: Cre
 
 interface CreateFactRunsInput {
   readonly runs: readonly FactRun[];
-  readonly input: PolicyPassInput;
+  readonly paths: ReadonlyMap<object, string>;
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
   readonly control: FactControl;
 }
 
-function createFactRuns({ runs, input, resources, checker, control }: CreateFactRunsInput): void {
+function createFactRuns({ runs, paths, resources, checker, control }: CreateFactRunsInput): void {
   for (const run of runs) {
     if (run.status !== "success") {
       continue;
@@ -533,7 +533,7 @@ function createFactRuns({ runs, input, resources, checker, control }: CreateFact
     const runtime = makeFactContext({
       ownerId: run.fact.id,
       analysis: run.fact.analysis,
-      root: input.root,
+      paths,
       files: run.files,
       resourcePaths: run.population.effectiveResourcePaths,
       resources,
@@ -805,8 +805,10 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     checker ??= input.project.getTypeChecker();
     return checker;
   };
-  createFactRuns({ runs: factRuns, input, resources, checker: sharedChecker, control: factControl });
-  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors, factValues });
+  // The ONE path resolution: every owner context looks its files up here instead of re-deriving them per visit.
+  const paths: ReadonlyMap<object, string> = new Map([...sourceFiles].map(([path, sourceFile]) => [sourceFile.compilerNode, path]));
+  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, control: factControl });
+  createRuns({ runs, paths, resources, checker: sharedChecker, errors: toolErrors, factValues });
   // The shared readers' per-file write caches live for exactly this pass (walk + evaluate both query them).
   beginReferencePass();
   try {

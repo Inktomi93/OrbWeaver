@@ -1,5 +1,4 @@
 // Builds the capability-bounded policy context and owns anchored finding/receipt collection.
-import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { ts } from "ts-morph";
 import type { GateFact, GateFactContext, GateFactValue } from "../contract/fact.ts";
@@ -27,7 +26,8 @@ const RESOURCE_RECEIPT_KEYS = new Set(["kind", "source", "resources", "unresolve
 
 interface ContextInput {
   readonly policy: GatePolicy;
-  readonly root: string;
+  /** Repo-relative POSIX path per workspace SourceFile (keyed by its compiler node), resolved ONCE by the pass. */
+  readonly paths: ReadonlyMap<object, string>;
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;
@@ -55,7 +55,7 @@ export interface PolicyContextRuntime {
 interface CapabilityContextInput {
   readonly ownerId: string;
   readonly analysis: GatePolicy["analysis"];
-  readonly root: string;
+  readonly paths: ReadonlyMap<object, string>;
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
   readonly resources: ResourceHost;
@@ -121,16 +121,6 @@ function derivedNodePosition(node: Node): { readonly offset: number; readonly to
     }
   }
   throw new Error(`node finding cannot derive a nonempty authored position token from ${node.getKindName()}`);
-}
-
-function repoRelative(root: string, sourceFile: SourceFile): string {
-  const rel = relative(resolve(root), resolve(sourceFile.getFilePath()));
-  const normalized = sep === "/" ? rel : rel.split(sep).join("/");
-  if (normalized.length === 0 || isAbsolute(rel) || normalized === ".." || normalized.startsWith("../")) {
-    throw new Error(`source file is outside the policy root: ${sourceFile.getFilePath()}`);
-  }
-  assertRepoPathIdentity(normalized, "source file path");
-  return normalized;
 }
 
 function assertCoordinate(value: number | undefined, label: string): number {
@@ -201,17 +191,29 @@ function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, value: unkn
 function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntime {
   const files = Object.freeze([...input.files]);
   const resourcePaths = Object.freeze([...input.resourcePaths]);
-  const paths = new Map(files.map((candidate) => [repoRelative(input.root, candidate), candidate]));
-  const sourceIdentities = new Set(files.map((candidate) => candidate.compilerNode));
+  // Per-owner path tables are LOOKUPS into the pass's one resolution: `relativePath` runs on every visited
+  // node (56 policy call sites + every `report.node`), and re-deriving `relative(resolve(root), …)` plus the
+  // identity asserts there was ~7 s of a 46 s composed pass (node:path 5.3 s + the asserts, profiled 2026-09-06).
+  const pathByIdentity = new Map<object, string>(
+    files.map((candidate) => {
+      const path = input.paths.get(candidate.compilerNode);
+      if (path === undefined) {
+        throw new Error(`source file is outside the policy root: ${candidate.getFilePath()}`);
+      }
+      return [candidate.compilerNode, path];
+    }),
+  );
+  const paths = new Map(files.map((candidate) => [pathByIdentity.get(candidate.compilerNode) as string, candidate]));
   const receipts = new Map<string, PolicySemanticReceipt>();
   const consumedResources = new Set<string>();
   const consumedResourceRequests = new Set<string>();
 
   const relativePath = (candidate: SourceFile): string => {
-    if (!sourceIdentities.has(candidate.compilerNode)) {
+    const path = pathByIdentity.get(candidate.compilerNode);
+    if (path === undefined) {
       throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}`);
     }
-    return repoRelative(input.root, candidate);
+    return path;
   };
   const sourceFile = (path: string): SourceFile => {
     assertRepoPathIdentity(path, "sourceFile path");
@@ -263,7 +265,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const capability = makeCapabilityContext({
     ownerId: input.policy.id,
     analysis: input.policy.analysis,
-    root: input.root,
+    paths: input.paths,
     files: input.files,
     resourcePaths: input.resourcePaths,
     resources: input.resources,
