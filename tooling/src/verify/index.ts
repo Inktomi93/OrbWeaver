@@ -118,6 +118,7 @@ export { programsFor, staticPrograms } from "./lib/program-routing.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
 export { renderPass } from "./lib/render.ts";
 export { canonicalResourceDeclarations, resolvePolicyResourcePaths, resolveResourceDeclarations, resourceRequestIdentity } from "./lib/resource-declaration.ts";
+export { REVIEWED_GRANTS, reviewedGrantsFor } from "./lib/reviewed-grants.ts";
 export type { Parsed } from "./lib/run-argv.ts";
 export { parse } from "./lib/run-argv.ts";
 export { failReason, printSummary } from "./lib/run-render.ts";
