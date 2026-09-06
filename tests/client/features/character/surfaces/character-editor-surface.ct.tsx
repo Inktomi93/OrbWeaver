@@ -571,6 +571,26 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
   await expect(census).toHaveAttribute("title", TOKEN_SENT_EVERY_TURN_RE);
 });
 
+// #844 P3 (side-eye 2026-09-05, docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md "[P3]
+// wide-tracking 0.08em on the token-count datum") — the census is a NUMERIC DATUM, not a label, and
+// `size="micro"` bakes in `tracking-micro` (0.08em, the section-NAME tracking). It now rides
+// `voice="gloss"` (the same recipe `analytics-list-surface.tsx`'s leaderboard datum uses), which resolves
+// the identical text-micro/muted step WITHOUT the label tracking. Pinned by COMPUTED letter-spacing, not
+// class presence — a planted `wide-tracking`-equivalent class (`tracking-micro`) on the datum reads red:
+// on an UNMODIFIED tree (the source this fix replaced) this assertion measures the failing 0.84px
+// (10.5px × 0.08em), proven by restoring `character-editor-surface.tsx` to HEAD~ during authoring.
+test("#844 P3 the token census datum carries no wide letter-spacing", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHARACTER_EDITOR_AMBIENT_ROUTES, "character.get": () => OVERVIEW_CARD, "chat.listChats": chatListResponder([]) });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const census = component.getByText(TOKEN_TOTAL_RE).first();
+  await expect(census).toBeVisible();
+  const letterSpacingPx = await census.evaluate((node) => Number.parseFloat(globalThis.getComputedStyle(node).letterSpacing) || 0);
+  // `tracking-normal` resolves to `normal` (0px); the defect's `tracking-micro` at this font-size computes
+  // to 0.84px — assert well under that so a regression back to the label tracking reads red.
+  expect(letterSpacingPx).toBeLessThan(0.1);
+});
+
 // F4 (the ruling: a CONTEXT panel that opens to "Open a field to inspect it" fails its instrument tier)
 // SURVIVES — its INPUT changed. #513 replaced the card's four ECHO rows (tokens · openings · tags · chats,
 // all of which CONTENT prints 300px to the left) with rows CONTENT never shows. So this pin asserts BOTH

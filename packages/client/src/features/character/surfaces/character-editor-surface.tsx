@@ -258,11 +258,16 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                 {(values): ReactElement => (
                   <Text
                     aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} permanent — sent every turn`}
-                    className="font-mono"
-                    size="micro"
+                    className="font-mono tabular-nums"
                     title={`${permanentTokenCount(values)} permanent tokens are sent every turn; the rest ride the active greeting.`}
-                    tone="muted"
+                    voice="gloss"
                   >
+                    {/* HOUSE NUMERIC-DATUM TREATMENT (side-eye #844 P3, 2026-09-05) — this is a DATUM, not a
+                        label, and `size="micro"` bakes in `tracking-micro` (0.08em), the section-NAME
+                        tracking. `voice="gloss"` resolves the identical text-micro/muted step without the
+                        label tracking, plus `tabular-nums` so the live count doesn't jitter columns as it
+                        ticks — the same recipe `analytics-list-surface.tsx`'s leaderboard datum already
+                        uses (`voice="gloss" className="font-mono tabular-nums"`), not a new one. */}
                     {/* GROUPED (#878 F13) — the same `@orb/kit/strings` grouper the context band's token
                         chip prints through, so the editor and the pane cannot spell one number two ways.
                         The `aria-label` above stays UNGROUPED on purpose: a screen reader groups the digits
