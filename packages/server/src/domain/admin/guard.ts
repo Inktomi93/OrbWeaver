@@ -23,16 +23,16 @@ function decideGlobal(principal: Principal, action: GlobalAction): void {
   }
 }
 
-/** The chat-scope decision — a pure verdict over the roster fed in. Exhaustive over `ChatAction`: a new
+/** The chat-scope decision — a pure verdict over the membership fed in. Exhaustive over `ChatAction`: a new
  *  action fails tsc at the `never`. */
-function decideChat(action: ChatAction, roster: ChatMembership): void {
+function decideChat(action: ChatAction, membership: ChatMembership): void {
   switch (action) {
     case "read":
       // Present membership is established by chat's `loadMemberChat` before `can()` is reached. Any present
       // member reads in v1 — this is the seam where a future `observer` participant kind will deny.
       return;
     case "host":
-      if (roster.role !== "host") {
+      if (membership.role !== "host") {
         throw new DomainForbiddenError("requires the room host");
       }
       return;
@@ -51,7 +51,7 @@ export const can: Can = (principal: Principal, action: GlobalAction | ChatAction
       decideGlobal(principal, action as GlobalAction);
       return;
     case "chat":
-      decideChat(action as ChatAction, resource.roster);
+      decideChat(action as ChatAction, resource.membership);
       return;
     default: {
       const _exhaustive: never = resource;

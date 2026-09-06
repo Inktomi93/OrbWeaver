@@ -67,7 +67,7 @@ function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): Rpg
 function partyTotals(actors: RpgTrackerView["actors"]): ReadonlyMap<string, number> {
   const totals = new Map<string, number>();
   for (const actor of actors) {
-    if (actor.actorRef.kind === "cast") {
+    if (actor.actorRef.kind === "npc") {
       continue;
     }
     for (const coin of actor.volatile?.wallet ?? []) {
@@ -99,7 +99,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   // Is the SELECTED subject part of the party total? Cast NPCs are reachable subjects since R2 (that is how
   // their pack became visible at all) but their coin is theirs, not the party's — the same exclusion
   // `partyTotals` makes, read back at the note that would otherwise contradict it.
-  const isPartyActor = actor !== undefined && actor.actorRef.kind !== "cast";
+  const isPartyActor = actor !== undefined && actor.actorRef.kind !== "npc";
   // The ephemeral "last change" line — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
@@ -126,7 +126,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
         </Row>
       ) : null}
       {/* The carried NOTE is only meaningful for an actor whose coin is IN the total: `partyTotals` excludes
-          cast NPCs, so pairing an NPC's purse with the party total would read "N of the total is on her" about
+          npcs, so pairing an NPC's purse with the party total would read "N of the total is on her" about
           coin the total never counted. Her own purse still renders — on her Sheet chip, where it belongs. */}
       <PurseLine totals={totals} {...(isPartyActor ? { carried, actorName: actor.name } : {})} />
 
@@ -240,7 +240,7 @@ function buildPackEdit(
 
 /** The pinned party-purse line — totals per currency + the "N on <actor>" carried note.
  *
- *  `carried`/`actorName` are OMITTED for a subject whose coin is not in the total (a cast NPC — see the call
+ *  `carried`/`actorName` are OMITTED for a subject whose coin is not in the total (an npc — see the call
  *  site). The note's grammar is "N OF the total is on X"; pairing it with an excluded purse said the opposite
  *  of what `partyTotals` counted, and the reader has no way to tell which number lied. */
 function PurseLine({

@@ -33,7 +33,13 @@ import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "@orb/server/foundation/env";
-import type { EngineLaunchConfig, EngineLaunchIdentity, EngineSpawnSpec, EngineUtilFractions } from "@orb/server/infra/providers/vllm/engine";
+import type {
+  EngineLaunchConfig,
+  EngineLaunchIdentity,
+  EngineLaunchMarker,
+  EngineSpawnSpec,
+  EngineUtilFractions,
+} from "@orb/server/infra/providers/vllm/engine";
 import {
   buildEngineSpawnSpec,
   captureEngineLaunchIdentity,
@@ -42,6 +48,7 @@ import {
   engineIdentityFilePath,
   engineVramNeed,
   fleetRunDir,
+  mintEngineLaunchMarker,
   queryGpuVram,
   reapOrphanedFamily,
   resolveEngineLaunchConfig,
@@ -226,8 +233,9 @@ async function launchOneEngine(opts: {
   readonly gpuCount: number;
   readonly probes: EngineLaunchProbes;
   readonly baseEnv: NodeJS.ProcessEnv;
+  readonly launchMarker: EngineLaunchMarker;
 }): Promise<EngineLaunchResult> {
-  const { engine, port, launch, deployment, gpuCount, probes, baseEnv } = opts;
+  const { engine, port, launch, deployment, gpuCount, probes, baseEnv, launchMarker } = opts;
   const decision = await decideEngineLaunch({ engine, port, launch, probes });
   log(decision.message);
   // Every non-spawn verdict ends this engine's turn; whether it also fails the FLEET is the decision
@@ -235,7 +243,7 @@ async function launchOneEngine(opts: {
   if (decision.action !== "spawn") {
     return { outcome: classifyEngineBoot(engine, decision.action, null) };
   }
-  const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
+  const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv, launchMarker });
   const child = spawnEngine(engine, spec);
   const wait = await waitHealthy(engine, port, child);
   // A child that exited (or never got a pid) can carry no identity — and, since #1494, is a BOOT FAILURE
@@ -262,9 +270,14 @@ async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<ty
   };
   const baseEnv = processEnvSnapshot();
   const probes = launchProbes(gpuCount);
+  // ONE marker per LAUNCHER INVOCATION (#1756), stamped into every engine it spawns — "started by THIS
+  // launch" is the fact `adoptEngineGroup` needs after a leader dies, and each engine's own recorded pgid
+  // already keeps the three groups apart. Minted here rather than inside the spec builder so the spawn spec
+  // stays a pure function of its inputs (its argv/env snapshots are the launcher's only safe proof).
+  const launchMarker = mintEngineLaunchMarker();
   await VLLM_ENGINES.reduce<Promise<void>>(async (prior, engine) => {
     await prior;
-    const result = await launchOneEngine({ engine, port: portOf[engine], launch, deployment, gpuCount, probes, baseEnv });
+    const result = await launchOneEngine({ engine, port: portOf[engine], launch, deployment, gpuCount, probes, baseEnv, launchMarker });
     if (result.child !== undefined) {
       children.push(result.child);
     }

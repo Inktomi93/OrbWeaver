@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # UI density law — the assignment law for the token scales
@@ -206,3 +206,4 @@ A sweep stage that converts call sites ends with a `side-eye` pass against the s
 | D8 | two tiers, or a third `gallery` tier for library grids | TWO — library grids map cleanly onto `form` |
 | D9 | keep the user-pref `data-density="comfortable\|compact"` axis alongside tiers | KEEP, orthogonal |
 | D10 | the exact instrument paddings in §3.1 are taste-level | ship the table; tune from a side-eye pass, never in the abstract |
+| D11 | preset editor's compressed type ramp (10.5/13/15/16px, ratio 1.524:1) — accept and record, or widen a step | owner ruling 2026-09-06, #1769: ACCEPT AND RECORD — a dense `form` may run a compressed size ramp (≥1.5:1 across its body sizes) when grouping is carried by the `kicker` voice + `Section` rules, not by size. Measured on the preset editor (`e51663b49`): `13px/500` ×28 (control labels), `15px/400` ×12 (body), `13px/400` ×5, `10.5px/600` ×5 (kickers), `16px/600` ×1 (the h2); the kicker's discriminating class string is `packages/ui/src/primitives/text/variants.ts:51` (`font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground`). The page-level design-audit `flat-type-hierarchy` floor (`FLAT_HIERARCHY_MIN_RATIO = 2.0`) is UNCHANGED and still applies to the PAGE census — it clears when a display-tier voice (a `24px` section title, a preset-name h2) supplies the top step; this ruling exempts only a dense form BODY's own internal ramp, never the page-level floor |

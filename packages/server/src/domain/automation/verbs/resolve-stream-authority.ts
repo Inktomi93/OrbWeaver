@@ -26,7 +26,7 @@ export function createResolveStreamAuthority(ctx: AutomationContext): Automation
     // class), never a leak. Ends if `can()` grows a distinct infra-error class this narrowing must stop
     // swallowing.
     try {
-      ctx.can(principal, "host", { kind: "chat", roster: { role } });
+      ctx.can(principal, "host", { kind: "chat", membership: { role } });
       return "host";
     } catch {
       // A present member who is not host — a KNOWN participant, so their stream is legitimate (they receive

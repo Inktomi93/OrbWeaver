@@ -21,11 +21,22 @@
 //
 // The deck is an instrument ISLAND inside the form-tier editor (§2 — the density law's sanctioned reverse
 // nesting). OUTPUT/CONTEXT/ADVANCED live in params-limits.tsx (the component-size cap).
+//
+// EVERY NON-KNOB ROW IS A SHARED-TRACK ROW (#1770). The deck's `<Field>` rows used to sit in
+// `FieldLayout orientation="horizontal"`'s DEFAULT `block` arm — a flex `justify-between` against the pane
+// with a `w-(--width-control-col)` dock — so the distance from a name to its control was whatever the
+// window happened to be: `design-audit` filed five `row-void`s on this tab at 46-57% of a 544px row
+// (Quality · Seed · Reasoning · Effort · Verbatim tail), and the gap GREW with the pane (452px at 720,
+// 476px at 1520, with the control's x moving with it). They are `SettingRowGroup` + `ParamsRow` now
+// (#932's ratified answer): the label track is `--width-control-col`, so every control on the deck starts
+// at ONE x that does not move — measured identical at 560/720/1120/1520 and stacked below the group's own
+// step. A knob row is NOT one of these: its control is a flexing rail, which is `KnobGrid`'s own track set
+// (`--width-label-col`), and the two tokens are deliberately different widths (see their descriptions).
 
 import type { EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
 import type { PromptConfig, Quality } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { Field, FieldLayout } from "@orb/ui/field";
+import { Field } from "@orb/ui/field";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack, Surface } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -34,6 +45,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { SettingRowGroup } from "#components";
 import type { AppFormInstance } from "#forms";
 import {
   pageStep,
@@ -51,6 +63,7 @@ import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { CapabilityGate } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
+import { ParamsRow } from "./params-row.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -154,34 +167,36 @@ export function ParamsDeck({ form, capability, effective, capabilityError }: Par
 function QualityCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   return (
     <Section kicker="Quality">
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="params.quality">
-          {(field): ReactElement => {
-            const current = field.state.value as Quality | undefined;
-            // ONE LINE (crunch-list 5): the MAPPING datum ("deep → effort high · temperature 1", the
-            // server's own projection of the dial table) joined with the OVERRIDE status, exactly as the
-            // mock draws it. Both halves stay separate derivations in `effective-knobs.ts`.
-            const gloss = qualityDeckGloss(effective, current);
-            return (
-              <Stack gap="tight">
-                <Field
-                  hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it."
-                  label="Quality"
-                  name={field.name}
-                >
-                  <Select
-                    aria-label="Quality"
-                    items={QUALITY_SELECT_ITEMS}
-                    onValueChange={(next): void => field.handleChange(qualityFromSelect(next))}
-                    value={qualitySelectValue(current)}
-                  />
-                </Field>
-                {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
-              </Stack>
-            );
-          }}
-        </form.AppField>
-      </FieldLayout>
+      <form.AppField name="params.quality">
+        {(field): ReactElement => {
+          const current = field.state.value as Quality | undefined;
+          // ONE LINE (crunch-list 5): the MAPPING datum ("deep → effort high · temperature 1", the
+          // server's own projection of the dial table) joined with the OVERRIDE status, exactly as the
+          // mock draws it. Both halves stay separate derivations in `effective-knobs.ts`.
+          const gloss = qualityDeckGloss(effective, current);
+          return (
+            <Stack gap="tight">
+              <SettingRowGroup>
+                <ParamsRow>
+                  <Field
+                    hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it."
+                    label="Quality"
+                    name={field.name}
+                  >
+                    <Select
+                      aria-label="Quality"
+                      items={QUALITY_SELECT_ITEMS}
+                      onValueChange={(next): void => field.handleChange(qualityFromSelect(next))}
+                      value={qualitySelectValue(current)}
+                    />
+                  </Field>
+                </ParamsRow>
+              </SettingRowGroup>
+              {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
+            </Stack>
+          );
+        }}
+      </form.AppField>
     </Section>
   );
 }
@@ -230,11 +245,13 @@ function SamplingCluster({
         )}
       </form.Subscribe>
       {supportsSeed(capability) ? (
-        <FieldLayout orientation="horizontal">
-          <form.AppField name="params.seed">
-            {(field): ReactElement => <field.NumberField hint="A fixed seed makes sampling reproducible." label="Seed" placeholder="random" />}
-          </form.AppField>
-        </FieldLayout>
+        <SettingRowGroup>
+          <ParamsRow>
+            <form.AppField name="params.seed">
+              {(field): ReactElement => <field.NumberField hint="A fixed seed makes sampling reproducible." label="Seed" placeholder="random" />}
+            </form.AppField>
+          </ParamsRow>
+        </SettingRowGroup>
       ) : null}
       <StalenessRow form={form} stale={effective?.stale ?? []} />
     </Section>
@@ -298,40 +315,50 @@ function ReasoningCluster({
     return (
       <Section kicker="Reasoning">
         <Text voice="gloss">This model does not expose reasoning controls.</Text>
-        <ThinkingDisplayField effective={effective} form={form} />
+        <SettingRowGroup>
+          <ThinkingDisplayField effective={effective} form={form} />
+        </SettingRowGroup>
       </Section>
     );
   }
   return (
     <Section kicker="Reasoning">
-      <FieldLayout orientation="horizontal">
+      <SettingRowGroup>
         <form.AppField name="params.effort">
           {(field): ReactElement => {
             const effort = field.state.value as EffortLevel | "none" | undefined;
             const on = effort !== "none";
             return (
-              <Stack gap="field">
-                <Field label="Reasoning" name={field.name}>
-                  {/* THE `aria-label` HERE IS A LIE THE TREE NEVER REPEATS, and it cannot simply be deleted
+              // A FRAGMENT, NOT A BOX: both rows are CELLS of the group's shared track set (the switch and
+              // the effort select start their controls at one x), and a wrapper would make the pair ONE
+              // grid item, which is the same reason `KnobRow` returns a fragment into `KnobGrid`.
+              <>
+                <ParamsRow>
+                  <Field label="Reasoning" name={field.name}>
+                    {/* THE `aria-label` HERE IS A LIE THE TREE NEVER REPEATS, and it cannot simply be deleted
                       (#1621). "Enable reasoning" is a DIFFERENT string from the Field's label, and it loses to
                       the Field's `aria-labelledby` — the switch announces "Reasoning"
                       (`tests/client/a11y/field-control-name.suite.ct.tsx`). Deleting it would red
                       `jsx-a11y/control-has-associated-label`, which resolves `Switch` to `button` and cannot
                       see the render-time context injection. So it is aligned to the name the tree actually
                       reports instead: the attribute stays for the rule, and stops promising a second name. */}
-                  <Switch aria-label="Reasoning" checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
-                </Field>
+                    <Switch aria-label="Reasoning" checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
+                  </Field>
+                </ParamsRow>
                 {on && control.kind === "effort" ? <EffortField levels={control.effortLevels ?? []} onChange={field.handleChange} value={effort} /> : null}
-              </Stack>
+              </>
             );
           }}
         </form.AppField>
-        {control.kind === "budget" && control.budgetRange !== undefined ? <BudgetKnob effective={effective} form={form} range={control.budgetRange} /> : null}
-        {control.kind === "adaptive" ? (
-          <Text voice="gloss">This model reasons adaptively — it self-budgets per turn, so there is no manual effort dial.</Text>
-        ) : null}
         <ThinkingDisplayField effective={effective} form={form} />
-      </FieldLayout>
+      </SettingRowGroup>
+      {/* OUTSIDE the row group, both of them: a KnobGrid declares its OWN tracks (a rail is not a docked
+          control column) and the adaptive note is a paragraph, and either one dropped into the group's
+          grid would take the label track alone. */}
+      {control.kind === "budget" && control.budgetRange !== undefined ? <BudgetKnob effective={effective} form={form} range={control.budgetRange} /> : null}
+      {control.kind === "adaptive" ? (
+        <Text voice="gloss">This model reasons adaptively — it self-budgets per turn, so there is no manual effort dial.</Text>
+      ) : null}
     </Section>
   );
 }
@@ -379,15 +406,17 @@ function EffortField({
   }
   const items: SelectItems<string> = levels.map((level) => ({ value: level, label: level }));
   return (
-    <Field label="Effort" name="reasoning-effort">
-      <Select
-        aria-label="Effort"
-        items={items}
-        onValueChange={(next): void => onChange(next === null || next === "" ? undefined : (next as EffortLevel))}
-        placeholder="Model default"
-        value={value ?? ""}
-      />
-    </Field>
+    <ParamsRow>
+      <Field label="Effort" name="reasoning-effort">
+        <Select
+          aria-label="Effort"
+          items={items}
+          onValueChange={(next): void => onChange(next === null || next === "" ? undefined : (next as EffortLevel))}
+          placeholder="Model default"
+          value={value ?? ""}
+        />
+      </Field>
+    </ParamsRow>
   );
 }
 
@@ -397,15 +426,17 @@ function EffortField({
 function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   const resolved = effective?.knobs["thinkingDisplay"]?.value;
   return (
-    <form.AppField name="params.thinkingDisplay">
-      {(field): ReactElement => (
-        <field.SelectField
-          hint="How the model's reasoning is shown, when it reasons."
-          items={THINKING_DISPLAY_ITEMS}
-          label="Reasoning display"
-          placeholder={resolved === undefined ? "Model default" : thinkingDisplayLabel(String(resolved))}
-        />
-      )}
-    </form.AppField>
+    <ParamsRow>
+      <form.AppField name="params.thinkingDisplay">
+        {(field): ReactElement => (
+          <field.SelectField
+            hint="How the model's reasoning is shown, when it reasons."
+            items={THINKING_DISPLAY_ITEMS}
+            label="Reasoning display"
+            placeholder={resolved === undefined ? "Model default" : thinkingDisplayLabel(String(resolved))}
+          />
+        )}
+      </form.AppField>
+    </ParamsRow>
   );
 }

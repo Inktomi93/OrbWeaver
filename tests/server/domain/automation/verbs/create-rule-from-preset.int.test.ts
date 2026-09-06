@@ -52,7 +52,7 @@ const BAD_KNOB = /knob 'everyN'/;
  *  default, so there is no `""` to fall through the arm schema's "Suffix should have 26 characters"). A
  *  real-but-unattached id still refuses one step later at `createRule`'s attachment check — that one is a
  *  LIVE fact no picker can pre-empt. Either way: typed, at mint, never stored. */
-const NO_BOOK = /knob 'bookId': choose a lorebook/u;
+const NO_BOOK = /knob 'bookId': choose a world book/u;
 /** The LIVE half of the same guard — `substrate/validate.ts`'s attachment probe, one step after the knob. */
 const UNATTACHED_BOOK = /is not attached to this chat/u;
 

@@ -33,7 +33,7 @@ export interface ListGlobalVariablesParams extends AutomationActorParams {
 }
 
 // ── rule-lifecycle verb params ──────────────────────────────────────────────────────────────────
-// Every rule verb gates `can(principal, "host", {kind:"chat", roster})` over the chat's membership
+// Every rule verb gates `can(principal, "host", {kind:"chat", membership})` over the chat's membership
 // (rule authoring IS room authority in v1). The editable field set is shared by create + update (a PUT-style
 // replace; `updateRule` re-runs the same validation and resets `consecutive_errors`).
 

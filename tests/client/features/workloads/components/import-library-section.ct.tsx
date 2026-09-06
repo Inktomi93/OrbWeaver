@@ -125,6 +125,31 @@ test("a CLEAN card import shows the success ✓ and a success toast", async ({ m
   expect(errors.some((line) => line.includes("Import failed"))).toBe(false);
 });
 
+// #1598/#1709 — a card's own `notes` (the server's `skippedOverlays`; today's one member is an embedded
+// lorebook a re-upload KEPT rather than replaced) render beside ITS row, never a batch-wide flatten — the
+// foreground path has real per-file detail already, unlike the bundle arm's flattened list.
+test("a card import's per-card notes render beside its own row", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  await page.route("**/api/import", async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        imported: [{ filename: "hero.png", created: false, notes: ["book kept: primary already exists"] }],
+        failed: [],
+      }),
+    });
+  });
+
+  await mount(<BackupSettingsStory />);
+  await page.getByTestId("backup-import-dropzone").setInputFiles(A_CARD);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+
+  await expect(page.getByTestId("import-report")).toBeVisible();
+  await expect(page.getByText("hero.png")).toBeVisible();
+  await expect(page.getByText("book kept: primary already exists")).toBeVisible();
+});
+
 test("an older import completion cannot replace the newer batch outcome", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
   const held: import("@playwright/test").Route[] = [];

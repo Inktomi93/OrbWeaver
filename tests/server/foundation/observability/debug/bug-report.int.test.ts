@@ -147,6 +147,43 @@ describe("the credential scrub", () => {
   });
 });
 
+// #1785 (SECURITY): `serializeScrubbed` is a SERIALIZE-then-scrub site — `JSON.stringify(record, null, 2)`
+// ESCAPES `"` and `\`, so an operator credential containing either sat in the bytes under a spelling the
+// raw-literal search never saw. Worse, this module's OWN post-condition ("is the literal still present?")
+// asked the same raw question, so it certified the leaked bytes and let the file reach disk. Both halves now
+// go through the ONE expansion in `@orb/server/kit/secret-redaction`.
+describe("the credential scrub — a QUOTE-bearing operator secret (#1785)", () => {
+  const quote = '"';
+  const backslash = "\\";
+  const quotedSecret = `env${quote}cred${backslash}c7f19d4b2a`;
+  const escapedSecret = JSON.stringify(quotedSecret).slice(1, -1);
+
+  test("neither spelling of a quoted credential reaches the file", async () => {
+    const written = await writeBugReport({
+      repoRoot: dir,
+      // Buried inside the opaque client blob — the position a field allowlist misses and a by-value scrub
+      // must not (the credential-display-response-echo-leak class).
+      record: record({ client: { evidence: { headers: [{ authorization: `Bearer ${quotedSecret}` }] } } }),
+      secrets: [quotedSecret],
+    });
+    const bytes = await readFile(written?.json ?? "", "utf8");
+    expect(bytes).not.toContain(quotedSecret);
+    expect(bytes).not.toContain(escapedSecret);
+    // POSITIVE CONTROL: the surrounding structure survived, so this is "removed", not "the file is empty".
+    expect(bytes).toContain("authorization");
+  });
+
+  test("the post-condition REFUSES bytes still holding the escaped spelling (the belt, not the marker)", () => {
+    // The gate before disk asks its own question rather than trusting the scrubber's sentinel. The question
+    // has to be asked about the spelling the bytes are actually written in.
+    const subject = record({ client: { leak: quotedSecret } });
+    const scrubbed = serializeScrubbed(subject, [quotedSecret]);
+    expect(scrubbed).not.toBeNull();
+    expect(scrubbed).not.toContain(escapedSecret);
+    expect(scrubbed).toContain(subject.note);
+  });
+});
+
 describe("secretLiterals", () => {
   // The env keys are SCREAMING_SNAKE by nature, so they arrive as entry PAIRS rather than object properties —
   // a literal would red `useNamingConvention` and the suppression would be noise around the actual subject.

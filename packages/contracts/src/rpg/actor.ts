@@ -1,11 +1,11 @@
 // @orb/contracts/rpg/actor — THE actor: its reference, its IDENTITY half, and its per-actor VOLATILE state
 // (the actor-state review R2). Wallet + inventory are FIRST-CLASS on EVERY actor
-// (character AND cast NPC), present in lite (owner-CONFIRMED at ratification). `wallet` is a STORED
+// (character AND npc), present in lite (owner-CONFIRMED at ratification). `wallet` is a STORED
 // named-amount array, NOT legacy's derived currency-item total — lite has no loot engine to mint currency
 // items, so a derived wallet would be a permanently-empty dead doorway; full's loot engine later CREDITS the
 // same slots at grant time (an engine graft onto an existing column, zero re-spell).
 //
-// R2 — THE NPC IS AN ACTOR, NOT A SCENE ANNOTATION. A cast NPC's identity half (name/emoji/mood/relationship
+// R2 — THE NPC IS AN ACTOR, NOT A SCENE ANNOTATION. An npc's identity half (name/emoji/mood/relationship
 // + the standing appearance/outfit/thoughts guides) used to live on the `presentCharacters` ROW, which
 // departure DESTROYS, while her hard half (trackers/conditions/inventory/wallet/status) lived on the
 // `actorState` row, which departure RETAINS invisibly. Two planes, opposite lifecycles, one person: return
@@ -14,12 +14,14 @@
 // list of actor-ref keys. Departure = presence drop; EVERYTHING is retained; return = presence add.
 //
 // Actor-ref arms: `character`/`user` address roster identities directly (no membership shadow — §4.3);
-// `cast` addresses scene-only NPCs by a real normalized SLUG ({@link rpgCastSlug}) with the display name
+// `cast` addresses scene-only NPCs by a real normalized SLUG ({@link rpgNpcSlug}) with the display name
 // carried separately on `identity.name` — the tracker unification's own key/label lesson applied to people
 // (the doc used to CLAIM a "normalized-name key" while storing the verbatim model-authored name, so a rename
-// was impossible and case variance minted sibling identities). Full ADDS the `{kind:"npc"}` arm when
-// `rpg_npcs` lands — an additive union member every `assertNever` consumer is compile-forced to handle
-// (shipping it now would mint a dead `RpgNpcId` brand FK-ing a nonexistent table).
+// was impossible and case variance minted sibling identities). Full ADDS the `{kind:"libraryNpc"}` arm
+// when the cross-game `rpg_npcs` library lands — an additive union member every `assertNever` consumer is
+// compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
+// table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
+// above: a cross-game library ROW and a scene-only extra are two different addresses.
 
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -39,41 +41,41 @@ import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 // NPCs with different Chinese names resolved onto ONE row and the second overwrote the first's identity,
 // trackers, inventory and wallet. A key that merges two people is not a normalization, it is data loss.
 // `\p{M}` rides along with `\p{L}` because in many scripts a mark is part of the letter, not punctuation.
-const CAST_SLUG_STRIP = /[^\p{L}\p{N}\p{M}]+/gu;
-const CAST_SLUG_TRIM = /^-+|-+$/g;
+const NPC_SLUG_STRIP = /[^\p{L}\p{N}\p{M}]+/gu;
+const NPC_SLUG_TRIM = /^-+|-+$/g;
 
 /** The FALLBACK for a name that carries no letter, digit or mark AT ALL (emoji-only, punctuation-only). A
- *  cast key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a worse
+ *  npc key must be non-empty (`rpgActorRefSchema`), and a refused write on an exotic name would be a worse
  *  answer than a stable key the host can rename later — but a SHARED fallback bucket is the very merge this
  *  function was fixed for, so the bucket is per-name: the fallback word plus the name's code points in hex.
  *  Lossless ⇒ two symbol-only names can never collide, and the result is already its own slug (ASCII + `-`)
  *  so idempotency — the wire's canonicality predicate — still holds. A blank name has no code points and
  *  keeps the bare word: one nameless bucket is a necessity, not a collision. */
-const CAST_SLUG_FALLBACK = "unnamed";
+const NPC_SLUG_FALLBACK = "unnamed";
 
 /** The marker joining the fallback word to its code points. `+` is OUTSIDE the kept class, so the FOLD can
- *  never emit it — every real name's `+` becomes a `-`. That is what separates `rpgCastSlug("🐉")` from
- *  `rpgCastSlug("Unnamed 1f409")`, which used to be the SAME key (#1530): the fold reaches `unnamed-1f409`,
+ *  never emit it — every real name's `+` becomes a `-`. That is what separates `rpgNpcSlug("🐉")` from
+ *  `rpgNpcSlug("Unnamed 1f409")`, which used to be the SAME key (#1530): the fold reaches `unnamed-1f409`,
  *  the fallback mints `unnamed+1f409`, and no name can fold into the second. */
-const CAST_SLUG_FALLBACK_MARK = "+";
+const NPC_SLUG_FALLBACK_MARK = "+";
 
 /** An ALREADY-MINTED fallback key, recognised so it can short-circuit the fold and stay its own slug.
- *  WHY A SHORT-CIRCUIT AND NOT A CLEVERER ALPHABET: the wire predicate is `key === rpgCastSlug(key)`, so a
+ *  WHY A SHORT-CIRCUIT AND NOT A CLEVERER ALPHABET: the wire predicate is `key === rpgNpcSlug(key)`, so a
  *  fallback that is not idempotent is unrepresentable — and everything idempotent under a fold that collapses
  *  non-kept runs to one `-` and trims the edges is, by construction, also REACHABLE from some name. Total
  *  unreachability and the refine cannot both hold. Recognising the minted shape up front is what buys the
  *  separation instead: the marker survives its own second pass without the fold ever emitting it. The residue
  *  is one exact literal — an NPC named, lowercase, `unnamed+1f409` — and it collides with itself, not with a
  *  class of names. */
-const CAST_SLUG_FALLBACK_RE = /^unnamed(\+[0-9a-f]+)*$/;
+const NPC_SLUG_FALLBACK_RE = /^unnamed(\+[0-9a-f]+)*$/;
 
 /** The radix the fallback renders a code point in — hex, so the disambiguator stays short and ASCII. */
 const CODE_POINT_RADIX = 16;
 
-/** THE cast key: a display NAME → its stable normalized slug. The ONE home for cast-key normalization — the
+/** THE npc key: a display NAME → its stable normalized slug. The ONE home for npc-key normalization — the
  *  tool appliers mint through it, the ghost guard matches through it, the wire REFUSES anything else
  *  ({@link rpgActorRefSchema}), and promotion re-keys through it, so "which spelling is this NPC" is decided
- *  once. IDEMPOTENT by construction: `rpgCastSlug(rpgCastSlug(x)) === rpgCastSlug(x)`, which is what makes it
+ *  once. IDEMPOTENT by construction: `rpgNpcSlug(rpgNpcSlug(x)) === rpgNpcSlug(x)`, which is what makes it
  *  usable as the wire's own canonicality predicate.
  *
  *  NOT the same function as kit's `slugifyHandle`, and deliberately NOT unified here (#1366 / #1355). They
@@ -82,48 +84,49 @@ const CODE_POINT_RADIX = 16;
  *  never merge two people, so it NFC-PRESERVES (marks kept — in many scripts a mark is part of the letter)
  *  and never truncates. What they shared was the BUG, an ASCII-only kept set; the fix belongs on each side
  *  in its own terms, which is why this one does not call the other. */
-export function rpgCastSlug(name: string): string {
+export function rpgNpcSlug(name: string): string {
   const trimmed = name.trim();
-  if (CAST_SLUG_FALLBACK_RE.test(trimmed)) {
+  if (NPC_SLUG_FALLBACK_RE.test(trimmed)) {
     return trimmed; // an already-minted fallback key — idempotent by recognition (see the regex's note).
   }
   // NFC last, so the output is normalized whatever the input's composition was: a combining-accent "café"
   // and a precomposed "café" are one person, not two rows.
-  const slug = trimmed.toLowerCase().normalize("NFC").replace(CAST_SLUG_STRIP, "-").replace(CAST_SLUG_TRIM, "");
+  const slug = trimmed.toLowerCase().normalize("NFC").replace(NPC_SLUG_STRIP, "-").replace(NPC_SLUG_TRIM, "");
   if (slug !== "") {
     return slug;
   }
-  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join(CAST_SLUG_FALLBACK_MARK);
-  return points === "" ? CAST_SLUG_FALLBACK : `${CAST_SLUG_FALLBACK}${CAST_SLUG_FALLBACK_MARK}${points}`;
+  const points = [...trimmed].map((ch) => (ch.codePointAt(0) ?? 0).toString(CODE_POINT_RADIX)).join(NPC_SLUG_FALLBACK_MARK);
+  return points === "" ? NPC_SLUG_FALLBACK : `${NPC_SLUG_FALLBACK}${NPC_SLUG_FALLBACK_MARK}${points}`;
 }
 
 /** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
- *  its stable {@link rpgCastSlug} `key`. Full ADDS `{kind:"npc"}` (additive — `assertNever` consumers error).
+ *  its stable {@link rpgNpcSlug} `key`. Full ADDS `{kind:"libraryNpc"}` — the reserved cross-game library
+ *  arm (additive — `assertNever` consumers error).
  *
- *  PREVENT-AT-SCHEMA on the cast key (the R6 enum-constraint / stamped-id write-boundary precedent): a cast
+ *  PREVENT-AT-SCHEMA on the npc key (the R6 enum-constraint / stamped-id write-boundary precedent): a cast
  *  key must ALREADY BE its own slug, so a non-canonical one is unrepresentable at the wire rather than
  *  refused somewhere downstream. Without it a raw API caller could `patchActor` with
- *  `castKey: "Sister Vesna"` and mint a SIBLING row beside the model's `cast:sister-vesna` — a duplicate
+ *  `npcKey: "Sister Vesna"` and mint a SIBLING row beside the model's `npc:sister-vesna` — a duplicate
  *  person in the panel, unreachable by every model write (the appliers resolve names through the slug), and
  *  removable only by `dismissActor` with the same raw key. The refine costs {@link actorRefKey} nothing: it
  *  stays a pure projection, now over data that is canonical by the time it exists. */
-export const rpgCastRefSchema = z.object({
-  kind: z.literal("cast"),
-  castKey: z
+export const rpgNpcRefSchema = z.object({
+  kind: z.literal("npc"),
+  npcKey: z
     .string()
     .min(1)
-    .refine((key) => key === rpgCastSlug(key), { message: "a cast key must be its normalized slug (lowercase, hyphen-separated) — see rpgCastSlug" }),
+    .refine((key) => key === rpgNpcSlug(key), { message: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
 });
 /** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
- *  turns a cast NPC into a roster character, so a `character`/`user` target is not "refused" — it is
- *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the cast-key
+ *  turns an npc into a roster character, so a `character`/`user` target is not "refused" — it is
+ *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the npc-key
  *  refine above already takes). The union below is composed FROM this, never a second spelling of the arm. */
-export type RpgCastRef = z.infer<typeof rpgCastRefSchema>;
+export type RpgNpcRef = z.infer<typeof rpgNpcRefSchema>;
 
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
   z.object({ kind: z.literal("user"), userId: brandedId<UserId>() }),
-  rpgCastRefSchema,
+  rpgNpcRefSchema,
 ]);
 export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;
 
@@ -136,7 +139,7 @@ export function actorRefKey(ref: RpgActorRef): string {
   if (ref.kind === "user") {
     return `user:${ref.userId}`;
   }
-  return `cast:${ref.castKey}`;
+  return `npc:${ref.npcKey}`;
 }
 
 /** An inventory item — `type` taxonomy ships for display + full's equip/filter future, minus any wallet
@@ -175,12 +178,12 @@ export const rpgRelationshipSchema = z.object({
 });
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
-/** The IDENTITY half of a `cast` actor — who she IS, as opposed to what the beat did to her. Roster actors
+/** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Roster actors
  *  (character/user) carry NO identity here: their name/avatar come from the chat roster and their standing
  *  prose from `rpg_sheets` (one home per fact, never a second name to reconcile).
  *
- *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgCastSlug}), which is what
- *  makes rename possible at all. The three guides are STANDING state (see {@link RPG_CAST_GUIDE_FIELDS}).
+ *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgNpcSlug}), which is what
+ *  makes rename possible at all. The three guides are STANDING state (see {@link RPG_NPC_GUIDE_FIELDS}).
  *
  *  `characterId` is UNREAD (flagged rot, R4): it was reserved as "the promotion join", but promotion RE-KEYS
  *  the row to `character:<id>` — the ref itself carries the join, and a promoted actor has no identity half at
@@ -195,7 +198,7 @@ const NAME_CLAMP_ELLIPSIS = "…";
 /** THE actor-identity → card-name BOUND (#1449, the #1386 class applied to `name` instead of `handle`).
  *  `rpgActorIdentitySchema.name` is `min(1)` with NO max — it is MODEL-AUTHORED at the extraction boundary
  *  (`update_scene.presentUpsert[].name`, folded onto the identity plane by `tools/apply.ts`'s
- *  `mergeCastIdentity`) — while `promoteActor` hands that name straight to `cardFaceFields.name`
+ *  `mergeNpcIdentity`) — while `promoteActor` hands that name straight to `cardFaceFields.name`
  *  (`CARD_FACE_LIMITS.nameMax` = 200). An over-length NPC name therefore minted a card the character wire
  *  refused, dropping a model-authored actor from canon over a name.
  *
@@ -205,7 +208,7 @@ const NAME_CLAMP_ELLIPSIS = "…";
  *  surrogate/combining-mark pair) with a trailing ellipsis marking the cut as lossy. This is a PURE function,
  *  not a schema transform: `rpgActorIdentitySchema.name` stays unbounded (an identity's display name is not
  *  itself a card — only a PROMOTED one becomes one, #1386's own reasoning: the bound belongs on the
- *  RECEIVING side's terms, applied at the mint, not baked into every cast actor's stored identity), and the
+ *  RECEIVING side's terms, applied at the mint, not baked into every npc's stored identity), and the
  *  caller (`promoteActor`) is the one place that both knows it is minting a card AND can report the
  *  truncation back to the host as data (`PromoteActorResult.issues`) instead of it vanishing silently. */
 export function clampActorCardName(name: string, maxLength: number = CARD_FACE_LIMITS.nameMax): { readonly value: string; readonly truncated: boolean } {
@@ -240,15 +243,15 @@ export type RpgActorIdentity = z.infer<typeof rpgActorIdentitySchema>;
  *  state, not a per-beat observation: a character's look and dress persist until the story changes them, and
  *  `thoughts` is the character's unspoken inner state (flavor — never dialogue). Named ONCE here because both
  *  readers walk the same three fields in the same order: the steering reminder's continuation lines
- *  (`substrate/reminder.ts`) and the Scene tab's cast card (`CastGuides`). `satisfies` pins them to the schema
+ *  (`substrate/reminder.ts`) and the Scene tab's npc card (`NpcGuides`). `satisfies` pins them to the schema
  *  above — renaming a field without updating this tuple fails `tsc` here, not at a call site. */
-export const RPG_CAST_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
-export type RpgCastGuideField = (typeof RPG_CAST_GUIDE_FIELDS)[number];
+export const RPG_NPC_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
+export type RpgNpcGuideField = (typeof RPG_NPC_GUIDE_FIELDS)[number];
 
 /** The reader-facing label each standing guide carries into a PROMOTED NPC's card description (R4). Named
- *  beside the tuple it is keyed by, so a guide added to {@link RPG_CAST_GUIDE_FIELDS} fails `tsc` here rather
+ *  beside the tuple it is keyed by, so a guide added to {@link RPG_NPC_GUIDE_FIELDS} fails `tsc` here rather
  *  than silently vanishing from every card promotion mints. */
-const CAST_GUIDE_CARD_LABEL: Readonly<Record<RpgCastGuideField, string>> = {
+const NPC_GUIDE_CARD_LABEL: Readonly<Record<RpgNpcGuideField, string>> = {
   appearance: "Appearance",
   outfit: "Outfit",
   thoughts: "Inner life",
@@ -257,7 +260,7 @@ const CAST_GUIDE_CARD_LABEL: Readonly<Record<RpgCastGuideField, string>> = {
 /** PROMOTION'S IDENTITY CARRY (R4) — the standing guides an NPC accumulated, rendered as the card description
  *  her freshly-minted roster card is born with.
  *
- *  Promotion RE-KEYS the actor row from `cast:<slug>` to `character:<id>`, and a roster actor carries NO
+ *  Promotion RE-KEYS the actor row from `npc:<slug>` to `character:<id>`, and a roster actor carries NO
  *  identity half ({@link rpgActorIdentitySchema}) — her name is the chat roster's and her standing prose the
  *  sheet's. So the identity row does not survive the re-key, and everything on it that has a DURABLE home must
  *  be carried there in the same gesture or it is destroyed: the display `name` becomes the card's `name`, and
@@ -265,7 +268,7 @@ const CAST_GUIDE_CARD_LABEL: Readonly<Record<RpgCastGuideField, string>> = {
  *  writing — become the card's description, which is exactly the prose a card exists to hold.
  *
  *  What deliberately does NOT carry: `mood` (a per-beat observation, not a standing fact) and `relationship`
- *  (ruled a CAST actor's datum — a roster member's stance toward the player is the story's, not a tracked
+ *  (ruled a NPC actor's datum — a roster member's stance toward the player is the story's, not a tracked
  *  plane's). The promotion door SAYS SO to the host rather than letting them discover it; this function is the
  *  one home for what the carry contains, so the copy and the behavior cannot drift.
  *
@@ -274,10 +277,10 @@ const CAST_GUIDE_CARD_LABEL: Readonly<Record<RpgCastGuideField, string>> = {
  *  the model then plays). */
 export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
   const lines: string[] = [];
-  for (const field of RPG_CAST_GUIDE_FIELDS) {
+  for (const field of RPG_NPC_GUIDE_FIELDS) {
     const text = identity[field]?.trim() ?? "";
     if (text !== "") {
-      lines.push(`${CAST_GUIDE_CARD_LABEL[field]}: ${text}`);
+      lines.push(`${NPC_GUIDE_CARD_LABEL[field]}: ${text}`);
     }
   }
   return lines.join("\n");
@@ -285,7 +288,7 @@ export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
 
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `wallet` is
  *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker
- *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the cast row's
+ *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the npc row's
  *  opaque `customFields` string record, so every tracked value on every actor (roster member OR scene NPC)
  *  reads from ONE home with ONE addressing rule.
  *
@@ -305,7 +308,7 @@ export const rpgActorVolatileSchema = z.object({
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
 
 /** THE actor row on the snapshot's `actorState` plane (R2) — one person, both halves, one lifecycle. `identity`
- *  is present for `cast` actors and absent for roster ones (see {@link rpgActorIdentitySchema}); `volatile` is
+ *  is present for `npc` actors and absent for roster ones (see {@link rpgActorIdentitySchema}); `volatile` is
  *  always whole. The plane is keyed by {@link actorRefKey} over `actorRef` (the merge engine's computed element
  *  key), and it is ADDITIVE: an actor leaves it by `rpg.dismissActor`, never by going unmentioned. */
 export const rpgActorEntrySchema = z.object({
@@ -338,7 +341,7 @@ export type RpgActorOpField = (typeof RPG_ACTOR_OP_FIELDS)[number];
 
 /** The IDENTITY fields the hand ops address as free TEXT, pinned to the identity plane's own keys. Each is
  *  also its own fine lock path (`actorState.<key>.identity.<field>`) — pinning one NPC's mood no longer
- *  freezes the whole cast, which is what the retired plane-level `presentCharacters` pin did. `relationship`
+ *  freezes every npc, which is what the retired plane-level `presentCharacters` pin did. `relationship`
  *  is deliberately absent: it is a two-field object with its own op arm, not a string. */
 export const RPG_ACTOR_IDENTITY_TEXT_FIELDS = [
   "name",
@@ -373,7 +376,7 @@ const rpgInventoryItemInputSchema = rpgInventoryItemSchema.omit({ id: true }).pa
  *  element keys) get add/remove/patch arms; the leaves get `set` arms. There is no `setHp`: health is an
  *  ordinary meter tracker since R3, so it is written by `setTracker` like every other one. */
 export const rpgActorOpSchema = z.discriminatedUnion("op", [
-  // The IDENTITY arms (R2) — a cast actor's own half. They REFUSE on an actor that carries no identity (a
+  // The IDENTITY arms (R2) — an npc's own half. They REFUSE on an actor that carries no identity (a
   // roster member: her name is the roster's and her standing prose is the sheet's), which is errors-as-data,
   // not a silent no-op. `setIdentityText` on `name` is the RENAME the slug key was minted to make possible.
   z.object({ op: z.literal("setIdentityText"), field: z.enum(RPG_ACTOR_IDENTITY_TEXT_FIELDS), text: z.string() }),

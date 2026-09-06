@@ -79,12 +79,12 @@ export interface RpgGameView {
 }
 
 /** An actor row in the tracker view — the ONE actor shape, for EVERY actor (R2): roster ∪ sheets ∪ every
- *  tracked `cast` NPC, on stage or off. A participant without a sheet row renders the DEFAULT sheet;
+ *  tracked `npc` actor, on stage or off. A participant without a sheet row renders the DEFAULT sheet;
  *  `volatile` is null until a snapshot carries this actor's state.
  *
- *  It replaced THREE bolted-on cast projections (`castVolatile` · `castTrackers` · the `cast` identity array).
+ *  It replaced THREE bolted-on npc projections (`castVolatile` · `castTrackers` · the `cast` identity array).
  *  Those existed because the NPC was not an actor in the view model, and the split was load-bearing for two
- *  measured defect classes: a cast NPC's model-written hp/status/conditions/inventory/wallet rendered in NO
+ *  measured defect classes: an npc's model-written hp/status/conditions/inventory/wallet rendered in NO
  *  client surface (`castVolatile` had zero consumers), and carrier CLASSES partitioned ROWS rather than PEOPLE,
  *  so a roster character standing in the scene was taught an `npcs`-classed tracker the write surface never
  *  offered her. Both are unrepresentable now: one row per person, and `carrierKind` derives from
@@ -96,7 +96,7 @@ export interface RpgActorView {
   /** Does this actor stand in the scene RIGHT NOW (the presence plane)? An offstage actor keeps every other
    *  field on this row — that IS the R2 retention guarantee, and the panel's "Known characters" disclosure. */
   readonly presence: boolean;
-  /** The cast actor's own identity half (name/emoji/mood/relationship/guides); `null` for a roster actor,
+  /** The npc's own identity half (name/emoji/mood/relationship/guides); `null` for a roster actor,
    *  whose identity is the chat roster's and whose standing prose is the sheet's. */
   readonly identity: RpgActorIdentity | null;
   readonly sheet: {
@@ -156,14 +156,14 @@ export interface RpgTrackerView {
     readonly clock: RpgClockTime | null;
     readonly weather: RpgWeather | null;
   } | null;
-  /** EVERY actor — roster ∪ tracked cast, present and offstage — in ONE shape (R2). */
+  /** EVERY actor — roster ∪ tracked npcs, present and offstage — in ONE shape (R2). */
   readonly actors: readonly RpgActorView[];
   /** The presence echo: the `actorRefKey`s standing in the scene, in presence order. A THIN derivation of
    *  `actors[].presence`, carried so a consumer that only needs "who is on stage" (the scene card order, the
    *  CEL feed) does not re-filter — never a second identity home. */
   readonly cast: readonly string[];
   /** The whole game's tracker DEFS (`config.trackers`) — the ONE def home, surfaced once so every consumer
-   *  (roster rows, scene cast rows, the band, the editor) reads the same list instead of four shapes. */
+   *  (roster rows, scene npc rows, the band, the editor) reads the same list instead of four shapes. */
   readonly trackerDefs: readonly RpgTrackerDef[];
   /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];
@@ -232,10 +232,24 @@ export interface RpgToolCallDisclosure {
   readonly withheld: RpgToolCallWithholdReason | null;
 }
 
+/** WHAT A READER IS TOLD when the turn's state round could not RUN (#1468 item 2) — one home, two renderings.
+ *  The DURABLE row stores this sentence with the vehicle's own error appended (`<summary>: upstream 502 …`),
+ *  which is what the host reads; every other viewer reads the summary BARE, because the tail is a provider
+ *  diagnostic (endpoints, model ids, whatever the backend chose to put in an error body) and this read is
+ *  MEMBER-gated. Composed at `entry/compose/rpg.ts` and projected in `domain/rpg/substrate/tool-call-visibility.ts`.
+ *  PROSE-OK: the per-turn disclosure's reason line, never a model prompt */
+export const RPG_STATE_ROUND_FAILED_SUMMARY = "the model call that records game state failed, so this turn changed nothing";
+
 export interface RpgTurnToolCallsView {
   readonly variantId: MessageVariantId;
   readonly messageId: MessageId;
   readonly calls: readonly RpgToolCallDisclosure[];
+  /** The round could not RUN, said out loud ({@link RPG_STATE_ROUND_FAILED_SUMMARY}) — `null` on every turn
+   *  whose vehicle reached a verdict, including the quiet one. It rides beside `calls` rather than inside it
+   *  because a failed round has NO call to report: the array is what the model called, args verbatim, and a
+   *  synthesized entry would show the reader a tool call that never happened. A record can therefore carry an
+   *  EMPTY `calls` list and still be worth rendering — which is exactly the turn the disclosure exists for. */
+  readonly failure: string | null;
   readonly createdAt: number;
 }
 
@@ -258,7 +272,7 @@ export interface RpgConfigView {
   /** The #9 ambient-date mode knob (host editor). */
   readonly dateMode: RpgGameConfig["dateMode"];
   /** THE TRACKERS (the tracked-field unification) — the host's whole tracker set, the single surface that
-   *  replaced the Sheet-tab pool defs, the Game-tab cast fields, and the band-pin section. */
+   *  replaced the Sheet-tab pool defs, the Game-tab npc fields, and the band-pin section. */
   readonly trackers: RpgGameConfig["trackers"];
   /** The per-custom-kind steering hints — relationship kinds + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];

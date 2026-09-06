@@ -733,7 +733,7 @@ describe("runProfileDirImport — ST groups", () => {
     const chat = groupWrite?.chats[0];
     // Aria is the room's PRIMARY (ST's first member); Bram is the extra roster seat.
     expect(groupWrite?.characterId).toBe(castId<CharacterId>("chr_1"));
-    expect(chat?.roster).toEqual([castId<CharacterId>("chr_2")]);
+    expect(chat?.characterIds).toEqual([castId<CharacterId>("chr_2")]);
     // Per-turn attribution: `original_avatar` resolves Aria BY CARD FILENAME; Bram's line carries none, so the
     // roster-scoped display name resolves it; the user turn is never character-attributed; and an off-roster
     // speaker falls through to the primary by carrying NO characterId (absent ⇒ primary, per the op's contract).
@@ -773,7 +773,7 @@ describe("runProfileDirImport — ST groups", () => {
       { group: "Group: Aria + Bram", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
     ]);
     // One seat only — the room formed around the member that did resolve.
-    expect(f.chatWrites.at(-1)?.chats[0]?.roster).toEqual([]);
+    expect(f.chatWrites.at(-1)?.chats[0]?.characterIds).toEqual([]);
   });
 
   test("a group whose members ALL fail to resolve is skipped with a reason, never aborting the wave", async () => {

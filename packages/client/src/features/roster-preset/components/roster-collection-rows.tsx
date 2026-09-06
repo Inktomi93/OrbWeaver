@@ -27,7 +27,10 @@ function RosterLibraryRow({
   readonly roster: RosterPresetSummary;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  readonly onDelete: () => void;
+  /** MAY return a promise (#1563b, widened #1632): it flows through `LibraryRow.actions.onDelete` →
+   *  `RowActionsMenu.destructive.onConfirm` → `ConfirmDialog.onConfirm`, which awaits it and becomes the
+   *  retry surface. `() => void` accepted an async handler anyway, so the type contradicted the behaviour. */
+  readonly onDelete: () => void | Promise<void>;
 }): ReactElement {
   return (
     <LibraryRow

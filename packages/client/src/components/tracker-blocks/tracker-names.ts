@@ -1,7 +1,7 @@
 // The tracker kit's SUBJECT-QUALIFICATION grammar — the one home for "whose datum is this?" in an
 // accessible name (#1383).
 //
-// The kit has always had the rule (`MeterRow.subject`, `TrackerChip.subject`: "two cast cards on one tab
+// The kit has always had the rule (`MeterRow.subject`, `TrackerChip.subject`: "two npc cards on one tab
 // must not both offer a button called 'Vitality value'") but every surface spelled it inline, so a surface
 // that forgot simply shipped the collision. The rpg Status region did: four characters' cards published
 // 4× "Add condition", 4× "Status line", 3× "HP value", 3× "HP max" with no group boundary, and a

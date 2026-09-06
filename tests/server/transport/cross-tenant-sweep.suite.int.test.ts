@@ -1250,7 +1250,7 @@ const PROBES: readonly Probe[] = [
   //
   // THE `knobs` BAG IS LOAD-BEARING, and omitting it made this probe VACUOUS on first write (measured):
   // `autoAddLore.bookId` is an `entityRef` knob, and entityRef is the ONE kind with no default — it refuses
-  // `choose a lorebook` when absent (`substrate/presets.ts:96-97`). That refusal is raised in
+  // `choose a world book` when absent (`substrate/presets.ts:96-97`). That refusal is raised in
   // `createRuleFromPreset` BEFORE it calls `createRule`, so a knob-less probe got BAD_REQUEST from knob
   // resolution and never reached `requireChatHost` at all. It is NOT a leak — the refusal is chat-independent,
   // identical for the owner and for a stranger, so it is no existence oracle — but a probe that dies before
@@ -1493,13 +1493,13 @@ const PROBES: readonly Probe[] = [
   // foreign chatId must see the SAME leak-free NOT_FOUND every other rpg verb collapses to.
   {
     path: "rpg.patchActor",
-    call: (c, i) => c.rpg.patchActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" }, ops: [{ op: "setStatus", status: "hacked" }] }),
+    call: (c, i) => c.rpg.patchActor({ chatId: i.chatId, targetRef: { kind: "npc", npcKey: "mira" }, ops: [{ op: "setStatus", status: "hacked" }] }),
   },
-  { path: "rpg.dismissActor", call: (c, i) => c.rpg.dismissActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
+  { path: "rpg.dismissActor", call: (c, i) => c.rpg.dismissActor({ chatId: i.chatId, targetRef: { kind: "npc", npcKey: "mira" } }) },
   // R4 — the promotion doorway is the ONE rpg proc whose write reaches outside the game (a character card into
   // the ROOM HOST's library + a seat on their roster), which makes a cross-tenant leak here worse than a state
   // write: a stranger passing a foreign chatId must never get as far as the mint.
-  { path: "rpg.promoteActor", call: (c, i) => c.rpg.promoteActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
+  { path: "rpg.promoteActor", call: (c, i) => c.rpg.promoteActor({ chatId: i.chatId, targetRef: { kind: "npc", npcKey: "mira" } }) },
   { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
   {
     path: "rpg.editQuestObjective",

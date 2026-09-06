@@ -1,5 +1,5 @@
 // The topbar notifications bell — a durable per-user inbox surface, deliberately separate from the
-// transient toast region. An unread-badged bell opening an anchored popover of inbox rows: an invite
+// transient toast region. A dot-marked bell opening an anchored popover of inbox rows: an invite
 // row carries inline Accept/Decline; a handoff-nominated row carries Accept/Dismiss (no decline verb —
 // a nomination is host-retractable, not invitee-settleable), where Accept opens the DISCLOSURE confirm
 // (#1762) rather than firing the verb — accepting copies four classes of the departing host's property into
@@ -8,7 +8,9 @@
 // an auto-disabled automation rule, the plugin consent prompt).
 //
 // Read/act contract: opening the popover marks every unread row read via one markAllRead mutation (the
-// badge is "new since you looked", not "un-acted"); acting on an invite dismisses its row.
+// mark is "new since you looked", not "un-acted" — #1799 is where that meaning widens); acting on an invite
+// dismisses its row. The mark itself is a DOT and carries NO number (#1798): the count lives in the
+// trigger's accessible name and in the rows below it.
 //
 // No data-testid inside the trigger: the bell is addressed by its role + accessible name.
 
@@ -71,14 +73,14 @@ function rowCopy(payload: NotificationEvent): string {
 }
 
 export interface NotificationBellProps {
-  /** Which lens renders the inbox (`ChromePresentation`). `"bar"` = the topbar's badged bell + popover;
+  /** Which lens renders the inbox (`ChromePresentation`). `"bar"` = the topbar's dot-marked bell + popover;
    *  `"sheet"` = the mobile You-sheet's INLINE section — a phone's overflow home is a scrolling drawer, so
    *  the inbox is a titled block in it rather than a popover anchored to a control that is not there.
    *  @defaultValue "bar" */
   readonly presentation?: ChromePresentation;
 }
 
-/** The unread-badged bell + inbox popover. No deployment gate — see the file header (#1627). */
+/** The dot-marked bell + inbox popover. No deployment gate — see the file header (#1627). */
 export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -103,6 +105,13 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // is a fresh identity every render and would loop).
   const isSheet = presentation === "sheet";
   const hasUnread = unreadCount > 0;
+  // THE INDICATOR PREDICATE — ONE boolean, computed here, so the bar lens's dot is never re-derived at the
+  // JSX. It reads `unread` today and #1799 widens it to `unread || pending` (the dot must persist while any
+  // row still needs a decision — an invite, a handoff nomination, the consent ask — and opening the popover
+  // must not clear an actionable row). That is the seam: one predicate changes, the rendering does not.
+  // Deliberately NOT folded into `hasUnread`: that one is the mark-read trigger and stays "new since you
+  // looked", which is exactly the meaning #1799 separates the indicator FROM.
+  const showIndicator = hasUnread;
   const markAllReadNow = markAllRead.mutate;
   useEffect(() => {
     if (isSheet && hasUnread) {
@@ -223,13 +232,15 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                 // The TOPBAR's icon-button shape, not a bare `size="sm"`: at coarse this row's controls
                 // are 48×48 and the bell was rendering 40×44 beside three of them (side-eye leg-4 P3 —
                 // one control under the touch floor its neighbours all clear).
-                <Button intent="ghost" size="icon" className="shell-topbar-icon-btn" aria-label={bellLabel}>
+                <Button intent="ghost" size="icon" className="relative shell-topbar-icon-btn" aria-label={bellLabel}>
                   <Icon icon={Bell} size="sm" />
-                  {unreadCount > 0 ? (
-                    <Badge intent="primary" size="sm" aria-hidden={true}>
-                      {unreadCount}
-                    </Badge>
-                  ) : null}
+                  {/* A DOT, NOT A NUMBER (#1798, owner ruling). What rode here was a full status pill — the
+                      same lozenge that marks `always` on a lore entry — printing the count INLINE beside a
+                      16px glyph inside the icon button, with no corner positioning. The count is not lost:
+                      it is in the button's own accessible name (`bellLabel`) and in the popover's rows. So
+                      the mark says only "something is here", and the button is its positioning context
+                      (`relative`) — one `tight` step off its own top/end corner, clear of the glyph. */}
+                  {showIndicator ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute end-tight top-tight" /> : null}
                 </Button>
               }
             />

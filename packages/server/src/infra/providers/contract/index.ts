@@ -91,6 +91,8 @@ export type {
   ProviderDiagnostics,
   VerifyAuthRequest,
 } from "./diagnostics.ts";
+// ── Infra-internal: the vLLM engine launch-ownership vocabulary (the marker + the adoption verdict) ──
+export type { EngineGroupAdoption, EngineLaunchMarker } from "./engine-ownership.ts";
 export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────
 export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";

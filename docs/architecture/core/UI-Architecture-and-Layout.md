@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # UI-Architecture-and-Layout
@@ -215,12 +215,16 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             about KIND, not a count (D121): a rail section owns a top-level workspace with its own
             LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
             The rail renders ONE assembled chrome registry
-            (`assembleChrome` at the main.tsx door → `CHROME_ZONES`): `rail.nav` = section entries derived
-            from each `SectionDefinition.rail`, `rail.end` = the Theme modal trigger + the SETTINGS SECTION
-            (`config`, label "Settings", `rail.zone: "rail.end"` — a rail SECTION rendered at the foot, #297;
-            the settings MODAL retired into it, #866 S1) + the persona Identity widget (`personaChrome`) — one
-            flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand map (gate
-            `no-parallel-section-map` chrome arm; `chrome-registry-completeness`).
+            (`assembleChrome` at the main.tsx door → `CHROME_ZONES`, zones-as-data off `RAIL_ZONES` in
+            `section-registry.ts`): `rail.nav` = section entries derived from each `SectionDefinition.rail`,
+            `rail.end` = the SETTINGS SECTION (`config`, label "Settings", `rail.zone: "rail.end"` — a rail
+            SECTION rendered at the foot, #297; the settings MODAL retired into it, #866 S1) + the persona
+            Identity widget (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never
+            a hand map (gate `no-parallel-section-map` chrome arm; `chrome-registry-completeness`). Modal
+            triggers derive by placement (`ModalTriggerPlacement` in `modal-registry.ts`); today none are
+            `rail.end` — every modal is `surface`, `topbar.trail` (the ⌘K command modal, #1789) or
+            `mobile-tab` (the You sheet, the INTRINSIC door, #1789); the Theme modal trigger this line once
+            named retired at #866 S4.
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
             ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
             docked for Chats/Characters/Configuration/Databank/Presets AND Corpus (amended 2026-07-13: the built

@@ -336,6 +336,15 @@ function pushExprError(ctx: MacroContext, message: string): void {
   }
 }
 
+// Push a non-integer-var diagnostic at the {{incvar}}/{{decvar}} call's span (#1557). Same sink-only
+// posture as pushExprError: no span or no sink ⇒ nothing recorded, and the render still degrades — here
+// to the UNCHANGED stored value rather than "", because `applyVarOp` already refused to mutate it.
+function pushVarError(ctx: MacroContext, message: string): void {
+  if (ctx.diagnostics !== undefined && ctx.__currentSpan !== undefined) {
+    ctx.diagnostics.push({ severity: "error", code: "non-integer-var", message, span: ctx.__currentSpan });
+  }
+}
+
 // {{expr::<cel-source>}} — evaluate raw CEL over ctx.celBindings (the §1 env minus `event`, 02 §3). The
 // arg splitter breaks the body on `::`, so rejoin (CEL bodies rarely contain `::`, but a defensive
 // rejoin is byte-safe). A parse or eval error renders "" + a diagnostic — macros never throw into
@@ -400,27 +409,39 @@ const addVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// {{incvar::name}} — parse-or-zero +1 on the stored string. Returns the result so it can be
-// embedded inline as a counter.
+// {{incvar::name}} — +1 on the stored string, IFF it is a complete integer (#1557, OWNER RULING: align
+// with #1420's complete-bounded-integer refusal — one engine, one behavior). A non-numeric/missing-digit
+// current value is a REFUSAL, not a silent rebase to 0: `applyVarOp` leaves the stored value untouched and
+// this handler renders it byte-identical (the degraded-passthrough shape every other refusing macro here
+// uses) plus a visible diagnostic, rather than inventing a "0" the author never wrote. An ABSENT variable is
+// still a fresh counter at 0 — that is `applyVarOp`'s own default, not a refusal.
 const incVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
   if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "inc", key };
-  applyVarOp(ctx.env, op);
+  const current = String(readVarKey(ctx.env, key) ?? "0");
+  if (!applyVarOp(ctx.env, op)) {
+    pushVarError(ctx, `'incvar' needs a whole number: variable '${key}' currently holds '${current}'`);
+    return current;
+  }
   ctx.opLog?.push(op);
   return String(readVarKey(ctx.env, key) ?? "");
 };
 
-// {{decvar::name}} — parse-or-zero −1 on the stored string.
+// {{decvar::name}} — −1 on the stored string, IFF it is a complete integer. Mirrors {{incvar}} above.
 const decVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
   if (key === undefined || key === "") {
     return "";
   }
   const op: VarOp = { op: "dec", key };
-  applyVarOp(ctx.env, op);
+  const current = String(readVarKey(ctx.env, key) ?? "0");
+  if (!applyVarOp(ctx.env, op)) {
+    pushVarError(ctx, `'decvar' needs a whole number: variable '${key}' currently holds '${current}'`);
+    return current;
+  }
   ctx.opLog?.push(op);
   return String(readVarKey(ctx.env, key) ?? "");
 };

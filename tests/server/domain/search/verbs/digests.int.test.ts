@@ -7,6 +7,7 @@
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { SCOPE_INSTRUCTIONS } from "../../../../../packages/server/src/domain/search/substrate/instructions.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -259,6 +260,43 @@ describe("digests", () => {
 
     expect(hits.map((h) => h.blockKey.blockIdx)).toEqual([0]);
     expect(unavailable).toBe(0);
+  });
+
+  // ── #1603: a SIDE-ROLE provider failure leaves this verb NAMING ITS ROLE ───────────────────────────────
+  // The embed await had no catch, so a 401 on the EMBED role's own key (role clients resolve their own
+  // credential per call — it need not be the chat connection's key at all) escaped anonymously into the chat
+  // turn's whole-body catch. That catch correctly refuses to strike the chat credential for it (#1373 leg 3),
+  // so the user got a turn failure that named no role and no key. This verb is the last place that still
+  // knows which role produced the failure.
+  test("#1603 an embed-role auth failure is re-framed NAMING the role, with its classification intact", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+
+    const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the endpoint rejected the key (401)", apiErrorStatus: 401 });
+    const svc = makeSearch(db, { embed: () => Promise.reject(rejected) });
+
+    const err = await svc.digests(opts(chat, char, { mode: "mixB" })).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ProviderError);
+    // The ROLE is named to the human who has to go fix a key…
+    expect((err as ProviderError).message).toContain("embed");
+    // …and the provider's own classification survives the re-frame (never re-derived, never flattened).
+    expect(err).toMatchObject({ kind: "auth_failed", retryable: false, apiErrorStatus: 401 });
+    expect((err as ProviderError).cause).toBeInstanceOf(ProviderError);
+  });
+
+  test("#1603 …but a NON-provider failure passes through untouched — it is not ours to re-frame", async () => {
+    const db = await freshDb();
+    const { chat, char } = await seedOwnerChatChar(db);
+    await seedChatDigest(db, { chatId: chat, scopedCharacterId: char, blockIdx: 0, embedding: vec(1) });
+    const bug = new Error("the vector store is on fire");
+
+    const svc = makeSearch(db, { embed: () => Promise.reject(bug) });
+
+    // Identity, not shape: a db fault or a bug of ours says nothing about anyone's credential, and wearing a
+    // role-named provider message would send the user to fix a key that is fine.
+    await expect(svc.digests(opts(chat, char, { mode: "mixB" }))).rejects.toBe(bug);
   });
 });
 

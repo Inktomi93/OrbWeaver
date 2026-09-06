@@ -355,7 +355,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         // becomes drivable, a null roster DENIES it errors-as-data — the safe failure — and whoever widens
         // reachability must load the AUTHOR's real membership here to make it work. Handing over the
         // triggering member's roster instead would be the exact wrong-principal bug PL-C was fixed for.
-        roster: null,
+        membership: null,
       });
       const record = records[0];
       if (record === undefined || record.result === null) {
@@ -855,7 +855,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           invoke: (argsJson, chatScope) => invoke(reg.handler, argsJson, chatScope),
           // PL-C: the invocation ceiling's principal is the INSTALLER, resolved per chat by ROW READ — the same
           // `loadPresentRole` op the transform registrar (`isInstallerHost`) and the event fan-out use. Never
-          // the turn caller's roster: that made the read admission a no-op and took `canWrite` from whoever
+          // the turn caller's membership: that made the read admission a no-op and took `canWrite` from whoever
           // happened to be host of the room the tool was called in.
           resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, scope.installer.userId),
         }),

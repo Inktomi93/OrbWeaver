@@ -55,3 +55,18 @@ export const CONFIG_UNBUILT_MARKER = "Not built yet";
  *  reader meets while hunting one changed setting cannot read as three different claims. It is the word
  *  the `@modified` token already teaches ("only settings that differ from their default"). */
 export const CONFIG_MODIFIED_MARKER = "Modified";
+
+/** THE ROW'S SAVE-FAILED MARK (SET-SEAMS §3). Rides the SAME `meta` slot {@link CONFIG_MODIFIED_MARKER}
+ *  does, on the SAME precedence `config-list-group.tsx`'s `SubcategoryRow` states in code
+ *  (`erroredSubIds.has(sub.id) ? saveFailedMarker : modified`) — never both at once.
+ *
+ *  #1712 (owner default, 2026-09-05): a section whose save FAILED already differs from its stored default —
+ *  the failed write is, definitionally, the unsaved non-default value the user was trying to commit — so
+ *  this state IMPLIES {@link CONFIG_MODIFIED_MARKER} even though the row shows only this word. That is
+ *  DELIBERATE, not an omission: a composed "Save failed · Modified" mark was considered and is the
+ *  documented alternative (#1712's compose arm), refused here because the row already grows exactly ONE
+ *  state slot and `config-list-surface.ct.tsx`'s row-pitch measurement is what a SECOND visible marker on
+ *  this row costs (a modified row's box grows past its siblings' — see `SubcategoryRow`'s own doc). The
+ *  implication is pinned, not silent: `appearance-group.ct.tsx`'s failing-save test drives a section whose
+ *  value differs from its default AND fails to save, and asserts the nav marker reads exactly this word. */
+export const SAVE_FAILED_MARKER = "Save failed";

@@ -28,7 +28,7 @@ function execContext(overrides: Partial<ToolExecutionContext> = {}): ToolExecuti
     triggeredBy: USER,
     chatId: CHAT,
     turnId: null,
-    roster: null,
+    membership: null,
     ...overrides,
   };
 }

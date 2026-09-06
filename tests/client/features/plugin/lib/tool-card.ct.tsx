@@ -27,8 +27,8 @@ const A_PAST_INSTANT = 1_760_000_000_000;
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle0000001");
 const PLUGIN_NAME = "Oracle Deck";
 /** The MODEL-VISIBLE names the host mints for the seeded deck's two tools (`plugin_<slug'>_<name>`). */
-const DRAW = "plugin_oracle_deck_draw";
-const REVEAL = "plugin_oracle_deck_reveal";
+const DRAW = "plugin_oracle__deck_draw";
+const REVEAL = "plugin_oracle__deck_reveal";
 
 const BLOCK = '[data-slot="tool-call-block"]';
 const LIST = '[data-slot="message-tool-calls"]';

@@ -48,7 +48,7 @@ export async function requireParticipant(ctx: GuardCtx, principal: Principal, ch
   const membership = assertParticipant(await loadMemberChat(ctx.db, chatId, principal.userId), chatId);
   // Route the read-floor through the ONE seam (spine §6). A present member always reads in v1 — this is the
   // seam where a future `observer` participant kind denies; the verdict lives in `can()`, never here.
-  ctx.can(principal, "read", { kind: "chat", roster: { role: membership.role } });
+  ctx.can(principal, "read", { kind: "chat", membership: { role: membership.role } });
   return { ...membership, historyFloorSeq: resolveHistoryFloorSeq(membership) };
 }
 

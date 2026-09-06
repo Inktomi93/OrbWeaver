@@ -2,25 +2,25 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 570,
-    "enforced": 565,
+    "sites": 573,
+    "enforced": 568,
     "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 549,
+      "deliberate-absorb": 552,
       "detached-owned": 5,
       "unproven": 16
     },
     "byGrammar": {
       "promise": 142,
-      "default": 150,
-      "empty": 278
+      "default": 152,
+      "empty": 279
     }
   },
   "rows": [
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::1",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 108,
+      "line": 148,
       "column": 22,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -28,12 +28,12 @@
       "snippet": "const chat = await queryClient.fetchQuery(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id here — both collapse to the honest \"not found\" the caller already handles. Ends if this arm stops sharing its miss path with the invalid-id case.",
-      "markerLine": 107
+      "markerLine": 147
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::2",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 132,
+      "line": 172,
       "column": 22,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -41,12 +41,12 @@
       "snippet": "const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.",
-      "markerLine": 131
+      "markerLine": 171
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::3",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 404,
+      "line": 322,
       "column": 28,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -54,12 +54,12 @@
       "snippet": "const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case.",
-      "markerLine": 403
+      "markerLine": 321
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::4",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 413,
+      "line": 331,
       "column": 26,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -67,7 +67,7 @@
       "snippet": "const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.",
-      "markerLine": 412
+      "markerLine": 330
     },
     {
       "siteId": "packages/client/src/agent-seed/retry-attempt.ts::promise:promise::1",
@@ -631,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 292,
+      "line": 303,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 290
+      "markerLine": 301
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
@@ -956,7 +956,7 @@
     {
       "siteId": "packages/client/src/features/preset/components/params-limits.tsx::default:catch::1",
       "path": "packages/client/src/features/preset/components/params-limits.tsx",
-      "line": 437,
+      "line": 385,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -964,7 +964,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the doc comment above explains — an unparseable",
-      "markerLine": 432
+      "markerLine": 380
     },
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::promise:text::1",
@@ -1437,7 +1437,7 @@
     {
       "siteId": "packages/client/src/main.tsx::promise:mutate::1",
       "path": "packages/client/src/main.tsx",
-      "line": 85,
+      "line": 105,
       "column": 3,
       "grammar": "promise",
       "position": "promise:mutate",
@@ -1445,7 +1445,7 @@
       "snippet": "trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface.",
-      "markerLine": 84
+      "markerLine": 104
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::default:catch::1",
@@ -1632,7 +1632,7 @@
     {
       "siteId": "packages/kit/src/macro/registry.ts::default:err::1",
       "path": "packages/kit/src/macro/registry.ts",
-      "line": 355,
+      "line": 364,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1640,7 +1640,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented — macros never throw into assembly;",
-      "markerLine": 351
+      "markerLine": 360
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",
@@ -1892,7 +1892,7 @@
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:run::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 63,
+      "line": 75,
       "column": 16,
       "grammar": "promise",
       "position": "promise:run",
@@ -1900,12 +1900,12 @@
       "snippet": "const tail = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this swallow LOSES NOTHING — the rejection it",
-      "markerLine": 58
+      "markerLine": 70
     },
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:tail::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 68,
+      "line": 80,
       "column": 3,
       "grammar": "promise",
       "position": "promise:tail",
@@ -1918,7 +1918,7 @@
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::empty:err::1",
       "path": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts",
-      "line": 160,
+      "line": 161,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -1926,7 +1926,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the file header states the contract:",
-      "markerLine": 153
+      "markerLine": 154
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/resolve-stream-authority.ts::empty:catch::1",
@@ -1944,7 +1944,7 @@
     {
       "siteId": "packages/server/src/domain/character/persistence/card.ts::default:err::1",
       "path": "packages/server/src/domain/character/persistence/card.ts",
-      "line": 182,
+      "line": 183,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1952,7 +1952,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the ONE absorbed arm is a LOST RACE, and it is",
-      "markerLine": 172
+      "markerLine": 173
     },
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::empty:err::1",
@@ -1994,9 +1994,22 @@
       "markerLine": 33
     },
     {
+      "siteId": "packages/server/src/domain/chat/bus.ts::default:catch::1",
+      "path": "packages/server/src/domain/chat/bus.ts",
+      "line": 150,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the probe failing means the db is unwell — the",
+      "markerLine": 144
+    },
+    {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 187,
+      "line": 245,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2004,12 +2017,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "classified by classifyFailedAppend (ground-truth",
-      "markerLine": 181
+      "markerLine": 239
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 232,
+      "line": 287,
       "column": 7,
       "grammar": "default",
       "position": "default:err",
@@ -2017,12 +2030,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 214
+      "markerLine": 269
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 112,
+      "line": 118,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2030,12 +2043,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 107
+      "markerLine": 113
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 908,
+      "line": 921,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2043,12 +2056,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 903
+      "markerLine": 916
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1842,
+      "line": 1856,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2061,7 +2074,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1868,
+      "line": 1882,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -2069,12 +2082,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1862
+      "markerLine": 1876
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1974,
+      "line": 1988,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
@@ -2464,7 +2477,7 @@
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::default:catch::1",
       "path": "packages/server/src/domain/plugin/substrate/plugin-macros.ts",
-      "line": 71,
+      "line": 102,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2472,7 +2485,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a throw, a rejected invoke,",
-      "markerLine": 66
+      "markerLine": 97
     },
     {
       "siteId": "packages/server/src/domain/plugin/verbs/transform-for-display.ts::default:catch::1",
@@ -2490,7 +2503,7 @@
     {
       "siteId": "packages/server/src/domain/refinery/persistence/queries.ts::empty:catch::1",
       "path": "packages/server/src/domain/refinery/persistence/queries.ts",
-      "line": 248,
+      "line": 276,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2498,7 +2511,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.",
-      "markerLine": 245
+      "markerLine": 273
     },
     {
       "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::default:catch::1",
@@ -2594,7 +2607,7 @@
     {
       "siteId": "packages/server/src/domain/rpg/substrate/delta.ts::default:catch::1",
       "path": "packages/server/src/domain/rpg/substrate/delta.ts",
-      "line": 501,
+      "line": 542,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2602,7 +2615,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "§2.7.4 D79-heal DEFENSIVE arm (comment below) —",
-      "markerLine": 496
+      "markerLine": 537
     },
     {
       "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",
@@ -3010,7 +3023,7 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1032,
+      "line": 1048,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3018,12 +3031,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the",
-      "markerLine": 1027
+      "markerLine": 1043
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 791,
+      "line": 792,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3031,12 +3044,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — documented above: a failed",
-      "markerLine": 786
+      "markerLine": 787
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::2",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1260,
+      "line": 1276,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3044,7 +3057,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a",
-      "markerLine": 1244
+      "markerLine": 1260
     },
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
@@ -3621,7 +3634,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts::promise:readBodyPreview::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts",
-      "line": 117,
+      "line": 121,
       "column": 24,
       "grammar": "promise",
       "position": "promise:readBodyPreview",
@@ -3629,7 +3642,7 @@
       "snippet": "const text = await readBodyPreview(res).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.",
-      "markerLine": 116
+      "markerLine": 120
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
@@ -3868,7 +3881,7 @@
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 142,
+      "line": 195,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3876,38 +3889,51 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict.",
-      "markerLine": 127
+      "markerLine": 180
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::2",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 168,
+      "line": 217,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.",
-      "markerLine": 164
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.",
+      "markerLine": 205
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::3",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 177,
+      "line": 257,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.",
+      "markerLine": 253
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::4",
+      "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
+      "line": 266,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal.",
-      "markerLine": 174
+      "markerLine": 263
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::empty:error::1",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 265,
+      "line": 354,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -3915,12 +3941,25 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified \"owned\" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification.",
-      "markerLine": 261
+      "markerLine": 350
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::empty:error::2",
+      "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
+      "line": 473,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.",
+      "markerLine": 470
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/spawn-engine.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/spawn-engine.ts",
-      "line": 54,
+      "line": 56,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3928,7 +3967,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary.",
-      "markerLine": 48
+      "markerLine": 50
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/supervisor.ts::default:catch::1",
@@ -4492,7 +4531,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 105,
+      "line": 210,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4500,12 +4539,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 91
+      "markerLine": 195
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 222,
+      "line": 329,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4513,7 +4552,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 219
+      "markerLine": 326
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -6676,7 +6715,7 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 79,
+      "line": 80,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6684,7 +6723,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
-      "markerLine": 75
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::empty:error::1",
@@ -6819,7 +6858,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/hover.ts",
-      "line": 414,
+      "line": 418,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -6827,7 +6866,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
-      "markerLine": 335
+      "markerLine": 339
     },
     {
       "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::empty:catch::1",

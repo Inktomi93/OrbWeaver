@@ -63,11 +63,11 @@ function state(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   };
 }
 
-/** A cast actor's row, keyed by its slug (the diff correlates by the actor ref key). `over` patches the
+/** An npc's row, keyed by its slug (the diff correlates by the actor ref key). `over` patches the
  *  VOLATILE half — the identity half is {@link member}'s job. */
-function castVolatile(castKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {
+function castVolatile(npcKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {
   return {
-    actorRef: { kind: "cast", castKey },
+    actorRef: { kind: "npc", npcKey },
     volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over },
   };
 }
@@ -199,8 +199,8 @@ test("present characters — joined and left the scene (presence keys; the NAME 
   const actors = [member("mari", "Mari"), member("zandik", "Zandik")];
   // Both actors are TRACKED throughout — only presence moves. That is the whole R2 semantic: a departure is
   // a presence drop, so Mari's row (stance, guides, pack) is still right there for her return.
-  const prev = state({ actorState: actors, presentCharacters: ["cast:mari"] });
-  const cur = state({ actorState: actors, presentCharacters: ["cast:zandik"] });
+  const prev = state({ actorState: actors, presentCharacters: ["npc:mari"] });
+  const cur = state({ actorState: actors, presentCharacters: ["npc:zandik"] });
   const out = buildDeltaBlock(prev, cur, ctx());
   expect(out).toContain("+Zandik enters");
   expect(out).toContain("-Mari leaves");
@@ -236,7 +236,7 @@ test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", (
   const cur = state({
     location: "The Rusty Anchor",
     actorState: [member("mari", "Mari")],
-    presentCharacters: ["cast:mari"],
+    presentCharacters: ["npc:mari"],
     quests: [{ id: "q1" as never, name: "Find the ledger", status: "active", description: "", objectives: [] }],
   });
   const out = buildDeltaBlock(null, cur, ctx());
@@ -264,7 +264,7 @@ test("SCENE OPENS names a ROSTER actor by her display name — never her raw ref
       },
       member("mira", "Mira"),
     ],
-    presentCharacters: ["character:char_kael", "cast:mira"],
+    presentCharacters: ["character:char_kael", "npc:mira"],
   });
   const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
   expect(out).toContain("with Kael, Mira");
@@ -284,6 +284,37 @@ test("SCENE OPENS falls back to the GENERIC label when the roster map has no nam
   const out = buildDeltaBlock(null, cur, ctx());
   expect(out).toContain("with you");
   expect(out).not.toContain("usr_1");
+});
+
+// The row-LESS arm (#1468 item 6). The two tests above cover a presence key whose ACTOR ROW is present; the
+// hole was the key whose row is GONE — a rekey that lost it, a hand edit that dropped an actor still listed on
+// stage, a stale key surviving a restore. `presenceName` returned the key itself there, so the same two
+// model-facing surfaces the roster join was fixed for got `character:chr_…` after all.
+test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the roster map answers, else a WORD", () => {
+  const cur = state({
+    location: "The Ford",
+    actorState: [], // every row gone; the presence plane still lists them
+    presentCharacters: ["character:char_kael", "user:usr_1", "npc:mira"],
+  });
+  const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+
+  expect(out).toContain("Kael"); // the roster map is keyed by the SAME projection — it answers with no row
+  expect(out).toContain("you"); // the unnamed roster ref takes the generic word
+  expect(out).toContain("mira"); // an npc key's tail is its authored slug, not an id
+  expect(out).not.toContain("char_kael");
+  expect(out).not.toContain("usr_1");
+  expect(out).not.toContain("character:");
+  expect(out).not.toContain("user:");
+  expect(out).not.toContain("npc:");
+});
+
+test("the ENTERS/LEAVES lines take the same arm — the leak was in one helper, so both readers had it", () => {
+  const prev = state({ actorState: [], presentCharacters: [] });
+  const cur = state({ actorState: [], presentCharacters: ["character:char_kael"] });
+  const out = buildDeltaBlock(prev, cur, ctx());
+
+  expect(out).toContain("+character enters"); // no name anywhere for this ref — the generic word, never the id
+  expect(out).not.toContain("char_kael");
 });
 
 test("first snapshot with an empty born state → OMIT (null, no phantom SCENE OPENS)", () => {
@@ -330,7 +361,7 @@ test("the registry is OPEN — a new PlaneDiffRenderer contributes without a mon
 
 // ── P1 additions: relationship / cast-fields / widgets set-delta / calendar-agnostic ambient / roster names ──
 
-test("relationship — a per-cast stance transition (feature 1, the steering loop signal)", () => {
+test("relationship — a per-npc stance transition (feature 1, the steering loop signal)", () => {
   const prev = state({ actorState: [member("mari", "Mari", { relationship: { kind: "friend", label: "" } })] });
   const cur = state({ actorState: [member("mari", "Mari", { relationship: { kind: "enemy", label: "" } })] });
   expect(buildDeltaBlock(prev, cur, ctx())).toContain("Mari: friend → enemy");
@@ -344,7 +375,7 @@ test("relationship — a custom kind glosses with the M1 hint", () => {
 });
 
 test("trackers — an NPC's trackers diff on the SAME per-actor plane a party member's do (one value home)", () => {
-  // The unification: a cast member's tracked values live on `actorState` under `cast:<key>` — the retired
+  // The unification: a npc's tracked values live on `actorState` under `npc:<key>` — the retired
   // `presentCharacters[].customFields` string record is gone, and with it the second diff grammar.
   const suspicion = def({ key: "suspicion", label: "suspicion", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 });
   const trust = def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" });

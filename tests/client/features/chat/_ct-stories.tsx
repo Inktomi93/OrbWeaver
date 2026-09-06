@@ -3227,9 +3227,9 @@ export function ChatDocumentsSectionStory({ isHost = true }: { readonly isHost?:
   );
 }
 
-/** The per-chat LOREBOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
+/** The per-chat WORLD BOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
  *  pane floor the row grammar is stated at, and the width a `shrink-0` trailing cluster is proven at. Same
- *  `QueryBoundary` its production mount ("This chat" → Lorebooks) gives it. The tab's own `.ct.tsx` owns the
+ *  `QueryBoundary` its production mount ("This chat" → World books) gives it. The tab's own `.ct.tsx` owns the
  *  behavior pins (order, the write-reach copy, attach/detach payloads); this story exists for the geometry
  *  the 380px tab story cannot see. */
 export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
@@ -3237,8 +3237,8 @@ export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boo
     <CtDataProviders>
       <div style={{ width: 320 }}>
         <QueryBoundary
-          fallback={<Text tone="muted">Loading lorebooks…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+          fallback={<Text tone="muted">Loading world books…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's world books" onRetry={retry} />}
         >
           <ChatBooksSection chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>
@@ -3310,6 +3310,30 @@ export function MacroPicksSectionStory(): ReactElement {
         </QueryBoundary>
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The SAME picks pane on the REAL app QueryClient + the production Toaster (#1582, pinned #1632 item 4).
+ *  `useSetUserMacroValues` suppresses its `errorToast` for the `unknown_macro_pick` refusal because the pane
+ *  says that refusal beside the knob — "one refusal, one surface". `CtDataProviders`' plain QueryClient has
+ *  NO MutationCache error channel, so on that stack the toast half is invisible and the count reads zero
+ *  whether the suppression works or not. A SECOND story rather than switching the shared one: the other
+ *  nineteen tests in `macro-picks-section.ct.tsx` are pinned against `CtDataProviders`' deterministic
+ *  defaults (`retry: false`, infinite `staleTime`), which the app client does not share. */
+export function MacroPicksSectionToastStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div style={{ width: 480, padding: 16 }}>
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading macro picks…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
+          >
+            <MacroPicksSection chatId={CHAT_ID} />
+          </QueryBoundary>
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 

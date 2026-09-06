@@ -42,7 +42,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { minter } from "./minter.ts";
-import { createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
+import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
 const LIMIT_ONE = 1;
@@ -124,6 +124,9 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     // fan is chat's bus and the reach is SQL over chat's junction, and regex may import neither.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
     fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive),
+    // #1746 — the DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
+    // two remove verbs snapshot through this BEFORE their delete and fan the confirmed set after.
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive).regex,
   });
 
   const portabilityCtx = { db, now, newScriptId };

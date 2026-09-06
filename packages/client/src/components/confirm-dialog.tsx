@@ -68,6 +68,23 @@ export interface ConfirmDialogProps {
 }
 
 /**
+ * Does this `onConfirm` return value name work that is still in flight?
+ *
+ * PROBING FOR THE THENABLE, not for `undefined` (#1632 item 6). `void` is a TYPE-level erasure, never a
+ * runtime one: TypeScript happily assigns `() => number` to `() => void`, so a handler DECLARED `(): void`
+ * whose body ends in an expression — `onClick={(): void => setOpen(false)}` is fine, but
+ * `(): void => list.push(x)` returns a number — hands this component a value that is neither `undefined`
+ * nor a promise. The old `settle === undefined` test let such a value through to `settle.then(…)`, which is
+ * a TypeError inside a click handler: the confirm neither closes nor reports, i.e. the exact dead-end the
+ * #1563 retry surface exists to remove. No live call site does this today (all 25 `onConfirm` sites read),
+ * so this is a widened FLOOR rather than a bug fix — the seam accepts `void` from callers it cannot see the
+ * bodies of, and the honest question at a boundary like that is "can I await it", never "is it undefined".
+ */
+function isSettle(value: void | Promise<void>): value is Promise<void> {
+  return typeof (value as { then?: unknown } | undefined)?.then === "function";
+}
+
+/**
  * The one confirm/destructive dialog — bundles Root/Trigger-or-controlled/Popup/Title/Description/
  * Actions so the anatomy can't drift (message-actions-row.tsx already dropped the Stack/Description
  * siblings once — the rollup audit's drift evidence). Run uncontrolled via `trigger` (renders the given
@@ -113,7 +130,7 @@ export function ConfirmDialog({
 
   const onConfirmClick = (): void => {
     const settle = onConfirm();
-    if (settle === undefined) {
+    if (!isSettle(settle)) {
       // Nothing to wait for — the act was done on click, which is every state-only confirm.
       moveOpen(false);
       return;

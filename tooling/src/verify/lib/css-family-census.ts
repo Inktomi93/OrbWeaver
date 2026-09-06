@@ -77,7 +77,9 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // WCAG 1.4.11's 3:1 governs a control's boundary while saying nothing about a divider; raising the shared
   // token would have moved 72 consumers to satisfy a floor binding on a dozen. One `light-dark()` token, both
   // arms measured floor-and-ceiling per seed (tokens.json color.input-border).
-  [THEME]: 306,
+  // −2 (2026-09-06, #1684): `--spacing-switch-thumb`'s two arms — see the note on
+  // EXPECTED_DIRECT_THEME_DECLARATIONS below.
+  [THEME]: 304,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
   // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
@@ -126,8 +128,14 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // alignment class over. The mobile cancel again widens a selector list and mints nothing.
   [SHELL]: 349,
 };
-export const EXPECTED_DECLARATION_TOTAL = 1018;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 200;
+// −2 (2026-09-06, #1684): `--spacing-switch-thumb`'s base and `@media (pointer: fine)` arms. The Switch
+// knob became a token-driven calc of the other three dimensions (`track-height − 2×border − 2×inset`) so
+// the centred block gap is an EVEN difference by construction and the resting thumb lands on a whole
+// device pixel at every `--font-scale` — the vault token had no consumer left and is retired in
+// packages/ui/src/tokens/removed.json. Same family as the #1362 row below: a half-pixel landing repaired
+// at the length that produces it (docs/design/integer-line-boxes.md §2, amended there).
+export const EXPECTED_DECLARATION_TOTAL = 1016;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 199;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

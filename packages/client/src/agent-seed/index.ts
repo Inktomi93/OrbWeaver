@@ -56,7 +56,7 @@ const PLAYER_NAME = "Aldric Vane";
 
 /** The game's TRACKERS (`config.trackers` — the ONE def home since the tracked-field unification). The seed
  *  exercises every axis on purpose: party-carried spend/restore meters (the old "pools", two of them PINNED
- *  to the band), an NPC-carried meter + text pair (the old "cast fields"), and a game-wide meter (the old
+ *  to the band), an NPC-carried meter + text pair (the old "npc fields"), and a game-wide meter (the old
  *  custom widget). Colors ride the strict tracker-color hex grammar (decorative bar geometry; the value text
  *  rides theme tokens); every one carries the steering HINT the model reads. */
 const TRACKERS = [
@@ -150,13 +150,13 @@ const TRACKERS = [
 /** The custom-relationship gloss (config.features.relationshipHints — steers a `{kind:"custom",label}`). */
 const RELATIONSHIP_HINTS = { "sworn rival": "a bitter but respectful competitor; never an outright enemy" };
 
-/** The scene cast's IDENTITY half as actor OPS (R2 — a cast NPC's name/emoji/mood/guides/relationship live on
+/** The scene npcs's IDENTITY half as actor OPS (R2 — an npc's name/emoji/mood/guides/relationship live on
  *  her own `actorState` row, not on a presence row that departure would destroy). One rides a first-class
  *  relationship kind, one a custom label. The `key` is the stable slug the ref uses; `name` is the display
  *  name, and the two are deliberately different strings. */
-const CAST_IDENTITY_OPS: readonly { readonly castKey: string; readonly ops: readonly RpgActorOp[] }[] = [
+const CAST_IDENTITY_OPS: readonly { readonly npcKey: string; readonly ops: readonly RpgActorOp[] }[] = [
   {
-    castKey: "mira",
+    npcKey: "mira",
     ops: [
       { op: "setIdentityText", field: "name", text: "Mira Solheart" },
       { op: "setIdentityText", field: "emoji", text: "🗡️" },
@@ -168,7 +168,7 @@ const CAST_IDENTITY_OPS: readonly { readonly castKey: string; readonly ops: read
     ],
   },
   {
-    castKey: "corvin",
+    npcKey: "corvin",
     ops: [
       { op: "setIdentityText", field: "name", text: "Corvin Ashe" },
       { op: "setIdentityText", field: "emoji", text: "🔥" },
@@ -182,7 +182,7 @@ const CAST_IDENTITY_OPS: readonly { readonly castKey: string; readonly ops: read
 ];
 
 /** Who stands in the scene — the PRESENCE plane, as `actorRefKey` strings (R2). */
-const PRESENT_CHARACTERS: readonly string[] = CAST_IDENTITY_OPS.map((c) => `cast:${c.castKey}`);
+const PRESENT_CHARACTERS: readonly string[] = CAST_IDENTITY_OPS.map((c) => `npc:${c.npcKey}`);
 
 /** The player's inventory items, as `patchActor` ADD ops (the item id is minted server-side — a hand caller
  *  never names an item's identity, exactly as the model applier never does). */
@@ -291,18 +291,18 @@ const PLAYER_TRACKER_OPS: readonly RpgActorOp[] = [
   { op: "setTracker", key: "grit", value: { value: 6 } },
 ];
 
-/** The scene cast's own volatile rows — a `cast:<key>` actor per present NPC, carrying THEIR tracker
+/** The scene npcs's own volatile rows — a `npc:<key>` actor per present NPC, carrying THEIR tracker
  *  readings. Cast members read from the SAME per-actor plane roster members do (one value home, D108 #2). */
-const CAST_ACTOR_OPS: readonly { readonly castKey: string; readonly ops: readonly RpgActorOp[] }[] = [
+const CAST_ACTOR_OPS: readonly { readonly npcKey: string; readonly ops: readonly RpgActorOp[] }[] = [
   {
-    castKey: "mira",
+    npcKey: "mira",
     ops: [
       { op: "setTracker", key: "trust", value: { value: 62 } },
       { op: "setTracker", key: "role", value: { value: "sellsword escort" } },
     ],
   },
   {
-    castKey: "corvin",
+    npcKey: "corvin",
     ops: [
       { op: "setTracker", key: "trust", value: { value: 18 } },
       { op: "setTracker", key: "role", value: { value: "rival arcanist" } },
@@ -367,8 +367,8 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
         // The cast's IDENTITY ops must land before its tracker ops on the same row read, so both halves are
         // written in ONE call per actor (the ops apply in order against the true head).
         ...CAST_IDENTITY_OPS.map((c) => ({
-          targetRef: { kind: "cast", castKey: c.castKey } as const,
-          ops: [...c.ops, ...(CAST_ACTOR_OPS.find((t) => t.castKey === c.castKey)?.ops ?? [])],
+          targetRef: { kind: "npc", npcKey: c.npcKey } as const,
+          ops: [...c.ops, ...(CAST_ACTOR_OPS.find((t) => t.npcKey === c.npcKey)?.ops ?? [])],
         })),
       ];
 

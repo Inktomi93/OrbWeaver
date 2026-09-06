@@ -2,13 +2,14 @@
 // undefined — the consumer's leak-free NOT_FOUND source) and the merge-stamp (independent halves; the
 // owner predicate IN THE WHERE — a foreign stamp writes NOTHING, the injected-op-caller-gate pin).
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
-import { characters } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { characterSnapshots, characters } from "@orb/db";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
-import { createLoadOwnedCard, createStampRefinerySignals } from "../../../../../packages/server/src/domain/character/index.ts";
+import { createDeleteSnapshot, createLoadOwnedCard, createStampRefinerySignals } from "../../../../../packages/server/src/domain/character/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -105,4 +106,26 @@ test("createStampRefinerySignals: an unusable stored blob degrades to the skelet
 
   const row = (await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId)))[0];
   expect(row?.refinery).toEqual({ score: 3, analysis: null });
+});
+
+test("#1571 (train-78, injected-op-caller-param): createDeleteSnapshot retracts the exact row by id + owner; a foreign owner's retraction deletes nothing", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("ops-owner5") });
+  const stranger = await seedUser(db, { handle: castId<Handle>("ops-stranger5") });
+  const characterId = await seedCard(db, owner.id, "ops_snap");
+  const snapshotId = castId<CharacterSnapshotId>("character_snapshot_ops_snap");
+  // FABRICATION-OK: the verb under test deletes BY ID + OWNER and never reads the snapshot content — the row's
+  // presence is the subject, so a two-field stub is the honest fixture (a full card would assert nothing more).
+  const content = { name: "Aria", description: "keeps the ledger" } as unknown as CharacterCard;
+  await db.insert(characterSnapshots).values({ id: snapshotId, characterId, content, label: "auto: before refinery apply" });
+  const del = createDeleteSnapshot({ db });
+
+  // A foreign owner's retraction deletes NOTHING — the row survives, exactly as a foreign stamp writes
+  // nothing (the sibling test above).
+  await del({ ownerId: stranger.id, snapshotId, characterId });
+  expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.id, snapshotId))).toHaveLength(1);
+
+  // The real owner's retraction removes exactly that row.
+  await del({ ownerId: owner.id, snapshotId, characterId });
+  expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.id, snapshotId))).toHaveLength(0);
 });

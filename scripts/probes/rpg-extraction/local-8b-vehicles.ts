@@ -166,10 +166,10 @@ function refsFor(state: RpgSnapshotState, config: RpgGameConfig): ExtractionRefs
   // ONE walk over the tracked cast since R2 (the scene cast and the tracked cast are the same rows), and the
   // enum offers each actor's DISPLAY name — never her slug key.
   for (const actor of state.actorState) {
-    const name = actor.actorRef.kind === "cast" ? (actor.identity?.name ?? actor.actorRef.castKey) : "";
+    const name = actor.actorRef.kind === "npc" ? (actor.identity?.name ?? actor.actorRef.npcKey) : "";
     if (name !== "" && !seen.has(name.toLowerCase())) {
       seen.add(name.toLowerCase());
-      carriers.push({ actorKey: `cast:${actor.actorRef.kind === "cast" ? actor.actorRef.castKey : ""}`, name, kind: "npcs", grants: [], revokes: [] });
+      carriers.push({ actorKey: `npc:${actor.actorRef.kind === "npc" ? actor.actorRef.npcKey : ""}`, name, kind: "npcs", grants: [], revokes: [] });
     }
   }
   return {
@@ -286,7 +286,7 @@ function roundSystem(kind: "cheap" | "structured", config: RpgGameConfig, refs: 
 // actor, no sheet rows ⇒ the default sheet, no grants/revokes).
 function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTrackerView {
   const defs = config.trackers;
-  const byKey = new Map(state.actorState.map((v) => [v.actorRef.kind === "user" ? `user:${v.actorRef.userId}` : `cast:${v.actorRef.kind === "cast" ? v.actorRef.castKey : ""}`, v]));
+  const byKey = new Map(state.actorState.map((v) => [v.actorRef.kind === "user" ? `user:${v.actorRef.userId}` : `npc:${v.actorRef.kind === "npc" ? v.actorRef.npcKey : ""}`, v]));
   const present = new Set(state.presentCharacters);
   const rosterActors: RpgActorView[] = ROSTER.map((r) => ({
     actorRef: r.actorRef,
@@ -301,18 +301,18 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
   }));
   // ONE actor shape for every person (R2): the tracked cast rows join the roster in the same list.
   const castActors: RpgActorView[] = state.actorState
-    .filter((entry) => entry.actorRef.kind === "cast")
+    .filter((entry) => entry.actorRef.kind === "npc")
     .map((entry) => {
-      const castKey = entry.actorRef.kind === "cast" ? entry.actorRef.castKey : "";
-      const name = entry.identity?.name ?? castKey;
+      const npcKey = entry.actorRef.kind === "npc" ? entry.actorRef.npcKey : "";
+      const name = entry.identity?.name ?? npcKey;
       return {
         actorRef: entry.actorRef,
         name,
-        presence: present.has(`cast:${castKey}`),
+        presence: present.has(`npc:${npcKey}`),
         identity: entry.identity ?? null,
         sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: entry.volatile,
-        trackers: trackersForCarrier(defs, { actorKey: `cast:${castKey}`, name, kind: "npcs", grants: [], revokes: [] }),
+        trackers: trackersForCarrier(defs, { actorKey: `npc:${npcKey}`, name, kind: "npcs", grants: [], revokes: [] }),
       };
     });
   const actors: RpgActorView[] = [...rosterActors, ...castActors];

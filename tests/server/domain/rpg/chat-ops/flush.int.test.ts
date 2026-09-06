@@ -9,7 +9,7 @@
 // read-back (the gap that let two write↔read bugs ship). F1 — a negative pool delta on a fresh pool must NOT
 // mint `max <= 0` (the contract belt `pools[].max >= 1`), and a contract-INVALID assembled state is DROPPED at
 // the write boundary (canon uncorrupted). F2 — a party-member write (addressed by NAME) lands under the roster
-// ref key, not an orphan `cast:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
+// ref key, not an orphan `npc:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
@@ -33,7 +33,7 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
 const POOLS_MAX_RE = /pools|max/i;
 
 function exec(chatId: ChatId, turnId: ChatTurnId): ToolExecutionContext {
-  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
+  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, membership: null };
 }
 
 test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flushed (owner ruling 2026-07-27)", async () => {
@@ -86,6 +86,38 @@ test("continue replaces its variant snapshot from the current head instead of in
   expect(after?.location).toBe("the kitchen");
   expect(after?.recentEvents).toEqual(["tea was served", "Mira pocketed the key"]);
   expect(await listSnapshots(db, gameId)).toHaveLength(1);
+});
+
+test("a CONTINUE's journal entries APPEND beside the first half's — the same-variant re-flush is not an idempotent replace (#1468 item 3)", async () => {
+  const db = await freshDb();
+  // THE REFUTATION PIN. #1468 item 3 read `writeStagedSnapshotAndJournal`'s unconditional journal INSERT beside
+  // its snapshot UPSERT as a duplicate-on-retry defect, and proposed a conflict target (or a delete-then-insert)
+  // keyed on `variantId`. That fix would be DATA LOSS: the only reachable second flush of one variant is a
+  // CONTINUE (`chat-ops/index.ts` fires `flushTurn` once per completed turn, and `staging.take` deletes the
+  // bucket, so no staged entry can be flushed twice), and a continuation's entries are NEW beats of the same
+  // slot — keying the write on the variant would erase the first half's archive on every continue. The failed-
+  // flush retry is covered by the #723 pin below: the batch rolls the whole beat back, so its retry writes one
+  // row, not two. This test is what makes both halves red if a later reader "fixes" the append away.
+  const { chatId, h } = await seedLiteGame(db, {
+    toolRoundDelta: {
+      statePatch: { location: "the kitchen" },
+      journal: [{ type: "location", label: "", title: "Arrival", content: "They reached the kitchen." }],
+    },
+  });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  expect(await listJournalByVariant(db, variantId)).toHaveLength(1);
+
+  h.fakes.toolRoundDelta = { statePatch: {}, journal: [{ type: "combat", label: "", title: "Ambush", content: "The cook drew a knife." }] };
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_continue"), turnConnection({ kind: "continue" }));
+
+  const entries = await listJournalByVariant(db, variantId);
+  expect(entries.map((e) => e.title).sort()).toEqual(["Ambush", "Arrival"]);
+  // One SNAPSHOT (the upsert did replace in place) beside TWO journal rows — the two planes have different
+  // per-variant cardinalities on purpose, which is the whole distinction the item collapsed.
+  expect(await findSnapshotByVariant(db, variantId)).toBeDefined();
 });
 
 test("F2 (readonly gate): a turn connection without the mode's writer capability fires NO round and writes nothing", async () => {
@@ -276,7 +308,7 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   // The persisted row is CONTRACT-VALID — the tracker value is TOTAL (`{value,items}` whole), so a partial
   // write can never strand a sibling on it, and the ceiling lives on the def where nothing can drift from it.
   const snap = await findSnapshotByVariant(db, variantId);
-  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "wizard");
+  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "wizard");
   expect(wizard?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
   await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).resolves.toBeDefined();
@@ -295,7 +327,7 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
     recentEvents: [],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "broken" },
+        actorRef: { kind: "npc", npcKey: "broken" },
         // A `max: 0` meter ceiling violates the contract belt (`max >= 1`) — parse-on-read would throw AFTER
         // the insert commits, so the backstop must refuse it at the write boundary.
         volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
@@ -466,11 +498,11 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
 
   const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
-  // The write SURFACES under the roster character's key — not an orphan cast:Kael the panel never reads.
+  // The write SURFACES under the roster character's key — not an orphan npc:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
   expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null, max: null });
-  // And there is NO orphan cast:Kael entry.
-  expect(view.actors.some((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Kael")).toBe(false);
+  // And there is NO orphan npc:Kael entry.
+  expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "Kael")).toBe(false);
 });
 
 test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster key", async () => {
@@ -648,6 +680,50 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
 });
 
+test("#1617 a WITHHELD channel (a collided terminal declaration) is its OWN named reason, not the wire's fault", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // The channel is `null` for a reason that has nothing to do with the model: a contributor re-spelled a
+  // registry tool's name, so the pipeline withheld the whole terminal mount for this turn. The wire here
+  // CO-EMITS fine (the default capability), which is exactly the arm that used to report
+  // `no-terminal-channel` — sending a reader to look at the connection instead of at the tool that collided.
+  const collided = turnConnection({ terminalToolCalls: null, terminalToolsCollided: ["update_scene"] });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, collided);
+
+  // State still lands, on the same vehicle every other fallback uses.
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "terminal-declaration-collided" }]);
+});
+
+test("#1604 a folded turn whose channel carries SEVERAL depths' calls folds them all, in order", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  // Since #1404 the pipeline accumulates the terminal half ACROSS recursion depths, so a folded game that
+  // also attaches registry tools can hand this fold two depths' calls. The fold needs no depth-awareness:
+  // it takes the array exactly as it takes one completion's parallel calls, and emission order is what makes
+  // the single-valued `scene` plane land on the LATER depth's view (it saw the earlier depth's results).
+  const multiDepth = [
+    { toolCallId: "d0", name: "update_scene", arguments: '{"location":"the kitchen table"}' },
+    { toolCallId: "d1", name: "update_scene", arguments: '{"location":"the ford"}' },
+  ];
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: multiDepth }));
+
+  // Every depth's call reaches the fold, in the order the model emitted them — nothing is dropped for having
+  // been emitted at depth 0, and nothing is re-ordered.
+  expect(h.fakes.foldCalls[0]?.toolCalls).toEqual(multiDepth);
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
+});
+
 test("D112 fold guard: a folded game on the LOCAL engine rounds instead — named `local-engine-fold-guard`", async () => {
   const db = await freshDb();
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
@@ -811,7 +887,7 @@ test("the record survives a REFUSED write — the turn a user most needs to see 
     ...defaultSnapshotState(),
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "broken" },
+        actorRef: { kind: "npc", npcKey: "broken" },
         volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
       },
     ],
@@ -887,15 +963,15 @@ test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay �
 // Both collectors get a case (the accumulator and the fold), per the two-sites rule that #77 minted.
 
 const HOST_P = principal(castId<Handle>("host"));
-const MIRA = { kind: "cast", castKey: "mira" } as const;
+const MIRA = { kind: "npc", npcKey: "mira" } as const;
 
-/** The pack the projection carries for `cast:mira` (the panel's own read). */
+/** The pack the projection carries for `npc:mira` (the panel's own read). */
 async function miraPack(
   h: Awaited<ReturnType<typeof seedLiteGame>>["h"],
   chatId: ChatId,
 ): Promise<readonly { readonly id: string; readonly name: string; readonly location: string }[]> {
   const view = await h.service.getTrackerView({ principal: HOST_P, chatId });
-  const mira = view.actors.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+  const mira = view.actors.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
   return mira?.volatile?.inventory ?? [];
 }
 

@@ -81,6 +81,10 @@ export interface FakeRoleClientControls {
   /** The rerank impl — default returns documents in their incoming order (descending score). Override to
    *  script a custom reorder, or to reject with a not-supported throw (PD-11). */
   readonly rerank?: RoleClients["rerank"];
+  /** The WHOLE embed impl — the twin of `rerank` above, for the arms where the embed role FAILS rather than
+   *  returns a vector (#1603: a side-role 401 on a key the chat connection never saw). `embedVector` cannot
+   *  express that: it is a sync vector factory the default impl resolves around. */
+  readonly embed?: RoleClients["embed"];
   readonly embedModel?: string;
   readonly imageEmbedModel?: string;
 }
@@ -102,8 +106,9 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
         usage: { totalTokens: null },
       }));
 
-  return {
-    embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
+  const embed: RoleClients["embed"] =
+    controls.embed ??
+    ((input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
       controls.onEmbed?.(input, opts);
       const inputs = Array.isArray(input) ? input : [input];
       return Promise.resolve({
@@ -111,7 +116,10 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
         model: embedModel,
         usage: { promptTokens: null, totalTokens: null },
       });
-    },
+    });
+
+  return {
+    embed,
     rerank,
     imageEmbed: (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
       // Only the cross-modal text→image path (`kind: "text"`) is exercised by `images`.

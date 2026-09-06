@@ -62,8 +62,15 @@ export function knobIssue(knob: RulePresetKnobDescriptor, value: RulePresetKnobV
   switch (knob.kind) {
     case "number":
       return null; // clamped on entry — always in range.
-    case "text":
-      return typeof value === "string" && value.trim().length > 0 ? null : "Required.";
+    case "text": {
+      // Mirrors the server's OWN floor (`substrate/presets.ts::resolveText`), not a blanket "never
+      // empty" — a `minLength: 0` knob (`storyPacing`'s "Standing direction", "" = none) is validly
+      // blank, and blocking it here would make a documented-optional field unreachable (#1387).
+      if (knob.minLength === 0) {
+        return null;
+      }
+      return typeof value === "string" && value.trim().length >= knob.minLength ? null : "Required.";
+    }
     case "entityRef":
       return typeof value === "string" && value.length > 0 ? null : `Choose a ${RULE_PRESET_ENTITY_NOUNS[knob.entity]}.`;
     case "textList": {
@@ -109,7 +116,7 @@ export function mintKnobOverrides(knobs: readonly RulePresetKnobView[], values: 
  *  small lie over a chooser — an entityRef is picked, not filled.
  *
  *  THE PURE DEFAULT, not the whole answer (#655). An `entityRef` whose chooser has NOTHING to offer is
- *  blocked on a PREREQUISITE, not on a choice, and "Choose a lorebook to add this rule." is then an
+ *  blocked on a PREREQUISITE, not on a choice, and "Choose a world book to add this rule." is then an
  *  instruction the host cannot obey — but which door to name is a live chat-scoped read, which is not this
  *  module's business (it is pure over the descriptors by construction). `KnobBlockingLine`, in
  *  `components/rule-preset-knob-field.tsx`, owns that override and falls back here for every other case. */

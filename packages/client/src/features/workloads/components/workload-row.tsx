@@ -48,7 +48,10 @@ export interface WorkloadRowProps {
   readonly workload: WorkloadItem;
   /** The owning user's handle for a cross-owner view; `null` = the caller's own row (or unresolved). */
   readonly ownerHandle: string | null;
-  readonly onCancel: () => void;
+  /** MAY return a promise (#1563b, widened #1632): it is this row's `ConfirmDialog.onConfirm`, which awaits
+   *  it — the confirm holds open busy, closes on resolve, and stays open with the reason on rejection.
+   *  `() => void` accepted an async handler anyway, so the declared type said the opposite of what happens. */
+  readonly onCancel: () => void | Promise<void>;
   readonly onRetry: () => void;
 }
 

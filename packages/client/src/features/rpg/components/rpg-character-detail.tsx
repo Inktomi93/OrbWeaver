@@ -11,7 +11,7 @@
 // second navigation layer to fight the shell drawer, so the sanctioned modal fallback is not needed.
 //
 // EDIT authz mirrors the verbs: `patchSheet` (title/flavor/level/attributes) — host any actor, a member their OWN
-// `user` ref, cast actors carry no sheet; `editSnapshot` (wallet + every volatile plane) — `canEditShared`
+// `user` ref, npcs carry no sheet; `editSnapshot` (wallet + every volatile plane) — `canEditShared`
 // (host, D108: NOT gated by `trackersReadOnly` — that gates the MODEL write path only). Tracker DEFS are not
 // authored here: they home ONCE in `config.trackers` on the Game tab (the whole point of the unification),
 // so this surface reads defs and edits READINGS.
@@ -300,7 +300,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
   // A member may edit only their OWN `user` sheet; a host may edit any. Cast actors have no sheet.
   // `trackersReadOnly` is NOT a factor (D108 — it gates the MODEL write path only).
   const ownRow = actor.actorRef.kind === "user" && actor.actorRef.userId === viewerUserId;
-  const canEditSheet = (isHost || ownRow) && actor.actorRef.kind !== "cast";
+  const canEditSheet = (isHost || ownRow) && actor.actorRef.kind !== "npc";
   const profile: RpgStatProfile = state.game.publicConfig.statProfile;
   const carriesNone = actor.trackers.length === 0;
   // The VOLATILE base: the wallet is a volatile plane and the server pins it at
@@ -371,10 +371,10 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       <TrackerSection actor={actor} carriesNone={carriesNone} {...(edit === undefined ? {} : { edit })} />
       <ConditionSection actor={actor} {...(edit === undefined ? {} : { edit })} />
       {/* The per-actor tracker-EXCEPTIONS editor — HOST-only (grants are the host's call; PERMISSION-omit, never
-          a disabled twin) and NON-CAST (a `cast` NPC has no sheet; its applicability rides the def's class /
+          a disabled twin) and NON-CAST (an `npc` actor has no sheet; its applicability rides the def's class /
           explicit list, not a per-actor grant). It edits `sheet.trackerGrants`/`trackerRevokes` through the
           same `patchSheet` door the identity planes use. */}
-      {isHost && actor.actorRef.kind !== "cast" ? <TrackerGrantsEditor chatId={chatId} actor={actor} trackerDefs={tracker.trackerDefs} /> : null}
+      {isHost && actor.actorRef.kind !== "npc" ? <TrackerGrantsEditor chatId={chatId} actor={actor} trackerDefs={tracker.trackerDefs} /> : null}
       {/* The born-state doorway — HOST-only (PERMISSION-omit: a member never sees a control that would refuse),
           and the one place the hand-only sheet fields can be model-written at all. */}
       {isHost ? <RpgPopulateControl chatId={chatId} actor={actor} canPopulate={state.game.canPopulate} /> : null}

@@ -221,7 +221,7 @@ test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, n
       plot: { act: 1, title: `The Betrayal ${LIE}`, acts: [{ title: `Act one ${LIE}`, summary: `The party gathers ${LIE}` }] },
       actorState: [
         {
-          actorRef: { kind: "cast", castKey: "mara" },
+          actorRef: { kind: "npc", npcKey: "mara" },
           identity: { name: "Mara", emoji: "", mood: `wary ${LIE}`, thoughts: `she plans it tonight ${LIE}`, relationship: { kind: "neutral", label: "" } },
           volatile: {
             trackerValues: {},
@@ -998,7 +998,7 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     calendarDate: "3rd of Frostmoon",
     location: "the drowned chapel",
     weather: { type: "rain", label: "torrential sleet" },
-    presentCharacters: ["cast:mara"],
+    presentCharacters: ["npc:mara"],
     recentEvents: ["the bell rang twice"],
     actorState: [actorWithWallet("mara", 12, 3)],
     trackerValues: { morale: { value: 4, items: null, max: 10 } },

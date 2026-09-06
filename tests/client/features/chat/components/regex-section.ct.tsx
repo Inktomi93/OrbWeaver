@@ -427,6 +427,69 @@ test("host: `Attach a script` offers the library, marks what is already here, an
     .toMatchObject({ scriptId: "regex_script_ct_hedges" });
 });
 
+// ── #1755 — THE RANK AS A SPOKEN FACT ───────────────────────────────────────────────────────────────────
+// The visible numeral lives in `ListRow`'s `leading` slot, which is `aria-hidden` by contract (it backs no
+// name and must not leak a fallback avatar's initials into one) — so the rank, the one fact the section is
+// built to show, reached a screen reader as nothing at all. The fix is two halves and needs both:
+// `aria-posinset`/`aria-setsize` on the listitem carry the SET semantics (the row's place in the room's
+// whole run order, out of the effective count — never the tier's own row count, because a tier's visible
+// rows are a SUBSET of that order), and a visually-hidden `Runs <n> of <m>` in the title lane carries it as
+// readable TEXT for the screen readers that do not voice posinset (VoiceOver on Safari does not).
+test("#1755 host: each ranked row speaks its RUN position out of the effective count, not its tier's", async ({ mount, page }) => {
+  await stubHost(page, board01());
+  const component = await mount(<RegexSectionStory />);
+  await expect(component.getByRole("heading", { name: /^Everywhere/u })).toBeVisible();
+
+  // THE SET SEMANTICS. `Everywhere` draws three of the room's seven ranked rows, so its listitems say
+  // 1/7, 2/7, 3/7 — a tier-relative 1/3, 2/3, 3/3 is the defect: it agrees with the visible column at the
+  // FIRST group by accident and disagrees at every later one.
+  const everywhere = component.locator('[data-tier="global"] [role="listitem"]');
+  await expect
+    .poll(async () => everywhere.evaluateAll((nodes) => nodes.map((n) => `${n.getAttribute("aria-posinset")}/${n.getAttribute("aria-setsize")}`)), {
+      intervals: [20, 50, 100, 250],
+    })
+    .toEqual(["1/7", "2/7", "3/7"]);
+  // The LATER tiers prove it is the run order and not a per-group restart.
+  await expect(component.locator('[data-tier="preset"] [role="listitem"]')).toHaveAttribute("aria-posinset", "4");
+  await expect(component.locator(`[data-tier="character:${ALICE}"] [role="listitem"]`)).toHaveAttribute("aria-posinset", "5");
+
+  // THE READABLE HALF, through Playwright's own aria tree.
+  const snapshot = await component.locator('[data-tier="global"]').ariaSnapshot();
+  expect(snapshot).toContain("Runs 1 of 7");
+  expect(snapshot).toContain("Runs 3 of 7");
+});
+
+test("#1755 host: a tier switched OFF here speaks no run position at all — an unranked row has none", async ({ mount, page }) => {
+  const view = board01();
+  const tiers = view["tiers"] as Record<string, unknown>[];
+  // The preset tier is off here: the server drops its rank (the `—` arm), so the spoken position goes with
+  // it. A rank on a row that does not run is the exact lie the section exists to remove (§3 (c)).
+  tiers[1] = { scope: "preset", allowed: false, rows: [row(HEDGES, 0, null)] };
+  await stubHost(page, view);
+  const component = await mount(<RegexSectionStory />);
+  await expect(component.getByRole("heading", { name: /^From the preset/u })).toBeVisible();
+
+  const offRow = component.locator('[data-tier="preset"] [role="listitem"]');
+  await expect(offRow).toHaveCount(1);
+  await expect(offRow).not.toHaveAttribute("aria-posinset", /.*/u);
+  await expect(offRow).not.toHaveAttribute("aria-setsize", /.*/u);
+  expect(await component.locator('[data-tier="preset"]').ariaSnapshot()).not.toContain("Runs");
+});
+
+test("#1755 member: rows carry no run position — a member's read has no run order to have a place in", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "regex.listForChat": () => [REDACT, SAILOR],
+    "regex.listScripts": () => OWNED,
+    "regex.listRoomDisplayScripts": () => [],
+  });
+  const component = await mount(<RegexSectionStory isHost={false} />);
+  await expect(component.getByText("Redact the address")).toBeVisible();
+  const rows = component.locator('[data-slot="regex-tier"] [role="listitem"]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).not.toHaveAttribute("aria-posinset", /.*/u);
+  expect(await component.locator('[data-slot="regex-tier"]').ariaSnapshot()).not.toContain("Runs");
+});
+
 test("host: the room's own tier offers Detach, and no other tier does", async ({ mount, page }) => {
   const trpc = await stubHost(page, board01());
   const component = await mount(<RegexSectionStory />);

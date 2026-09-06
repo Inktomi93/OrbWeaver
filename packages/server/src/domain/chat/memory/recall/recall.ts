@@ -252,8 +252,21 @@ async function filterPool(
     if (env.horizons !== undefined && !spanWitnessed(first.seqStart, last.seqEnd, env.horizons)) {
       return drop(d, "unwitnessed");
     }
-    // Keyed on the digest's start seq: seqStart == cutoff still counts as in-window (dropped).
-    if (env.liveWindowCutoffSeq !== undefined && inLiveWindow(first.seqStart, env.liveWindowCutoffSeq)) {
+    // THE LIVE-WINDOW TEST READS THE WHOLE SPAN, AND ITS ENDPOINT IS TIER-DEPENDENT (#1518). Both endpoints
+    // are already resolved above and the witnessing check uses both; reading only `first.seqStart` here kept
+    // any digest whose span STRADDLES the cutoff — the ordinary case at a tier boundary, since the cutoff is
+    // token-driven and never aligns to the block grid.
+    //   • tier > 0 ⇒ test the END (`last.seqEnd`): ANY overlap drops it. Nothing is lost by dropping — the
+    //     consolidation never deletes its children, so the pool still holds the finer digests covering the
+    //     aged-out half, and the bridge re-covers exactly that half at a lower tier. What the drop removes is
+    //     only the part the prompt already carries verbatim.
+    //   • tier 0 ⇒ test the START (`first.seqStart`), i.e. drop only when the block is WHOLLY inside the
+    //     window. A tier-0 straddler has nothing finer behind it, so dropping it would delete its aged-out
+    //     messages from BOTH planes — trading this filter's bounded redundancy for real memory loss, which
+    //     inverts its job ("no redundancy", `window.ts`; it is never the last thing holding a scene).
+    // Boundary unchanged (`inLiveWindow`): a seq EQUAL to the cutoff still counts as in-window.
+    const overlapSeq = d.tier === 0 ? first.seqStart : last.seqEnd;
+    if (env.liveWindowCutoffSeq !== undefined && inLiveWindow(overlapSeq, env.liveWindowCutoffSeq)) {
       return drop(d, "live-window");
     }
     return true;

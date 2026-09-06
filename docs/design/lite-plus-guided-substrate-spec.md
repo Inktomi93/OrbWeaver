@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-30
+updated: 2026-09-05
 ---
 
 # LITE + GUIDED SUBSTRATE — the fresh-build carve spec
@@ -361,7 +361,7 @@ entity properties, present in lite. The actor volatile schema (fresh):
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character"), characterId: characterIdSchema }),
   z.object({ kind: z.literal("user"), userId: userIdSchema }),
-  z.object({ kind: z.literal("cast"), castKey: z.string().min(1) }),   // full ADDS {kind:"npc"} (§C)
+  z.object({ kind: z.literal("npc"), npcKey: z.string().min(1) }),     // full ADDS {kind:"libraryNpc"} (§C)
 ]);
 export function actorRefKey(ref: RpgActorRef): string; // the ONE string projection — Map/lock/find key
 
@@ -392,21 +392,22 @@ ships anyway (display + full's equip/filter future), minus any wallet coupling. 
 wallet rides the volatile plane like everything else (the bake-once posture — a granted amount is a
 stamped fact on the variant's snapshot).
 
-> **Vocabulary rider (owner, #901 Fork 3, 2026-08-30 — SCHEDULED, NOT LANDED).** rpg's scene-only
-> extra is an **npc**, and the `cast` arm becomes `npc:<slug>`; the reserved unbuilt cross-game
-> library arm named `{kind:"npc"}` below is renamed FIRST (the `libraryNpc`/`npcRow` class) so the
-> word is free. That is issue **#906** — merge-window class, because `cast:<slug>` lives in JSON
-> snapshot VALUES (no pre-launch db reset covers it) and `snapshots.ts` throws `RpgStateCorruptError`
-> on a stale row. Until #906 lands, the wire literal `{kind:"cast", castKey}` in the block above is
-> the tree; the PROSE below says "npc" for the concept. Do not pre-emptively respell the literal.
+> **Vocabulary rider (owner, #901 Fork 3, 2026-08-30 — LANDED 2026-09-05 as #906).** rpg's scene-only
+> extra is an **npc**: the arm is `{kind:"npc", npcKey}` and `actorRefKey` projects `npc:<slug>`. The
+> reserved unbuilt cross-game library arm was renamed FIRST — it is now `{kind:"libraryNpc"}` — which is
+> what freed the word. It was merge-window class because `cast:<slug>` lives in JSON snapshot VALUES
+> (no pre-launch db reset covers a value change) and `snapshots.ts` throws `RpgStateCorruptError` on a
+> stale row; the owner ruled the remedy a dev-db WIPE rather than a migration, and
+> `tests/server/domain/rpg/stale-actor-key.suite.int.test.ts` is the receipt for what breaks without one
+> (three planes, one loud failure and two silent). The block above is the tree.
 
 **Actor-ref arms:** `character`/`user` address room-membership identities directly (no membership
-shadow — §4.3); `cast` addresses scene-only npcs by their stable `key` (normalized name, minted at first
+shadow — §4.3); `npc` addresses scene-only npcs by their stable `key` (normalized name, minted at first
 upsert; a rename is a new actor — hand-edit merges; accepted simplification, recorded). Full ADDS
-the `npc` arm when `rpg_npcs` lands — an additive union member every `assertNever` consumer is
+the `libraryNpc` arm when `rpg_npcs` lands — an additive union member every `assertNever` consumer is
 compile-forced to handle (the D86 `resolution`-discriminant growth pattern). *Rejected:* shipping
-the `npc` arm now — it would mint a dead `RpgNpcId` brand FK-ing a nonexistent table; an additive
-arm later is cheaper than a dormant arm's suppression surface now.
+the `libraryNpc` arm now — it would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent table; an
+additive arm later is cheaper than a dormant arm's suppression surface now.
 
 ### 2.7 Ambient is DATA with the engine's storage shape (born nullable)
 
@@ -880,7 +881,7 @@ rating, language, playerGoals, gm, houseRules, imagery, assist}` (defaulted fiel
 at parse) · sheet `{skills, abilities, strengths, weaknesses, attack, defense, speed}` · weather's
 optional engine fields get WRITTEN (shape already holds them).
 
-**Union/tuple ADDS (compile-forced, additive):** `rpgActorRefSchema` + `{kind:"npc"}` (every
+**Union/tuple ADDS (compile-forced, additive):** `rpgActorRefSchema` + `{kind:"libraryNpc"}` (every
 `assertNever` consumer errors until handled) · `rpgPresentCharacterSchema.npcId?` ·
 `RPG_CHECKPOINT_TRIGGERS` session/combat arms · `RPG_GAME_STATUSES` arms go LIVE (already shipped as
 vocabulary) · `statProfile.resolution` alt-arms (the D86 reserved discriminant) · bus members
@@ -924,7 +925,7 @@ the opaque pointer (D58's chat-binding ban) · route steering anywhere but the C
    widen later by evidence, not now.
 2. **Packaged `d20`/`special` in v1** — the spec ships them as templates (§2.3, argued). Veto costs
    nothing (delete two constants); shipping later is equally additive. Lean: ship.
-3. **Cast-actor rename semantics** — castKey = normalized name; a rename births a new actor and the
+3. **Npc-actor rename semantics** — npcKey = normalized name; a rename births a new actor and the
    old row is hand-merged (§2.6). Accepted simplification; a stable minted key + rename verb is an
    additive upgrade if play shows churn. Lean: ship the simple form.
 

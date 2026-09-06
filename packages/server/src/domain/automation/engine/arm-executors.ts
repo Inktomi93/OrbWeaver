@@ -37,7 +37,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { readVarKey, setVarKey } from "@orb/kit/macro";
+import { parseCompleteInteger, readVarKey, setVarKey } from "@orb/kit/macro";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
@@ -74,27 +74,6 @@ function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
 }
 
 // ── 1.1 set_variable ──────────────────────────────────────────────────────────────────────────────
-/** A COMPLETE DECIMAL integer spelling, or null (#1420).
- *
- *  `Number.parseInt` is a PREFIX parser: it reads as far as it can and discards the rest, so `"5cats"` was 5
- *  and `"3.9"` was 3 — values the author did not write, applied silently to a counter the room's later
- *  predicates read. The shape test is a decimal REGEX rather than a bare `Number()` because `Number` is
- *  generous in the other direction: it reads `"0x10"` as 16 and `"1e3"` as 1000, and a rendered template
- *  producing either of those is far more likely to be junk than to be a host asking for hexadecimal.
- *  `Number.isSafeInteger` then rejects the magnitudes at which arithmetic starts rounding.
- *
- *  Leading/trailing whitespace is TRIMMED first — a rendered template legitimately carries it — but the empty
- *  string is NOT a zero: "the author rendered nothing" is a mistake to name, not a value to invent. */
-const DECIMAL_INTEGER_RE = /^[+-]?\d+$/;
-
-function parseCompleteInteger(text: string): number | null {
-  const trimmed = text.trim();
-  if (!DECIMAL_INTEGER_RE.test(trimmed)) {
-    return null;
-  }
-  const value = Number(trimmed);
-  return Number.isSafeInteger(value) ? value : null;
-}
 
 /** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand,
  *  or NULL when either input is not a complete integer (the caller turns that into an `arm_error`).
@@ -191,7 +170,10 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
       await deps.ops.chat.applyVariableOps(chatId, [{ op: "delete", key }]);
       // WRITE-THROUGH, the delete half (`writeArmVariable` states the rule for the set half): mirror the
       // delete onto the shared in-memory `vars` too, so a later `has()` in this batch is false.
-      delete frame.env.vars[key];
+      // `Reflect.deleteProperty`, never the bare `delete` operator (#1571) — `kit/macro/variables.ts`'s own
+      // `applyVarOp` states why: house style bans it, and it is what keeps that file's "property syntax is
+      // not used on this plane anywhere" claim actually true rather than one this call site quietly broke.
+      Reflect.deleteProperty(frame.env.vars, key);
     } else {
       await deleteGlobalVariable(deps.db, frame.authorUserId, key);
     }
@@ -528,7 +510,12 @@ const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transfor
  *
  *  REPLACE-PER-`(chatId, ruleId)` is the store's (RULED F1): a cadence rule that fires every beat keeps ONE
  *  live ask, so the band's one-visible-card budget is bounded by rule count, not by fire rate. */
-function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): ArmOutcome | null {
+function stashConfirmFirstArm(
+  deps: ArmExecutorDeps,
+  action: AutomationAction,
+  frame: DispatchFrame,
+  continuation: readonly AutomationAction[],
+): ArmOutcome | null {
   if (!isConfirmFirstArm(action)) {
     return null;
   }
@@ -554,7 +541,7 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
     actorUserId: frame.authorUserId,
     summary,
     expiresAt,
-    payload: { via: "arm", stashed: { action, frame } },
+    payload: { via: "arm", stashed: { action, frame, continuation } },
   });
   deps.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
   // `suggested` is what keeps the fire log honest: the rule's remaining arms still run, but its TERMINAL
@@ -572,18 +559,18 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
  *  §5.5) is the usual dodge, but its snake_case PROPERTY keys trip `useNamingConvention` — the exact reason a
  *  switch is used here (string-literal `case`s are DATA, not property names). The per-arm `as Extract<>` cast is
  *  the price of not narrowing off `action.type` — sound by construction (each case calls the matching runner). */
-function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): Promise<ArmOutcome> {
+function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame, continuation: readonly AutomationAction[] = []): Promise<ArmOutcome> {
   const type: AutomationAction["type"] = action.type;
   // S4 — THE CONFIRM-FIRST CHOKEPOINT, deliberately ahead of the switch: an arm that asked to be confirmed
-  // never reaches its executor on a fire. It STASHES itself (arm + frame) and returns `ok`, so the rule's
-  // REMAINING arms still run — a rule may legitimately mix postures (a confirm-first `trigger_turn` beside a
-  // direct `set_variable` bookkeeping arm means exactly what it says). The confirm verb feeds the stored arm
-  // back through THIS function with the flag CLEARED (`armToExecute`), so a confirmed arm reaches its real
-  // executor and can never re-stash itself into a loop.
+  // never reaches its executor on a fire. It STASHES itself (arm + frame + `continuation`, #1553 OWNER
+  // RULING) and returns `ok` — the ARMS BEHIND IT wait on the same ask rather than running now or being
+  // dropped (`verbs/confirm-suggestion.ts::executeStashedArm` runs the continuation once the host confirms).
+  // The confirm verb feeds the stored arm back through THIS function with the flag CLEARED (`armToExecute`),
+  // so a confirmed arm reaches its real executor and can never re-stash itself into a loop.
   // The predicate lives INSIDE the helper (rather than as a type guard here) on purpose: narrowing `action`
   // at this scope would subtract the four suggestible arms from the union the switch below casts against,
   // and every one of those casts would stop overlapping.
-  const stashed = stashConfirmFirstArm(deps, action, frame);
+  const stashed = stashConfirmFirstArm(deps, action, frame, continuation);
   if (stashed !== null) {
     return Promise.resolve(stashed);
   }
@@ -624,5 +611,5 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
 /** Bind the arm dispatcher to its deps — the injected `ArmDispatch` the compose root hands the
  *  automation context (`ctx.runArm`); the dispatch invokes it per matched arm. */
 export function createArmExecutors(deps: ArmExecutorDeps): ArmDispatch {
-  return (action, frame) => runArm(deps, action, frame);
+  return (action, frame, continuation = []) => runArm(deps, action, frame, continuation);
 }

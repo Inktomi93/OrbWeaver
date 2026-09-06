@@ -17,11 +17,12 @@
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { engineLaunchEnvFloor, processEnvSnapshot } from "@orb/server/foundation/env";
-import type { EngineUtilFractions, GpuVram } from "@orb/server/infra/providers/vllm/engine";
+import type { EngineStopOutcome, EngineUtilFractions, GpuVram } from "@orb/server/infra/providers/vllm/engine";
 import {
   clearHold,
   countGpus,
   decideWake,
+  engineAdoptionText,
   enginePortPid,
   fleetRunDir,
   getIsSleeping,
@@ -30,7 +31,7 @@ import {
   postWakeAndAwait,
   queryGpuVram,
   reapOrphanedFamily,
-  signalRecordedEngineProcess,
+  stopRecordedEngineProcess,
   VLLM_ENGINES,
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
@@ -151,17 +152,20 @@ function enginePort(engine: (typeof VLLM_ENGINES)[number]): number {
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
-function recordStopOutcome(
-  engine: VllmEngine,
-  signal: NodeJS.Signals,
-  outcome: ReturnType<typeof signalRecordedEngineProcess>,
-  refused: Set<VllmEngine>,
-): number {
-  log(`${engine}: ${signal === "SIGTERM" ? "TERM" : "KILL"} ${outcome.verdict}${"reason" in outcome ? ` — ${outcome.reason}` : ` pgid=${outcome.pgid}`}`);
-  if (outcome.verdict === "refused") {
+/** Print BOTH doors' verdicts (#1756). The ordinary identity door's line is unchanged; the adoption line
+ *  appears only when that door declined and the marker door was therefore consulted, and it always NAMES the
+ *  evidence — which pids were adopted, or which pid refused the group. An engine stays `refused` unless one
+ *  of the two doors actually signalled: the operator's tally must never call an adoption failure a stop. */
+function recordStopOutcome(engine: VllmEngine, signal: NodeJS.Signals, outcome: EngineStopOutcome, refused: Set<VllmEngine>): number {
+  const recorded = outcome.recorded;
+  log(`${engine}: ${signal === "SIGTERM" ? "TERM" : "KILL"} ${recorded.verdict}${"reason" in recorded ? ` — ${recorded.reason}` : ` pgid=${recorded.pgid}`}`);
+  if (outcome.adoption !== undefined) {
+    log(`${engine}: adoption — ${engineAdoptionText(outcome.adoption)}`);
+  }
+  if (!outcome.signaled && recorded.verdict === "refused") {
     refused.add(engine);
   }
-  return outcome.verdict === "signaled" ? 1 : 0;
+  return outcome.signaled ? 1 : 0;
 }
 
 async function signalFleet(signal: NodeJS.Signals, requireListener: boolean, refused: Set<VllmEngine>): Promise<number> {
@@ -171,7 +175,7 @@ async function signalFleet(signal: NodeJS.Signals, requireListener: boolean, ref
       if (requireListener && listenerPid === null) {
         return 0;
       }
-      const outcome = signalRecordedEngineProcess({ repoRoot: REPO_ROOT, engine, port: enginePort(engine), listenerPid, signal });
+      const outcome = stopRecordedEngineProcess({ repoRoot: REPO_ROOT, engine, port: enginePort(engine), listenerPid, signal });
       return recordStopOutcome(engine, signal, outcome, refused);
     }),
   );

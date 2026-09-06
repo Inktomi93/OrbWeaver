@@ -81,7 +81,7 @@ export const rpgSnapshotStateSchema = z.object({
   weather: rpgWeatherSchema.nullable(),
   // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (roster refs
   // included: a roster character on stage is `character:<id>`). Nothing else lives here any more. It used to
-  // carry the cast NPC's whole identity row, which made departure a DESTRUCTION of her name, mood,
+  // carry the npc's whole identity row, which made departure a DESTRUCTION of her name, mood,
   // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
   // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
   // over it, so departure retains everything and return re-surfaces the whole NPC.
@@ -144,10 +144,10 @@ export function rpgActorVolatileLockBase(ref: RpgActorRef): string {
   return `${rpgActorLockBase(ref)}.volatile`;
 }
 
-/** The lock-path base for a cast actor's IDENTITY half — `actorState.<actorRefKey>.identity`. The Scene tab's
+/** The lock-path base for an npc's IDENTITY half — `actorState.<actorRefKey>.identity`. The Scene tab's
  *  hand edits (mood · relationship · the standing guides) stamp fine paths under it, exactly as the volatile
  *  edits do under their own base: before R2 those fields lived on `presentCharacters` and could only be pinned
- *  plane-wide, so pinning one NPC's mood froze the whole cast. */
+ *  plane-wide, so pinning one NPC's mood froze every npc. */
 export function rpgActorIdentityLockBase(ref: RpgActorRef): string {
   return `${rpgActorLockBase(ref)}.identity`;
 }

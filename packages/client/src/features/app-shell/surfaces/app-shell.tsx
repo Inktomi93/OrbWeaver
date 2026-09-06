@@ -11,10 +11,9 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { resolveThemeScopeTokens } from "#lib";
-import type { ChromeEntry, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, useChromeRegistry, useModalRegistry, useSectionRegistry } from "#state";
+import type { SectionId } from "#state";
+import { closeModal, openModal, setActiveSection, useChromeRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
-import { CommandChip } from "../components/command-chip.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
 import { NoticeBand } from "../components/notice-band.tsx";
@@ -28,6 +27,7 @@ import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
 import { ShellTopbar } from "../components/shell-topbar.tsx";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer.tsx";
 import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-layer.tsx";
+import { TopbarTrailChrome } from "../components/topbar-trail.tsx";
 import { useAppearance } from "../hooks/use-appearance.ts";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.ts";
 import { useChatBackground } from "../hooks/use-chat-background.ts";
@@ -62,37 +62,6 @@ function contextDismiss(layout: ShellLayout): Pick<SectionContextHostProps, "dis
   return { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") };
 }
 
-/** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
- *  calling each entry's `useVisible` unconditionally, in a fixed loop, is legal (the `contentBySection`
- *  precedent). `false` ⇒ render NOTHING (no gap — preserves the bell's no-flash rule). */
-function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): ReactElement {
-  const chrome = useChromeRegistry();
-  // The per-zone order is owned by assembleChrome (canonical `(order, id)` sort at the door), so this
-  // consumer only filters — no re-sort.
-  //
-  // A phone drops the entries curated `mobile: "sheet"` (the You sheet projects them instead) — the same
-  // curation the rail has always obeyed, finally consumed for this zone. That is the topbar BUDGET: at
-  // 320px every trail control is 48px of a row whose job is to say where you are (side-eye leg-4 P2).
-  const entries = chrome.list().filter((e) => e.zone === "topbar.trail" && !(mobile && e.mobile === "sheet"));
-  return (
-    <>
-      {entries.map((entry) => (
-        <TrailWidget key={entry.id} entry={entry} />
-      ))}
-    </>
-  );
-}
-
-function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
-  const visible = entry.useVisible?.() ?? true;
-  // topbar.trail carries only WIDGET entries this wave; modal/section rendering in the trail lands with
-  // the §E-3 rail cutover + the ⌘K skin pass.
-  if (!visible || entry.behavior.kind !== "widget") {
-    return null;
-  }
-  return entry.behavior.body("bar");
-}
-
 /** The rail in the DOM slot its REGIME paints it in (side-eye a11y rec · WCAG 1.3.2 meaningful sequence).
  *  On the desktop it is the leftmost column and must read FIRST; on a phone the SAME rail is the bottom tab
  *  bar, and hearing global navigation before "where am I" is exactly backwards. ONE definition, rendered
@@ -106,10 +75,15 @@ function RailSlot({ show, activeSection }: { readonly show: boolean; readonly ac
 
 export function AppShell(): ReactElement {
   const registry = useSectionRegistry();
-  // The ⌘K affordance opens the single `topbar.trail`-placed modal — derived, never hardcoded.
-  const commandModalId = useModalRegistry()
+  // The ⌘K ACCELERATOR's target, read off the SAME chrome entry the trail draws (#1789). It used to be a
+  // second `useModalRegistry()` lookup for the `topbar.trail` placement; the shortcut and the chip must open
+  // the same modal, so they read one resolved list rather than two derivations of it.
+  // The entry's own `behavior.modalId` is the id (its `id` field is a plain string — the behavior arm is
+  // where the typed `ModalSlotId` lives), so the narrowing is real rather than a cast.
+  const trailModalBehavior = useChromeRegistry()
     .list()
-    .find((m) => m.trigger.placement === "topbar.trail")?.id;
+    .find((e) => e.zone === "topbar.trail" && e.behavior.kind === "modal")?.behavior;
+  const commandModalId = trailModalBehavior?.kind === "modal" ? trailModalBehavior.modalId : undefined;
   const primacySentinelRef = useRef<HTMLDivElement>(null);
   useShellContentPrimacyObserver(primacySentinelRef);
   const layout = useShellLayout();
@@ -331,12 +305,7 @@ export function AppShell(): ReactElement {
                     screenTitle={compactTitle}
                     title={layout.activeSectionLabel}
                     header={activeDef.header?.()}
-                    trail={
-                      <>
-                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} />
-                        <TopbarTrailChrome mobile={layout.mobileViewport} />
-                      </>
-                    }
+                    trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
                     listAvailable={layout.listAvailable}
                     listMode={layout.listMode}
                     // The phone arm's VOCABULARY switch, not a behaviour switch — see `leadControl`.

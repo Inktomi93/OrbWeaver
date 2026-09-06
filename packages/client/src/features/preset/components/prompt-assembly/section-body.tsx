@@ -180,7 +180,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
             <form.AppField name="formatStrings.wiFormat">
               {(field): ReactElement => (
                 <field.MacroField
-                  hint="A format string framing EACH lorebook entry — {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
+                  hint="A format string framing EACH world book entry — {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
                   label="Entry wrapper"
                   placeholder="{{entry}}"
                   rows={1}

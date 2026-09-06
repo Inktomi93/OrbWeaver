@@ -136,7 +136,7 @@ function LibraryImportEpochBody(): ReactElement {
       >
         Capture current workload
       </button>
-      <button type="button" disabled={capturedSucceeded === null} onClick={(): void => capturedSucceeded?.({ imported: 9, skipped: 0, failed: 0 })}>
+      <button type="button" disabled={capturedSucceeded === null} onClick={(): void => capturedSucceeded?.({ imported: 9, skipped: 0, failed: 0, notes: [] })}>
         Complete captured workload
       </button>
       <button type="button" onClick={libraryImport.reset}>

@@ -47,6 +47,7 @@ import {
   AppShellNoticeBandStory,
   AppShellOnSectionStory,
   AppShellStory,
+  AppShellTrailProjectionStory,
   AppShellWidthProbeStory,
   ModalScrollStory,
 } from "../_ct-stories.tsx";
@@ -6122,4 +6123,53 @@ test("#1669 @desktop: the Characters LIST band keeps its own doors and the topba
   await expect(band).toBeVisible();
   await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
   await expect(page.locator(".shell-topbar-trail").getByRole("button", { name: "New", exact: true })).toHaveCount(0);
+});
+
+// ── #1789: THE TOPBAR TRAIL IS A LENS OVER THE ONE CHROME REGISTRY ───────────────────────────────────
+// D73 says every global affordance in the shell frame is a `ChromeEntry` in ONE registry and the
+// rail/topbar/You-sheet are blind lenses over the resolved list. The topbar was the half that never
+// landed: `topbar.trail` was deliberately unmapped in `assembleChrome`, so the shell rendered the ⌘K chip
+// from its OWN `useModalRegistry()` lookup, ahead of the registry's widgets — the zone's CONTENTS and its
+// ORDER both came from a second place, and no registry answer could move either.
+//
+// The two pins below are mechanism proofs, not fences: the stories hand the shell a chrome registry while
+// leaving the REAL modal registry underneath, so on the pre-fix source the deleted lookup still finds the
+// command modal and the chip renders (and leads) no matter what the chrome registry says. Measured RED on
+// 43ae0481a: the first saw the chip with ZERO trail modal entries, the second read it first at `order: -10`
+// against a widget declaring `-20`.
+test("#1789 the ⌘K chip is the topbar.trail MODAL entry's presentation — with no such entry there is no chip", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellTrailProjectionStory includeCommand={false} />);
+
+  // Barrier on the SETTLED zone: its widget painted, so the chip's absence is a verdict about the
+  // projection rather than a read taken before the trail rendered anything at all.
+  await expect(page.locator(".shell-topbar-trail").getByTestId("fake-trail-widget")).toBeVisible();
+  await expect(page.getByRole("button", { name: "⌘K jump — the command menu" })).toHaveCount(0);
+});
+
+test("#1789 …and with the entry present its POSITION is the registry's sort, not the lens's JSX order", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellTrailProjectionStory widgetOrder={-20} />);
+  const trail = page.locator(".shell-topbar-trail");
+  await expect(trail.getByRole("button", { name: "⌘K jump — the command menu" })).toBeVisible();
+
+  // The widget declares an EARLIER order than the derived modal entry, so it renders first. Hardcoded
+  // ahead of the zone (as the bespoke chip was), the chip cannot yield that slot to anything.
+  await expect
+    .poll(() => trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("data-testid") ?? el.getAttribute("aria-label") ?? "")))
+    .toEqual(["fake-trail-widget", "⌘K jump — the command menu"]);
+});
+
+// A FENCE, not a defect proof (the bespoke chip was hardcoded first, so this passed before the fix): the
+// PRODUCTION order is unchanged by the fold. The chip's lead position is now `commandModal.trigger.order`,
+// which is the only place it is spelled.
+test("#1789 @fence the production trail still LEADS with the ⌘K chip, ahead of every widget", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const trail = page.locator(".shell-topbar-trail");
+  await expect(trail.getByRole("button", { name: "⌘K jump — the command menu" })).toBeVisible();
+
+  const names = await trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(names[0]).toBe("⌘K jump — the command menu");
+  expect(names.length).toBeGreaterThan(1);
 });

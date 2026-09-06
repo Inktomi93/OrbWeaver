@@ -82,7 +82,7 @@ test("a tool-card surface is projected with the MODEL-VISIBLE wire name (slug hy
 
   const [surface] = await h.service.listSurfaces({ caller });
   expect(surface?.toolName).toBe("draw");
-  expect(surface?.toolWireName).toBe("plugin_oracle_deck_draw");
+  expect(surface?.toolWireName).toBe("plugin_oracle__deck_draw");
 });
 
 test("a non-tool-card surface carries NO wire name (the linkage is the tool-card anchor's alone)", async () => {

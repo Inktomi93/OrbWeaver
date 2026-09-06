@@ -33,7 +33,7 @@ interface ParsedCard {
   readonly attachedRegexScripts: readonly RegexScriptId[];
 }
 
-const DEFAULT_BOOK_NAME = "Imported Lorebook";
+const DEFAULT_BOOK_NAME = "Imported World Book";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;

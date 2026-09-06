@@ -20,8 +20,12 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
       <PopoverTrigger
         render={
           <Button type="button" intent="ghost" size="sm" data-slot="compact-summary-peek" aria-label="View compaction summary" className="shrink-0">
-            {/* Speaks the divider's own `kicker` voice — it sits on that line and reads as part of it. */}
-            <Text as="span" voice="kicker">
+            {/* `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): "View" IS this button's whole
+                visible label, and `kicker` rides `--text-micro` (10.5px) — the footnote step, under the 11px
+                functional floor for interactive copy. The kinship with the divider line it sits on survives:
+                `interactiveKicker` keeps the same tracked, uppercase instrument register and moves only the
+                size, to the readable 13px label step. */}
+            <Text as="span" voice="interactiveKicker">
               View
             </Text>
           </Button>

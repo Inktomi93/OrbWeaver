@@ -8,6 +8,12 @@
 // never new DOM here — the persona avatar is `personaChrome` (§E-6, the old `railFoot` prop is dead).
 // The bar's curation is EFFECTIVE, not declared (`mobileBarCuration`, #state, #484): standing in an
 // overflow section swaps it into the last standing tab's slot, so exactly one VISIBLE tab is ever current.
+//
+// ONE NAMED EXCEPTION TO "SAME DOM" — the brand/Home affordance (#1790, see the block comment at its
+// second render site below for the receipts): it is two DOM nodes (`RailBrand` desktop, `RailButton`
+// mobile), CSS-toggled so exactly one is ever exposed at a given width. Every other rail entry reflows a
+// single node; brand does not, because its two presentations are genuinely different chrome-row contracts
+// (see below) rather than one control resized.
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -185,6 +191,14 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
   const brandEntry = entries.find((e) => e.zone === "rail.brand");
   // The mobile-only "You" overflow tab (its projection is the You sheet, §E-5) — its trigger DERIVES from
   // the modal registry (no parallel id), the same mechanism the twin-DOM rail used.
+  //
+  // THIS LOOKUP IS NOT AN ESCAPE PATH, AND A CENSUS OF `useModalRegistry()` CALLERS MUST NOT RE-FILE IT AS
+  // ONE (owner ruling 2026-09-06, #1789). The You button is the INTRINSIC DOOR to the mobile projection of
+  // the chrome registry, exactly as a panel toggle is the intrinsic door to its panel — D73 keeps the
+  // frame's own grammar intrinsic, and making the projection's own door an entry INSIDE that projection
+  // would be circular (it would list itself, and the sheet would offer a row that opens the sheet). So
+  // `mobile-tab` stays unmapped in `assemble-chrome.ts` while `topbar.trail` (the ⌘K palette) became a real
+  // chrome entry in the same change, and this reads its own target the only place that target is declared.
   const youModal = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "mobile-tab");
@@ -209,7 +223,26 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
 
       {/* The brand cell is `display:none` below 48rem, so the brand section rides the mobile bar as its
           FIRST tab instead (home-section-spec §4.3) — the `mobileOnly` mechanism the You tab already uses.
-          Exactly one of the two is ever displayed, so there is no duplicate affordance in the a11y tree. */}
+          Exactly one of the two is ever displayed, so there is no duplicate affordance in the a11y tree
+          (pinned: rail.ct.tsx "exactly one Home affordance at each width", #1790).
+
+          RECORDED EXCEPTION, NOT AN OVERSIGHT (#1790): every other rail entry reflows ONE `RailButton`
+          node across the `@media` (icon+label always in the DOM, CSS moves/hides the label); brand is
+          the one entry that does not, because its two presentations are not one control resized — they
+          are different chrome-row CONTRACTS. Desktop's `RailBrand` is a full-bleed header CELL (the
+          wrapper `.shell-rail-brand` owns the chrome-row height, the shared bottom hairline, and
+          `align-self: stretch`; shell.css:448-490) with its own active grammar (a color-mix background
+          tint + a painted accent bar, `.shell-rail-brand-button[data-active]::before`). The mobile tab
+          instead must look and behave EXACTLY like every sibling tab — flex-1 icon-over-label, color-only
+          active state, no accent bar (shell.css:1177-1196) — which is why it already reuses the same
+          `RailButton` every other entry uses, rather than a brand-flavored one. Folding both into a single
+          DOM node would mean that node carries the header cell's geometry classes AND the tab's flex/sizing
+          classes at once, with one arm's active-state layers (`::before`/`::after`) suppressed by the
+          other's `@media` rule — a real cost (two coupled, order-dependent class sets on one element,
+          reasoned about together forever) paid for zero behavior change: the reflow already produces
+          exactly what a fold would produce, one visible Home affordance at every width. That is a decision,
+          not neglect — it is not a `matchMedia` read, not a third component, and it does not touch the
+          CT-pinned desktop paint at rail.ct.tsx:34-80. */}
       {brandEntry?.icon === undefined || brandEntry.behavior.kind !== "section" ? null : (
         <RailButton
           active={brandEntry.behavior.sectionId === activeSection}

@@ -41,7 +41,7 @@ test("every arg schema projects to JSON Schema without throwing (the z.toJSONSch
 test("update_party carries the targetRef + the two TRACKER write arms + condition/status", () => {
   // The write axis is LOUD in the wire (the tracked-field unification): `delta` = a resource the beat spends
   // or restores; `set` = a state the beat observes. One key-addressed arm each, replacing `poolDeltas`
-  // (name-addressed, meters only) and the cast row's opaque `customFields` string record.
+  // (name-addressed, meters only) and the npc row's opaque `customFields` string record.
   const parsed = updatePartyArgsSchema.parse({
     targetRef: "Hero",
     trackerDeltas: [{ key: "mana", delta: -1 }],
@@ -89,7 +89,7 @@ test("update_scene's presentUpsert carries display fields only — tracked value
     presentUpsert: [{ name: "Elder", mood: "wary", thoughts: "he is hiding something" }],
   });
   expect(parsed.presentUpsert?.[0]?.mood).toBe("wary");
-  // The unification killed the second tracked-value wire vocabulary: a cast member's tracked values are
+  // The unification killed the second tracked-value wire vocabulary: a npc's tracked values are
   // written through `update_party` (targeting them by name), exactly like a party member's.
   expect(Object.keys(parsed.presentUpsert?.[0] ?? {})).not.toContain("customFields");
 });

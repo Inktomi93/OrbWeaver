@@ -560,11 +560,12 @@ export const CHARACTER_HANDLE_CONFLICT_OP_CODE = "handle_conflict" as const;
  *  rooms and no user-authored card may claim. */
 export const CHARACTER_HANDLE_RESERVED_OP_CODE = "handle_reserved" as const;
 
-/** An update whose caller declared the card CONTENT it was editing from (`expectedContentHash`) lost the
- *  race: the card changed between that caller's read and its write, so applying the patch would silently
- *  overwrite the edit that landed in between (#1446). The refusal is TOTAL — no field was written — and the
- *  fix is to re-read and re-apply. OPT-IN: only a caller that writes from a basis it read EARLIER declares
- *  the hash (the refinery apply), so the ordinary edit-in-place update can never raise this. */
+/** An update whose caller declared the card BASIS it was editing from (`expectedBasis`, a `CardWriteBasis`
+ *  — #1560 widened it past the identity hash alone to also cover `creatorNotes`) lost the race: the card
+ *  changed between that caller's read and its write, so applying the patch would silently overwrite the
+ *  edit that landed in between (#1446). The refusal is TOTAL — no field was written — and the fix is to
+ *  re-read and re-apply. OPT-IN: only a caller that writes from a basis it read EARLIER declares one (the
+ *  refinery apply), so the ordinary edit-in-place update can never raise this. */
 export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 
 // ── Bulk card-tag per-item result (#1694) — the honest wire for a PARTIAL batch ────────────────────────

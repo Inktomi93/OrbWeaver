@@ -78,7 +78,7 @@ function reminder(action: string, wits: number, beats: string[], gloss = ""): st
     "Story: The Ford Road — act 1/3",
     "Party:",
     "- Kestrel — (courier) — Lv 3 — HP 22/30 — Stamina 9/14 — carrying: lockbox, ledger, lantern",
-    "Present cast:",
+    "Present npc:",
     `- 🗝️ Wren — alert — travelling companion — Trust 70/100 — Wits ${wits}/100${gloss} — Role: fixer`,
     "Active quests: (none)",
   ];

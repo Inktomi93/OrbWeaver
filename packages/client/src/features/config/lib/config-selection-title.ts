@@ -35,7 +35,12 @@
 //     front of a hook — precisely the rules-of-hooks defect the row set out to remove.
 // The RUNTIME risk is nil and is a separate fact from the type: the door's `Record` is total over
 // `CONFIG_GROUP_IDS`, whose collections segment is four ids, so the list is never empty in a composed app —
-// and `groups` is door-frozen, so this value cannot change identity across renders of one fiber. What DOES
+// and `groups` is door-frozen, so this value cannot change identity across renders of one fiber. THE
+// RECEIPT, because "door-frozen" is a claim a reader should be able to check (#1632 item 7): the ONE
+// assembly is `compose/authed-app.tsx`'s module-scope `const configGroups = createRegistry("config-groups",
+// CONFIG_GROUP_IDS, {…})` (~:251), evaluated once at module init and never rebuilt — which is also what
+// makes the CONDITIONAL hook call below safe, since `collection` cannot go from defined to undefined (or
+// back) across the lifetime of any fiber that reads it. What DOES
 // govern this site is the #1203 law recorded on `CollectionContribution.useCount`: a persistent, unkeyable
 // hook host — the topbar title is the named example — forces the contract field REQUIRED rather than keying
 // the fiber. That half is #1219's, on `useMemberTitle` itself, not this file's.

@@ -26,7 +26,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const MIRA = { kind: "cast", castKey: "mira" } as const;
+const MIRA = { kind: "npc", npcKey: "mira" } as const;
 const HOST = principal(castId<Handle>("host"));
 
 interface Seeded {
@@ -48,10 +48,10 @@ async function seedGame(over: Parameters<typeof makeRpgService>[1] = {}): Promis
   return { chatId, game, service: h.service, fakes: h.fakes, h };
 }
 
-/** The resolved head's row for `cast:mira` (what the panel and the reminder would read). */
+/** The resolved head's row for `npc:mira` (what the panel and the reminder would read). */
 async function miraRow(game: RpgGameRow, chatId: ChatId): Promise<RpgSnapshotState["actorState"][number] | undefined> {
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  return (snap?.actorState ?? []).find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+  return (snap?.actorState ?? []).find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
 }
 
 test("the ops land on a MINTED row — a first hand edit on an actor with no state row is a real write", async () => {
@@ -73,7 +73,7 @@ test("the ops land on a MINTED row — a first hand edit on an actor with no sta
 
   const row = await miraRow(game, chatId);
   expect(row?.volatile.status).toBe("wary");
-  // R2 — a MINTED cast row carries its identity half too, so the very first hand edit can name her.
+  // R2 — a MINTED npc row carries its identity half too, so the very first hand edit can name her.
   expect(row?.identity?.name).toBe("Mira Solheart");
   expect(row?.volatile.trackerValues["trust"]).toStrictEqual({ value: 4, items: null, max: null });
   expect(row?.volatile.conditions).toEqual([{ name: "Chilled", stat: null, modifier: 0, turnsLeft: null }]);
@@ -98,12 +98,12 @@ test("each op stamps its OWN fine lock path — never the coarse `actorState` pl
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   const itemId = (snap?.actorState ?? [])[0]?.volatile.inventory[0]?.id ?? "";
   expect(snap?.fieldLocks).toStrictEqual({
-    "actorState.cast:mira.volatile.trackerValues.trust": true,
-    "actorState.cast:mira.volatile.status": true,
-    "actorState.cast:mira.volatile.wallet.gold": true,
-    "actorState.cast:mira.volatile.conditions": true,
+    "actorState.npc:mira.volatile.trackerValues.trust": true,
+    "actorState.npc:mira.volatile.status": true,
+    "actorState.npc:mira.volatile.wallet.gold": true,
+    "actorState.npc:mira.volatile.conditions": true,
     // The pack's pin is finer still since #78 — the ITEM the add touched, and only the field it claimed.
-    [`actorState.cast:mira.volatile.inventory.${itemId}.name`]: true,
+    [`actorState.npc:mira.volatile.inventory.${itemId}.name`]: true,
   });
   expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
 });
@@ -128,10 +128,10 @@ test("#78: a hand ADD pins ONLY the fields it claimed, on the item it added — 
   // `name` + `location` were authored by the hand; `quantity`/`description`/`type` were SERVER DEFAULTS, not
   // claims — the story may still write them. And the plane path itself is absent: that is the whole fix.
   expect(snap?.fieldLocks).toStrictEqual({
-    [`actorState.cast:mira.volatile.inventory.${itemId}.name`]: true,
-    [`actorState.cast:mira.volatile.inventory.${itemId}.location`]: true,
+    [`actorState.npc:mira.volatile.inventory.${itemId}.name`]: true,
+    [`actorState.npc:mira.volatile.inventory.${itemId}.location`]: true,
   });
-  expect(snap?.fieldLocks?.["actorState.cast:mira.volatile.inventory"]).toBeUndefined();
+  expect(snap?.fieldLocks?.["actorState.npc:mira.volatile.inventory"]).toBeUndefined();
 });
 
 test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item earns no pin at all", async () => {
@@ -150,7 +150,7 @@ test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item 
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: keyId ?? "", patch: { quantity: 3 } }] });
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.cast:mira.volatile.inventory.${keyId}.quantity`]: true });
+  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.npc:mira.volatile.inventory.${keyId}.quantity`]: true });
   expect(JSON.stringify(snap?.fieldLocks)).not.toContain(String(ropeId));
 });
 
@@ -171,7 +171,7 @@ test("#78: dropping an item RELEASES its pins — a removed element leaves no gh
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   // The dropped item's pins are gone; the surviving item keeps its own (the `deleteQuest`/`dismissActor`
   // precedent — a pin the panel can no longer render is a pin the host can never release).
-  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.cast:mira.volatile.inventory.${ropeId}.name`]: true });
+  expect(snap?.fieldLocks).toStrictEqual({ [`actorState.npc:mira.volatile.inventory.${ropeId}.name`]: true });
 });
 
 test("`autoLock:false` stamps NOTHING — the model-unreachable field (an item icon) pins no story write", async () => {
@@ -210,13 +210,13 @@ test("a write on ONE actor leaves every other actor's row untouched (the additiv
   await service.patchActor({
     principal: HOST,
     chatId,
-    targetRef: { kind: "cast", castKey: "thorn" },
+    targetRef: { kind: "npc", npcKey: "thorn" },
     ops: [{ op: "setWalletAmount", name: "gold", amount: 45 }],
   });
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setTracker", key: "trust", value: { value: 4 } }] });
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "cast" ? a.actorRef.castKey : "", a]));
+  const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "npc" ? a.actorRef.npcKey : "", a]));
   expect(byKey.get("thorn")?.volatile.wallet).toEqual([{ name: "gold", amount: 45 }]);
   expect(byKey.get("mira")?.volatile.trackerValues["trust"]?.value).toBe(4);
 });
@@ -327,7 +327,7 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
     actorState: [{ ...panelImage, volatile: { ...panelImage?.volatile, trackerValues: { trust: { value: 7, items: null, max: null } } } }],
   };
   const clobbered = applyLockedPatch(headBeforeHandWrite, staleImage, null) as unknown as RpgSnapshotState; // FABRICATION-OK: the merge's own return cast
-  const clobberedRow = clobbered.actorState.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+  const clobberedRow = clobbered.actorState.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
   expect(clobberedRow?.volatile.status).toBe("calm"); // the flush's status: gone
   expect(clobberedRow?.volatile.conditions).toEqual([]); // the flush's condition: gone
 });

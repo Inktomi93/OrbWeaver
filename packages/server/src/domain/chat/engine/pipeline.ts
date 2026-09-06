@@ -12,6 +12,11 @@
 // bytes charged the budget for content the provider never receives — evicting real turns to make room for
 // deleted ones, and overstating `fitUsedTokens`, which is the managed-compaction trigger.
 //
+// CONVERT ITSELF LIVES IN `substrate/wire-history.ts` (#1540), not here: the read verb's preview family
+// (`previewContextFit`, `previewAssembly`) has to price the SAME converted rows this turn prices, or the
+// transcript divider claims rows are out of context that the turn keeps. This file owns the ORDER; that
+// module owns the conversion and the cost rule.
+//
 // Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
 // arbitration/auto-mode chunk extends this via the `shape` argument.
 
@@ -30,8 +35,7 @@ import { acceptsAssistantPrefill, acceptsHistorySystemRows, coEmitsProseWithTool
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
-import { cardWireStub, tokenizeContent } from "@orb/kit/content";
+import type { ContentImageRef } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -64,6 +68,7 @@ import {
   shapeTurn,
   toShapeCanon,
 } from "../substrate/assembly-access.ts";
+import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -185,6 +190,12 @@ interface TurnPipelineResult {
    *  folded into `toolRecords`: they were never executed, so a record would be a lie, and they must never reach
    *  a member-visible payload. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
+  /** The terminal tool NAMES that collided with a registry tool name and therefore never rode (#1617) — empty
+   *  on every ordinary turn. A collision makes the whole terminal channel unusable for this turn
+   *  (`terminalToolCalls` is `null`), and this is the only thing that says WHY: the consumer's fallback would
+   *  otherwise report "this wire cannot carry terminal tools", which is false — the wire was fine and a
+   *  contributor re-spelled a name. Names, not a count, because the fix is per-declaration. */
+  readonly terminalToolsCollided: readonly string[];
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
   /** True when a `responseFormat` was requested but the model's `capability.output.structured` isn't true →
@@ -618,16 +629,23 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
-  const converted = await buildWireHistory(args, shaped.history);
+  const converted = await buildWireHistory(
+    {
+      visionOk: args.connection.capability.input?.vision === true,
+      videoOk: args.connection.capability.input?.video === true,
+      resolveImageUrl: args.resolveImageUrl,
+      cardKeepLastX: args.cardKeepLastX,
+      canon: args.canon,
+    },
+    shaped.history,
+  );
 
   // FIT — the history-budget tail, priced against the CONVERTED rows (#1434: the fitter used to run before
-  // this conversion and charge card bodies and choice blocks the provider never receives).
+  // this conversion and charge card bodies and choice blocks the provider never receives). The read verb's
+  // previews run this same pair through the same substrate module (#1540) — one conversion, one cost rule.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const budget = fitBudget(args, effectiveIntent, systemTokens);
-  const fitted = fitHistory(
-    converted.map((w) => w.costRow),
-    budget,
-  );
+  const fitted = fitHistory(wireCostRows(converted), budget);
   // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
   // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
   // …and the empty-row drop re-anchors the §8 breakpoint with it: it is an OFFSET FROM THE END, which the
@@ -688,6 +706,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
+    terminalToolsCollided: terminal.collided,
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
@@ -786,32 +805,52 @@ async function attachTools(
  *  executor and paid a second model call for a passenger that must never be executed. {@link runRecurseLoop}
  *  and {@link terminalCallsOf} both read THIS set, so neither reader can ever see the other's class.
  *
- *  A COLLIDING DECLARATION NEVER RIDES. A tool NAME is minted once, so a terminal declaration re-spelling a
- *  registry name is a contributor defect — and shipping both would send the wire two declarations of one
- *  name (malformed) and make the partition unanswerable. The registry keeps the name (it is the class that
- *  EXECUTES; a dropped passenger degrades one fold, a mis-executed one runs an unowned side effect) and the
- *  collision is logged, never silent. */
+ *  A COLLIDING DECLARATION NEVER RIDES, AND IT TAKES THE WHOLE CHANNEL WITH IT (#1617). A tool NAME is minted
+ *  once, so a terminal declaration re-spelling a registry name is a contributor defect — shipping both would
+ *  send the wire two declarations of one name (malformed) and make the partition unanswerable. The registry
+ *  keeps the name (it is the class that EXECUTES; a dropped passenger degrades one fold, a mis-executed one
+ *  runs an unowned side effect).
+ *
+ *  What changed is the OTHER half of that drop. Dropping the collided declaration and riding the SURVIVORS
+ *  looked like a graceful degrade and was the one arm with no honest report: `attached:true` flowed back, the
+ *  consumer took its folded path, and one plane of the fold was simply missing — no null, no reason, nothing
+ *  outside this warn line. (A TOTAL collision was not honest either: it left `wanted` empty, which reads as
+ *  "ineligible", so the consumer was told the wire could not carry terminal tools when the wire was fine.)
+ *  So ANY collision makes the channel unusable for this turn: nothing is attached, `terminalToolCalls` comes
+ *  back `null`, and `collided` NAMES what was refused. The consumer's own fallback round then captures every
+ *  plane at the cost of one extra call — the same trade the `folded`→`cheap` fallback already makes, and
+ *  strictly better than folding a half-set that silently loses a state write.
+ *
+ *  THE WARN SITS BEHIND THE ELIGIBILITY GATE. It used to fire before it, so every turn on a wire that never
+ *  carries terminal tools logged the contributor's collision — noise on a path where nothing was going to
+ *  ride anyway. */
 function attachTerminalTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
   registryNames: ReadonlySet<string>,
-): { request: TurnRequest; attached: boolean; names: ReadonlySet<string> } {
+): { request: TurnRequest; attached: boolean; names: ReadonlySet<string>; collided: readonly string[] } {
   const requested = args.terminalTools ?? [];
-  const wanted = requested.filter((tool) => !registryNames.has(tool.name));
-  if (wanted.length < requested.length) {
+  if (requested.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
+    return { request: baseRequest, attached: false, names: new Set(), collided: [] };
+  }
+  const collided = requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name);
+  if (collided.length > 0) {
     getLog().warn(
-      { chatId: args.chatId, collided: requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name) },
-      "chat: terminal tool declarations collided with registry tool names and were dropped (the registry owns the name)",
+      { chatId: args.chatId, collided },
+      "chat: terminal tool declarations collided with registry tool names — the registry owns the name, so the whole terminal channel is withheld this turn",
     );
+    return { request: baseRequest, attached: false, names: new Set(), collided };
   }
-  if (wanted.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
-    return { request: baseRequest, attached: false, names: new Set() };
-  }
-  const names: ReadonlySet<string> = new Set(wanted.map((tool) => tool.name));
+  const names: ReadonlySet<string> = new Set(requested.map((tool) => tool.name));
   if (args.connection.api === "agent-sdk") {
-    return { request: { ...baseRequest, agentTerminalTools: wanted }, attached: true, names };
+    return { request: { ...baseRequest, agentTerminalTools: requested }, attached: true, names, collided };
   }
-  return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true, names };
+  return {
+    request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...requested], toolChoice: { mode: "auto" } },
+    attached: true,
+    names,
+    collided,
+  };
 }
 
 /** The terminal channel's total read. The two arms carry DIFFERENT instructions to the consumer and the
@@ -1017,340 +1056,4 @@ function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | nul
     costUsd: sum(acc.costUsd, next.costUsd),
     ttftMs: acc.ttftMs ?? next.ttftMs ?? null,
   };
-}
-
-/** A media-only row whose every part drops must not collapse to an empty text part — the runner's
- *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
- *  400s on some providers). Substitute the dropped media's alt text (or a neutral marker) instead. The
- *  label names the dropped KIND (`image`/`video`; a mixed drop says `media`) so the model's stand-in stays
- *  honest about what it didn't see. */
-function droppedMediaPlaceholder(dropped: readonly DroppedMedia[]): string {
-  const kinds = new Set(dropped.map((d) => d.media));
-  const label = kinds.size === 1 ? (dropped[0]?.media ?? "image") : "media";
-  const named = dropped.filter((d) => d.alt.length > 0).map((d) => d.alt);
-  return named.length > 0 ? `[${label}: ${named.join(", ")}]` : `[${label} omitted]`;
-}
-
-/** The DISPLAY-ONLY image's wire stand-in (the ST-parity rule below): the reader keeps the real picture, the
- *  model gets a short marker in its place — it learns an image was shown without a vision part or the raw
- *  URL bytes riding the prompt. Inline (never a part boundary), so it merges with the surrounding text. */
-function displayOnlyImageText(alt: string): string {
-  return alt.length > 0 ? `[image: ${alt}]` : "[image]";
-}
-
-/** Is this image span a deliberate USER ATTACHMENT — the one image class that may become a model-visible
- *  image part (owner ruling, ST parity)?
- *
- *  BOTH halves are required, and both are structural:
- *   • the ref is an owned-CAS `asset:<id>` — the ONLY thing the attachment machinery ever mints
- *     (`composeBodyWithAttachments`, verbs/turn). An `external` http(s) ref is authored bytes: a character
- *     card's greeting image, a world-info illustration, a pasted link. It also makes the PROVIDER fetch a
- *     third-party URL (the same tracking-pixel/exfil vector `forbidExternalMedia` exists for), for content
- *     that can change under us.
- *   • the row is USER-authored. `role` is the delivered wire role, so it already covers the id-less rows
- *     (the regen/continue synthetic user turn, injections); the `userAuthored` predicate additionally
- *     rejects the SCOPED-FOLD demotion — `shape.scopeToSpeaker` re-roles another character's assistant row
- *     to a `Name: …` USER line, and those images are still character-authored (a narrator/`/imagine` post
- *     carries real `asset:` refs, so the scheme alone would let them through).
- *
- *  Everything else is DISPLAY-ONLY: it renders in the transcript forever and never rides as an image part. */
-function isUserAttachment(span: { readonly ref: ContentImageRef }, role: TurnMessage["role"], userAuthored: boolean): boolean {
-  return span.ref.kind === "asset" && role === "user" && userAuthored;
-}
-
-/** One dropped attachment: its alt text + which media kind the drop was (drives the per-kind warning
- *  flags and the honest placeholder label). */
-interface DroppedMedia {
-  readonly alt: string;
-  readonly media: ResolvedMediaRef["media"];
-}
-
-/** The per-assembly wire environment for the span→part projection (§3.5 — the WIRE plane). */
-interface WirePartsEnv {
-  readonly visionOk: boolean;
-  /** The video twin (#317): `capability.input.video === true` — gates video parts as `visionOk` gates images. */
-  readonly videoOk: boolean;
-  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
-  /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
-  readonly fullCards: ReadonlySet<ContentSpan>;
-}
-
-/** The PER-ROW facts the projection needs (only the image arm reads them — see `isUserAttachment`). */
-interface WireRowFacts {
-  /** The DELIVERED wire role. */
-  readonly role: TurnMessage["role"];
-  /** The row's bytes were authored by a human user: it is not a canon ASSISTANT row (an id-less shaped row —
-   *  the synthetic regen/continue user turn, a spliced injection — is judged by `role` alone). */
-  readonly userAuthored: boolean;
-}
-
-/** The M2 keep-last-X window: the LAST X card spans across the fitted history (document order, counted from
- *  the tail) ride the wire full; everything older stubs. Deterministic PER ASSEMBLY — the same history at a
- *  given turn always yields the same last-X set; a card entering the stub zone as newer cards arrive is a
- *  bounded one-time cache break per card, inherent to a sliding window (§3.5).
- *
- *  A CARD IN A SYNTHETIC ROW IS INSTRUCTION, NOT CONTENT — it never stubs and never consumes the window.
- *  A synthetic row is id-less by construction (a spliced injection or the regen/continue user turn; canon
- *  rows always carry a `messageId` — the same discriminator `isUserAttachment` reads two functions down).
- *  The rpg card-teach block embeds a literal `:::card` worked example, so under the old rule the default
- *  `cardKeepLastX = 0` collapsed the model's own teaching example to `[card: Crossing sign]` before it was
- *  ever sent: the one measured intervention that pins the opener's exact bytes, deleted by the wire seam on
- *  every game. Worse at `keepLastX >= 1` — the example rides the tail, so it WON the window and stubbed the
- *  model's real cards instead. Stored cards still obey the window; authored ones are not stored cards. */
-function resolveFullCards(
-  tokenized: readonly { readonly h: { readonly messageId?: MessageId | undefined }; readonly spans: readonly ContentSpan[] }[],
-  /** ABSENT ≠ ZERO. Contributed ONLY by an rpg game's gather, so a chat with no game supplies nothing —
-   *  `undefined` ⇒ NO window (every card rides whole); `0` ⇒ keep none (rpg's explicit default); `n` ⇒ last n.
-   *  This used to be `?? 0` at the call site, which silently gave every non-rpg chat the strictest setting of
-   *  a feature it never opted into: all its cards stubbed on every turn, with no knob to change it. */
-  keepLastX: number | undefined,
-): ReadonlySet<ContentSpan> {
-  const full = new Set<ContentSpan>();
-  const canonCards: ContentSpan[] = [];
-  for (const { h, spans } of tokenized) {
-    for (const span of spans) {
-      if (span.kind !== "card") {
-        continue;
-      }
-      if (h.messageId === undefined) {
-        full.add(span); // authored this turn — instruction, exempt from the window
-      } else {
-        canonCards.push(span);
-      }
-    }
-  }
-  for (const card of windowed(canonCards, keepLastX)) {
-    full.add(card);
-  }
-  return full;
-}
-
-/** The stored-card slice the window keeps FULL. Absent window ⇒ all of them (a chat that never opted into
- *  the rpg budget tradeoff); `0` ⇒ none; `n` ⇒ the newest n in document order. */
-function windowed(canonCards: readonly ContentSpan[], keepLastX: number | undefined): readonly ContentSpan[] {
-  if (keepLastX === undefined) {
-    return canonCards;
-  }
-  return keepLastX > 0 ? canonCards.slice(-keepLastX) : [];
-}
-
-type WirePartResult = ChatContentPart | { droppedAlt: string; droppedMedia: ResolvedMediaRef["media"] } | null;
-type SpanOfKind<K extends ContentSpanKind> = Extract<ContentSpan, { readonly kind: K }>;
-type WirePartHandler<K extends ContentSpanKind> = (span: SpanOfKind<K>, env: WirePartsEnv, row: WireRowFacts) => WirePartResult | Promise<WirePartResult>;
-
-/** The total dispatch over the content-class registry's WIRE plane (§3.5) — one handler per
- *  `CONTENT_CLASS_POLICY` row, keyed by `ContentSpanKind` so a new class fails to build until it registers
- *  here (the content-class wire memory: table + hardcoded dispatch, edit BOTH). `image` is the one handler
- *  whose runtime behavior is NARROWER than its policy row (`wire:"drop"`): only a deliberate user attachment
- *  is a resolve-or-drop candidate — every other embedded image is DISPLAY-ONLY and never touches the wire
- *  plane at all, so the policy row and this handler agree on the ATTACHMENT arm and the binding test below
- *  only asserts that arm. */
-const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> } = {
-  // wire:"full" — verbatim bytes.
-  text: (span) => (span.text.length > 0 ? { type: "text", text: span.text } : null),
-  // wire:"drop" — the CYOA fence must not re-pile unselected options into context on later turns.
-  choices: () => null,
-  // wire:"full" — the model must remember its own lie / the true event.
-  hidden: (span) => ({ type: "text", text: span.raw }),
-  // wire:"full" — the §3.2.1 allowlist-strip keeps the model's bytes even though it renders as noise.
-  "unknown-directive": (span) => ({ type: "text", text: span.raw }),
-  // wire:"stub" — the reader keeps the rich card forever, the model gets the deterministic stub, except
-  // inside the M2 keep-last-X window.
-  card: (span, env) => ({ type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) }),
-  // wire:"drop" — ATTACHMENT-ONLY (owner ruling, ST parity): a non-attachment image is DISPLAY-ONLY and
-  // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by the asset's media kind
-  // (`input.vision` for images, `input.video` for mp4/webm/animated-gif — #317). The KIND is only known
-  // after resolve (it is the asset row's stored fact), so the kind-gate runs on the resolver's answer.
-  image: async (span, env, row) => {
-    if (!isUserAttachment(span, row.role, row.userAuthored)) {
-      // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
-      // `image_dropped` warning means "your model can't see the image you attached", and nagging it on
-      // every turn of a chat whose greeting embeds a picture would be a lie).
-      return { type: "text", text: displayOnlyImageText(span.alt) };
-    }
-    if (!(env.visionOk || env.videoOk)) {
-      // Cheap short-circuit — a media-blind model must not pay asset I/O on every history re-resolve,
-      // so the kind is never learned here and the drop reports as the common case (image).
-      return { droppedAlt: span.alt, droppedMedia: "image" };
-    }
-    const resolved = await env.resolveImageUrl(span.ref);
-    if (resolved === null) {
-      return { droppedAlt: span.alt, droppedMedia: "image" };
-    }
-    if (resolved.media === "video") {
-      return env.videoOk ? { type: "video", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "video" };
-    }
-    return env.visionOk ? { type: "image", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "image" };
-  },
-};
-
-/** One span → its wire part — total Record-dispatch over `WIRE_PART_HANDLERS` (§3.5). The cast is the one
- *  spot a discriminated union's per-member narrowing is lost to a dynamic key lookup; the handler itself
- *  stays narrowed via {@link SpanOfKind}. */
-function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts): Promise<WirePartResult> {
-  const handler = WIRE_PART_HANDLERS[span.kind] as WirePartHandler<typeof span.kind>;
-  return Promise.resolve(handler(span, env, row));
-}
-
-/** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
- *  reason to reassemble a full turn to exercise one span → wire-part rule).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
-export const __spanToWirePartForTest = spanToWirePart;
-
-/** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
- *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
- *  pre-registry wire for every wire=full class. */
-async function toContentParts(
-  spans: readonly ContentSpan[],
-  env: WirePartsEnv,
-  row: WireRowFacts,
-): Promise<{ parts: ChatContentPart[]; imageDropped: boolean; videoDropped: boolean }> {
-  const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env, row)));
-  const parts: ChatContentPart[] = [];
-  let mergeBlocked = false;
-  const droppedMedia: DroppedMedia[] = [];
-  for (const r of resolved) {
-    if (r === null) {
-      continue;
-    }
-    if ("droppedAlt" in r) {
-      // A drop is a part BOUNDARY (the pre-registry wire shape): text on either side of a dropped image
-      // stays two parts — only text that was truly adjacent in the body merges.
-      mergeBlocked = true;
-      droppedMedia.push({ alt: r.droppedAlt, media: r.droppedMedia });
-      continue;
-    }
-    const prev = parts.at(-1);
-    if (!mergeBlocked && r.type === "text" && prev !== undefined && prev.type === "text") {
-      parts[parts.length - 1] = { type: "text", text: prev.text + r.text };
-      continue;
-    }
-    mergeBlocked = false;
-    parts.push(r);
-  }
-  if (parts.length === 0) {
-    // Only substitute a placeholder when a drop emptied the row; a genuinely empty body keeps its empty text part.
-    parts.push({ type: "text", text: droppedMedia.length > 0 ? droppedMediaPlaceholder(droppedMedia) : "" });
-  }
-  return {
-    parts,
-    imageDropped: droppedMedia.some((d) => d.media === "image"),
-    videoDropped: droppedMedia.some((d) => d.media === "video"),
-  };
-}
-
-/** One row of SHAPE's output — derived from `shapeTurn`, never re-spelled, so the fit and the conversion
- *  both consume exactly what SHAPE produced (`fitHistory` takes the same rows). */
-type ShapedHistoryRow = ReturnType<typeof shapeTurn>["history"][number];
-
-/** One shaped row after the WIRE conversion: the provider row itself, the string the FIT prices it by, and
- *  the per-row media verdicts. `costRow` re-states the row's canon identity because the fit reads it (the
- *  irreducible-tail anchor + the context-boundary id), and carries the WIRE text as its `content`. */
-interface WireRow {
-  readonly row: TurnMessage;
-  readonly costRow: ShapedHistoryRow;
-  readonly imageDropped: boolean;
-  readonly videoDropped: boolean;
-}
-
-/** The wire text a row costs the model — the concatenation of its TEXT parts, and nothing else (#1434).
- *  A resolved image/video part carries a URL or a data payload the token estimator cannot price and the
- *  provider does not charge as prompt text, so it contributes ZERO here; what it replaced (a multi-KB
- *  `![alt](orb://…)` blob, or a card body collapsed to `[card: Title]`) is gone by construction because
- *  this reads the CONVERTED parts, not the shaped body. */
-function wireCostText(parts: readonly ChatContentPart[]): string {
-  return parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("");
-}
-
-/** The REQUEST-step history build: tokenize each shaped row ONCE, resolve the keep-last-X card window over
- *  the whole assembly, then project every row through the ONE span→part seam (§3.5).
- *
- *  THIS RUNS BEFORE THE FIT (#1434). It used to run after, which meant the token fitter priced bytes the
- *  provider never sees: it charged the full multi-KB body of every stored card that the very next step
- *  collapsed to `[card: Title]`, and charged every choices block that the next step DROPPED — so a
- *  card-heavy chat evicted useful older turns to make room for content it was about to delete, and
- *  `fitUsedTokens` (the managed-compaction trigger) overstated the real request. Converting first costs one
- *  extra media resolve for rows the fit then drops — rare, since only a deliberate user ATTACHMENT resolves
- *  anything — and buys a fit and a boundary that describe the actual wire.
- *
- *  The card window MOVED with the conversion: it used to be resolved over the FITTED tail (this ran after
- *  the fit), and it is now resolved over the WHOLE shaped assembly. That is not a behaviour change, and the
- *  reason is worth stating because it is the thing that makes the reorder safe — the window is the last-X
- *  cards in DOCUMENT ORDER, and the fit only ever removes OLDER rows, so every card it could remove was
- *  already outside the last-X (a stub-zone card). The extra entries the window may now hold belong to rows
- *  the fit drops, and a dropped row's spans are never projected. */
-async function buildWireHistory(args: RunTurnPipelineArgs, shapedHistory: readonly ShapedHistoryRow[]): Promise<WireRow[]> {
-  const visionOk = args.connection.capability.input?.vision === true;
-  const videoOk = args.connection.capability.input?.video === true;
-  // COMMITTED canon (the shaped history is stored rows, never the in-flight stream), so an unterminated
-  // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
-  const tokenized = shapedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
-  const env: WirePartsEnv = { visionOk, videoOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX) };
-  // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
-  // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
-  const assistantMessageIds = new Set(args.canon.filter((m) => m.role === "assistant").map((m) => m.id));
-  return await Promise.all(
-    tokenized.map(async ({ h, spans }): Promise<WireRow> => {
-      const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
-      const { parts, imageDropped, videoDropped } = await toContentParts(spans, env, { role: h.role, userAuthored });
-      const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
-      const costRow: ShapedHistoryRow = {
-        role: h.role,
-        content: wireCostText(parts),
-        ...(h.name === undefined ? {} : { name: h.name }),
-        messageId: h.messageId,
-      };
-      return { row, costRow, imageDropped, videoDropped };
-    }),
-  );
-}
-
-/** A converted row that carries NOTHING for the provider: one empty text part, which is what
- *  `toContentParts` emits when every span was `wire:"drop"`ped and no media drop left a placeholder. */
-function isEmptyWireRow(wire: WireRow): boolean {
-  const parts = wire.row.content;
-  return parts.length === 1 && parts[0]?.type === "text" && parts[0].text.length === 0;
-}
-
-/** Drop the rows that converted to nothing (#1438).
- *
- *  A CHOICES-ONLY canon row is the reachable case: the `choices` handler returns `null` for every span
- *  (the CYOA fence — unselected options must not re-pile into context), `toContentParts` skips nulls, and
- *  with no dropped media to placeholder the row falls through to `{type:"text", text:""}`. Providers reject
- *  empty messages, and shipping one contradicts the fence's own intent to remove the block entirely.
- *
- *  THE FINAL ROW IS NEVER DROPPED. It is the turn's own tail — the user's message, the regen/continue
- *  synthetic, or the assistant prefill — and its POSITION is load-bearing to every wire (`acceptsAssistantPrefill`,
- *  the continuation nudge, the cache breakpoint's offset-from-end). An empty tail is a different defect and
- *  silently deleting it would hide it. */
-function dropEmptyWireRows(built: readonly WireRow[], cacheBreakpointFromEnd: number | undefined): { kept: WireRow[]; cacheBreakpointFromEnd: number | null } {
-  const lastIdx = built.length - 1;
-  const kept = built.filter((wire, i) => i === lastIdx || !isEmptyWireRow(wire));
-  return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, kept.length) };
-}
-
-/** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
- *
- *  The breakpoint is an OFFSET FROM THE END (`shape.ts` computes it as `length − stablePrefixLength`, and
- *  the runner counts back from the tail of the body it writes). That representation is what lets the FIT
- *  trim the front for free — a front-drop shortens the array and the prefix by the same amount. A drop from
- *  anywhere else does NOT commute with it: removing an empty choices row from inside the last
- *  `offsetFromEnd` rows shortens the array without shortening the stable prefix, so the same offset now
- *  points one row EARLIER and the breakpoint lands on bytes that are not the boundary SHAPE measured —
- *  silently re-billing the cached prefix on exactly the expensive turns the breakpoint exists for.
- *
- *  So the offset is recomputed from the invariant it actually encodes: the stable PREFIX LENGTH
- *  (`before − offset`) is what the drop may or may not have shortened, and the new offset is
- *  `after − (the prefix as it now stands)`. A drop inside the prefix leaves the offset alone; a drop after
- *  it shrinks the offset by one per row. `< 1` means the whole tail was dropped away — `shape.ts` refuses
- *  that same case, so it resolves to NO breakpoint rather than to a placement nobody measured. */
-function shiftBreakpoint(cacheBreakpointFromEnd: number | undefined, before: readonly WireRow[], afterLength: number): number | null {
-  if (cacheBreakpointFromEnd === undefined) {
-    return null;
-  }
-  const prefixLength = before.length - cacheBreakpointFromEnd;
-  const droppedFromPrefix = before.slice(0, prefixLength).filter(isEmptyWireRow).length;
-  const shifted = afterLength - (prefixLength - droppedFromPrefix);
-  return shifted >= 1 ? shifted : null;
 }

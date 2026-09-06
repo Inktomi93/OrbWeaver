@@ -164,7 +164,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     if (primary === undefined) {
       return { chatsImported: 0, realConversation: false, chatsPersonaHealed: 0 };
     }
-    const roster = seated.slice(1).map((s) => s.characterId);
+    const characterIds = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
     // Both maps are SCOPED to this group's own seated cast — a display-name match can only ever land on a
     // character the room already seats, which is what keeps the fallback from reaching a same-named stranger.
@@ -180,7 +180,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
           roomName: group.parsed.name,
           personaByUserName: profile.personaByUserName,
           primaryCharacterId: primary.characterId,
-          roster,
+          characterIds,
           mutedSeats,
           speakerByFile,
           speakerByName,

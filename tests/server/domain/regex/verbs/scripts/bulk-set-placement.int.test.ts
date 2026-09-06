@@ -27,6 +27,32 @@ async function storedBehavior(db: Awaited<ReturnType<typeof freshDb>>, id: Regex
 }
 
 describe("bulkSetScriptsPlacement", () => {
+  // #1746 — the ROOM plane. A placement change moves WHAT the row's tier runs on every member's turns (and
+  // which side of the display/prompt split it runs on), so every room that attaches a changed row must
+  // re-read. Post-write reach is correct here — unlike a delete, the junction rows survive this write — so
+  // the fan is `fanRegexScriptRooms` per written row, the `bulkSetScriptsEnabled` shape exactly.
+  test("fans the library-row reach for every row whose placement changed, and nothing when none did", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
+    const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
+    const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
+
+    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a, b, theirs], placement: ["DISPLAY"] });
+
+    expect(h.roomFans.map((f) => f.kind)).toEqual(["script", "script"]);
+    expect(h.roomFans.map((f) => f.id).toSorted((x, y) => x.localeCompare(y))).toEqual([a, b].toSorted((x, y) => x.localeCompare(y)));
+
+    // A gesture that writes nothing announces nothing — the fan sits inside the same `affected > 0` guard as
+    // the audit row and the user event.
+    const quiet = makeHarness(db);
+    await createRegexService(quiet.ctx).bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [theirs], placement: ["DISPLAY"] });
+    expect(quiet.roomFans).toEqual([]);
+  });
+
   test("a DISPLAY-only script moved to a prompt-side stream flips markdownOnly→promptOnly — the SERVER derives it", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

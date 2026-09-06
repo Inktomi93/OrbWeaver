@@ -11,8 +11,9 @@
 // The insert's guards are subqueries feeding its `id` (a refused guard NULLs the PK); the update's are
 // extra conjuncts on its WHERE (a refused row simply does not update, and the empty result is then
 // disambiguated by an owner-scoped re-read). "No CAS" (the D28 posture) still describes the DEFAULT update
-// — the opt-in `expectedContentHash` (#1446) exists only for a caller writing from an OLD basis, and the
-// provenance claim (#1432) only for the one caller whose `importedFrom` is an idempotency key.
+// — the opt-in `expectedBasis` (#1446, widened to a `CardWriteBasis` by #1560) exists only for a caller
+// writing from an OLD basis, and the provenance claim (#1432) only for the one caller whose `importedFrom`
+// is an idempotency key.
 
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";

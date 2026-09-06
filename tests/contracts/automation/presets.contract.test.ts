@@ -79,8 +79,8 @@ test("RULE_PRESET_KNOB_KINDS is the pinned editor axis — four scalars plus the
 test("#630: the entity axis carries a validator and a HOST NOUN for every member", () => {
   expect(RULE_PRESET_ENTITY_KINDS).toEqual(["worldInfoBook"]);
   // The nouns are what a refusal says out loud; a wire key leaking here ("worldInfoBook") is the defect.
-  expect(Object.values(RULE_PRESET_ENTITY_NOUNS)).toEqual(["lorebook"]);
-  // The schema pins the PREFIX, not just the TypeID shape — a character id is not a lorebook.
+  expect(Object.values(RULE_PRESET_ENTITY_NOUNS)).toEqual(["world book"]);
+  // The schema pins the PREFIX, not just the TypeID shape — a character id is not a world book.
   const books = RULE_PRESET_ENTITY_REF_SCHEMAS.worldInfoBook;
   expect(books.safeParse(mintTypeId(ID_PREFIX.worldBook)).success).toBe(true);
   expect(books.safeParse(mintTypeId(ID_PREFIX.character)).success).toBe(false);
@@ -135,13 +135,13 @@ test("the knob descriptor union is discriminated on kind — each arm carries it
   // with its own fields and only its own fields.
   const descriptors: readonly RulePresetKnobDescriptor[] = [
     { kind: "number", label: "N", default: 8, min: 2, max: 200 },
-    { kind: "text", label: "Steer", default: "go", maxLength: 600 },
+    { kind: "text", label: "Steer", default: "go", minLength: 1, maxLength: 600 },
     { kind: "textList", label: "Chips", default: ["a"], minItems: 1, maxItems: 4, maxLength: 80 },
     // A choice arm carries its own host LABELS (#655) — `options` are wire values, and rendering them raw
     // is what put `ask`/`write` and `scenario`/`background`/`free` in front of a host as the options.
     { kind: "choice", label: "Mode", options: ["scenario", "background"], optionLabels: { scenario: "Scene", background: "Background" }, default: "scenario" },
     // The reference arm carries NO `default` — that absence is the guard, not an omission (#630).
-    { kind: "entityRef", label: "Lorebook", entity: "worldInfoBook" },
+    { kind: "entityRef", label: "World book", entity: "worldInfoBook" },
   ];
   expect(descriptors.map((d) => d.kind)).toEqual([...RULE_PRESET_KNOB_KINDS]);
 });

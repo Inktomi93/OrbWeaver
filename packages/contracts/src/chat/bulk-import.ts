@@ -3,6 +3,12 @@
 // `createBulkImportChats` op; the chat op learns nothing about SillyTavern. Persona attribution is
 // pre-resolved to ids by import (so the op is persona-agnostic). A cross-boundary shape shared by import +
 // chat → contracts (D34).
+//
+// VOCABULARY (#1773 / #914, vocabulary-map row 41): `BulkImportChatInput.characterIds` was `.roster` until
+// 2026-09-06. Row 41's word for the founding / seated CHARACTER IDS an import writes is `characterIds`, and
+// this is the wire field that carries them. `roster` remains RESERVED for the saved TEMPLATE concept
+// (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
+// is separate row-44 residue and moves under its own row.
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -67,7 +73,7 @@ export interface BulkImportMessageInput {
   /** WHICH roster character voices this assistant slot — the multi-character arm. ABSENT (or null) ⇒ the
    *  run's primary `characterId`, which is byte-identically the ST-import behavior (a single-character
    *  transcript has exactly one voice, and the op stamped it unconditionally before this field existed).
-   *  A non-primary id MUST appear in the chat's {@link BulkImportChatInput.roster} — the op ownership-gates
+   *  A non-primary id MUST appear in the chat's {@link BulkImportChatInput.characterIds} — the op ownership-gates
    *  every seat, so an unrostered or foreign id is refused, never silently seated. Ignored on a `user` slot
    *  (attribution there is `authorUserId` + `personaId`). */
   readonly characterId?: CharacterId | null;
@@ -120,7 +126,7 @@ export interface BulkImportChatInput {
   /** The ADDITIONAL character seats beyond the run's primary (a GROUP room). Empty/absent ⇒ the founding
    *  roster is host + the one primary character, byte-identically today's ST import. Every id is
    *  ownership-gated exactly like the primary before any row is written. */
-  readonly roster?: readonly CharacterId[];
+  readonly characterIds?: readonly CharacterId[];
   /** Per-seat knobs the founding roster rows are born with (#1687) — absent/empty ⇒ every seat takes the
    *  column defaults, byte-identically the pre-#1687 import. The live producer is the ST GROUP wave: ST's
    *  `disabled_members` is a per-member MUTE and orb has one too (`chat_participants.disabled`), so the flag

@@ -47,7 +47,7 @@ function fakeGeneratePicture(): Recorder {
 }
 
 function exec(chatId: ChatId | null): ToolExecutionContext {
-  return { principal: principal(OWNER), triggeredBy: OWNER, chatId, turnId: null, roster: null };
+  return { principal: principal(OWNER), triggeredBy: OWNER, chatId, turnId: null, membership: null };
 }
 
 describe("generate_image tool", () => {

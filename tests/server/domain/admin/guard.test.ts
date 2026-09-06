@@ -67,21 +67,21 @@ describe("requireOwner (owner-only)", () => {
 
 // The CHAT resource arm (PD-1) — a PURE verdict over the roster chat feeds in (admin reads no chat db). The
 // global role is irrelevant to the chat resource axis; the authority signal is the roster's `host|member`.
-describe("can({kind:'chat', roster}) — the resource-role arm", () => {
+describe("can({kind:'chat', membership}) — the resource-role arm", () => {
   const member = pr("user");
 
   test("'read' allows any present member (the seam floor; presence is chat's pre-check)", () => {
-    expect(() => can(member, "read", { kind: "chat", roster: { role: "member" } })).not.toThrow();
-    expect(() => can(member, "read", { kind: "chat", roster: { role: "host" } })).not.toThrow();
+    expect(() => can(member, "read", { kind: "chat", membership: { role: "member" } })).not.toThrow();
+    expect(() => can(member, "read", { kind: "chat", membership: { role: "host" } })).not.toThrow();
   });
 
   test("'host' passes the room host, denies a plain member", () => {
-    expect(() => can(member, "host", { kind: "chat", roster: { role: "host" } })).not.toThrow();
-    expect(() => can(member, "host", { kind: "chat", roster: { role: "member" } })).toThrow(DomainForbiddenError);
+    expect(() => can(member, "host", { kind: "chat", membership: { role: "host" } })).not.toThrow();
+    expect(() => can(member, "host", { kind: "chat", membership: { role: "member" } })).toThrow(DomainForbiddenError);
   });
 
   test("the global role does NOT grant chat-host authority (resource axis is orthogonal)", () => {
     // An owner who is only a plain MEMBER of the room is not the host — owner⊇admin is the GLOBAL axis only.
-    expect(() => can(pr("owner"), "host", { kind: "chat", roster: { role: "member" } })).toThrow(DomainForbiddenError);
+    expect(() => can(pr("owner"), "host", { kind: "chat", membership: { role: "member" } })).toThrow(DomainForbiddenError);
   });
 });

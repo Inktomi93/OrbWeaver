@@ -492,13 +492,33 @@ export type ArmOutcome =
    *  `paused`, and "a tool from a plugin that isn't enabled" is the only thing that can produce it. */
   | { readonly ok: false; readonly kind: "paused" };
 
+/** A rule's (or a confirmed stash's continuation's — #1553) arm RUN: the aborting arm's `arm_error` detail
+ *  (`null` = no arm errored), plus the two terminal MODIFIERS an arm can raise — `suggested` (the S4 stash:
+ *  the arm ASKED instead of acting) and `paused` (D146-d: the arm's contributor vanished mid-dispatch). Each
+ *  changes the TERMINAL and nothing else. Homed here (not `engine/dispatch.ts`, where `runArms` computes
+ *  it) because `no-inline-types` wants an exported cross-file shape in the domain's type home. */
+export interface ArmsResult {
+  readonly detail: Record<string, unknown> | null;
+  readonly suggested: boolean;
+  readonly paused: boolean;
+}
+
 /** The arm dispatcher. ONE function that runs any arm — dispatch is a `switch(action.type)` (the
  *  RUNNERS discipline realized as a switch, NOT an object map: no snake_case property keys, a `default: never`
  *  exhaustiveness pin). A not-yet-filled default records `action_error` for every arm until `createArmExecutors`
  *  wires the real one. `trigger_turn` is WIRED; the sole v1-unwired arm
  *  (`transform_draft` — pipeline-registered) + the reserved arms return a typed refusal, NOT a fabricated
- *  success. */
-export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame) => Promise<ArmOutcome>;
+ *  success.
+ *
+ *  `continuation` (#1553, OWNER RULING: STASH) is every arm AFTER this one in the rule's own action list —
+ *  `runArms` computes it as `actions.slice(i + 1)` at each step and ALWAYS passes it; every other caller
+ *  (a single-arm manual dispatch, a test harness) may omit it — it exists so a confirm-first arm can stash
+ *  it onto the pending ask ({@link StashedArm.continuation}): the ruling is that the arms behind a raised
+ *  confirmation are not dropped, they wait on the SAME ask and run after the host says yes
+ *  (`verbs/confirm-suggestion.ts`). A non-suggestible arm ignores the parameter entirely — only
+ *  `stashConfirmFirstArm` reads it, defaulting an omitted one to empty (nothing to stash behind a
+ *  single-arm call). */
+export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame, continuation?: readonly AutomationAction[]) => Promise<ArmOutcome>;
 
 // ── S4: the pending-ask store (interaction-direction-spec §3-S4) ─────────────────────────────────────
 // Homed BESIDE `DispatchFrame` rather than in its own contract file for one hard reason: the stashed record
@@ -516,10 +536,16 @@ export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame) => Pr
 /** The CONFIRM class's executable half — the arm as it resolved at fire time, WITH the frame it resolved in.
  *  Both halves are stored because "executes the STORED arm" means exactly that: the same author, the same
  *  cascade origin, the same `env` snapshot its templates would have rendered against. Re-deriving a frame at
- *  confirm would silently make a confirmed ask a DIFFERENT act from the one the host was shown. */
+ *  confirm would silently make a confirmed ask a DIFFERENT act from the one the host was shown.
+ *
+ *  `continuation` (#1553, OWNER RULING: STASH the continuation) is every arm that sat BEHIND this one in the
+ *  rule's own action list at fire time — d11a0f6e9 (#1419) used to drop them; the ruling is that a confirmed
+ *  card completes the rule, so they wait on this same ask and run in order once the host says yes
+ *  (`verbs/confirm-suggestion.ts::executeStashedArm`). Empty when this was the rule's LAST arm. */
 export interface StashedArm {
   readonly action: SuggestibleAction;
   readonly frame: DispatchFrame;
+  readonly continuation: readonly AutomationAction[];
 }
 
 /** The PAYLOAD half of a pending ask, discriminated by WHOSE enforcement set the confirmed act must re-enter

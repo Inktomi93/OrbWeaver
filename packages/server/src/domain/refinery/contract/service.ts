@@ -15,7 +15,7 @@ import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from 
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
-import type { CharacterService, ListRefineryScoreTargetsOp, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
+import type { CharacterService, DeleteSnapshotOp, ListRefineryScoreTargetsOp, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
 import type {
   ApplyAsCopyParams,
   ApplyFieldsParams,
@@ -93,6 +93,10 @@ export interface RefineryContext {
   readonly stampRefinerySignals: StampRefinerySignalsOp;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
   readonly snapshotCharacter: CharacterService["snapshot"];
+  /** The apply path's own retraction (#1551): un-does the belt-13 snapshot above when the conditional
+   *  write it was taken FOR refuses `CHARACTER_STALE_BASIS` — the snapshot is the apply's witness, not its
+   *  prelude, so a refused apply must leave none behind. */
+  readonly deleteSnapshot: DeleteSnapshotOp;
   /** `character.update` — the ONE canon write of an apply; the full character belt runs inside it. */
   readonly updateCharacter: CharacterService["update"];
   /** `character.get` — the detail read for the zero-write apply arm (every accept dropped): a no-op

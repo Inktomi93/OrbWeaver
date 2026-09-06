@@ -64,8 +64,11 @@ export interface TurnToolCallsDisclosureProps {
  * record, which is the applicability gate: most turns in most rooms have none.
  */
 export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProps): ReactElement | null {
-  const calls = useTurnToolCallsForVariant(message.chatId, message.selectedVariantId);
-  if (calls.length === 0) {
+  const { calls, failure } = useTurnToolCallsForVariant(message.chatId, message.selectedVariantId);
+  // A record with an EMPTY call list is not "nothing to show" — it is the turn whose state round could not RUN
+  // (#1468 item 2), and returning null there would restore the exact silence this disclosure exists to end:
+  // the model call that records state failed, and the reader saw a turn that simply did nothing.
+  if (calls.length === 0 && failure === null) {
     return null;
   }
   return (
@@ -88,10 +91,21 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
           line directly above the `size="text"` trigger, so nothing may be inserted between them. */}
       {/* @sub-floor-ok: recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer — a control box here is the density cost that ruling priced and declined */}
       <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text" data-target-floor="sub-floor-ok">
-        <Text voice="label">{`Game actions on this turn — ${calls.length}`}</Text>
+        {/* The count is the volatile half and stays SUFFIXED (N3). A failed round has no count to give — its
+            suffix is the same word a dropped call's badge uses, so one turn's outcome reads the same whether
+            the loss was one call's or the whole round's. */}
+        <Text voice="label">{`Game actions on this turn — ${failure === null ? calls.length : VERDICT_LABEL.dropped}`}</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">
+          {/* WHY nothing was recorded, as visible TEXT and FIRST — the same posture the per-call reason takes
+              (never a tooltip). The server has already decided how much of it this viewer may read: the host
+              gets the vehicle's own error, everyone else the bare summary. */}
+          {failure === null ? null : (
+            <Text className="block" data-slot="turn-tool-calls-failure" voice="gloss">
+              {failure}
+            </Text>
+          )}
           {calls.map((call) => (
             <CallLine call={call} key={`${call.name}:${call.args}:${call.verdict}`} />
           ))}

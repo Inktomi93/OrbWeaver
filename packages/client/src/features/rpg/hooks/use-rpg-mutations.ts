@@ -64,7 +64,7 @@ function wireActorRefKey(ref: inferInput<Trpc["rpg"]["patchSheet"]>["actorRef"])
   if (ref.kind === "user") {
     return actorRefKey({ kind: "user", userId: castId<UserId>(String(ref.userId)) });
   }
-  return actorRefKey({ kind: "cast", castKey: ref.castKey });
+  return actorRefKey({ kind: "npc", npcKey: ref.npcKey });
 }
 
 /**
@@ -188,7 +188,7 @@ export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dism
 /** `rpg.promoteActor` — THE promotion doorway (R4), `dismissActor`'s opposite: a known character earns a
  *  durable card in the host's library + a seat in this room, and her tracked row is re-keyed onto the new
  *  character identity server-side (trackers, pack, purse, conditions, status, scene presence and hand pins all
- *  follow her). Host-only. It repaints the tracker view (she leaves the Scene cast for the Status roster) AND
+ *  follow her). Host-only. It repaints the tracker view (she leaves the Scene npcs for the Status roster) AND
  *  `chat.getChat` — the promotion adds a ROSTER PARTICIPANT, so the members surface is stale until it refetches;
  *  a panel that only invalidated its own read would leave the new seat invisible everywhere else in the room. */
 export const usePromoteActor = createEntityMutation<inferInput<Trpc["rpg"]["promoteActor"]>, HandDoorVerdict>({

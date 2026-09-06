@@ -10,6 +10,8 @@ export type { MigrateDeps } from "./migrate.ts";
 export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";
 export { migrateHandoffOfferVocabOnBoot } from "./migrate-handoff-offer-vocab.ts";
+export type { MigratePluginToolWireNamesDeps } from "./migrate-plugin-tool-wire-names.ts";
+export { migratePluginToolWireNamesOnBoot } from "./migrate-plugin-tool-wire-names.ts";
 export type { MigrateProseSlotVocabDeps } from "./migrate-prose-slot-vocab.ts";
 export { migrateProseSlotVocabOnBoot } from "./migrate-prose-slot-vocab.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";

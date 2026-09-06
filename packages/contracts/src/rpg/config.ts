@@ -31,7 +31,7 @@ export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
  *  column).
  *  `relationshipHints` maps a custom relationship `label` → a steering gloss (a bare custom label steers as
  *  precisely as the five built-ins when the host glosses it; the hint is a property of the VOCAB, one home, not
- *  duplicated per cast row).
+ *  duplicated per npc row).
  *
  *  The hidden-channel knobs (§3.3/§3.6): `deception` teaches `<lie …/>`, `omniscience` teaches `<ofilter …/>` —
  *  both default OFF (opt-in mechanics). EITHER on = the game is DECEPTION-ACTIVE, which (a) composes the teaching
@@ -126,8 +126,12 @@ export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
  *      (`coEmitsProseWithTools` false — the measured local vLLM fact), so the mount is withheld ON PURPOSE,
  *      pre-commit, off the room connection's capability. Knowable BEFORE a turn runs.
  *    • `no-terminal-calls`       — the tools rode but the model returned neither a state write nor the explicit
- *      `no_changes` bookkeeping call, so the required post-commit round retries the state beat. */
-export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard", "no-terminal-calls"] as const;
+ *      `no_changes` bookkeeping call, so the required post-commit round retries the state beat.
+ *    • `terminal-declaration-collided` — a declared terminal tool re-spelled a REGISTRY tool's name (#1617).
+ *      The registry owns the name, so the whole terminal channel was withheld for that turn: nothing about
+ *      the wire or the model was wrong, and reporting `no-terminal-channel` for it pointed the reader at the
+ *      connection instead of at the contributor that re-spelled a name. The server log names the collisions. */
+export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard", "no-terminal-calls", "terminal-declaration-collided"] as const;
 export type RpgFoldFallbackReason = (typeof RPG_FOLD_FALLBACK_REASONS)[number];
 
 /** The VEHICLE that produces a turn's state delta — the delivery axis as it actually LANDS, distinct from the

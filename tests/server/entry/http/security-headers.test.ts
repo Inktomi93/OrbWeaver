@@ -12,7 +12,7 @@
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, resolveRenderPolicy } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
-import { securityHeaders } from "@orb/server/entry/http";
+import { normalizeThrownErrors, securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -422,14 +422,18 @@ describe("securityHeaders", () => {
     // frame, runs `app.onError` there and assigns `context.res`, so every outer middleware's `await next()`
     // resolves normally and this middleware's post-`next()` write lands on the 500 — fully policied.
     //
-    // The ACTUAL limit is narrower and is documented in `security-headers.ts` rather than fixed here: a
-    // NON-`Error` throw fails `compose()`'s `err instanceof Error && onError` predicate, is rethrown past
-    // every middleware, and the adapter's own 500 goes out bare. That arm asserts the REJECTION, which is
-    // the honest observable — there is no response object of ours to inspect.
+    // #1761 CLOSED THE REMAINING HOLE. A NON-`Error` throw fails `compose()`'s `err instanceof Error &&
+    // onError` predicate and used to be rethrown past every middleware, so the adapter answered a bare 500
+    // with no CSP, no `X-Frame-Options`, no `nosniff` — this arm asserted that REJECTION as the documented
+    // limit. `normalizeThrownErrors` (mounted immediately INSIDE this middleware, exactly as `entry/app.ts`
+    // wires it) now converts it at a frame the header writer still encloses, so both throws are policied.
+    // The mount ORDER is the load-bearing part and is what this helper reproduces: normalising OUTSIDE the
+    // header middleware would run `onError` at a frame ABOVE it and the 500 would go out bare anyway.
     async function servedByThrowingFrameRoute(thrown: unknown): Promise<Response> {
       const app = new Hono();
       app.onError((_err, c) => c.body(null, 500));
       app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.use("*", normalizeThrownErrors());
       app.get(`${CARD_FRAME_ROUTE}/:id`, () => {
         throw thrown;
       });
@@ -443,12 +447,58 @@ describe("securityHeaders", () => {
       expectAppPolicied(res, "Error throw on an exempt path");
     });
 
-    test("a NON-Error throw is the documented limit — it escapes onError entirely and rejects", async () => {
-      // `compose()`'s predicate is `err instanceof Error && onError`, so a bare value is rethrown past every
-      // middleware. Nothing of ours runs after that; the adapter answers, and this file's header comment
-      // says so. Asserting the rejection is what keeps that paragraph honest — if hono ever widened the
-      // predicate, this goes red and the comment gets corrected instead of quietly rotting.
-      await expect(servedByThrowingFrameRoute("a bare string, not an Error")).rejects.toThrow();
+    test("a NON-Error throw is policied too (#1761) — normalised into an Error INSIDE the header writer", async () => {
+      for (const thrown of ["a bare string, not an Error", { code: "not-an-error" }, 42, null, undefined]) {
+        const res = await servedByThrowingFrameRoute(thrown);
+        expect(res.status).toBe(500);
+        expectAppPolicied(res, `non-Error throw: ${String(thrown)}`);
+      }
+    });
+
+    test("normalizeThrownErrors is TRANSPARENT to an Error — the same instance reaches onError", async () => {
+      // It must not re-wrap: `app.onError` classifiers (and the observability handler) read the thrown
+      // error's identity/type, so a blanket wrap would change every existing error path's shape.
+      const thrown = new Error("frame handler exploded");
+      let seen: unknown;
+      const app = new Hono();
+      app.onError((err, c) => {
+        seen = err;
+        return c.body(null, 500);
+      });
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.use("*", normalizeThrownErrors());
+      app.get("/boom", () => {
+        throw thrown;
+      });
+
+      const res = await app.request("/boom");
+      expect(res.status).toBe(500);
+      expect(seen).toBe(thrown);
+    });
+
+    test("the normalised Error carries the thrown value as `cause` and NEVER puts it in the response", async () => {
+      // Diagnosability without a new disclosure surface: the raw value rides to `app.onError` (the log ring
+      // / trace) as `cause`; the response body stays the adapter's fixed 500 with no echo of the value.
+      const secretish = "thrown-value-must-not-reach-the-client";
+      let seen: unknown;
+      const app = new Hono();
+      app.onError((err, c) => {
+        seen = err;
+        return c.text("Internal Server Error", 500);
+      });
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.use("*", normalizeThrownErrors());
+      app.get("/boom", () => {
+        throw secretish;
+      });
+
+      const res = await app.request("/boom");
+      expect(seen).toBeInstanceOf(Error);
+      expect((seen as Error).cause).toBe(secretish);
+      // The MESSAGE names only the closed `typeof` vocabulary — never the value itself.
+      expect((seen as Error).message).toContain("string");
+      expect((seen as Error).message).not.toContain(secretish);
+      expect(await res.text()).not.toContain(secretish);
     });
   });
 

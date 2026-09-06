@@ -7,10 +7,12 @@
 //
 // NO SNAPSHOT by construction — nothing existing is written — and the result says so (the apply panel
 // teaches snapshot-first, so its absence here must not read as a miss). Signals: the copy's `refinery`
-// signals are stamped FRESH from this session's latest score/analyze runs — they describe exactly the
-// copy's content (§17's carry decision; unlike the handoff-clear precedent, where the signals described
-// someone else's critique). The session stays anchored to the ORIGINAL character (a card is canon, not a
-// pipeline artifact) and flips to completed like any terminal act.
+// signals are stamped from the score/analyze runs CORRELATED to the applied rewrite (#1519 —
+// `latestRunRowAtOrBefore`, never the session's head: an operate-back apply of an older named rewrite
+// must not stamp a newer run describing different content) — they describe exactly the copy's content
+// (§17's carry decision; unlike the handoff-clear precedent, where the signals described someone else's
+// critique). The session stays anchored to the ORIGINAL character (a card is canon, not a pipeline
+// artifact) and flips to completed like any terminal act.
 
 import { updateCharacterSchema } from "@orb/contracts/character";
 import { REFINERY_STAGE_PAYLOADS, refineryCustomRunConfigSchema, refinerySessionNameSchema } from "@orb/contracts/refinery";
@@ -19,7 +21,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { RefineryContext } from "../context.ts";
 import type { RefineryService } from "../contract/service.ts";
-import { latestRunRowOf } from "../persistence/queries.ts";
+import { latestRunRowAtOrBefore } from "../persistence/queries.ts";
 import { buildPatch, resolveApplyBasis } from "../substrate/accept-belts.ts";
 
 const COPY_NAME_SUFFIX = " (refined)";
@@ -30,7 +32,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     const ownerId = principal.userId;
     // Base = the LIVE card (§17 — the user reviewed diffs against it), same belts + loads as the merge
     // arm (the shared preamble resolver).
-    const { session, liveCard, applied, dropped, chosen } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
+    const { session, liveCard, applied, dropped, chosen, rewriteRunCutoff } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
     if (chosen.length === 0) {
       // Every accept died on the belts — no copy is minted for nothing (the honest zero-write arm).
       return { applied, dropped, character: null };
@@ -44,8 +46,13 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     const input = updateCharacterSchema.parse({ ...patch, name: copyName });
     const detail = await ctx.updateCharacter({ principal, characterId: duplicated.id, input });
 
-    // Fresh signal stamps from THIS session's latest runs — they describe exactly the copy's content.
-    const [scoreRow, analyzeRow] = await Promise.all([latestRunRowOf(ctx.db, sessionId, "score"), latestRunRowOf(ctx.db, sessionId, "analyze")]);
+    // Signal stamps CORRELATED to the applied rewrite (#1519) — never the session's head, which drifts
+    // the moment a newer score/analyze run lands after an OLDER named rewrite is applied (the §16.1
+    // operate-back path). `rewriteRunCutoff` is that rewrite's own mint-time position.
+    const [scoreRow, analyzeRow] = await Promise.all([
+      latestRunRowAtOrBefore(ctx.db, sessionId, "score", rewriteRunCutoff),
+      latestRunRowAtOrBefore(ctx.db, sessionId, "analyze", rewriteRunCutoff),
+    ]);
     const score = scoreRow === undefined ? null : overallScoreCoreSchema.safeParse(scoreRow.payload);
     if (score?.success === true) {
       await ctx.stampRefinerySignals({ ownerId, characterId: duplicated.id, patch: { score: score.data.overallScore } });

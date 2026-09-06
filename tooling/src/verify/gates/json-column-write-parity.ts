@@ -78,6 +78,12 @@ const ALLOWLIST: ExemptionTable = {
   "chats.pendingHandoffOffer": {
     why: "every REAL writer of the offer REPLACES it whole (nominate sets it, accept/decline clear it); the one key-wise writer is the one-shot boot rename `migrateHandoffOfferVocab` (#1649), which moves a KEY and never merges a value onto a client image, so no read-modify-write can be undone. Ends when that migration is retired (then the column no longer straddles and this row must go)",
   },
+  "messageVariants.toolCalls": {
+    why: "the `chats.pendingHandoffOffer` shape one table over: every REAL writer of a variant's tool-call list REPLACES it whole (the turn pipeline commits the array it just produced at `persistence/canon-write.ts`), and the one key-wise writer is the one-shot boot rename `migratePluginToolWireNames` (#1391), which re-prefixes `$[i].name` on an ALREADY-PERSISTED record and never merges a value onto a client image — so no read-modify-write can be undone by it, and it runs before compose, i.e. before any turn can be in flight. Ends when that migration is retired (then the column no longer straddles and this row must go)",
+  },
+  "automationRules.actions": {
+    why: "the same #1391 shape on the other persisted home of a plugin tool wire name: the rule verbs replace the whole arm list (a rule edit is an authored document, `persistence/rules.ts`), and the lone key-wise writer is the one-shot boot rename `migratePluginToolWireNames`, which rewrites `$[i].name` on `run_tool` arms only and derives nothing from a caller's image. Ends when that migration is retired",
+  },
   "presets.config": {
     why: "same shape one table over: the one key-wise writer is the one-shot boot rename `migrateProseSlotVocab` (#1737), moving the `chat.group.castMember` override key; the whole-replace writers carry either a packaged constant or the editor's guarded read (#1026, the ARM B rows below), never an image a rename could be undone by. Ends when that migration is retired",
   },

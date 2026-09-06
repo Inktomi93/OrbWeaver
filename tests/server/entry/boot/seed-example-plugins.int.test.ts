@@ -307,7 +307,8 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   expect((await h.service.list({ caller }))[0]?.["status"]).toBe("enabled");
 
-  // BOTH tools reached the registrar — the guest-local names the host then prefixes to `plugin_oracle_deck_*`.
+  // BOTH tools reached the registrar — the guest-local names the host then prefixes to `plugin_oracle__deck_*`
+  // (the slug's hyphen DOUBLES: `pluginToolWireName` is injective since #1391).
   expect(captured.tools.map((t) => t.name)).toEqual(["draw", "reveal"]);
   // …and so did the OMEN value macro (§5.15) — guest-local name here; the registrar namespaces it.
   expect(captured.macros.map((m) => m.name)).toEqual(["omen"]);
@@ -319,7 +320,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   // …and so did the `draw` CARD (#679 U3), linked to the guest-local tool name and PROJECTED to the
   // model-visible one — the whole path a transcript needs to draw a house card instead of the generic block.
   expect(await h.service.listSurfaces({ caller })).toEqual([
-    expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle_deck_draw" }),
+    expect.objectContaining({ id: "draw_card", anchor: "tool-card", toolName: "draw", toolWireName: "plugin_oracle__deck_draw" }),
     // …and the two U5 surfaces the same activation registered (#679 U5): the full-page deck behind the ONE
     // Extensions rail entry, and the reveal DIALOG — which the deck opens only from its own page/command, never
     // spontaneously. This is the end-to-end receipt that `page` and `dialog` survive a REAL activation over the

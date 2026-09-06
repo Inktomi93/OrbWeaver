@@ -49,10 +49,11 @@ export interface ChromeEntry {
   readonly order?: number;
   /** The entry's PHONE FATE. On the rail it is the tab-vs-You-sheet decision and it is REQUIRED (the
    *  `chrome-registry-completeness` gate); on `topbar.trail` it is OPTIONAL and defaults to "stay on the
-   *  row" — declaring `"sheet"` moves the widget off a 320px topbar into the You sheet, which renders its
-   *  `body("sheet")` lens (the notifications inbox, 2026-08-07: a 48px control was competing with the one
-   *  thing that says where you are). The axis is chrome-wide; it used to be rail-only, back when the sheet
-   *  projected nothing from this zone. */
+   *  row" — declaring `"sheet"` moves the entry off a 320px topbar into the You sheet, which projects it by
+   *  KIND: a widget's `body("sheet")` lens (the notifications inbox, 2026-08-07: a 48px control was
+   *  competing with the one thing that says where you are) or a modal trigger's row (the ⌘K palette, whose
+   *  `mobile` is declared on its `ModalTrigger` and derived here, #1789). The axis is chrome-wide; it used
+   *  to be rail-only, back when the sheet projected nothing from this zone. */
   readonly mobile?: MobileCuration;
   /** Capability gate, called UNCONDITIONALLY per entry — the registry list is frozen at the door
    *  (contentBySection precedent), so hooks-over-a-stable-list is legal. `false` ⇒ render NOTHING (no
@@ -76,9 +77,10 @@ export interface ChromeEntry {
   readonly behavior: ChromeEntryBehavior;
 }
 
-/** The `topbar.trail` widgets a PHONE's row cannot afford, which the You sheet projects instead (§E-5).
- *  ONE home for the filter: the sheet renders their `body("sheet")` lens and the mobile bar's You tab
- *  badges their `useBadge` count, and the two must never disagree about which entries those are. */
+/** The `topbar.trail` entries a PHONE's row cannot afford, which the You sheet projects instead (§E-5).
+ *  ONE home for the filter: the sheet projects them (a WIDGET's `body("sheet")` lens, a MODAL trigger's row
+ *  — #1789 folded the ⌘K palette in here) and the mobile bar's You tab badges their `useBadge` count, and
+ *  the two must never disagree about which entries those are. */
 export function sheetOverflowChrome(entries: readonly ChromeEntry[]): readonly ChromeEntry[] {
   return entries.filter((entry) => entry.zone === "topbar.trail" && entry.mobile === "sheet");
 }

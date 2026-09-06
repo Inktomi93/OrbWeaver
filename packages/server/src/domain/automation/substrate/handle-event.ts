@@ -8,22 +8,25 @@
 // accurate.
 //
 // SERIALIZED PER SCOPE at this door (`createHandleEvent`): same-chat events queue behind each other instead of
-// racing, unrelated chats stay parallel. Process-local by construction — see the export's own comment for the
-// key and `substrate/serial-lanes.ts` for what a lane does and does not promise.
+// racing, unrelated chats stay parallel — and since #1554, unrelated OWNERS on the domain bus stay parallel
+// too (see `handleDomainEvent`'s own header for why owner, never subject-id, is the key). Process-local by
+// construction — see the export's own comment for the keys and `substrate/serial-lanes.ts` for what a lane
+// does and does not promise.
 
 import type { AutomationTrigger, AutomationTriggerBus } from "@orb/contracts/automation";
 import { triggerBusOf } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
+import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { runDispatch } from "../engine/dispatch.ts";
 import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules.ts";
 import { holdsChatHostAuthority } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
-import { automationLaneKey, runInLane } from "./serial-lanes.ts";
+import { automationChatLaneKey, automationDomainLaneKey, runInLane } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 
@@ -74,10 +77,6 @@ function loadMatchedRules(
   return loadEnabledChatRules(ctx.db, chatId, triggerType);
 }
 
-/** The resolve → fan-out + dispatch core (throws propagate to the self-safe wrapper). The resolved fact feeds
- *  TWO independent consumers: the rule dispatch AND the plugin `events.on` fan-out.
- *  Either alone is enough to resolve the fact — a chat with no rules but a plugin subscriber still delivers,
- *  and vice versa. When NEITHER is interested the event is dropped before any DB read (the pre-check no-op). */
 /** RULED (§8, VOID-ALL on host handoff) — "authority died, its pending asks die with it; a re-fire under the
  *  new host mints fresh". This is where that ruling meets the tree.
  *
@@ -108,15 +107,23 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
   });
 }
 
-async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
+/** Run one already-loaded rule set to a dispatch summary, refreshing the enabled index when a fire disabled
+ *  a rule (#1564: `refresh`, never `reload` — the auto-disable already committed, so a failed rebuild must
+ *  latch stale rather than throw into whichever self-safe wrapper is holding this call). Shared by BOTH the
+ *  chat arm (one call, the chat's own rules) and the domain arm (one call PER OWNER, #1554). */
+async function dispatchLoadedRules(ctx: AutomationContext, rules: readonly RuleRow[], resolved: ResolvedTrigger): Promise<void> {
+  const summary = await runDispatch(ctx, rules, resolved);
+  if (summary.anyDisabled) {
+    await ctx.enabled.refresh();
+  }
+}
+
+/** The CHAT-bus event path — UNCHANGED by #1554: a chat's rules already share exactly one lane (the chat
+ *  itself), so there is no head-of-line question here to answer. Runs entirely inside the caller's chat lane. */
+async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: ChatId): Promise<void> {
   await healStaleIndexes(ctx);
-  // WHICH BUS, by TUPLE MEMBERSHIP (#1433) — `triggerBusOf` is the contracts home the db's bus↔type CHECK is
-  // generated from. It replaced a `event.type.includes(".")` punctuation test here, which was a claim about
-  // today's NAMES rather than about the taxonomy: a domain event without a dot would have taken the chat
-  // pre-check and never dispatched, and a chat event with one would have gone looking for domain rules.
   const bus = triggerBusOf(event.type);
-  const chatId: ChatId | null = "chatId" in event ? event.chatId : null;
-  if (event.type === "chatUpdated" && chatId !== null) {
+  if (event.type === "chatUpdated") {
     await voidAsksOnLostAuthority(ctx, chatId);
   }
   const wantRules = rulesInterested(ctx, bus, chatId);
@@ -150,28 +157,74 @@ async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {
   if (rules.length === 0) {
     return;
   }
-  const summary = await runDispatch(ctx, rules, resolved);
-  if (summary.anyDisabled) {
-    // `refresh`, not `reload` (#1564): same rule as the verbs — the auto-disable committed before this runs.
-    // `reload` would throw into the self-safe wrapper, which logs and moves on, leaving a stale index that
-    // `healStaleIndexes` has no latch to notice; `refresh` sets the latch this very function retries on.
-    await ctx.enabled.refresh();
-  }
+  await dispatchLoadedRules(ctx, rules, resolved);
 }
 
-/** THE SERIALIZATION KEY — one lane per CHAT, and ONE lane for the whole domain bus.
- *
- *  A chat's key is obvious: the state two same-chat events contend over (the chat variable plane, the rules'
- *  `last_fired_at`/error ledger, the rate window) is chat-scoped, and two different rooms share none of it.
- *
- *  THE DOMAIN BUS GETS A SINGLE LANE, deliberately, and NOT one per subject id. The domain bus is a global
- *  firehose whose matched rules span EVERY owner (`loadEnabledDomainRules`), and what those rules contend
- *  over is their AUTHOR's own variable plane — which is not knowable here, before the rule read. Keying by
- *  `characterId`/`assetId`/… would look like scope and buy nothing: two events about different subjects still
- *  drive the same owner-global rule through the same read-modify-write. The cost is head-of-line latency on a
- *  low-frequency bus (card/persona/book/asset writes), which is the same trade the per-chat lane makes. */
-function laneKeyFor(event: BusEvent): string {
-  return automationLaneKey("chatId" in event ? event.chatId : null);
+/** Group rule rows by their AUTHOR — the domain arm's own partition (#1554), never by subject id (see the
+ *  export's header for why). A plain `Map`, not a `Record`, because the key space is unbounded (any `UserId`
+ *  that has ever authored an owner-global rule), which is exactly the shape a `Record` would misrepresent. */
+function groupRulesByOwner(rules: readonly RuleRow[]): Map<UserId, RuleRow[]> {
+  const groups = new Map<UserId, RuleRow[]>();
+  for (const rule of rules) {
+    const group = groups.get(rule.ownerId);
+    if (group === undefined) {
+      groups.set(rule.ownerId, [rule]);
+    } else {
+      group.push(rule);
+    }
+  }
+  return groups;
+}
+
+/** The DOMAIN-bus event path (#1554). Everything up to and including the rule LOAD is event-level work that
+ *  touches no state two domain events could contend over — index refreshes are idempotent, `resolveTrigger`
+ *  and the rule read are both read-only — so it runs UNSERIALIZED, outside any lane; only the actual
+ *  DISPATCH (a read-modify-write over a rule's AUTHOR's own variable plane) is keyed, and it is keyed per
+ *  OWNER: `loadEnabledDomainRules` spans every author who has an enabled rule for this trigger type, and two
+ *  authors' rules share no state, so their dispatches proceed in parallel while one author's own events still
+ *  serialize behind each other on that author's lane. Errors are isolated PER OWNER GROUP (one author's
+ *  dispatch failing must neither block nor be blamed on another's), which is why each group carries its own
+ *  try/catch rather than one wrapping the whole fan-out. */
+async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Promise<void> {
+  await healStaleIndexes(ctx);
+  const bus = triggerBusOf(event.type);
+  const wantRules = rulesInterested(ctx, bus, null);
+  const wantPlugins = ctx.pluginSubscribers.hasSubscriberFor(event.type);
+  if (!(wantRules || wantPlugins)) {
+    return;
+  }
+  const resolved = await resolveTrigger(ctx.ops, event);
+  if (resolved === null) {
+    return; // non-taxonomy event.
+  }
+  if (wantPlugins) {
+    await fanOutToPluginSubscribers(
+      {
+        db: ctx.db,
+        registry: ctx.pluginSubscribers,
+        resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
+        getMessageFact: ctx.ops.chat.getMessageFact,
+      },
+      resolved,
+    );
+  }
+  if (!wantRules || bus !== "domain") {
+    return;
+  }
+  const rules = await loadMatchedRules(ctx, bus, null, event.type as AutomationTrigger["type"]);
+  if (rules.length === 0) {
+    return;
+  }
+  await Promise.all(
+    Array.from(groupRulesByOwner(rules), ([ownerId, ownerRules]) =>
+      runInLane(automationDomainLaneKey(ownerId), () => dispatchLoadedRules(ctx, ownerRules, resolved)).catch((err: unknown) => {
+        getLog().warn(
+          { err: err instanceof Error ? err.message : String(err), type: event.type, ownerId },
+          "automation handleEvent failed for one domain-rule owner (isolated)",
+        );
+      }),
+    ),
+  );
 }
 
 /** The front door, and the ONE place the ordering promise is kept.
@@ -182,20 +235,30 @@ function laneKeyFor(event: BusEvent): string {
  *
  *  Dispatch is written as if order were semantics (arms mutate a shared env; `runDispatch` recurses rather
  *  than loops; clock/callback presets count beats), but each event arrived DETACHED, so that promise held
- *  inside one event and nowhere between two: two same-chat events read one variable snapshot, computed one
- *  increment, and wrote one value. Serializing here keeps the whole resolve → fan-out → dispatch sequence
- *  indivisible per key. It is PROCESS-LOCAL (`substrate/serial-lanes.ts`) — a second app process would still
- *  interleave, which is the separately-filed process-locality row, not something an in-RAM queue can claim.
+ *  inside one event and nowhere between two: two same-chat (or same-owner, #1554) events read one variable
+ *  snapshot, computed one increment, and wrote one value. Serializing here keeps the whole resolve → fan-out
+ *  → dispatch sequence indivisible per key. It is PROCESS-LOCAL (`substrate/serial-lanes.ts`) — a second app
+ *  process would still interleave, which is the separately-filed process-locality row, not something an
+ *  in-RAM queue can claim.
  *
- *  Still self-safe and still fire-and-forget for the caller: the lane never surfaces a throw (the catch is
- *  INSIDE the queued job, so a failing event neither escapes nor blocks its successor). */
+ *  Still self-safe and still fire-and-forget for the caller: NEITHER arm below surfaces a throw — the chat
+ *  arm's catch sits inside its (single) lane job exactly as before, and the domain arm's catch sits inside
+ *  EACH per-owner lane job (`handleDomainEvent` above), so a failing event neither escapes nor blocks its
+ *  successor on either arm. */
 export function createHandleEvent(ctx: AutomationContext): AutomationService["handleEvent"] {
-  return (event: BusEvent): Promise<void> =>
-    runInLane(laneKeyFor(event), async (): Promise<void> => {
-      try {
-        await handle(ctx, event);
-      } catch (err) {
-        getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
-      }
-    });
+  return (event: BusEvent): Promise<void> => {
+    const chatId: ChatId | null = "chatId" in event ? event.chatId : null;
+    if (chatId !== null) {
+      return runInLane(automationChatLaneKey(chatId), async (): Promise<void> => {
+        try {
+          await handleChatEvent(ctx, event, chatId);
+        } catch (err) {
+          getLog().warn({ err: err instanceof Error ? err.message : String(err), type: event.type }, "automation handleEvent failed (isolated)");
+        }
+      });
+    }
+    // A `DomainEvent` never carries `chatId` (contracts `events` — every member is subject-scoped, not
+    // chat-scoped), so the narrow above is total: `chatId === null` here means `event: DomainEvent`.
+    return handleDomainEvent(ctx, event as DomainEvent);
+  };
 }

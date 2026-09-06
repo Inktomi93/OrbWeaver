@@ -16,7 +16,7 @@
 // is unobservable in a CT (the same reason the turn mapper is a unit — see its header).
 
 import type { CharacterBulkTagResult } from "@orb/contracts/character";
-import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE } from "@orb/contracts/character";
+import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 
 /** The refusal reason off a tRPC error's `data.reason`, else `""`. The `turn-abort-notice.ts` reader. */
 function reasonOf(error: unknown): string {
@@ -35,8 +35,14 @@ export const CHARACTER_HANDLE_CONFLICT_COPY = "You already have a character with
  *  a card may not claim one; again the fix is a different name. */
 export const CHARACTER_HANDLE_RESERVED_COPY = "That name is reserved for group rooms. Pick a different name and try again.";
 
+/** The honest copy for `CHARACTER_STALE_BASIS` (#1551) — surfaced wherever a `character.update` carrying
+ *  `expectedBasis` refuses (today: the refinery apply path). The refusal is TOTAL — nothing was written, the
+ *  OTHER edit stands — so the copy names the fix (reload, re-apply) rather than hedging about partial state,
+ *  matching the server's own reason (`domain/character/verbs/update.ts`'s message) in the app's voice. */
+export const CHARACTER_STALE_BASIS_COPY = "This character changed elsewhere while that was being prepared. Reload it and try again.";
+
 /**
- * The toast a `character.create` / `character.update` failure should show. Two coded refusals get copy that
+ * The toast a `character.create` / `character.update` failure should show. Coded refusals get copy that
  * names what is wrong and what to do; anything else falls through to the caller's verb-specific fallback, so
  * a genuine fault is never swallowed or re-labelled as a name problem.
  */
@@ -56,6 +62,8 @@ export function characterRefusalCopy(error: unknown): string | null {
       return CHARACTER_HANDLE_CONFLICT_COPY;
     case CHARACTER_HANDLE_RESERVED_OP_CODE:
       return CHARACTER_HANDLE_RESERVED_COPY;
+    case CHARACTER_STALE_BASIS_OP_CODE:
+      return CHARACTER_STALE_BASIS_COPY;
     default:
       return null;
   }

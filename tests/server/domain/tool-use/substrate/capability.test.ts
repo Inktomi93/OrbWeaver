@@ -38,19 +38,19 @@ describe("global scope", () => {
 });
 
 describe("chat scope", () => {
-  test("a chat-scoped ceiling with NO roster (executed outside a chat) refuses BEFORE calling can()", () => {
+  test("a chat-scoped ceiling with NO membership (executed outside a chat) refuses BEFORE calling can()", () => {
     // FABRICATION-OK: Can is an overloaded call-signature interface — vi.fn() needs the cast to stand in for it.
     const can = vi.fn() as unknown as Can;
-    expect(() => checkToolCapability({ scope: "chat", action: "host" }, execOf({ roster: null }), can)).toThrow(DomainForbiddenError);
+    expect(() => checkToolCapability({ scope: "chat", action: "host" }, execOf({ membership: null }), can)).toThrow(DomainForbiddenError);
     expect(can).not.toHaveBeenCalled();
   });
 
-  test("a chat-scoped ceiling with a roster forwards it verbatim to can()", () => {
+  test("a chat-scoped ceiling with a membership forwards it verbatim to can()", () => {
     // FABRICATION-OK: Can is an overloaded call-signature interface — vi.fn() needs the cast to stand in for it.
     const can = vi.fn() as unknown as Can;
-    const roster = { role: "member" as const };
-    const exec = execOf({ chatId: castId("chat_x"), roster });
+    const membership = { role: "member" as const };
+    const exec = execOf({ chatId: castId("chat_x"), membership });
     checkToolCapability({ scope: "chat", action: "host" }, exec, can);
-    expect(can).toHaveBeenCalledWith(exec.principal, "host", { kind: "chat", roster });
+    expect(can).toHaveBeenCalledWith(exec.principal, "host", { kind: "chat", membership });
   });
 });

@@ -102,7 +102,7 @@ test("recentBeatsKeepLast=0 drops the Recent-beats block entirely (durable log u
 /** Seed one CHARACTER-actor game whose CONFIG defines trackers AND whose committed snapshot carries that
  *  actor's readings — the both-planes shape the retired pool max lived in (a def max on the sheet, a second
  *  max on the volatile row). Seeds a REAL character: the sheet FKs it, and its branded id is what the volatile
- *  actorRef + the roster both key on (a `cast` ref carries no sheet, so it can't exercise the carrier join). */
+ *  actorRef + the roster both key on (a `npc` ref carries no sheet, so it can't exercise the carrier join). */
 async function seedGameWithTrackers(
   db: Db,
   key: string,
@@ -212,12 +212,12 @@ test("the band renders the PINNED trackers with a numeric reading — never a de
   expect(orbs).toEqual([{ key: "focus", label: "Focus", value: 12, max: 20, color: null }]);
 });
 
-// A cast NPC's volatile plane lives on the SAME per-actor rows a roster member's does (`cast:<key>`), and
+// An npc's volatile plane lives on the SAME per-actor rows a roster member's does (`npc:<key>`), and
 // `RpgPresentCharacter` has no volatile plane at all — so until the view projected it, everything a beat wrote
 // onto an NPC (hp/status/conditions/inventory/wallet) reached NO reader, and the steering reminder could not
 // state the affliction, the wound or the purse the tool round had just given that NPC. The WHOLE row is
 // projected, never a slice: a slice is how the gap came back after the conditions half was fixed.
-test("a scene-cast member is an ORDINARY actor row in the view — identity, presence, volatile, trackers (R2)", async () => {
+test("a scene-npc is an ORDINARY actor row in the view — identity, presence, volatile, trackers (R2)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "castcond");
   const gameId = await seedGame(db, chatId, "castcond");
@@ -227,10 +227,10 @@ test("a scene-cast member is an ORDINARY actor row in the view — identity, pre
     db,
     {
       ...emptyState(),
-      presentCharacters: ["cast:mari", "cast:bran"],
+      presentCharacters: ["npc:mari", "npc:bran"],
       actorState: [
         {
-          actorRef: { kind: "cast", castKey: "mari" },
+          actorRef: { kind: "npc", npcKey: "mari" },
           identity: { name: "Mari", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
           volatile: {
             trackerValues: {},
@@ -240,10 +240,10 @@ test("a scene-cast member is an ORDINARY actor row in the view — identity, pre
             status: "favouring one leg",
           },
         },
-        // A tracked cast actor who is NOT on the presence list — the OFFSTAGE row, which no projection
+        // A tracked npc who is NOT on the presence list — the OFFSTAGE row, which no projection
         // carried before R2 (her state was retained and unreadable, and no gesture could remove her).
         {
-          actorRef: { kind: "cast", castKey: "vesna" },
+          actorRef: { kind: "npc", npcKey: "vesna" },
           identity: { name: "Sister Vesna", emoji: "", mood: "guarded", relationship: { kind: "enemy", label: "" } },
           volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
         },
@@ -259,7 +259,7 @@ test("a scene-cast member is an ORDINARY actor row in the view — identity, pre
     throw new Error("game not found");
   }
   const view = await buildTrackerView(ctx, game, false);
-  // ONE list, one shape: the cast NPC is an `RpgActorView` beside the roster, not a bolted-on projection.
+  // ONE list, one shape: the npc is an `RpgActorView` beside the roster, not a bolted-on projection.
   const mari = view.actors.find((a) => a.name === "Mari");
   expect(mari?.presence).toBe(true);
   expect(mari?.volatile?.conditions.map((c) => c.name)).toEqual(["poisoned"]);
@@ -267,7 +267,7 @@ test("a scene-cast member is an ORDINARY actor row in the view — identity, pre
   expect(mari?.volatile?.inventory.map((i) => i.name)).toEqual(["dagger"]);
   expect(mari?.volatile?.wallet).toEqual([{ name: "gold", amount: 12 }]);
   // Her carrier CLASS derives from `actorRef.kind` — a partition of people, not of rows (the §1.4 fix).
-  expect(mari?.actorRef.kind).toBe("cast");
+  expect(mari?.actorRef.kind).toBe("npc");
 
   // THE OFFSTAGE ROW is projected too, with everything on it — that visibility IS the R2 deliverable.
   const vesna = view.actors.find((a) => a.name === "Sister Vesna");
@@ -275,7 +275,7 @@ test("a scene-cast member is an ORDINARY actor row in the view — identity, pre
   expect(vesna?.identity?.relationship).toEqual({ kind: "enemy", label: "" });
 
   // The presence ECHO is derived from the same rows (a presence key with no actor row is simply not an actor).
-  expect(view.cast).toEqual(["cast:mari", "cast:bran"]);
+  expect(view.cast).toEqual(["npc:mari", "npc:bran"]);
 });
 
 test("P5: the plot plane rides the tracker view from the resolved snapshot (null for a turnless game)", async () => {

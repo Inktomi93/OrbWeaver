@@ -70,12 +70,16 @@ interface CompletedTurn {
 // `runRound` is the mode's injected op (`RpgRunToolRound`) or the folded turn's own fold — they share this
 // exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
-async function stageStateRound(
-  ctx: RpgContext,
-  game: RpgGameRow,
-  turn: CompletedTurn,
-  runRound: RpgRunToolRound,
-): Promise<readonly RpgRecordedToolCall[] | undefined> {
+/** WHAT ONE STATE ROUND PRODUCED, past the accumulator: the calls to disclose (absent when the vehicle had
+ *  none) and — when the vehicle could not RUN — the sentence saying so ({@link RpgStateDelta.failure}). The two
+ *  travel together because the caller's next decision reads both: a round that failed staged nothing, and
+ *  "staged nothing" alone is the quiet beat, which is exactly the conflation this pair exists to end. */
+interface StagedRound {
+  readonly calls: readonly RpgRecordedToolCall[] | undefined;
+  readonly failure: string | null;
+}
+
+async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunToolRound): Promise<StagedRound> {
   // A continuation's canon and reminder INCLUDE the selected slot, and its variant is extended in place. Its
   // delta therefore rebases on the current head. Every other turn creates a new variant and must exclude its
   // own slot (VER-1a), especially a swipe whose rejected sibling already has consequences. This mirrors the
@@ -93,9 +97,12 @@ async function stageStateRound(
     signal: turn.signal,
     reconcile,
   });
+  // THE VEHICLE'S OWN FAILURE, carried out rather than collapsed into the empty delta it necessarily returns
+  // with (#1468 item 2). `undefined` on every round that reached a verdict — including the quiet one.
+  const failure = delta.failure ?? null;
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
-    return delta.recordedToolCalls; // no state write, but a dropped/no_changes call still belongs in the trail
+    return { calls: delta.recordedToolCalls, failure }; // no state write, but a dropped/no_changes call still belongs in the trail
   }
   ctx.staging.ensure(turn.turnId, baseState);
   if (hasStatePatch) {
@@ -104,7 +111,7 @@ async function stageStateRound(
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
-  return delta.recordedToolCalls;
+  return { calls: delta.recordedToolCalls, failure };
 }
 
 /** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
@@ -134,24 +141,46 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
 
 /** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
- *  terminal tools at all, whose wire would go MUTE if they rode (`terminalToolCalls === null`: a
- *  tools-incapable model, an unbuildable mount, or the fold-guarded local engine) — runs its dedicated post-commit
+ *  terminal tools at all, whose wire would go MUTE if they rode, or whose declarations collided with registry
+ *  tool names (`terminalToolCalls === null`: a tools-incapable model, an unbuildable mount, the fold-guarded
+ *  local engine, or #1617's withheld channel) — runs its dedicated post-commit
  *  round exactly as before. An EMPTY call array also falls back: a quiet folded beat must explicitly emit
  *  `no_changes`, otherwise zero calls is indistinguishable from a model that ignored its bookkeeping tools.
+ *
+ *  THE ARRAY MAY CARRY MORE THAN ONE RECURSION DEPTH'S CALLS (#1604, since #1404). The pipeline partitions each
+ *  depth's model-emitted calls by tool identity and ACCUMULATES the terminal half across the whole recurse loop
+ *  (`engine/pipeline.ts::runRecurseLoop`), rather than re-reading the final aggregate economics — which keeps
+ *  only the LAST depth's `toolCalls` and therefore ERASED a terminal call co-emitted with a registry call at
+ *  depth 0. So a folded game that also attaches registry tools hands this fold several depths' worth of calls,
+ *  in EMISSION ORDER (depth 0 first).
+ *
+ *  That is the right shape, and the fold needs no depth-awareness to honor it: `toolCallsToExtraction` folds
+ *  the array exactly as it folds one completion's PARALLEL calls — same-plane calls ACCUMULATE (three
+ *  `update_party` calls become three party entries) and the single-valued `scene` plane is LAST-WINS. Under
+ *  emission order that reads correctly for a recursion: a later depth saw the earlier depth's tool RESULTS, so
+ *  its scene supersedes, while every plane-array write from every depth survives. They are all genuine state
+ *  calls from ONE turn; nothing about the depth they were emitted at makes one less true than another, and the
+ *  depth itself is deliberately not carried — there is no rule here that would read it.
  *
  *  The resolution is ANNOUNCED on every flush (`onStateRoundPath`) — a fork that resolves silently would let a
  *  folded game quietly pay the second call forever with nothing in the trail to say so. */
 /** WHY this flush is not folding, read off the TURN's own connection (the wire that actually ran — never a
- *  re-resolve). `null` = nothing was downgraded (the knob got what it asked for). The two causes are distinct and
- *  both are the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
+ *  re-resolve). `null` = nothing was downgraded (the knob got what it asked for). The causes are distinct and
+ *  each is the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
  *  all; a wire that SILENCES prose under tool attachment was deliberately never mounted (D112's fold guard, gated
- *  PRE-commit at the gather off the same capability fact). Same round, same delta — different diagnosis. */
+ *  PRE-commit at the gather off the same capability fact); and a COLLIDED declaration means the wire was fine
+ *  and a contributor re-spelled a registry tool's name, so the channel was withheld on purpose (#1617 — read
+ *  FIRST, because a collision also arrives as a `null` channel and would otherwise be reported as the
+ *  wire's fault). Same round, same delta — different diagnosis, and they point at different people. */
 function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls: readonly unknown[] | null): RpgFoldFallbackReason | null {
   if (mode !== "folded") {
     return null;
   }
   if (calls !== null) {
     return calls.length === 0 ? "no-terminal-calls" : null;
+  }
+  if (turn.turnConnection.terminalToolsCollided.length > 0) {
+    return "terminal-declaration-collided";
   }
   return coEmitsProseWithTools(turn.turnConnection.connection.capability) ? "no-terminal-channel" : "local-engine-fold-guard";
 }
@@ -310,7 +339,7 @@ async function flushWritableTurn(
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: false });
     return;
   }
-  const roundCalls = await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
+  const produced = await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
   // THE WRITE BOUNDARY, RE-READ: REFUSE TO WRITE, NEVER ROLL
   // BACK. A round that was cancelled while in flight discards whatever it staged and writes nothing — so a
   // cancelled round is byte-identical to a non-writing turn, the same errors-as-data invariant a failed
@@ -340,8 +369,12 @@ async function flushWritableTurn(
   const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
   try {
     if (flush === undefined) {
-      // The quiet beat: the round ran, staged nothing, and that IS its terminal state.
-      settle.outcome = "no-writes";
+      // The quiet beat: the round ran, staged nothing, and that IS its terminal state — UNLESS the vehicle
+      // told us it could not run at all (#1468 item 2). A provider throw returns the BYTE-IDENTICAL empty
+      // delta, so without that bit this arm reported a failed state round as the quiet beat: the committed
+      // narrative carried an invisible missing state update whose only trace was a transient warn line.
+      settle.outcome = produced.failure === null ? "no-writes" : "failed";
+      settle.droppedReason = produced.failure;
     } else {
       const written = await writeFlush(ctx, game, flush, turn);
       suppressed.push(...written.suppressed);
@@ -351,8 +384,14 @@ async function flushWritableTurn(
       settle.outcome = written.droppedReason === null ? "wrote" : "dropped";
       settle.droppedReason = written.droppedReason;
     }
+    if (produced.failure !== null) {
+      // ANNOUNCED on the same channel every other "a round fired and its state vanished" arm uses (the write
+      // -boundary backstop and the fold's two losing arms), with the variant the missing update belonged to —
+      // the correlation the vehicle's own warn cannot carry.
+      ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: produced.failure });
+    }
   } finally {
-    await recordTurnCalls(ctx, game, turn, { roundCalls, suppressed });
+    await recordTurnCalls(ctx, game, turn, { roundCalls: produced.calls, suppressed, failure: produced.failure });
   }
 }
 
@@ -394,7 +433,8 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
  *  co-emitted with prose; a cheap/fallback round contributes the calls returned with its delta. The latter is
  *  a separate model request, but it is still what changed this visible turn's RPG state — omitting it made the
  *  durable inspector lie by absence after the in-memory trace ring rolled over. A vehicle that called NOTHING
- *  records nothing, so a quiet beat still has no empty disclosure.
+ *  records nothing, so a quiet beat still has no empty disclosure — with ONE exception, the round that could
+ *  not run (see the guard below).
  *
  *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
  *  read, so the row, the log and the trace cannot disagree about what was lost. `suppressed` adds the ONE
@@ -409,19 +449,25 @@ async function recordTurnCalls(
   /** What this turn's vehicle produced, grouped: the round's own recorded calls (absent on a folded turn,
    *  whose calls ride `turnConnection`) and what the two merges suppressed. They travel together — the record
    *  is written from exactly this pair and nothing else. */
-  produced: { readonly roundCalls: readonly RpgRecordedToolCall[] | undefined; readonly suppressed: readonly string[] },
+  produced: { readonly roundCalls: readonly RpgRecordedToolCall[] | undefined; readonly suppressed: readonly string[]; readonly failure: string | null },
 ): Promise<void> {
   const recorded = produced.roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
-  if (recorded === undefined || recorded.length === 0) {
+  const calls = recorded === undefined ? [] : markLockSuppressions(recorded, produced.suppressed);
+  // A VEHICLE THAT CALLED NOTHING RECORDS NOTHING — unless it could not RUN (#1468 item 2). Those are two
+  // different turns wearing one shape: the quiet beat legitimately has no disclosure, while a round the
+  // provider refused is precisely the turn a reader needs an answer for ("it thought for a while and then
+  // nothing happened"), and its call list is empty BY NECESSITY. So the row is written with `failure` and an
+  // empty list rather than not written at all — and the reader is never shown a fabricated tool call.
+  if (calls.length === 0 && produced.failure === null) {
     return;
   }
-  const calls = markLockSuppressions(recorded, produced.suppressed);
   await recordTurnToolCalls(ctx.db, {
     id: ctx.ids.turnToolCalls(),
     gameId: game.id,
     messageId: turn.messageId,
     variantId: turn.variantId,
     calls,
+    failure: produced.failure,
     createdAt: ctx.now(),
   });
   // AFTER the durable write, like every other emit here. Its own event rather than `snapshotPatched`: a turn

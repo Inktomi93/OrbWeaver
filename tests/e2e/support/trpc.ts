@@ -623,7 +623,7 @@ interface TrackerItem {
  *  carries every MODEL/HAND-writable state plane (trackers/conditions/wallet/inventory/status; health is an
  *  ordinary tracker since R3) — the exhaustive spec asserts each one against the DOM + the DB read. */
 export interface TrackerActor {
-  readonly actorRef: { readonly kind: string; readonly characterId?: CharacterId; readonly userId?: UserId; readonly castKey?: string };
+  readonly actorRef: { readonly kind: string; readonly characterId?: CharacterId; readonly userId?: UserId; readonly npcKey?: string };
   readonly name: string;
   readonly presence: boolean;
   readonly identity: {
@@ -822,7 +822,7 @@ export function setFeatureKnobs(
 export type ActorRefInput =
   | { readonly kind: "character"; readonly characterId: CharacterId }
   | { readonly kind: "user"; readonly userId: UserId }
-  | { readonly kind: "cast"; readonly castKey: string };
+  | { readonly kind: "npc"; readonly npcKey: string };
 
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
  *  className/attributes/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —

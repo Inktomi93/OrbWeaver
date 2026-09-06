@@ -1,4 +1,4 @@
-// op: resolveRpgRoster (rpg-design/05 §4.3) — the rpg-facing roster projection, against a real libSQL db.
+// op: createResolveRpgParticipants (rpg-design/05 §4.3) — the rpg-facing participants projection, against a real libSQL db.
 // Proves: a CHARACTER seat resolves its card under the HOST's ownership (the getCard ownerId = the room host,
 // D18/D19); a HUMAN seat resolves its publics (displayName ?? handle ?? ""); a seat that resolves to neither
 // ref (a gone card) is DROPPED; the read is `WHERE chatId`-scoped (no cross-chat leak); a LEFT seat is not
@@ -58,7 +58,7 @@ function publics(over: { displayName?: string | null; handle?: Handle | null; av
   return { displayName: over.displayName ?? null, handle: over.handle ?? null, avatarAssetId: over.avatarAssetId ?? null };
 }
 
-describe("resolveRpgRoster", () => {
+describe("createResolveRpgParticipants", () => {
   test("a character seat resolves its card under the host's ownership; a human resolves its publics", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const player = await seedUser(db, castId<Handle>("player"));
@@ -79,11 +79,11 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgParticipants(ctx)(chatId);
+    const participants = await createResolveRpgParticipants(ctx)(chatId);
 
     // The character resolves under the HOST's ownership (never the seat's own — a character has no user owner).
     expect(cardCalls).toEqual([{ ownerId: host, characterId: charId }]);
-    expect(roster).toEqual([
+    expect(participants).toEqual([
       { actorRef: { kind: "user", userId: host }, name: "" }, // host publics resolve to null → ""
       { actorRef: { kind: "user", userId: player }, name: "Player One" },
       { actorRef: { kind: "character", characterId: charId }, name: "Aria" },
@@ -105,8 +105,8 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: (assetId) => Promise.resolve(assetId === avatar ? "hash_x" : null),
     });
 
-    const roster = await createResolveRpgParticipants(ctx)(chatId);
-    expect(roster).toEqual([
+    const participants = await createResolveRpgParticipants(ctx)(chatId);
+    expect(participants).toEqual([
       { actorRef: { kind: "user", userId: host }, name: "The Host" },
       { actorRef: { kind: "user", userId: withHandle }, name: "handled_one", avatar: "hash_x" },
     ]);
@@ -126,9 +126,9 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgParticipants(ctx)(chatId);
+    const participants = await createResolveRpgParticipants(ctx)(chatId);
     // Only the human host survives — the ghost character is dropped.
-    expect(roster).toEqual([{ actorRef: { kind: "user", userId: host }, name: "Host" }]);
+    expect(participants).toEqual([{ actorRef: { kind: "user", userId: host }, name: "Host" }]);
   });
 
   test("the read is chatId-scoped and present-only (no cross-chat leak, a left seat is not projected)", async () => {
@@ -139,7 +139,7 @@ describe("resolveRpgRoster", () => {
     const chatB = await seedChat(db, "b");
     await seedParticipant(db, { chatId: chatA, key: "a_host", userId: host, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId: chatA, key: "a_gone", userId: gone, role: "member", joinSeq: 1, leftSeq: 5 });
-    // A participant in a DIFFERENT chat must never appear in chat A's roster.
+    // A participant in a DIFFERENT chat must never appear in chat A's participants.
     await seedParticipant(db, { chatId: chatB, key: "b_stranger", userId: stranger, role: "host", joinSeq: 0 });
 
     const ctx = makeChatContext(db, {
@@ -148,8 +148,8 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgParticipants(ctx)(chatA);
+    const participants = await createResolveRpgParticipants(ctx)(chatA);
     // Only chat A's PRESENT host — the left member and chat B's stranger are both absent.
-    expect(roster).toEqual([{ actorRef: { kind: "user", userId: host }, name: host }]);
+    expect(participants).toEqual([{ actorRef: { kind: "user", userId: host }, name: host }]);
   });
 });

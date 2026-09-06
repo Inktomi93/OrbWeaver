@@ -26,7 +26,7 @@ export interface MacroSpan {
  *  needs MacroSpan — keeping the metadata.ts → types.ts import one-directional. */
 export interface MacroDiagnostic {
   readonly severity: "error" | "warning";
-  readonly code: "unknown-macro" | "bad-arity" | "bad-arg-type" | "unclosed-block" | "budget-exceeded" | "expr-error";
+  readonly code: "unknown-macro" | "bad-arity" | "bad-arg-type" | "unclosed-block" | "budget-exceeded" | "expr-error" | "non-integer-var";
   readonly message: string;
   readonly span: MacroSpan;
 }

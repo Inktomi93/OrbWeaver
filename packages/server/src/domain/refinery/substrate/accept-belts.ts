@@ -335,6 +335,11 @@ export async function resolveApplyBasis(
   readonly applied: AppliedFieldRef[];
   readonly dropped: DroppedField[];
   readonly chosen: RefineryRewriteField[];
+  /** The APPLIED rewrite's own `(createdAt, id)` — #1519's correlation cutoff: a caller stamping signals
+   *  onto a copy/merge must correlate to THIS rewrite, never the session's head (`latestRunRowAtOrBefore`
+   *  in `persistence/queries.ts`), because an operate-back apply of an OLDER named rewrite must not stamp
+   *  a NEWER score/analyze run that describes different content. */
+  readonly rewriteRunCutoff: { readonly createdAt: number; readonly id: RefineryRunId };
 }> {
   const { ownerId, sessionId, rewriteRunId, accepts } = args;
   const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
@@ -347,8 +352,11 @@ export async function resolveApplyBasis(
   if (rewriteRunId !== undefined && rewriteRow === undefined) {
     throw new DomainNotFoundError("refinery run", rewriteRunId);
   }
-  const rewrite = rewriteRow === undefined ? null : REFINERY_STAGE_PAYLOADS.rewrite.safeParse(rewriteRow.payload);
-  if (rewrite === null || !rewrite.success) {
+  if (rewriteRow === undefined) {
+    throw new RefineryStageNotReadyError("There is no rewrite to apply yet — run the rewrite stage first.");
+  }
+  const rewrite = REFINERY_STAGE_PAYLOADS.rewrite.safeParse(rewriteRow.payload);
+  if (!rewrite.success) {
     throw new RefineryStageNotReadyError("There is no rewrite to apply yet — run the rewrite stage first.");
   }
   // The LIVE card — the greeting-index assert runs against THIS, never the session snapshot (a greeting
@@ -367,5 +375,5 @@ export async function resolveApplyBasis(
     originalCard: session.originalCard,
     liveCard,
   });
-  return { session, liveCard, applied, dropped, chosen };
+  return { session, liveCard, applied, dropped, chosen, rewriteRunCutoff: { createdAt: rewriteRow.createdAt, id: rewriteRow.id } };
 }
