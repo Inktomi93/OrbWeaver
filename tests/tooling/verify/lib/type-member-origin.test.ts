@@ -11,6 +11,7 @@ import {
   declaredByFile,
   declaredByPackage,
   resolveContextualMemberOrigin,
+  resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
 } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
@@ -183,6 +184,44 @@ test("a node with no named type refuses instead of reporting an anonymous home",
   const [numeric] = file(project, "i.ts").getDescendantsOfKind(SyntaxKind.NumericLiteral);
 
   expect(resolveTypeIdentityOrigin(numeric ?? file(project, "i.ts"))).toMatchObject({ kind: "unresolved", reason: "missing" });
+});
+
+test("the identity CHAIN walks declared type aliases to their home, across modules and import doors", () => {
+  const project = projectOf({
+    "state/hook-home.ts": ["export type StoreHook<T> = { (): T; <U>(select: (state: T) => U): U };", "export declare const unused: number;"].join("\n"),
+    "state/hooks.ts": ['import type { StoreHook } from "./hook-home.ts";', "export type UserHook = StoreHook<{ user: string }>;"].join("\n"),
+    "m.ts": [
+      'import type { UserHook } from "./state/hooks.ts";',
+      "type LocalHook = UserHook;",
+      "declare const useUserStore: LocalHook;",
+      "export const read = useUserStore;",
+    ].join("\n"),
+  });
+  const home = file(project, "state/hook-home.ts");
+  const source = file(project, "m.ts");
+  const callee = source.getVariableDeclarationOrThrow("read").getInitializerOrThrow();
+
+  // The checker keeps an outermost alias that is NOT the home — a bare `type LocalHook = UserHook` carries
+  // no type arguments, so TS collapses it and reports `UserHook`, declared in state/hooks.ts.
+  const outermost = expectResolved(resolveTypeIdentityOrigin(callee));
+  expect(outermost.value.name).toBe("UserHook");
+  expect(declaredByFile(outermost.value.declarations, home)).toBe(false);
+
+  // The chain reaches the home, following the import specifier on the way.
+  const chain = expectResolved(resolveTypeIdentityChain(callee));
+  expect(chain.value.map((identity) => identity.name)).toEqual(["UserHook", "StoreHook"]);
+  expect(chain.value.some((identity) => declaredByFile(identity.declarations, home))).toBe(true);
+});
+
+test("a self-referential alias terminates the chain instead of looping", () => {
+  const project = projectOf({
+    "n.ts": ["type Loop = Loop;", "declare const value: Loop;", "export const read = value;"].join("\n"),
+  });
+  const callee = file(project, "n.ts").getVariableDeclarationOrThrow("read").getInitializerOrThrow();
+  const chain = resolveTypeIdentityChain(callee);
+
+  // Whether the checker names this type at all is its business; the reader must not hang either way.
+  expect(["resolved", "unresolved"]).toContain(chain.kind);
 });
 
 test("an empty declaration set is never a home — the fail-closed floor under both matchers", () => {
