@@ -14,7 +14,7 @@ function entry(source: MapEntry["source"]): MapEntry {
   return {
     role: "button",
     name: "Save",
-    selector: '[data-testid="save"]',
+    selector: '[data-fixture="save"]',
     state: { disabled: null, current: null, checked: null, expanded: null },
     visibility: "visible",
     inactiveReason: null,
