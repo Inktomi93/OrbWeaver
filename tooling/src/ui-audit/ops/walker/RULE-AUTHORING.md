@@ -102,7 +102,7 @@ Finding at all and their control is the printed population row.
 | tap-target | offered interactive controls, extent from a compositor `elementFromPoint` ring probe (not the border box) | `w/census-interactive` + `w/hit-extent` + `w/target-identity` | `lib/checks-a11y` | `T/tooling/ui-audit/ops/walker/hit-extent.int.test.ts` · `target-identity.int.test.ts` · `T/tooling/design-audit-walker.ct.tsx` |
 | reveal-coverage | rest-hidden reveal clusters (opacity 0 at rest, real geometry) — accounting only, never a Finding | `w/census-interactive` | `lib/collect-families` (census row) | `T/…/census-interactive.int.test.ts` (withheld row + its silent twin) |
 | control-aspect | offered controls' rendered w/h ratio against the role's silhouette | `w/census-interactive` (`controlAspects`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (planted 1.09 aspect + shipped 64x44 twin) |
-| obscured-target | a painted element whose OWN centre hit-tests to a local neighbour (`ownsPoint`) | `w/census-collision` + `w/census-occlusion` | `lib/checks-a11y` | `T/…/census-collision.int.test.ts` · `cli.int.test.ts` · walker CT |
+| obscured-target | a painted element whose OWN centre hit-tests to a local neighbour (`ownsPoint`) | `w/census-collision` + `w/census-occlusion` | `lib/checks-a11y` | `T/…/census-collision.int.test.ts` · `index.int.test.ts` · walker CT |
 | aria-name | presence of any accname source, keyed spec-order (`aria-labelledby` before `aria-label`, plus `el.labels`) | `w/accessible-name` + `w/census-interactive` | `lib/checks-a11y` | `T/…/census-interactive.int.test.ts` (four-arm, #1009) |
 | border-contrast | a control's DECLARED border colour vs `resolveBackdropUnder(el)` (WCAG 1.4.11) | `w/census-border` | `lib/checks-border` | `T/tooling/ui-audit/index.int.test.ts` (1.1:1 boundary + its 3:1 twin) |
 | landmark-missing | presence of a `<main>`/`role=main` landmark on the document | `w/census-interactive` (`mainLandmarkPresent`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
@@ -118,7 +118,7 @@ Finding at all and their control is the printed population row.
 | glow-shadow | chromatic box/text-shadow on the element AND its pseudo layers, at rest and under force | `w/census-glow` + `w/state-paint` | `lib/checks-decor` | `T/…/census-glow.int.test.ts` · `state-paint.int.test.ts` |
 | distorted-image | rendered box aspect vs natural raster aspect, gated on the `object-fit` keyword (`<img>`) or `background-size` disposition (background-image) | `w/census-text` (`images`) | `lib/checks-media` | `T/…/census-text.int.test.ts` (#1825, background-size auto vs. explicit-stretch) |
 | canvas-ink | visible `<canvas>` elements — accounting only, always `excluded(canvasPaint)` | `w/census-collision` | `lib/collect-families` (census row) | `T/…/census-collision.int.test.ts` (both directions) |
-| broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
+| broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | radial-halo | a radial-gradient wash's colour stops (canvas-normalised), fade-out shape + chroma | `w/census-glow` (`radialGlows`) | `lib/checks-ornament` | **none — owed** (checker-level: `T/…/lib/css-color.test.ts` proves the colour-space arm, not the census) |
 | radial-spotlight-glow | the same wash census, low-alpha flavour | `w/census-glow` | `lib/checks-ornament` | **none — owed** (as above) |
 | stripe-background | `repeating-linear-gradient` in `background-image` | `w/census-decor` (`bgPatterns`) | `lib/checks-ornament` | **none — owed** |
@@ -127,30 +127,30 @@ Finding at all and their control is the printed population row.
 | layout-transition | authored `transition-property` naming a layout property | `w/census-decor` (`motionStatics`) | `lib/checks-ornament` | **none — owed** |
 | bounce-easing | `animation-name` / `cubic-bezier` control points outside 0..1 | `w/census-decor` | `lib/checks-ornament` | **none — owed** |
 | text-overflow | `scrollWidth > clientWidth` on the nearest CLIPPING ancestor-or-self, credited for a real affordance | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/index.int.test.ts` · walker CT (both directions, incl. the sr-only trap) |
-| truncated-to-nothing | text present in the DOM whose painted box is ~0px | `w/census-collision` | `lib/checks-quality` | `T/…/census-collision.int.test.ts` · `cli.int.test.ts` · walker CT |
-| repeated-container-text | the same literal string ≥3 times inside one decorated container | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
+| truncated-to-nothing | text present in the DOM whose painted box is ~0px | `w/census-collision` | `lib/checks-quality` | `T/…/census-collision.int.test.ts` · `index.int.test.ts` · walker CT |
+| repeated-container-text | the same literal string ≥3 times inside one decorated container | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | clipped-overflow | a positioned/in-flow child spilling its clipping box, per side, behind ONE paint fence | `w/census-quality` | `lib/checks-quality` | `T/…/census-quality.int.test.ts` · walker CT |
-| edge-flush-cards | cards touching a horizontal scroller's content edge at `scrollLeft ≈ 0` | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
+| edge-flush-cards | cards touching a horizontal scroller's content edge at `scrollLeft ≈ 0` | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | script-error | uncaught page errors captured by the RUNNER — not a DOM census at all | `ops/run` (page events) | `lib/checks-quality` | **none — owed** (no fixture plants a page exception) |
 | duplicate-action-door | (role, accname) door HOMES, with the `role=toolbar` view-switch fence | `w/census-interactive` | `lib/checks-duplicate-door` | `T/…/census-interactive.int.test.ts` · walker CT |
 | headline-overhang | a display headline's painted rect clipped into an opaque neighbour | `w/census-occlusion` | `lib/checks-quality` | `T/…/census-occlusion.int.test.ts` (3 arms) |
 | inline-padding-leak | an `inline` element's tallest LINE FRAGMENT vs its line-height (block padding on an inline) | `w/census-occlusion` | `lib/checks-quality` | `T/…/census-occlusion.int.test.ts` (4 arms) |
 | z-index-escalation | positive `z-index` on non-static elements | `w/census-interactive` | `lib/checks-structure` | **none — owed** (checker-level only) |
-| nested-card | innermost card-like boxes inside another card-like box (fill+border+radius+shadow predicate) | `w/census-decor` | `lib/checks-structure` | `T/…/census-decor.int.test.ts` · `cli.int.test.ts` · walker CT |
+| nested-card | innermost card-like boxes inside another card-like box (fill+border+radius+shadow predicate) | `w/census-decor` | `lib/checks-structure` | `T/…/census-decor.int.test.ts` · `index.int.test.ts` · walker CT |
 | gradient-text | `background-clip:text` + a gradient image + transparent `color` | `w/census-decor` | `lib/checks-structure` | **none — owed** |
 | animated-img-hover | a state-variant transform class on the `<img>` OR its ≤3 wrapper ancestors, via the SHARED state predicate | `w/census-decor` + `w/state-paint` | `lib/checks-structure` | `T/…/census-decor.int.test.ts` (wrapper-hover zoom + its negative) |
-| cohort-anatomy | rendered height spread across siblings keyed `tag + data-slot + role`, boxless inline runs excluded | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `cli.int.test.ts` |
-| row-void | the gap between a row's label and the control it names | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `cli.int.test.ts` |
+| cohort-anatomy | rendered height spread across siblings keyed `tag + data-slot + role`, boxless inline runs excluded | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `index.int.test.ts` |
+| row-void | the gap between a row's label and the control it names | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `index.int.test.ts` |
 | selection-idiom | selected/unselected computed-paint DELTAS per authored cohort (`claim + home + state`), against the cohort's majority rest paint | `w/census-selection` | `lib/checks-structure` | `T/…/census-selection.int.test.ts` (16 arms incl. the #1808 baseline pair) |
-| pane-ink | where a region's last authored paint sits relative to its height | `w/census-region` | `lib/checks-structure` | `T/…/census-region.int.test.ts` · `cli.int.test.ts` |
-| quiet-state | the loudness ORDER of an authored ON/OFF cohort's own fills over `resolveBackdropUnder` | `w/census-region` | `lib/checks-color` | `T/…/census-region.int.test.ts` (8 arms) · `cli.int.test.ts` (incl. the OKLCH arm) |
-| double-empty-state | simultaneously rendered `[data-slot=empty-state-root]` per surface | `w/census-region` | `lib/checks-quality` | `T/…/census-region.int.test.ts` · `cli.int.test.ts` |
+| pane-ink | where a region's last authored paint sits relative to its height | `w/census-region` | `lib/checks-structure` | `T/…/census-region.int.test.ts` · `index.int.test.ts` |
+| quiet-state | the loudness ORDER of an authored ON/OFF cohort's own fills over `resolveBackdropUnder` | `w/census-region` | `lib/checks-color` | `T/…/census-region.int.test.ts` (8 arms) · `index.int.test.ts` (incl. the OKLCH arm) |
+| double-empty-state | simultaneously rendered `[data-slot=empty-state-root]` per surface | `w/census-region` | `lib/checks-quality` | `T/…/census-region.int.test.ts` · `index.int.test.ts` |
 | text-below-ramp | computed `font-size` against the ramp's floor, per authored decision | `w/census-text` (`textStyles`) | `lib/checks-typography` | walker CT (9px `aria-hidden` paragraph) |
 | undersized-ui-text | the same census against the FUNCTIONAL floor | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/index.int.test.ts` · walker CT |
 | line-length | measure in `ch`, from a MEASURED advance (not `fontSize × 0.5`) | `w/census-text` | `lib/checks-typography` | walker CT (Geist advance arms) |
 | tight-leading | computed `line-height` vs font-size, `normal` excluded | `w/census-text` | `lib/checks-typography` | **none — owed** |
-| justified-text | `text-align: justify` on an element with own text | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
-| all-caps-body | `text-transform: uppercase` / typed caps on non-heading prose | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
+| justified-text | `text-align: justify` on an element with own text | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
+| all-caps-body | `text-transform: uppercase` / typed caps on non-heading prose | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | wide-tracking | `letter-spacing` above the band, with the ratified caps-voice exemption | `w/census-text` | `lib/checks-typography` | walker CT (caps kicker exempt + sentence-case fires) |
 | crushed-tracking | `letter-spacing` below the band | `w/census-text` | `lib/checks-typography` | **none — owed** |
 | caveat-outweighed | a sentence-shaped caveat set SMALLER than the endpoints it bounds | `w/census-text` | `lib/checks-caveat` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
