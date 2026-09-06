@@ -28,6 +28,13 @@ export interface GeneratedGreeting {
   readonly costUsd: number | null;
 }
 
+/** One character's per-item outcome inside `bulkAddCardTag`/`bulkRemoveCardTag` (#1694, internal to the
+ *  domain — never crosses the wire; the wire shape is `@orb/contracts/character`'s `CharacterBulkTagResult`,
+ *  which `substrate/bulk-tag-result.ts` folds this into). `applied` covers the silent no-op too
+ *  (unowned/missing target, or the tag was already in the target state); `failed` carries the caught
+ *  rejection reason UNCLASSIFIED — the substrate helper is what maps it onto the wire's closed union. */
+export type BulkTagOutcome = { readonly characterId: CharacterId; readonly applied: boolean } | { readonly characterId: CharacterId; readonly failed: unknown };
+
 /** Returned by `snapshot`. */
 export interface SnapshotRef {
   readonly id: CharacterSnapshotId;

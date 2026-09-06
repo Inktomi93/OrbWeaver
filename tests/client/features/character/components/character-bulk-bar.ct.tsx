@@ -67,7 +67,7 @@ const PROCEDURE_BY_ACTION: Readonly<Record<BulkAction, string>> = {
 
 const SUCCESS_BY_ACTION: Readonly<Record<BulkAction, unknown>> = {
   archive: { archived: 3 },
-  tag: { tagged: 3 },
+  tag: { applied: ["char_a", "char_b", "char_c"], failed: [] },
   delete: { removed: 3 },
 };
 

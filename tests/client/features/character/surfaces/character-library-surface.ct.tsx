@@ -543,7 +543,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
-    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+    "character.bulkAddCardTag": () => ({ applied: ["char_bolt2"], failed: [] }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
@@ -577,7 +577,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
-    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+    "character.bulkAddCardTag": () => ({ applied: ["char_bolt2"], failed: [] }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
@@ -605,7 +605,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
-    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+    "character.bulkAddCardTag": () => ({ applied: ["char_bolt2"], failed: [] }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
@@ -633,7 +633,7 @@ test("a no-match query opens NO popup — the confirm stays clickable and in the
     "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "tag.listTagFilterVocabulary": () => TAG_VOCABULARY,
-    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+    "character.bulkAddCardTag": () => ({ applied: ["char_bolt2"], failed: [] }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();

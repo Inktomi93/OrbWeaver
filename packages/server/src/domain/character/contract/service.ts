@@ -1,7 +1,7 @@
 // domain/character/contract/service — typed API surface: CharacterContext (DI bundle) + CharacterService
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterBulkTagResult, CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -142,8 +142,10 @@ export interface CharacterService {
   /** Missing/foreign ids are skipped, not thrown. */
   readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
-  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<void>;
-  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<void>;
+  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;
+  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
 
   readonly snapshot: (params: SnapshotParams) => Promise<SnapshotRef>;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;

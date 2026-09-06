@@ -376,7 +376,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
     },
     "character.bulkRemoveCardTag": (input: unknown) => {
       removedInput = input;
-      return { removed: 1 };
+      return { applied: ["char_ct_1"], failed: [] };
     },
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
