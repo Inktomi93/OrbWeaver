@@ -32,7 +32,7 @@ export const LIVE_WINDOW_FULL_HISTORY_CUTOFF = Number.NEGATIVE_INFINITY;
  * drops every digest (the whole history is in the prompt).
  *
  * WHICH endpoint is the CALLER's decision, and it is tier-dependent — `recall::filterPool` states the rule
- * (#1518): a tier>0 digest is tested on its span END (any overlap drops it, because the pool still holds the
+ * (#1518): a tier\>0 digest is tested on its span END (any overlap drops it, because the pool still holds the
  * finer digests that re-cover its aged-out half), a tier-0 digest on its span START (drop only when wholly
  * inside, because nothing finer stands behind it).
  */
