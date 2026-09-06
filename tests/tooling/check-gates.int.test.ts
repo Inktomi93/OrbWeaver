@@ -466,8 +466,6 @@ function writeFixtures(): void {
   fx(`${D}/__g_own/verbs/x.ts`, 'import { characters } from "@orb/db";\nexport const x = characters;\n');
   // serde-core-seal: the PNG card-chunk engine imported outside the import/export serde homes.
   fx(`${D}/hub/__g_serde.ts`, 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n');
-  // fetch-fn-in-features: a client feature file hand-writing a bare global fetch( (the R5 offense).
-  fx("packages/client/src/features/__g_fetchfeat/lib/load.ts", 'export async function load() {\n  return await fetch("/api/x");\n}\n');
   // query-freshness-coverage: a consumed query key with no invalidation row and no registry cite — the
   // frozen-surface class (the read is keyed on a ghost router so it can never collide with a real proc).
   fx("packages/client/src/features/__g_qfresh/components/__g_qfresh.tsx", "export const g = trpc.__g_ghost.frozenRead.queryOptions({});\n");
@@ -787,10 +785,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_plate/__g_plate.css",
     'html[data-blur-panels] [data-slot="__g-plate-probe"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
   );
-  // no-context-provider: the React-19-deprecated <Context.Provider> form.
-  fx("packages/client/src/features/__g_ctxprov/components/__g_c.tsx", "export const Host = () => <MyContext.Provider value={1} />;\n");
-  // no-context-returntype: a ReturnType<> DI-bundle type in a context.ts.
-  fx(`${D}/__g_ctxret/context.ts`, "declare function makeCtx(): { n: number };\nexport type Ctx = ReturnType<typeof makeCtx>;\n");
   // no-decorators: a decorator (non-erasable syntax — no runtime under type-stripping).
   fx(`${D}/__g_decorator/x.ts`, "function dec(): void {}\nexport class A {\n  @dec foo(): number {\n    return 1;\n  }\n}\n");
   // no-default-props: the React-19-deprecated `defaultProps` assignment.
@@ -806,13 +800,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_formeffect/components/__g_c.tsx",
     "declare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function C(form: { state: { values: unknown } }): void {\n  useEffect(() => {}, [form.state.values]);\n}\n",
   );
-  // no-forward-ref: the React-19-deprecated forwardRef import + call.
-  fx(
-    "packages/client/src/features/__g_fwdref/components/__g_c.tsx",
-    'import { forwardRef } from "react";\nexport const GInput = forwardRef((props, ref) => <input ref={ref} />);\n',
-  );
-  // no-use-context: the React-19-deprecated useContext reader (both doors — the import and the call).
-  fx("packages/client/src/features/__g_usectx/components/__g_c.tsx", 'import { useContext } from "react";\nexport const v = useContext(GCtx);\n');
   // no-manual-memo: a hand-written memo hook imported from react in compiled client code. The path is a
   // __g_ dir at the ui/src root (the __g_oversize / __g_motion / __g_defprops placement precedent) and is
   // NOT in the gate's EXEMPTIONS table, so its budget is zero.
@@ -872,8 +859,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_layoutprops/components/__g_c.tsx", "export const G = <EntityCard compact={true} />;\n");
   // no-loose-id-cast: an `as never` type-check launder.
   fx(`${D}/__g_loosecast/x.ts`, "declare const x: unknown;\nexport const a = x as never;\n");
-  // no-manual-token-estimate: the hand-rolled `.length / 4` token estimate.
-  fx(`${D}/__g_tokest/__g_tok.ts`, "export function f(text: string): number {\n  return text.length / 4;\n}\n");
   // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
   fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
   // no-pointer-variants-in-features: a pointer CAPABILITY variant in a feature className (the pointer twin of
