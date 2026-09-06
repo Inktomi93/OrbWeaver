@@ -1,66 +1,187 @@
+// A surface composes; verb dispatch lives in `features/chat/hooks/`. A `trpc.chat.<verb>.mutationOptions`
+// written at a surface call site is the verb escaping its hook home (UI-Architecture-and-Layout.md §2.1).
+//
+// THE SUBJECT IS A tRPC MUTATION DECORATION ON THE CHAT ROUTER, and both halves are resolved rather than
+// spelled. The legacy gate walked three PropertyAccess hops and compared `rootExpr.getText() === "trpc"`,
+// so it required the proxy to be spelled exactly `trpc` at the call site and accepted ANY object shaped
+// like that — the manifest's own row: "exact `trpc.chat.*.mutationOptions` spelling misses
+// aliases/destructure/namespace and can match shadows".
+//
+// The proxy is never a module export here — every real call site gets it from `useTRPC()` or as a callback
+// PARAMETER, which is exactly why the value-origin reader cannot answer and the TYPE identity must. So:
+//   · `mutationOptions` must be a property declared by `@trpc/tanstack-react-query`;
+//   · the chain ROOT's type must be that package's `TRPCOptionsProxy`;
+//   · the first router segment under the root must be `chat` — and once the chain is proven tRPC, that
+//     segment name IS the router's name, so reading it is identity, not spelling.
+//
+// THREE ANSWERS: a proven chat mutation is the finding; a proven non-tRPC `mutationOptions` passes; a
+// candidate whose chain cannot be placed is REPORTED as unreadable (GATE-AUTHORING §5, #944).
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import { declaredByPackage, resolveTypeIdentityOrigin, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { LOOKALIKE_HOME, trpcProxyProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
-const SURFACES_DIR_RE = /\/features\/[^/]+\/surfaces\//;
+const MUTATION_OPTIONS = "mutationOptions";
+const CHAT_ROUTER = "chat";
+const TRPC_PROXY_PACKAGE = "@trpc/tanstack-react-query";
+const PROXY_TYPE = "TRPCOptionsProxy";
+const SURFACES = "**/features/*/surfaces/**";
 
-export const gate: GateDescriptor = {
-  name: "no-chat-trpc-in-surface",
-  docRow: "UI-Architecture-and-Layout.md §2.1",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See UI-Architecture-and-Layout.md §2.1 (surfaces compose; verb dispatch lives in hooks/).",
-  scanRoot: (p) => SURFACES_DIR_RE.test(p),
-  kinds: [SyntaxKind.PropertyAccessExpression],
-  visit(node, _sf, ctx): void {
-    if (!Node.isPropertyAccessExpression(node)) {
+const MESSAGE =
+  "trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See UI-Architecture-and-Layout.md §2.1 (surfaces compose; verb dispatch lives in hooks/).";
+const UNREADABLE =
+  "this surface reads a tRPC `mutationOptions` whose proxy chain the checker cannot place, so whether it is the CHAT router's verb CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+
+/** The router segment names between the proxy root and this member, plus the root expression itself.
+ *  Walks DOWN the delivered node's own receiver chain — bounded navigation on one node, no traversal. */
+function proxyChain(access: MorphNode): { readonly root: MorphNode; readonly segments: readonly string[] } | undefined {
+  const segments: string[] = [];
+  let current = access;
+  for (;;) {
+    const read = readMemberReference(current);
+    if (read.kind === "unresolved") {
       return;
     }
-
-    if (node.getName() !== "mutationOptions") {
-      return;
+    segments.unshift(read.value.name);
+    const receiver = read.value.receiver;
+    if (!(Node.isPropertyAccessExpression(receiver) || Node.isElementAccessExpression(receiver))) {
+      return { root: receiver, segments };
     }
+    current = receiver;
+  }
+}
 
-    const expr = node.getExpression();
-    if (!Node.isPropertyAccessExpression(expr)) {
-      return;
-    }
+function isProxyRoot(root: MorphNode): boolean {
+  const identity = resolveTypeIdentityOrigin(root);
+  return identity.kind === "resolved" && identity.value.name === PROXY_TYPE && declaredByPackage(identity.value.declarations, TRPC_PROXY_PACKAGE);
+}
 
-    // The expression should be trpc.chat.<verb>
-    const innerExpr = expr.getExpression();
-    if (!Node.isPropertyAccessExpression(innerExpr)) {
-      return;
-    }
-
-    if (innerExpr.getName() !== "chat") {
-      return;
-    }
-
-    const rootExpr = innerExpr.getExpression();
-    if (!Node.isIdentifier(rootExpr) || rootExpr.getText() !== "trpc") {
-      return;
-    }
-
-    ctx.report(node);
-  },
+export const gate = defineGate({
+  id: "no-chat-trpc-in-surface",
+  family: "trpc-proxy-origin",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored"], under: [SURFACES] },
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: "move the verb into features/chat/hooks/ and call the verb hook from this surface.",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+        visit: (node): void => {
+          const read = readMemberReference(node);
+          if (read.kind === "unresolved" || read.value.name !== MUTATION_OPTIONS) {
+            return;
+          }
+          const anchor = { token: MUTATION_OPTIONS, offset: Math.max(node.getText().lastIndexOf(MUTATION_OPTIONS), 0) };
+          const member = resolveTypeMemberOrigin(node);
+          if (member.kind === "unresolved") {
+            if (classifyOriginRefusal(member.reason, node) === "unreadable") {
+              ctx.report.node(node, { message: UNREADABLE, ...anchor });
+            }
+            return;
+          }
+          if (!declaredByPackage(member.value.declarations, TRPC_PROXY_PACKAGE)) {
+            return;
+          }
+          const chain = proxyChain(node);
+          if (chain === undefined || !isProxyRoot(chain.root)) {
+            ctx.report.node(node, { message: UNREADABLE, ...anchor });
+            return;
+          }
+          if (chain.segments[0] === CHAT_ROUTER) {
+            ctx.report.node(node, anchor);
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      why: "trpc.chat.<verb>.mutationOptions in surface",
+      mode: "types",
       files: {
-        "src/features/chat/surfaces/some-surface.tsx": `
-          trpc.chat.send.mutationOptions(...)
-        `,
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function Surface(): unknown {\n  const trpc = useTRPC();\n  return trpc.chat.send.mutationOptions();\n}\n',
       },
+      expect: { count: 1, token: "mutationOptions" },
+      why: "the founding shape — a chat verb's mutationOptions written at a surface instead of in features/chat/hooks/",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function Surface(): unknown {\n  const api = useTRPC();\n  return api.chat.send.mutationOptions();\n}\n',
+      },
+      expect: { count: 1 },
+      why: "THE PROXY UNDER ANOTHER NAME: the legacy check required the root identifier to be spelled `trpc`, so renaming the binding was a one-character escape. The resolved proxy TYPE carries the identity instead",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";\nexport const options = (trpc: TRPCOptionsProxy): unknown => trpc.chat.send.mutationOptions();\n',
+      },
+      expect: { count: 1 },
+      why: "THE CALLBACK PARAMETER shape the codebase actually uses (`options: (trpc) => trpc.x.y.mutationOptions()`): the proxy is a parameter, so it has no module origin at all and only its TYPE can identify it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function Surface(): unknown {\n  const trpc = useTRPC();\n  return trpc["chat"]["send"]["mutationOptions"]();\n}\n',
+      },
+      expect: { count: 1 },
+      why: "the fully COMPUTED-LITERAL chain is the same reference — the shared member reader normalizes each hop, where the legacy three-hop PropertyAccess walk was offered nothing (#1506)",
     },
   ],
   mustPass: [
     {
-      why: "trpc.chat.<verb>.mutationOptions in hook",
+      mode: "types",
       files: {
-        "src/features/chat/hooks/use-chat-verbs.ts": `
-          trpc.chat.send.mutationOptions(...)
-        `,
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/hooks/use-chat-verbs.ts":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function useSend(): unknown {\n  return useTRPC().chat.send.mutationOptions();\n}\n',
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useSend } from "../hooks/use-chat-verbs.ts";\nexport function Surface(): unknown {\n  return useSend();\n}\n',
       },
+      why: "SCOPE plus the sanctioned shape — the verb lives in hooks/ (outside the population) and the surface calls it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/databank/surfaces/some-surface.tsx":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function Surface(): unknown {\n  return useTRPC().databank.create.mutationOptions();\n}\n',
+      },
+      why: "ANOTHER ROUTER is untouched — this law fences the chat verb home, and the segment is read off a chain already proven to be the tRPC proxy",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          "interface Verb {\n  mutationOptions(): unknown;\n}\ninterface LocalApi {\n  chat: { send: Verb };\n}\nexport const options = (api: LocalApi): unknown => api.chat.send.mutationOptions();\n",
+      },
+      why: "SAME SHAPE, LOCAL TYPE: an object literally spelled `x.chat.send.mutationOptions()` is not the tRPC proxy. The legacy walk accepted anything whose root identifier read `trpc`, which is the shadow the manifest recorded",
+    },
+    {
+      mode: "types",
+      files: {
+        ...vendorLookalikeProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useTRPC } from "vendor-lookalike";\nexport function Surface(): unknown {\n  return useTRPC().chat.send.mutationOptions();\n}\n',
+      },
+      why: `SAME CHAIN, WRONG PACKAGE: a proxy declared in ${LOOKALIKE_HOME} — same type name, same router, same member — is not this app's tRPC surface, and only the declaring package separates them`,
     },
   ],
-};
+});
