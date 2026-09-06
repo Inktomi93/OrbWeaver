@@ -3,11 +3,8 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  // `exclude` OVERRIDES the base's list wholesale, so its three entries are re-stated. The added row is the
-  // PUBLISHED plugin-SDK declaration file (#774): a SCRIPT-kind .d.ts whose whole point is ambient globals
-  // for a plugin AUTHOR's editor — compiled into THIS program it would inject `orb` + the Plugin* type names
-  // as ambients across all of server src (an unimported name would silently resolve instead of erroring).
-  // It is not unchecked: `tests/contracts/plugin/host-v1.test-d.ts` references it explicitly and pins it
-  // against the real contract.
-  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**", "src/entry/boot/seed-assets/plugins/host-v1.d.ts"]
+  // `exclude` OVERRIDES the base's list wholesale, so its three entries are re-stated. The PUBLISHED
+  // plugin-SDK declaration file used to need a fourth row here; it moved out of this package with the
+  // bundles (#1692 — `packages/showcase-plugins/bundles/host-v1.d.ts`), so the carve-out died with it.
+  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
 }

@@ -17,6 +17,7 @@ import type {
   ReactionEmoji,
   ReattributeScope,
   RedeemInviteInput,
+  RegexTierKey,
   RoomOverrides,
   SeatKnobs,
   TurnInitiator,
@@ -582,6 +583,29 @@ export interface SetChatBackgroundParams extends ChatScopedParams {
 export interface SetHostDisplayScriptsParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
+
+/** ONE lever of the room's regex, as the host flipped it (#1742). A discriminated union rather than a bag of
+ *  optional fields because the write is ONE metadata key per call (#1450 — `commitMetadataUpdate` writes a
+ *  single JSON path, and a two-key write would be a lost-update race against every other host knob), and
+ *  because "the master" and "a tier" are different keys with different blobs. */
+type RegexAllowLever =
+  /** `ChatMetadata.regexEnabled` — the section's `Run regex in this chat` master. */
+  | { readonly kind: "master"; readonly enabled: boolean }
+  /** One entry of `ChatMetadata.regexTiers`. The verb MERGES it into the stored map: the client flips one
+   *  lever and never has to send back a map it might have raced. */
+  | { readonly kind: "tier"; readonly tier: RegexTierKey; readonly enabled: boolean };
+
+/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742,
+ *  `docs/design/mocks/regex-section/DESIGN.md` §3). Host authority for the `setOfferChoices` reason and not
+ *  the display-scripts one: these levers govern PROMPT CONTENT for everyone in the room (they decide which
+ *  scripts the shared assembly runs), so they are room state, never a viewer preference. Returns the stored
+ *  post-write allow so the caller's optimistic state and the server's blob can never disagree. */
+export interface SetRegexAllowParams extends ChatScopedParams {
+  readonly lever: RegexAllowLever;
+}
+
+/** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier (#1742). */
+export type ListEffectiveRegexParams = ChatScopedParams;
 
 /** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).
  *  `enabled` is what this ROOM is pinned to; there is no "clear back to inherit" arm, because the host's

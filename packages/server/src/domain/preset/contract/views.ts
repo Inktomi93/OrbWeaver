@@ -6,6 +6,7 @@
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
+import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { ModelId, PresetId } from "@orb/kit/ids";
 
 export interface PresetSummary {
@@ -27,6 +28,27 @@ export interface PresetSummary {
 export interface PresetDetail extends PresetSummary {
   readonly config: PromptConfig;
   readonly schemaVersion: number;
+  /**
+   * WHY THE `config` ABOVE MAY NOT BE THIS ROW'S (#1716) — `null` ⇒ the stored blob was read faithfully;
+   * a failure kind ⇒ `config` is a STAND-IN (the schema default, or for `version-from-future` the stored
+   * blob minus every field this build cannot represent) and the editor is looking at something the row
+   * does not contain.
+   *
+   * IT IS THE READ-TIME TWIN OF THE WRITE REFUSAL, and that is the whole point of putting it on the wire.
+   * Since #1026 a config write derived from this read is refused with `stored_config_unreadable`
+   * (`#kit/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
+   * got a generic save failure — the refusal was correct and completely invisible until it was too late.
+   * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
+   * guard makes (`../substrate/views.ts`), so the state the editor renders cannot disagree with the refusal
+   * the write would produce.
+   *
+   * The KIND crosses, not just a boolean, because the two failures have OPPOSITE repairs: a
+   * `version-from-future` blob is intact data this build is too old to read (reset-to-default would DESTROY
+   * a newer build's preset), while the rest are genuine corruption whose only way out IS reset/import.
+   * Naming the kind is leak-free — it is a verdict about the blob, never its contents (the same posture the
+   * refusal message keeps).
+   */
+  readonly configUnreadable: VersionedParseFailure | null;
 }
 
 /**

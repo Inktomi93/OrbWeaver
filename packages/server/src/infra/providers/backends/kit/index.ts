@@ -89,7 +89,9 @@ export {
 export type { RetryOptions } from "./retry.ts";
 export { computeBackoffMs, runWithPreCommitRetry } from "./retry.ts";
 // ── Error sanitize/brand (never leak key material) ─────────────────────────────────────────────────
-export { providerCredentialSecretValues, sanitizeApiError } from "./sanitize.ts";
+// (the scrub-set SHAPE is `ProviderScrubSet`, homed in the providers `contract/` with the rest of the
+// error vocab; these are its two producers)
+export { NO_PROVIDER_SECRETS, providerCredentialSecretValues, sanitizeApiError } from "./sanitize.ts";
 // ── Lenient wire-shape parses + the consumed view surfaces + extractors ────────────────────────────
 export type {
   ChatCompletionChoice,

@@ -13,7 +13,15 @@
 // an authoring shape the gate cannot read is not — that last one is the audited defect itself, reproduced.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// Every case SPAWNS the real `verify` CLI over a planted root (a real `node` boot + workspace import), so
+// the per-test cost is real work, not artificial per-test waste — measured 2.1-8.7s even on a near-quiet
+// box (per-core 0.93, no contention scaling in force), well past vitest's 5s DEFAULT (#1248). Declared
+// explicitly so this file never depends on inheriting the ambient default.
+vi.setConfig({ testTimeout: scaledBudget(20_000), hookTimeout: scaledBudget(20_000) });
 
 const GATE_DIR = "tooling/src/verify/gates";
 /** The file the planted gates scan — without it every planted run trips the ZERO-SCAN alarm instead, which

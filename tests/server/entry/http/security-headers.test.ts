@@ -376,6 +376,80 @@ describe("securityHeaders", () => {
         expect(res.headers.get("x-content-type-options"), route).toBeNull();
       }
     });
+
+    // #1611 — THE `%2F` AGREEMENT between hono's path decode and this exemption. `servesOwnPolicy` decides
+    // "one more segment", which RE-DERIVES a routing decision, so the two readings must never disagree: an
+    // exemption wider than the router leaves an unrouted path unpoliced (the #1409 class), one narrower
+    // stamps the app policy onto a served frame document (the exemption's whole reason to exist).
+    //
+    // `%2F` is where a decoder split would show first. `getPath` decodes with `decodeURI` (`tryDecodeURI`,
+    // hono/dist/utils/url.js), which preserves `%2F`, so `<prefix>a%2Fb` is ONE segment to the router's
+    // `[^/]+` and one to this predicate. This arm pins the OBSERVABLE end of that: the frame handler's own
+    // response, under the FRAME CSP — never the app policy, and never no policy at all.
+    //
+    // NOT a coincidence of decoders, measured 2026-09-05: hono computes the path once in `#dispatch`
+    // (`const path = this.getPath(request, { env })`) and passes that ONE string to both
+    // `router.match(method, path)` and the `Context`, so `c.req.path` IS the router's match input. A decoder
+    // change moves both together, and the safe way (`a/b` ⇒ two segments ⇒ not exempt ⇒ the app policy lands
+    // on the 404). What this arm actually guards is hono ever splitting those two reads — or an app-level
+    // `getPath` option overriding one of them — which would be silent everywhere else.
+    test("a %2F in the id is ONE segment to the router AND to the exemption — the frame handler serves it under the FRAME CSP", async () => {
+      for (const route of [CARD_FRAME_ROUTE, PLUGIN_FRAME_ROUTE]) {
+        const res = await servedByRealFrameRoutes(`${route}/a%2Fb`);
+        // The premise, asserted rather than assumed: `%2F` survives the decode, so `:id` matches it.
+        expect(res.status, route).toBe(200);
+        expect(res.headers.get("content-security-policy"), route).toBe("sandbox; default-src 'none'");
+        // Neither failure mode: not the app policy (a lost exemption), not `null` (an unpoliced response).
+        expect(res.headers.get("content-security-policy"), route).not.toContain("default-src 'self'");
+        expect(res.headers.get("x-frame-options"), route).toBeNull();
+      }
+    });
+
+    // The other side of the same agreement, and the arm that would go red if the decoder ever DID split:
+    // a REALLY-slashed descendant is two segments to both, so it routes to nothing and is app-policied.
+    // Same fact as the #1409 pin above — repeated here because it is the control for the `%2F` arm, and a
+    // one-sided decoder pin proves nothing about the pair.
+    test("a literal slash in the same position is TWO segments to both — unrouted and app-policied", async () => {
+      const res = await servedByRealFrameRoutes(`${CARD_FRAME_ROUTE}/a/b`);
+      expect(res.status).toBe(404);
+      expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
+      expect(res.headers.get("x-frame-options")).toBe("DENY");
+    });
+
+    // #1615 — THE ERROR PATHS ON AN EXEMPT PATH, measured rather than reasoned (security review 2026-09-05).
+    // The step-aside runs `await next()` and then decides; a handler that THROWS is the case where "then"
+    // might never arrive. It does arrive: hono's `compose()` catches at the throwing handler's own dispatch
+    // frame, runs `app.onError` there and assigns `context.res`, so every outer middleware's `await next()`
+    // resolves normally and this middleware's post-`next()` write lands on the 500 — fully policied.
+    //
+    // The ACTUAL limit is narrower and is documented in `security-headers.ts` rather than fixed here: a
+    // NON-`Error` throw fails `compose()`'s `err instanceof Error && onError` predicate, is rethrown past
+    // every middleware, and the adapter's own 500 goes out bare. That arm asserts the REJECTION, which is
+    // the honest observable — there is no response object of ours to inspect.
+    async function servedByThrowingFrameRoute(thrown: unknown): Promise<Response> {
+      const app = new Hono();
+      app.onError((_err, c) => c.body(null, 500));
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.get(`${CARD_FRAME_ROUTE}/:id`, () => {
+        throw thrown;
+      });
+      return await app.request(`${CARD_FRAME_ROUTE}/${handle}`, { method: "GET" });
+    }
+
+    test("an exempt path whose handler throws an Error is FULLY policied — the 500 is not a headerless hole", async () => {
+      const res = await servedByThrowingFrameRoute(new Error("frame handler exploded"));
+      expect(res.status).toBe(500);
+      // The handler never wrote a CSP, so the conditional step-aside falls through to the app policy.
+      expectAppPolicied(res, "Error throw on an exempt path");
+    });
+
+    test("a NON-Error throw is the documented limit — it escapes onError entirely and rejects", async () => {
+      // `compose()`'s predicate is `err instanceof Error && onError`, so a bare value is rethrown past every
+      // middleware. Nothing of ours runs after that; the adapter answers, and this file's header comment
+      // says so. Asserting the rejection is what keeps that paragraph honest — if hono ever widened the
+      // predicate, this goes red and the comment gets corrected instead of quietly rotting.
+      await expect(servedByThrowingFrameRoute("a bare string, not an Error")).rejects.toThrow();
+    });
   });
 
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {

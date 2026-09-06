@@ -66,7 +66,7 @@ describe("renderMacros", () => {
     expect(renderMacros("{{scenario}}", withRoom, null)).toBe("the dungeon");
   });
 
-  test("{{char}} = the joined character names under a narrator (`cast`) speaker", () => {
+  test("{{char}} = the joined character names under a narrator (`multi-voice`) speaker", () => {
     const aria = { name: "Aria", description: "" };
     const kai = { name: "Kai", description: "" };
     const ctx = ctxOf({
@@ -172,11 +172,11 @@ describe("renderHistoryMacros", () => {
     expect(renderHistoryMacros("{{char}} waves", stamps, ctx, { producer })).toBe("Aria waves");
   });
 
-  test("a null characterId stamp resolves {{char}} to the CAST (ruling B), not the turn's speaker default", () => {
+  test("a null characterId stamp resolves {{char}} to the CHARACTERS (ruling B), not the turn's speaker default", () => {
     // Ruling B (Chat-Macro-Resolution.md §2/§4): a HUMAN-authored / narrator row (characterId === null)
-    // resolves {{char}} to the CAST — the one character in solo, the joined names in a multi-character room
-    // (== {{group}}) — never the arbitrary current speaker. renderHistoryMacros always feeds the cast
-    // (ctx.cast ?? [ctx.character]), so it wins over any explicit speakerCharName for a narrator row.
+    // resolves {{char}} to the CHARACTERS — the one character in solo, the joined names in a multi-character room
+    // (== {{group}}) — never the arbitrary current speaker. renderHistoryMacros always feeds the characters
+    // (ctx.characters ?? [ctx.character]), so it wins over any explicit speakerCharName for a narrator row.
     const solo = ctxOf({ character: { name: "Aria", description: "a bold knight" } });
     expect(
       renderHistoryMacros("{{char}} nods", NO_STAMPS, solo, {
@@ -184,7 +184,7 @@ describe("renderHistoryMacros", () => {
         speakerCharName: "Kai",
       }),
     ).toBe("Aria nods");
-    // A multi-character room: the narrator row's {{char}} is the JOINED cast.
+    // A multi-character room: the narrator row's {{char}} is the JOINED character names.
     const multi = ctxOf({
       character: { name: "Aria", description: "" },
       characters: [
@@ -256,7 +256,7 @@ describe("renderHistoryMacros", () => {
 
   test("<speaker> narrator tags are left intact (the parser only touches {{…}})", () => {
     // The <speaker>…</speaker> marker is opaque to the macro parser (disjoint token set) — it passes through
-    // verbatim for the separate speakerTagsToPlain pass. {{char}} here resolves to the solo CAST (Kai, ruling
+    // verbatim for the separate speakerTagsToPlain pass. {{char}} here resolves to the solo CHARACTER (Kai, ruling
     // B), independent of the tag's literal content — which proves the tag drives nothing in this pass.
     const ctx = ctxOf({ character: { name: "Kai", description: "" } });
     expect(

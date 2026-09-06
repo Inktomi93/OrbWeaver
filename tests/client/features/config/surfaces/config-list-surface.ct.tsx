@@ -86,20 +86,26 @@ const MANY_TAGS = Array.from({ length: TAG_COUNT }, (_unused, index) => tagRow(i
  *  applied) instead of quietly re-asserting the owner's comparator. */
 const FIRST_ROW = "tag-002";
 
-/** The first list ROW, scoped to the list (program #102). The welcome's hero previews the library's
- *  most-used tags by NAME, so an unscoped `getByText("tag-002")` is a strict-mode violation: it matches the
- *  row AND a preview chip. Every use below means the ROW. */
+/** The first MEMBER row, scoped to the pane that holds member rows — CONTENT since #1725. The scoping is
+ *  still load-bearing and for the same reason it always was (program #102): the library's own insights print
+ *  member text too, so an unscoped `getByText("tag-002")` can match a fact as well as a row. What changed is
+ *  WHICH pane: the owner moved every collection's rows out of the LIST, so a helper still scoped there would
+ *  resolve to nothing and every caller would fail for the wrong reason. */
 function firstRow(workspace: Locator): Locator {
-  return workspace.locator(LIST_PANE).getByText(FIRST_ROW);
+  return listRow(workspace, FIRST_ROW);
 }
 
-/** A list ROW by any text it carries, scoped to the LIST. Every collection now declares a welcome
- *  preview (side-eye 2026-08-19 P1-2), so the launcher walls print member NAMES and SCENTS for all three
- *  — "strip ooc" and "42 entries · attached ×3" each match a row AND a chip. Clicking the chip opens the
- *  collection instead of the member, which is a silent wrong-target, not a failure. Every use below means
- *  the ROW; it is the `firstRow` rule generalized. */
+/** A member ROW by any text it carries, scoped to CONTENT — `firstRow`'s rule generalized, re-homed by
+ *  #1725 with it.
+ *
+ *  IT RESOLVES THE ROW BOX, NOT THE TEXT (#1725). A bare `getByText` inside the LIST was already scoped for
+ *  a reason (program #102: the retired launcher wall printed member names too); inside CONTENT the ambiguity
+ *  is worse and closer, because the library's own INSIGHTS sit two boxes above the rows and their doors are
+ *  named after members ("Open strip ooc"). Measured as a strict-mode violation on exactly that pair. Rows
+ *  are `ListRow`s, so the row ROOT is the unambiguous handle and `filter({hasText})` keeps the helper's
+ *  "by any text it carries" contract — a title, a scent, or a subtitle all still find their own row. */
 function listRow(workspace: Locator, text: string): Locator {
-  return workspace.locator(LIST_PANE).getByText(text);
+  return workspace.locator(CONTENT_PANE).locator('[data-slot="list-row-root"]').filter({ hasText: text });
 }
 
 /** One regex fixture row — the shape `regex.listScripts` returns. */
@@ -138,10 +144,10 @@ const SCRIPTS = [
   scriptRow({ id: "regex_script_asides00001", name: "Trim narrator asides", findRegex: "/\\(.*?\\)/g", placement: ["USER_INPUT"] }),
 ];
 
-/** The list row TITLE spans, scoped to one collection's group — the span `truncate` acts on. */
-function rowTitles(listPane: Locator, collectionId: string): Locator {
-  return listPane.locator(`[data-collection="${collectionId}"] [data-slot="list-row-title"]`);
-}
+// `rowTitles(listPane, collectionId)` lived here — the row TITLE spans scoped to one collection's group
+// INSIDE the LIST. #1725 moved the member rows to CONTENT, where the pane holds exactly one library at a
+// time, so the collection scope has nothing left to disambiguate and the width matrix reads the titles
+// straight off the CONTENT pane. Deleted with the two-libraries-in-one-pane geometry that needed it.
 
 /** Every rendered node's own overflow (`scrollWidth - clientWidth`). `truncate` is SILENT — the only honest
  *  question about a clipped label is whether the text needed more room than its box gave it. */
@@ -256,59 +262,67 @@ test("ARRIVAL on a phone leaves the LIST as the screen — no group is auto-sele
   await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toHaveCount(0);
 });
 
-test("every group starts COLLAPSED, showing its band, count and create verb — never its rows", async ({ mount, page }) => {
+// ── #1725 · THE LIST IS THE MAP AND NOTHING ELSE ─────────────────────────────────────────────────────
+// This test used to read "…showing its band, count and create verb — never its rows", and the create verb
+// was in that sentence because the band was a library's ONLY chrome in this workspace. The owner moved the
+// members into CONTENT (2026-09-05), so the band's trailing verbs went with them — every one of them is a
+// control you can only be looking at while looking at the library it belongs to. What the LIST owes is now
+// exactly the door: a named, counted, ordered band per library.
+test("every collection shows a band and a count in the LIST — never its rows, never its verbs", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  // The list is the MAP: all three libraries are named, counted, and creatable at rest, in DOOR ORDER.
   const listPane = workspace.locator(LIST_PANE);
   await expect(listPane.getByRole("button", { name: TAGS_BAND })).toBeVisible();
   await expect(listPane.getByText(String(TAG_COUNT))).toBeVisible();
-  await expect(listPane.getByRole("button", { name: "New tag" })).toBeVisible();
-  await expect(listPane.getByRole("button", { name: "New script" })).toBeVisible();
-  await expect(listPane.getByRole("button", { name: "New book" })).toBeVisible();
   // REGISTRY ORDER IS SHELF ORDER (C-1 as amended by #866 S1: `(shelf, order, id)`): tags · regex scripts ·
   // world info · casts, top-down on the Collections shelf.
   await expect
     .poll(() => listPane.locator('[data-slot="config-group"][data-collection]').evaluateAll((groups) => groups.map((g) => g.getAttribute("data-collection"))))
     .toEqual(["tags", "regex", "worldInfo", "rosterPreset"]);
-  await expect(listPane.getByRole("button", { name: WORLD_INFO_BAND })).toHaveAttribute("aria-expanded", "false");
-  // …and not one of the 400 ROWS is mounted. Scoped to the list (program #102): the claim is about the
-  // collapsed group's rows, and the welcome's hero legitimately prints tag NAMES in its preview wall — an
-  // unscoped count would be answering a different question with this fixture's ranking.
-  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "false");
+  // Not one of the 400 ROWS is mounted, and no library's create verb is offered from this pane. Scoped to
+  // the list (program #102): the claim is about THIS pane, and CONTENT legitimately draws both.
   await expect(listPane.getByText("tag-000")).toHaveCount(0);
+  await expect(listPane.getByRole("button", { name: "New tag" })).toHaveCount(0);
+  await expect(listPane.getByRole("button", { name: "New script" })).toHaveCount(0);
+  await expect(listPane.getByRole("button", { name: "New book" })).toHaveCount(0);
 });
 
-test("expanding a 400-member group renders its rows and offers the count-driven filter", async ({ mount, page }) => {
+test("#1725: opening a 400-member library renders its rows in CONTENT, with the filter beside them", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
-  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "true");
-  await expect(firstRow(workspace)).toBeVisible();
+  const content = workspace.locator(CONTENT_PANE);
+  await expect(content.locator('[data-slot="list-row-root"]').first()).toBeVisible();
 
-  // The filter is HOST chrome, shown by COUNT — and applied by the contribution's own rows.
-  const filter = workspace.getByRole("textbox", { name: "Filter tags" });
+  // The filter is still HOST chrome applied by the contribution's own rows — the seam did not move, the
+  // pane did. It sits in the library's control row now, one grammar for every library.
+  const filter = content.getByRole("textbox", { name: "Filter tags" });
   await expect(filter).toBeVisible();
   await filter.fill("tag-137");
-  await expect(workspace.locator(LIST_PANE).getByText("tag-137")).toBeVisible();
-  await expect(firstRow(workspace)).toHaveCount(0);
+  await expect(content.getByText("tag-137")).toBeVisible();
+  await expect(content.getByText(FIRST_ROW, { exact: true })).toHaveCount(0);
 
-  // Create stays reachable with a 400-row list open (the band is chrome, not a list item).
-  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: "New tag" })).toBeVisible();
+  // Create is reachable with a 400-row list open — it is the control row's primary, above the scroller.
+  await expect(content.getByRole("button", { name: "New tag" })).toBeVisible();
 });
 
-test("a small group gets NO filter (the affordance is count-driven, not per-collection)", async ({ mount, page }) => {
+// THE COUNT GATE DIED WITH ITS PREMISE (#1725; DESIGN.md §3.2). This test asserted the OPPOSITE: a library
+// under `COLLECTION_LARGE_GROUP` drew no filter box at all. That was right while three collapsible bands
+// shared ONE list scroll column — 32px of chrome per band was worth spending only past a glance. The library
+// has its own pane now, so the box costs a shelf nothing and a reader who can filter one library can filter
+// all four. The gate is deleted rather than retuned, which is why this test is inverted rather than deleted.
+test("#1725: a SMALL library gets the filter too — the count gate went with the shared scroll column", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
   await expect(listRow(workspace, "strip ooc")).toBeVisible();
-  await expect(workspace.getByRole("textbox", { name: "Filter regex scripts" })).toHaveCount(0);
+  await expect(workspace.locator(CONTENT_PANE).getByRole("textbox", { name: "Filter regex scripts" })).toBeVisible();
 });
 
 // ── THE LANDING LAUNCHER GRID IS RETIRED (#1210, owner ruling 2026-09-02) ───────────────────────────
@@ -343,30 +357,61 @@ test("the retired launcher landing is gone, and the nothing-active arm is the se
 // said in words that regex scripts had none, "their portable unit being the card that carries them". That
 // was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. TAGS still have none, which is what
 // keeps this test load-bearing: the band must not grow a dead trigger for a collection with no door.
-test("the group band draws IMPORT only for a collection that declares one", async ({ mount, page }) => {
+// D121(D) SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
+// was named because in this workspace the group band WAS the collection's only chrome. The library has a
+// pane now, so Import is its control row's overflow item — one home, in the pane the reader is looking at,
+// and still never a bare button beside the primary. What the ruling actually protects is untouched: Import
+// is HOST-drawn from the contribution's `importFile` DATA, and Export stays per-member on the row's kebab.
+test("#1725: IMPORT moved to the library's overflow — and only for a collection that declares one", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
-
   const listPane = workspace.locator(LIST_PANE);
-  await expect(listPane.getByRole("button", { name: "Import a world-info book" })).toBeVisible();
-  await expect(listPane.getByRole("button", { name: "Import a regex script" })).toBeVisible();
-  await expect(listPane.getByRole("button", { name: ANY_IMPORT_TRIGGER })).toHaveCount(2);
+  const content = workspace.locator(CONTENT_PANE);
+
+  // Gone from the LIST entirely — the band is the door and nothing else.
+  await expect(listPane.getByRole("button", { name: ANY_IMPORT_TRIGGER })).toHaveCount(0);
+
+  // World info declares one: its library draws an overflow, and the door is inside it.
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
+  await content.getByRole("button", { name: "More library actions" }).click();
+  await expect(workspace.page().getByRole("menuitem", { name: "Import a world-info book" })).toBeVisible();
+  await workspace.page().keyboard.press("Escape");
+
+  // Tags declare NO import door — so the overflow they do draw (they declare a library-level ACTION,
+  // `Prune unused tags`) must not offer one. "No kebab" stopped being the right assertion the moment
+  // `actions` landed beside `importFile` in it; what the ruling protects is that the DOOR is drawn only
+  // where the contribution declares it, and the library with no door and no action at all — Rosters — is
+  // where "no kebab" is still the claim (`config-collection-landing.ct.tsx` pins that arm).
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await content.getByRole("button", { name: "More library actions" }).click();
+  await expect(workspace.page().getByRole("menuitem", { name: ANY_IMPORT_TRIGGER })).toHaveCount(0);
+  await expect(workspace.page().getByRole("menuitem", { name: "Prune unused tags" })).toBeVisible();
 });
 
 // The BULK-SELECT toggle is the same DATA-declared band grammar (REGX2). Only regex declares one today, and
 // the assertion is that the band draws it for exactly that collection — a toggle on a library with no bulk
 // verbs behind it would be a control that does nothing.
-test("the group band draws the BULK toggle only for a collection that declares one", async ({ mount, page }) => {
+test("#1725: the BULK toggle moved to the library's control row — and only where one is declared", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
-
   const listPane = workspace.locator(LIST_PANE);
-  const toggle = listPane.getByRole("button", { name: "Select scripts" });
+  const content = workspace.locator(CONTENT_PANE);
+
+  await expect(listPane.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
+
+  // The host draws mode ENTRY in one grammar for every library; the bar and the checkbox rows stay the
+  // contribution's, inside `list`. That split is the seam's, and the move did not touch it.
+  await listPane.getByRole("button", { name: REGEX_BAND }).click();
+  const toggle = content.getByRole("button", { name: "Select scripts" });
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await expect(listPane.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(1);
+
+  // Tags declares none — a toggle over a library with no bulk verbs behind it would be a control that does
+  // nothing, which is the capability lie the must-WORK bar names.
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await expect(content.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
 });
 
 test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its owner's arm", async ({ mount, page }) => {
@@ -524,131 +569,76 @@ test("the nothing-active frame does not double the region's inset", async ({ mou
     .toEqual(["0px", "0px", "0px", "0px"]);
 });
 
-test("the group create verb fires the OWNER's create mutation", async ({ mount, page }) => {
+test("the library's create verb fires the OWNER's create mutation", async ({ mount, page }) => {
   const trpc = await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator(LIST_PANE).getByRole("button", { name: "New tag" }).click();
+  // The verb moved panes at #1725, not seams: it is still `create.useRun`, still host-drawn from the
+  // contribution's DATA, and still the owner's own mutation behind it. Only its address changed.
+  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
+  await workspace.locator(CONTENT_PANE).getByRole("button", { name: "New tag" }).click();
   await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag" } });
 });
 
-test("a zero-member group keeps its band and says so — with exactly ONE create verb in the list", async ({ mount, page }) => {
+// ── #1725 · THE ZERO-MEMBER LIBRARY MOVED PANES, AND SO DID ITS THREE PINS ───────────────────────────
+// Four tests lived here — the ONE-create-verb count, the reserved disclosure gutter, the honest `0`, and the
+// empty slot's ONE-LINE geometry guard. The owner moved every collection's members (and with them the empty
+// state, F5 arm A) into CONTENT, so a LIST pane that still asserted a zero-member SLOT would be asserting a
+// surface this pane no longer draws. None is deleted; each is stated below with where it went.
+//
+//  · THE GUTTER and THE COUNT are now `components/config-list-collection-group.ct.tsx`'s, and STRONGER
+//    there: the band is one component for every population since #1725, so that file sweeps all four
+//    libraries in a MIXED-population stub instead of probing the empty arm against a populated sibling.
+//    Moved, not dropped — the claim gained coverage in the move.
+//  · THE ONE-CREATE-VERB COUNT is retargeted below. Its strength is the COUNT, and the count is what a
+//    re-added inline verb trips, so it survives verbatim over a wider scope: the WHOLE workspace, not one
+//    pane, which is a stronger fence than the original (three copies on one screen was the defect).
+//  · THE ONE-LINE GEOMETRY GUARD is retargeted in part and MISSES in part, named honestly. Its "no frame"
+//    half survives verbatim below. Its "never outweighs the band that names it" half CANNOT be re-expressed
+//    here: the band is in the other pane now, so the ratio has no referent, and the empty arm is the whole
+//    CONTENT pane rather than a slot competing with siblings on a shelf. That is a NAMED MISS (#1725), not a
+//    silent deletion — the shelf-attention defect #1211 measured is structurally unreachable once the empty
+//    state has a pane to itself, and re-inventing a ratio against an unrelated box would be a pin that
+//    cannot fail for the reason it claims.
+test("#1725: a zero-member library says so in CONTENT — with exactly ONE create verb on the whole workspace", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  const listPane = workspace.locator(LIST_PANE);
-  await expect(listPane.getByText("No tags yet.")).toBeVisible();
+  // The LIST says nothing about emptiness beyond the band's honest `0` — the sentence is the library's.
+  await expect(workspace.locator(LIST_PANE).getByText("No tags yet.")).toHaveCount(0);
+
+  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
+  const content = workspace.locator(CONTENT_PANE);
+  await expect(content.getByText("No tags yet.")).toBeVisible();
   // ONE, not two (side-eye 2026-08-08 P2). The empty slot used to repeat the band's verb — and with the
   // Configuration launcher card carrying a third copy, "New tag" rendered three times on one screen. The
-  // band's `+` is the list's standing create affordance at every count, so it is the one that stays here;
-  // the launcher card keeps the other (the owner's C7 arm-2 onboarding ruling). The COUNT is the assertion —
-  // a re-added inline verb reds this immediately.
-  await expect(listPane.getByRole("button", { name: "New tag" })).toHaveCount(1);
-  // …and the ZERO group's band offers NO disclosure (side-eye 2026-08-06 P2): the chevron used to open a
-  // panel onto nothing, one row above the card that had already said the library was empty. Scoped to the
-  // tags group — its populated siblings in this story keep their own toggles, which is the control.
-  await expect(listPane.locator('[data-collection="tags"]').getByRole("button", { expanded: false })).toHaveCount(0);
-  await expect(listPane.locator('[data-collection="tags"]').getByRole("button", { expanded: true })).toHaveCount(0);
-  // Scoped to the COLLECTION bands: the nine settings-group bands on the other shelves are disclosures too.
-  await expect(listPane.locator('[data-slot="collection-band"]').getByRole("button", { expanded: false })).toHaveCount(2);
+  // COUNT is the assertion and it is taken over the WHOLE workspace now, which is what the defect was about:
+  // a reader seeing the same verb more than once on one screen.
+  await expect(workspace.getByRole("button", { name: "New tag" })).toHaveCount(1);
 });
 
-// …AND ITS BAND STILL LINES UP WITH ITS SIBLINGS (side-eye 2026-08-08 P3). Standing the disclosure down also
-// dropped the chevron's 16px box and the 4px joint, so a zero-member band's glyph started 20px left of every
-// populated sibling's and the list's left edge became data-dependent. The pin is the rendered X of the
-// COLLECTION GLYPH in each band — the empty group's against a populated sibling's — because a reserved gutter
-// is a geometric fact and an `invisible` class is not. `svg` index 1 in both bands: 0 is the chevron (real on
-// a populated band, `invisible` on the empty one), 1 is the collection's own glyph.
-test("a zero-member band RESERVES the disclosure gutter — its glyph aligns with its populated siblings'", async ({ mount, page }) => {
+// NO FRAME — the surviving half of the #1211 geometry guard, at its new home. Its no-deletion clause is
+// obeyed for the second time: the MECHANISM is unchanged (a rendered-geometry claim about the empty arm's
+// shape, never a class list) and only its CONDITION moved with the surface. A returning dashed card fails
+// here exactly as it failed in the LIST.
+test("#1211 (retargeted): the empty library draws no dashed frame", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
 
-  const listPane = workspace.locator(LIST_PANE);
-  const glyphOf = (collection: string): Locator => listPane.locator(`[data-collection="${collection}"] [data-slot="collection-band"] svg`).nth(1);
-  const emptyGlyph = glyphOf("tags");
-  const populatedGlyph = glyphOf("worldInfo");
-  await expect(emptyGlyph).toBeVisible();
-  await expect(populatedGlyph).toBeVisible();
-
-  const [emptyBox, populatedBox] = await Promise.all([emptyGlyph.boundingBox(), populatedGlyph.boundingBox()]);
-  if (emptyBox === null || populatedBox === null) {
-    throw new Error("a collection band did not render its glyph");
-  }
-  expect(Math.abs(emptyBox.x - populatedBox.x), "the zero-member band's glyph shares the siblings' left edge").toBeLessThanOrEqual(1);
-});
-
-// …AND IT SAYS ZERO (same finding). Every populated band carries its count, so the one band with nothing in it
-// was also the one band that declined to say how much — leaving "this library is empty" and "the count has not
-// loaded yet" indistinguishable at the exact moment the number is the point.
-test("a zero-member band renders its count", async ({ mount, page }) => {
-  await stub(page, []);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  const band = workspace.locator(LIST_PANE).locator('[data-collection="tags"] [data-slot="collection-band"]');
-  await expect(band.getByText("0", { exact: true })).toBeVisible();
-});
-
-// …AND IT IS ONE LINE, NOT A CARD AND NOT A ROW.
-//
-// ═══ THE RULING FORK, STATED (#1211 · side-eye 2026-08-08 P2, and its own no-deletion clause) ═══
-//
-// THE RECORDED RULING here was "a centered CARD, not a row", pinned as the copy centered inside its dashed
-// frame with the frame taller than the copy. #1211 measured the SHELF instead of the slot and found the card
-// itself was the defect: on the live desktop surface at this lane's base commit the one POPULATED library
-// was a 32px band while each of the three EMPTY groups totalled 75px, of which a 39px dashed box — the
-// loudest, tallest and only bordered thing on the Collections shelf was the part with nothing in it. So the
-// card is gone and `collection-group-empty` is now the copy's own line (13px; the group totals 49px).
-//
-// THIS FILE'S OWN NO-DELETION CLAUSE IS OBEYED, NOT OVERRULED. Its words: "a removed affordance whose
-// geometry pin is simply deleted leaves the slot with NO shape guard at all — which is how the 'broken table
-// row' shipped the first time." That is exactly why this is a RETARGET and not a deletion, for the second
-// time. The guard's MECHANISM is unchanged — a rendered-geometry claim about the slot's shape, never a class
-// list — and only its CONDITION moved: the slot must now be exactly its copy (no frame box to be padded
-// inside), a SINGLE line that never outweighs the band that names it, and aligned on the band's own content
-// edge rather than centered in a box. A future card cannot come back under it: a frame would make the slot
-// taller than its copy, and a shared line with a verb would move the copy off that edge.
-test("the zero-member slot is ONE LINE on the band's edge — no frame around it, and it never outweighs the band", async ({ mount, page }) => {
-  await stub(page, []);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  const group = workspace.locator(LIST_PANE).locator('[data-collection="tags"]');
-  const slot = group.locator('[data-slot="collection-group-empty"]');
-  const copy = group.getByText("No tags yet.");
-  await expect(copy).toBeVisible();
-  await expect(slot).toBeVisible();
-
-  const band = group.locator('[data-slot="collection-band"] [data-slot="config-band"]');
-  // The disclosure gutter's glyph — the band's own content edge, which is the column the line claims. On a
-  // zero-member band it is the RESERVED spacer, so it is `visibility: hidden` by design (the two tests above
-  // own that ruling): it is asserted attached, never visible, and it still has the box this measures.
-  const gutter = band.locator("svg").first();
-  await expect(gutter).toBeAttached();
-
-  // Measured as three named deltas rather than one object so a failure says WHICH half of the claim broke.
-  const geometry = async (): Promise<{ framePadding: number; edgeDrift: number; bandRatio: number }> => {
-    const [slotBox, copyBox, bandBox, gutterBox] = await Promise.all([slot.boundingBox(), copy.boundingBox(), band.boundingBox(), gutter.boundingBox()]);
-    if (slotBox === null || copyBox === null || bandBox === null || gutterBox === null) {
-      return { framePadding: Number.POSITIVE_INFINITY, edgeDrift: Number.POSITIVE_INFINITY, bandRatio: Number.POSITIVE_INFINITY };
-    }
-    // The column claim is about the TEXT's start, not the slot's border box — the slot carries the same
-    // horizontal padding the band button does, which is exactly how the two columns come to agree.
-    const inset = await slot.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).paddingLeft));
-    return { framePadding: slotBox.height - copyBox.height, edgeDrift: Math.abs(slotBox.x + inset - gutterBox.x), bandRatio: slotBox.height / bandBox.height };
-  };
-
-  // NO FRAME: the slot IS the copy — nothing wraps it with padding of its own. A returning card fails here.
-  await expect.poll(async (): Promise<number> => (await geometry()).framePadding).toBeLessThanOrEqual(0.5);
-  // ON THE BAND'S EDGE: the line starts in the disclosure gutter's column, not centred and not on the pane
-  // edge. A verb sharing the line, or a re-centred box, moves the copy off it.
-  await expect.poll(async (): Promise<number> => (await geometry()).edgeDrift).toBeLessThanOrEqual(1);
-  // AND QUIETER THAN ITS BAND. At the defect the slot was 39px against a 32px band (1.22); one line is well
-  // under 1, and the assertion is the INEQUALITY, not a remembered px.
-  await expect.poll(async (): Promise<number> => (await geometry()).bandRatio).toBeLessThan(1);
+  const content = workspace.locator(CONTENT_PANE);
+  await expect(content.getByText("No tags yet.")).toBeVisible();
+  await expect
+    .poll(
+      async (): Promise<number> =>
+        await content.evaluate(
+          (el: Element): number => [...el.querySelectorAll("*"), el].filter((node) => getComputedStyle(node).borderTopStyle === "dashed").length,
+        ),
+    )
+    .toBe(0);
 });
 
 // The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the
@@ -678,60 +668,83 @@ test("the longest group kicker survives the docked pane's real width — no elli
 // docked state a reader arrives in.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Expand the regex group in a list-only story and settle on its rows. */
-async function openRegexRows(listPane: Locator): Promise<void> {
-  await listPane.getByRole("button", { name: "reset groups" }).click();
-  await listPane.getByRole("button", { name: REGEX_BAND }).click();
-  await expect(listPane.getByText("Format dialogue quotes")).toBeVisible();
+// ═══ THE MATRIX MOVED PANES WITH THE ROWS (#1725) ════════════════════════════════════════════════════
+// These four pins measured the regex row anatomy inside a 271px/307px LIST rail, because that is where the
+// rows were. The owner moved them into CONTENT, so those two ceilings stopped applying — retired by
+// DESIGN.md §3.2 ("the 30-member cliff and `COLLECTION_WINDOW_MAX_HEIGHT` existed because three bands shared
+// one LIST scroll column, and that column is gone"), which is the same decision that deleted the filter
+// gate. A selector swap would have left the numbers describing a box that no longer holds the rows.
+//
+// So the range is re-derived at CONTENT widths, both ends AND the crossover, from MEASURED numbers.
+// `ConfigHostStory` mounts LIST at a fixed 307px and gives CONTENT the rest, so the arm's host width fixes
+// the pane exactly and the matrix is stated as a table rather than as two magic constants:
+//
+//   host 752px  → CONTENT 397px  · the NARROW end: a small desktop window with the LIST docked
+//   host 1440px → CONTENT 1085px · the CROSSOVER: the frame the approved boards are drawn at
+//   host 1920px → CONTENT 1565px · the WIDE end
+//
+// The panes are 48px narrower than `host - 307` because the CONTENT region carries its own inset (the
+// side-eye 2026-08-03 P1 fix). These are the MEASURED numbers off the run, not the arithmetic — which is
+// exactly the difference a matrix exists to catch.
+//
+// The measured widths are asserted in the matrix itself (`paneWidth`), so a story or shell change that moves
+// them reds here instead of silently re-scoping every claim below it.
+const CONTENT_MATRIX = [
+  { host: 752, pane: 397, arm: "narrow" },
+  { host: 1440, pane: 1085, arm: "crossover" },
+  { host: 1920, pane: 1565, arm: "wide" },
+] as const;
+
+/** Enter the regex library and settle on its rows — in CONTENT, where they live since #1725. */
+async function openRegexRows(host: Locator): Promise<Locator> {
+  await host.getByRole("button", { name: "reset groups" }).click();
+  await host.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
+  const content = host.locator(CONTENT_PANE);
+  await expect(content.getByText("Format dialogue quotes")).toBeVisible();
+  return content;
 }
 
-/** The width claim itself, so the two mounts assert the identical thing: every script NAME and the band's
- *  own KICKER render whole. (Spelled as a helper rather than a `for` over the two story COMPONENTS —
- *  playwright-ct rewrites imported components into generated consts, and a component referenced both in
- *  JSX and as an array value is declared twice: `SyntaxError: Identifier … has already been declared`.) */
-async function listOverflows(listPane: Locator): Promise<readonly number[]> {
-  await openRegexRows(listPane);
-  const titles = rowTitles(listPane, "regex");
-  await expect(titles).toHaveCount(SCRIPTS.length);
-  const kicker = listPane.getByText("Regex scripts", { exact: true });
-  await expect(kicker).toBeVisible();
-  return [...(await overflows(titles)), ...(await overflows(kicker))];
+/** The scent line of the three-stage fixture row — the widest scent this library draws. */
+function busiestScent(content: Locator): Locator {
+  return content.locator('[data-slot="list-row-root"]').filter({ hasText: "Format dialogue quotes" }).locator('[data-slot="list-row-subtitle"]');
 }
 
-/** One zero per script NAME plus one for the band's own KICKER — the whole list, rendered whole. */
-const NOTHING_CLIPS = [...SCRIPTS.map(() => 0), 0];
+// A POINT MEASUREMENT NEVER PROVES A RANGE PROPERTY, so the whole matrix runs — and at CONTENT widths the
+// claim is STRONGER than the one it replaces. In the 271px rail the busiest scent overran by 30px and the
+// pin had to be demoted to the docked width alone (the note that used to sit here); the library's own pane
+// is wide enough at every arm, so the TITLE and the SCENT are both asserted whole across all three.
+for (const { host, pane, arm } of CONTENT_MATRIX) {
+  test(`#1725 width matrix (${arm}, CONTENT ${String(pane)}px): every row name and the busiest scent render whole`, async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigHostStory width={host} />);
+    const content = await openRegexRows(component);
 
-test("nothing in the list clips with BOTH panels open (271px)", async ({ mount, page }) => {
-  await stub(page);
-  const overflow = await listOverflows(await mount(<ConfigListNarrowStory />));
-  expect(overflow, "every script name and the band's own name render whole, not as ellipses").toEqual(NOTHING_CLIPS);
-});
+    // The arm IS the width — a story change that moves the pane reds here rather than quietly re-scoping.
+    await expect
+      .poll(async () => {
+        const box = await content.boundingBox();
+        return box === null ? -1 : Math.round(box.width);
+      })
+      .toBe(pane);
 
-test("nothing in the list clips at the docked default (307px)", async ({ mount, page }) => {
-  await stub(page);
-  const overflow = await listOverflows(await mount(<ConfigListDefaultStory />));
-  expect(overflow, "every script name and the band's own name render whole, not as ellipses").toEqual(NOTHING_CLIPS);
-});
+    const titles = content.locator('[data-slot="list-row-title"]');
+    await expect(titles).toHaveCount(SCRIPTS.length);
+    expect(await overflows(titles), "every script name renders whole, not as an ellipsis").toEqual(SCRIPTS.map(() => 0));
+    expect(await overflows(busiestScent(content)), "the busiest scent renders whole").toEqual([0]);
+  });
+}
 
 // FORK 2: THE PATTERN LEADS THE SCENT. The old subtitle spelled every pipeline stage in words first
 // ("history sent to the model · rendered transcript · model output · …"), so the two data that actually
 // tell two rows apart — the find pattern and the edit stamp — were pushed past the ellipsis at EVERY pane
 // width. The stages are still said, as glyphs carrying their own accessible names, in the subtitle's lead
-// slot; the words they replace cost 396-572px of a 133px column.
-/** The scent line of the three-stage fixture row — the widest scent this library draws. */
-function busiestScent(listPane: Locator): Locator {
-  return listPane
-    .locator('[data-collection="regex"] [data-slot="list-row-root"]')
-    .filter({ hasText: "Format dialogue quotes" })
-    .locator('[data-slot="list-row-subtitle"]');
-}
-
-test("a list row's scent LEADS with the find pattern, and the stages ride as named glyphs", async ({ mount, page }) => {
+// slot. Taken at the NARROW arm of the matrix above, which is the only place the ordering can still bite.
+test("a row's scent LEADS with the find pattern, and the stages ride as named glyphs", async ({ mount, page }) => {
   await stub(page);
-  const listPane = await mount(<ConfigListNarrowStory />);
-  await openRegexRows(listPane);
+  const component = await mount(<ConfigHostStory width={CONTENT_MATRIX[0].host} />);
+  const content = await openRegexRows(component);
 
-  const subtitle = busiestScent(listPane);
+  const subtitle = busiestScent(content);
   // The VISIBLE text, not the source: the pattern is the first thing after the glyph lead.
   await expect(subtitle).toContainText('/"([^"]+)"/g');
   await expect(subtitle, "the stage names no longer spend the line").not.toContainText("history sent to the model");
@@ -740,21 +753,6 @@ test("a list row's scent LEADS with the find pattern, and the stages ride as nam
   await expect(subtitle.getByLabel("History sent to the model")).toBeVisible();
   await expect(subtitle.getByLabel("Rendered transcript")).toBeVisible();
   await expect(subtitle.getByLabel("Model output")).toBeVisible();
-});
-
-// …AND THE WHOLE LINE FITS THE PANE THE READER ARRIVES IN. Scoped to the DEFAULT docked width on purpose,
-// and DEMOTED from a both-widths claim by measurement: at the both-open 271px the busiest scent — three
-// glyphs, a 12-character pattern and a relative stamp — still overruns by 30px, and every remaining byte
-// on that line is load-bearing (the pattern is X-15/X-16's discriminator for two authored rows, the stamp
-// is X-16's for two just-created ones). What the fix owed and delivers is that the PATTERN LEADS, so the
-// clipped end is now the tail rather than everything; the report's own receipt bar was the unclipped
-// TITLE, which holds at both widths above.
-test("the busiest scent fits the docked default pane (307px) whole", async ({ mount, page }) => {
-  await stub(page);
-  const listPane = await mount(<ConfigListDefaultStory />);
-  await openRegexRows(listPane);
-
-  expect(await overflows(busiestScent(listPane)), "the stage words used to want 396-572px of a 133px column").toEqual([0]);
 });
 
 // FORK 1: ONE SETTING, ONE HOME. The "runs in every chat" switch rendered in the LIST row AND in the
@@ -839,9 +837,9 @@ for (const [collectionId, band, count] of [
     const workspace = await mount(<ConfigWorkspaceStory />);
     await workspace.getByRole("button", { name: "reset groups" }).click();
 
+    // The rows moved to CONTENT at #1725; the a11y grammar they must speak did not change with the pane.
     await workspace.locator(LIST_PANE).getByRole("button", { name: band }).click();
-    const group = workspace.locator(LIST_PANE).locator(`[data-collection="${collectionId}"]`);
-    const list = group.getByRole("list");
+    const list = workspace.locator(CONTENT_PANE).getByRole("list");
     await expect(list).toHaveCount(1);
     await expect(list).toHaveAccessibleName(ANY_NAME);
     await expect(list.getByRole("listitem")).toHaveCount(count);
@@ -915,7 +913,9 @@ test("a filter that matches nothing announces itself", async ({ mount, page }) =
   await expect(firstRow(workspace)).toBeVisible();
   await workspace.getByRole("textbox", { name: "Filter tags" }).fill("no-such-tag");
 
-  const miss = workspace.locator(LIST_PANE).getByRole("status");
+  // The status region moved panes with the rows it describes (#1725) — it is the CONTRIBUTION's sentence
+  // rendered inside `collection.list`, so it went where `list` went.
+  const miss = workspace.locator(CONTENT_PANE).getByRole("status");
   await expect(miss).toHaveText("No tags match that filter.");
   // The input keeps focus — which is exactly why the message has to speak for itself.
   await expect(workspace.getByRole("textbox", { name: "Filter tags" })).toBeFocused();
@@ -1121,14 +1121,20 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
   });
 }
 
+// #1725 moved the toggle to the library's own control row, so BOTH arms of this ruling are asserted with the
+// library OPEN — which is also the only state in which a reader could meet the control at all.
 test("the BULK toggle is drawn only where there are members to select", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   const listPane = workspace.locator(LIST_PANE);
+  const content = workspace.locator(CONTENT_PANE);
 
-  // Tags are EMPTY in this stub and regex is populated: the toggle regex declares appears for regex only.
-  await expect(listPane.locator('[data-collection="tags"]').getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
-  await expect(listPane.getByRole("button", { name: "Select scripts" })).toBeVisible();
+  // Tags are EMPTY in this stub and declare no bulk mode either — their library offers none.
+  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await expect(content.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
+  // Regex is populated and declares one, so its library draws it.
+  await listPane.getByRole("button", { name: REGEX_BAND }).click();
+  await expect(content.getByRole("button", { name: "Select scripts" })).toBeVisible();
 });
 
 test("…and it disappears when its library empties", async ({ mount, page }) => {
@@ -1136,10 +1142,12 @@ test("…and it disappears when its library empties", async ({ mount, page }) =>
   // the one collection that declares a bulk mode has nothing to select — and offers nothing.
   await stub(page, [], []);
   const workspace = await mount(<ConfigWorkspaceStory />);
+  const content = workspace.locator(CONTENT_PANE);
 
-  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
+  await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
+  await expect(content.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
   // …while the create verb, which works at every count, is untouched.
-  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: "New script" })).toBeVisible();
+  await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
 });
 
 // ── #1217 · THE AUTO-OPENED ARRIVAL GROUP FOLDS WHEN THE READER MOVES ON ────────────────────────────
@@ -1155,8 +1163,10 @@ test("the group the arrival default opened folds itself once the reader is somew
 
   await listPane.getByRole("button", { name: TAGS_BAND }).click();
   await expect(arrival, "the arrival group folds when the location moves").toHaveAttribute("aria-expanded", "false");
-  // …and the group the reader actually chose is the open one.
-  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "true");
+  // …and the group the reader actually chose is where they are. It used to be asserted as `aria-expanded`
+  // on the tags band; #1725 took that attribute off collection bands with the rows it disclosed, so the
+  // claim is now what it always meant — the LOCATION moved — and it is read off the marker that survives.
+  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-current", "true");
 });
 
 test("…but a group the READER opened stays open — the fold is the auto-open's undo, not a new accordion", async ({ mount, page }) => {
@@ -1246,11 +1256,14 @@ test("an expanded band's rows are an OWNED, NAMED group, not flat siblings", asy
   const rows = listPane.locator(`[data-config-group="${FIRST_GROUP_ID}"] [role="group"]`).first();
   await expect(rows).toBeVisible();
   await expect(rows).toHaveAccessibleName(FIRST_GROUP_LABEL);
-  // A COLLECTION group: the same anatomy over the contribution's own rows.
+  // THE COLLECTION HALF OF #1214-3 IS RETIRED (#1725). It asserted the same anatomy over the contribution's
+  // member rows, which were an owned, named group INSIDE this pane. The owner moved those rows to CONTENT,
+  // where they are the pane's own content rather than a disclosed set under a band — so there is no band to
+  // name them and no `role="group"` for a band to label. The settings half above is untouched and is the
+  // whole live subject; nothing about a collection band goes unasserted (its name, count and one-act door
+  // are `components/config-list-collection-group.ct.tsx`'s, swept across all four libraries).
   await listPane.getByRole("button", { name: TAGS_BAND }).click();
-  const memberRows = listPane.locator('[data-collection="tags"] [role="group"]').first();
-  await expect(memberRows).toBeVisible();
-  await expect(memberRows).toHaveAccessibleName(/^Tags/);
+  await expect(listPane.locator('[data-collection="tags"] [role="group"]')).toHaveCount(0);
 });
 
 // ── #1169 · THE MAP'S LAST MILE, AND THE PANE'S VOICE BUDGET ────────────────────────────────────────

@@ -48,12 +48,20 @@ export function AnalyticsOverviewSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading your analytics…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your analytics" onRetry={retry} />}
-      >
-        <OverviewBody />
-      </QueryBoundary>
+      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
+          paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
+          boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
+          sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
+          slot ride the scroller, which is where #1200 put them. */}
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" padding="section">
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading your analytics…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your analytics" onRetry={retry} />}
+          reserveKey="analytics.overview"
+        >
+          <OverviewBody />
+        </QueryBoundary>
+      </Stack>
     </Stack>
   );
 }
@@ -72,11 +80,12 @@ function OverviewBody(): ReactElement {
   // `hasData` is the runtime gate; overview/wrapped are still typed `| null` (an absent rollup), so
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
   if (!freshness.hasData || overview === null || wrapped === null) {
-    return (
-      <Stack className="h-full min-h-0 place-content-center" padding="section">
-        <EmptyStateNoData />
-      </Stack>
-    );
+    // TOP-ALIGNED, NOT PANE-CENTRED, SINCE THE #1727 HOIST — and that is a real appearance delta, recorded
+    // rather than hidden. Vertical centring needs free space, which needs a definite height; inside the
+    // reservation's auto-height measuring wrapper there is none (`h-full` would resolve to `auto` and
+    // `place-content-center` to a no-op), so the honest shape is the one the twin CONTENT surface already
+    // ships: the teaching state at the top of the padded pane (`analytics-character-surface`'s own empty arm).
+    return <EmptyStateNoData />;
   }
 
   const temporal = wrapped.temporal;
@@ -92,7 +101,7 @@ function OverviewBody(): ReactElement {
     listMode === "collapsed" ? "Your most-played character — Show list panel to drill into any character" : "Your most-played character";
 
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" gap="section" padding="section">
+    <Stack gap="section">
       <Row align="center" justify="between" gap="row">
         {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
         <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>

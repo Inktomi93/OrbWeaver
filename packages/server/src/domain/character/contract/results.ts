@@ -5,7 +5,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import type { CharacterListCursor } from "./params.ts";
-import type { CharacterSummary } from "./views.ts";
+import type { CharacterSummary, CharacterTagGroupCensus } from "./views.ts";
 
 /** A handle to a character identity row — the return of the injected synthetic-group mint/find ops
  *  (chat consumes it cross-feature; type-only re-exported from the front door). */
@@ -27,6 +27,13 @@ export interface GeneratedGreeting {
   readonly text: string;
   readonly costUsd: number | null;
 }
+
+/** One character's per-item outcome inside `bulkAddCardTag`/`bulkRemoveCardTag` (#1694, internal to the
+ *  domain — never crosses the wire; the wire shape is `@orb/contracts/character`'s `CharacterBulkTagResult`,
+ *  which `substrate/bulk-tag-result.ts` folds this into). `applied` covers the silent no-op too
+ *  (unowned/missing target, or the tag was already in the target state); `failed` carries the caught
+ *  rejection reason UNCLASSIFIED — the substrate helper is what maps it onto the wire's closed union. */
+export type BulkTagOutcome = { readonly characterId: CharacterId; readonly applied: boolean } | { readonly characterId: CharacterId; readonly failed: unknown };
 
 /** Returned by `snapshot`. */
 export interface SnapshotRef {
@@ -67,8 +74,35 @@ export interface ListCharactersResult {
   readonly totalCount: number;
 }
 
+/**
+ * THE GROUP-BY-TAG CENSUS (#1696) — every bucket the categorized view can render, counted over the request's
+ * lens.
+ *
+ * `uncategorized` is a FIRST-CLASS member rather than a derivation: it is the biggest bucket on a real
+ * library and it cannot be computed from `groups` (a character with two tags is counted in both, so the
+ * group counts do not sum to the matched total). It is also precisely the number the prior arm could not
+ * source at all, which is the reason that arm refused a census outright.
+ */
+export interface ListCharacterTagGroupsResult {
+  /** One bucket per VISIBLE tag that at least one matching character carries — most-populated first, ties
+   *  alphabetical, so the same total order the header list is rendered in has one author (the server). */
+  readonly groups: readonly CharacterTagGroupCensus[];
+  /** Matching characters carrying NO visible tag — the "Uncategorized" bucket. */
+  readonly uncategorized: number;
+}
+
 /** The D148 plugin card-state read verdict (`persistence/plugin-card-data.ts`): `found:false` ⇒ no such OWNED
  *  character (foreign or absent — leak-free, the caller maps it to the plugin domain's NOT_FOUND); `found:true`
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per no-inline-types §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+
+/** The #1708 pre-#1702 plugin-provenance backfill verdict (`persistence/backfill-plugin-provenance.ts`).
+ *  Homed HERE per no-inline-types §7.4. */
+export interface BackfillPluginProvenanceResult {
+  /** Rows whose `importedFrom` was minted from a recovered plugin identity. */
+  readonly backfilled: number;
+  /** Candidates left `authored` — no reserved `plugin_<slug>` key, or the named slug names no installed
+   *  plugin for that owner (uninstalled since, or the key predates any install this owner still holds). */
+  readonly leftAuthored: number;
+}

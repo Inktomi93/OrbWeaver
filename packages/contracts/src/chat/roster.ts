@@ -70,7 +70,7 @@ export const TALKATIVENESS_DEFAULT = 0.5;
  *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
  *  talkativeness gaps proved the class). Roster presets are BUILT (#26, D61 B6 — `domain/roster-preset`):
  *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
- *  patch project exactly this shape. Founding casts stay unbuilt (they graft onto the same shape if they
+ *  patch project exactly this shape. Founding character sets stay unbuilt (they graft onto the same shape if they
  *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
 export const seatKnobsSchema = z.object({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
@@ -91,7 +91,7 @@ export const characterMemberSpecSchema = z.object({
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
- *  Roster presets are BUILT (#26) and project through the `character` arm; founding casts and
+ *  Roster presets are BUILT (#26) and project through the `character` arm; founding character sets and
  *  saved-rosters v2 remain unbuilt (they graft onto this shape). Kind-discriminated like
  *  {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only human join path — a
  *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
@@ -256,7 +256,7 @@ export interface ParticipantView {
   talkativeness: number;
   disabled: boolean;
   joinedAt: number;
-  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single authority (read.ts:342, persistence/roster.ts:30) — the server returns seats already ordered by it, so a client read would be a second clamp authority. Ends if a join-history affordance renders the seq itself.
+  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single authority (read.ts:342, persistence/participants-read.ts:30) — the server returns seats already ordered by it, so a client read would be a second clamp authority. Ends if a join-history affordance renders the seq itself.
   joinSeq: number;
   leftSeq: number | null;
   joinHistoryVisibility: JoinHistoryVisibility;
@@ -470,10 +470,13 @@ export interface MemberCardView {
 export const handoffOfferSchema = z.object({
   /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
    *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
-   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), and the
-   *  host-owned chat-attached books. `false` ⇒ the D64 drop (the seats the nominee cannot resolve are
-   *  leftSeq-stamped, exactly as today). */
-  copyCast: z.boolean(),
+   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
+   *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (#1739 — the executable
+   *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
+   *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
+   *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
+   *  which gates on the ROOM. */
+  copyCharacters: z.boolean(),
   /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
    *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
    *  nominee cannot read is NULLED rather than left lying about the room's voice. */
@@ -484,8 +487,46 @@ export const handoffOfferSchema = z.object({
 export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
 
 /** The no-offer offer — the shape a `null` column means, spelled once so no consumer re-spells
- *  `{ copyCast: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
-export const NO_HANDOFF_OFFER: HandoffOffer = { copyCast: false, copyGmPreset: false };
+ *  `{ copyCharacters: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
+export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPreset: false };
+
+/** WHAT AN ACCEPTED OFFER WOULD LAND IN THE NOMINEE'S LIBRARY — the DISCLOSURE half of the offer (#1762),
+ *  frozen at NOMINATE and carried by the `handoff-nominated` notification so the nominee can read what they
+ *  are accepting before they accept it. The receiving side used to render a bare Accept for a press that
+ *  copied four classes of someone else's property — including the room's REGEX SCRIPTS, which are executable
+ *  transforms over the accepter's own chats (#1739).
+ *
+ *  COUNTS, NEVER IDS. A nominee cannot resolve the departing host's character/book/script ids (they own
+ *  none of those rows yet), so an id here would be an unreadable pointer AND a disclosure of another user's
+ *  library keys beyond what the offer already implies. The count is the whole decision input; the rows
+ *  themselves arrive as ordinary library rows the moment they accept, theirs to inspect and delete.
+ *
+ *  A POINT-IN-TIME PREVIEW, resolved from the SAME resolvers the accept executes (chat's
+ *  `previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`), never a second count of its own. It can still
+ *  differ from what finally lands: the offer is executed at ACCEPT (§5 — acceptance is what freezes the
+ *  point in time), so a card the host deletes in between is disclosed and then absent. That direction is the
+ *  honest one — the disclosure is a ceiling on what the accept can copy, never a floor.
+ *
+ *  ZEROS ARE SENT, NOT OMITTED: "this gives you nothing" is a fact the nominee needs, and an absent field
+ *  would make the confirm's silence ambiguous between "nothing" and "unknown". */
+export const handoffOfferContentsSchema = z.object({
+  /** Seated characters that would be copied — the old host's cards the nominee does not already own. */
+  characters: z.number().int().min(0),
+  /** Distinct world books that would be copied: the copied cards' attached lore plus the room's own books. */
+  worldBooks: z.number().int().min(0),
+  /** Chat-tier regex scripts that would be copied — EXECUTABLE find/replace over this room's text. */
+  regexScripts: z.number().int().min(0),
+  /** Would the game's GM voice preset be copied? False for a non-game room, an unset knob, an un-offered
+   *  preset, or one the nominee can already read (that knob is left alone rather than duplicated). */
+  gmPreset: z.boolean(),
+});
+/** Type twin of {@link handoffOfferContentsSchema} — the `handoff-nominated` notification payload's
+ *  `offer` field and the client confirm's read model. */
+export type HandoffOfferContents = z.infer<typeof handoffOfferContentsSchema>;
+
+/** The disclosure of an offer that copies nothing — the value every offer-less nomination sends, spelled
+ *  once so no producer re-spells the zeros. */
+export const NO_HANDOFF_OFFER_CONTENTS: HandoffOfferContents = { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false };
 
 // ── Invites & the membership chokepoint (Part III §2; D16) ──
 const INVITE_MAX_USES_MIN = 1;

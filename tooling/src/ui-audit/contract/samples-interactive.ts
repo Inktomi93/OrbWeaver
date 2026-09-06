@@ -101,6 +101,13 @@ export interface ActionDoorInput {
   /** Per-run identity of the LIST ITEM (the row) this door lives in, or null. Doors sharing an `itemKey`
    *  are inside ONE row and stay judged by `path`: one action offered twice in one card is a real door. */
   readonly itemKey: string | null;
+  /** Per-run identity of the `role="toolbar"` this door lives in, or null (#1705). A toolbar cell is a VIEW
+   *  SWITCH within one region, not a second door to the app-level action that shares its name — the ruling
+   *  and its full rationale live on `checkDuplicateDoorPopulations` (lib/checks-quality.ts). REQUIRED, not
+   *  optional, on the row-8 precedent in `ops/walker/RULE-AUTHORING.md`: an optional field lets a fixture
+   *  (or a walker regression) omit the fact silently, which reads as "not in a toolbar" and re-opens the
+   *  false positive with no tell. */
+  readonly toolbarKey: string | null;
 }
 
 // ── Control silhouette (orbweaver; #430, from the side-eye #420 receipts) ────────────────────────────

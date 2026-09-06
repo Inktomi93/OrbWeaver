@@ -45,6 +45,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
+import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
@@ -107,7 +108,7 @@ import { createSocketRegistry } from "../../transport/trpc/stream/socket-registr
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
-import { packSeedPluginBundle, readSeedDemoChat } from "../boot/seed-assets/index.ts";
+import { readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -613,7 +614,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
   // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
-  const regexCompose = buildRegex({ db, now, audit });
+  const regexCompose = buildRegex({ db, now, audit, emitChatEventLive });
 
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
@@ -706,6 +707,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
     forkGame: (args) => rpgOps().forkGame(args),
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
+    handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
     handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
   };
   // #250 — the memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
@@ -1126,7 +1128,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // path: the bundle meets the same unzip hardening, manifest validation and CAS store a hand upload meets,
   // and `install`'s own `(owner, slug)` collision refusal is the seeder's layer-2 idempotency.
   const examplePluginSeeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
+    packBundle: packShowcaseBundle,
     // An EMPTY grant, deliberately (the seeder's header): the row lands able to do nothing at all.
     install: async ({ caller, bundle }) => await services.plugin.install({ caller, bundle, grant: [] }),
     // …and the empty RE-GRANT right after it, which is what raises `pending_reconsent` — the standing "this
@@ -1135,10 +1137,25 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     requestConsent: async ({ caller, pluginId }) => {
       await services.plugin.setGrant({ caller, pluginId, grant: [], acknowledgedNetHosts: [] });
     },
-    alreadyInstalled: async (caller, slug) => (await services.plugin.list({ caller })).some((row) => row.slug === slug),
+    // #803's auto-upgrade rides the REAL upgrade verb — the same one a hand upload and the one-click url
+    // update drive — so the consent wall (widened reach ⇒ disabled + standing re-consent, grant = prior ∩
+    // declared) is the seeder's too, and there is no second install path.
+    upgrade: async ({ caller, pluginId, bundle }) => {
+      await services.plugin.upgrade({ caller, pluginId, bundle });
+    },
+    // The version the SHIPPED bundle declares, straight off its own manifest — never re-spelled here.
+    bundledVersion: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
+    // ONE read per pass: it is both the install half's collision check and the upgrade half's subject list.
+    // The seeder filters it down to the showcase slugs itself (a user's OWN plugins are none of its business).
+    listHeld: async (caller) => (await services.plugin.list({ caller })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version })),
     isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.examplePluginsSeeded,
     markSeeded: async (principal): Promise<void> => {
       await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
+    },
+    readSeededVersions: async (principal): Promise<Readonly<Record<string, string>>> =>
+      (await settings.getUserSettings({ principal })).config.onboarding.seededPluginVersions,
+    writeSeededVersions: async (principal, versions): Promise<void> => {
+      await settings.updateUserSettingsSection({ principal, input: { section: "onboarding", patch: { seededPluginVersions: { ...versions } } } });
     },
   });
 

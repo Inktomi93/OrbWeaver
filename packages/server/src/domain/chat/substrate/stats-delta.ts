@@ -441,7 +441,7 @@ export function chatCreatedDelta(params: {
  * It carries NO owner-grain `chats`/`chatsCreated`: the room is one room however many characters sit in it,
  * so only the primary seat's {@link chatCreatedDelta} counts it for the owner and the day. Used for every
  * founding seat past the first (`verbs/claim-chat.ts`), every copied seat of a fork (`verbs/fork.ts`), and
- * a character seated into a live room (`verbs/roster.ts::addCharacterToChat`).
+ * a character seated into a live room (`verbs/participants.ts::addCharacterToChat`).
  */
 export function seatChatDelta(params: {
   readonly ownerId: UserId;

@@ -27,7 +27,7 @@ import {
   writeAppOverride,
   writeUserConfig,
 } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
@@ -264,5 +264,29 @@ describe("writeUserConfig — the background predicate (#1478)", () => {
     await expect(writeUserConfig(db, mine, pinning(before.config, theirBg), AT + 5)).rejects.toBeInstanceOf(DomainOperationError);
 
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, mine))).toHaveLength(0);
+  });
+
+  // #1577 — the FIRST-write path used to be seed-then-guarded-UPDATE (two statements): an asset deleted in
+  // the window between the pre-write check and the seed left a defaults-only row behind even though the
+  // write correctly refused. The fix folds the seed into ONE guarded statement, so the guard is evaluated
+  // fresh at write time regardless of what changed since the caller's own read.
+  test("an asset deleted WHILE a first write is in flight still refuses, and leaves NO row (#1577)", async () => {
+    const { db, hold } = await freshHeldDb();
+    const u = await seedUser(db, { id: "user_race" });
+    const bgId = mintTypeId(ID_PREFIX.asset);
+    await db.insert(assets).values({ id: bgId, ownerId: u, kind: "background", mime: "image/png", size: 1, hash: pinnedHash, uploadedAt: AT });
+    const before = await readUserSettings(db, u);
+    // Hold the seed INSERT into `user_settings` (the OLD shape's unconditional seed; the NEW shape's
+    // guarded `insert().select()` — both start `insert into "user_settings"`), so the asset can be deleted
+    // AFTER the pre-write check already passed but BEFORE the seed/guard statement actually executes.
+    const insert = hold(/insert into "user_settings"/iu);
+
+    const write = writeUserConfig(db, u, pinning(before.config, bgId), AT + 5);
+    await insert.reached;
+    await db.delete(assets).where(eq(assets.id, bgId));
+    insert.release();
+
+    await expect(write).rejects.toBeInstanceOf(DomainOperationError);
+    expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(0);
   });
 });

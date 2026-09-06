@@ -21,6 +21,19 @@ export const DIRTY_STAGE_KEY = "dirty";
 export const STAGE_ROOT_REL = join(".cache", "snap-stage");
 /** The BAND TABLE (#1276) — one row per band, the file every checkout of the repo agrees on. */
 export const BANDS_REL = join(STAGE_ROOT_REL, "bands.json");
+/** Where band k's idle timer writes (#1163 arm b). A DETACHED child must never hold a pipe to the process
+ *  that spawned it — `_shared/proc.ts` `spawnNicedChild` states the rule and the session daemon already
+ *  obeys it: without a `logPath` the child gets `["ignore","pipe","pipe"]`, whose first write after the
+ *  launcher exits is EPIPE, and whose stream handles keep the LAUNCHER's event loop referenced. The keeper
+ *  outlives every snap call by design, so its one reap line has to land in a file. `--stage-status` names
+ *  this path per row, so the artifact has a reader (it is under `.cache/`, therefore gitignored). */
+export function stageKeeperLogPath(home: string, band: number): string {
+  return join(home, STAGE_ROOT_REL, `keeper-band${band}.log`);
+}
+
+/** The bounded REAP LEDGER (#1163): the last few teardowns with the ARM that fired. A reaped band leaves
+ *  no row, so without this "band 3 is free" and "band 3 was reaped 40 s ago" read identically. */
+export const REAPS_REL = join(STAGE_ROOT_REL, "reaps.json");
 /** The pre-#1276 single marker. Read ONCE as a legacy row and DELETED (ops/stage-marker.ts
  *  `migrateLegacyMarker`) — there is no compat shim, because half a migration is the named rot
  *  (`Core-Tooling-Law.md` §1). This constant exists only so the migration and the status line can name

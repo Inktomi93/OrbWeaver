@@ -21,3 +21,11 @@ export const selectWorldEntry = worldEntrySelection.select;
 export const clearWorldEntrySelection = worldEntrySelection.clear;
 /** Reactive: the currently-edited entry id (`null` = none). A primitive selector. */
 export const useSelectedWorldEntryId = worldEntrySelection.usePrimaryId;
+/** The imperative seam the config section's mobile BACK stack pops FIRST (#1725, stickler F9). A world-info
+ *  book is a three-rung drill on a phone — library → book → entry — and the shell's one Back has to pop the
+ *  rung the reader is actually on. Before this, shell-Back from an open entry popped the BOOK, so the entry
+ *  editor and its book both vanished in one tap and the reader landed two rungs up from where they were.
+ *  Exported as the store's own `selection` seam rather than as a bare `hasSelection`, because the config
+ *  section subscribes to it too: a rung that changes without notifying the shell is a Back button whose
+ *  target is stale. */
+export const worldEntrySelectionSeam = worldEntrySelection.selection;

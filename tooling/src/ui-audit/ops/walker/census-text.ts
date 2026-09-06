@@ -11,6 +11,22 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_TEXT = `
   // ── text / contrast / typography ─────────────────────────────────────────
+  // A MASKED ANCESTOR MASKS THE DESCENDANT'S PAINT, NOT ITS OWN STYLE (#1078, orb-ui audit F6). The
+  // universal \`.scroll-fade-x\`/\`.scroll-fade-y\` recipes put \`mask-image\` on the SCROLLING CONTAINER, and
+  // CSS masking composites the whole subtree — a text node two levels inside a faded edge paints at a
+  // real alpha \`getComputedStyle\` on the text itself never reports (its own \`color\`/\`opacity\` read
+  // full-strength). Bounded exactly like the interactive-island wrapper walk: unrelated to the actual DOM
+  // depth of a real fade recipe, but never an unbounded \`closest()\` that would over-withhold every text
+  // node under a distant, unrelated masked ancestor.
+  var MASK_ANCESTOR_DEPTH = 6;
+  function hasMaskedAncestor(el) {
+    for (var man = el, mlevels = 0; man && man !== document.body && mlevels <= MASK_ANCESTOR_DEPTH; man = man.parentElement, mlevels += 1) {
+      var mStyle = getComputedStyle(man);
+      var maskImage = mStyle.maskImage || mStyle.webkitMaskImage || "none";
+      if (maskImage !== "none") return true;
+    }
+    return false;
+  }
   var texts = [];
   var textStyles = [];
   var fontFamilies = {};
@@ -138,6 +154,7 @@ export const WALKER_CENSUS_TEXT = `
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
         foregroundOpacity: accumulatedOpacity(el),
+        foregroundMasked: hasMaskedAncestor(el),
         box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
         occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,
         ariaHidden: ariaHidden,

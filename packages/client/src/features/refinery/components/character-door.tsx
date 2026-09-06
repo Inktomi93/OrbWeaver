@@ -55,6 +55,7 @@ export function CharacterDoor({ placeholder, label, chosenName, disabled = false
             onSelect(id, name);
           }}
           placeholder="Search characters…"
+          reserveKey="refinery.characterDoor"
         />
       </PopoverPopup>
     </Popover>

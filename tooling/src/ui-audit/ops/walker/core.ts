@@ -4,6 +4,7 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { INTERACTIVE_SELECTOR_JS } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -14,7 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
  *  and snap's per-selector `--contrast` arm composes the pair for ONE element (#1325). Running the
  *  census half for a single target would walk every node on the page and install this walk's mutation
  *  observer on a live `--session` page, which is why the split exists rather than a second resolver. */
-export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
+export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SELECTOR_JS};
   // AN OVERLAY SURFACE IS NAMED BY ITS ROLE, NEVER BY A WORD IN ITS CLASS STRING (#1317 item 7, the
   // #552 shape). The old word regex was tested against el.className, so any Tailwind utility CONTAINING
   // one of the six words excluded the element, while a word-boundary test over a role attribute was a
@@ -25,7 +26,11 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=b
   // INSIDE a dialog body is a real nesting defect, and widening this to closest() would trade a false
   // positive for a false clean.
   var OVERLAY_SURFACE_SELECTOR = "dialog,[popover],[role=dialog],[role=alertdialog],[role=menu],[role=menubar],[role=listbox],[role=tooltip]";
-  var HOVER_TRANSFORM_RE = /transform\\s*:\\s*(scale|rotate|translate|skew|matrix)/i;
+  // TAILWIND V4 EMITS STANDALONE scale:/rotate:/translate: PROPERTIES, NOT transform: (#1075, orb-ui
+  // audit F3 — the house comment at packages/ui/src/primitives/button/variants.ts:28-29: "Tailwind v4
+  // \`scale-*\` sets the standalone \`scale\` CSS property, not the transform matrix"). A \`transform:\`-only
+  // test never matched \`group-hover:scale-105\`'s compiled \`scale: 1.05\` declaration.
+  var HOVER_TRANSFORM_RE = /\\b(?:transform\\s*:\\s*(scale|rotate|translate|skew|matrix)|(?:scale|rotate|translate)\\s*:\\s*\\S)/i;
   var TAILWIND_HOVER_TRANSFORM_RE = /^hover:(scale|rotate|translate-x|translate-y|skew-x|skew-y)-/;
   var BG_URL_RE = /url\\((['"]?)(.*?)\\1\\)/;
   var RGB_RE = /rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*(?:,\\s*([\\d.]+))?\\)/;
@@ -83,6 +88,24 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=b
   }
   function isOperable(el) {
     return isVisible(el) && el.closest("[inert],[aria-hidden='true']") === null;
+  }
+  // A REST-HIDDEN REVEAL CLUSTER, NOT A GENUINELY HIDDEN ONE (#1077, orb-ui audit F5). ROW_REVEAL
+  // (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100) and ListRow's
+  // subtitleReveal are the house idiom: display stays IN FLOW, the box has real geometry, only PAINT
+  // is zeroed. isVisible's opacity gate reads that identically to display:none, so the census-interactive
+  // tap-target loop silently drops these candidates with no accounting reason at all. This predicate
+  // isolates the SPECIFIC shape — everything isVisible checks EXCEPT opacity passes, and opacity alone
+  // is zero — so a genuinely hidden/detached/zero-rect element is never miscounted as a reveal cluster.
+  function isOpacityOnlyHidden(el) {
+    if (!(el instanceof Element) || isDevChrome(el) || el.closest("[inert],[aria-hidden='true']") !== null) return false;
+    var ohSelf = getComputedStyle(el);
+    if (ohSelf.visibility === "hidden" || ohSelf.visibility === "collapse") return false;
+    for (var ohAnc = el; ohAnc !== null; ohAnc = ohAnc.parentElement) {
+      var ohStyle = getComputedStyle(ohAnc);
+      if (ohAnc.hidden || ohStyle.display === "none") return false;
+    }
+    var ohRect = el.getBoundingClientRect();
+    return ohRect.width > 0 && ohRect.height > 0 && accumulatedOpacity(el) === 0;
   }
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";

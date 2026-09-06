@@ -12,6 +12,6 @@ import { listOwned, toPluginView } from "../persistence/plugins.ts";
 export function createListPlugins(ctx: PluginContext): PluginService["list"] {
   return async ({ caller }: ListPluginsParams) => {
     const rows = await listOwned(ctx.db, caller.userId);
-    return rows.map(toPluginView);
+    return rows.map((row) => toPluginView(row, ctx.showcase.slugs));
   };
 }

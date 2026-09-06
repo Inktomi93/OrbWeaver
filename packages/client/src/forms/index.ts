@@ -39,7 +39,14 @@ export type { SaveCircuitBreaker, SaveCircuitBreakerConfig } from "./save-circui
 export { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
 // The settings-section save-status seam (SET-SEAMS §3): sections REPORT, the settings shell renders ONE
 // aggregate footer, retry stays local.
-export { SaveStatusHostContext, useReportSaveStatus, useSaveStatusHosted } from "./save-status-seam.ts";
+export {
+  SaveStatusHostContext,
+  SaveUnwritableContext,
+  useReportSaveStatus,
+  useSaveStatusHosted,
+  useSaveUnwritable,
+  useSaveUnwritableRef,
+} from "./save-status-seam.ts";
 export type { SectionSaveStatusProps } from "./section-save-status.tsx";
 export { SectionSaveStatus } from "./section-save-status.tsx";
 export type { AppFormInstance } from "./use-app-form.ts";

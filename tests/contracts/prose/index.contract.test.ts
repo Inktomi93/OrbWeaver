@@ -499,7 +499,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "preset.greetingTransform.sheHer",
     "preset.greetingTransform.theyThem",
     "chat.group.alsoPresent",
-    "chat.group.castMember",
+    "chat.group.characterHeading",
     "chat.group.scenarioHeading",
     "chat.group.exampleHeading",
     "chat.group.roundNudge",

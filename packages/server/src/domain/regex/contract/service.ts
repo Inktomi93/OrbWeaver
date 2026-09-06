@@ -69,6 +69,17 @@ export interface RegexContext {
    *  `regexChanged` user event carries every mutation; FK CASCADE + the D50 no-deletion-events discipline
    *  carry the rest. There are no per-entity bus events. */
   readonly emitUserEvent: EmitUserEvent;
+  /** #1733 — the ROOM plane's fan for the room's OWN tier. `regexChanged` (above) is a per-USER channel, so
+   *  a host's `attachToChat`/`detachFromChat`/chat-arm `applyScopeOrder` repainted the host's devices and
+   *  left every other member of that room reading a stale rack until they reloaded. The verb already holds
+   *  the `chatId`, so this is a direct emit and not a reach lookup. Live-only, non-durable, never rejects —
+   *  regex touches no bus itself (the `requireChatHost` posture: chat's plane, injected). */
+  readonly emitRoomRegexChanged: (chatId: ChatId) => void;
+  /** #1733's other half — the LIBRARY-ROW fan. A row's `enabled` (the #1742 section's row switch, which is
+   *  off-EVERYWHERE by design) or its name is member-visible in every room whose own tier attaches it, and
+   *  those rooms are not knowable from the verb's arguments. Resolved at the composition root through the
+   *  entity→room reach table's `regex` arm. Error-isolated: it can never fault the write it follows. */
+  readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
 }
 
 export interface RegexService {

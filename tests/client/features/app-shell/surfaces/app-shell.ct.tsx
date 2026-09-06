@@ -2112,8 +2112,11 @@ async function seatNotificationBell(page: Page): Promise<void> {
 
 /** Drive the context pane to `mode`, settle, and read the identity row in ONE in-page pass. Rendered
  *  visibility is `offsetParent !== null` — the yield is `display: none`, which is exactly what that answers,
- *  and it does not care that the identity arm is `display: contents`. */
-async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" | "collapsed"): Promise<TopbarIdentityReadout> {
+ *  and it does not care that the identity arm is `display: contents`. `expectTitleShed` names what the
+ *  shed selector (`shell.css`'s `:has([data-slot="context-bracket-band"] :is(h1,h2,h3))`) is about to do —
+ *  the caller already knows this from `mode` + the band it mounted, and stating it here turns it into a
+ *  BARRIER instead of a hope. */
+async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" | "collapsed", expectTitleShed: boolean): Promise<TopbarIdentityReadout> {
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const current = await contextPanel.getAttribute("data-panel-mode");
   if (current !== mode) {
@@ -2126,6 +2129,15 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   // room's `getChat` lands; a row read before that measures the shape of an identity, not one.
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [aria-busy="true"]')).toHaveCount(0);
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"]')).toHaveCount(1);
+  // BARRIER ON THE DOCKED BAND OWNING THE TITLE (#1686) — the mode/context-mode attributes above are DOM
+  // writes the assertions above already retried to settlement, but the `:has()` shed rule's effect on
+  // `offsetParent` is a SEPARATE style/layout recalculation Chromium can perform on a later frame under
+  // contention. The old code went straight from those attribute reads into a ONE-SHOT `page.evaluate()`
+  // snapshot with no retry of its own — exactly the one-shot-cannot-certify-a-later-surface shape. A
+  // web-first `toBeHidden()`/`toBeVisible()` on the title RETRIES until the shed rule has actually painted,
+  // so the snapshot below always reads a settled row.
+  const wideTitle = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+  await expect(wideTitle)[expectTitleShed ? "toBeHidden" : "toBeVisible"]();
   return page.evaluate(() => {
     const shown = (element: Element | null): boolean => element !== null && (element as HTMLElement).offsetParent !== null;
     const title = document.querySelector<HTMLElement>('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
@@ -2154,7 +2166,7 @@ test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + c
   // never has — which is exactly what this pin did until #896 put the condition in the selector.
   const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
-  const readout = await settledTopbarIdentity(page, shell, "docked");
+  const readout = await settledTopbarIdentity(page, shell, "docked", true);
   // The premise: the row carries the SAME trailing furniture a real account has.
   expect(readout.bell).toBe(true);
   // THE DEFECT PIN: nothing of the identity that the band now carries is on this row — no crushed title.
@@ -2170,7 +2182,7 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
   await page.setViewportSize({ width: 1280, height: 800 });
   const shell = await mount(<AppShellChatTopbarIdentityStory />);
 
-  const readout = await settledTopbarIdentity(page, shell, "collapsed");
+  const readout = await settledTopbarIdentity(page, shell, "collapsed", false);
   expect(readout.bell).toBe(true);
   expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
   await expect(page.locator(".shell-topbar-title:visible")).toHaveText(TOPBAR_IDENTITY_ROOM.title);
@@ -2935,15 +2947,41 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
 
   await shell.getByRole("button", { name: "Hide list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  // BARRIER ON THE FLIP'S OWN CLOCK, never a wall-clock guess (#1686). The old barrier was a fixed
+  // [100,200,300,400]ms poll (1s total) past the nominal 220ms motion — under multi-lane load the box's
+  // real frame timing stretches past that budget, so a layout-shift entry from a still-finishing FLIP or
+  // co-motion transition can land AFTER the read. Wait for every animation the toggle actually started
+  // (`.shell-main`'s FLIP animation + the list panel's own transform transition — both are `Animation`
+  // objects) to reach `finished` before reading the counter; an already-finished animation resolves its
+  // `finished` promise immediately, so this never blocks a fast run.
+  await waitForShellFlipToSettle(page);
   await shell.getByRole("button", { name: "Show list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await waitForShellFlipToSettle(page);
 
   const readTotal = (): Promise<number> =>
     // FABRICATION-OK: reads back the probe slot installed above.
     page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
-  // Polls PAST the 220ms motion so a late entry cannot land after the read.
-  await expect.poll(readTotal, { intervals: [100, 200, 300, 400] }).toBeLessThan(0.1);
+  // A short poll remains for the observer's OWN dispatch latency (PerformanceObserver callbacks fire on a
+  // microtask after the frame that produced the entry, not synchronously with `finished`), never for the
+  // motion itself.
+  await expect.poll(readTotal, { intervals: [50, 100, 150] }).toBeLessThan(0.1);
 });
+
+/** Wait for every `Animation` object currently on the shell's motion-bearing nodes (the FLIP on
+ *  `.shell-main`, the co-motion transform transition on the list panel) to reach `playState: "finished"`.
+ *  Read AFTER the triggering attribute assertion already resolved (§#1686) — the attribute and the
+ *  animation start in the SAME commit (`useListTrackFlip`'s `useLayoutEffect`), so by then the `Animation`
+ *  objects already exist; grabbing them here (rather than re-polling `getAnimations().length`) avoids the
+ *  vacuous-true race of asking "is anything animating" before the animation has been created. */
+async function waitForShellFlipToSettle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const nodes = [document.querySelector<HTMLElement>(".shell-main"), document.querySelector<HTMLElement>('.shell-panel[data-panel-side="list"]')].filter(
+      (node): node is HTMLElement => node !== null,
+    );
+    await Promise.all(nodes.flatMap((node) => node.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
+  });
+}
 
 // ── #151: with motion OFF there is no counter-translate to hold the wrong corner ────────────────────
 // The owner saw "a weird glitch where the home header is and where the chats header with the count
@@ -3213,6 +3251,165 @@ test("#1316 no END-pinned counter on a phone: the trail's flip animation is canc
   const animationNames = await page.locator(".shell-main, .shell-topbar-trail").evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName));
   expect(animationNames.length, "both boxes must be present on the mobile shell").toBe(2);
   expect(animationNames, `mobile must cancel BOTH halves of the FLIP, got ${animationNames.join(" / ")}`).toEqual(["none", "none"]);
+});
+
+// NEW DESCRIBE (cb-list-collapse-motion / p-client-polish #1646, 2026-09-05) — a SEPARATE block from the
+// #1316 tests above by design: p-client-ct-honesty is landing its own #846/CLS arms in this same file this
+// week, and a fresh describe keeps the two lanes' edits union cleanly at merge (orchestrator notified).
+//
+// ── #1646: THE THIRD ALIGNMENT CLASS — a CENTRED child's honest FLIP distance is HALF the track ───────
+// #1316 proved the END-pinned trail needs its own FULL-magnitude inverse counter because its honest delta
+// is ZERO, not the track. `[data-slot=message-row]` is the THIRD shape (shell.css's own new header comment,
+// re-opening the "content gutter re-centring … a width change no transform can cancel" acceptance): a
+// FIXED-width box centred by auto margins inside `.shell-main` moves by exactly HALF of `.shell-main`'s own
+// resize — the #1316 receipt itself measured this as the retained residue (154px against a 307px track).
+//
+// READ THE KEYFRAME, NOT THE INTERPOLATED COMPUTED STYLE: a running CSS animation's `getComputedStyle(...)
+// .translate` is whatever frame happens to be current when Playwright samples it — exactly why the phone
+// fence above asserts `animationName` rather than a value. `Animation.effect.getKeyframes()` returns the
+// AUTHORED (var/calc-resolved) keyframe list regardless of playback position, so it is what this test reads
+// — the same technique, aimed at the encoded DISTANCE rather than at whether a rule matched at all.
+//
+// FABRICATED, not routed: this file never stubs `message.list`/canon assembly (see the file header, #1677
+// — it is the floor for shell CHROME, not section content), so a real transcript row is out of reach here.
+// A synthetic `[data-slot="message-row"]` div is FABRICATION-OK — the CSS rule matches on the selector
+// alone, so a bare node with the production data-slot exercises exactly the same rule a real row would.
+test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's own, opposite sign, on both FLIP arms", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  await page.locator(".shell-main").evaluate((main) => {
+    const row = document.createElement("div");
+    row.setAttribute("data-slot", "message-row");
+    row.setAttribute("data-fixture", "pcp-1646-fab-row");
+    main.appendChild(row);
+  });
+
+  // BARRIER ON THE SETTLED DOCK, TWO CONDITIONS IN ONE READ (#1316's own corridor test, verbatim): geometry
+  // alone is not enough — the #1741 regime seed's own mount-time FLIP can still be RUNNING (a real
+  // `data-list-flip` the production hook stamped, not mine) even after `.shell-main`'s box has already
+  // reached its resting geometry, and stamping MY `data-list-flip` on top of that live one contaminates the
+  // fabricated row's animation with whatever frame the hook's OWN animation happens to be on. Nothing
+  // animating AND the geometry holds, sampled in the SAME evaluate so they cannot be read a frame apart.
+  await page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+
+  for (const direction of ["in", "out"] as const) {
+    const { mainRaw, rowRaw } = await page.locator(".shell-grid").evaluate((grid, dir) => {
+      // FORCE THE MATCH-STATE TRANSITION (post-#1741): the regime seed's own mount-time FLIP can leave
+      // `data-list-flip` already at THIS test's first value, and a CSS animation only (re)starts when a
+      // selector transitions from not-matching to matching — setting an attribute to its OWN current value
+      // is not such a transition, so the "in" arm read back no animation at all (`getAnimations()` empty)
+      // the first time this ran post-rebase. Remove, force a style flush, THEN set, so every arm is a real
+      // absent→present transition regardless of what the seed left behind.
+      grid.removeAttribute("data-list-flip");
+      void grid.getBoundingClientRect();
+      grid.setAttribute("data-list-flip", dir);
+      const read = (selector: string): string | null => {
+        const el = document.querySelector(selector);
+        const anim = el?.getAnimations()[0];
+        if (!(anim?.effect instanceof KeyframeEffect)) {
+          return null;
+        }
+        const translate = anim.effect.getKeyframes()[0]?.["translate"];
+        return typeof translate === "string" ? translate : null;
+      };
+      const result = { mainRaw: read(".shell-main"), rowRaw: read('[data-fixture="pcp-1646-fab-row"]') };
+      grid.removeAttribute("data-list-flip");
+      return result;
+    }, direction);
+    // `"-307px 0px"` → `-307`; anything else fails loud via `not.toBeNull()` below.
+    const leadingPx = (value: string | null): number | null => {
+      const match = value === null ? null : /^(-?[\d.]+)px/.exec(value);
+      return match?.[1] === undefined ? null : Number(match[1]);
+    };
+    const mainPx = leadingPx(mainRaw);
+    const rowPx = leadingPx(rowRaw);
+    expect(mainPx, `.shell-main must carry a FLIP keyframe on the "${direction}" arm, got ${String(mainRaw)}`).not.toBeNull();
+    expect(rowPx, `the fabricated row must carry a counter keyframe on the "${direction}" arm, got ${String(rowRaw)}`).not.toBeNull();
+    expect(Math.abs(mainPx ?? 0), "the FLIP distance must be a real track width, not zero").toBeGreaterThan(100);
+    // OPPOSITE SIGN, HALF MAGNITUDE: composed with .shell-main's own translate, a row centred at rest before
+    // the toggle would sit at `main + row = main/2` for that first frame — the honest half-track delta the
+    // #1316 receipt measured, never zero (the OLD, un-recentring behaviour) and never a full track (the bug
+    // the #1316 comment on the trail already named: riding the full counter "did not cancel motion, it
+    // MANUFACTURED it").
+    expect(Math.round((rowPx ?? 0) * 2), `row keyframe must be exactly half of main's, opposite sign: main ${mainRaw}, row ${rowRaw}`).toBe(
+      -Math.round(mainPx ?? 0),
+    );
+  }
+});
+
+// THE REDUCED-MOTION SETTLE (#262) TWIN — the CSS-contract style the #1316 settle test above uses: the
+// held frame sets `translate` directly (no animation), so `getComputedStyle` is safe to read immediately.
+test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half the inverse of .shell-main's held corner", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  await page.locator(".shell-main").evaluate((main) => {
+    const row = document.createElement("div");
+    row.setAttribute("data-slot", "message-row");
+    row.setAttribute("data-fixture", "pcp-1646-fab-row-settle");
+    main.appendChild(row);
+  });
+
+  // BARRIER ON THE SETTLED DOCK, TWO CONDITIONS IN ONE READ (root-caused post-#1741, restated per the
+  // #1316 corridor test's own pattern): geometry alone let this test race the #1741 regime seed's own
+  // mount-time FLIP, whose `data-list-flip` the production hook can still hold on `.shell-grid` even after
+  // `.shell-main`'s box has already reached its resting position — stamping `data-list-settle` on top of
+  // that LIVE flip does not override it (the animation, while running, wins the cascade for `translate`
+  // over a plain declaration), so the row read back whatever frame the hook's own animation happened to be
+  // on (measured: main 263.856px / row 30.8991px and main 300.014px / row -46.1111px — neither a real track
+  // width nor half of one, the tell that an unrelated animation, not the settle rule, was answering). The
+  // #242-squeeze race this barrier was ALSO written for (main 181.583px against a stale-307px row) is still
+  // covered by the geometric half.
+  await page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+
+  const heldTranslates = (direction: "in" | "out"): Promise<{ main: string; row: string }> =>
+    grid.evaluate((el, value) => {
+      el.setAttribute("data-list-settle", value);
+      const read = (selector: string): string => {
+        const target = document.querySelector(selector);
+        return target === null ? "absent" : getComputedStyle(target).translate;
+      };
+      const pair = { main: read(".shell-main"), row: read('[data-fixture="pcp-1646-fab-row-settle"]') };
+      el.removeAttribute("data-list-settle");
+      return pair;
+    }, direction);
+
+  const offset = (value: string): number | null => {
+    const px = /^(-?[\d.]+)px/.exec(value);
+    return px?.[1] === undefined ? null : Number(px[1]);
+  };
+
+  for (const direction of ["in", "out"] as const) {
+    const held = await heldTranslates(direction);
+    const mainOffset = offset(held.main);
+    const rowOffset = offset(held.row);
+    expect(mainOffset, `the settle must hold .shell-main on the "${direction}" arm, got ${held.main}`).not.toBeNull();
+    expect(rowOffset, `the settle must hold the fabricated row on the "${direction}" arm, got ${held.row}`).not.toBeNull();
+    expect(Math.abs(mainOffset ?? 0), "the held corner must be a real track width, not zero").toBeGreaterThan(100);
+    expect(Math.round((rowOffset ?? 0) * 2), `row must be held at exactly half the inverse of main: main ${held.main}, row ${held.row}`).toBe(
+      -Math.round(mainOffset ?? 0),
+    );
+  }
 });
 
 // ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────

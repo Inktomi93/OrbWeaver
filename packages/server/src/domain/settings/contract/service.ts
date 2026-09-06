@@ -19,6 +19,7 @@ import type {
   ListThemesParams,
   PromoteThemeParams,
   RemoveThemeParams,
+  ResetUserConfigParams,
   UpdateAppSettingsParams,
   UpdateThemeParams,
   UpdateUserSettingsSectionParams,
@@ -81,6 +82,12 @@ export interface SettingsService {
    *  made coherent (a named source without a named model clears the model) and throws
    *  `DomainOperationError(incoherent_role_model)` when it pins a model on a server-configured source. */
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
+  /** Replace this user's WHOLE settings blob with the contract defaults at the current schema version, and
+   *  return the re-read row. Serialized per user, audited, emits `settingsChanged`. DESTRUCTIVE — it is the
+   *  ONE repair door for a `user_settings.config` that cannot be read (#1771/#1716), and the only settings
+   *  write whose content does not descend from a read of the row it lands on, which is what lets it run
+   *  where the #471 guard refuses everything else. Scoped to `principal.userId`; it accepts no id. */
+  readonly resetUserConfig: (params: ResetUserConfigParams) => Promise<UserSettingsView>;
   /** Materialize a user-pasted external image URL into an owned CAS asset and return a ready
    *  `BackgroundLibraryEntry` (side-eye F-P0-2). A DISCRETE action — the client appends the returned entry to
    *  `appearance.backgroundLibrary` via the autosave form; NO paintable external URL is ever persisted. Throws

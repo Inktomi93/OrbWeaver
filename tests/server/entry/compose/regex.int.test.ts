@@ -32,7 +32,7 @@ import { principal, seedScript, seedUser } from "../../domain/regex/_support.ts"
 const NOW = 1_700_000_000_000;
 
 function build(db: Awaited<ReturnType<typeof freshDb>>): ReturnType<typeof buildRegex> {
-  return buildRegex({ db, now: (): number => NOW, audit: (): Promise<void> => Promise.resolve() });
+  return buildRegex({ db, now: (): number => NOW, audit: (): Promise<void> => Promise.resolve(), emitChatEventLive: (): void => undefined });
 }
 
 describe("compose/regex — resolveVisibleRooms (the reverse roster's room filter)", () => {
@@ -90,7 +90,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
 
     // "owner" is absent: the caller is in every room they can see, so their own name carries no information
-    // and eats the width the row has for the people it is ABOUT (the chats list's `summaryCast` rule).
+    // and eats the width the row has for the people it is ABOUT (the chats list's `summaryParticipantNames` rule).
     expect(usage.rooms[0]?.participantNames).toEqual(["Sabine Veyra"]);
   });
 

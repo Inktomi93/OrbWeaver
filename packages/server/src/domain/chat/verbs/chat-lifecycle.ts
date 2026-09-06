@@ -73,10 +73,10 @@ import type { ChatService } from "../contract/service.ts";
 import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
 
@@ -125,7 +125,7 @@ type ChatLifecycleVerbs = Pick<
 /** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. */
 async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
   const statements = [statement];
-  const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+  const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
   if (hostUserId !== null) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
   }
@@ -199,13 +199,13 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claim
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
-      const roster = await loadRoster(ctx.db, chatId);
+      const participants = await loadParticipants(ctx.db, chatId);
       // The SAME consent set the resolver gates its persona read on (`presentAndEnabledHumanUserIdsOf`) — one
       // home, so a pin this verb permits is a pin the assemble can actually resolve (2026-08-15: this used to
       // call the presence-only `presentHumanUserIdsOf`, which let a host pin — and a live turn silently refuse
       // — a DISABLED member's persona; the enabled axis reintroduced the exact silently-dead-pin bug the
       // presence axis was widened to fix).
-      const presentHumanIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
+      const presentHumanIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
       const ownership = await Promise.all(presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
       if (!ownership.some((owned) => owned)) {
         throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present, enabled human participant`);
@@ -234,10 +234,10 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
     await requireHost(ctx, principal, chatId);
     // Enumerate present human members before the FK cascade drops the roster — each must have the
     // deleted chat drop from their live list, so they ride `extraUserIds`.
-    const roster = await loadRoster(ctx.db, chatId);
+    const participants = await loadParticipants(ctx.db, chatId);
     const members = [
       ...new Set(
-        roster.flatMap((r) => {
+        participants.flatMap((r) => {
           const actor = classifyParticipant(r);
           return actor?.kind === "human" ? [actor.userId] : [];
         }),

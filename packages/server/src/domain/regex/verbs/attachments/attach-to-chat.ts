@@ -24,5 +24,8 @@ export function createAttachToChat(ctx: RegexContext): RegexService["attachToCha
     await ctx.db.insert(chatRegexScripts).values({ chatId, regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();
     await ctx.audit({ actorUserId: ownerId, action: "regex.attachToChat", entityType: "regex_script", entityId: scriptId, metadata: { chatId } }, at);
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+    // #1733 — the OTHER audience plane. `regexChanged` is per-USER, so without this every other member of
+    // this room kept the pre-attach rack until they reloaded.
+    ctx.emitRoomRegexChanged(chatId);
   };
 }

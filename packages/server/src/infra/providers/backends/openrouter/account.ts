@@ -9,6 +9,7 @@
 // are FLAG[PD-80] (activity needs a management key; not in scope for this slice).
 
 import type { AccountCredits, GenerationCost } from "@orb/contracts/providers";
+import type { ProviderScrubSet } from "../../contract/index.ts";
 import { providerErrorFromHttp } from "../kit/index.ts";
 
 /** The slice of the SDK's `GetCreditsResponse` this port reads — narrowed so the real client satisfies it
@@ -36,12 +37,10 @@ interface OrAccountClient {
   };
 }
 
-/** Read the credential's OpenRouter credit balance (`{ total, used }`). Works on any inference key. */
-export async function getOpenRouterCredits(
-  client: Pick<OrAccountClient, "credits">,
-  signal?: AbortSignal,
-  secrets: readonly string[] = [],
-): Promise<AccountCredits> {
+/** Read the credential's OpenRouter credit balance (`{ total, used }`). Works on any inference key.
+ *  `secrets` is REQUIRED (#1599) and moved AHEAD of the optional `signal`: it used to default to `[]`, so
+ *  this credential-bearing surface could classify a 401 with the by-value scrub silently off. */
+export async function getOpenRouterCredits(client: Pick<OrAccountClient, "credits">, secrets: ProviderScrubSet, signal?: AbortSignal): Promise<AccountCredits> {
   let response: OrCreditsResponse;
   try {
     response = await client.credits.getCredits(undefined, signal !== undefined ? { signal } : undefined);
@@ -54,13 +53,14 @@ export async function getOpenRouterCredits(
 /**
  * Read the upstream cost of ONE generation (settles a few seconds after the turn). MUST be called with the
  * key that billed the generation, else OpenRouter 404s — the caller throttles/retries; this just surfaces
- * the typed error.
+ * the typed error. `secrets` is REQUIRED (#1599) and moved AHEAD of the optional `signal` — same reason as
+ * {@link getOpenRouterCredits}.
  */
 export async function getOpenRouterGenerationCost(
   client: Pick<OrAccountClient, "generations">,
   generationId: string,
+  secrets: ProviderScrubSet,
   signal?: AbortSignal,
-  secrets: readonly string[] = [],
 ): Promise<GenerationCost> {
   let response: OrGenerationResponse;
   try {

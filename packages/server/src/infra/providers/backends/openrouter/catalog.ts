@@ -10,7 +10,7 @@ import type { GetModelsResponse } from "@openrouter/sdk/models/operations";
 import type { PageIterator } from "@openrouter/sdk/types";
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { ProviderError } from "../../contract/index.ts";
-import { providerErrorFromHttp } from "../kit/index.ts";
+import { NO_PROVIDER_SECRETS, providerErrorFromHttp } from "../kit/index.ts";
 
 // The structural slice this verb needs off the client port. `models.list()` is the public `/models`
 // endpoint (no auth required) — connection may inject a keyless client. SDK 1.x returns an auto-paginating
@@ -57,7 +57,9 @@ export async function fetchOrCatalog(client: OrCatalogClient, signal?: AbortSign
     if (signal?.aborted === true) {
       throw abortedCatalogError(err);
     }
-    throw providerErrorFromHttp(err, "openrouter catalog");
+    // KEYLESS: `/models` is OpenRouter's public catalog endpoint and connection injects a keyless client,
+    // so there is no credential on this boundary to scrub by value — the raw SDK error stays as `cause`.
+    throw providerErrorFromHttp(err, "openrouter catalog", NO_PROVIDER_SECRETS);
   }
   return response.data.map((model) => ({
     id: model.id,

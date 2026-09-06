@@ -67,6 +67,32 @@ export const characterRouter = t.router({
       }),
     ),
 
+  // The GROUP-BY-TAG CENSUS (#1696) — the same LENS axes `list` takes and none of its paging ones. A census
+  // that could be sorted, cursored or limited would be window-dependent again, which is exactly the defect
+  // it exists to close, so those three are not in the shape at all.
+  listTagGroups: authedProcedure
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+          starred: z.boolean().optional(),
+          archived: z.boolean().optional(),
+          includeTagIds: z.array(brandedId<TagId>()).optional(),
+          excludeTagIds: z.array(brandedId<TagId>()).optional(),
+        })
+        .optional(),
+    )
+    .query(({ ctx, input }) =>
+      ctx.services.character.listTagGroups({
+        principal: ctx.auth,
+        ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.starred !== undefined ? { starred: input.starred } : {}),
+        ...(input?.archived !== undefined ? { archived: input.archived } : {}),
+        ...(input?.includeTagIds !== undefined ? { includeTagIds: input.includeTagIds } : {}),
+        ...(input?.excludeTagIds !== undefined ? { excludeTagIds: input.excludeTagIds } : {}),
+      }),
+    ),
+
   update: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema })).mutation(({ ctx, input }) =>
     ctx.services.character.update({
       principal: ctx.auth,

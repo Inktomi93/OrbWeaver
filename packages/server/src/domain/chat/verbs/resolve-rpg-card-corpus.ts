@@ -17,9 +17,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveRpgCardCorpus } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 
 type ChatParticipantRow = typeof chatParticipants.$inferSelect;
 
@@ -31,10 +31,10 @@ const CARD_SECTIONS: readonly { readonly label: string; readonly of: (card: Char
   { label: "SCENARIO", of: (card) => card.scenario },
 ];
 
-/** Does `characterId` hold a PRESENT character seat in this roster? `loadRoster` already filters departed
+/** Does `characterId` hold a PRESENT character seat in this roster? `loadParticipants` already filters departed
  *  seats (`leftSeq IS NULL`), so a character that left the room is not seated. */
-function isSeatedCharacter(roster: readonly ChatParticipantRow[], characterId: CharacterId): boolean {
-  return roster.some((row) => {
+function isSeatedCharacter(participants: readonly ChatParticipantRow[], characterId: CharacterId): boolean {
+  return participants.some((row) => {
     const actor = classifyParticipant(row);
     return actor?.kind === "character" && actor.characterId === characterId;
   });
@@ -55,8 +55,8 @@ function renderCard(card: CharacterCard): string {
 export function createResolveRpgCardCorpus(ctx: ChatContext): ResolveRpgCardCorpus {
   return async (chatId, characterId) => {
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19).
-    const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(roster);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(participants);
     if (hostUserId === null) {
       return null;
     }
@@ -65,7 +65,7 @@ export function createResolveRpgCardCorpus(ctx: ChatContext): ResolveRpgCardCorp
     // CARD read alone let a host name any card in their library and pull its prose into THIS room's corpus
     // (and mint an `rpg_sheets` row against a character with no seat). D18: membership is the scope of a
     // room-scoped read, so the room's own present roster decides, exactly as this file's header always said.
-    if (!isSeatedCharacter(roster, characterId)) {
+    if (!isSeatedCharacter(participants, characterId)) {
       return null;
     }
     const card = await ctx.getCard({ ownerId: hostUserId, characterId });

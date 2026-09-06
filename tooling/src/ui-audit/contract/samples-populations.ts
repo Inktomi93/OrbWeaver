@@ -38,6 +38,9 @@ interface CensusCapRow {
 export type CensusCapAccountingInput = Readonly<Partial<Record<CensusCapFamily, CensusCapRow>>>;
 
 interface RelationalPopulationAccountingInput {
+  /** Present ONLY when a visible canvas exists (#1079) — the same "absence is absence" shape as
+   *  `reveal-coverage`, never a zeroed row. */
+  readonly "canvas-ink"?: RelationalCensusAccountingInput;
   readonly "cohort-anatomy": RelationalCensusAccountingInput;
   readonly "double-empty-state"?: RelationalCensusAccountingInput;
   readonly "headline-overhang"?: RelationalCensusAccountingInput;
@@ -48,6 +51,9 @@ interface RelationalPopulationAccountingInput {
   readonly "pane-ink": RelationalCensusAccountingInput;
   readonly "promoted-layer-offset"?: RelationalCensusAccountingInput;
   readonly "quiet-state"?: RelationalCensusAccountingInput;
+  /** Rest-hidden reveal clusters (#1077) — present ONLY when the fine-pointer walk found at least one,
+   *  so absence is absence (see `census-collision.ts`'s conditional assignment), never a zeroed row. */
+  readonly "reveal-coverage"?: RelationalCensusAccountingInput;
   readonly "row-void": RelationalCensusAccountingInput;
   readonly "selection-idiom"?: RelationalCensusAccountingInput;
   readonly "tier-drift"?: RelationalCensusAccountingInput;

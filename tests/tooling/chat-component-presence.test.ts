@@ -111,7 +111,23 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   },
   "host-display-scripts-control": {
     coveredBy: "settings-context-tab",
-    why: "the host-only 'share my display scripts' switch (D121-E) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
+    why: "the host-only 'share my display scripts' switch (D121-E) renders at the foot of the REGEX section's `On screen` group (#1742 moved it out of the retired `Host controls › Appearance` disclosure, which held nothing else); settings-context-tab.ct drives it end-to-end through that section (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
+  },
+  "regex-tier-group": {
+    coveredBy: "regex-section",
+    why: "one tier group of the room's Regex section (#1742) — a size-cap split of regex-section.tsx that renders only inside it; regex-section.ct drives the group's kicker count, its `off here` state, the empty-tier arm, the dedup subtraction and the chat tier's order/attach affordances on real rows.",
+  },
+  "regex-tier-row": {
+    coveredBy: "regex-section",
+    why: "one ROW of a tier group (same split): regex-section.ct drives the rank numeral, the `+N` chip, the `OFF` and `previous host` marks, the row switch's off-everywhere toast + Undo, and the kebab's two items through the real section.",
+  },
+  "regex-on-screen-group": {
+    coveredBy: "regex-section",
+    why: "the display-leg roster + the moved broadcast switch (#1742) renders only as the Regex section's last group; regex-section.ct drives the provenance words, the yours-only switch and the switched-off arm, and settings-context-tab.ct drives the broadcast switch through the tab.",
+  },
+  "add-chat-script-dialog": {
+    coveredBy: "regex-section",
+    why: "the `Attach a script` dialog opens from the Regex section's chat tier (the AddChatBookDialog grammar); regex-section.ct opens it from the real section and drives the filter, the already-attached mark and the multi-select commit.",
   },
   "offer-choices-control": {
     coveredBy: "settings-context-tab",
@@ -131,6 +147,21 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "#490 split the faces strip + 'Filtered: X ✕' chip out of the list SURFACE under the 450-line cap; they render inside it and chat-list-surface.ct drives both (face tap scopes the list, the chip clears it).",
   },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
+  // #1718's three filter parts (undecided since c545899ab — verified against the base commit's own copy of
+  // this ledger, so this is a repair of an existing gap rather than this change's own debt). All three
+  // render ONLY inside chat-list-surface.tsx and are driven through its CT.
+  "chat-list-filter-field": {
+    coveredBy: "chat-list-surface",
+    why: "the list's search field is a size-cap split of chat-list-surface.tsx and renders only inside it; chat-list-surface.ct drives typing, the narrowed rows and the clear-search exit.",
+  },
+  "chat-list-month-filter": {
+    coveredBy: "chat-list-surface",
+    why: "the month bound is the same split (it renders only inside the list surface); chat-list-surface.ct drives the month narrowing and the clear-month exit that re-derives the empty state's sentence.",
+  },
+  "chat-list-phone-filters": {
+    coveredBy: "chat-list-surface",
+    why: "the phone Filters row (#1718 — ONE trigger naming both bounds in force) renders only inside the list surface at the coarse arm; chat-list-surface.ct drives its trigger name and the sheet it opens.",
+  },
   "appearance-chat-style-cards": {
     coveredBy: "appearance-message-style-section",
     why: "appearance-message-style-section.ct drives the real style-card grid's persisted selection, every mode's name/gloss/preview anatomy, and the pressed-state transition that patches chatStyle.",

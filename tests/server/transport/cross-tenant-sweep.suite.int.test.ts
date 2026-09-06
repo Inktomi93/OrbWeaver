@@ -389,6 +389,12 @@ const PROBES: readonly Probe[] = [
   },
   // ── character (owner-scoped) ──
   { path: "character.get", call: (c, i) => c.character.get({ characterId: i.characterId }) },
+  // #1696 — the GROUP-BY-TAG census. PROBED rather than exempted alongside its `character.list` sibling,
+  // because unlike `list` it echoes TAG NAMES: its result rows are `{id, name, folderType, characters}`
+  // read through a `character_tags → tags` join, so a dropped `characters.owner_id` predicate would hand a
+  // stranger a bucket literally named `alphasecrettag` (`MARK.tag`). Driven with A's tag as the include
+  // filter, which is the shape a leak would travel on — the marker detector has real teeth here.
+  { path: "character.listTagGroups", call: (c, i) => c.character.listTagGroups({ includeTagIds: [i.tagId] }) },
   {
     path: "character.update",
     call: (c, i) => c.character.update({ characterId: i.characterId, input: { name: "hacked" } }),
@@ -920,6 +926,21 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setHostDisplayScripts({ chatId: i.chatId, enabled: true }),
   },
   {
+    // #1742 — the room's regex levers. Same `requireHost` → `requireParticipant` shape, and it carries the
+    // same PROMPT stakes as `setOfferChoices` below: a stranger who could write these would be deciding
+    // which text transforms run on someone else's room's prompt. Leak-free NOT_FOUND before any metadata
+    // write.
+    path: "chat.setRegexAllow",
+    call: (c, i) => c.chat.setRegexAllow({ chatId: i.chatId, lever: { kind: "master", enabled: false } }),
+  },
+  {
+    // #1742 — the host's effective-regex read. HOST-gated (three of its four tiers are the host's own
+    // LIBRARY), so a stranger's call must not answer, and must not distinguish "not yours" from "no such
+    // room": `requireHost` → `requireParticipant` miss is the leak-free NOT_FOUND before any library read.
+    path: "chat.listEffectiveRegex",
+    call: (c, i) => c.chat.listEffectiveRegex({ chatId: i.chatId }),
+  },
+  {
     // B1 — the per-room offer-choices posture. Same `requireHost` → `requireParticipant` shape as its
     // neighbour above, and it matters MORE here: this key reaches the PROMPT, so a stranger who could write
     // it would be steering someone else's room's model. Leak-free NOT_FOUND before any metadata write.
@@ -1323,6 +1344,14 @@ const PROBES: readonly Probe[] = [
   //    the leak-free NOT_FOUND this probe pins. (A's seeded plugin is `upload`-origin, so even past the gate
   //    there is no URL to fetch — the ownership refusal is what this asserts, before origin is ever consulted.) ──
   { path: "plugin.upgradeFromStoredUrl", call: (c, i) => c.plugin.upgradeFromStoredUrl({ pluginId: i.pluginId }) },
+  // ── plugin.upgradeFromShowcase (#1740) — the SEEDED-EXAMPLE twin, owner-scoped the SAME way and PROBED for the
+  //    SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND BEFORE the verb reads A's row at all. It
+  //    triggers no egress (the bytes are the bundle this build ships), so what a dropped pre-check would leak is
+  //    the #615 upgrade path onto A's row plus the fact of whether A's plugin is one of the examples. The tell is
+  //    DISTINGUISHABLE and that is the probe's teeth: A's seeded row is `alpha-plugin`, which this build ships no
+  //    bundle for, so past the ownership gate the verb answers BAD_REQUEST (`plugin_not_showcase`) instead of the
+  //    leak-free NOT_FOUND pinned here. ──
+  { path: "plugin.upgradeFromShowcase", call: (c, i) => c.plugin.upgradeFromShowcase({ pluginId: i.pluginId }) },
   {
     path: "plugin.setGrant",
     call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
@@ -1698,6 +1727,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "chat.listChats": "self-scoped: only the caller's member chats",
   "settings.getUserSettings": "self-scoped by principal.userId",
   "settings.updateUserSettingsSection": "self-scoped by principal.userId",
+  // The whole-blob repair door (#1771). Self-scoped like its sibling AND unable to express a foreign
+  // target: the procedure takes NO input at all, so there is no id to hijack — the classification rests on
+  // the router shape, not only on the verb's internal scoping (a no-id verb is not automatically exempt).
+  "settings.resetUserConfig": "self-scoped by principal.userId; the procedure accepts no input, so no foreign id can reach the write",
   "settings.addExternalBackground": "self-scoped: materializes the pasted URL into the caller's OWN CAS (principal.userId); no foreign id in params",
   "settings.listThemes": "self-scoped: owned ∪ seeds",
   "settings.createTheme": "self-scoped",
@@ -1805,7 +1838,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.installFromUrl":
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
   "plugin.checkForUpdates":
-    "self-scoped (U8 2b): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and re-fetches only the CALLER's OWN plugins' remembered source URLs — there is no foreign id a stranger could aim, and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
+    "self-scoped (U8 2b, #1740): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and reads a version for only the CALLER's OWN rows — a re-fetch of their remembered source URL, or the shipped showcase manifest for a seeded row (no egress at all on that arm) — so there is no foreign id a stranger could aim and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
     "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",

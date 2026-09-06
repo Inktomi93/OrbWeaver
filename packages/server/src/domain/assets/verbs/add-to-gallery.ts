@@ -13,7 +13,7 @@
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetsContext } from "../context.ts";
-import { AssetNotFoundError } from "../contract/errors.ts";
+import { AssetNotFoundError, GalleryItemNotFoundError } from "../contract/errors.ts";
 import type { GalleryAddParams } from "../contract/params.ts";
 import type { AssetsService } from "../contract/service.ts";
 import type { GalleryItemView } from "../contract/views.ts";
@@ -40,7 +40,15 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
     });
     const view = await galleryItemViewById(ctx.db, galleryItemId);
     if (view === undefined) {
-      throw new Error(`assets.addToGallery: row missing after insert (${galleryItemId})`);
+      // REACHABLE, not "Unreachable" (the #1478.5 shape in a second home): `insertGalleryItem` and this
+      // re-read are two separate statements with no transaction between them, so a concurrent
+      // `removeFromGallery`/asset-delete on THIS SAME item — or the CASCADE off the asset row — can land in
+      // the gap and make the re-read empty. No unique/partial index on `gallery_items` can do this on its
+      // own: `insertGalleryItem` already resolved both conflict targets (`gallery_items_asset_subject_unique`,
+      // `gallery_items_asset_unsubjected_unique`) internally and only returns an id it confirmed exists at
+      // that point (its own "row missing after upsert conflict" throw guards THAT read). The item is simply
+      // gone by the time we look again — the domain's existing leak-free NOT_FOUND, not a 500.
+      throw new GalleryItemNotFoundError(galleryItemId);
     }
     return view;
   };

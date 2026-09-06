@@ -39,8 +39,8 @@ function build(
     stagingRoot,
     stProfileDir: join(stagingRoot, "..", "profiles"),
     runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4, failed: 0 })),
-    runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0 })),
-    runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0 })),
+    runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0, notes: [] })),
+    runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0, notes: [] })),
     listTokenUsageCandidates: vi.fn(async () => []),
     compareAndSetTokenUsage: vi.fn(async () => true),
     reconcileImportStats: vi.fn(async () => undefined),
@@ -231,7 +231,7 @@ describe("import-bundle — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig());
     expect(vi.mocked(deps.runStagedDirImport).mock.calls[0]?.[0]?.stagedPath).toBe(stagedPath);
-    expect(result).toEqual({ imported: 3, skipped: 0, failed: 0 });
+    expect(result).toEqual({ imported: 3, skipped: 0, failed: 0, notes: [] });
     expect(await exists(stagedPath)).toBe(false);
     expect(await exists(stagingRoot)).toBe(true);
     expect(await exists(victim)).toBe(true);
@@ -244,7 +244,7 @@ describe("import-bundle — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: "import-bundle-abc.zip" }, vi.fn(), sig());
     expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0 });
+    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [] });
     expect(await exists(stagedPath)).toBe(false);
   });
 
@@ -265,7 +265,7 @@ describe("import-bundle — staging containment", () => {
     const emptyStaged = join(ownerRoot, `${VALID_TOKEN}-empty`);
     await mkdir(emptyStaged, { recursive: true });
     const { deps: emptyDeps, contributions: emptyContributions } = build(stagingRoot, {
-      runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0 })),
+      runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0, notes: [] })),
     });
     await emptyContributions[2].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
     expect(emptyDeps.emitLibraryChanged).not.toHaveBeenCalled();
@@ -362,7 +362,7 @@ describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
     const result = await contributions[2].run(ctx, { token: VALID_TOKEN }, vi.fn(), sig());
 
     expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0 });
+    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [] });
     expect(await exists(join(aRoot, VALID_TOKEN))).toBe(false);
   });
 

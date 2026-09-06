@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { ChatReactionsView, GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatReactionsView, EffectiveRegexView, GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSendAvailability } from "@orb/contracts/connection";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -56,6 +56,7 @@ import type {
   KickParticipantParams,
   ListChatInjectionsParams,
   ListChatsParams,
+  ListEffectiveRegexParams,
   ListForksParams,
   ListInvitesParams,
   ListMessagesParams,
@@ -94,6 +95,7 @@ import type {
   SetMessageHiddenParams,
   SetOfferChoicesParams,
   SetReactionsEnabledParams,
+  SetRegexAllowParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetSeededGreetingParams,
@@ -108,6 +110,7 @@ import type {
   UndoContinueParams,
   UpdateTitleParams,
 } from "./params.ts";
+import type { HostTierRegexAllow } from "./regex.ts";
 import type {
   CompactResult,
   CreateInviteResult,
@@ -364,6 +367,16 @@ export interface ChatService {
   readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
   /** D121-E display-tier room OPTION — host-only. Returns the stored value. */
   readonly setHostDisplayScripts: (params: SetHostDisplayScriptsParams) => Promise<boolean>;
+
+  /** #1742 — host-only write of ONE of the room's regex levers (the master, or one tier's allow). Returns
+   *  the stored post-write allow. Governs PROMPT CONTENT (which scripts the shared assembly runs), so host
+   *  authority, and it emits `chatUpdated` like every other `chatMetadata` write. */
+  readonly setRegexAllow: (params: SetRegexAllowParams) => Promise<HostTierRegexAllow>;
+  /** #1742 — the room's effective regex, in run order, grouped by tier, with what is switched off still
+   *  LISTED. HOST-ONLY under D19: the union resolves under the host's frozen `runAsUserId`, so the tiers
+   *  above the room's own are the host's LIBRARY and a member has no parameter on them. A member reads the
+   *  room's own tier through `regex.listForChat` (member-gated, room-public) instead. */
+  readonly listEffectiveRegex: (params: ListEffectiveRegexParams) => Promise<EffectiveRegexView>;
 
   /** B1 — the per-room offer-choices posture (`chatMetadata.offerChoices`), host-only. Returns the stored
    *  value. Unlike its display-scripts neighbour this one reaches the PROMPT: on, the turn teaches the model

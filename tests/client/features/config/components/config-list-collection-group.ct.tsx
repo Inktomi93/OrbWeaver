@@ -1,21 +1,24 @@
-// CT: the COLLECTION group band (features/config/components/config-list-collection-group.tsx), which became
-// its own module when `config-list-group.tsx` crossed the `component-size` cap. An extracted component owes
-// its own coverage decision, and this file is that decision — it pins the two claims that live ONLY in this
-// module and were, until the split, asserted nowhere:
+// CT: the COLLECTION band in the Settings LIST (features/config/components/config-list-collection-group.tsx).
 //
-//  1. THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). A zero-member band draws no
-//     chevron, and the first fix dropped the chevron's BOX with it — so that band's glyph started 20px left
-//     of every sibling's and the LIST's left edge became DATA-DEPENDENT (a ragged column reads as a
-//     rendering bug, not as a stood-down door). The spacer is the same `Icon` at the same size, merely
-//     `invisible`: visibility:hidden keeps the box and drops the paint. Both halves are measured here.
-//  2. POPULATION DOES NOT DECIDE WHAT SPECIES OF THING A BAND IS (#1099 F5). Empty or full, a band is a
-//     `config-band` button that names its own group — the split must not let the two arms drift apart.
+// ═══ ITS SUBJECT SHRANK AT #1725, AND THAT IS WHAT THIS FILE NOW PINS ═════════════════════════════════
+// The owner moved every collection's member rows out of the LIST and into CONTENT (ruling 2026-09-05: "tag
+// list under in list is kinda a no go … right now its mixed and looks weird"). So this module went from
+// "band + host filter + the contribution's rows + a zero-member sentence" to "the band", and the claims
+// worth pinning here changed with it:
 //
-// What this file deliberately does NOT restate: the empty band's ROLE, focusability, `aria-current` and the
-// CONTENT landing it selects into are driven end-to-end in `surfaces/config-content-surface.ct.tsx` (the
-// round trip needs the whole host), and the POPULATED band's disclosure, unglued name and import door are
-// driven on real rows in `features/regex/components/regex-collection-rows.ct.tsx`. Duplicating either here
-// would be coverage theatre.
+//  1. THE LIST HOLDS NO MEMBER ROWS AT ALL — the ruling's own words, asserted as a number. RED-FIRST
+//     against the unmodified source, where an expanded band mounted the contribution's rows right here.
+//  2. THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). It used to be the ZERO-
+//     MEMBER arm's rule; with one band kind it is now every collection band's, and the claim got stronger
+//     rather than moving: whatever the gutter is worth, a collection band spends the same amount of it as
+//     the settings band above it, so the LIST's left edge is never species- or data-dependent.
+//  3. THERE IS ONE BAND KIND (#1099 F5's successor). Population used to decide which of two components
+//     drew — a disclosure or a bare selection — and F5's rule was that it must not decide whether a band is
+//     a CONTROL. With no rows to disclose, both arms collapsed into one component, so the rule is now
+//     structural and the sweep says so across all four libraries at once.
+//
+// What this file deliberately does NOT restate: the CONTENT library the band opens (its control row, its
+// rows, its empty arm) is `surfaces/config-content-surface.ct.tsx`'s — the round trip needs the whole host.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -25,12 +28,37 @@ import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_collection_band", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 
-/** Every library EMPTY — the first-run arm, which is the one that draws the zero-member band. */
+/** One POPULATED library beside three empty ones — the mix that used to draw two different bands, and the
+ *  one a "no member rows in the LIST" sweep has to be taken over: a stub where every library is empty could
+ *  pass the row count for the wrong reason. */
 const AMBIENT: Readonly<Record<string, unknown>> = {
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_collection_band", globalRole: "user" },
   "settings.getUserSettings": () => USER_SETTINGS_VIEW,
   "settings.listThemes": () => [],
-  "tag.listTagsWithUsage": [],
+  "tag.listTagsWithUsage": [
+    {
+      id: "tag_a",
+      name: "fantasy",
+      color: null,
+      color2: null,
+      source: null,
+      folderType: "NONE",
+      sortOrder: 0,
+      isHiddenOnCard: false,
+      usage: { characters: 2, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 2 },
+    },
+    {
+      id: "tag_b",
+      name: "slow burn",
+      color: null,
+      color2: null,
+      source: null,
+      folderType: "NONE",
+      sortOrder: 1,
+      isHiddenOnCard: false,
+      usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
+    },
+  ],
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
@@ -38,9 +66,13 @@ const AMBIENT: Readonly<Record<string, unknown>> = {
 };
 
 const BAND = '[data-slot="config-band"]';
-/** A zero-member COLLECTION band, and a SETTINGS band in the same list — the two whose left edges must agree. */
-const EMPTY_COLLECTION_BAND = `[data-config-group="regex"] ${BAND}`;
+const LIST_REGION = '[data-slot="config-list"]';
+/** The POPULATED library's band — the one whose click used to unfold rows into this pane. */
+const TAGS_BAND = `[data-config-group="tags"] ${BAND}`;
+/** A SETTINGS band in the same list — the left edge a collection band's must agree with. */
 const SETTINGS_BAND = `[data-config-group="appearance"] ${BAND}`;
+/** Every collection group id the registry ships, so the sweeps are the species and not one probe. */
+const COLLECTIONS = ["tags", "regex", "worldInfo", "rosterPreset"] as const;
 
 async function stub(page: Page): Promise<void> {
   await routeTrpc(page, AMBIENT);
@@ -51,21 +83,52 @@ function glyphs(band: Locator): Locator {
   return band.locator("svg");
 }
 
-test("the disclosure gutter is RESERVED: an empty band's group glyph starts at the same x as a sibling's", async ({ mount, page }) => {
+// ── #1725 · THE LIST HOLDS NO MEMBER ROWS ────────────────────────────────────────────────────────────
+// RED-FIRST: on the unmodified source this fails, because clicking a populated band expanded it and mounted
+// `tag-collection-rows.tsx` inside the LIST pane. The count is taken AFTER a click on purpose — a sweep of
+// the resting pane would pass on the old source too, since the group starts collapsed.
+test("#1725: clicking a collection band mounts NO member rows in the LIST", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  const list = component.locator(LIST_REGION);
+
+  await component.locator(TAGS_BAND).click();
+  // The band itself is a `Button`, never a `ListRow`, so the whole pane's row census is the claim — and the
+  // settings sections' own rows are excluded by scoping to the collection's group frame.
+  for (const id of COLLECTIONS) {
+    await expect(list.locator(`[data-collection="${id}"] [data-slot="list-row-root"]`), `no ${id} member rows in the LIST`).toHaveCount(0);
+  }
+  // …and the band is still the door it was: the click made it the location.
+  await expect(component.locator(TAGS_BAND)).toHaveAttribute("aria-current", "true");
+});
+
+test("#1725: a collection band never claims to unfold anything", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  const emptyGlyph = glyphs(component.locator(EMPTY_COLLECTION_BAND)).nth(1);
+  // `aria-expanded` on a control with nothing to expand is a promise the band cannot keep. It carried one
+  // while its rows lived here; with the rows in CONTENT the attribute is absent on every library, populated
+  // or not — which is also the structural half of "two band kinds do not exist".
+  for (const id of COLLECTIONS) {
+    await expect(component.locator(`[data-config-group="${id}"] ${BAND}`)).not.toHaveAttribute("aria-expanded", /.*/);
+  }
+});
+
+test("the disclosure gutter is RESERVED: a collection band's group glyph starts at the same x as a settings band's", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  const collectionGlyph = glyphs(component.locator(TAGS_BAND)).nth(1);
   const settingsGlyph = glyphs(component.locator(SETTINGS_BAND)).nth(1);
-  await expect(emptyGlyph).toBeVisible();
+  await expect(collectionGlyph).toBeVisible();
   await expect(settingsGlyph).toBeVisible();
   // The claim is the COLUMN, so it is measured as a delta between two real bands rather than against a
-  // remembered number: whatever the gutter is worth, a zero-member band spends the same amount of it.
+  // remembered number: whatever the gutter is worth, a collection band spends the same amount of it.
   await expect
     .poll(async () => {
-      const empty = await emptyGlyph.boundingBox();
+      const collection = await collectionGlyph.boundingBox();
       const settings = await settingsGlyph.boundingBox();
-      return empty === null || settings === null ? Number.POSITIVE_INFINITY : Math.abs(empty.x - settings.x);
+      return collection === null || settings === null ? Number.POSITIVE_INFINITY : Math.abs(collection.x - settings.x);
     })
     .toBeLessThanOrEqual(0.5);
 });
@@ -74,7 +137,7 @@ test("…and NOT RECLAIMED: the chevron's box is still drawn, it is only unpaint
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  const spacer = glyphs(component.locator(EMPTY_COLLECTION_BAND)).nth(0);
+  const spacer = glyphs(component.locator(TAGS_BAND)).nth(0);
   // `visibility: hidden`, not `display: none` and not a removed node — the box is what holds the column.
   await expect.poll(async () => await spacer.evaluate((el: Element) => getComputedStyle(el).visibility)).toBe("hidden");
   await expect
@@ -83,8 +146,8 @@ test("…and NOT RECLAIMED: the chevron's box is still drawn, it is only unpaint
       return box === null ? 0 : box.width;
     })
     .toBeGreaterThan(0);
-  // The chevron a populated band paints is the same glyph at the same size — so the spacer cannot drift
-  // from what it stands in for by being re-spelled as a width.
+  // The chevron a settings band paints is the same glyph at the same size — so the spacer cannot drift from
+  // what it stands in for by being re-spelled as a width.
   const settingsChevron = glyphs(component.locator(SETTINGS_BAND)).nth(0);
   await expect
     .poll(async () => {
@@ -95,60 +158,21 @@ test("…and NOT RECLAIMED: the chevron's box is still drawn, it is only unpaint
     .toBeLessThanOrEqual(0.5);
 });
 
-test("an empty library's band is the same SPECIES of control as a populated group's — it just says zero", async ({ mount, page }) => {
+test("there is ONE band kind: population changes the number, never the control", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  const band = component.locator(EMPTY_COLLECTION_BAND);
-  await expect(band).toHaveRole("button");
-  // It names its own group (a band addressable only as a descendant is a path, not an identity) and it says
-  // how many — "empty" and "the count hasn't loaded" are the two things this number tells apart.
-  await expect(band).toHaveAttribute("data-config-group", "regex");
-  await expect(band).toHaveAccessibleName(/ 0$/);
-  // Every collection in this stub is empty, so the sweep is the whole species, not the one group probed.
-  await expect(component.locator(`${BAND}[data-config-group="worldInfo"]`)).toHaveRole("button");
-  await expect(component.locator(`${BAND}[data-config-group="rosterPreset"]`)).toHaveRole("button");
-  await expect(component.locator(`${BAND}[data-config-group="tags"]`)).toHaveRole("button");
-});
-
-// ── #1211: the shelf must not SHOUT ABOUT ABSENCE ────────────────────────────────────────────────────
-// Measured on the live surface: the ONE populated library rendered as a bare 32px band while each EMPTY
-// collection got a 75px dashed box under its own band (44 vs 87 at a coarse pointer) — so the loudest,
-// tallest, most-bordered thing on the Collections shelf was the part with nothing in it, and the reader's
-// eye was pulled to three absences and away from the one library that exists. Attention inverted.
-//
-// The empty state itself is LOAD-BEARING and stays (a shelf that says nothing about an empty library reads
-// as an unbuilt feature, not a shipped one — `empty-states-are-load-bearing`): what goes is the BOX. The
-// band's own count is the honest zero, and the teaching line rides quietly under it as one line of gloss.
-test("#1211: an empty library teaches in ONE quiet line — no dashed box, and it never outweighs its band", async ({ mount, page }) => {
-  await stub(page);
-  const component = await mount(<ConfigHostStory />);
-
-  const group = component.locator('[data-slot="config-group"][data-collection="regex"]');
-  const band = component.locator(EMPTY_COLLECTION_BAND);
-  const empty = group.locator('[data-slot="collection-group-empty"]');
-
-  // The teaching survives — the reader is still told what this library is for.
-  await expect(empty).toBeVisible();
-  await expect(empty).not.toBeEmpty();
-
-  // …and it is a LINE, not a box. No dashed rule anywhere in the group frame.
-  await expect
-    .poll(
-      async (): Promise<number> =>
-        await group.evaluate(
-          (el: Element): number => [...el.querySelectorAll("*"), el].filter((node) => getComputedStyle(node).borderTopStyle === "dashed").length,
-        ),
-    )
-    .toBe(0);
-
-  // The absence must not outweigh the band that names it: the teaching line spends less vertical room than
-  // the band itself. At the defect it spent more than twice the band (75px against 32px).
-  await expect
-    .poll(async (): Promise<number> => {
-      const bandBox = await band.boundingBox();
-      const emptyBox = await empty.boundingBox();
-      return bandBox === null || emptyBox === null ? Number.POSITIVE_INFINITY : emptyBox.height / bandBox.height;
-    })
-    .toBeLessThanOrEqual(1);
+  // Tags has members and the other three have none, in the same stub — so this sweep is the mixed case the
+  // old two-component split existed for, and every band answers identically.
+  for (const id of COLLECTIONS) {
+    const band = component.locator(`[data-config-group="${id}"] ${BAND}`);
+    await expect(band, `${id} band is a control`).toHaveRole("button");
+    // It names its own group (a band addressable only as a descendant is a path, not an identity) and it
+    // says how many — "empty" and "the count hasn't loaded" are the two things this number tells apart.
+    await expect(band).toHaveAttribute("data-config-group", id);
+    await expect(band).toHaveAccessibleName(/\d$/);
+  }
+  // The populated one says its real census; the empty ones say the honest zero.
+  await expect(component.locator(TAGS_BAND)).toHaveAccessibleName(/ 2$/);
+  await expect(component.locator(`[data-config-group="regex"] ${BAND}`)).toHaveAccessibleName(/ 0$/);
 });

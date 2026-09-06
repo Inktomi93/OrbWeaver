@@ -35,7 +35,7 @@ const ASSEMBLE_CTX: AssembleContext = {
   recentMessages: [],
 };
 
-/** A 2-character group ctx (cast + index-aligned speakerRefs) — feeds the per-speaker card-section shape so
+/** A 2-character group ctx (characters + index-aligned speakerRefs) — feeds the per-speaker card-section shape so
  *  each speaker renders THEIR OWN card as primary + the other as a co-speaker (chat.md §7). */
 const GROUP_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
@@ -220,7 +220,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
   });
 
   test("the host's PROSE override re-words the round nudge, keeping the per-speaker name fence", async () => {
-    // PROSE-1 `chat.group.roundNudge`: the fence is the one line stopping the model voicing the whole cast,
+    // PROSE-1 `chat.group.roundNudge`: the fence is the one line stopping the model voicing every character,
     // so it is exactly the sentence a host wants to tune. It resolves off the round's ONE immutable ctx.
     const chatId = await seedChat(db, "nudge-prose");
     const requests: TurnRequest[] = [];
@@ -293,7 +293,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
   // the per-speaker fence can never fire for it; its two INDEPENDENT toggles ride the same trailing-user
   // seam. Without the `<speaker>` instruction the renderer's split has nothing to split on — which is
   // exactly the state the shipped narrator transcripts were generated in.
-  test("a MULTI-member narrator round asks for the <speaker> markers AND names the cast", async () => {
+  test("a MULTI-member narrator round asks for the <speaker> markers AND names the characters", async () => {
     const chatId = await seedChat(db, "narr-nudge");
     const requests: TurnRequest[] = [];
     await driveRound({
@@ -329,7 +329,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
     expect(text).toContain("voicing the present characters (Aria, Bran)");
   });
 
-  test("a CAST-OF-ONE narrator round sends no nudge at all (byte-identical single turn)", async () => {
+  test("a SINGLE-CHARACTER narrator round sends no nudge at all (byte-identical single turn)", async () => {
     const chatId = await seedChat(db, "narr-solo");
     const requests: TurnRequest[] = [];
     await driveRound({

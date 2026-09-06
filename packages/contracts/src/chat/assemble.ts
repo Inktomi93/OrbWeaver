@@ -218,6 +218,9 @@ export const MEMORY_RECALL_REJECTS_SHOWN = 12;
 export interface AssembleTrace {
   staticSections: string[];
   dynamicSections: string[];
+  /** WORLD-INFO entries that survived the budget pass this turn (= `worldInfoActivated.length`). It is NOT a
+   *  count of delivered injections: the injection list also carries user/guided/persona/author's-note/
+   *  new-chat-marker candidates, and counting those reported lore on a chat with no books attached. */
   worldInfoIncluded: number;
   worldInfoDropped: { id: string; reason: "budget" }[];
   /** The WI entries that actually FIRED into this turn's prompt — the budget-survived pool by entry IDENTITY
@@ -247,6 +250,15 @@ export interface AssembleTrace {
     postHistory?: string;
     scenario?: string;
     authorsNote?: string;
+  };
+  /** Roster members whose contribution to a MERGED room-override fallback (the `{{original}}` a room override
+   *  inherits, for `main_prompt` / `post_history`) was CUT to fit the concatenation cap, by name and by field.
+   *  The merged fallback is a hard-capped join, so a member's card prose can be shortened — or, before the
+   *  per-member allocation, dropped entirely behind a long earlier member — while `overrideSources` said only
+   *  "merged (present characters)". Absent ⇒ nothing was cut, which is the overwhelming case. */
+  mergedFallbackTruncated?: {
+    mainPrompt?: string[];
+    postHistory?: string[];
   };
 }
 
@@ -638,6 +650,8 @@ export interface AssembleContext {
    *  strings, not entry identity). The engine's live-turn `worldInfoActivated` bus emit derives its id list
    *  from this (`pipeline.ts`); the host preview panel lists id + keys. */
   wiTrace?: {
+    /** How many WORLD-INFO entries survived the budget pass — `activated.length`, never the size of the
+     *  delivered injection list (that list carries five other candidate families). */
     included: number;
     dropped: { id: string; reason: "budget" }[];
     matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];

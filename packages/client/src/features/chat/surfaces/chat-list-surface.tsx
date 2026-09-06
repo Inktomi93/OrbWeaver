@@ -68,11 +68,13 @@ import {
   useChatListCharacterFilter,
   useChatListMonth,
   useChatListSearch,
+  useMobileViewport,
 } from "#state";
 import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
 import { FilterExits } from "../components/chat-list-filter-exits.tsx";
 import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "../components/chat-list-filter-field.tsx";
 import { ChatListMonthFilter } from "../components/chat-list-month-filter.tsx";
+import { ChatListPhoneFilters } from "../components/chat-list-phone-filters.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -98,8 +100,9 @@ const SKELETON_ROW_COUNT = 5;
 const ESTIMATED_ROW_PX = 44;
 
 // THE MONTH BOUND LIVES IN ITS OWN COMPONENT (`components/chat-list-month-filter.tsx`) since #1350 — the
-// direction ruling (#490/#1348), the native-picker record (#500/#522) and the phone's folded arm are all
-// stated there, at the code that carries them. This surface composes it beside the search field.
+// direction ruling (#490/#1348) and the native-picker record (#500/#522) are stated there, at the code that
+// carries them. The FOLD is no longer that component's: since #1718 arm A a phone puts BOTH secondary
+// filters behind ONE `ChatListPhoneFilters` row, and this surface picks the arm.
 const SKIP_TO_LIST_LABEL = "Skip to chats";
 const SEARCH_LABEL = "Search chats";
 const CLEAR_SEARCH_LABEL = "Clear the search";
@@ -123,6 +126,10 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   const clearSearch = (): void => setChatListSearch("");
   const clearMonth = (): void => setChatListMonth("");
   const characterFilter = useChatListCharacterFilter();
+  // The shell's published viewport regime — which of the two filter ARMS this pane composes (#1718 arm A).
+  // Not a mobile mode: the same two controls, in the same order, behind a disclosure only where the pane is
+  // the whole screen and the pixels have to be bought back.
+  const isMobile = useMobileViewport();
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -155,8 +162,13 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
           {SKIP_TO_LIST_LABEL}
         </Button>
         {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
-          shortcut you arrive for, and burying them under the search box made them read as a filter widget. */}
-        <ChatListFacesStrip characterFilter={characterFilter} />
+          shortcut you arrive for, and burying them under the search box made them read as a filter widget.
+          ON A PHONE the faces slot is the shared Filters DISCLOSURE (#1718 arm A), which holds the faces and
+          the month bound behind one 44px trigger instead of two; the order the reader sees is unchanged,
+          because the panel opens in exactly this position and lays the two controls out in this same order.
+          The CHIP stays outside it either way — it is the character axis's way OUT (#490's one reset
+          contract), and a way out behind a fold is not one. */}
+        {isMobile ? <ChatListPhoneFilters characterFilter={characterFilter} /> : <ChatListFacesStrip characterFilter={characterFilter} />}
         {characterFilter !== null ? <ChatListFilterChip filter={characterFilter} /> : null}
         {/* ONE SEARCH VOICE (#99 item 2). Every other search box on the app says what it searches —
             "Search characters…", "Search presets", "Search your documents", "Search characters, scenes,
@@ -189,7 +201,9 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
           />
           {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}
         </Row>
-        <ChatListMonthFilter />
+        {/* The DESKTOP column's month bound. On a phone it is inside the Filters panel above — one home for
+            the control, two positions, never two copies on screen at once. */}
+        {isMobile ? null : <ChatListMonthFilter />}
         <Stack className="min-h-0 flex-1">
           <ChatListBody
             activeChatId={activeChatId}

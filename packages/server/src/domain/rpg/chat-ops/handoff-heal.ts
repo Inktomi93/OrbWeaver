@@ -87,6 +87,23 @@ export async function handoffHealStatements(ctx: RpgContext, args: HandoffHealAr
   return [...preset, ...sheets];
 }
 
+/** THE NOMINATE-SIDE DISCLOSURE (#1762): would an accepted `copyGmPreset` offer put a preset row in
+ *  `nomineeUserId`'s library? It asks {@link gmPresetStatements}' own two questions — is there a knob, and
+ *  can the nominee already read it — and answers without writing, because at nominate nobody has consented
+ *  to anything yet.
+ *
+ *  A CEILING, NOT A PROMISE, and deliberately: the copy runs at ACCEPT, so a knob cleared in between, or a
+ *  `copyPresetToUser` that cannot resolve the source, degrades to the built CLEAR arm and nothing lands.
+ *  Over-promising in that direction is the honest failure — the nominee was told what they were consenting
+ *  to and received less; under-promising would be a copy they never saw coming. */
+export async function handoffWouldCopyGmPreset(ctx: RpgContext, chatId: ChatId, nomineeUserId: UserId): Promise<boolean> {
+  const game = await findGameByChat(ctx.db, chatId);
+  if (game === undefined || game.gmPresetId === null) {
+    return false;
+  }
+  return !(await ctx.resolvePresetOwned(game.gmPresetId, nomineeUserId));
+}
+
 /** POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from `character:<old>`
  *  onto `character:<new>` (the `promoteActor` mechanism, aimed at a transfer instead of a promotion).
  *

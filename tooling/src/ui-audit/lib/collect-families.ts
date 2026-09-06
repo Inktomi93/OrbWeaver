@@ -24,6 +24,7 @@ import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { classifyAccentBorder, classifyGlowShadow } from "./checks-decor.ts";
+import { checkDuplicateDoorPopulations } from "./checks-duplicate-door.ts";
 import { checkFontCensus, fontCensusPopulations } from "./checks-font-census.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset } from "./checks-grid.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
@@ -32,7 +33,6 @@ import { checkIconTile, classifyBgPattern, classifyMotionStatic, classifyRadialG
 import {
   checkClippedOverflow,
   checkDoubleEmptyState,
-  checkDuplicateDoorPopulations,
   checkEdgeFlush,
   checkHeadlineOverhang,
   checkInlinePaddingLeak,
@@ -119,6 +119,12 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const borderContrasts = partitionedFindings("border-contrast", samples.borderContrasts ?? [], classifyBorderContrast);
   const names = totalJudge("aria-name", samples.accessibleNames, checkAccessibleName);
   const tabIndexes = totalJudge("tabindex-positive", samples.tabIndexes, checkTabIndexSmell);
+  // Accounting-only (#1077): no items, no checker — `census-interactive.ts`'s `restHiddenRevealFine`
+  // count is the whole rule, carried entirely on `relationalAccounting`'s WITHHELD reason.
+  const revealCoverage = accountedFindings<never>("reveal-coverage", [], () => null, {
+    census: samples.relationalAccounting?.["reveal-coverage"],
+    samplesAreJudged: false,
+  });
   runArray(state, () => tapTargets.findings);
   runArray(state, () => controlAspects.findings);
   runArray(state, () => borderContrasts.findings);
@@ -127,6 +133,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => tabIndexes.findings);
   runArray(state, () => checkHeadingOrder(samples.headings));
   runArray(state, () => obscured.findings);
+  runArray(state, () => revealCoverage.findings);
   return {
     ...state,
     populationAccounting: {
@@ -134,6 +141,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
       "border-contrast": borderContrasts.accounting,
       "control-aspect": controlAspects.accounting,
       "obscured-target": obscured.accounting,
+      "reveal-coverage": revealCoverage.accounting,
       "tabindex-positive": tabIndexes.accounting,
       "tap-target": tapTargets.accounting,
     },
@@ -205,12 +213,15 @@ export function mediaFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const buriedRasters = checkBuriedRasterPopulations(samples.buriedRasters ?? []);
   const distorted = partitionedFindings("distorted-image", samples.images, classifyImageDistortion);
+  // Accounting-only (#1079): canvas ink is EXCLUDED, never a silent zero (census-collision.ts's count).
+  const canvasInk = accountedFindings<never>("canvas-ink", [], () => null, { census: samples.relationalAccounting?.["canvas-ink"], samplesAreJudged: false });
   runArray(state, () => distorted.findings);
   runArray(state, () => samples.brokenImages.map(checkBrokenImage));
   runArray(state, () => buriedRasters.findings);
+  runArray(state, () => canvasInk.findings);
   return {
     ...state,
-    populationAccounting: { "buried-raster": buriedRasters.accounting, "distorted-image": distorted.accounting },
+    populationAccounting: { "buried-raster": buriedRasters.accounting, "canvas-ink": canvasInk.accounting, "distorted-image": distorted.accounting },
   };
 }
 

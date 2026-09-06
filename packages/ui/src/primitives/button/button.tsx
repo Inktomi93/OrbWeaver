@@ -47,14 +47,20 @@ export type ButtonProps = NamedButtonProps | TextButtonProps;
 
 export function Button(props: ButtonProps): ReactElement {
   const { className, intent, size, shape, selection, loading = false, disabled = false, focusableWhenDisabled, ...rest } = props;
+  // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
+  const stamp = variantProps(buttonVariants, { intent, size, shape, selection }, className);
   return (
     <BaseButton
       data-slot="button"
-      // The gradient-border accent ring keys off this attr, painting on the primary CTA only.
-      data-cta={intent === "primary" ? "" : undefined}
+      // The gradient-border accent ring keys off this attr, painting on the primary CTA only — read off
+      // the RESOLVED arm (the stamp above), never the raw prop (#1242). `intent` DEFAULTS to `primary` in
+      // the recipe, so `intent === "primary"` left every bare `<Button>` painting the primary fill with no
+      // ring: nine live call sites, the shared form submit chrome among them, were a primary that did not
+      // look like one. The stamp is the same `defaultVariants` lookup that picked the classes, so paint
+      // and ring cannot disagree about which arm rendered.
+      data-cta={stamp["data-intent"] === "primary" ? "" : undefined}
       aria-busy={loading ? true : undefined}
-      // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
-      {...variantProps(buttonVariants, { intent, size, shape, selection }, className)}
+      {...stamp}
       disabled={disabled || loading}
       // Loading is a transient busy state, not a real disablement — stay in the tab sequence for AT.
       focusableWhenDisabled={focusableWhenDisabled ?? loading}

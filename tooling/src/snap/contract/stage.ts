@@ -72,6 +72,79 @@ export interface StageRow {
   readonly rsyncs: number;
   /** Absent for a usable stage; present until the dead band is rebuilt or swept. */
   readonly dead?: StageDeath;
+  /** The stage's OWN idle timer (#1163 arm b): a detached, niced sleeper bound to this band that tears the
+   *  stage down when nothing has used it for the TTL. Absent means no timer is armed — which is a degraded
+   *  state, never a protected one: the keeper is NEVER a fence, so a row whose keeper pid is dead stays
+   *  exactly as reapable by reap-on-acquire and `--stage-sweep` as it was before the timer existed. */
+  readonly keeper?: StageKeeper;
+}
+
+/** The armed idle timer for one band. `pid` is the keeper process's own pid (its own process group, so a
+ *  teardown reaps its whole tree); `armedAt` is when this keeper took the band, which is what lets a keeper
+ *  recognise that a REBUILD replaced it and release rather than reap somebody else's fresh stage. */
+export interface StageKeeper {
+  readonly pid: number;
+  readonly armedAt: string;
+}
+
+/** WHICH ARM ended a stage — the four teardown paths, named so `--stage-status` can answer "what happened
+ *  to band 3?" after the row is gone:
+ *   • `timer`   — the stage's own idle keeper (#1163 arm b);
+ *   • `acquire` — lazy reap-on-acquire: the next lane that needed a band took the strand (arm a);
+ *   • `sweep`   — `--stage-sweep`, the deliberate reaper;
+ *   • `down`    — `--stage-down`, an operator tearing down a stage they are finished with. */
+const STAGE_REAP_ARMS = ["timer", "acquire", "sweep", "down"] as const;
+export type StageReapArm = (typeof STAGE_REAP_ARMS)[number];
+
+/** One row of `<main>/.cache/snap-stage/reaps.json` — a bounded ring of the most recent teardowns. A reaped
+ *  band leaves NO row behind, so without this ledger "band 3 is free" and "band 3 was reaped out from under
+ *  a lane 40 seconds ago" are the same observation. */
+export interface StageReapEntry {
+  readonly band: number;
+  readonly arm: StageReapArm;
+  readonly sha: string;
+  readonly checkout: string;
+  readonly at: string;
+  /** How long the row had been idle when the arm fired — 0 for a deliberate `--stage-down`. */
+  readonly idleMs: number;
+}
+
+/** `<main>/.cache/snap-stage/reaps.json` — versioned and `rows`-keyed exactly like `StageBandsFile`, so
+ *  the two files beside each other read the same way. */
+export interface StageReapsFile {
+  readonly v: 1;
+  readonly rows: readonly StageReapEntry[];
+}
+
+/** What ONE poll of the stage's own idle timer decides (#1163 arm b):
+ *   • `wait`    — something still accounts for this band (inside the TTL, a live session, or a connected
+ *                 client): re-arm and poll again. The DEFAULT for every uncertainty.
+ *   • `reap`    — idle past the TTL with no live session and no connected client: tear it down.
+ *   • `release` — this keeper no longer owns the row (cleared, or rebuilt under a new keeper): exit
+ *                 touching NOTHING, because whatever is on the band now is not what this timer was armed for.
+ *   • `refuse`  — the row names a RESERVED port pair (the dev stack, the fixture, an e2e mode): exit 2
+ *                 loudly. A timer that could reach the operator's own stack is not a timer, it is an outage. */
+const STAGE_KEEPER_VERDICTS = ["wait", "reap", "release", "refuse"] as const;
+export type StageKeeperVerdict = (typeof STAGE_KEEPER_VERDICTS)[number];
+
+/** The evidence ONE keeper poll judges — every field observed by the imperative loop, so the verdict stays
+ *  pure and unit-testable (the `stageSweepVerdict` discipline). */
+export interface StageKeeperEvidence {
+  /** The band's row as the table reads it RIGHT NOW, or null when nothing holds the band any more. */
+  readonly row: StageRow | null;
+  /** This keeper process's own pid — compared against `row.keeper.pid` to detect a rebuild. */
+  readonly keeperPid: number;
+  /** Names from `row.sessions` whose daemon is ALIVE (the same fence `stageSweepVerdict` reads). */
+  readonly liveSessions: readonly string[];
+  /** A DESCRIPTION of something holding an ESTABLISHED connection to one of the row's ports that is not
+   *  one of the stage's own processes — a driving browser, a sibling instrument, an operator's curl. Null
+   *  = nobody is connected. Unidentifiable and off-box peers describe as foreign: "I could not identify
+   *  the client" never grants permission to reap (ops/stage-probe.ts `foreignBandPeer`). */
+  readonly foreignPeer: string | null;
+  /** Those of the row's ports that a RESERVED row owns (`_shared/ports.ts`) — normally empty. */
+  readonly reservedPorts: readonly number[];
+  readonly nowMs: number;
+  readonly ttlMs: number;
 }
 
 /** `<main>/.cache/snap-stage/bands.json` — the whole table, versioned like the session registry's rows so a
@@ -192,6 +265,17 @@ export type StageDecision = "reuse" | "rebuild";
 export interface StageLimits {
   readonly ttlMs: number;
   readonly cap: number;
+}
+
+/** ONE established TCP socket as `ss -tnp` reports it: the local port it terminates, the peer it faces,
+ *  and the pid owning the LOCAL end (null when `ss` named none). The stage timer's raw signal — a band
+ *  port's clients are found by matching each connection's PEER port against the local port of another
+ *  connection, which is how a loopback pair identifies both of its ends from one snapshot. */
+export interface EstablishedConnection {
+  readonly localPort: number;
+  readonly peerHost: string;
+  readonly peerPort: number;
+  readonly pid: number | null;
 }
 
 export interface EnsureStageOpts {

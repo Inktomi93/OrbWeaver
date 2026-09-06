@@ -51,6 +51,13 @@
 // a LIVE session ref is never a strand, whatever its idle age. The verdicts are pure (lib/stage-bands.ts
 // `stageSweepVerdict`/`rowIsDangling`, lib/stage-plan.ts `orphanStageDirs`); the sweep NEVER touches a band
 // process it cannot positively identify as a stage, which is what keeps a sibling's live stage safe.
+//
+// AND THE STAGE NOW EXPIRES ITSELF (issue #1163 arm b, 2026-09-05). The three arms above are all
+// PULL-driven — a lane must want a band, or an operator must run the sweep — so a box with idle lanes kept
+// full stacks resident for hours (measured: bands stranded 2h56m / 4h51m / 1h37m with live servers and no
+// sessions). `ensureStage` now ARMS the band's own idle timer at its single exit (`armStageKeeper`), and
+// that timer tears the stage down through the same path `--stage-down` takes. It is never a fence: the
+// three arms above are unchanged and still reap a band whose keeper died.
 
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
@@ -75,44 +82,16 @@ import {
 } from "../lib/stage-plan.ts";
 import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef } from "./stage-git.ts";
+import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
-import { killProcessGroup, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { recordStageReap } from "./stage-reap-log.ts";
 import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
+import { stopStage } from "./stage-teardown.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEBUG_TOKEN_BYTES = 16;
-
-/** Stop a stage's stack, and MEAN IT. Two beats, because the first one is not guaranteed to happen:
- *
- *  1. the STAGED TREE's own launcher (`stack.sh stop`), which reaps its pidfiles properly — resolved,
- *     not hardcoded, since the #393 P5 move (#447);
- *  2. the band check. Whatever the launcher did or could not do, a stage-rooted process still holding a
- *     band port after it is killed BY PROCESS GROUP.
- *
- *  Beat 2 is the whole point. `stopStage` used to be a single `if (existsSync(scripts/dev/stack.sh))`
- *  around beat 1 — and after the launcher moved, that guard was permanently false, so every teardown
- *  path (`--stage-down`, the stale-stage rebuild, the #108 dead-stage reclaim) SILENTLY did nothing and
- *  then removed the dir out from under a still-running stack. That is the mechanism behind #324's
- *  orphaned process groups, and it is why a launcher that cannot be found is now a printed problem
- *  rather than a quiet return.
- *
- *  The group kill is fenced exactly like the sweep's: a band port held by something that is NOT
- *  stage-rooted is somebody else's server and is never touched. */
-export function stopStage(dir: string, ports: StagePorts): void {
-  const stackSh = existsSync(dir) ? stageLauncherPath(dir, existsSync) : null;
-  if (stackSh !== null) {
-    runNicedSync("bash", [stackSh, "stop"], { cwd: dir, stdio: "inherit" });
-  } else if (existsSync(dir)) {
-    print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
-  }
-  for (const port of [ports.server, ports.vite]) {
-    const pid = stageBandPortPid(port);
-    if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
-      print(`[snap-stage] killed the process group still holding :${port} (pid ${pid}) after the launcher stop`);
-    }
-  }
-}
 
 /** The inherited keys read straight off the dev `.env` on disk (NOT via process.env — under
  *  `ORB_ENV_NO_FILE` the stage's own boot never loads the file at all). No `.env` ⇒ nothing inherited, which
@@ -299,6 +278,13 @@ function bootOntoBand(input: {
  *  instead of a git ref — see the module header. */
 export function ensureStage(opts: EnsureStageOpts): StageRow {
   const root = repoRoot();
+  // ARM (b) (#1163): every path below yields a LIVE row, and every live row gets the band's own idle
+  // timer — armed here, at the ONE exit, so no future arm can forget it. Idempotent: a warm reuse whose
+  // keeper is still running spawns nothing (ops/stage-keeper.ts).
+  return armStageKeeper(markerRoot(root), resolveStageRow(root, opts));
+}
+
+function resolveStageRow(root: string, opts: EnsureStageOpts): StageRow {
   const dirty = opts.dirty ?? false;
   const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
   const home = markerRoot(root);
@@ -350,6 +336,10 @@ export function ensureStage(opts: EnsureStageOpts): StageRow {
     );
     stopStage(allocation.row.dir, { server: allocation.row.serverPort, vite: allocation.row.vitePort });
     removeStageDir(allocation.row.checkout, allocation.row);
+    // The row is NOT cleared here — the lock already replaced it with our claim — so this arm records its
+    // own ledger entry rather than going through `tearDownStageRow` (#1163). The strand's old keeper, if
+    // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
+    recordStageReap(home, allocation.row, "acquire", nowMs);
   }
   return bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh });
 }

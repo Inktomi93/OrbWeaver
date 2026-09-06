@@ -4,7 +4,7 @@
 // occupied-but-UNPROVEN port is refused before the VRAM budget is read and before anything is spawned.
 import type { WakeBudgetVerdict } from "@orb/server/infra/providers/vllm/engine";
 import type { EngineLaunchModels, EngineLaunchProbes, PortHealth } from "@orb/tooling/stack";
-import { decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE, expectedAdoptionModels, probeEngineAdoption } from "@orb/tooling/stack";
+import { classifyEngineBoot, decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE, expectedAdoptionModels, probeEngineAdoption } from "@orb/tooling/stack";
 import { probePortHealth } from "../../../../tooling/src/stack/lib/port-health.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -103,4 +103,46 @@ test("gen is adoptable under both its bare and org-qualified served model names"
   expect(expectedAdoptionModels("embed", LAUNCH)).toEqual(["embed-model"]);
   expect(expectedAdoptionModels("rerank", LAUNCH)).toEqual(["rerank-model"]);
   expect(expectedAdoptionModels("gen", LAUNCH)).toEqual(["gen-model", "org/gen-model"]);
+});
+
+// ── #1494: the fleet VERDICT must match what the fleet did ──────────────────────────────────────────
+//
+// `waitHealthy` returned the moment the child had exited, the caller reported that as `identityFailed:
+// false`, and only identity failures reached `EXIT.toolError` — so an engine that DIED during boot fell
+// through to `EXIT.clean` and the launcher printed `booted 2/3` while telling the operator the fleet was
+// up. These pin the classification, which is where the collapse happened; the launcher itself is a
+// PROGRAM that spawns real vLLM and is never run from a test (`.claude/rules/lane-standing-facts.md`).
+
+test("an engine that EXITED during boot FAILS the fleet and is named (#1494)", () => {
+  const outcome = classifyEngineBoot("gen", "spawn", { wait: "exited", identityCaptured: false });
+  expect(outcome.kind, "a dead engine is a boot failure, not a silent omission from the tally").toBe("failed");
+  expect(outcome.kind === "failed" ? outcome.reason : "").toContain("gen EXITED before becoming healthy");
+  // The operator's next step has to be IN the line — the log is the only place the reason exists.
+  expect(outcome.kind === "failed" ? outcome.reason : "").toContain("vllm-gen.log");
+});
+
+test("a health-poll TIMEOUT is still `booted` — the #1165 booted-late ruling survives (#1494 planted control)", () => {
+  // The opposite fact, and the reason the wait reports three states instead of a boolean: the poll ceiling
+  // is a BOUND, not a liveness verdict. An engine still coming up past it answers later and is exit-0.
+  expect(classifyEngineBoot("embed", "spawn", { wait: "timeout", identityCaptured: true })).toEqual({ kind: "booted" });
+  expect(classifyEngineBoot("embed", "spawn", { wait: "healthy", identityCaptured: true })).toEqual({ kind: "booted" });
+});
+
+test("a spawned engine with no safe launch identity FAILS the fleet — alive is not the same as ours (#1494)", () => {
+  const outcome = classifyEngineBoot("rerank", "spawn", { wait: "healthy", identityCaptured: false });
+  expect(outcome.kind).toBe("failed");
+  expect(outcome.kind === "failed" ? outcome.reason : "").toContain("neither recorded nor signalled");
+});
+
+test("a no-spawn decision still fails the fleet exactly as its own tier ruled (#1494)", () => {
+  // `classifyEngineBoot` must not re-decide this: it reads the decision tier's mapped Record, so adding a
+  // new action still forces a ruling there and only there.
+  expect(classifyEngineBoot("embed", "adopt", null)).toEqual({ kind: "no-spawn" });
+  expect(classifyEngineBoot("embed", "skip", null)).toEqual({ kind: "no-spawn" });
+  expect(classifyEngineBoot("embed", "refuse", null).kind).toBe("failed");
+  for (const action of ["adopt", "refuse", "skip", "spawn"] as const) {
+    expect(classifyEngineBoot("embed", action, null).kind === "failed", `${action} must agree with its own ruling`).toBe(
+      ENGINE_LAUNCH_IDENTITY_FAILURE[action],
+    );
+  }
 });

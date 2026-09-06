@@ -41,9 +41,14 @@ export type {
   StageDecision,
   StageHealth,
   StageHealthEvidence,
+  StageKeeper,
+  StageKeeperEvidence,
+  StageKeeperVerdict,
   StageLimits,
   StagePaths,
   StagePorts,
+  StageReapArm,
+  StageReapEntry,
   StageRow,
   StageSweepEvidence,
   StageSweepVerdict,
@@ -91,9 +96,19 @@ export {
 export { parseSnapReportArgs } from "./lib/run-report-query.ts";
 export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
 export { allocateStageBand, resolveStageLimits, stageHealthVerdict, stageSweepVerdict } from "./lib/stage-bands.ts";
+export {
+  describeStageKeeper,
+  keeperPollMs,
+  keeperRemainingMs,
+  reservedRowPorts,
+  stageKeeperClaim,
+  stageKeeperReapLine,
+  stageKeeperReservedRefusal,
+  stageKeeperVerdict,
+} from "./lib/stage-keeper-plan.ts";
 // `shortSha`/`stageRowBaseUrl` are the row's DERIVED fields (#1276 stopped storing them — a serialized copy
 // of a derived value is a second home that drifts), so every consumer derives them through this door.
-export { shortSha, stageBandClaim, stageBandRefusal, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
+export { shortSha, stageBandClaim, stageBandRefusal, stageKeeperLogPath, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
@@ -108,6 +123,9 @@ export type { SnapFlagDescriptor } from "./ops/flag-grammar.ts";
 export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.ts";
 export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
+// cli.ts's carved-out internal-flag dispatch (`--session-daemon` / `--stage-keeper`) — cli.ts consumes
+// this through the front door like every other command it dispatches (Core-Tooling-Law.md §4.2/§4.3/§9.8).
+export { runInternalEntry } from "./ops/internal-entry.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isFileOriginNoise, isFileOriginRequest, isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
@@ -131,8 +149,14 @@ export { runSessionDaemon } from "./ops/session-daemon.ts";
 // way every other arm does. The export stays a front-door member for scripts and tests.
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
+// The band idle timer (#1163 arm b): `armStageKeeper` is `ensureStage`'s, `runStageKeeper` is cli.ts's
+// dispatch target for the `--stage-keeper` entry, and both are front-door members so a committed proof
+// can drive the SHIPPED timer against a planted row instead of re-spelling its rules.
+export { armStageKeeper, runStageKeeper, stageKeeperAlive } from "./ops/stage-keeper.ts";
 // #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`. The table
 // readers ride beside it: a proof plants rows in a scratch home rather than the box's real band table.
-export { readBands, stageBandRefusalFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
+export { readBands, setStageKeeper, stageBandRefusalFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
+// The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
+export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
 export { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "./ops/theme-stamp.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";

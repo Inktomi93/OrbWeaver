@@ -30,6 +30,7 @@ import {
   checkClippedOverflow,
   checkContrast,
   checkControlAspect,
+  checkDuplicateDoorPopulations,
   checkDuplicateDoors,
   checkEdgeFlush,
   checkFontCensus,
@@ -46,6 +47,7 @@ import {
   checkRadialGlow,
   checkRepeatedText,
   checkScriptErrors,
+  checkStaleDuplicateDoorAllowances,
   checkTabIndexSmell,
   checkTapTarget,
   checkTapTargetPopulations,
@@ -92,13 +94,14 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the 60 live ids", () => {
+test("the design-audit rule denominator is closed at the 62 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(60);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(60);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(62);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(62);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
+    "reveal-coverage:P3",
     "control-aspect:P2",
     "obscured-target:P0/P1",
     "aria-name:P1",
@@ -115,6 +118,7 @@ test("the design-audit rule denominator is closed at the 60 live ids", () => {
     "side-tab:P3",
     "glow-shadow:P3",
     "distorted-image:P1/P2",
+    "canvas-ink:P3",
     "broken-image:P1",
     "radial-halo:P2",
     "radial-spotlight-glow:P3",
@@ -1883,9 +1887,11 @@ auditRuleTest(
 // every virtualized list at coarse pointer — where every row's action cluster is permanent rather than
 // hover-revealed, so two rows' doors are on one plane at once.
 
-/** A door as the walker emits it; `list`/`item` default to the not-in-a-list case. */
+/** A door as the walker emits it; `list`/`item` default to the not-in-a-list case. `toolbarKey` is null
+ *  throughout: the view-switch-cell exclusion (#1705) is a DOM fact, so its proof is the rendered fixture in
+ *  `ops/walker/census-interactive.int.test.ts`, not a hand-built sample. */
 function door(selector: string, path: string, list: string | null = null, item: string | null = null): ActionDoorInput {
-  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item };
+  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item, toolbarKey: null };
 }
 
 auditRuleTest(
@@ -1942,6 +1948,53 @@ test("duplicate-action-door stays observable and bounded above six distinct auth
     population: { affected: 7, judged: 7, capped: 1 },
   });
   expect(findings[0]?.representatives).toHaveLength(6);
+});
+
+// ── #1720: DUPLICATE_DOOR_ALLOWANCES — the runtime rule's own ruled-pairing home ──────────────────────
+// Every test below passes a FABRICATED allowance table (never the module's empty production
+// `DUPLICATE_DOOR_ALLOWANCES`, which stays empty per the header receipt in
+// tooling/src/ui-audit/lib/checks-duplicate-door.ts) so the mechanism is pinned without minting a
+// production ruling that would immediately read as stale.
+
+test("#1720: an allowed pairing does not fire, and is excluded (not silently dropped) from the population", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const { findings, accounting } = checkDuplicateDoorPopulations(doors, allowances);
+
+  expect(findings).toEqual([]);
+  expect(accounting).toMatchObject({ candidates: 2, judged: 0, excluded: { ruledDual: 2 } });
+});
+
+test("#1720: a THIRD door on an already-ruled pair still shows up in the denominator", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b"), door("#c", "button<home-c")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const { findings, accounting } = checkDuplicateDoorPopulations(doors, allowances);
+
+  expect(findings, "the allowance covers the RULED pairing, not an unbounded population").toEqual([]);
+  expect(accounting.excluded).toEqual({ ruledDual: 3 });
+});
+
+test("#1720: checkStaleDuplicateDoorAllowances is silent when the ruled pairing still offers two homes", () => {
+  const doors = [door("#a", "button<home-a"), door("#b", "button<home-b")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  expect(checkStaleDuplicateDoorAllowances(doors, allowances)).toEqual([]);
+});
+
+test("#1720: checkStaleDuplicateDoorAllowances FIRES when a ruled pairing no longer offers two homes (the pair was fixed, or renamed)", () => {
+  const oneHomeLeft = [door("#a", "button<home-a")];
+  const allowances = { "button|more message actions": { why: "test-only ruling" } };
+
+  const stale = checkStaleDuplicateDoorAllowances(oneHomeLeft, allowances);
+
+  expect(stale).toHaveLength(1);
+  expect(stale[0]).toContain("button|more message actions");
+  expect(stale[0]).toContain("test-only ruling");
+
+  const renamedAway: readonly ActionDoorInput[] = [];
+  expect(checkStaleDuplicateDoorAllowances(renamedAway, allowances)).toHaveLength(1);
 });
 
 // ── measured-spill pass-throughs (impeccable) ────────────────────────────────
@@ -2349,16 +2402,18 @@ test("collectFindings on an all-clean bundle (incl. a present main landmark) ret
 
 test("family populations are the exact detector dispatches, including both decor detectors", () => {
   expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
-    // 8 since border-contrast joined the a11y family with #1315's --contrast-edge carry-over: its
-    // per-side border ink vs the composited surround is a WCAG 1.4.11 non-text-contrast judgement.
-    a11y: 8,
+    // 9 since border-contrast joined the a11y family with #1315's --contrast-edge carry-over (its
+    // per-side border ink vs the composited surround is a WCAG 1.4.11 non-text-contrast judgement),
+    // and reveal-coverage (#1077) is an accounting-only ninth dispatch beside it.
+    a11y: 9,
     // 4 since the forced-state family joined colour: contrast · gray-on-color · quiet-state · hover-contrast.
     color: 4,
     // 3 since #1027 split the accent-border detector into its two RULE dispatches (side-tab ·
     // border-accent-on-rounded), each publishing its own rung-2 population over the shared census.
     decor: 3,
-    // 3 since buried-raster joined media: distorted-image · broken-image · buried-raster.
-    media: 3,
+    // 4 since buried-raster joined media (distorted-image · broken-image · buried-raster), and
+    // canvas-ink (#1079) is an accounting-only fourth dispatch beside it.
+    media: 4,
     // 7 for the same #1027 reason: radial-halo · radial-spotlight-glow · stripe-background ·
     // grid-line-background · icon-tile-stack · layout-transition · bounce-easing are seven RULES
     // sharing three walker censuses, and a scan is a rule dispatch, not a detector call.

@@ -669,9 +669,9 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "export declare function hostV1(): void;\n",
+        "packages/showcase-plugins/bundles/host-v1.d.ts": "export declare function hostV1(): void;\n",
       },
-      why: "DECLARED LIMIT — a `.d.ts` DECLARATION file: it emits nothing at runtime, so there is no behavior a mirror test could assert. `hasCallableExport` counts an `export declare function`, which is exactly how a shipped typings asset (the plugin host contract lives under `entry/boot/seed-assets/`) would otherwise be accused",
+      why: "DECLARED LIMIT — a `.d.ts` DECLARATION file: it emits nothing at runtime, so there is no behavior a mirror test could assert. `hasCallableExport` counts an `export declare function`, which is exactly how a shipped typings asset (the plugin host contract lives under `packages/showcase-plugins/bundles/`) would otherwise be accused",
     },
     {
       files: {

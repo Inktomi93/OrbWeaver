@@ -7,7 +7,18 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
 const SESSION_CALL_BASE_MS = 5000;
 const SESSION_NAVIGATION_CALL_BASE_MS = 180_000;
-const TERMINATION_ACK_WAIT_MS = 100;
+/** The QUIET-BOX base for a REAL CDP round-trip (`Runtime.terminateExecution` ack, then a `page.reload`
+ *  commit) — never an idle TTL, so unlike `SESSION_CALL_BASE_MS` this one IS load-scaled (#1759). The
+ *  original 100ms flat missed its own cancellation ack under contention even ONCE scaled by `budget()`:
+ *  at loadavg 28/24 cores the factor is only ~1.17 (`computeLoadFactor` is `loadavg1/cpuCount`, capped at
+ *  8), so 100ms scaled to ~117ms — still too tight for a REAL CDP round-trip, and `recovered` read
+ *  `false` for a cancellation that would have settled given real time. The daemon then tore the whole
+ *  session down as TERMINAL, so the next call booted a fresh page with nothing navigated instead of
+ *  reusing the one this test expects to survive (measured: reproduced at loadavg 28-61 on three trees).
+ *  500ms is the new quiet-box base — small relative to the whole call's 5s+ budget, and it still scales
+ *  further under heavier contention. `budget()` is read PER CALL, not at module load (a long-lived daemon
+ *  serves calls across changing load). */
+const TERMINATION_ACK_WAIT_BASE_MS = 500;
 
 class TerminalSessionCallError extends Error {}
 
@@ -28,7 +39,7 @@ async function terminatePageExecution(session: ProbeSession): Promise<void> {
   const cdp = await session.page.context().newCDPSession(session.page);
   try {
     // @orb-gate-ignore caught-failure-ownership(promise:send): the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.
-    await Promise.race([cdp.send("Runtime.terminateExecution").catch(() => undefined), sleep(TERMINATION_ACK_WAIT_MS)]);
+    await Promise.race([cdp.send("Runtime.terminateExecution").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);
     // @orb-gate-ignore caught-failure-ownership(promise:reload): reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.
     await session.page.reload({ waitUntil: "commit", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);
   } finally {
@@ -73,10 +84,11 @@ export async function runSessionCallWithinBudget(
     ),
     work,
   ]).then(([cancelled]) => cancelled);
-  const recovered = await Promise.race([recovery, sleep(TERMINATION_ACK_WAIT_MS).then(() => false)]);
+  const ackWaitMs = budget(TERMINATION_ACK_WAIT_BASE_MS);
+  const recovered = await Promise.race([recovery, sleep(ackWaitMs).then(() => false)]);
   if (!recovered) {
     throw new TerminalSessionCallError(
-      `${result.error.message}; cancellation did not settle the call within ${TERMINATION_ACK_WAIT_MS}ms, so session ${state.name} is terminal and will close`,
+      `${result.error.message}; cancellation did not settle the call within ${ackWaitMs}ms, so session ${state.name} is terminal and will close`,
       { cause: result.error },
     );
   }

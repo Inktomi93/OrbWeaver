@@ -23,18 +23,20 @@
 // the transform is idempotent and only reorders whitespace, so it never busts the static-cache prefix.
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
-import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
+import type { PostProcessConfig } from "@orb/server/kit/post-process";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
 import type { AssemblySlice } from "../contract/results.ts";
 import { injectionSource, personaContributorLabel, sectionSource } from "./budget.ts";
 import { BEFORE_HISTORY_DEPTH } from "./injections.ts";
 import { renderMacros } from "./macros.ts";
+import { hasActiveMarker, sectionTriggers } from "./sections.ts";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
 // (top-level so it isn't re-compiled per call).
@@ -124,6 +126,9 @@ interface BuildEnv {
    *  say what EACH member in the room costs instead of one opaque "cards" total. Empty for every other
    *  section: they have exactly one contributor. */
   readonly memberBlocks: Map<string, readonly { name: string; text: string }[]>;
+  /** The preset's `postProcess` block — the SAME config the two joined system halves are transformed with, so
+   *  a system-half budget slice can be priced on the bytes that are actually SENT (see {@link pushSlices}). */
+  readonly postProcess: PostProcessConfig | undefined;
 }
 
 /**
@@ -167,9 +172,12 @@ function overrideSet(v: string | null | undefined): v is string {
 const MEMBER_FIELDS = ["description", "personality", "scenario", "exampleMessages", "systemPrompt", "postHistoryInstructions"] as const;
 type MemberField = (typeof MEMBER_FIELDS)[number];
 
-/** Hard cap on the concatenated merged-fallback value (chars) — bounds the room-override `{{original}}`
- *  blowup when many present members each carry a long field. */
+/** Hard cap on the concatenated merged-fallback value, in CODE POINTS — bounds the room-override
+ *  `{{original}}` blowup when many present members each carry a long field. */
 const MERGED_FALLBACK_CAP = 4000;
+
+/** The separator between merged member contributions (counted against {@link MERGED_FALLBACK_CAP}). */
+const MERGED_JOIN = "\n\n";
 
 /** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
  *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh.
@@ -197,32 +205,101 @@ function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: A
   return field === "exampleMessages" ? normalizeExampleStart(rendered) : rendered;
 }
 
-/** Drop empties + duplicates, preserving first-seen order. */
-function dedupeNonEmpty(parts: readonly string[]): string[] {
+/** ONE contributor's share of a merged fallback: whose card the bytes are, and the bytes. */
+interface MergedContribution {
+  readonly name: string;
+  readonly text: string;
+}
+
+/** Drop empties + duplicates, preserving first-seen order. Keyed on the TEXT (two members with identical card
+ *  text contribute once, attributed to the first), because the value is a prompt, not a roster. */
+function dedupeNonEmpty(parts: readonly MergedContribution[]): MergedContribution[] {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: MergedContribution[] = [];
   for (const p of parts) {
-    const t = p.trim();
+    const t = p.text.trim();
     if (t.length > 0 && !seen.has(t)) {
       seen.add(t);
-      out.push(t);
+      out.push({ name: p.name, text: t });
     }
   }
   return out;
 }
 
-/** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, + whether
- *  it merged the present characters. Solo/scoped collapses to `activeValue`. Consumed only by the two
- *  `{{original}}`-templated overridable markers, never the scenario marker (that would double-emit it). */
-function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeValue: string, registry: MacroRegistry): { value: string; merged: boolean } {
+/**
+ * Split {@link MERGED_FALLBACK_CAP} across the contributions and cut each on CODE POINTS.
+ *
+ * Two defects lived in the `joined.slice(0, CAP)` this replaces. (1) A UTF-16 cut can land BETWEEN a surrogate
+ * pair and ship a lone surrogate into the prompt — any emoji or non-BMP script in a card reaches the cut.
+ * (2) The cut was positional, so ONE long first member consumed the entire budget and every later member's
+ * card contributed literally nothing, while the trace said only `merged: true`.
+ *
+ * The allocation is WATER-FILLING: every contributor is offered an equal share, contributors that need less
+ * than their share release the surplus to the rest, and that repeats until nothing more is released. A short
+ * member is therefore never cut to make room for a long one, and a long one is cut only against members that
+ * actually want the space. Under the cap the result is byte-identical to the plain join (every contribution is
+ * offered more than it needs and takes all of it), which is the overwhelming case.
+ *
+ * `truncated` names the contributors that were cut — the fact a host needs when their card's prose is not in
+ * the prompt and the trace otherwise only says "merged".
+ */
+function allocateMergedFallback(parts: readonly MergedContribution[], cap: number): { texts: string[]; truncated: string[] } {
+  const points = parts.map((p) => [...p.text]);
+  const separators = Math.max(parts.length - 1, 0) * MERGED_JOIN.length;
+  const budget = Math.max(cap - separators, 0);
+  if (points.reduce((n, c) => n + c.length, 0) <= budget) {
+    return { texts: parts.map((p) => p.text), truncated: [] };
+  }
+  const shares = points.map(() => 0);
+  let open = points.map((_, i) => i);
+  let remaining = budget;
+  while (open.length > 0 && remaining > 0) {
+    const share = Math.floor(remaining / open.length);
+    if (share === 0) {
+      break;
+    }
+    const satisfied = open.filter((i) => (points[i]?.length ?? 0) <= share);
+    if (satisfied.length === 0) {
+      // Nobody releases surplus — everyone still open is longer than the even share, so they all take it.
+      for (const i of open) {
+        shares[i] = share;
+        remaining -= share;
+      }
+      open = [];
+      break;
+    }
+    for (const i of satisfied) {
+      const need = points[i]?.length ?? 0;
+      shares[i] = need;
+      remaining -= need;
+    }
+    open = open.filter((i) => !satisfied.includes(i));
+  }
+  const texts = points.map((cp, i) => cp.slice(0, shares[i] ?? 0).join(""));
+  const truncated = parts.flatMap((p, i) => ((shares[i] ?? 0) < (points[i]?.length ?? 0) ? [p.name] : []));
+  return { texts, truncated };
+}
+
+/** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, whether it
+ *  merged the present characters, and WHO got cut to fit the cap. Solo/scoped collapses to `activeValue`.
+ *  Consumed only by the two `{{original}}`-templated overridable markers, never the scenario marker (that
+ *  would double-emit it). */
+function resolveScopeFallback(
+  field: MemberField,
+  ctx: AssembleContext,
+  activeValue: string,
+  registry: MacroRegistry,
+): { value: string; merged: boolean; truncated: readonly string[] } {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
-    return { value: activeValue, merged: false };
+    return { value: activeValue, merged: false, truncated: [] };
   }
-  const parts = dedupeNonEmpty([activeValue, ...co.map((m) => renderMemberField(field, m, ctx, registry))]);
-  const joined = parts.join("\n\n");
-  const value = joined.length > MERGED_FALLBACK_CAP ? joined.slice(0, MERGED_FALLBACK_CAP) : joined;
-  return { value, merged: true };
+  const contributions = dedupeNonEmpty([
+    { name: ctx.character.name, text: activeValue },
+    ...co.map((m) => ({ name: m.name, text: renderMemberField(field, m, ctx, registry) })),
+  ]);
+  const allocated = allocateMergedFallback(contributions, MERGED_FALLBACK_CAP);
+  return { value: allocated.texts.join(MERGED_JOIN), merged: true, truncated: allocated.truncated };
 }
 
 /** WHICH frame opens a co-speaker's card block — the ONE thing that differs between the two turns that merge
@@ -232,7 +309,7 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
  *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
  *  the arm is what the SHAPE already decided. */
 function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {
-  return ctx.speaker?.kind === "multi-voice" ? "chat.group.castMember" : "chat.group.alsoPresent";
+  return ctx.speaker?.kind === "multi-voice" ? "chat.group.characterHeading" : "chat.group.alsoPresent";
 }
 
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */
@@ -278,6 +355,17 @@ function recordMergedCacheBuster(trace: AssembleTrace): void {
   }
 }
 
+/** Record WHOSE merged-fallback contribution the cap cut (`assembly/assemble` allocateMergedFallback). A cut
+ *  is a silent loss of card prose the host wrote, and `overrideSources` only ever said "merged (present
+ *  characters)" — the names are the fact that makes it actionable. Nothing cut ⇒ the field stays absent. */
+function recordMergedFallbackTruncation(trace: AssembleTrace, field: "mainPrompt" | "postHistory", names: readonly string[]): void {
+  if (names.length === 0) {
+    return;
+  }
+  trace.mergedFallbackTruncated ??= {};
+  trace.mergedFallbackTruncated[field] = [...names];
+}
+
 function recordOverrideSource(trace: AssembleTrace, field: keyof NonNullable<AssembleTrace["overrideSources"]>, source: string | undefined): void {
   if (source === undefined) {
     return;
@@ -314,7 +402,7 @@ function renderOverridable(
   env: BuildEnv,
   cardField: "systemPrompt" | "postHistoryInstructions",
   roomOverride: string | null | undefined,
-): { text: string; merged: boolean } {
+): { text: string; merged: boolean; truncated: readonly string[] } {
   const { ctx, cardCtx, originals, registry } = env;
   const cardOverride = ctx.character[cardField];
   const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry });
@@ -327,16 +415,17 @@ function renderOverridable(
     return {
       text: renderMacros(roomOverride, ctx, ctx.activePersona, { original: fallback.value, registry }),
       merged: fallback.merged,
+      truncated: fallback.truncated,
     };
   }
-  return { text: fallback.value, merged: fallback.merged };
+  return { text: fallback.value, merged: fallback.merged, truncated: fallback.truncated };
 }
 
 function renderOverridableMarker(section: TemplatedMarkerSection, marker: "main_prompt" | "post_history", env: BuildEnv): string {
   const { ctx, trace } = env;
   const cardField = marker === "main_prompt" ? "systemPrompt" : "postHistoryInstructions";
   const room = marker === "main_prompt" ? ctx.roomOverrides?.mainPrompt : ctx.roomOverrides?.postHistory;
-  const { text, merged } = renderOverridable(section, env, cardField, room);
+  const { text, merged, truncated } = renderOverridable(section, env, cardField, room);
   const source = resolveOverrideSource({
     room,
     forbidRoomOverride: section.forbidRoomOverride,
@@ -348,6 +437,7 @@ function renderOverridableMarker(section: TemplatedMarkerSection, marker: "main_
   if (merged) {
     recordMergedCacheBuster(trace);
   }
+  recordMergedFallbackTruncation(trace, marker === "main_prompt" ? "mainPrompt" : "postHistory", truncated);
   return text;
 }
 
@@ -531,14 +621,19 @@ const SYNTHETIC_COMPACT_SUMMARY_ID = "__synthetic-compact-summary";
 
 /** PD-140/D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
  *  `compact_summary` section (the neo C1 cache-anchor invariant). The assembler — not the preset author —
- *  guarantees delivery: when `ctx.compactSummary` is set and no enabled `compact_summary` section exists,
- *  synthesize one immediately before the `chat_history` pivot (end of section list if there's no pivot). */
+ *  guarantees delivery: when `ctx.compactSummary` is set and no ACTIVE `compact_summary` section exists,
+ *  synthesize one immediately before the `chat_history` pivot (end of section list if there's no pivot).
+ *
+ *  ACTIVE, never merely enabled (`assembly/sections` hasActiveMarker): an enabled `compact_summary` whose
+ *  `trigger` array excludes THIS turn's generation type is dropped by the walk below, so counting it as
+ *  delivery suppressed the synthesis and the compacted chat's summary reached the model NOWHERE — exactly the
+ *  silent break this guarantee exists to prevent. The synthetic section declares no `trigger`, so it always
+ *  fires; a trigger-MATCHED real section still wins, so nothing is ever double-emitted. */
 function withImplicitCompactSummary(config: PromptConfig, ctx: AssembleContext): PromptConfig {
   if (ctx.compactSummary === null || ctx.compactSummary === undefined || ctx.compactSummary.trim().length === 0) {
     return config;
   }
-  const hasSection = config.sections.some((s) => s.type === "marker" && s.marker === "compact_summary" && s.enabled);
-  if (hasSection) {
+  if (hasActiveMarker(config, "compact_summary", ctx.generationType ?? "normal")) {
     return config;
   }
   const synthetic: PromptSection = {
@@ -553,21 +648,6 @@ function withImplicitCompactSummary(config: PromptConfig, ctx: AssembleContext):
   const sections = [...config.sections];
   sections.splice(pivotIndex >= 0 ? pivotIndex : sections.length, 0, synthetic);
   return { ...config, sections };
-}
-
-function generationTypeBucket(t: GenerationType): GenerationType {
-  return t === "regenerate" ? "swipe" : t;
-}
-
-/** ST `shouldTrigger`: a section with no trigger always fires; otherwise only when this turn's generation
- *  type matches one of its triggers (alias-normalized). */
-function sectionTriggers(section: PromptSection, generationType: GenerationType): boolean {
-  const trigger = "trigger" in section ? section.trigger : undefined;
-  if (trigger === undefined || trigger.length === 0) {
-    return true;
-  }
-  const turn = generationTypeBucket(generationType);
-  return trigger.some((t) => generationTypeBucket(t) === turn);
 }
 
 function isSectionDynamic(section: PromptSection): boolean {
@@ -660,7 +740,9 @@ function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, 
   }
   acc.afterHistory.push(injection);
   env.trace.afterHistorySections.push(section.id);
-  pushSlices(section, rendered, env, acc);
+  // `in-chat`: the SHAPE splice delivers these bytes verbatim — the ASSEMBLE post-process only ever runs on
+  // the two joined system halves, so transforming the slice here would price bytes nobody produces.
+  pushSlices({ section, rendered, env, acc, delivery: "in-chat" });
 }
 
 /** WHO this section's bytes belong to — the budget's per-contributor label. A card section is the roster
@@ -687,17 +769,45 @@ function personaLabel(name: string | undefined): string {
   return name === undefined || name.trim().length === 0 ? "persona" : personaContributorLabel(name);
 }
 
-/** Record a rendered section's budget slices: ONE per contributor. The merged card section splits per roster
- *  member (recorded during its render); every other section is a single contributor. */
-function pushSlices(section: PromptSection, rendered: string, env: BuildEnv, acc: WalkAccum): void {
+/**
+ * WHERE a contribution's bytes are delivered, which decides what still happens to them after the walk.
+ * `system-half` bytes join the static/dynamic strings and then run the preset's ASSEMBLE post-process;
+ * `in-chat` bytes are handed to the SHAPE splice verbatim (the pass never touches history rows).
+ */
+type SliceDelivery = "system-half" | "in-chat";
+
+/**
+ * The bytes a contribution actually DELIVERS — what the budget must be priced on (`assembly/budget`).
+ *
+ * A `system-half` contribution runs the same `applyAssemblePostProcess` the joined half runs, and the two
+ * agree EXACTLY rather than approximately: every part is `.trim()`ed before it joins on `\n\n`, so no newline
+ * run can span a join seam, and collapsing per part is therefore the same string as collapsing the join.
+ * Priced pre-transform, a preset with `collapseNewlines` on charged the host for whitespace the model never
+ * received — the budget described a prompt nobody sent.
+ */
+function deliveredSliceText(text: string, delivery: SliceDelivery, env: BuildEnv): string {
+  return delivery === "system-half" ? applyAssemblePostProcess(text, env.postProcess) : text;
+}
+
+/** Record a rendered section's budget slices: ONE per contributor, priced on its DELIVERED bytes. The merged
+ *  card section splits per roster member (recorded during its render); every other section is a single
+ *  contributor. */
+function pushSlices(args: {
+  readonly section: PromptSection;
+  readonly rendered: string;
+  readonly env: BuildEnv;
+  readonly acc: WalkAccum;
+  readonly delivery: SliceDelivery;
+}): void {
+  const { section, rendered, env, acc, delivery } = args;
   const source = sectionSource(section);
   const blocks = env.memberBlocks.get(section.id);
   if (blocks === undefined || blocks.length === 0) {
-    acc.slices.push({ source, label: sectionLabel(section, env.ctx), text: rendered, sectionId: section.id });
+    acc.slices.push({ source, label: sectionLabel(section, env.ctx), text: deliveredSliceText(rendered, delivery, env), sectionId: section.id });
     return;
   }
   for (const block of blocks) {
-    acc.slices.push({ source, label: block.name, text: block.text.trim(), sectionId: section.id });
+    acc.slices.push({ source, label: block.name, text: deliveredSliceText(block.text.trim(), delivery, env), sectionId: section.id });
   }
 }
 
@@ -727,7 +837,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
   }
   (dynamic ? acc.dynamicParts : acc.staticParts).push(rendered);
   (dynamic ? env.trace.dynamicSections : env.trace.staticSections).push(section.id);
-  pushSlices(section, rendered, env, acc);
+  pushSlices({ section, rendered, env, acc, delivery: "system-half" });
 }
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),
@@ -739,6 +849,9 @@ function appendInjections(args: {
   label: string;
   trace: AssembleTrace;
   slices: AssemblySlice[];
+  /** The preset ASSEMBLE post-process — these injections join a SYSTEM HALF, so their slice is priced on the
+   *  post-transform bytes exactly as a section's is ({@link deliveredSliceText}). */
+  postProcess: PostProcessConfig | undefined;
 }): void {
   for (const inj of args.list) {
     const text = inj.content.trim();
@@ -746,14 +859,14 @@ function appendInjections(args: {
       args.target.push(text);
       args.sections.push(args.label);
       args.trace.chatInjectionsIncluded += 1;
-      args.slices.push({ ...injectionSource(inj), text });
+      args.slices.push({ ...injectionSource(inj), text: applyAssemblePostProcess(text, args.postProcess) });
     }
   }
 }
 
 /** Route the system-block chat injections — content arrives already macro-resolved + role-framed.
  *  `before_prompt` prepends to static, `in_static` appends, `in_prompt` goes dynamic. */
-function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: WalkAccum): void {
+function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: WalkAccum, pp: PostProcessConfig | undefined): void {
   const all = ctx.chatInjections;
   if (all === undefined || all.length === 0) {
     return;
@@ -766,7 +879,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     trace.chatInjectionsIncluded += beforeTexts.length;
     for (const inj of before) {
       trace.staticSections.unshift("chat-injection:before_prompt");
-      acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
+      acc.slices.push({ ...injectionSource(inj), text: applyAssemblePostProcess(inj.content.trim(), pp) });
     }
   }
   appendInjections({
@@ -776,6 +889,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     label: "chat-injection:in_static",
     trace,
     slices: acc.slices,
+    postProcess: pp,
   });
   appendInjections({
     list: all.filter((i) => i.position === "in_prompt"),
@@ -784,6 +898,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     label: "chat-injection:in_prompt",
     trace,
     slices: acc.slices,
+    postProcess: pp,
   });
 }
 
@@ -816,6 +931,9 @@ function assembleWithSlices(
 ): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
   const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
+  // Read ONCE and threaded onto the env: the joined halves and every system-half budget slice must run the
+  // SAME transform, or the budget prices a prompt that differs from the one being sent.
+  const pp = config.postProcess;
   const acc: WalkAccum = {
     staticParts: [],
     dynamicParts: [],
@@ -832,13 +950,18 @@ function assembleWithSlices(
     pivotIndex,
     registry,
     memberBlocks: new Map(),
+    postProcess: pp,
   };
 
-  const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
-  // Send history unless a chat_history marker is explicitly present AND disabled.
-  const sendHistory = !(pivotSection !== undefined && pivotSection.enabled === false);
-
   const generationType = ctx.generationType ?? "normal";
+
+  const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
+  // Send history unless a chat_history marker is explicitly present AND does not fire this turn — disabled,
+  // or gated by a `trigger` that excludes this generation type. The TRIGGER arm is new with #1462 (the plain
+  // markers only just gained the field, ST parity): the pivot is the one section the walk skips before the
+  // trigger check, so nothing else would read its gate, and a stored gate no reader honours is the same
+  // silent drop this row is about.
+  const sendHistory = !(pivotSection !== undefined && (pivotSection.enabled === false || !sectionTriggers(pivotSection, generationType)));
   config.sections.forEach((section, idx) => {
     if (!section.enabled) {
       return;
@@ -852,12 +975,14 @@ function assembleWithSlices(
     walkSection(section, idx, env, acc);
   });
 
-  applySystemInjections(ctx, trace, acc);
+  applySystemInjections(ctx, trace, acc, pp);
 
   // The `in_chat` injections never touch the system halves (SHAPE splices them into history), but they ARE
   // part of what the model reads next turn — the rpg state block rides exactly this channel. Account them
   // here, at their pre-splice content: the splice's role framing (`[Note from system: …]`) adds a handful of
-  // tokens the estimate doesn't chase (advisory by construction, like every count on this surface).
+  // tokens the estimate doesn't chase (advisory by construction, like every count on this surface). NOT
+  // post-processed: the ASSEMBLE pass runs on the two joined SYSTEM halves only, and these bytes never join
+  // one — they go to the SHAPE splice verbatim.
   for (const inj of ctx.chatInjections ?? []) {
     if (inj.position === "in_chat" && inj.content.trim().length > 0) {
       acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
@@ -871,7 +996,6 @@ function assembleWithSlices(
 
   // Post-process the joined system halves per the preset (collapseNewlines). No-op unless the preset opts
   // in — an untouched preset returns byte-identical joins. Idempotent + whitespace-only → cache-safe.
-  const pp = config.postProcess;
   return {
     prompt: {
       static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
@@ -909,6 +1033,10 @@ export function previewSection(
     pivotIndex: -1,
     registry,
     memberBlocks: new Map(),
+    // The single-section preview emits no budget slices, so nothing reads this — the field is carried for
+    // the env's shape, and `previewSection` deliberately shows the section's OWN render (the post-process is
+    // a property of the joined half, not of one section).
+    postProcess: config.postProcess,
   };
   return { rendered: renderSection(section, env), half, trace };
 }

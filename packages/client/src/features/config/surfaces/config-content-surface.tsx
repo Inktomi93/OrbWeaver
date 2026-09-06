@@ -30,16 +30,18 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { MemberDrillHeader } from "#components";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
 import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
 import {
+  clearCollectionSelection,
   configAnchorId,
   configSectionNavs,
   isCollectionGroup,
   isPlaceholderGroup,
-  isPushingGroup,
+  rendersOwnBody,
   setActiveConfigSub,
   setConfigFocus,
   useActiveConfigGroup,
@@ -51,6 +53,7 @@ import {
 import { ConfigCollectionLanding } from "../components/config-collection-landing.tsx";
 import { ConfigGroupPlaceholder } from "../components/config-group-placeholder.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
+import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
 import { computeActiveSub, computeVisibleSettings } from "../lib/config-scroll-spy.ts";
@@ -86,9 +89,9 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   useFocusOnMount(contentRef, selection !== null);
 
   const active = activeGroup === null ? null : groups.get(activeGroup);
-  // The active PUSHING group, or `null` when the pane shows the member or the teaching frame — ONE derivation the
+  // The active group that RENDERS ITS OWN BODY, or `null` when the pane shows the member or the teaching frame — ONE derivation the
   // region label, the footer and the arm all read.
-  const shownGroup = selection === null && active !== null && isPushingGroup(active) ? active : null;
+  const shownGroup = selection === null && active !== null && rendersOwnBody(active) ? active : null;
   const showsGroup = shownGroup !== null;
   // The ACTIVE collection with nothing open — the arm the zero-member band selects into (F5). Derived here
   // beside `shownGroup` so the two arms are one decision, and passed down rather than re-derived.
@@ -264,18 +267,39 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
   if (selection !== null) {
     const group = groups.get(selection.kind as ConfigGroupId);
     return (
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
-      >
-        <MemberBody group={group} memberId={selection.memberId} />
-      </QueryBoundary>
+      <Stack data-slot="config-member-frame" gap="block">
+        {/* THE DRILL ROW IS THE MEMBER SURFACE'S (#1747, §3.4) — see `CollectionDrillExit` below for why,
+            and for why the host still draws the EXIT while the member's own read is in flight.
+            THE ERROR ARM IS THE BATTERY, UNWRAPPED, and that is gate law rather than a preference:
+            `render-error-via-battery` requires that arrow to be `QueryErrorState`-rooted, so the exit
+            cannot ride along there the way it rides the fallback. It costs nothing the reader needs — the
+            battery's own Retry is the verb for a failed read, the LIST band is still on screen at every
+            desktop width, and the phone's topbar carries its own Back. */}
+        <QueryBoundary
+          fallback={
+            <Stack gap="block">
+              <CollectionDrillExit group={group} />
+              <Text voice="gloss">Loading…</Text>
+            </Stack>
+          }
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
+        >
+          <MemberBody group={group} memberId={selection.memberId} />
+        </QueryBoundary>
+      </Stack>
     );
   }
   if (active !== null) {
     return (
       <SaveStatusHostContext value={true}>
-        <GroupBody group={active} />
+        {/* #1716: the gate is transparent while `user_settings.config` reads fine. When it does not, the
+            whole pane is showing schema defaults and every section's save is refused server-side, so the
+            gate states that ONCE here (never per section) and stands every autosave driver below it down.
+            It wraps the SECTION-BODY arm only — the MEMBER arm above is a preset/world-book/theme editor,
+            whose own stored blob is a different row with its own verdict. */}
+        <SettingsUnreadableGate>
+          <GroupBody group={active} />
+        </SettingsUnreadableGate>
       </SaveStatusHostContext>
     );
   }
@@ -308,20 +332,49 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
   );
 }
 
-/** The open member's editor — the owning collection's `detail`, mounted. A selection can only name a
- *  collection group (its rows are the only writers), so the narrowing is a type fact, not a runtime guess. */
+/**
+ * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (DESIGN.md §3.4).
+ *
+ * ═══ THE ROW MOVED TO THE MEMBER SURFACE; THE EXIT'S RULING SURVIVED (#1747) ══════════════════════════
+ * The boards draw ONE row — `← Back to <library>` · the member's NAME · the member's own verbs — and this
+ * host used to draw the Back alone, with the name and the verbs one row lower on the surface's own header.
+ * A host `<Heading>` here was tried and printed the name TWICE (two CTs red on a strict-mode
+ * `getByRole("heading", {name})`), because all four surfaces already render the member's name as their own
+ * `h2`. The name has ONE author, so the whole row went to the party that has it: the surface draws
+ * `MemberDrillHeader` out of the `library` this host hands down (`CollectionMemberView`).
+ *
+ * WHAT DID NOT MOVE is the ruling that put the Back OUTSIDE the suspense boundary: a member surface reads
+ * through `useSuspenseQuery`, so a row that only the surface draws is absent for exactly the beat the
+ * drilled reader most wants an exit. That ruling survives with a changed INPUT — this Back-only row is the
+ * boundary's FALLBACK and its error arm, so precisely one of the two rows paints at any moment and the exit
+ * is never missing. It carries the same `data-slot`, because it is the same row in its pending state.
+ *
+ * NO LIFECYCLE CHROME ON EITHER SPELLING (D121(D), #271). Delete is the ROW's kebab in every collection, and
+ * the fork "the kebab is off-screen while drilled" is answered by this Back — precisely what world info's
+ * entry level already does.
+ */
+function CollectionDrillExit({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
+  if (!isCollectionGroup(group)) {
+    return null;
+  }
+  return <MemberDrillHeader back={{ label: `Back to ${group.label}`, onClick: (): void => clearCollectionSelection() }} />;
+}
+
+/** The open member's editor — the owning collection's `detail`, mounted, with the LIBRARY's own label so the
+ *  surface can draw its drill row's exit (#1747). A selection can only name a collection group (its rows are
+ *  the only writers), so the narrowing is a type fact, not a runtime guess. */
 function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition; readonly memberId: string }): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }
-  return <>{group.body.collection.detail({ memberId })}</>;
+  return <>{group.body.collection.detail({ memberId, library: group.label })}</>;
 }
 
 /** The active group's body — reads the definition blind over the §3.1 body union (as amended by §6.8): a
  *  pure `sections` SKIMMER (the host renders the anchor's contributed sections, in door order — the ONLY
  *  render path a settings-shaped group has) or the DECLARED-PLANNED placeholder. Admin needs no extra guard
  *  here — the LIST and the search hide it from non-admin viewers via `when`, and a forced deep link hits the
- *  group's own server-gated error. A `collection` group never reaches here (`isPushingGroup`). */
+ *  group's own server-gated error. A `collection` group never reaches here (`rendersOwnBody`). */
 function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
   const viewer = useSettingsViewerView();
   // The ONE order contract (`ConfigSectionPartition`, #978 F4) — the pane does NOT re-sort what it is

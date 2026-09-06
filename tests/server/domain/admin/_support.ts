@@ -4,12 +4,16 @@
 // root" doctrine (testing §3): these are real injected deps, not internal-module mocks. The fakes RECORD
 // their calls so tests assert the verb's behaviour (e.g. existence-before-audit: zero recorded audits).
 //
-// TWO OPS ARE DELIBERATELY REAL, NOT FAKES (#1691): `auditStatementAfterWrite` and
-// `sessions.revokeAllForUserStatement` hand back UNEXECUTED statements that the privileged verbs commit
-// INSIDE their own write's batch. A recorder there would record a call and prove nothing — the property under
-// test is that those rows land in the same transaction as the `users` write — so both are wired to the
-// production builders over the test db, and the assertions read `audit_logs` / `sessions` themselves
-// (`auditActions` below). The `evictUserSockets` tail stays a recorder: it is the one NON-db tail.
+// THE BATCH-RIDING OPS ARE DELIBERATELY REAL, NOT FAKES (#1691, #1707): `auditStatementAfterWrite`,
+// `sessions.revokeAllForUserStatement` and `sessions.linkExternalIdStatement` hand back UNEXECUTED statements
+// that the privileged verbs commit INSIDE their own write's batch. A recorder there would record a call and
+// prove nothing — the property under test is that those rows land in the same transaction as the `users`
+// write — so they are wired to the production builders over the test db and the assertions read `users` /
+// `audit_logs` / `sessions` themselves (`auditActions` below). `sessions.settleUnclaimedLink` is real for the
+// matching reason: the refusal it names is READ BACK from durable state, so a forced outcome would prove
+// nothing about what the batch actually did. Both link halves come off a REAL `SessionsService` over the same
+// db — production wiring, not a hand-rolled stand-in. The `evictUserSockets` tail stays a recorder: it is the
+// one NON-db tail.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
@@ -20,10 +24,11 @@ import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/ki
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
+import { createSessionsService } from "@orb/server/domain/sessions";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
-import type { LinkExternalIdOutcome } from "../../../../packages/server/src/domain/admin/contract/results.ts";
+import type { UnclaimedLinkOutcome } from "../../../../packages/server/src/domain/admin/contract/results.ts";
 import type { AdminEngineStatus, SessionAdminView } from "../../../../packages/server/src/domain/admin/contract/views.ts";
 import { insertSession, revokeAllForUserStatement } from "../../../../packages/server/src/domain/sessions/persistence/sessions.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
@@ -101,6 +106,21 @@ export function withBrokenKick(ctx: AdminContext, db: Db): AdminContext {
   };
 }
 
+/** #1707 — a context whose BIND STATEMENT fails for a real database reason: the claim aims the row's
+ *  `owner_user_id` at another user, which a human row may not carry (`users_human_shape` CHECK), so the
+ *  statement REJECTS the way a real bind would die on a db fault. Used to prove the batch is atomic in the
+ *  other direction — a failed bind leaves no audit row claiming the account was linked. */
+export function withBrokenBind(ctx: AdminContext, db: Db): AdminContext {
+  return {
+    ...ctx,
+    sessions: {
+      ...ctx.sessions,
+      linkExternalIdStatement: (userId, externalId, at) =>
+        db.update(users).set({ externalId, updatedAt: at, ownerUserId: userId }).where(eq(users.id, userId)).returning({ id: users.id }),
+    },
+  };
+}
+
 export interface AdminHarness {
   readonly ctx: AdminContext;
   /** The BEST-EFFORT audit channel's recorded calls — the advisory verbs only (listSessions/revokeSession/
@@ -114,10 +134,6 @@ export interface AdminHarness {
    *  is WHOSE channel: admin is the one producer whose write lands on somebody else's row, so an emit to the
    *  acting admin instead of the target would announce a grant to everyone except its recipient. */
   readonly userEvents: { userId: UserId; event: UserBusEvent }[];
-  /** B5 — the recorded `linkExternalId` port calls; the fake returns `{outcome:"linked"}` unless
-   *  `setLinkOutcome` forces a refusal outcome (to exercise the admin verb's outcome→code mapping). */
-  readonly linked: { userId: UserId; externalId: ExternalId }[];
-  readonly setLinkOutcome: (outcome: LinkExternalIdOutcome | null) => void;
   readonly restarted: string[];
   /** Make the fake vllm `restartEngine` reject (to exercise the error-translation path). */
   readonly setRestartError: (err: unknown) => void;
@@ -128,6 +144,7 @@ export interface AdminHarness {
 }
 
 const FROZEN_AT = 1_750_000_000_000;
+const HARNESS_PEPPER = "test-session-secret-at-least-32-chars-long";
 const HOUR_MS = 3_600_000;
 
 interface SeedUserOverrides {
@@ -176,8 +193,6 @@ export function makeHarness(db: Db): AdminHarness {
   const evictedSockets: UserId[] = [];
   const revokedSessions: string[] = [];
   const userEvents: { userId: UserId; event: UserBusEvent }[] = [];
-  const linked: { userId: UserId; externalId: ExternalId }[] = [];
-  let linkOutcome: LinkExternalIdOutcome | null = null;
   const restarted: string[] = [];
   let restartError: unknown;
   const embedded: { principal: Principal; characterId: CharacterId }[] = [];
@@ -186,6 +201,10 @@ export function makeHarness(db: Db): AdminHarness {
   const engineStatuses: Record<string, AdminEngineStatus> = {
     chat: { status: "owned", detail: "ok", updatedAt: FROZEN_AT, port: 8701, storePath: "/srv/orb/store" },
   };
+
+  // #1707 — the REAL link capability over the same test db (see the header): the bind statement rides the
+  // verb's audited batch and the settlement is read back from durable state.
+  const sessionsSvc = createSessionsService({ db, now: () => clock.now(), sessionSecret: HARNESS_PEPPER });
 
   const ctx: AdminContext = {
     db,
@@ -219,10 +238,9 @@ export function makeHarness(db: Db): AdminHarness {
       evictUserSockets: (userId: UserId): void => {
         evictedSockets.push(userId);
       },
-      linkExternalId: (userId: UserId, externalId: ExternalId): Promise<LinkExternalIdOutcome> => {
-        linked.push({ userId, externalId });
-        return Promise.resolve(linkOutcome ?? { outcome: "linked", userId });
-      },
+      linkExternalIdStatement: sessionsSvc.linkExternalIdStatement,
+      settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown): Promise<UnclaimedLinkOutcome> =>
+        sessionsSvc.settleUnclaimedLink(userId, externalId, failure),
     },
     vllm: {
       allEngineStatuses: (): Record<string, AdminEngineStatus> => engineStatuses,
@@ -252,10 +270,6 @@ export function makeHarness(db: Db): AdminHarness {
     evictedSockets,
     revokedSessions,
     userEvents,
-    linked,
-    setLinkOutcome: (outcome: LinkExternalIdOutcome | null): void => {
-      linkOutcome = outcome;
-    },
     restarted,
     setRestartError: (err: unknown): void => {
       restartError = err;

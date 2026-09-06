@@ -24,6 +24,15 @@
 //
 // It lives in `#data` rather than `features/regex` because its consumer is the CHAT message list, and
 // features cannot import each other (the `#lib` vocabulary-map precedent).
+//
+// ── ITS SURFACE (#1742) ─────────────────────────────────────────────────────────────────────────────────
+// This hook's output IS the room's `On screen` roster — the last group of the This-chat tab's **Regex**
+// section (`docs/design/mocks/regex-section/DESIGN.md` §3), where each display script in force for THIS
+// viewer is listed with its provenance (`yours` / `the host's`) and, for the viewer's own, its library
+// switch. That roster is SEPARATE from the section's tier groups above it, and the O-4 ruling is exactly
+// why: the display leg is ATTACHMENT-BLIND (it is the viewer's whole library ∩ DISPLAY, plus the host's
+// broadcast), so a per-chat tier lever and the room's regex master cannot reach it and must not appear to.
+// The host broadcast switch (`chat.setHostDisplayScripts`) is drawn at the foot of that roster.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
@@ -33,7 +42,11 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 
 const NO_SCRIPTS: never[] = [];
-const DISPLAY_PLACEMENT = "DISPLAY";
+/** The one leg this hook is about. EXPORTED because the room's `On screen` roster
+ *  (`features/chat/components/regex-on-screen-group.tsx`) must ask the same question of the viewer's
+ *  DISABLED rows — the ones this hook filters out by definition — and a second spelling of the literal is a
+ *  second definition of "a display script". */
+export const DISPLAY_PLACEMENT = "DISPLAY";
 
 /** The two reads this hook composes, in ONE spelling — so the prefetch below and the render read below can
  *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently).

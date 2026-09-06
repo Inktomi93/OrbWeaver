@@ -17,6 +17,8 @@
 //   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
 //   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
 //                         `ResolveVisibleRoomsOp`, D18)
+//   • regex-tiers.ts    — the room's REGEX TIER vocabulary (#1742): the tier key, the per-chat allow blob,
+//                         the per-seat character slice, and the `chat.listEffectiveRegex` view
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -153,6 +155,8 @@ export type {
   TokenProvenance,
   ToolCallRecord,
   UserMacroDraws,
+  VariablePrecondition,
+  VariableWriteResult,
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
@@ -169,6 +173,9 @@ export {
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
   variableDeltaSchema,
+  variablePreconditionSchema,
+  variablePreconditionsSchema,
+  variableWriteResultSchema,
   varOpSchema,
 } from "./messages.ts";
 export type {
@@ -248,6 +255,24 @@ export {
   reactionEmojiSchema,
 } from "./reactions.ts";
 export type {
+  CharacterRegexSlice,
+  EffectiveRegexEntry,
+  EffectiveRegexView,
+  RegexTierAllow,
+  RegexTierGroupView,
+  RegexTierKey,
+  RegexTierRowView,
+} from "./regex-tiers.ts";
+export {
+  characterRegexTierKey,
+  FIXED_REGEX_TIER_KEYS,
+  isRegexEnabledInChat,
+  isRegexTierAllowed,
+  parseCharacterRegexTierKey,
+  regexTierAllowSchema,
+  regexTierKeySchema,
+} from "./regex-tiers.ts";
+export type {
   AcceptInviteInput,
   CarriedAppearance,
   CarriedAppearanceMember,
@@ -255,6 +280,7 @@ export type {
   CreateInviteInput,
   DeploymentRenderPolicy,
   HandoffOffer,
+  HandoffOfferContents,
   HistoryFloorSeq,
   HtmlTrustStep,
   InvitePreview,
@@ -276,6 +302,7 @@ export {
   characterMemberSpecSchema,
   createInviteSchema,
   HTML_TRUST_STEPS,
+  handoffOfferContentsSchema,
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,
@@ -283,6 +310,7 @@ export {
   JOIN_HISTORY_VISIBILITIES,
   joinHistoryVisibilitySchema,
   NO_HANDOFF_OFFER,
+  NO_HANDOFF_OFFER_CONTENTS,
   participantRoleSchema,
   previewInviteSchema,
   redeemInviteSchema,

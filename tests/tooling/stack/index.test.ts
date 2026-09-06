@@ -11,6 +11,8 @@
 import { readFileSync } from "node:fs";
 import type { DevStackIdentity, ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
+  adoptDevStackGroup,
+  adoptionText,
   buildProdSpawnPlan,
   CLIENT_DIST_INDEX_REL,
   classifyDebugPosture,
@@ -39,6 +41,7 @@ import {
   SERVER_ENTRY_REL,
   STACK_SPAWNERS,
   serializeProdRecord,
+  signalAdoptedDevStackGroup,
   signalDevStackIdentity,
   spawnerForPort,
   valueExportNames,
@@ -558,4 +561,71 @@ test("the group residue probe reads kill(-pgid, 0) the way pgrep -g does (#1162)
       throw Object.assign(new Error("not permitted"), { code: "EPERM" });
     }),
   ).toBe(true);
+});
+
+// ── #1013: adoption is a STRICTER door, never a relaxation of the standing rule ──────────────────────
+//
+// The rule above ("a dead leader refuses a stable same-group survivor without signaling it") is intact and
+// its arm is untouched. What changed is the PREMISE it rested on — "a survivor carries no launch identity"
+// — which was true only because nothing stamped one. `stack.sh` now mints a per-launch marker and exports
+// it before the setsid spawn, so every member of the group inherits it and the record keeps the leader's
+// copy. These pin that the new door needs MORE evidence than the pgid, not less: UNANIMITY among live
+// members, because a pgid can be reused and an unrelated process can end up in a group we did not start.
+const MARKER = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+const MARKED: DevStackIdentity = { ...DEV_IDENTITY, launchId: MARKER };
+
+test("a leaderless group whose every live member carries the launch marker is ADOPTABLE (#1013)", () => {
+  const adoption = adoptDevStackGroup(MARKED, { members: () => [5000, 5001], launchIdOf: () => MARKER });
+  expect(adoption).toEqual({ kind: "adoptable", pgid: MARKED.pgid, members: [5000, 5001] });
+  expect(adoptionText(adoption)).toContain("ADOPTED by launch marker");
+});
+
+test("ONE unmarked member refuses the whole group — adoption is unanimous or nothing (#1013)", () => {
+  // The reused-pgid / unrelated-joiner case. A majority is not evidence: the signal is a GROUP signal, so
+  // anything short of unanimity would land it on a process this launch never started.
+  const adoption = adoptDevStackGroup(MARKED, { members: () => [5000, 5001], launchIdOf: (pid) => (pid === 5001 ? null : MARKER) });
+  expect(adoption).toEqual({ kind: "unmarked", pgid: MARKED.pgid, unmarked: [5001] });
+  expect(adoptionText(adoption)).toContain("5001");
+  expect(adoptionText(adoption)).toContain("manual cleanup required");
+  // A member carrying a DIFFERENT launch's marker is just as foreign as one carrying none.
+  expect(adoptDevStackGroup(MARKED, { members: () => [5000], launchIdOf: () => "00000000-0000-4000-8000-000000000000" }).kind).toBe("unmarked");
+});
+
+test("a record with NO marker is unadoptable — the pre-#1013 refusal, unchanged (#1013)", () => {
+  // Every pidfile written before the marker existed lands here, and so does one written by a launcher that
+  // exported none. The old refusal is the fallback, not an error path.
+  const adoption = adoptDevStackGroup(DEV_IDENTITY, { members: () => [5000], launchIdOf: () => MARKER });
+  expect(adoption.kind).toBe("no-marker");
+  expect(adoptionText(adoption)).toContain("carries no launch marker");
+});
+
+test("an EMPTY group is neither adoptable nor an alarm (#1013)", () => {
+  expect(adoptDevStackGroup(MARKED, { members: () => [], launchIdOf: () => MARKER })).toEqual({ kind: "empty", pgid: MARKED.pgid });
+});
+
+test("only an ADOPTABLE group reaches the negative-PGID signal (#1013)", () => {
+  const calls: Array<readonly [number, NodeJS.Signals]> = [];
+  const kill = (target: number, sig: NodeJS.Signals): number => calls.push([target, sig]);
+
+  expect(signalAdoptedDevStackGroup(MARKED, "SIGTERM", { members: () => [5000], launchIdOf: () => MARKER, kill }).kind).toBe("adoptable");
+  // The NEGATIVE pgid is the whole mechanism — a positive one would signal the dead leader instead.
+  expect(calls).toEqual([[-MARKED.pgid, "SIGTERM"]]);
+
+  // …and every refusing shape signals NOTHING, which is the standing rule this door had to preserve.
+  calls.length = 0;
+  signalAdoptedDevStackGroup(MARKED, "SIGKILL", { members: () => [5000, 5001], launchIdOf: (pid) => (pid === 5001 ? null : MARKER), kill });
+  signalAdoptedDevStackGroup(DEV_IDENTITY, "SIGKILL", { members: () => [5000], launchIdOf: () => MARKER, kill });
+  signalAdoptedDevStackGroup(MARKED, "SIGKILL", { members: () => [], launchIdOf: () => MARKER, kill });
+  expect(calls, "an unmarked, unmarkable or empty group must never be signalled").toEqual([]);
+});
+
+test("a malformed marker makes the whole record CORRUPT, not merely unmarked (#1013)", () => {
+  // Silently dropping a bad marker would turn a tampered pidfile into an ordinary pre-#1013 record and
+  // re-open the door the marker closes, so the parse refuses the file outright.
+  expect(parseDevStackIdentity(JSON.stringify(MARKED))).toEqual(MARKED);
+  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: "short" }))).toBeNull();
+  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: `${MARKER}; rm -rf /` }))).toBeNull();
+  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: 42 }))).toBeNull();
+  // …and a record with no marker at all still parses: an old pidfile must stay stoppable.
+  expect(parseDevStackIdentity(JSON.stringify(DEV_IDENTITY))).toEqual(DEV_IDENTITY);
 });

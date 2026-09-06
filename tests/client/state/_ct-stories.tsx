@@ -121,6 +121,7 @@ import {
   setPanelMode,
   setPresetEditorView,
   setPresetSearchQuery,
+  setTagPruneConfirmOpen,
   setTagSortMode,
   stampAppearanceBootHint,
   subscribeConfigNav,
@@ -194,6 +195,7 @@ import {
   useSpoilerBlur,
   useStatusAnnouncement,
   useTagFilter,
+  useTagPruneConfirmOpen,
   useTagSortMode,
   useVisibleConfigSettings,
 } from "@orb/client/state";
@@ -1277,13 +1279,24 @@ export function RefineryLandingFocusProbe(): ReactElement {
   );
 }
 
-/** TagLibraryProbe — the tag roster's per-device SORT MODE store. Its default is the thing that matters:
- *  the roster opens on MOST-USED, not on the authored order, at the owner's ~400-tag library. */
+/** TagLibraryProbe — the tag library's per-device UI state. Its sort default is the thing that matters:
+ *  the roster opens on MOST-USED, not on the authored order, at the owner's ~400-tag library. The prune
+ *  confirm's open flag rides the same store because the verb and its question live in two fibers since
+ *  #1725 (the host draws the overflow item, the rows own the dialog); it is TRANSIENT — excluded from
+ *  `partialize`, so a reload never restores an open destructive dialog. */
 export function TagLibraryProbe(): ReactElement {
   const mode = useTagSortMode();
+  const pruneOpen = useTagPruneConfirmOpen();
   return (
     <div>
       <output>{`sort=${mode}`}</output>
+      <output>{`prune=${String(pruneOpen)}`}</output>
+      <button type="button" onClick={(): void => setTagPruneConfirmOpen(true)}>
+        open prune
+      </button>
+      <button type="button" onClick={(): void => setTagPruneConfirmOpen(false)}>
+        close prune
+      </button>
       <button type="button" onClick={(): void => setTagSortMode("alpha")}>
         sort alpha
       </button>

@@ -75,6 +75,7 @@ export function PersonaConnectedCharacters({ personaId }: { readonly personaId: 
               onEscape={(): void => setPickerOpen(false)}
               onSelect={onPick}
               placeholder="Search characters…"
+              reserveKey="persona.connectCharacterPicker"
             />
           </Stack>
         </DialogPopup>

@@ -18,6 +18,7 @@ export type {
   SettingsServiceDeps,
 } from "./contract/service.ts";
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
+export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createSettingsService } from "./service.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";

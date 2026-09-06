@@ -1,0 +1,21 @@
+{
+  // @orb/showcase-plugins is CONTENT plus the one reader that packs it: the program is `src/` only, and it
+  // is NODE-context (the packer reads the bundle directory off disk).
+  //
+  // THE `.js` GUESTS UNDER `bundles/` ARE DELIBERATELY OUTSIDE THIS PROGRAM, for now. `allowJs` is false in
+  // the base, and the base's include is `${configDir}/src`, so the nine `main.js`/`ui.js` files are compiled
+  // by no program in the repo — exactly as they were under `packages/server/src/entry/boot/seed-assets/`.
+  // Turning that around (`allowJs` + `checkJs` with `bundles/host-v1.d.ts` ambient, so a host-API change
+  // reds the shipped guests) is the ROT half of #1238 §2 and lands as its own row: it is a behaviour change
+  // to nine unchecked files, not a side effect of moving them. The move is byte-identical on purpose.
+  //
+  // `bundles/host-v1.d.ts` stays out of THIS program for the same reason it was excluded from the server's:
+  // it is a SCRIPT-kind declaration file whose globals are meant for a plugin author's editor, and compiled
+  // in here it would inject `orb` + the `Plugin*` names as ambients across `src/`. Its checked home is the
+  // root aggregator (`tsconfig.json`'s explicit include row) where `tests/contracts/plugin/host-v1.test-d.ts`
+  // pins it against the real contract.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}

@@ -156,6 +156,13 @@ export const CHAT_OP_CODES = {
    *  head that advances faster than any writer can land — and this refusal exists so that says so instead of
    *  spinning. Internal surface (narrator/image posts; the callers were already authorized at their door). */
   canonAppendContended: "canon_append_contended",
+  /** #1462 — a PER-SPEAKER round asked to voice a speaker that is not among the turn context's resolved
+   *  `speakerRefs` (a seat whose card read came back empty, an arbitration/wiring gap). The card section is
+   *  chosen BY that ref, so there is no honest degrade: `assembly/speaker-card` used to keep the PRIMARY, which
+   *  ships one character's card under another character's name and attributes the reply to the speaker that was
+   *  asked for. Refused instead (D41 no-silent-degrade). Internal surface — the callers are the turn pipeline
+   *  and the host preview, both already past their own doors. */
+  speakerOffRoster: "speaker_off_roster",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

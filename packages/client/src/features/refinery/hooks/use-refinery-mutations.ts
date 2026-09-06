@@ -35,7 +35,7 @@
 // need, the preset cap under it, the knob) — so the toast keys on the structured wire field and quotes the
 // server's own sentence for them; "try again" stays the honest copy for the codeless arm alone.
 
-import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -64,7 +64,7 @@ function refineryFailureMessage(error: unknown): string | null {
 /** The refusals whose server sentence IS the deliverable — every CODED refinery error. Kept as a set rather
  *  than an `||` chain so adding a fourth typed error is a one-line decision at the contract's own vocabulary,
  *  not an edit to a predicate. */
-const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([REFINERY_STAGE_NOT_READY_REASON, REFINERY_OUTPUT_BUDGET_REASON]);
+const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([REFINERY_STAGE_NOT_READY_REASON, REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON]);
 
 /**
  * The toast for a write that can be refused with a REASON: the server's own sentence when the wire carries

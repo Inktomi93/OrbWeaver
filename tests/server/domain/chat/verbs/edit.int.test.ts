@@ -151,7 +151,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 });
 
 describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
-  /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the cast tier). */
+  /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the character tier). */
   const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
     // FABRICATION-OK: minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/description/regexScripts.
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;

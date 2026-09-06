@@ -209,11 +209,15 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
           </Text>
         )}
 
-        {/* U8 2b — the auto update-check + one-click upgrade, ONLY for a `url`-origin install (it remembers where
-          it was fetched from). A file install has no remembered source, so it keeps only the manual "Update"
-          bundle upload above. The one-click upgrade rides the SAME server upgrade verb, so a reach-widening
-          update lands `disabled` and the ReConsentNotice below renders — never silent. */}
-        {plugin.origin === "url" ? <UpdateCheckRow plugin={plugin} /> : null}
+        {/* U8 2b — the auto update-check + one-click upgrade, mounted only when the SERVER says something can
+          serve a newer version for this row (`updateSource`, #1740): a remembered `url` source, or the showcase
+          copy this build ships for a SEEDED example. A hand-uploaded plugin is neither and keeps only the manual
+          "Update" bundle upload above. The gate is the server's field and not `origin` on purpose — a seeded
+          example arrives as an `upload` and is indistinguishable from a hand upload by origin alone, and the
+          shipped slug set is not something this surface may re-spell. The one-click rides the SAME server
+          upgrade verb either way, so a reach-widening update lands `disabled` and the ReConsentNotice below
+          renders — never silent. */}
+        {plugin.updateSource === null ? null : <UpdateCheckRow plugin={plugin} />}
 
         {/* The plugin's OWN settings surfaces (plugin-ui-plane #679 U1) — rendered inside the first-party
           labelled shell, per §4.5. Renders nothing when the plugin is disabled or ships no settings surface. */}

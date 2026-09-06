@@ -47,7 +47,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
-import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
 import { CardBlock } from "./card-block.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
 import { renderRowAvatar } from "./message-row-parts.tsx";
@@ -260,7 +260,12 @@ export function GhostMessageRow({
           avatarAspect,
           avatarRing,
           alignToInsideHeader: skin.headerPlacement === "inside",
+          gutterRail: gutterRailFor(skin, "assistant"),
         });
+  // #1728 arm B — THE GHOST TAKES THE SETTLED ROW'S PLACEMENT, for the reason this file already states
+  // about the header two blocks down: a live turn laid out one way that relaid out at commit is a visible
+  // one-frame reflow on every reply. Same two helpers the settled row reads, so they cannot drift.
+  const columnClass = columnClassFor(skin);
 
   // #116/#288 — the SPEAKER, for the whole generation, in the SAME home the settled row will put it in.
   // The placement is read off the skin here rather than hardcoded because a live turn whose header sat
@@ -299,13 +304,26 @@ export function GhostMessageRow({
       data-slot="ghost-message-row"
       data-role="assistant"
       data-kind={attribution?.kind ?? undefined}
-      className={cn(skin.outer("assistant"), enterClasses)}
+      className={cn("@container", skin.outer("assistant"), enterClasses)}
     >
-      <Row align="start" gap="row" data-slot="message-row-body" className="w-full">
+      {/* The `@container` above and this element's two arms are the settled row's, verbatim — the ghost is
+          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
+          AVATAR STEP IS PART OF THAT PARITY (#1745, side-eye 2026-09-05): the container query landed with
+          arm B, but the row body's own `@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6`
+          pair — `message-row.tsx`'s phone-width chip shrink — never came with it, so a live turn at a
+          phone width rendered its 32px avatar-md chip through the whole stream and only stepped down to
+          24px the instant it settled: a visible one-frame reflow on every reply, the exact class of jump
+          this file's own header worries about elsewhere on this row. */}
+      <Row
+        align="start"
+        gap="row"
+        data-slot="message-row-body"
+        className={cn(rowBodyClassFor(skin), "w-full", "@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6")}
+      >
         {avatarNode}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
-        <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1" style={skin.columnStyle}>
+        <Stack gap="row" data-slot="message-content-column" className={columnClass} style={skin.columnStyle}>
           {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics
               as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
               its attribution exactly the way the committed one does instead of being the one row in the

@@ -50,21 +50,45 @@ function padClip(box: ContrastMeasured["box"], viewport: Viewport): Clip | null 
   return width < 1 || height < 1 ? null : { x, y, width, height };
 }
 
+/** ONE retry on the SAME page (#1758): a `Page.captureScreenshot` protocol error under contention is
+ *  frequently transient — a lone attempt turned a passing fixture into a printed NO VERDICT for a reason
+ *  that had nothing to do with the pixels being asked about. A capture that fails twice still surfaces
+ *  loudly (never a silent green) — it just does so as an INSTRUMENT fault, not a fill-polarity verdict. */
+const SHOT_ATTEMPTS = 2;
+
+async function shootWithRetry(
+  page: Page,
+  clip: Clip,
+): Promise<{ readonly ok: true; readonly buffer: Buffer } | { readonly ok: false; readonly reason: string }> {
+  for (let attempt = 1; attempt <= SHOT_ATTEMPTS; attempt += 1) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).
+    try {
+      return { ok: true, buffer: await page.screenshot({ clip, animations: "disabled" }) };
+    } catch (error) {
+      // OWNED, not swallowed: the LAST attempt's failure leaves as a discriminated `ok: false` reading; an
+      // earlier attempt's failure is absorbed on purpose (that is the whole retry) and the loop tries again.
+      if (attempt === SHOT_ATTEMPTS) {
+        return { ok: false, reason: `screenshot failed twice: ${errorMessage(error)}` };
+      }
+    }
+  }
+  throw new Error("unreachable: shootWithRetry's loop always returns by its last attempt");
+}
+
 async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport): Promise<ContrastFillReading> {
   const box = facts.box;
   const clip = padClip(box, viewport);
   if (clip === null) {
     return { kind: "refused", refusal: "the element box is empty or fully off-screen" };
   }
-  let buffer: Buffer;
-  try {
-    buffer = await page.screenshot({ clip, animations: "disabled" });
-  } catch (error) {
-    // OWNED, not swallowed: the caught failure leaves as a DISCRIMINATED refusal carrying its own message,
-    // and the only consumer prints it as `NO VERDICT` and FAILS the run. Nothing downstream can read this
-    // as a measurement.
-    return { kind: "refused", refusal: `screenshot failed: ${errorMessage(error)}` };
+  const shot = await shootWithRetry(page, clip);
+  if (!shot.ok) {
+    // OWNED, not swallowed: the caught failure leaves as a DISCRIMINATED capture-failed reading carrying
+    // its own message, and the only consumer prints it as an INSTRUMENT ERROR and FAILS the run. Nothing
+    // downstream can read this as a fill-polarity measurement.
+    return { kind: "capture-failed", reason: shot.reason };
   }
+  const buffer = shot.buffer;
   try {
     // `Promise.resolve` for the reason ops/contrast-pixels.ts states: biome's type service does not
     // resolve sharp's builder chain and reads the awaited value as non-thenable.
@@ -88,8 +112,9 @@ async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport)
     const geometry = { interior, radii, feather: Math.max(1, Math.round(FEATHER_PX * scale)) };
     return readFillChannels({ data, width: info.width, height: info.height, channels: info.channels }, geometry);
   } catch (error) {
-    // Owned on the same terms as the screenshot arm above.
-    return { kind: "refused", refusal: `pixel decode failed: ${errorMessage(error)}` };
+    // Owned on the same terms as the screenshot arm above — a decode failure is the instrument's, never
+    // the subject's.
+    return { kind: "capture-failed", reason: `pixel decode failed: ${errorMessage(error)}` };
   }
 }
 
@@ -109,6 +134,28 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
     matchIndex: facts.matchIndex,
     requiredRatio: UI_COMPONENT_MIN_RATIO,
   } as const;
+  if (reading.kind === "capture-failed") {
+    // #1758: an INSTRUMENT fault (the capture itself, retried once, still failed) — never folded into the
+    // "undecodable" domain-refusal family below, so a reason-string pin on THAT family cannot red on a
+    // transient CDP message that says nothing about the fixture's pixels.
+    const line = `CONTRAST ${selector}: ${reading.reason}`;
+    return {
+      outcome: { line, failed: true },
+      evidence: {
+        ...base,
+        status: "instrument-error",
+        sampled: 0,
+        method: null,
+        ratio: null,
+        requiredRatio: null,
+        passed: null,
+        foreground: null,
+        backdrop: null,
+        fillChannel: null,
+        reason: line,
+      },
+    };
+  }
   if (reading.kind === "refused") {
     const line = `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}`;
     return {

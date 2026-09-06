@@ -21,6 +21,7 @@ import { buildAppearanceInvariantChecks } from "./appearance-invariant-checks.ts
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 import { probeAppearanceDom } from "./appearance-invariant-dom.ts";
 import { evaluateAppearancePrepaint } from "./appearance-prepaint.ts";
+import { driveSurface } from "./appearance-surface-drive.ts";
 import { capturePageCssEvidence } from "./arms/cascade.ts";
 import { captureContrastEvidence } from "./arms/contrast.ts";
 import { scanDeadCss } from "./arms/dead-css.ts";
@@ -76,57 +77,6 @@ async function readMessageCarrierEvidence(page: Page): Promise<NonNullable<Appea
     return instrumentRefusal("mobile document row has no live chatStyle message-prop samples");
   }
   return { registry, chatStyles: chatStyle.samples };
-}
-
-async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
-  let nav: readonly ["goto" | "open-chat", string, string];
-  if (row.surface === "chat" || row.id === "light-art-scrim-glass-elevation") {
-    nav = ["open-chat", "latest", '[data-slot="message-row"]'];
-  } else if (row.surface === "config-sizing") {
-    nav = ["goto", "settings:appearance.sizing", '[data-slot="density-preview"]'];
-  } else {
-    nav = ["goto", "home", ".shell-grid"];
-  }
-  const [kind, target, waitSelector] = nav;
-  const result = navResultShape(await page.evaluate(buildNavScript(kind, target)), `nav ${kind} ${target}`);
-  if (!result.ok) {
-    instrumentRefusal(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
-  }
-  await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
-  await settle(page, MOUNT_SETTLE_MS);
-  if (row.id === "dark-name-time-short-bubble" || row.id === "hover-pointer") {
-    const subjectId = row.id === "dark-name-time-short-bubble" ? "attribution" : "bubble";
-    const selector = row.subjects.find((subject) => subject.id === subjectId)?.selector;
-    if (selector === undefined) {
-      instrumentRefusal(`Appearance row ${row.id} has no ${subjectId} drive subject`);
-    }
-    // The chat list virtualizes around the latest turn, and a merely-visible header can sit under the
-    // shell's fixed chrome. Center the client-declared relational subject so the pixel census judges the
-    // row itself rather than classifying a legitimate mounted sample as offscreen/occluded.
-    await page
-      .locator(selector)
-      .filter({ visible: true })
-      .first()
-      // #1228: a string body, not a typed `(element) => …` callback — the latter needs lib.dom's
-      // `HTMLElement`/`SVGElement` (`scrollIntoView` isn't on Playwright's own minimal element type),
-      // which this program deliberately does not carry (tooling/src stays DOM-less by design; see
-      // tsconfig.json's header). Same pattern as this file's other `page.evaluate` string calls above.
-      .evaluate(`(element) => element.scrollIntoView({ block: "center", inline: "nearest" })`, undefined, { timeout: STEP_TIMEOUT_MS });
-    await settle(page, STEP_SETTLE_MS);
-  }
-  if (row.id === "opposite-os-app-prepaint") {
-    const selector = row.subjects.find((subject) => subject.id === "theme-ink")?.selector;
-    if (selector === undefined) {
-      instrumentRefusal("opposite-os-app-prepaint policy is missing its theme-ink subject");
-    }
-    await page
-      .locator(selector)
-      .filter({ visible: true })
-      .first()
-      // #1228: same string-body reasoning as above.
-      .evaluate(`(element) => element.scrollIntoView({ block: "center", inline: "nearest" })`, undefined, { timeout: STEP_TIMEOUT_MS });
-    await settle(page, STEP_SETTLE_MS);
-  }
 }
 
 async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {

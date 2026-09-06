@@ -100,7 +100,7 @@ const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 // retained `data-app-ready` but no Appearance/CSS-merge/animation debug registry strings; the residual
 // is the reviewed production graph above, not the dev graph moved into a preload.
 //
-// CEILING = 859,000 B. Arithmetic (same convention): 818,188 × 1.05 = 859,097.4, rounded DOWN to the
+// CEILING WAS 859,000 B (superseded 2026-09-05, below). Arithmetic (same convention): 818,188 × 1.05 = 859,097.4, rounded DOWN to the
 // flat 859,000 → 40,812 B of headroom = 4.99% over the measured value. Sized like the mutation gate's
 // `break`: a ceiling AT the measured value fires on ordinary churn (a token, a copy string, a new icon),
 // while ~5% is far below the cost of the class this exists to catch — re-adding ONE prose barrel to the
@@ -108,13 +108,33 @@ const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 // first real regression and never on noise. The sensitivity convention is unchanged; the baseline now
 // describes the production boot set the browser actually fetches.
 //
+// RE-CALIBRATED 2026-09-05 (#1752) — the OWNER DROPPED `@orb/client`'s `sideEffects` allowlist, and this
+// number is the accepted price of that ruling, not a regression to hunt. The allowlist bought the #433/
+// #448/d99b6586f barrel shaking, but Rolldown applies the nearest package.json's `sideEffects` to the
+// app's OWN files (vitejs/vite#22620), so every import-for-effect module had to be enumerated by hand —
+// and the Aug-31 CSS front door (`packages/client/src/styles/index.ts`) never was. Its bare import was
+// shaken out and the production bundle shipped with NO app stylesheet for five days; nothing static saw
+// it. Owner ruling 2026-09-05: "drop it and just raise the boot limit" — an app is not a library, and an
+// enumeration duty no gate enforces is a silent-failure machine.
+//   index-Do_rgPCq.js     2,526,998 B  (the module entry script — barrels no longer shake)
+//   ui-BzArPkcz.js          416,327 B  (<link rel="modulepreload">)
+//   jsx-runtime-DUeIs9Gz.js  36,584 B  (<link rel="modulepreload">)
+//   class-merge-BLVu9lJq.js  30,652 B  (<link rel="modulepreload">)
+//   createLucideIcon-…js      1,385 B  (<link rel="modulepreload">)
+//   focus-ring-D9Uf2YJG.js    1,039 B  (<link rel="modulepreload">)
+//   ────────────────────────────────
+//   boot payload          3,012,985 B  (was 818,188 B)
+// CEILING = 3,163,000 B. Same arithmetic as every row above: 3,012,985 × 1.05 = 3,163,634.25, rounded
+// DOWN to the flat 3,163,000 → 150,015 B of headroom = 4.98%. The fence's PURPOSE is unchanged and it
+// still bites: a six-figure-byte barrel re-entry on top of this baseline is caught exactly as before.
+//
 // RE-CALIBRATE when: a deliberate, reviewed boot-graph addition lands (raise it, with its own measured
 // receipt and this same arithmetic); or a win like #433/#448 lands and the ceiling should ratchet DOWN
 // to defend it. A chunking-strategy change no longer needs a re-calibration to stay HONEST — the sum
 // follows the emitted html — though it will still move the number. This is deliberately ONE-SIDED — a
 // shrink is never RED, it is reported as headroom in the stage output so a large drop is visible and
 // can be ratcheted by hand.
-export const BOOT_CHUNK_CEILING_BYTES = 859_000;
+export const BOOT_CHUNK_CEILING_BYTES = 3_163_000;
 
 /** The `/assets/<name>.js` an emitted boot ref points at, or undefined for anything else (a CSS href, a
  *  favicon, an external URL) — the parser is anchored, never "whatever happens to be there". */

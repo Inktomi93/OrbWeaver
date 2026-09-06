@@ -14,14 +14,22 @@
 // nothing has used it for the owner-ruled TTL; and NEVER when the row still names a LIVE session, whatever
 // its idle age (a reaper that eats a live stage is worse than no reaper). A live sibling's stage — bound
 // band, fresh `lastUsedAt`, or a live daemon — is reported and left alone, the #310 liveness-gate lesson.
+//
+// FOUR ARMS CAN NOW END A STAGE (#1163): its own idle timer, reap-on-acquire, this sweep and `--stage-down`.
+// So the status read carries two more facts a bare band census cannot give: each row's TIMER (how long it
+// has left, or that its keeper pid is DEAD and only the pull arms cover it), and a `recent reaps` line off
+// the bounded ledger — because a reaped band leaves no row, and "free" and "taken from a lane ninety
+// seconds ago" would otherwise be the same observation. The teardown verbs here write that ledger.
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandView, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
 import { describeStageBandRow, rowIsDangling, stageSweepVerdict } from "../lib/stage-bands.ts";
+import { describeStageKeeper } from "../lib/stage-keeper-plan.ts";
 import {
   BANDS_REL,
   DIRTY_STAGE_KEY,
@@ -36,16 +44,20 @@ import {
   teardownConsent,
 } from "../lib/stage-plan.ts";
 import { sessionStatusSummary } from "./session-registry.ts";
-import { stopStage } from "./stage.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
 import { clearRow, markerRoot, readBands } from "./stage-marker.ts";
 import { listeningPids, pidElapsedSeconds, pidIsStageRooted, stageDirs } from "./stage-probe.ts";
+import { describeStageReaps, recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
+import { stopStage } from "./stage-teardown.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const MS_PER_MINUTE = 60_000;
+/** How many ledger entries the status read shows. Ten bands, so half a table's turnover — enough to
+ *  explain a stage that vanished under a lane without the line becoming a scroll. */
+const RECENT_REAPS_SHOWN = 5;
 
 /** The whole census, gathered ONCE — `--stage-status` reports it, `--stage-sweep` acts on it and
  *  `--stage-down` selects from it, so the read and the writes can never disagree about what is running. */
@@ -124,12 +136,18 @@ export function stageStatus(): string {
     // A band with no row and nothing bound already reads "free"; appending "unbound" to it would make ten
     // lines of noise the operator has to skim past to find the one band that matters.
     const idle = view.row === null && !view.bandBound;
-    lines.push(idle ? describeStageBandRow(view, nowMs) : `${describeStageBandRow(view, nowMs)} · ${SWEEP_BAND_LINE[verdict]}${dangling}`);
+    // The band's own idle timer (#1163 arm b) — how long it has left, or the fact that it is DEAD/absent,
+    // which is protection the operator would otherwise assume was there.
+    const timer = view.row === null ? "" : ` · ${describeStageKeeper({ home, row: view.row, nowMs, ttlMs: limits.ttlMs }, pidAlive)}`;
+    lines.push(idle ? describeStageBandRow(view, nowMs) : `${describeStageBandRow(view, nowMs)} · ${SWEEP_BAND_LINE[verdict]}${dangling}${timer}`);
   }
   // Stage DIRS are per-checkout by design (each is a worktree of its own checkout) — this half is local.
   const dirs = stageDirs(root);
   lines.push(`stage dirs  : ${dirs.length === 0 ? "none" : dirs.join(", ")}`);
   lines.push(`reserved    : ${RESERVED_PORTS.map((row) => `:${row.port} ${row.owner}`).join(" · ")}`);
+  // WHICH ARM ENDED WHAT (#1163). A reaped band leaves no row, so "band 3 is free" and "band 3's own idle
+  // timer took it ninety seconds ago" are otherwise the same observation.
+  lines.push(`recent reaps: ${describeStageReaps(home, nowMs, RECENT_REAPS_SHOWN)}`);
   // The session substrate's third reader (design §3.8): a dead session is loud on every status read.
   lines.push(`sessions    : ${sessionStatusSummary(root, nowMs)}`);
   return lines.join("\n");
@@ -175,6 +193,9 @@ function reapBand(home: string, view: StageBandView, pids: readonly number[]): s
   }
   const killed = pids.filter((pid) => pidIsStageRooted(pid) && killGroupOf(pid));
   clearRow(home, view.band);
+  if (view.row !== null) {
+    recordStageReap(home, view.row, "sweep");
+  }
   return `band ${view.band}: reaped a stranded stage (stopped ${view.row === null ? "(no row)" : shortSha(view.row.sha)}, killed ${killed.length} process group(s), cleared the row)`;
 }
 
@@ -196,6 +217,7 @@ function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: 
     // Nothing to remove, or a worktree git has already forgotten — the row is still the deliverable.
   }
   clearRow(home, row.band);
+  recordStageReap(home, row, "sweep");
   return `band ${row.band}: reconciled a dangling row ${shortSha(row.sha)} (band free, last used ${describeStageAge(row.lastUsedAt, nowMs)} ago)`;
 }
 
@@ -278,6 +300,7 @@ function teardownRow(root: string, home: string, row: StageRow): string {
     return `band ${row.band}: partial teardown of ${shortSha(row.sha)}${whose}: ${errorMessage(e)}`;
   }
   clearRow(home, row.band);
+  recordStageReap(home, row, "down");
   return `band ${row.band}: tore down stage ${shortSha(row.sha)}${whose} (stack stopped, ${row.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} removed) — last used ${describeStageAgePhrase(row.lastUsedAt, Date.now())}, idle ${Math.round(stageIdleMs(row, Date.now()) / MS_PER_MINUTE)}m`;
 }
 

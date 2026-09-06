@@ -4,9 +4,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionCount, CollectionInsight } from "#lib";
-import { selectCollectionMember } from "#state";
-import { TAG_COLLECTION_ID } from "../lib/tags-model.ts";
+import type { CollectionContribution, CollectionCount, CollectionInsight } from "#lib";
+import { COLLECTION_LARGE_GROUP } from "#lib";
+import { selectCollectionMember, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
+import { TAG_COLLECTION_ID, tagSortItems } from "../lib/tags-model.ts";
 import { useCreateTag } from "./use-tag-settings-mutations.ts";
 
 /** The name a created tag lands with — the member editor's Name field is the rename affordance, so create
@@ -74,5 +75,50 @@ export function useCreateTagMember(): () => void {
   const create = useCreateTag({ trpc, invalidation });
   return (): void => {
     create.mutate({ input: { name: NEW_TAG_NAME } }, { onSuccess: (created): void => selectCollectionMember(TAG_COLLECTION_ID, created.id) });
+  };
+}
+
+/** The library's READING ORDER as the host's control row wants it (`CollectionContribution.sort`) — the
+ *  MODE, its writer, and the option set.
+ *
+ *  THE COMPARATOR IS NOT HERE, and that is the seam's split rather than an omission: sorting runs over
+ *  MEMBERS and the host never sees one, so `sortTagsBy` stays inside `TagCollectionRows`. Both sides read
+ *  `state/tag-library-store.ts`, which is the mode's one home — so the rows read exactly the mode this
+ *  control writes, without a `CollectionListView` field restating a value that already has an address.
+ *
+ *  The option set depends on the library's SIZE (drag handles cannot exist in a windowed list), so this
+ *  reads the SAME cached list the census and the rows read — a cache hit, never a second request, the
+ *  `useMemberTitle` discipline. A read that has not landed is treated as "handles available": the small-arm
+ *  option set is the one that offers more, and a settling read must not disable a control it cannot judge. */
+export function useTagSortControl(): ReturnType<NonNullable<CollectionContribution["sort"]>["useMode"]> {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data;
+  const mode = useTagSortMode();
+  const handlesAvailable = (rows?.length ?? 0) <= COLLECTION_LARGE_GROUP;
+  return {
+    mode,
+    // The seam is host-OPAQUE strings, so the value comes back widened; the option set the host rendered
+    // came from `TAG_SORT_MODES`, and the store's own persist `migrate` is the total guard for anything
+    // else. A `find` over the canonical tuple is the narrowing, never a cast.
+    setMode: (next: string): void => {
+      const picked = tagSortItems(handlesAvailable, COLLECTION_LARGE_GROUP).find((option) => option.value === next);
+      if (picked !== undefined) {
+        setTagSortMode(picked.value);
+      }
+    },
+    options: tagSortItems(handlesAvailable, COLLECTION_LARGE_GROUP),
+  };
+}
+
+/** "Prune unused tags" as a library-level action (`CollectionContribution.actions`) — the runner OPENS the
+ *  confirm the rows own, and fires nothing itself.
+ *
+ *  THE VERB IS DESTRUCTIVE AND MASS (394 rows at the owner's library), so the click that reaches it may
+ *  never be the click that performs it (side-eye 2026-08-03 P2). The confirm needs the live unused COUNT
+ *  and the cascade copy, which are the ROWS' knowledge, so the dialog stays inside `list` and this runner
+ *  writes the flag it is bound to — see `state/tag-library-store.ts`'s `pruneConfirmOpen`. */
+export function useOpenPruneUnusedTags(): () => void {
+  return (): void => {
+    setTagPruneConfirmOpen(true);
   };
 }

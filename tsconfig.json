@@ -60,7 +60,7 @@
     // pin `tests/contracts/plugin/host-v1.test-d.ts` needs its globals in THIS program (a /// reference
     // from the test proved unreliable under the vitest typecheck lane — a stale referenced-file view
     // survived cache clears; config-level inclusion resolves freshly).
-    "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts",
+    "packages/showcase-plugins/bundles/host-v1.d.ts",
     "vitest.config.ts",
     "vitest.stryker.config.ts",
     "playwright.config.ts",
@@ -145,6 +145,9 @@
     // ONLY through the leak. Homed at packages/client/tsconfig.json beside its `.tsx` sibling (its only
     // two consumers are both client-owned; the ct-data-providers.tsx upward-cake precedent). NOT
     // subsumed by the #1243 tests/client wholesale exclude below — it lives under tests/support/ct/.
+    // #1765: the containment helper reads `scrollWidth`/`clientWidth`/`getBoundingClientRect` inside `evaluate`
+    // callbacks — DOM-coupled `.ts` glue, owned with lib.dom by tsconfig.tests-dom.json like its siblings here.
+    "tests/support/ct/contained-within.ts",
     "tests/support/ct/ct-config-groups.ts",
     // Same #1228 leak, tests/tooling flavor: these int/CT tests drive a REAL chromium directly
     // (`@playwright/test` `chromium.launch`/`@playwright/experimental-ct-react`) rather than importing a

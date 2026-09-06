@@ -107,6 +107,14 @@ const DRAFT_STATE_BY_SAVE_STATE: Record<Exclude<AutosaveSaveState, "saved">, key
   // the arm exists to keep the dispatch exhaustive rather than because it fires.
   blocked: "failed",
   error: "failed",
+  // #1716's fifth member, forced here by `tsc` exactly as this map's header promises. Same word for the
+  // same reason the `blocked` arm takes it: a drifted ROW's honest statement is "Not saved" plus what a
+  // turn still resolves, and WHY it is not saved (a held write · a failed one · a stored settings blob
+  // this build cannot read) belongs to the pane's one status line, never to a chip on every row. Not
+  // currently reachable in this pane — the routing form's own blob is `user_settings.config`, so an
+  // unreadable one stands the whole settings surface down before a role row can drift — and the arm keeps
+  // the dispatch exhaustive rather than depending on that staying true.
+  unreadable: "failed",
 };
 
 /** The per-row LIVE-vs-DRAFT disclosure. Renders NOTHING while the row matches the persisted selection —

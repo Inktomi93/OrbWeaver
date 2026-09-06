@@ -20,6 +20,7 @@ import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema } from "#prose-slot";
+import type { VersionedParseIssue } from "#versioned-config";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 
@@ -785,6 +786,17 @@ const plainMarkerSection = z.object({
   marker: z.enum(PLAIN_MARKERS),
   role: z.enum(MESSAGE_ROLES).default("system"),
   enabled: z.boolean().default(true),
+  /** The firing gate, on the plain markers too (#1462, owner ruling: ST sets `injection_trigger` on EVERY
+   *  prompt-manager entry including the World Info and Chat History rows, and the neo-parity oracle is a
+   *  FLOOR). Its absence here was a PARITY GAP, not a design boundary: `sectionFromPrompt` silently dropped
+   *  an imported `injection_trigger` for these three, and the assembler's world-info anchor routing had no
+   *  gate to read. Every reader is the shared one — `assembly/sections::sectionTriggers` for the walk and
+   *  `hasActiveMarker` for the anchor-fallback routing, plus the `chat_history` pivot's own `sendHistory`.
+   *
+   *  `inject` is deliberately NOT added alongside it: `assembly/assemble::injectionDepthFor` returns `null`
+   *  unconditionally for all three plain markers (they are placement ANCHORS, not injectable content), so an
+   *  `inject` here would be a stored field no reader could ever honour. */
+  trigger: triggerSchema.optional(),
 });
 
 const templatedMarkerSection = z.object({
@@ -1293,12 +1305,12 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "chat.group.alsoPresent",
   },
   {
-    id: "chat.group.castMember",
+    id: "chat.group.characterHeading",
     kind: "group",
     label: "Character heading",
     fires: "A narrator round — opens each character's card block beside the primary",
     caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
-    defaultSlot: "chat.group.castMember",
+    defaultSlot: "chat.group.characterHeading",
   },
   {
     id: "chat.group.scenarioHeading",
@@ -2877,7 +2889,9 @@ function sectionFromPrompt(prompt: StPrompt, enabled: boolean, dropped: StDroppe
 
   if (marker !== undefined) {
     if (PLAIN_MARKER_SET.has(marker)) {
-      return { type: "marker", id, name, marker, role, enabled };
+      // `trigger` only: a plain marker is a placement ANCHOR, and `injectionDepthFor` refuses to give one a
+      // depth, so ST's `injection_position`/`injection_depth` have no orb reader here and stay dropped.
+      return { type: "marker", id, name, marker, role, enabled, ...(trigger === undefined ? {} : { trigger }) };
     }
     return {
       type: "marker",
@@ -3203,6 +3217,38 @@ export type StImportOutcome =
   | { readonly ok: false; readonly recognised: false; readonly reason: string }
   | { readonly ok: false; readonly recognised: true; readonly reason: string };
 
+/** Render a `schema-rejected` outcome's issue for the ST import door (#1592): resolve a `sections.<n>…`
+ *  path back to the ST prompt IDENTIFIER that section was built from — every section carries its source
+ *  identifier verbatim as `id` (`sectionFromPrompt`) — so the refusal names the same prompt the owner
+ *  authored in ST, not an opaque array index. Falls back to the bare dot-path outside `sections` (every
+ *  bound this mapper has ever tripped lives inside a section, but the fallback keeps this total). */
+function describeStRejectionIssue(issue: VersionedParseIssue, sections: PromptSection[]): string {
+  const sectionMatch = /^sections\.(\d+)(?:\.(.+))?$/u.exec(issue.path);
+  if (sectionMatch === null) {
+    return ` at \`${issue.path}\`: ${issue.message}`;
+  }
+  const section = sections[Number(sectionMatch[1])];
+  const field = sectionMatch[2];
+  const where = field === undefined ? "" : ` \`${field}\``;
+  const who = section === undefined ? `sections[${sectionMatch[1]}]` : `the ST prompt "${section.id}"`;
+  return ` — ${who}${where}: ${issue.message}`;
+}
+
+/** The `recognised: true` refusal for a non-intact `parseOutcome` (#1363/#1592) — split out of
+ *  {@link tryImportStChatCompletionPreset} purely to keep that function's own branching under the
+ *  complexity ceiling. */
+function stSchemaRejection(
+  outcome: Extract<ReturnType<typeof promptConfigConfig.parseOutcome>, { intact: false }>,
+  sections: PromptSection[],
+): StImportOutcome {
+  const detail = outcome.issue !== undefined ? describeStRejectionIssue(outcome.issue, sections) : "";
+  return {
+    ok: false,
+    recognised: true,
+    reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure})${detail}, so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+  };
+}
+
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
  *  OUTCOME (#1580) — the one home for both refusals; {@link importStChatCompletionPreset} is the throwing
  *  wrapper over this, and the two refusal `reason`s ARE that wrapper's two messages, verbatim.
@@ -3253,11 +3299,7 @@ export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknow
     ...(reasoningParse === undefined ? {} : { reasoningParse }),
   });
   if (!outcome.intact) {
-    return {
-      ok: false,
-      recognised: true,
-      reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure}), so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
-    };
+    return stSchemaRejection(outcome, sections);
   }
   const config = outcome.value;
 

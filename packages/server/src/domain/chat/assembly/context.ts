@@ -38,6 +38,7 @@ import type { ResolvedPersonas } from "../contract/foreign.ts";
 import type { GuidedSteer } from "../contract/params.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
+import { hasActiveMarker } from "./sections.ts";
 import { loadWorldInfoPool } from "./world-info/pool.ts";
 
 interface MatchedKey {
@@ -388,10 +389,6 @@ interface SendRegexResult {
   sendMacroFreezes?: MacroFreezeRecord;
 }
 
-function hasMarker(config: PromptConfig, marker: string): boolean {
-  return config.sections.some((s) => s.type === "marker" && s.marker === marker && s.enabled);
-}
-
 /** Frames a system-block injection once (content already macro-resolved); `in_chat` injections stay
  *  unframed since SHAPE's splice frames them. */
 function frameSystemInjection(inj: ChatInjection, prose: ProseOverrides): ChatInjection {
@@ -566,8 +563,11 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   }
   const placement = steer.placement ?? (config.role === "system" ? ({ kind: "system" } as const) : ({ kind: "inject", role: config.role } as const));
   if (placement.kind === "system") {
-    // The marker is the intended system-half home; only fall back when the active preset can't render it.
-    if (hasMarker(input.promptConfig, "guided_instruction")) {
+    // The marker is the intended system-half home; only fall back when the active preset can't render it ON
+    // THIS TURN. `hasActiveMarker` (not "enabled") is load-bearing: an enabled `guided_instruction` whose
+    // `trigger` excludes this generation type is dropped by the BUILD walk, so believing it would render
+    // stored the steer on the ctx and skipped the injection — and the steer then reached the model NOWHERE.
+    if (hasActiveMarker(input.promptConfig, "guided_instruction", input.generationType ?? "normal")) {
       base.guidedInstruction = resolved;
       return { candidates: [] };
     }
@@ -905,8 +905,14 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       guidedSteerText,
       names,
       lastUserMessage: input.lastUserMessage,
-      hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
-      hasAfterAnchor: hasMarker(input.promptConfig, "world_info_after"),
+      // ACTIVE anchors, not merely enabled ones — the SAME predicate the walk asks. An anchor the walk drops
+      // for a trigger mismatch renders nothing, so routing an always-scope entry into its bucket would delete
+      // that lore for the turn; no active anchor ⇒ the entry keeps its default `in_static` placement, which
+      // is where it always went. The plain markers only gained `trigger` with #1462 (ST sets
+      // `injection_trigger` on every prompt-manager entry — the missing field was a parity gap), and this is
+      // the reader that gap left with nothing to read.
+      hasBeforeAnchor: hasActiveMarker(input.promptConfig, "world_info_before", input.generationType ?? "normal"),
+      hasAfterAnchor: hasActiveMarker(input.promptConfig, "world_info_after", input.generationType ?? "normal"),
       registry: reg,
     },
     buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, registry: input.macroRegistry }),
@@ -946,7 +952,11 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
     wiTrace: {
-      included: chatInjections.length + beforeParts.length + afterParts.length,
+      // WORLD-INFO entries only — the kept candidates that carry a `worldEntryId`, which is exactly
+      // `activated`. It used to count every kept injection, and `chatInjections` holds all six candidate
+      // families (world-info, user, guided, persona description, author's note, new-chat marker), so any turn
+      // with a chat injection reported lore that never fired ("3 included" on a chat with no books at all).
+      included: activated.length,
       dropped,
       matchedKeys: wi.matchedKeys,
       activated,

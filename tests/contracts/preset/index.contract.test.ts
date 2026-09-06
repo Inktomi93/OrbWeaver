@@ -801,6 +801,57 @@ test("importStChatCompletionPreset (#1363): sectionCount describes the RETURNED 
   expect(result.dropped[0]?.field).toBe("prompts.a.injection_depth");
 });
 
+// #1462 — `plainMarkerSection` carried no `trigger`, so `sectionFromPrompt` DROPPED an imported
+// `injection_trigger` for the three plain markers (World Info before/after, Chat History) while carrying it
+// for every other prompt. ST sets that field on every prompt-manager entry, and the parity oracle is a FLOOR,
+// so this is a gap, not a boundary. `injection_position`/`injection_depth` stay dropped for a plain marker on
+// purpose: `assembly/assemble::injectionDepthFor` refuses those three a depth, so orb has no reader for them.
+test("importStChatCompletionPreset (#1462): a PLAIN marker's injection_trigger survives the import", () => {
+  const result = importStChatCompletionPreset({
+    prompts: [
+      { identifier: "worldInfoBefore", name: "World Info (before)", marker: true, injection_trigger: ["swipe", "continue"] },
+      { identifier: "chatHistory", name: "Chat History", marker: true, injection_trigger: ["normal"] },
+    ],
+    prompt_order: [
+      {
+        character_id: 100_001,
+        order: [
+          { identifier: "worldInfoBefore", enabled: true },
+          { identifier: "chatHistory", enabled: true },
+        ],
+      },
+    ],
+  });
+
+  const anchor = result.config.sections.find((section) => section.type === "marker" && section.marker === "world_info_before");
+  const pivot = result.config.sections.find((section) => section.type === "marker" && section.marker === "chat_history");
+  expect(anchor === undefined || !("trigger" in anchor) ? undefined : anchor.trigger).toEqual(["swipe", "continue"]);
+  expect(pivot === undefined || !("trigger" in pivot) ? undefined : pivot.trigger).toEqual(["normal"]);
+  // A plain marker still stores no placement — there is nothing in orb that could honour one.
+  expect(anchor === undefined ? true : "inject" in anchor).toBe(false);
+});
+
+test("importStChatCompletionPreset (#1462): a plain marker with NO injection_trigger stays unset, not empty", () => {
+  const result = importStChatCompletionPreset({
+    prompts: [{ identifier: "worldInfoBefore", name: "World Info (before)", marker: true }],
+    prompt_order: [{ character_id: 100_001, order: [{ identifier: "worldInfoBefore", enabled: true }] }],
+  });
+
+  const anchor = result.config.sections[0];
+  expect(anchor === undefined ? true : "trigger" in anchor).toBe(false);
+});
+
+test("a plain marker's trigger SURVIVES the preset file round-trip (buildPresetFile → parsePresetFile)", () => {
+  const imported = importStChatCompletionPreset({
+    prompts: [{ identifier: "worldInfoAfter", name: "World Info (after)", marker: true, injection_trigger: ["quiet"] }],
+    prompt_order: [{ character_id: 100_001, order: [{ identifier: "worldInfoAfter", enabled: true }] }],
+  }).config;
+  const parsed = parsePresetFile(buildPresetFile("round-trip", imported));
+
+  expect(parsed.ok).toBe(true);
+  expect(parsed.ok ? parsed.config.sections : []).toEqual(imported.sections);
+});
+
 // #1580 — the reader's TWO refusals were one bare Error, so the import door could only say "the reader
 // stopped" for a file the reader had RECOGNISED and then refused. The typed outcome carries the difference;
 // the throwing wrapper keeps both messages byte-for-byte, so no caller's copy moved.
@@ -819,10 +870,10 @@ test("tryImportStChatCompletionPreset (#1580): a RECOGNISED preset refused by th
   // The discriminant is the whole point: this file IS a SillyTavern preset, and the door must be able to say so.
   expect(outcome).toMatchObject({ ok: false, recognised: true });
   expect(outcome.ok ? "" : outcome.reason).toContain("This SillyTavern preset mapped to a config orb cannot store");
-  // The reason carries the parse outcome's own failure word. NOTE (not this row's scope): that word is
-  // `schema-rejected` — the belt does NOT name WHICH bound blew, so the operator still cannot tell which
-  // prompt to shrink. The typed outcome makes that gap visible instead of hiding it behind "reader stopped".
   expect(outcome.ok ? "" : outcome.reason).toContain("(schema-rejected)");
+  // #1592 — the belt now NAMES which prompt and which field blew the bound, so the operator can tell which
+  // prompt to shrink instead of reading the bare failure word.
+  expect(outcome.ok ? "" : outcome.reason).toContain('the ST prompt "lore-dump" `content`: Too big: expected string to have <=100000 characters');
 });
 
 test("tryImportStChatCompletionPreset (#1580): an object the reader never claims answers recognised:false", () => {
@@ -1166,12 +1217,12 @@ test("the note guard is a WRITE boundary only — a stored broken frame still LO
 });
 
 test("the guard did NOT widen to PROSE-1's requiredMacros: another slot's missing macro still saves", () => {
-  // `chat.group.castMember` carries `{{name}}` in `requiredMacros` — VOICE guidance whose absence weakens
+  // `chat.group.characterHeading` carries `{{name}}` in `requiredMacros` — VOICE guidance whose absence weakens
   // prose rather than deleting payload. Its posture is the unchanged ruling: a lint in the editor, never a
   // block. (Since the F4 re-home it is a PRESET-homed group framing with its own Templates-tab row, so this
   // is a real `promptConfig.prose` write target — proving the note guard reads the two carrier slots and
   // nothing else, not even another preset-homed framing that drops its own required token.)
-  const result = promptConfigWriteSchema.safeParse(withProse("chat.group.castMember", "A cast member is present."));
+  const result = promptConfigWriteSchema.safeParse(withProse("chat.group.characterHeading", "A character is present."));
   expect(result.success).toBe(true);
 });
 

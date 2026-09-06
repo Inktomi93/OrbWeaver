@@ -67,6 +67,7 @@ import {
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
   loadCanonStatRows,
@@ -76,7 +77,6 @@ import {
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
@@ -1692,7 +1692,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
-        roster: prep.toolRoster ?? null,
+        participants: prep.toolRoster ?? null,
         turnId,
         signal: prep.signal,
       },
@@ -1793,8 +1793,8 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             config: memoryConfig,
             macroNames,
           });
-          const roster = await loadRoster(ctx.db, prep.chatId);
-          const chars = roster.flatMap((r) => {
+          const participants = await loadParticipants(ctx.db, prep.chatId);
+          const chars = participants.flatMap((r) => {
             const actor = classifyParticipant(r);
             return actor?.kind === "character" ? [actor.characterId] : [];
           });
@@ -2031,7 +2031,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
-        roster: prep.toolRoster ?? null,
+        participants: prep.toolRoster ?? null,
         turnId: ctx.newChatTurnId(),
         signal: prep.signal,
       },

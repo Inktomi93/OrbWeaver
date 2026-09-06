@@ -6,6 +6,7 @@
 // firehose + the domain-event bus onto the watcher's two sources.
 
 import type { TriggerFact } from "@orb/contracts/automation";
+import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
@@ -69,7 +70,7 @@ export interface AutomationActionOpsDeps {
    *  half (no membership select of its own, no second clamp home). */
   readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
   /** chat's standalone (out-of-turn) variable write — `ChatComposeResult.applyVariableOps`. */
-  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
   /** the SHARED hand-edit-safe world-info writer (CC-D), resolving the book owner's Principal at compose. */
   readonly upsertEntries: (args: {
     readonly authorUserId: UserId;

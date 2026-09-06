@@ -46,12 +46,20 @@ const PICKER_PAGE = 200;
 
 export function CorpusCompareTab(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="gloss">Loading characters…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
-    >
-      <CompareBody />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1726/#1727, the #1133 hoist). `reserveKey` wraps the
+    // settled child in an auto-height measuring Stack, so a scroller under the boundary resolves `flex-1`
+    // against an indefinite parent and strands everything past the fold; hoisted, the wrapper sits INSIDE
+    // the scroller and the scroller survives the read. (Its sibling corpus tabs key with no scroller of
+    // their own.)
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")}>
+      <QueryBoundary
+        fallback={<Text voice="gloss">Loading characters…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
+        reserveKey="corpus.compare"
+      >
+        <CompareBody />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -80,7 +88,7 @@ function CompareBody(): ReactElement {
   ];
 
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")} gap="section">
+    <Stack gap="section">
       <ComparePickers
         a={a}
         b={b}

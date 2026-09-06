@@ -67,10 +67,16 @@
 //     `budgetExhausted`, which the runner prints — an exhausted budget is a refusal, not a clean run.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { IMPLICIT_INTERACTIVE_ROLES_JS } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
+  // THE TWO-ARM REVEAL CONTRACT (#1077): ROW_REVEAL/subtitleReveal is opacity-0 at fine rest, ALWAYS-ON
+  // at coarse (\`pointer-coarse:opacity-100\`) — coarse covers itself, so the gap is fine-only.
+  // \`restHiddenRevealFine\` feeds census-collision.ts's \`reveal-coverage\` WITHHELD row, never a silent drop.
+  var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
+  var restHiddenRevealFine = 0;
   var tapTargets = [];
   var accessibleNames = [];
   // The name-text source, the native-label / labelledby / alt resolvers and the ONE spec-ordered
@@ -161,12 +167,28 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return null;
   };
+  // A TOOLBAR CELL'S HOME (#1705). The RULING and its rationale live on checkDuplicateDoorPopulations
+  // (lib/checks-quality.ts); this publishes only the fact. The nearest \`role="toolbar"\` ancestor decides —
+  // toolbars do not nest here — under the same "a set needs SIBLINGS" guard doorListHome carries: one lone
+  // control under a toolbar role is not a switcher and must not get a free pass.
+  var doorToolbarHome = function (el) {
+    var levels = 0;
+    for (var anc = el; anc && anc !== document.body && levels < LIST_ANCESTOR_MAX; anc = anc.parentElement, levels += 1) {
+      if (String(anc.getAttribute("role") || "").trim().toLowerCase() !== "toolbar") continue;
+      var cells = 0;
+      for (var tc = 0; tc < anc.children.length; tc += 1) {
+        if (anc.children[tc].matches(INTERACTIVE_SELECTOR) || anc.children[tc].querySelector(INTERACTIVE_SELECTOR) !== null) cells += 1;
+      }
+      return cells >= 2 ? doorElementId(anc) : null;
+    }
+    return null;
+  };
   // The accessible name as a COMPARISON KEY, not as a WCAG computation: case-folded, whitespace-collapsed,
   // and stripped of trailing punctuation, so "New chat" / "new chat" / "New chat…" are one door.
   var doorNameKey = function (name) {
     return String(name || "").replace(/\\s+/g, " ").trim().toLowerCase().replace(/[.\\u2026:;,!?]+$/, "");
   };
-  var IMPLICIT_ROLES = { a: "link", button: "button", summary: "button", select: "combobox", textarea: "textbox" };
+  var IMPLICIT_ROLES = ${IMPLICIT_INTERACTIVE_ROLES_JS};
   var doorRole = function (el) {
     var explicit = el.getAttribute("role");
     if (explicit) return explicit.trim().toLowerCase();
@@ -231,6 +253,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   }
   for (var m2 = 0; m2 < interactiveEls.length; m2 += 1) {
     var iel = interactiveEls[m2];
+    if (!pointerCoarse && !isOperable(iel) && isOpacityOnlyHidden(iel)) restHiddenRevealFine += 1;
     if (!isOperable(iel) || isDevChrome(iel)) continue;
     // Base UI mints 1-2px native-input TWINS (aria-hidden and/or tabindex=-1) behind
     // Select/Slider/Switch — hidden plumbing, not offered targets, and the measured #1 FP class
@@ -333,6 +356,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
         path: doorPath(iel),
         listKey: doorHome ? doorHome.list : null,
         itemKey: doorHome ? doorHome.item : null,
+        toolbarKey: doorToolbarHome(iel),
       });
     }
   }
@@ -399,11 +423,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     if (isVisible(mainLandmarks[ml])) { mainLandmarkPresent = true; break; }
   }
 
-  // Which target-size floor applies is pointer-conditional (see design-audit-checks.ts checkTapTarget):
-  // sample the REAL pointer type this render is under so the tap-target check judges it against the
-  // right WCAG floor instead of holding a fine-pointer desktop scale to the 44px touch number.
-  var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
-
+  // pointerCoarse is declared ABOVE, #1077 — the WCAG floor this feeds (checkTapTarget) reads it here.
   // ── tabindex smell ────────────────────────────────────────────────────────
   var tabIndexes = [];
   var tabIndexEls = document.querySelectorAll("[tabindex]");

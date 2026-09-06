@@ -40,6 +40,7 @@ import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../..
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
+  bundleImportNotes,
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
   IMPORT_MAX_TOTAL_BYTES,
@@ -270,12 +271,14 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           extractOptions: { maxTotalBytes: IMPORT_MAX_TOTAL_BYTES, maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES, stagingRoot: root },
           signal,
         });
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed };
+        // #1710 — carry what #1688 already put on the report (a kept edited lorebook, a dropped overlay) into
+        // the BACKGROUND workload's own result, not only the descriptor-level report a sync door would read.
+        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
       }),
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
       await withQuietBulkFanout(async () => {
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed };
+        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
       }),
     reconcileImportStats,
     // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)

@@ -29,7 +29,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { AddRow, HintEditor, SettingCheckboxRow, TrackerValue } from "#components";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useReattributePersona, useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
@@ -417,9 +417,12 @@ export interface RpgGameTabProps {
 /** The Game tab — the HOST console (its own boundary; a config read failure is contained). */
 export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
   return (
+    // RESERVED (#1098) — the GM console settles into a full section stack (macros, resync, the graduate
+    // doorway) behind a config read, so the tab jumped its own height every time a host opened it.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading the console…</Text>}
+      fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the host console" onRetry={retry} />}
+      reserveKey="rpg.hostConsole"
     >
       <HostConsole state={state} />
     </QueryBoundary>

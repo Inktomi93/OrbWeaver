@@ -1,9 +1,15 @@
 // CT: the tag collection's ROWS — the OWNER half of the config seam, driven through the host's view.
 //
 // The row is a SCENT now (F-11): swatch · name · usage. What this pins is what that split must NOT lose —
-// the usage census still reads per row, the library-level "Prune unused" verb survived the move (it rides
-// the owner's half of the group body, since the host band carries only create), and it appears only when
-// there IS something to prune.
+// the usage census still reads per row, and the comparator/handle fork still answers the sort mode.
+//
+// ═══ THE CHROME LEFT THIS COMPONENT (#1725) ══════════════════════════════════════════════════════════
+// The sort SELECT and the "Prune unused" BUTTON used to be drawn here, and they are the config host's
+// control row now (`tagCollection.sort` / `.actions`, DESIGN.md §3.2). Both write store functions, so this
+// file drives those functions through the story's buttons and asserts what the ROWS do with them; the host
+// half — that a Select and a kebab item exist, are absent for the libraries that declare neither, and write
+// exactly these values — is pinned in `tests/client/features/config/components/config-collection-landing.ct.tsx`.
+// Nothing was dropped; the two halves are asserted where each is drawn.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -74,8 +80,7 @@ test("SORT MODE: the roster leads with MOST-USED by default and switches to A–
   // Default is most-used: zeal (12) · adventure (7) · orphan (0).
   await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["zeal", "adventure", "orphan"]);
 
-  await rows.getByRole("combobox", { name: "Sort tags" }).click();
-  await page.getByRole("option", { name: "A–Z" }).click();
+  await rows.getByRole("button", { name: "sort: a-z" }).click();
   await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["adventure", "orphan", "zeal"]);
 });
 
@@ -85,8 +90,7 @@ test("SORT MODE: manual order is still reachable and is the only arm that offers
   // Most-used (the default) is a derived order — a drag handle there would write a lie.
   await expect(rows.getByRole("button", { name: REORDER_HANDLE })).toHaveCount(0);
 
-  await rows.getByRole("combobox", { name: "Sort tags" }).click();
-  await page.getByRole("option", { name: "Manual order" }).click();
+  await rows.getByRole("button", { name: "sort: manual" }).click();
   await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["adventure", "orphan", "zeal"]);
   await expect(rows.getByRole("button", { name: REORDER_HANDLE }).first()).toBeVisible();
 });
@@ -166,7 +170,7 @@ test("the host's filter string narrows the OWNER's rows", async ({ mount, page }
 test("Prune unused ASKS FIRST — the click opens a counted confirm and fires nothing", async ({ mount, page }) => {
   const trpc = await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
-  await rows.getByRole("button", { name: "Prune unused" }).click();
+  await rows.getByRole("button", { name: "open prune confirm" }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
   // Dismiss and settle on the CLOSED dialog before reading the recorder: the barrier is a rendered state
@@ -180,7 +184,7 @@ test("Prune unused ASKS FIRST — the click opens a counted confirm and fires no
 test("Prune unused fires the library verb once the confirm is accepted", async ({ mount, page }) => {
   const trpc = await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
-  await rows.getByRole("button", { name: "Prune unused" }).click();
+  await rows.getByRole("button", { name: "open prune confirm" }).click();
   // SINGULAR (side-eye 2026-08-03 P3): "Delete them" under "Delete 1 unused tag?" was the confirm
   // disagreeing with the question it answers.
   await page.getByRole("button", { name: "Delete it" }).click();
@@ -191,7 +195,7 @@ test("the prune confirm's LABEL agrees in number with its own title", async ({ m
   const second = { ...TAGS[1], id: "tag_orphan2", name: "orphan2" } as unknown;
   await stub(page, [TAGS[0], TAGS[1], second]);
   const rows = await mount(<TagCollectionRowsStory />);
-  await rows.getByRole("button", { name: "Prune unused" }).click();
+  await rows.getByRole("button", { name: "open prune confirm" }).click();
   await expect(page.getByRole("heading", { name: "Delete 2 unused tags?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Delete them" })).toBeVisible();
 });
@@ -211,34 +215,28 @@ test("a filter that matches nothing DOES say so", async ({ mount, page }) => {
   await expect(rows.getByText("No tags match that filter.")).toBeVisible();
 });
 
-test("no unused tags ⇒ no prune affordance (a verb with nothing to do is not offered)", async ({ mount, page }) => {
-  await stub(page, [TAGS[0]]);
+// NOTHING TO PRUNE — the ruling survives, its SURFACE changed (#1725). The verb used to be a button the
+// rows HID when `unusedCount === 0`; it is a menu item built from static `actions` data now, and static data
+// cannot hide itself, so the same fact is stated by the dialog: it says there is nothing to delete and its
+// destructive button is DISABLED. Asserting the disabled state matters more than asserting the copy — a
+// confirm that reads "nothing to prune" over a live Delete button would be the capability lie inverted.
+test("no unused tags ⇒ the prune confirm says so and cannot fire", async ({ mount, page }) => {
+  const trpc = await stub(page, [TAGS[0]]);
   const rows = await mount(<TagCollectionRowsStory />);
   await expect(rows.getByText("adventure")).toBeVisible();
-  await expect(rows.getByRole("button", { name: "Prune unused" })).toHaveCount(0);
+  await rows.getByRole("button", { name: "open prune confirm" }).click();
+  await expect(page.getByRole("heading", { name: "Nothing to prune" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete them" })).toBeDisabled();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-// RENDERED, at the roster's REAL width (the story box is the 330px config pane, not a comfortable
-// default): the sort control is a `w-auto` Select precisely because FIELD_CONTROL's own `w-full` would
-// claim the whole band for a three-word label. Geometry, never the class string — a class assertion is
-// what would pass while the pixels were wrong.
-const ROSTER_PANE_PX = 330;
-const SORT_MAX_SHARE = 0.6;
-
-test("the sort control fits the 330px roster band and does not claim it", async ({ mount, page }) => {
-  await stub(page, THREE);
-  const rows = await mount(<TagCollectionRowsStory />);
-  const sort = rows.getByRole("combobox", { name: "Sort tags" });
-  await expect(sort).toBeVisible();
-
-  const box = await sort.boundingBox();
-  const paneBox = await rows.boundingBox();
-  const paneRight = (paneBox?.x ?? 0) + ROSTER_PANE_PX;
-  expect((box?.x ?? 0) + (box?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(paneRight);
-  expect(box?.width ?? ROSTER_PANE_PX).toBeLessThan(ROSTER_PANE_PX * SORT_MAX_SHARE);
-  // It is a real control, not a text-height sliver: the fine-pointer tap floor.
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
-});
+// THE SORT CONTROL'S GEOMETRY MOVED WITH THE CONTROL (#1725). This file used to pin that the `w-auto`
+// Select fitted the 330px roster band without claiming it; the Select is the config host's control row now,
+// at CONTENT-pane widths, so that pin lives in the landing's own width matrix
+// (`tests/client/features/config/components/config-collection-landing.ct.tsx`). Deleted here rather than
+// left asserting a control this component no longer draws.
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // MANUAL ORDER IS NOT A SILENT DEAD MODE (side-eye 2026-08-03 P1). Above COLLECTION_LARGE_GROUP the roster
@@ -255,44 +253,24 @@ const OVER_CAP_TAGS = Array.from({ length: OVER_CAP }, (_unused, at) => ({
   sortOrder: null,
 }));
 
-test("ABOVE the cap: Manual order is unselectable, and the roster says why", async ({ mount, page }) => {
+// ABOVE THE CAP the rows LOSE their handles, and that half is this component's. The option's own
+// `disabled` + the "Drag to reorder is off above 30 tags." description are the HOST's Select now and are
+// pinned in the landing CT — the two halves of one ruling, each asserted where it is drawn.
+test("ABOVE the cap: manual mode yields no drag handles, whatever the persisted mode says", async ({ mount, page }) => {
   await stub(page, OVER_CAP_TAGS);
   const rows = await mount(<TagCollectionRowsStory />);
-  await expect(rows.getByText("Drag to reorder is off above 30 tags.")).toBeVisible();
-
-  await rows.getByRole("combobox", { name: "Sort tags" }).click();
-  const manual = page.getByRole("option", { name: "Manual order" });
-  await expect(manual).toBeVisible();
-  await expect(manual).toHaveAttribute("data-disabled", "");
-  await expect(page.getByRole("option", { name: "A–Z" })).not.toHaveAttribute("data-disabled", "");
+  await rows.getByRole("button", { name: "sort: manual" }).click();
+  // The windowed arm is the one that renders, and it has no stable drop target for an unrendered row.
+  await expect(rows.locator('[data-slot="virtual-list-scroll"]')).toBeVisible();
+  await expect(rows.getByRole("button", { name: REORDER_HANDLE })).toHaveCount(0);
 });
 
-test("BELOW the cap: the roster ADVERTISES the drag capability, then stops once handles are on screen", async ({ mount, page }) => {
+test("BELOW the cap: switching to manual puts real handles on screen", async ({ mount, page }) => {
   await stub(page, THREE);
   const rows = await mount(<TagCollectionRowsStory />);
-  // Landing on Most-used, nothing used to say reordering existed at all.
-  await expect(rows.getByText("Manual order lets you drag rows.")).toBeVisible();
-
-  await rows.getByRole("combobox", { name: "Sort tags" }).click();
-  await page.getByRole("option", { name: "Manual order" }).click();
+  await expect(rows.getByRole("button", { name: REORDER_HANDLE })).toHaveCount(0);
+  await rows.getByRole("button", { name: "sort: manual" }).click();
   await expect(rows.getByRole("button", { name: REORDER_HANDLE }).first()).toBeVisible();
-  // The hint is spent: a line telling you to drag, over visible drag handles, is noise.
-  await expect(rows.getByText("Manual order lets you drag rows.")).toHaveCount(0);
-});
-
-test("the sort control SHARES its line with the hint instead of sitting alone", async ({ mount, page }) => {
-  await stub(page, THREE);
-  const rows = await mount(<TagCollectionRowsStory />);
-  const hint = rows.getByText("Manual order lets you drag rows.");
-  const sort = rows.getByRole("combobox", { name: "Sort tags" });
-  await expect.poll(async () => await hint.boundingBox()).not.toBeNull();
-  const hintBox = await hint.boundingBox();
-  await expect.poll(async () => await sort.boundingBox()).not.toBeNull();
-  const sortBox = await sort.boundingBox();
-  // Same line: their vertical spans overlap. And the hint leads, the control trails.
-  expect(hintBox?.y ?? 0).toBeLessThan((sortBox?.y ?? 0) + (sortBox?.height ?? 0));
-  expect(sortBox?.y ?? 0).toBeLessThan((hintBox?.y ?? 0) + (hintBox?.height ?? 0));
-  expect(hintBox?.x ?? 0).toBeLessThan(sortBox?.x ?? 0);
 });
 
 test("the WINDOWED roster paints a scroll cue while there is more below, and drops it at the end", async ({ mount, page }) => {

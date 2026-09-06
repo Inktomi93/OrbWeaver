@@ -1,6 +1,7 @@
 import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -107,16 +108,22 @@ export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<
   await db.update(users).set(patch).where(eq(users.id, id));
 }
 
-/** Atomically claim an unbound row for one stable SSO subject. The target predicate prevents a concurrent
- *  rebind; `users_external_id_unique` arbitrates claims by different rows. A false return means the target
- *  disappeared or another writer bound it before this statement acquired the write lock. */
-export async function claimExternalIdIfUnbound(db: Db, id: UserId, externalId: ExternalId, updatedAt: number): Promise<boolean> {
-  const claimed = await db
+/** THE ONE atomic externalId claim (U1 — both sanctioned capabilities bind through this single statement).
+ *  The unbound test rides INSIDE the UPDATE (`WHERE id = ? AND external_id IS NULL`), so a concurrent rebind
+ *  cannot slip between a read and the write; `users_external_id_unique` arbitrates claims by DIFFERENT rows.
+ *  EMPTY rows back means this call did not bind — the row is gone, already carries a subject, or another
+ *  writer won it — and the caller settles WHY from durable state.
+ *
+ *  UNEXECUTED and awaitable ({@link AwaitableBatchStmt}, the `revokeAllForUserStatement` shape): `await` it
+ *  to run it standalone (`provisionIdentity`'s owner-flip bind), or hand it to a `db.batch` so the bind
+ *  commits with its caller's other statements (#1707: the admin link's audit row). One statement either way
+ *  — never a second spelling of the claim. */
+export function claimExternalIdIfUnbound(db: Db, id: UserId, externalId: ExternalId, updatedAt: number): AwaitableBatchStmt<{ id: UserId }[]> {
+  return db
     .update(users)
     .set({ externalId, updatedAt })
     .where(and(eq(users.id, id), isNull(users.externalId)))
     .returning({ id: users.id });
-  return claimed.length === 1;
 }
 
 /** B4 first-run: the owner row's password state — whether the singleton `role='owner'` row already carries

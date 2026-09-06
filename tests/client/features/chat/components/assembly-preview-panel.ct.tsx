@@ -469,6 +469,38 @@ test("the diagnostics drawer lists the DELIVERED wire rows in order, with role �
   await expect(rows.nth(0)).toContainText("canon");
 });
 
+// #1462 — the merged room-override fallback is a hard-capped join, so a roster member's card prose can be
+// SHORTENED (and, before the per-member allocation, dropped whole) on its way to the model while the trace
+// said only "merged (present characters)". The names are the fact that makes it actionable, so they have to
+// be VISIBLE, not merely carried on the wire shape.
+test("the Trace section names the members whose merged fallback was cut", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      trace: { ...PREVIEW_TRACE, mergedFallbackTruncated: { mainPrompt: ["Mara", "Niko"], postHistory: ["Niko"] } },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+
+  // Both fields fold into ONE line, deduped — Niko is cut in both and must not read as two contributors.
+  await expect(component.getByText("Merged fallback cut")).toBeVisible();
+  await expect(component.getByText("Mara, Niko", { exact: true })).toBeVisible();
+});
+
+test("nothing cut ⇒ the line is ABSENT, not an empty row", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+  await expect(component.getByText("World info", { exact: false }).first()).toBeVisible();
+
+  await expect(component.getByText("Merged fallback cut")).toHaveCount(0);
+});
+
 // ── side-eye 2026-08-06 (the wire readout's legibility) ─────────────────────────────────────────────
 test("the readout is a real LIST, defines its provenance words, and badges only the non-canon arms", async ({ mount, page }) => {
   await routeTrpc(page, {

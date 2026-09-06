@@ -43,6 +43,12 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
   "--stage-owner": (a, rest) => {
     a.stageOwner = rest.shift() ?? null;
   },
+  // The band idle timer's own entry (#1163 arm b) — snap spawns it, an operator never types it. A
+  // non-numeric band is left null and refused by ops/parse.ts, so a typo never starts a keeper for NaN.
+  "--stage-keeper": (a, rest) => {
+    const band = Number(rest.shift());
+    a.stageKeeper = Number.isInteger(band) ? band : null;
+  },
   "--force": (a) => {
     a.force = true;
   },

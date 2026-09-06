@@ -189,3 +189,180 @@ auditRuleTest(
     expect(namesIn(await auditFixture(scratch, runCli, "name-sr-only-text", body))).toHaveLength(0);
   },
 );
+
+// ── the view-switch cell (#1705) ─────────────────────────────────────────────
+// On home, `nav[aria-label=Primary] > button "Chats"` NAVIGATES THE APP while `#context-cell-chats` inside
+// `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats. Two regions, two verbs,
+// one noun (UI-Architecture-and-Layout.md §4.1–4.3) — so the rule's premise ("one verb wants one home per
+// plane") does not hold and it filed a false positive.
+//
+// The two fixtures are byte-identical except for the `role="toolbar"` attribute, which is the ONLY input to
+// the fence: the door PATH is position-free and carries no role, so a control that flips the verdict
+// without the fence is impossible and the second arm is a real control rather than a differently-shaped
+// document. Keep them that way.
+
+function doorsIn(report: RelationalPopulationReport): readonly { readonly rule: string }[] {
+  return report.findings.filter(({ rule }) => rule === "duplicate-action-door");
+}
+
+const SWITCHER = (role: string): string => `<nav aria-label="Primary" data-slot="primary-nav">
+  <button id="nav-chats" data-slot="nav-cell" ${CONTROL}>Chats</button>
+  <button id="nav-library" data-slot="nav-cell" ${CONTROL}>Library</button>
+</nav>
+<div id="context-rail" data-slot="context-rail"${role} aria-label="Character">
+  <button id="context-cell-chats" data-slot="context-cell" ${CONTROL}>Chats</button>
+  <button id="context-cell-notes" data-slot="context-cell" ${CONTROL}>Notes</button>
+</div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "silent",
+      reason:
+        "a cell of a role=toolbar view switcher is not a second door to the app-level action sharing its name — it repaints one region, and the rule's own remedy (give the verb one home) would delete the switcher",
+    },
+  ],
+  "a toolbar cell sharing a name with a nav button is excluded as a view switch, and counted",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-toolbar-cell", SWITCHER(' role="toolbar"'));
+    expect(doorsIn(report), "the nav button and the toolbar cell are two verbs, not two homes").toHaveLength(0);
+    // Counted, never dropped: both cells of the switcher are in the denominator with their reason.
+    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 0, excluded: { viewSwitchCell: 2 } });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "fires",
+      reason:
+        "the same pair with the toolbar role removed is two ordinary regions offering one named action twice — the rule's real target, and the control that proves the fence is keyed on the role rather than on the shape of the markup",
+    },
+  ],
+  "the identical pair without role=toolbar is still two homes",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-plain-cell", SWITCHER(""));
+    expect(doorsIn(report), "without the toolbar role there is no view switcher to recognise").toHaveLength(1);
+    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
+  },
+);
+
+// ── #1074 (orb-ui audit F2): textarea + summary enter the base interactive population ───────────────
+//
+// INTERACTIVE_SELECTOR (ops/walker/core.ts) omitted `textarea` and `summary` while five sibling census
+// vocabularies already carried both, so a native <textarea> (Textarea/MacroTextarea) and a <summary>
+// disclosure trigger (ToolCallBlock) were invisible to tap-target/aria-name candidacy entirely — not a
+// wrong verdict, an ABSENT one. The proof is the CANDIDATE COUNT (populationAccounting), not a finding:
+// an unnamed, undersized instance of each must now be COUNTED (and therefore judged and filed), where
+// before the fix it was never in the denominator at all.
+
+function tapTargetSelectorsIn(report: RelationalPopulationReport): readonly { readonly rule: string }[] {
+  return report.findings.filter(({ rule }) => rule === "tap-target");
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "fires",
+      reason:
+        "a native <textarea> with no accessible name and a sub-floor box was invisible to INTERACTIVE_SELECTOR before #1074 — never a candidate, so never judged and never filed",
+    },
+  ],
+  "an undersized unlabeled textarea now enters the tap-target population",
+  async ({ runCli, scratch }) => {
+    const body = '<textarea style="width:20px;height:20px;display:block;box-sizing:border-box;border:0;padding:0;margin:0"></textarea>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea", body);
+    expect(tapTargetSelectorsIn(report).length, "a sub-floor textarea must now be a judged candidate").toBeGreaterThan(0);
+    expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "fires",
+      reason:
+        "a <summary> disclosure trigger (ToolCallBlock's shape) with a sub-floor box was equally invisible before #1074 — the same absent-candidate defect on the other omitted tag",
+    },
+  ],
+  "an undersized summary disclosure now enters the tap-target population",
+  async ({ runCli, scratch }) => {
+    const body = '<details><summary style="width:20px;height:20px;display:block">show</summary><p>detail</p></details>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-summary", body);
+    expect(tapTargetSelectorsIn(report).length, "a sub-floor summary must now be a judged candidate").toBeGreaterThan(0);
+    expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "silent",
+      reason:
+        "a floor-sized, fully-named textarea is the negative control proving the population read is not blanket-firing on every textarea now that it is a candidate",
+    },
+  ],
+  "a floor-sized labeled textarea does not file a tap-target finding",
+  async ({ runCli, scratch }) => {
+    const body = '<label for="notes">Notes</label><textarea id="notes" style="width:64px;height:64px;display:block"></textarea>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea-clean", body);
+    expect(tapTargetSelectorsIn(report)).toHaveLength(0);
+  },
+);
+
+// ── #1077 (orb-ui audit F5): a rest-hidden reveal cluster is WITHHELD by name at fine pointer ────────
+//
+// ROW_REVEAL (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100 revealed) fails
+// `isVisible`'s opacity gate at fine-pointer rest and was silently dropped from every offered-control
+// census with no accounting reason at all. `reveal-coverage` is accounting-only (no Finding, no
+// severity ever fires) — its job is to name the gap: present with a WITHHELD count when a rest-hidden
+// reveal control exists, absent entirely when none does.
+
+auditRuleTest(
+  [
+    {
+      rule: "reveal-coverage",
+      kind: "fires",
+      reason:
+        "an opacity-0-at-rest control (the ROW_REVEAL shape — real geometry, zero paint, hover/coarse-revealed) must be named as a withheld reveal-coverage candidate instead of vanishing from the census with no reason",
+    },
+  ],
+  "a rest-hidden reveal cluster produces a reveal-coverage WITHHELD row",
+  async ({ runCli, scratch }) => {
+    // The stray labeled control gives the walker something ELSE to censuse (evidence.ts's own
+    // `censusTotal` doctrine): the subject under test is entirely invisible by design, so without it
+    // the page would census zero nodes everywhere and refuse as NO VERDICT before this rule ever runs.
+    const body =
+      '<label for="anchor">Anchor</label><input id="anchor" style="width:64px;height:32px" />' +
+      '<div class="group"><button id="reveal-btn" style="opacity:0;width:40px;height:40px">Reveal</button></div>';
+    const report = await auditFixture(scratch, runCli, "reveal-coverage-fires", body);
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 1, judged: 0, withheld: { restHiddenReveal: 1 } });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "reveal-coverage",
+      kind: "silent",
+      reason:
+        "a fully-opaque control of the same shape is the negative control — no rest-hidden reveal cluster exists, so no reveal-coverage row prints at all",
+    },
+  ],
+  "a page with no rest-hidden reveal cluster produces no reveal-coverage row",
+  async ({ runCli, scratch }) => {
+    const body =
+      '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />' +
+      '<div class="group"><button id="visible-btn" style="opacity:1;width:40px;height:40px">Visible</button></div>';
+    const report = await auditFixture(scratch, runCli, "reveal-coverage-silent", body);
+    // The JSON accounting record is always present (every family carries its own zero); the row this
+    // test names is the PRINTED `POPULATION reveal-coverage …` line, which report.ts folds a
+    // zero-candidate rule into the `nothing-to-judge` summary instead of printing on its own.
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 0, withheld: {} });
+  },
+);

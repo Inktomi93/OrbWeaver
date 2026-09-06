@@ -211,7 +211,7 @@ describe("test-presence — the #773 entry/transport arm, planted controls on a 
       "packages/server/src/transport/trpc/routers/tag.ts":
         "export const tagRouter = router({\n  list: authedProcedure.query(({ ctx }) => ctx.services.tag.list()),\n});\n",
       // a declaration file emits no runtime
-      "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "export declare function hostV1(): void;\n",
+      "packages/showcase-plugins/bundles/host-v1.d.ts": "export declare function hostV1(): void;\n",
       // barrels, as everywhere else
       "packages/server/src/entry/http/index.ts": "export const front = 1;\n",
     });

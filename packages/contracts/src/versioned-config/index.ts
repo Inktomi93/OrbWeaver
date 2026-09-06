@@ -29,15 +29,25 @@
 //     `intact: true` cannot mean "the stored blob was fully read" while any `.catch()` sits below it.
 //     A whole-COLLECTION `.catch([])` therefore erases every good row with the one bad one, invisibly to
 //     the guard (#1365, `appearance.backgroundLibrary`). Collection leaves under a versioned config use
-//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED 2026-09-04 over the three
-//     tenants (`appSettingsConfig`, `userSettingsConfig`, `promptConfigConfig`) — four array leaves, three
-//     verdicts. `appearance.backgroundLibrary` + `chat.customStoppingStrings` carry user CONTENT and moved
-//     to `tolerantArray`; `appearance.blurSurfaces` KEEPS its whole-collection self-heal because an empty
-//     set is itself a meaningful stored value there (filtering would fabricate a deliberate opt-out — the
-//     reasoning is at its own leaf); `appSettings.importSkipCharacters` keeps `.catch(undefined)` because
-//     `undefined` there is the CLEAR sentinel ("unset — inherit the env floor", `settings/index.ts:363`),
-//     not an empty list, so its degrade is visible as "unset" on the admin surface rather than as silent
-//     loss; the object-valued `.catch(undefined)` override groups (`memoryDefaults`, `rateLimits`,
+//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED 2026-09-04, EXTENDED
+//     2026-09-05 (#1532) over the three tenants (`appSettingsConfig`, `userSettingsConfig`,
+//     `promptConfigConfig`) — FIVE array leaves, FOUR verdicts. `appearance.backgroundLibrary` +
+//     `chat.customStoppingStrings` carry user CONTENT and moved to `tolerantArray`; `appearance.blurSurfaces`
+//     KEEPS its whole-collection self-heal because an empty set is itself a meaningful stored value there
+//     (filtering would fabricate a deliberate opt-out — the reasoning is at its own leaf);
+//     `appSettings.importSkipCharacters` keeps `.catch(undefined)` because `undefined` there is the CLEAR
+//     sentinel ("unset — inherit the env floor", `settings/index.ts:363`), not an empty list, so its degrade
+//     is visible as "unset" on the admin surface rather than as silent loss; `chat.autoSwipe.blacklist`
+//     (`settings/index.ts`, the `autoSwipe` object) carries NO `.catch` AT ALL — the FOURTH verdict, LOUD not
+//     LOSSY: one non-string element fails `z.array(z.string())`, which fails the enclosing `autoSwipe` object
+//     (its own `.prefault({})` only supplies a MISSING object, it does not cushion an internal validation
+//     failure), which fails the whole blob — every settings write for that user refuses until the blacklist
+//     is fixed, rather than silently losing an entry. Left AS-IS (not moved to `tolerantArray`): unlike
+//     `customStoppingStrings`, a blacklist entry is compared against `{{user}}`/`{{char}}`-resolved reply
+//     text at swipe time, so a SILENTLY dropped entry is a silent BEHAVIOR regression (fewer things trigger
+//     an auto-swipe) with no on-screen signal, where the loud refusal at least surfaces at the write. Ends if
+//     that tradeoff is re-judged the other way (then it takes the same `tolerantArray` move as its siblings).
+//     The object-valued `.catch(undefined)` override groups (`memoryDefaults`, `rateLimits`,
 //     `memorySummarizer`, `engineLaunch`, …) keep their documented whole-group self-heal — they are
 //     re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
@@ -66,15 +76,31 @@ export const VERSIONED_PARSE_FAILURES = {
 
 export type VersionedParseFailure = (typeof VERSIONED_PARSE_FAILURES)[keyof typeof VERSIONED_PARSE_FAILURES];
 
+/** The FIRST zod issue off a `schema-rejected` failure (#1592) — enough for a caller to name WHICH field
+ *  blew the schema, without carrying the whole zod `ZodError` (an internal detail this contract has never
+ *  otherwise leaked). `path` is dot-joined (`"sections.0.content"`), never the raw `PropertyKey[]` — a
+ *  caller renders it, never re-walks it structurally (walking it back to source vocabulary, e.g. an ST
+ *  prompt identifier, is the CALLER's domain knowledge, not this primitive's). */
+export interface VersionedParseIssue {
+  readonly path: string;
+  readonly message: string;
+}
+
 /**
  * `parse`'s value plus its PROVENANCE. `intact: true` ⇒ `value` IS the stored blob (lifted + validated);
  * `intact: false` ⇒ `value` is a STAND-IN for a blob that could not be read faithfully — the `default`,
  * or (for `version-from-future` only) the stored blob minus the fields this build cannot represent — and
  * overwriting storage with anything derived from it would destroy the real data (#471/#1364).
+ *
+ * `issue` is populated ONLY for `schema-rejected` (#1592) — the one failure with a zod error to name; a
+ * write-time REFUSAL (`requireIntactStoredConfig`) still names only the table/scope, never blob contents
+ * (the leak-free posture), but an IMPORT door reading its own freshly-mapped value back through this seam
+ * is not reading someone else's stored blob, so naming the offending field there is safe and load-bearing
+ * (the #1592 defect: a 100k-character prompt's owner could not tell which prompt to shrink).
  */
 export type VersionedParseOutcome<T> =
   | { readonly intact: true; readonly value: T }
-  | { readonly intact: false; readonly value: T; readonly failure: VersionedParseFailure };
+  | { readonly intact: false; readonly value: T; readonly failure: VersionedParseFailure; readonly issue?: VersionedParseIssue };
 
 export interface VersionedConfigDef<T> {
   /** Final-version Zod schema. Must accept the output of the last lift. */
@@ -124,6 +150,32 @@ function startVersion(raw: Record<string, unknown>, storedVersion: number | unde
   return storedVersion !== undefined && Number.isInteger(storedVersion) && storedVersion >= INITIAL_VERSION ? storedVersion : probedVersion;
 }
 
+/** The first zod issue off a failed `safeParse`, in this contract's own (dot-path) shape — `undefined` only
+ *  when zod reports success (never called on that arm) or, defensively, an empty issue list. */
+function firstIssue(parsed: z.ZodSafeParseError<unknown>): VersionedParseIssue | undefined {
+  // @orb-gate-ignore zod-modern-spellings(error-issues): the structured FIRST issue (path + message) is this contract's parse-outcome payload (#1592) — the import refusal needs the PATH to name the offending field, which `z.prettifyError` flattens into prose; nothing here prints a raw message
+  const issue = parsed.error.issues[0];
+  return issue === undefined ? undefined : { path: issue.path.join("."), message: issue.message };
+}
+
+/** The verdict once the lift walk is done: a from-the-future blob (served, never intact), a schema pass
+ *  (intact), or a schema rejection (degraded, carrying the first offending field — #1592). Split out of
+ *  `parseOutcome` purely to keep that function's own branching under the complexity ceiling. */
+function verdictAfterLifts<T>(def: VersionedConfigDef<T>, config: Record<string, unknown>, version: number): VersionedParseOutcome<T> {
+  const parsed = def.schema.safeParse(config);
+  if (version > def.version) {
+    // A blob from a NEWER build (#1364). The walk above cannot have lifted it — lifts only go forward — so
+    // `parsed.data` is the stored blob with every unknown field stripped. Serve it (the session stays
+    // usable) and mark it NOT intact so the write seams refuse; header §1 states the posture.
+    return { intact: false, value: parsed.success ? parsed.data : def.default, failure: VERSIONED_PARSE_FAILURES.versionFromFuture };
+  }
+  if (parsed.success) {
+    return { intact: true, value: parsed.data };
+  }
+  const issue = firstIssue(parsed);
+  return { intact: false, value: def.default, failure: VERSIONED_PARSE_FAILURES.schemaRejected, ...(issue === undefined ? {} : { issue }) };
+}
+
 export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedConfig<T> {
   const degraded = (failure: VersionedParseFailure): VersionedParseOutcome<T> => ({ intact: false, value: def.default, failure });
 
@@ -144,14 +196,7 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
       version += 1;
       lift = def.lifts[version];
     }
-    const parsed = def.schema.safeParse(config);
-    if (version > def.version) {
-      // A blob from a NEWER build (#1364). The walk above cannot have lifted it — lifts only go forward —
-      // so `parsed.data` is the stored blob with every unknown field stripped. Serve it (the session stays
-      // usable) and mark it NOT intact so the write seams refuse; header §1 states the posture.
-      return { intact: false, value: parsed.success ? parsed.data : def.default, failure: VERSIONED_PARSE_FAILURES.versionFromFuture };
-    }
-    return parsed.success ? { intact: true, value: parsed.data } : degraded(VERSIONED_PARSE_FAILURES.schemaRejected);
+    return verdictAfterLifts(def, config, version);
   };
 
   return {

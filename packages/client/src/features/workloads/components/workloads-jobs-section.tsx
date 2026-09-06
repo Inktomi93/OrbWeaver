@@ -18,7 +18,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { configAnchorId } from "#state";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
@@ -46,9 +46,11 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
 /** The Jobs section body — mounted at the workloads pane's sections anchor. */
 export function WorkloadsJobsSection(): ReactElement {
   return (
+    // RESERVED (#1098) — a config section that settles into the job table — the longest block in Workloads.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading jobs…</Text>}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your jobs" onRetry={retry} />}
+      reserveKey="config.workloads.jobs"
     >
       <WorkloadsJobsBody />
     </QueryBoundary>

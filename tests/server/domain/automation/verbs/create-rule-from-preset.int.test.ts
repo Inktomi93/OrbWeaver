@@ -133,7 +133,7 @@ async function setup(setupOverrides: SetupOverrides = {}): Promise<Fixture> {
             vars[op.key] = op.value;
           }
         }
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       listBackgroundChoices: () => Promise.resolve(backgroundChoices),
       setChatBackground: ({ background }) => {

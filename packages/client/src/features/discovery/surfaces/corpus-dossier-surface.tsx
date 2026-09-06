@@ -57,9 +57,14 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
     // (`corpus-content.tsx`, the Configuration precedent).
     <Stack data-testid={testId("corpusDossierSurface")}>
+      {/* RESERVED (#1098), joining its four already-keyed siblings (`corpus.map` / `.browse` / `.visuals`
+          / `.similarity`) — the drill-in was the one corpus surface still collapsing the CONTENT region to
+          a sentence between the list and the dossier. Neither this surface nor its body owns a scroll box
+          (`corpus-content.tsx` does, above the boundary), so the measuring wrapper is layout-inert here. */}
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading dossier…</Text>}
+        fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
+        reserveKey="corpus.dossier"
       >
         <DossierBody characterId={characterId} onBack={onBack} />
       </QueryBoundary>

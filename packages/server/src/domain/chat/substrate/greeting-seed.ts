@@ -4,7 +4,7 @@
 // economics, one variant. Two verbs seed them and they must agree byte-for-byte, so the row shape lives here
 // rather than twice:
 //   • `verbs/start-chat.ts` — the founding characters' greetings, at seq 1..N inside the creation batch;
-//   • `verbs/roster.ts` — a character ADDED while the greeting window is still open (F6,
+//   • `verbs/participants.ts` — a character ADDED while the greeting window is still open (F6,
 //     chat-creation-draft-mode-replacement.md §4.8), at the canon head.
 //
 // FLAG[greeting-macro]: the text is seeded RAW. Identity macros stay per-view (resolved at read against the

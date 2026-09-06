@@ -160,6 +160,7 @@ import { MessageSelectionBar } from "../../../../packages/client/src/features/ch
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 import { ProseSettingsSection } from "../../../../packages/client/src/features/chat/components/prose-settings-section.tsx";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block.tsx";
+import { RegexSection } from "../../../../packages/client/src/features/chat/components/regex-section.tsx";
 import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog.tsx";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form.tsx";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
@@ -2139,6 +2140,36 @@ export function CommittedSettingsTabStory({ isHost = true, showGroup = false, ro
   );
 }
 
+/** The room's REGEX section (#1742) at the REAL context-panel width, behind the SAME `QueryBoundary` the tab
+ *  mounts it in — the section suspends on `chat.listEffectiveRegex` (host) or `regex.listForChat` (member),
+ *  and a bare mount would send that suspension to the CT root.
+ *
+ *  `CtToastSurface` is the production toast outlet: the row switch's "off everywhere" notice + its Undo are
+ *  BEHAVIOR of this section (§3, the row), so the toast pixels are part of what this story exists to render.
+ *  Its manager is the one module-global `bindNotify` (see that component's header).
+ *
+ *  `data-testid="regex-section-pane"` is the CONTAINMENT ANCHOR (#1765): the section's own root
+ *  (`[data-slot="regex-section"]`) is a block container that grows with its own overflowing content, so a
+ *  width assertion anchored THERE is tautological (#1754 proved it live — passed green with `truncate` AND
+ *  `min-w-0` both planted off). This 380px div is the real fixed-width box; `expectContainedWithin`
+ *  (`tests/support/ct/contained-within.ts`) is pointed at it, never at the section's own root. */
+export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <div data-testid="regex-section-pane" style={{ width: 380 }}>
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading this chat's regex…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}
+          >
+            <RegexSection chatId={CHAT_ID} isHost={isHost} />
+          </QueryBoundary>
+        </div>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
 /** The group-config form (group-config-form.tsx, P3) as the PURE component it is — seeded with
  *  `DEFAULT_GROUP_CONFIG`, the `.ct.tsx` drives controls and reads the last saved config off the
  *  `group-config-saved` readout (immediate-commit; no network). */
@@ -2422,7 +2453,7 @@ export function MembersPanelStory({
                 // The recorded action carries the OFFER, because the offer IS the decision this affordance
                 // exists to make: a CT that only proved "nominate fired" could not tell a gift from a drop.
                 onNominateHost: (userId: UserId, offer: HandoffOffer): void =>
-                  setLastAction(`nominate:${userId}:cast=${String(offer.copyCast)}:preset=${String(offer.copyGmPreset)}`),
+                  setLastAction(`nominate:${userId}:characters=${String(offer.copyCharacters)}:preset=${String(offer.copyGmPreset)}`),
                 onSetHistoryVisibility: (userId: UserId, visibility: JoinHistoryVisibility): void => setLastAction(`history:${userId}:${visibility}`),
                 onLeave: (): void => setLastAction("leave"),
                 leaveArchivesRoom: true,

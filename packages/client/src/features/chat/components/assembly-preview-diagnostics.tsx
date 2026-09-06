@@ -107,6 +107,11 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
     { label: "Guided instruction", on: trace.guidedInstructionIncluded },
   ];
   const activeFlags = flags.filter((flag) => flag.on);
+  // Whose card prose the merged room-override fallback had to CUT to fit its cap — the fact that turns a bare
+  // "merged (present characters)" source label into something a host can act on. Both fields fold into one
+  // line, deduped: the same member is usually cut in both.
+  const cut = trace.mergedFallbackTruncated;
+  const truncatedContributors: readonly string[] = [...new Set([...(cut?.mainPrompt ?? []), ...(cut?.postHistory ?? [])])];
 
   return (
     <Section heading={<Kicker>Trace</Kicker>}>
@@ -117,6 +122,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
         <TraceLine label="Injections" value={String(trace.chatInjectionsIncluded)} />
         {trace.matchedKeys.length > 0 ? <TraceLine label="Matched keys" value={trace.matchedKeys.map((match) => match.key).join(", ")} /> : null}
         {trace.staticCacheBusters.length > 0 ? <TraceLine label="Cache busters" value={trace.staticCacheBusters.join(", ")} /> : null}
+        {truncatedContributors.length > 0 ? <TraceLine label="Merged fallback cut" value={truncatedContributors.join(", ")} /> : null}
         {activeFlags.length > 0 ? (
           <Row gap="field" align="center">
             {activeFlags.map((flag) => (

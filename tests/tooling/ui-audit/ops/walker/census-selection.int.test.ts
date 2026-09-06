@@ -187,6 +187,44 @@ test("a NESTED control that owns its own aria state is a carrier, not a part —
   expect(res.stdout).not.toContain("selection-idiom: unmatched");
 });
 
+// A REFUSAL THAT NAMES NO SUBJECT CANNOT BE CHASED (#1704).
+//
+// Three design-audit passes on Characters (2026-08-30, 09-02, 09-05) all ended `population-verdict=
+// NO-VERDICT` on `selection-idiom: unmatchedUnselected×2`, and the DRIVEN arm ended on the same string. The
+// instrument recorded a tally and nothing else, so no reader could tell whether the printed remedy was the
+// wrong command or whether no command on that surface could ever produce a selected twin — the two cohorts
+// were never named. The withholding itself is #987's ruling and is UNCHANGED; what changed is that it now
+// says WHAT it could not judge, which is the difference between a loud refusal and a silent third pass.
+test("a withheld selection cohort names its subject in both the population row and the NO-VERDICT detail", async ({ runCli, scratch }) => {
+  // LEFT: three carriers of one authored cohort, every one unselected — no twin exists, so #987 withholds.
+  // RIGHT (the control): a twinned cohort in the same document, which must still be judged and must not
+  // acquire a subject of its own. Distinct `data-slot`s keep them two authored homes.
+  const orphan = `<section data-slot="orphan-group">${["a", "b", "c"]
+    .map(
+      (id) => `<div id="orphan-${id}" data-slot="orphan-choice" aria-selected="false" style="color:#fff;width:120px;height:40px;background:#111">${id}</div>`,
+    )
+    .join("")}</section>`;
+  const twinned = `<section data-slot="twin-group"><div id="twin-on" data-slot="twin-choice" aria-selected="true" style="color:#fff;width:120px;height:40px;background:#111;outline:2px solid orange">on</div><div id="twin-off" data-slot="twin-choice" aria-selected="false" style="color:#fff;width:120px;height:40px;background:#111">off</div></section>`;
+  await writeFile(join(scratch, "withheld-subject-selection.html"), relationalDocument(orphan + twinned));
+  const res = await runCli("snap", ["--file", join(scratch, "withheld-subject-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  // The tally is unchanged — one cohort withheld, one judged — so the `withheld(...)` token stays the
+  // stable machine surface it was, and the subject rides its own trailing segment.
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1)");
+  expect(res.stdout, "the population row must name the cohort it could not judge").toContain("withheld-at(unmatchedUnselected: #orphan-a)");
+  // The line a reader actually acts on: the NO-VERDICT detail carries the subject beside the count.
+  expect(res.stdout, "the refusal must name its subject where the verdict is stated").toMatch(/selection-idiom: unmatchedUnselected=1 at #orphan-a/u);
+  // The remedy no longer asserts that a drive exists — a cohort with no reachable selected state is a
+  // correct, final refusal, and saying so is what stops the fourth identical pass.
+  expect(res.stdout).toContain("structurally unjudgeable here");
+  // CONTROL: the twinned cohort is still judged and contributes no subject.
+  expect(res.stdout).not.toContain("#twin-");
+  // The VERDICT is unchanged by this row — a withheld population is still a refusal, still exit 2. Naming
+  // the subject makes the refusal actionable; it must not make it quieter.
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(2);
+});
+
 test("the aria-pressed toolbar idiom keeps registering after the part partition", async ({ runCli, scratch }) => {
   const toggle = (pressed: boolean, paint: string): string =>
     `<button data-slot="toolbar-toggle" aria-pressed="${pressed}" style="color:#fff;width:80px;height:48px;background:#111;${paint}">B</button>`;
@@ -196,4 +234,41 @@ test("the aria-pressed toolbar idiom keeps registering after the part partition"
   expect(res.stdout).toContain("POPULATION   selection-idiom candidates=1 judged=1 affected=1 populations=1 representatives=1 withheld() excluded()");
   expect(res.stdout).toContain("ringx1 · fillx1 · bar-leftx1");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
+// ── #1076 (orb-ui audit F4): the ratified inset ring is a recognised selection channel ──────────────
+//
+// selectionDeltaSignature's box-shadow test vetoed ANY box-shadow containing the substring "inset" —
+// the RATIFIED persistent-state ring (`data-pressed:inset-ring-2 inset-ring-ring`,
+// toggle/variants.ts:19; memory inset-ring-vs-focus-ring-layers) never registered as a channel at all,
+// silently reading "none" on a control that unquestionably paints a selection treatment.
+
+test("selection-idiom recognizes an inset box-shadow ring as its own channel", async ({ runCli, scratch }) => {
+  const vocabularies = [
+    stateTwin("checked", "outline:2px solid orange"),
+    stateTwin("selected", "box-shadow: inset 0 0 0 2px red"),
+    stateTwin("current", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "inset-ring-selection.html"), relationalDocument(vocabularies));
+  const res = await runCli("snap", ["--file", join(scratch, "inset-ring-selection.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout, "an inset ring must register as its own treatment, not read as 'none'").toContain("ringx1 · inset-ringx1 · bar-leftx1");
+});
+
+test("a box-shadow combining an unchanged outer ring with a new inset ring counts inset-ring only, once", async ({ runCli, scratch }) => {
+  const vocabularies = [
+    stateTwin("checked", "outline:2px solid orange"),
+    // The outer glow (`0 0 5px #fff`) sits on BOTH twins (baseStyle) and does not change — a genuine
+    // focus-ring-style layer that happens to compose alongside the selection state's inset ring must not
+    // be credited to the selection idiom twice just because it rides in the same `box-shadow` shorthand.
+    stateTwin("selected", "box-shadow: 0 0 5px #fff, inset 0 0 0 2px red", "box-shadow: 0 0 5px #fff"),
+    stateTwin("current", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "inset-ring-mixed-selection.html"), relationalDocument(vocabularies));
+  const res = await runCli("snap", ["--file", join(scratch, "inset-ring-mixed-selection.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout, "the unchanged outer ring is not a second treatment beside the new inset ring").toContain("ringx1 · inset-ringx1 · bar-leftx1");
+  expect(res.stdout, "the mixed shadow must not register as a compound inset-ring+shadow signature").not.toContain("shadowx");
 });

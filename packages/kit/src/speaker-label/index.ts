@@ -94,10 +94,10 @@ export interface SpeakerSpan {
  *  format is INSTRUCTED (the narrator round's `chat.group.speakerTags` prose slot), and an instruction is
  *  not a guarantee: this module's own header records what models actually emit — a plain `Name:`, a
  *  markdown-wrapped `**Name:**`, sometimes doubled — and every narrator row committed BEFORE the
- *  instruction existed carries the plain form only. So when the caller passes the room's PRESENT cast
- *  names, a tagless body ALSO splits on a line-start `Name:` label for an EXACT cast name. The grammar is
+ *  instruction existed carries the plain form only. So when the caller passes the room's PRESENT character
+ *  names, a tagless body ALSO splits on a line-start `Name:` label for an EXACT character name. The grammar is
  *  deliberately timid — fail plain, never wrong (`ui/markdown/dialogue.ts`'s posture):
- *    · the name must match a passed cast name EXACTLY (longest-first, so `Anna Lee` wins over `Anna`);
+ *    · the name must match a passed character name EXACTLY (longest-first, so `Anna Lee` wins over `Anna`);
  *    · the label must start a LINE (a mid-sentence "…told Bob: run" never splits);
  *    · markdown emphasis around the name and/or the colon is tolerated (`**Bob:**`, `*Bob*:`);
  *    · a label inside a fenced code block is skipped — splitting there would tear the block in half;
@@ -133,7 +133,7 @@ export function parseSpeakerSpans(content: string, characterNames: readonly stri
   return spans;
 }
 
-/** The line-start plain-label matcher for an EXACT cast name, or null when there is nothing to match.
+/** The line-start plain-label matcher for an EXACT character name, or null when there is nothing to match.
  *  Names are deduped, blank-dropped and sorted LONGEST-FIRST so an alternation can't let `Anna` shadow
  *  `Anna Lee`. Built per call (the name set is per-room) — the `leadingLabelRe` precedent. */
 function plainLabelRe(characterNames: readonly string[]): RegExp | null {
@@ -175,7 +175,7 @@ function insideCodeFence(text: string, index: number): boolean {
 }
 
 /** Split a TAGLESS body on plain `Name:` labels (the grammar is documented on {@link parseSpeakerSpans}).
- *  No cast names / no match ⇒ the byte-identical single `{speaker: null, text: content}` span. */
+ *  No character names / no match ⇒ the byte-identical single `{speaker: null, text: content}` span. */
 function splitOnPlainLabels(content: string, characterNames: readonly string[]): readonly SpeakerSpan[] {
   const re = plainLabelRe(characterNames);
   const cuts: { readonly at: number; readonly speaker: string }[] = [];

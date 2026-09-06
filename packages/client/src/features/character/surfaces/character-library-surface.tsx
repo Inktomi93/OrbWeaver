@@ -77,9 +77,10 @@ import { CharacterLibraryBody } from "../components/character-library-body.tsx";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar.tsx";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
-import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, partialGroupingLabel, resultCountLabel } from "../lib/character-library-lens.ts";
+import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
 
 /** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
 const FAVORITES_STRIP_LIMIT = 24;
@@ -156,6 +157,9 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   // (#518, `use-library-scope.ts`). It used to be resolved here, which is why the band could not answer the
   // lens at all: the band is a sibling shell region and cannot see this pane's props.
   const scope = useLibraryScope();
+  // The GROUP-BY-TAG census (#1696) — asked for ONLY in the mode that renders it, over the scope resolved
+  // one line up, so the buckets and the rows can never be answers about different libraries.
+  const tagGroups = useCharacterTagGroups(viewMode === "categorized");
   const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode, pageSize, scope: scope.args });
   const selectedId = useSelectedCharacterId();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -306,7 +310,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
             loadedProgress={loadedProgressLabel(items.length, collection.totalCount)}
             onClearSearch={(): void => setCharacterSearch("")}
             onRetry={collection.refetch}
-            partialNotice={partialGroupingLabel(items.length, collection.totalCount)}
+            tagGroups={tagGroups}
             query={settledQuery}
             renderRow={renderRow}
           />

@@ -5,6 +5,7 @@
 export type { RegexContext } from "./context.ts";
 export type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "./contract/dedup.ts";
 export { RegexNotFoundError } from "./contract/errors.ts";
+export type { CopyHandoffRegexScripts, CountHandoffRegexScripts, RegexHandoffCopyContext } from "./contract/handoff-copy.ts";
 export type { ApplyScopeOrderParams, RegexAttachScopeRef } from "./contract/params.ts";
 export type {
   ExportCardScripts,
@@ -26,6 +27,7 @@ export type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./co
 export type { ScriptRecord } from "./contract/rows.ts";
 export type { RegexService } from "./contract/service.ts";
 export type { CreateRegexScriptInput, PortableRegexScript, RegexScriptRow, UpdateRegexScriptInput } from "./contract/views.ts";
+export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";
 export {
   createExportCardScripts,
   createExportRegexScripts,

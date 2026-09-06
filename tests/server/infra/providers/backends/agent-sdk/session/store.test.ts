@@ -20,6 +20,12 @@ const HEX64_RE = /^[0-9a-f]{64}$/;
 type Entry = Parameters<InMemorySessionStore["append"]>[1][number];
 type Key = Parameters<InMemorySessionStore["append"]>[0];
 
+/** A text-only seed turn. The seed vocabulary is content BLOCKS since #1605 (a tool exchange rides as a real
+ *  `tool_use`/`tool_result` pair), so a prose turn is a one-element text block array. */
+function t(role: "user" | "assistant", text: string): { role: "user" | "assistant"; content: [{ type: "text"; text: string }] } {
+  return { role, content: [{ type: "text", text }] };
+}
+
 function uuidlessEntry(): Entry {
   return { type: "user", message: { role: "user", content: [] } };
 }
@@ -28,7 +34,7 @@ describe("InMemorySessionStore", () => {
   test("append then load round-trips frames for a key", async () => {
     const store = new InMemorySessionStore();
     const key = { projectKey: CHAT_ID, sessionId: SESSION_ID };
-    const frames = buildSeedFrames([{ role: "user", content: "x" }], SESSION_ID);
+    const frames = buildSeedFrames([t("user", "x")], SESSION_ID);
     await store.append(key, frames);
     expect(await store.load(key)).toStrictEqual(frames);
   });
@@ -48,7 +54,7 @@ describe("InMemorySessionStore", () => {
   test("uuid-bearing frames DEDUP on re-append (the SDK replays uuids on retry/import)", async () => {
     const store = new InMemorySessionStore();
     const key = { projectKey: CHAT_ID, sessionId: SESSION_ID };
-    const frames = buildSeedFrames([{ role: "user", content: "once" }], SESSION_ID);
+    const frames = buildSeedFrames([t("user", "once")], SESSION_ID);
     await store.append(key, frames);
     await store.append(key, frames);
     expect(await store.load(key)).toHaveLength(frames.length);
@@ -65,7 +71,7 @@ describe("InMemorySessionStore", () => {
   test("load returns a defensive COPY — mutating the result does not corrupt the store", async () => {
     const store = new InMemorySessionStore();
     const key = { projectKey: CHAT_ID, sessionId: SESSION_ID };
-    const frames = buildSeedFrames([{ role: "user", content: "x" }], SESSION_ID);
+    const frames = buildSeedFrames([t("user", "x")], SESSION_ID);
     await store.append(key, frames);
     const loaded = await store.load(key);
     loaded?.push(uuidlessEntry());
@@ -76,13 +82,13 @@ describe("InMemorySessionStore", () => {
     const store = new InMemorySessionStore();
     const main = { projectKey: CHAT_ID, sessionId: SESSION_ID };
     const branch = { projectKey: CHAT_ID, sessionId: SESSION_ID, subpath: "branch-1" };
-    await store.append(main, buildSeedFrames([{ role: "user", content: "main" }], SESSION_ID));
+    await store.append(main, buildSeedFrames([t("user", "main")], SESSION_ID));
     expect(await store.load(branch)).toBeNull();
   });
 
   test("projectKey is IGNORED — our seeded key and the SDK's sanitized-cwd key address the same rows", async () => {
     const store = new InMemorySessionStore();
-    const frames = buildSeedFrames([{ role: "user", content: "shared" }], SESSION_ID);
+    const frames = buildSeedFrames([t("user", "shared")], SESSION_ID);
     await store.append({ projectKey: "orbweaver", sessionId: SESSION_ID }, frames);
     const viaSdkKey = await store.load({
       projectKey: "-home-user-some-sanitized-cwd",
@@ -169,10 +175,7 @@ describe("SessionCache — resume map + default store", () => {
 });
 
 describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
-  const seed = [
-    { role: "user" as const, content: "hello" },
-    { role: "assistant" as const, content: "hi there" },
-  ];
+  const seed = [t("user", "hello"), t("assistant", "hi there")];
 
   test("a cold cache seeds a deterministic session, records it, and returns its id + `seeded`", async () => {
     const cache = new SessionCache();
@@ -215,7 +218,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
         message: { role: "assistant", content: [{ type: "text", text: "part two" }] },
       },
     ]);
-    const continued = [...seed, { role: "user" as const, content: "next question" }, { role: "assistant" as const, content: "answer part two" }];
+    const continued = [...seed, t("user", "next question"), t("assistant", "answer part two")];
     const next = await cache.ensureSeededSession(CHAT_ID, continued);
     // The grown transcript's merged runs equal the continued seed → clean resume of the SAME id; the fork
     // path is NOT taken (a match is not a divergence).
@@ -236,7 +239,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
       },
     ]);
     // The swipe: canon keeps the prompt but NOT the rejected reply → a branch off the recorded lineage.
-    const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
+    const swipeSeed = [...seed, t("user", "prompt")];
     const next = await cache.ensureSeededSession(CHAT_ID, swipeSeed);
     // NEW deterministic id + `forked`; the branch holds EXACTLY the swipe seed.
     expect(next.sessionId).not.toBe(first.sessionId);
@@ -256,20 +259,12 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
   test("A→B→A swipe: the third turn RE-ADOPTS the original lineage — no reseed rewrite", async () => {
     const cache = new SessionCache();
     // Turn 1: canon A (a full user→assistant exchange so a swipe keeps a non-trivial shared prefix).
-    const canonA = [
-      { role: "user" as const, content: "hello" },
-      { role: "assistant" as const, content: "reply A" },
-      { role: "user" as const, content: "keep going" },
-    ];
+    const canonA = [t("user", "hello"), t("assistant", "reply A"), t("user", "keep going")];
     const a1 = await cache.ensureSeededSession(CHAT_ID, canonA);
     expect(a1.disposition).toBe("seeded");
     const idA = a1.sessionId;
     // Turn 2: swipe to canon B — same prefix, a diverged last-assistant tail → FORK to lineage B.
-    const canonB = [
-      { role: "user" as const, content: "hello" },
-      { role: "assistant" as const, content: "reply B (a different swipe)" },
-      { role: "user" as const, content: "keep going" },
-    ];
+    const canonB = [t("user", "hello"), t("assistant", "reply B (a different swipe)"), t("user", "keep going")];
     const b = await cache.ensureSeededSession(CHAT_ID, canonB);
     expect(b.disposition).toBe("forked");
     expect(b.sessionId).not.toBe(idA);
@@ -288,11 +283,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     // pre-turn seed — an exact-only match walk (the old build) MISSED it and re-FORKED (dispositions were
     // [seeded, forked, forked]); want [seeded, forked, readopted]. The prefix-match candidate probe fixes it.
     const cache = new SessionCache();
-    const canonA = [
-      { role: "user" as const, content: "hello" },
-      { role: "assistant" as const, content: "reply A" },
-      { role: "user" as const, content: "keep going" },
-    ];
+    const canonA = [t("user", "hello"), t("assistant", "reply A"), t("user", "keep going")];
     const a1 = await cache.ensureSeededSession(CHAT_ID, canonA);
     expect(a1.disposition).toBe("seeded");
     const idA = a1.sessionId ?? "";
@@ -316,11 +307,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     const grownLen = (grownRows ?? []).length;
     expect(grownLen).toBe(canonA.length + 2);
     // Turn 2: swipe to canon B — same prefix, diverged last-assistant tail → FORK to lineage B.
-    const canonB = [
-      { role: "user" as const, content: "hello" },
-      { role: "assistant" as const, content: "reply B (a different swipe)" },
-      { role: "user" as const, content: "keep going" },
-    ];
+    const canonB = [t("user", "hello"), t("assistant", "reply B (a different swipe)"), t("user", "keep going")];
     const b = await cache.ensureSeededSession(CHAT_ID, canonB);
     expect(b.disposition).toBe("forked");
     expect(b.sessionId).not.toBe(idA);
@@ -337,10 +324,7 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
   test("a FIRST-turn edit (no shared prefix) reseeds IN PLACE; a revert reseeds in place again", async () => {
     const cache = new SessionCache();
     const first = await cache.ensureSeededSession(CHAT_ID, seed);
-    const edited = [
-      { role: "user" as const, content: "hello EDITED" },
-      { role: "assistant" as const, content: "hi there" },
-    ];
+    const edited = [t("user", "hello EDITED"), t("assistant", "hi there")];
     // The first run diverges (edited user turn), so there is NO shared prefix → NOT a branch → in-place
     // replace under the same id (nothing to preserve for a swipe-back).
     const editedId = await cache.ensureSeededSession(CHAT_ID, edited);
@@ -387,18 +371,18 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
         message: { role: "assistant", content: [{ type: "text", text: "rejected" }] },
       },
     ]);
-    const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
+    const swipeSeed = [...seed, t("user", "prompt")];
     const next = await cache.ensureSeededSession(CHAT_ID, swipeSeed);
     // A branch divergence forks to a fresh DETERMINISTIC id whether or not the store can replace — the fork
     // uses seedFresh (append + load), so `replace` is irrelevant here. NOT the recorded id → `forked`.
     expect(next.sessionId).not.toBe(first.sessionId);
     expect(next.disposition).toBe("forked");
-    expect(next.sessionId).toBe(seedSessionId(CHAT_ID, [...seed, { role: "user", content: "prompt" }], 0));
+    expect(next.sessionId).toBe(seedSessionId(CHAT_ID, [...seed, t("user", "prompt")], 0));
   });
 
   test("an ASSISTANT-FIRST seed (greeting) is stub-normalized consistently across calls", async () => {
     const cache = new SessionCache();
-    const greeting = [{ role: "assistant" as const, content: "a lone greeting" }];
+    const greeting = [t("assistant", "a lone greeting")];
     const first = await cache.ensureSeededSession(CHAT_ID, greeting);
     expect(first.sessionId).not.toBeNull();
     // The stored session carries the stub + greeting; the same seed resumes it.
@@ -472,22 +456,19 @@ describe("SessionCache.ensureSeededSession — the PD-7 resume gate", () => {
     const cache = new SessionCache();
     // A long accumulated transcript the session grew to (what a resumed session keeps re-sending).
     const fullTranscript = [
-      { role: "user" as const, content: "turn 1 opening the saga" },
-      { role: "assistant" as const, content: "reply 1 a long detailed scene" },
-      { role: "user" as const, content: "turn 2 continuing" },
-      { role: "assistant" as const, content: "reply 2 more detail" },
-      { role: "user" as const, content: "turn 3 the discovery" },
-      { role: "assistant" as const, content: "reply 3 the twist" },
+      t("user", "turn 1 opening the saga"),
+      t("assistant", "reply 1 a long detailed scene"),
+      t("user", "turn 2 continuing"),
+      t("assistant", "reply 2 more detail"),
+      t("user", "turn 3 the discovery"),
+      t("assistant", "reply 3 the twist"),
     ];
     const first = await cache.ensureSeededSession(CHAT_ID, fullTranscript);
     expect(first.disposition).toBe("seeded");
 
     // After compaction covers through turn 2: the shaped history excludes seq ≤ that point, so the NEXT seed is
     // only the recent TAIL (turn 3) — no shared leading prefix with the recorded full transcript.
-    const shrunkTail = [
-      { role: "user" as const, content: "turn 3 the discovery" },
-      { role: "assistant" as const, content: "reply 3 the twist" },
-    ];
+    const shrunkTail = [t("user", "turn 3 the discovery"), t("assistant", "reply 3 the twist")];
     const next = await cache.ensureSeededSession(CHAT_ID, shrunkTail);
 
     // The recorded lineage is REBUILT to the shrunk tail (same id, changed frames) — a window-slide reseed, NOT a
@@ -509,10 +490,7 @@ function stubWriter(): SessionEntryWriter & { readonly insert: ReturnType<typeof
 }
 
 describe("SessionCache — the injected SessionEntryWriter (D8, issue #71)", () => {
-  const seed = [
-    { role: "user" as const, content: "hello" },
-    { role: "assistant" as const, content: "hi there" },
-  ];
+  const seed = [t("user", "hello"), t("assistant", "hi there")];
 
   test("a cold seed calls writer.insert once with the chatId/sdkSessionId/seededThroughSeq/canonHash", async () => {
     const writer = stubWriter();
@@ -551,7 +529,7 @@ describe("SessionCache — the injected SessionEntryWriter (D8, issue #71)", () 
     ]);
     writer.insert.mockClear();
 
-    const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
+    const swipeSeed = [...seed, t("user", "prompt")];
     const next = await cache.ensureSeededSession(CHAT_ID, swipeSeed);
 
     expect(next.disposition).toBe("forked");
@@ -567,10 +545,7 @@ describe("SessionCache — the injected SessionEntryWriter (D8, issue #71)", () 
     const first = await cache.ensureSeededSession(CHAT_ID, seed);
     writer.insert.mockClear();
 
-    const edited = [
-      { role: "user" as const, content: "hello EDITED" },
-      { role: "assistant" as const, content: "hi there" },
-    ];
+    const edited = [t("user", "hello EDITED"), t("assistant", "hi there")];
     const next = await cache.ensureSeededSession(CHAT_ID, edited);
 
     expect(next.disposition).toBe("reseeded");

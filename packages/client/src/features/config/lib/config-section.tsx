@@ -23,36 +23,55 @@
 import { Settings } from "@orb/ui/icons";
 import { ListPaneHeader } from "#components";
 import type { ConfigGroupRegistry, SectionDefinition, SectionSelection } from "#state";
-import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, isPushingGroup, subscribeConfigNav } from "#state";
+import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, subscribeConfigNav, worldEntrySelectionSeam } from "#state";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../surfaces/config-list-surface.tsx";
 import { makeConfigContext } from "./config-context.tsx";
 import { CONFIG_SECTION_LABEL } from "./config-copy.ts";
 import { useConfigSelectionTitle } from "./config-selection-title.ts";
 
-/** The section's `SectionSelection` seam — the shell's mobile ONE-SHELL input, composed from the TWO facts
- *  this workspace has: an open MEMBER (the kinded selection) or an active PUSHING group (a settings group
- *  whose body is the screen — config-revamp-design.md §3.6). A collection group NEVER PUSHES, whatever its
- *  band's click also does: its CONTENT is a member, so a member is what pushes. (#925 made both collection
- *  band arms select as well as disclose — that changed the desktop's CONTENT, not this seam: `isPushingGroup`
- *  is false for the whole species, which is what keeps a phone on the LIST after a band tap.) Back pops the
- *  member first, then the group. */
-function makeSelectionSeam(groups: ConfigGroupRegistry): SectionSelection {
-  const groupPushes = (): boolean => {
-    const active = getActiveConfigGroup();
-    return active !== null && isPushingGroup(groups.get(active));
-  };
+/**
+ * The section's `SectionSelection` seam — the shell's mobile ONE-SHELL input, and its BACK stack.
+ *
+ * ═══ THE STACK IS THREE RUNGS DEEP NOW (#1725, owner ruling 2026-09-05; stickler F9) ══════════════════
+ * It used to be two, over two facts: an open MEMBER, or an active group whose body is the screen. A
+ * collection was deliberately absent from the second — `isPushingGroup` answered `false` for the whole
+ * species, which is what kept a phone on the LIST after a band tap, because a collection's CONTENT was a
+ * member and its members were rows in the LIST itself.
+ *
+ * The owner moved the members into CONTENT, so a band tap now takes over the phone like every other group's
+ * does, and the predicate that encoded the old geometry SPLIT rather than flipped (`rendersOwnBody`, which
+ * is the CONTENT router's question and not this one — see its note). This seam's question is simply whether
+ * a group is active: after the ruling every arm of `ConfigGroupBody` occupies the screen.
+ *
+ * BACK POPS ONE RUNG, DEEPEST FIRST — entry, then member, then group. The ENTRY rung is world info's and it
+ * is the one that has to be stated: a book's editor drills again into an entry
+ * (`world-info-member-surface.tsx`), so without this rung the shell's Back popped the BOOK out from under an
+ * open ENTRY and the reader landed two rungs above where they were. It subscribes as well as pops, because a
+ * rung that changes without telling the shell is a Back button aimed at a stale target.
+ */
+function makeSelectionSeam(): SectionSelection {
   return {
     subscribe: (onStoreChange): (() => void) => {
+      const unsubscribeEntry = worldEntrySelectionSeam.subscribe(onStoreChange);
       const unsubscribeMember = collectionMemberSelection.subscribe(onStoreChange);
       const unsubscribeNav = subscribeConfigNav(onStoreChange);
       return (): void => {
+        unsubscribeEntry();
         unsubscribeMember();
         unsubscribeNav();
       };
     },
-    hasSelection: (): boolean => collectionMemberSelection.hasSelection() || groupPushes(),
+    // The ENTRY rung needs no clause here: an entry is only ever selected while its BOOK is the open member,
+    // so `collectionMemberSelection` already answers `true` wherever the entry rung exists. Adding it would
+    // be a second reader of one fact, and the two could not disagree — `clear()` below is where the rung is
+    // load-bearing, because THERE the order is the whole behaviour.
+    hasSelection: (): boolean => collectionMemberSelection.hasSelection() || getActiveConfigGroup() !== null,
     clear: (): void => {
+      if (worldEntrySelectionSeam.hasSelection()) {
+        worldEntrySelectionSeam.clear();
+        return;
+      }
       if (collectionMemberSelection.hasSelection()) {
         collectionMemberSelection.clear();
         return;
@@ -72,12 +91,17 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
       description: "Everything you configure — your personas, appearance and chat behavior, the app's connections, and the libraries every chat is built from.",
     },
     list: () => <ConfigListSurface groups={groups} />,
-    // The band carries NO aggregate primary (C-2): create lives at each COLLECTION group's band, whose
-    // accessible name is that collection's own `create.label`. A band-level "New ▾" would make the user pick
-    // a KIND from a menu before reaching the group they are already looking at. The search rides the LIST
-    // body's top, not this 48px band (fork F-11).
+    // The band carries NO aggregate primary (C-2): create lives at the COLLECTION the reader is looking at,
+    // whose accessible name is that collection's own `create.label`. A band-level "New ▾" would make the
+    // user pick a KIND from a menu before reaching the library they already opened. The search rides the
+    // LIST body's top, not this 48px band (fork F-11).
+    //
+    // WHERE that create verb sits MOVED with the members (#1725): it was the LIST band's trailing `+`, and
+    // it is the CONTENT library's own primary now — one home, in the pane the library occupies. The C-2
+    // ruling is untouched; only the create's address changed, which is the same sentence the members'
+    // address change is.
     listHeader: () => <ListPaneHeader title={CONFIG_SECTION_LABEL} />,
-    selection: makeSelectionSeam(groups),
+    selection: makeSelectionSeam(),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
     content: () => <ConfigContentSurface groups={groups} />,
     // The TEACHER (S3): the pane rides the #860 bracket as tabs over `ConfigContextState` — About ·

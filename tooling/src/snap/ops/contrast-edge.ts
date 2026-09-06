@@ -141,19 +141,43 @@ async function pickEdgeSubject(page: Page, selector: string): Promise<{ readonly
   return { refusal: `OFF-SCREEN  ${String(total)} match(es), none rendered in the viewport — NO VERDICT (scroll it into view, or target the visible match)` };
 }
 
+/** ONE retry on the SAME page (#1758) — see ops/contrast-fill.ts's twin for the full rationale: a
+ *  `Page.captureScreenshot` protocol error under contention is frequently transient, and a persisting
+ *  failure still surfaces loudly (as an instrument fault, never a border verdict). */
+const SHOT_ATTEMPTS = 2;
+
+async function shootWithRetry(
+  page: Page,
+  clip: Clip,
+): Promise<{ readonly ok: true; readonly buffer: Buffer } | { readonly ok: false; readonly reason: string }> {
+  for (let attempt = 1; attempt <= SHOT_ATTEMPTS; attempt += 1) {
+    // @orb-gate-ignore caught-failure-ownership(empty:error): a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).
+    try {
+      return { ok: true, buffer: await page.screenshot({ clip, animations: "disabled" }) };
+    } catch (error) {
+      // OWNED, not swallowed: the LAST attempt's failure leaves as a discriminated `ok: false` reading; an
+      // earlier attempt's failure is absorbed on purpose (that is the whole retry) and the loop tries again.
+      if (attempt === SHOT_ATTEMPTS) {
+        return { ok: false, reason: `screenshot failed twice: ${errorMessage(error)}` };
+      }
+    }
+  }
+  throw new Error("unreachable: shootWithRetry's loop always returns by its last attempt");
+}
+
 async function readEdge(page: Page, facts: ContrastEdgeFacts, viewport: Viewport): Promise<ContrastEdgeReading> {
   const clip = padClip(facts.box, viewport);
   if (clip === null) {
     return { kind: "refused", refusal: "the element box is empty or fully off-screen" };
   }
-  let buffer: Buffer;
-  try {
-    buffer = await page.screenshot({ clip, animations: "disabled" });
-  } catch (error) {
-    // OWNED, not swallowed: the caught failure leaves as a DISCRIMINATED refusal the caller prints as
-    // NO VERDICT and FAILS the run on. Nothing downstream can read it as a measurement.
-    return { kind: "refused", refusal: `screenshot failed: ${errorMessage(error)}` };
+  const shot = await shootWithRetry(page, clip);
+  if (!shot.ok) {
+    // OWNED, not swallowed: the caught failure leaves as a DISCRIMINATED capture-failed reading the
+    // caller prints as an INSTRUMENT ERROR and FAILS the run on. Nothing downstream can read it as a
+    // border measurement.
+    return { kind: "capture-failed", reason: shot.reason };
   }
+  const buffer = shot.buffer;
   try {
     // `Promise.resolve` for the reason ops/contrast-pixels.ts states: biome's type service does not resolve
     // sharp's builder chain and reads the awaited value as non-thenable.
@@ -181,7 +205,9 @@ async function readEdge(page: Page, facts: ContrastEdgeFacts, viewport: Viewport
     };
     return readEdgeChannels({ data, width: info.width, height: info.height, channels: info.channels }, geometry);
   } catch (error) {
-    return { kind: "refused", refusal: `pixel decode failed: ${errorMessage(error)}` };
+    // Owned on the same terms as the screenshot arm above — a decode failure is the instrument's, never
+    // the subject's.
+    return { kind: "capture-failed", reason: `pixel decode failed: ${errorMessage(error)}` };
   }
 }
 
@@ -211,6 +237,27 @@ export async function measureEdgeContrast(page: Page, selector: string, viewport
   const facts = subject.facts;
   const base = { selector, candidates: facts.total, inViewport: 1, matchIndex: facts.matchIndex, requiredRatio: UI_COMPONENT_MIN_RATIO } as const;
   const reading = await readEdge(page, facts, viewport);
+  if (reading.kind === "capture-failed") {
+    // #1758: an INSTRUMENT fault, never folded into the "edge unmeasurable" domain-refusal family below —
+    // a reason-string pin on THAT family cannot red on a transient CDP message.
+    const line = `CONTRAST-EDGE ${selector}: ${reading.reason}`;
+    return {
+      outcome: { line, failed: true },
+      evidence: {
+        ...base,
+        status: "instrument-error",
+        sampled: 0,
+        method: null,
+        ratio: null,
+        requiredRatio: null,
+        passed: null,
+        foreground: null,
+        backdrop: null,
+        fillChannel: null,
+        reason: line,
+      },
+    };
+  }
   if (reading.kind === "refused") {
     const line = `CONTRAST-EDGE ${selector}: NO VERDICT (edge unmeasurable) — ${reading.refusal}`;
     return {

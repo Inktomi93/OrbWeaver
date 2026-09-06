@@ -34,7 +34,7 @@ import {
 } from "@orb/client/state";
 import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
@@ -72,6 +72,10 @@ export interface CharacterCardTileStoryProps {
   readonly selected?: boolean;
   readonly bulkMode?: boolean;
   readonly bulkSelected?: boolean;
+  /** Host width in px — the coarse-collapse fences shoot the row at real phone widths (320/390/430), where
+   *  every icon button is at the 44-48px touch floor and the trailing cluster's budget is the whole finding.
+   *  @defaultValue 360 (the desk-ish list-pane width every fine-pointer test above was written against). */
+  readonly width?: number;
 }
 
 /** The bare `<CharacterCardTile>` (§4.4 row) — drives avatar/subtitle-ladder/star/accent/bulk rendering in
@@ -89,6 +93,7 @@ export function CharacterCardTileStory({
   selected = false,
   bulkMode = false,
   bulkSelected = false,
+  width = 360,
 }: CharacterCardTileStoryProps): ReactElement {
   const [chattedId, setChattedId] = useState<string | null>(null);
   const [bulkId, setBulkId] = useState<string | null>(null);
@@ -98,7 +103,7 @@ export function CharacterCardTileStory({
   const [duplicatedId, setDuplicatedId] = useState<string | null>(null);
   const [deletedId, setDeletedId] = useState<string | null>(null);
   return (
-    <div style={{ width: 360 }}>
+    <div style={{ width }}>
       <CharacterCardTile
         bulkMode={bulkMode}
         bulkSelected={bulkSelected}
@@ -323,6 +328,50 @@ export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceS
 function CharactersListBand(): ReactElement {
   const registry = useSectionRegistry();
   return <div data-testid="list-band">{registry.get("characters").listHeader?.()}</div>;
+}
+
+/** The same band UNWRAPPED — the registry's `listHeader` fragment as the DIRECT children of the shell's
+ *  `<header>`, which is what the production chain renders and what `space-between` distributes. The wrapper
+ *  above is fine for content assertions and fatal for geometry ones: one div child collapses the band's
+ *  two-child split into one. */
+function CharactersListBandBare(): ReactNode {
+  const registry = useSectionRegistry();
+  return registry.get("characters").listHeader?.() ?? null;
+}
+
+export interface CharactersBandInShellStoryProps {
+  /** The LIST pane's width in px — the whole point of this story. The docked list track is 307px at rest
+   *  and squeezes toward 272px when the CONTEXT pane docks too (shell.css's #242 conditional squeeze), and
+   *  the band's title/action budget is decided there and nowhere else. */
+  readonly width: number;
+}
+
+/**
+ * The characters LIST band inside the REAL shell chrome chain, at a pinned pane width (#1697).
+ *
+ * The band's geometry is not the composite's: `.shell-panel-header` is the flex box that distributes the
+ * width (`space-between`, `gap: --spacing-row`, `padding-inline: --spacing-block`), and `.shell-panel` is
+ * the `container-type: inline-size` box every width-keyed stand-down inside the band resolves against. A
+ * bare mount of `CharactersListHeader` has neither, so it would measure a layout the shell never produces —
+ * the same reason `tests/client/components/list-pane-header.fixtures.tsx` exists for the generic case. This
+ * one carries the REAL section band (registry `listHeader`) over the real data layer, because the finding is
+ * about the Characters band specifically: the longest section title on the tree beside the only two-control
+ * action cluster.
+ */
+export function CharactersBandInShellStory({ width }: CharactersBandInShellStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div className="shell-grid" data-list-mode="docked" data-section="characters">
+          <aside className="shell-panel" data-panel-mode="docked" data-panel-side="list" style={{ width }}>
+            <header className="shell-panel-header">
+              <CharactersListBandBare />
+            </header>
+          </aside>
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
 }
 
 // ── The CONTEXT Field tab (§6c) — the panel body the shell renders beside the editor ────────────────

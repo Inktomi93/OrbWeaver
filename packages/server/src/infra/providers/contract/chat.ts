@@ -64,10 +64,24 @@ export interface ToolCallInput {
   readonly arguments: string;
 }
 
-/** One rendered transcript turn the agent-sdk backend seeds its session from. Role + final text only — no session vocab. */
+/**
+ * The content a seed frame may carry — DERIVED from {@link ChatContentPart}, never re-spelled, so the seed
+ * vocabulary is a closed SUBSET of the transcript's own and a new part kind cannot silently join it.
+ *
+ * Media is excluded because the agent-sdk seed has no image/video channel (the compose seam renders those as
+ * their kind markers). The D48 tool-exchange parts ARE here, and that is #1605: the SDK admits a real
+ * `tool_use`/`tool_result` PAIR across a resume with the id intact (measured 2026-09-04 on the mode-3 loopback
+ * construction capture — `scripts/probes/sdk-tool-seed-probe.ts --wire`; there is no observable production wire
+ * body on this path). A tool exchange therefore rides as STRUCTURE rather than as announced prose, which is the
+ * full #1593 arm: role separation the model reads natively instead of a label it has to believe.
+ */
+export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
+
+/** One rendered transcript turn the agent-sdk backend seeds its session from. Role + content BLOCKS — no
+ *  session vocab, and no SDK spelling (`tool_use`/`tool_result` are minted inside the backend's `session/frames.ts`). */
 export interface AgentSeedTurn {
   readonly role: "user" | "assistant";
-  readonly content: string;
+  readonly content: readonly AgentSeedBlock[];
 }
 
 /** Mode-2 (OR-Anthropic skin) tier → OpenRouter slug map, written into the spawn's ANTHROPIC_DEFAULT_*_MODEL envs. */
@@ -80,6 +94,27 @@ export interface OrSkinTierModels {
 /** How a multi-row prompt tail joins into the one `prompt` string an agent-sdk turn sends. The session↔seed
  *  comparator merges consecutive user rows with this SAME joiner, so a stored session frame still matches next turn's seed. */
 export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
+
+/**
+ * THE CONTINUATION STUB — the one `prompt` an agent-sdk turn sends when the transcript has no trailing USER row
+ * (a continue turn, or the `[…, assistant, tool]` tail a tool exchange leaves). The SDK cannot be queried
+ * without a user message, and the alternative was flattening the WHOLE transcript into that string, where a
+ * turn boundary is TEXT — a blank line plus a label — and hostile content carrying `\n\nUser: …` forged a turn
+ * the host never wrote (#1593). Seeding every row as its own FRAME and asking this stub removes the string, and
+ * with it the whole forge surface: content inside a JSON frame cannot create another frame (owner ruling
+ * 2026-09-05, #1607).
+ *
+ * HOST-AUTHORED AND SESSION-ONLY — the `GREETING_USER_STUB` precedent (`backends/agent-sdk/session/frames.ts`),
+ * which solves the mirror problem (a session must start user-first). It is never persisted to canon and never
+ * shown to a human, so the NEXT turn's canon-derived seed cannot contain it: the stored session holds one extra
+ * user run and the comparator reseeds a deterministic lineage instead of resuming. That costs nothing on the
+ * wire (SDK prompt caching is CONTENT-keyed, so the rebuilt prefix still cache-reads) and it is strictly better
+ * than the arm it replaces, which ran every continue turn on a throwaway session with no seed at all.
+ *
+ * Carries NO role label, deliberately: the query is not a transcript, so there is no host spelling in it for
+ * content to imitate. The prose is the in-fiction register the greeting stub already set.
+ */
+export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
 /** Fields every chat call carries regardless of which sealed backend runs it. */
 interface ChatRequestCommon {

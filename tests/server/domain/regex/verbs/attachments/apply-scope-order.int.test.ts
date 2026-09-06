@@ -15,7 +15,7 @@ import { asc } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
-import { makeHarness, principal, seedCharacter, seedChat, seedScript, seedUser } from "../../_support.ts";
+import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedScript, seedUser } from "../../_support.ts";
 
 describe("applyScopeOrder", () => {
   test("reverses a character scope's order; a stale id is silently dropped", async () => {
@@ -130,5 +130,28 @@ describe("applyScopeOrder", () => {
     expect(await createRegexService(h.ctx).applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [] })).toEqual({
       reordered: 0,
     });
+  });
+
+  // #1733 — the CHAT arm only. A room's run order is what every member's turns assemble in, so it announces
+  // the room; the other three arms are owner-library state with no member-visible projection of their own
+  // (their rooms hear about a row when the ROW changes, through the library fan).
+  test("the CHAT arm announces the room; the GLOBAL arm announces no room at all", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat });
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const chatId = await seedChat(db);
+    const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
+    const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
+    await svc.attachToChat({ principal: principal(owner), chatId, scriptId: a });
+    await svc.attachToChat({ principal: principal(owner), chatId, scriptId: b });
+    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
+    const before = h.roomFans.length;
+
+    await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "chat", chatId }, orderedScriptIds: [b, a] });
+    expect(h.roomFans.slice(before)).toEqual([{ kind: "room", id: chatId }]);
+
+    await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [a] });
+    expect(h.roomFans.slice(before)).toEqual([{ kind: "room", id: chatId }]);
   });
 });

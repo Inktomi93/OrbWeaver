@@ -47,8 +47,8 @@ import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
+import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
-import { buildInitialRosterRows } from "../persistence/roster.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
@@ -176,7 +176,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
 
     await requireFoundingCharacters(ctx, hostUserId, characterIds);
 
-    const rosterRows = buildInitialRosterRows({
+    const participantRows = buildInitialParticipantRows({
       chatId,
       joinSeq: 0,
       now,
@@ -206,7 +206,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           updatedAt: now,
         }),
       ),
-      batchStmt(ctx.db.insert(chatParticipants).values(rosterRows)),
+      batchStmt(ctx.db.insert(chatParticipants).values(participantRows)),
       ...seed.stmts,
       // Pre-send authored injections seeded as founding `chat_injections` rows in the same atomic batch.
       ...(injections ?? []).map((inj) =>

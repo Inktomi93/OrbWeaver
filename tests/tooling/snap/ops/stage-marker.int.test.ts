@@ -31,6 +31,7 @@ import {
   clearRow,
   markStageDead,
   readBands,
+  releaseLockDir,
   touchRow,
   unbindSessionFromBand,
   writeBands,
@@ -302,6 +303,47 @@ test("FOUR CONCURRENT PROCESSES CLAIM FOUR DISTINCT BANDS, and no two share a po
   expect(rows).toHaveLength(CONCURRENT_CLAIMERS);
   const ports = rows.flatMap((entry) => [entry.serverPort, entry.vitePort]);
   expect(new Set(ports).size, "no two stages may share a port").toBe(ports.length);
+});
+
+// ── the lock's own release, racing a concurrent allocator (#1732) ────────────────────────────────────
+//
+// A direct `rmSync(lockDir, { recursive: true, force: true })` on the LIVE lock name is not atomic
+// against a concurrent write into that same path: its readdir→unlink→rmdir sequence can see `pid`
+// reappear between the unlink and the rmdir and throw ENOTEMPTY. Reproduced mechanically against the
+// unmodified pre-fix shape (raw fs calls, same call order `rmSync` performs internally): mkdir a lock
+// dir, write `pid`, unlink it, have a "concurrent allocator" recreate `pid`, then `rmdirSync` — THREW
+// `ENOTEMPTY: directory not empty, rmdir '.../bands.lock'`. The fix renames the lock dir off its live
+// name FIRST (`releaseLockDir`), so the removal targets a name nothing else can see or write into; the
+// pin below exercises the SHIPPED function via its `onRenamed` test hook, which fires in exactly that
+// window.
+
+test("releaseLockDir survives a concurrent allocator recreating the lock's live name mid-release (#1732)", () => {
+  const home = scratchHome("release-race");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, "pid"), "111\n");
+
+  expect(() => {
+    releaseLockDir(lockDir, () => {
+      // The concurrent allocator: by the time `onRenamed` fires, `lockDir`'s live name is already
+      // free (the rename happened), so recreating it here lands on a FRESH directory disjoint from
+      // the renamed copy `releaseLockDir` is about to remove — the exact race that threw ENOTEMPTY
+      // pre-fix.
+      mkdirSync(lockDir);
+      writeFileSync(join(lockDir, "pid"), "222\n");
+    });
+  }).not.toThrow();
+
+  // The concurrent allocator's fresh lock is untouched by the release it raced.
+  expect(existsSync(lockDir)).toBe(true);
+  expect(readFileSync(join(lockDir, "pid"), "utf8")).toBe("222\n");
+});
+
+test("releaseLockDir on an already-vanished path is a no-op, not a throw", () => {
+  const home = scratchHome("release-gone");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  expect(existsSync(lockDir)).toBe(false);
+  expect(() => releaseLockDir(lockDir)).not.toThrow();
 });
 
 const TOUCH_CHILD = (home: string, band: number): string => `

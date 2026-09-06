@@ -118,6 +118,7 @@
     "tests/support/ct/accessible-names.ts",
     "tests/support/ct/autosave-status-transcript.ts",
     "tests/support/ct/canvas-ink.ts",
+    "tests/support/ct/contained-within.ts",
     "tests/support/ct/drop-files.ts",
     "tests/support/ct/held-portrait-image.ts",
     "tests/support/ct/measure-clamp.ts",

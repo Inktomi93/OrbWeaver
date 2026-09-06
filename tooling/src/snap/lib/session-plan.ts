@@ -60,6 +60,17 @@ export const SESSION_BOOT_TIMEOUT_MS = budget(SESSION_BOOT_BASE_MS);
 export const SESSION_READY_POLL_MS = 200;
 /** How long `--session-close`/`--session-sweep` wait for a signalled daemon to leave before SIGKILL. */
 export const SESSION_CLOSE_GRACE_MS = 10_000;
+/** THE MUTE CEILINGS (#1508): how long ONE socket exchange may say NOTHING before the client calls the
+ *  daemon wedged. They bound SILENCE, not work — every event the daemon sends restarts the clock — so
+ *  neither is a performance budget. A `ping` (and the admin `status` round trip) is a handshake: five
+ *  quiet seconds means nobody is listening, and the boot poll wants that answer fast so it can poll
+ *  again. A CALL is the daemon driving a browser, so its quiet stretches are legitimate and long; two
+ *  minutes of total silence is the point where it is wedged, not slow. Both ride `budget()`, so a
+ *  contended box stretches them instead of reading as a dead session. */
+const SESSION_PING_SILENCE_BASE_MS = 5000;
+export const SESSION_PING_SILENCE_MS = budget(SESSION_PING_SILENCE_BASE_MS);
+const SESSION_CALL_SILENCE_BASE_MS = 120_000;
+export const SESSION_CALL_SILENCE_MS = budget(SESSION_CALL_SILENCE_BASE_MS);
 
 /** Flag \> env \> default. A fractional TTL is legal (`ORB_SESSION_TTL_MIN=0.05` is a 3 s calibration
  *  drive); a non-positive or unparseable value is a REFUSAL, never a silent default — a session whose TTL

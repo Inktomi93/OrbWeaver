@@ -14,7 +14,16 @@
 // A port that answers anything other than a clean `/health` is `unproven`, and an unproven port is refused
 // BEFORE the VRAM budget is even read — mid-boot VRAM is ambiguous, and reading it there is how the
 // 2026-08-03 duplicate-fleet defect talked itself into a second spawn.
-import type { EngineLaunchAction, EngineLaunchDecision, EngineLaunchModels, EngineLaunchProbes, EngineRole } from "../contract/types.ts";
+import type { FullPriorityChild } from "../../_shared/proc.ts";
+import type {
+  EngineBootOutcome,
+  EngineLaunchAction,
+  EngineLaunchDecision,
+  EngineLaunchModels,
+  EngineLaunchProbes,
+  EngineRole,
+  EngineSpawnObservation,
+} from "../contract/types.ts";
 
 /** Which decisions count as an IDENTITY FAILURE — the tally `ops/engines.ts` turns into `EXIT.toolError`.
  *  A REFUSED port means the fleet is not in the state the operator asked for and something else is holding
@@ -67,4 +76,58 @@ export async function decideEngineLaunch(opts: {
     return { action: "skip", message: `${engine}: BOOT REFUSED — ${budget.message}` };
   }
   return { action: "spawn", message: `starting ${engine} :${port}` };
+}
+
+/** THE FLEET VERDICT for one engine (#1494), pure and here rather than in the launcher PROGRAM for the
+ *  same reason the decision is (see this file's header).
+ *
+ *  THE DEFECT IT ENDS: `waitHealthy` returned as soon as the child had exited, the caller reported
+ *  `identityFailed: false` for that path, and only identity failures reached `EXIT.toolError` — so an
+ *  engine that DIED during boot fell through to `EXIT.clean` and the launcher printed `booted 2/3` while
+ *  telling the operator the fleet was up. A dead engine is now named and counted.
+ *
+ *  WHAT IT DELIBERATELY DOES NOT FAIL: a health-poll TIMEOUT. The launcher's ceiling is a poll bound, not
+ *  a liveness verdict — a fleet that answers after it is `booted-late`, ruled exit-0 by #1165 — so a
+ *  timed-out engine that is still ALIVE and identifiable is `booted`, exactly as before. */
+export function classifyEngineBoot(engine: EngineRole, action: EngineLaunchAction, spawned: EngineSpawnObservation | null): EngineBootOutcome {
+  if (spawned === null) {
+    // No child of ours exists; whether the DECISION itself fails the fleet is the decision tier's ruling,
+    // read from its mapped Record so a new action cannot be added without ruling on that consequence.
+    return ENGINE_LAUNCH_IDENTITY_FAILURE[action]
+      ? { kind: "failed", reason: `${engine}: the launcher refused its port (see its decision line above)` }
+      : { kind: "no-spawn" };
+  }
+  if (spawned.wait === "exited") {
+    return { kind: "failed", reason: `${engine} EXITED before becoming healthy — see vllm-${engine}.log` };
+  }
+  if (!spawned.identityCaptured) {
+    return { kind: "failed", reason: `${engine} did not resolve to a safe setsid launch identity — it was neither recorded nor signalled` };
+  }
+  return { kind: "booted" };
+}
+
+/** Tear down every engine THIS launcher spawned (#1494). A failed boot used to return `EXIT.toolError`
+ *  while leaving the already-spawned children running: the tool reported failure, the identity file went
+ *  unwritten, and 20+GiB of half-a-fleet stayed resident with no durable record to stop it by.
+ *
+ *  Both doors, deliberately. `spawnEngine` runs `setsid <cmd>` from a NON-detached spawn, so the child
+ *  execs in place and its pid IS its pgid — the group kill is the right one and takes the APIServer plus
+ *  its EngineCore. But that topology is exactly what `captureEngineLaunchIdentity` refuses to certify when
+ *  it does not hold, and this runs on the path where it did NOT hold, so the direct-child signal follows
+ *  as the belt: `killGroup` swallows ESRCH, and `kill` is a no-op on a child already gone.
+ *
+ *  ADOPTED engines are never here: `children` holds only what this process spawned, and an adopt-in-place
+ *  verdict produces no child. We never kill an incumbent we did not start. */
+export function stopSpawnedEngines(children: readonly FullPriorityChild[], onLine: (message: string) => void): number {
+  let signalled = 0;
+  for (const child of children) {
+    if (child.hasExited()) {
+      continue;
+    }
+    child.killGroup("SIGTERM");
+    child.kill("SIGTERM");
+    onLine(`stopped the engine we spawned at pid ${child.pid ?? "?"} — the boot failed, so nothing it started is left running`);
+    signalled += 1;
+  }
+  return signalled;
 }

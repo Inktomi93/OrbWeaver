@@ -4,6 +4,7 @@ import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { DEFAULT_VIEWPORT } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { STAGE_BAND_COUNT } from "../../_shared/ports.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
 import { parsedArgWarnings } from "../lib/parse-warnings.ts";
@@ -52,6 +53,24 @@ function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSess
     [
       args.matrix && !args.isolated && args.session === null && !inheritedSessionBinding,
       "--matrix requires --isolated/--dirty/--ref: EVERY cell is stage-scoped, not just some. The plan's required rows pin the rated custom-light/custom-dark themes (which only exist in a stage db) and its required twins pin the density-preview pair, so there is no live-stack subset to fall back to. If the single stage band is held by a sibling, `pnpm snap --stage-status` names the owner (checkout · pid · age) — wait for it or ask the orchestrator; never tear a sibling's stage down",
+    ],
+  ];
+}
+
+/** The band idle timer's own entry (#1163 arm b). It is a whole PROCESS MODE, like `--session-daemon`: it
+ *  polls one band until it reaps or releases and never navigates anything, so an argv that also asks for a
+ *  mode is an ambiguous ask. A band outside the registry is refused before a timer exists for a pair
+ *  nobody reserved — `stageBandPorts` would throw, and a thrown RangeError is not an operator message. */
+function stageKeeperValidationPairs(args: Args): ValidationPair[] {
+  const band = args.stageKeeper;
+  return [
+    [
+      band !== null && (band < 0 || band >= STAGE_BAND_COUNT),
+      `--stage-keeper <band> takes a band in 0..${STAGE_BAND_COUNT - 1} (tooling/src/_shared/ports.ts STAGE_BANDS)`,
+    ],
+    [
+      band !== null && (args.stageDown || args.stageStatus || args.stageSweep || args.session !== null || args.sessionDaemon !== null),
+      "--stage-keeper is the band idle timer's own entry and does not combine with another mode",
     ],
   ];
 }
@@ -200,6 +219,7 @@ function validateParsedArgs(args: Args, inheritedSessionBinding: boolean, seen: 
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
   const invalidModes = [
     ...sessionValidationPairs(args, contextsMode, inheritedSessionBinding),
+    ...stageKeeperValidationPairs(args),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
     ...armValidationPairs(args),
@@ -275,6 +295,7 @@ export function parseSnapArgs(argv: string[], options: { readonly inheritedSessi
     stageStatus: false,
     stageSweep: false,
     stageOwner: null,
+    stageKeeper: null,
     force: false,
     session: null,
     sessionDaemon: null,

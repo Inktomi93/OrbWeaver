@@ -33,11 +33,15 @@ interface ImportPassCounts {
   readonly reportPath?: string;
 }
 
-/** A bundle import's per-entity tallies, as the delivery core reports them. */
+/** A bundle import's per-entity tallies, as the delivery core reports them. `notes` (#1710) is the flattened
+ *  {@link BundleImportFileOutcome.notes} across the whole report — what a file that DID import still left
+ *  behind (a kept edited lorebook, a dropped overlay) — so a BACKGROUND `import-bundle` workload can surface
+ *  it too, not only the descriptor-level report the sync door already read (#1688). */
 interface BundleImportCounts {
   readonly imported: number;
   readonly skipped: number;
   readonly failed: number;
+  readonly notes: readonly string[];
 }
 
 export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {

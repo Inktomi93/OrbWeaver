@@ -8,6 +8,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { VariablePrecondition, VariableWriteResult } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type {
@@ -48,7 +49,10 @@ export interface PluginBridge {
      *  a plugin sees only the roster of a room it is in. Reduced to id/name/avatar — never a co-participant's full
      *  card. */
     readonly listCharacters: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
-    readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+    /** The room's variable write, with the OPTIONAL compare-and-set (#1555). The membrane parses the guest's
+     *  preconditions before they reach here; the domain applies the ops only while every one still holds and
+     *  answers `stale` (with the live values) otherwise, having written nothing. */
+    readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
     /** Request an autonomous turn (`chat.requestTurn`, turn.trigger — SPEND). The membrane passes the
      *  ALREADY-ADMITTED `chatId` (the invocation-chat-context ran `can(installer,"host",chat)` → `canWrite`),
      *  the CHILD cascade depth to stamp (already-incremented; the domain seam refuses past the hard cap), and the

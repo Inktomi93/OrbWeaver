@@ -40,6 +40,7 @@ import { createUiHostCall } from "./verbs/ui-host-call.ts";
 import { createUninstall } from "./verbs/uninstall.ts";
 import { createUninstallForAllUsers } from "./verbs/uninstall-for-all-users.ts";
 import { createUpgrade } from "./verbs/upgrade.ts";
+import { createUpgradeFromShowcase } from "./verbs/upgrade-from-showcase.ts";
 import { createUpgradeFromStoredUrl } from "./verbs/upgrade-from-stored-url.ts";
 import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
 
@@ -81,6 +82,11 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // ride `ctx.fetchBundle`; `upgradeFromStoredUrl` delegates to the SAME `upgrade` (keeping #615's wall).
     checkForUpdates: createCheckForUpdates(ctx),
     upgradeFromStoredUrl: createUpgradeFromStoredUrl(ctx, { upgrade }),
+    // …and its SEEDED-EXAMPLE twin (#1740): the same one-click, sourced from the bundle this build ships
+    // (`ctx.showcase`) instead of a remembered URL, so a DIVERGED showcase install — the one the boot
+    // auto-upgrade deliberately leaves alone — has a way for its owner to take a newer bundle on purpose.
+    // Same `upgrade` delegate, so the consent wall is one story, not two.
+    upgradeFromShowcase: createUpgradeFromShowcase(ctx, { upgrade }),
     setGrant,
     setEnabled: createSetEnabled(ctx, { activate, deactivate }),
     uninstall,

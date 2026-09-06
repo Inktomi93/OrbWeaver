@@ -9,7 +9,7 @@ const DEFAULT_MESSAGES = 120;
 const DEFAULT_CHARACTERS = 3;
 const DEFAULT_TITLE = "Heavy transcript fixture";
 /** The synthesized card handles — reused across runs (findByHandle before create), so the library never dupes. */
-export const SEED_HANDLE_PREFIX = "seed-cast";
+export const SEED_HANDLE_PREFIX = "seed-character";
 // Alternate user↔assistant every other row; zero-pad the line index to this width for stable sort/grep.
 const ROLE_STRIDE = 2;
 const SEQ_PAD = 4;

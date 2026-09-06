@@ -24,12 +24,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
 import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
 import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,
+  PresetLibrarySurfaceShortStory,
   PresetLibrarySurfaceStory,
   PresetLibraryWelcomeFilteredStory,
   PresetLibraryWelcomeListModeStory,
@@ -1066,6 +1067,9 @@ test("#1580 a RECOGNISED-but-refused SillyTavern preset is named as recognised, 
   // that is NOT what happened here.
   await expect(page.getByText(/Recognised as a SillyTavern preset, refused:/u)).toBeVisible();
   await expect(page.getByText(/This SillyTavern preset mapped to a config orb cannot store/u)).toBeVisible();
+  // #1592 — the generic `(schema-rejected)` word alone left the owner of a too-long prompt with no way to
+  // tell which one to shrink; the reason now names the offending ST prompt + field.
+  await expect(page.getByText(/the ST prompt "lore-dump" `content`/u)).toBeVisible();
   // The recognised arm never borrows the unrecognised arm's sentence…
   await expect(page.getByText(/the SillyTavern reader stopped/u)).toHaveCount(0);
   // …and the #1390 self-contradiction stays gone: no denial of a format the quoted reason names.
@@ -1115,4 +1119,106 @@ test("G6 a REJECTED orb file keeps the dialog open with the SERVER's reason", as
   // The STRICT parse lives on the server, so its verdict is what the owner reads — no client re-derivation.
   await expect(page.getByText(SERVER_PARSE_ERROR)).toBeVisible();
   await expect(page.getByRole("button", { name: "Import preset", exact: true })).toBeVisible();
+});
+
+// ── #1748: the pane CHROME and its SCROLL BOX sit above the boundary (`LibraryListFrame`) ────────────
+// The shared library scaffold was refused a `reserveKey` on GEOMETRY: `LibraryListLayout`'s rows container
+// was the pane's scroller and it rendered INSIDE the boundary, so the reservation's auto-height measuring
+// Stack severed its `flex-1` and every row past the fold became unreachable (#1133). The layout is split now
+// — frame (surface + search + scroll box) above the boundary, rows below it — and these are the three facts
+// that move together. The SEARCH-WHILE-PENDING arm is a defect proof (red against HEAD: with the input under
+// the boundary the pending pane is a bare sentence); the REMEMBER arm is a defect proof (no key on HEAD);
+// the REACHABILITY arm is a FENCE against HEAD and reds against the keyed-but-unsplit tree.
+
+/** 40 rows — enough that a 200px pane cannot be honest about them without scrolling. */
+const MANY_PRESETS = [
+  summary({ id: BUILT_IN, name: "Default", isSystemDefault: true }),
+  ...Array.from({ length: 39 }, (_unused, i) => summary({ id: `preset_ct_bulk${String(i).padStart(6, "0")}`, name: `Bulk preset ${i}` })),
+];
+
+const LAST_BULK_NAME = "Bulk preset 38";
+
+test("#1748 the search input survives the pending read, and the rows still reach past the fold", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "preset.list": hold,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_preset",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      updatedAt: 0,
+    }),
+  });
+
+  const component = await mount(<PresetLibrarySurfaceShortStory />);
+  await hold.requested;
+
+  // PENDING, and the chrome is still there: the search box is pane furniture, not list content. Before the
+  // split it lived under the boundary and this locator resolved to nothing while the read was in flight.
+  const search = component.getByRole("textbox", { name: "Search presets" });
+  await expect(search).toBeVisible();
+  await expect(component.getByText("Loading your presets…")).toBeVisible();
+
+  hold.release(MANY_PRESETS);
+  await expect(component.getByText("Bulk preset 0", { exact: true })).toBeVisible();
+
+  // The frame's scroll box is a REAL scroller and it moves; the last row is reachable.
+  const scroller = component.locator('[data-slot="library-list-scroll"]');
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+  await component.getByText(LAST_BULK_NAME, { exact: true }).scrollIntoViewIfNeeded();
+  await expect(component.getByText(LAST_BULK_NAME, { exact: true })).toBeInViewport();
+
+  // …and the settle remembered this OWNER's box — the key is minted at the surface, never in the shared shell.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+        const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+        return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.["preset.library"] ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+});
+
+// #859 P3-A (side-eye 2026-08-30 rail-presets delta). THE LIST PANE'S TWO READS MUST BE ONE WAVE.
+//
+// The finding was a 61ms rendered frame flagged against `aside[aria-label=Presets list]` on entry, with
+// `__orb.animations()` reading 0 at settle — which the receipt read as "a transition on a layout property
+// during the pane's mount". IT IS NOT, and the tree says so twice: the `[drop]` flagger names whatever
+// animation LIFETIME overlaps the frame window and not the frame's cause (`boot-veil.tsx`'s #429 ruling,
+// `motion-animation-state.ts` `targetsOverlapping`), and the pane's only entry motion is shell.css's
+// `@keyframes shell-list-panel-in { from { translate: -100% 0 } }` — a compositor-owned translate that is
+// already what the guide asks for. A settled read of 0 animations is the entry animation having ENDED, not
+// one never having run.
+//
+// The cause is the SAME defect one surface over: #1134/F5 on the Characters landing, where three serialized
+// `useSuspenseQuery` calls put the last response's commit inside the list pane's entry animation
+// (`character-library-welcome.tsx`'s header records the measurement). Two `useSuspenseQuery` calls in one
+// body CANNOT fire together — the first suspends before React reaches the second hook.
+//
+// Pinned at the NETWORK boundary and as ORDERING, exactly as #1134 is: `__orb.queries()` / `recorder.count()`
+// are blind here (two procedure calls happen either way), and the assertion holds whichever way
+// `httpBatchLink` packs the wave — one batched request trivially satisfies it, two concurrent ones satisfy
+// it, and only a waterfall violates it. Barriered on the SETTLED pane (a row is rendered) before the log is
+// read, never on an in-flight state.
+test("#859 the list pane's two reads go out as one wave — no response lands before the last request", async ({ mount, page }) => {
+  const events: string[] = [];
+  const isPaneRead = (url: string): boolean => url.includes("preset.list") || url.includes("settings.getUserSettings");
+  page.on("request", (request) => {
+    if (isPaneRead(request.url())) {
+      events.push("out");
+    }
+  });
+  page.on("requestfinished", (request) => {
+    if (isPaneRead(request.url())) {
+      events.push("in");
+    }
+  });
+
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  expect(events.filter((event) => event === "out").length, "the probe measured nothing — no read reached the wire").toBeGreaterThan(0);
+  expect(events.indexOf("in"), `a response landed while reads were still going out: ${events.join(",")}`).toBe(events.lastIndexOf("out") + 1);
 });

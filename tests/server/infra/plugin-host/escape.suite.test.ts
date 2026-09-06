@@ -204,7 +204,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
         getVariables: () => Promise.resolve({ tension: "4" }),
         applyVariableOps: (_chatId, ops) => {
           captured.ops = ops as readonly unknown[];
-          return Promise.resolve();
+          return Promise.resolve({ outcome: "applied" });
         },
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
@@ -308,7 +308,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
           seen = chatId;
           return Promise.resolve({ which: String(chatId) });
         },
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
       },
@@ -407,7 +407,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       chat: {
         listMessages: () => Promise.resolve([]),
         getVariables: () => gate,
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
       },
@@ -489,7 +489,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
           return [];
         },
         getVariables: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
       },
@@ -580,7 +580,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       chat: {
         listMessages: () => Promise.resolve([]),
         getVariables: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
       },
@@ -648,7 +648,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       chat: {
         listMessages: () => Promise.resolve([]),
         getVariables: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: (chatId, automationDepth, p) => {
           seen.args = [chatId, automationDepth, p];
           return Promise.resolve();
@@ -739,7 +739,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       chat: {
         listMessages: () => Promise.resolve([]),
         getVariables: () => Promise.resolve({}),
-        applyVariableOps: () => Promise.resolve(),
+        applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
         requestTurn: () => Promise.resolve(),
         listCharacters: () => Promise.resolve([]),
       },

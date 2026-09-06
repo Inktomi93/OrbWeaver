@@ -100,6 +100,13 @@ export interface CharacterPickerProps {
   readonly listClassName?: string;
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
+  /**
+   * The OWNER's surface-box id (#885/#1748). This picker is mounted by EIGHT owners, so it can never mint a
+   * key of its own — one literal here would hand all eight the same remembered box, the copy-paste collision
+   * the `query-boundary-reservation` gate's duplicate arm reds and which its literal census could not see
+   * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
+   */
+  readonly reserveKey?: string | undefined;
   /** Escape handler (modal consumers close on Esc). */
   readonly onEscape?: () => void;
   /** Put the caret in the search field as soon as the ROWS mount. Opt-in, because the two postures differ:
@@ -112,9 +119,13 @@ export interface CharacterPickerProps {
 /** The searchable character picker body — a QueryBoundary + cmdk Command over `character.list`. */
 export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   return (
+    // THE KEY IS THE CALLER'S (#1748 — the pass-through design §1.4 prescribed). The ruling that this file
+    // may not mint one SURVIVES: eight owners, one literal, one box for all of them. What changed is that
+    // every owner now supplies its own, so the reservation is reachable without the collision.
     <QueryBoundary
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
+      {...(props.reserveKey === undefined ? {} : { reserveKey: props.reserveKey })}
     >
       <CharacterPickerBody {...props} />
     </QueryBoundary>

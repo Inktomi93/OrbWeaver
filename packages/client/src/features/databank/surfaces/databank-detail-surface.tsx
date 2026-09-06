@@ -29,7 +29,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
@@ -65,9 +65,15 @@ export function DatabankDetailSurface(): ReactElement {
         {documentId === null ? (
           <DatabankWelcome />
         ) : (
+          /* RESERVED (#1098). Every document swap re-suspends this pane, so the CONTENT column collapsed
+             to a one-line sentence and sprang back to a full readout on each pick — the pane's scrollbar
+             and scroll offset with it. The remembered box is a good predictor here: the readout's anatomy
+             (header, chips, chunk counts, sections) is the same shape for every document. The scroll box
+             is the Stack ABOVE this boundary, so the measuring wrapper sits inside it (#1133). */
           <QueryBoundary
-            fallback={<Text voice="gloss">Loading the document…</Text>}
+            fallback={<SkeletonRows count={5} />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="this document" onRetry={retry} />}
+            reserveKey="databank.detail"
           >
             <DetailBody documentId={documentId} />
           </QueryBoundary>

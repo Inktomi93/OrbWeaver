@@ -16,6 +16,7 @@ import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { terminalChunkJson } from "../../../../../support/provider-stream.ts";
 import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const CRED = makeResolvedCredential("vllm");
@@ -101,7 +102,7 @@ function recordingClient(): { client: VllmEngineClient; read: () => Record<strin
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, sent): Promise<ReadableStream<Uint8Array>> => {
         body = sent as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     },
@@ -115,7 +116,7 @@ describe("createVllmChat", () => {
       '{"choices":[{"delta":{"content":"Hel"}}]}',
       '{"choices":[{"delta":{"content":"lo"}}]}',
       '{"choices":[{"delta":{"reasoning_content":"thinking"}}]}',
-      '{"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2}}',
+      terminalChunkJson({ usage: { promptTokens: 3, completionTokens: 2 } }),
     ]);
     const deltas: { kind: string; text: string }[] = [];
     const chat = createVllmChat({ client, now: clock() });
@@ -200,7 +201,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -215,7 +216,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -233,7 +234,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -252,7 +253,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -274,7 +275,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -289,7 +290,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -306,7 +307,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -321,7 +322,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -336,7 +337,7 @@ describe("createVllmChat", () => {
       enginePost: () => Promise.reject(new Error("chat must stream")),
       engineStream: (_lane, _path, body) => {
         sentBody = body as Record<string, unknown>;
-        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+        return Promise.resolve(sseStream([terminalChunkJson()]));
       },
       baseUrl: () => "http://127.0.0.1:0",
     };
@@ -349,7 +350,7 @@ describe("createVllmChat", () => {
     // The terminal rides the content chunk (every other fixture in this file already carries one): the
     // subject here is delta FORWARDING, and a stream that never terminated is refused outright by the #1400
     // truncation fence — so a terminal-less fixture would be asserting the truncated shape by accident.
-    const client = streamingClient(['{"choices":[{"delta":{"content":"x"},"finish_reason":"stop"}]}']);
+    const client = streamingClient([terminalChunkJson({ delta: { content: "x" } })]);
     const seen: ChatId[] = [];
     const chat = createVllmChat({ client, now: clock() });
     await chat(

@@ -14,6 +14,7 @@ import { createCustomByoBackend, reshapeChunk } from "@orb/server/infra/provider
 import { afterEach, describe, vi } from "vitest";
 import { makeCustomOpenAiCredential, makeOpenRouterCredential } from "../../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
+import { terminalSseLine } from "../../../../../../support/provider-stream.ts";
 import { wireSchema } from "../../../../../../support/wire-ready.ts";
 
 const FIXED_NOW = 1000;
@@ -108,10 +109,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The terminal SSE chunk a completed chat-completions generation ends with. Request-shaping fixtures carry
- *  it because the reducer refuses a terminal-less stream as a truncated turn (#1400) — a fixture that stopped
- *  after its content delta would be asserting the truncated shape by accident. */
-const TERMINAL_SSE = 'data: {"choices":[{"finish_reason":"stop"}]}';
+/** The terminal SSE chunk a completed chat-completions generation ends with (composed from the shared
+ *  `tests/support/provider-stream.ts` constant — #1552). Request-shaping fixtures carry it because the
+ *  reducer refuses a terminal-less stream as a truncated turn (#1400) — a fixture that stopped after its
+ *  content delta would be asserting the truncated shape by accident. */
+const TERMINAL_SSE = terminalSseLine();
 
 describe("createCustomByoBackend — request mapping", () => {
   test("merges customParameters + credential headers + bearer auth; targets <baseUrl>/chat/completions", async () => {
@@ -124,7 +126,7 @@ describe("createCustomByoBackend — request mapping", () => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse([
         'data: {"choices":[{"delta":{"content":"hello"}}]}',
-        'data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}',
+        terminalSseLine({ usage: { promptTokens: 3, completionTokens: 1 } }),
         "data: [DONE]",
       ]);
     });
@@ -149,7 +151,7 @@ describe("createCustomByoBackend — request mapping", () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
+      return sseResponse([terminalSseLine({ usage: { promptTokens: 1, completionTokens: 1 } }), "data: [DONE]"]);
     });
     await runTurn(makeRequest({ params: { minP: 0.04 } }));
     expect(capturedBody["min_p"]).toBe(0.04);
@@ -184,7 +186,7 @@ describe("createCustomByoBackend — request mapping", () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
+      return sseResponse([terminalSseLine({ usage: { promptTokens: 1, completionTokens: 1 } }), "data: [DONE]"]);
     });
     await runTurn(makeRequest({ responseFormat: { name: "extract", schema: wireSchema({ type: "object" }) } }));
     expect(capturedBody["response_format"]).toEqual({
@@ -197,7 +199,7 @@ describe("createCustomByoBackend — request mapping", () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
+      return sseResponse([terminalSseLine({ usage: { promptTokens: 1, completionTokens: 1 } }), "data: [DONE]"]);
     });
     await runTurn(makeRequest({ responseFormat: { name: "extract", schema: wireSchema({}), strict: true, description: "d" } }));
     expect(capturedBody["response_format"]).toEqual({
@@ -228,7 +230,7 @@ describe("createCustomByoBackend — resolveChat unification (EFF-2)", () => {
     let body: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
       body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
-      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', 'data: {"choices":[{"finish_reason":"stop"}]}', "data: [DONE]"]);
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', terminalSseLine(), "data: [DONE]"]);
     });
     return { read: (): Record<string, unknown> => body };
   }
@@ -403,7 +405,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
           'data: {"choices":[{"delta":{"reasoning":"thinking"}}]}',
           'data: {"choices":[{"delta":{"content":"Hello"}}]}',
           'data: {"choices":[{"delta":{"content":", world"}}]}',
-          'data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2}}',
+          terminalSseLine({ usage: { promptTokens: 5, completionTokens: 2 } }),
           "data: [DONE]",
         ]),
     );

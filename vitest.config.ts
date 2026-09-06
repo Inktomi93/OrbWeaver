@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 
 // ONE config, lanes by SUFFIX via test.projects (the modern "workspace" — vitest.workspace.ts was
 // deprecated in 3.2). NODE lanes only; BROWSER is Playwright (vitest browser-mode hangs — Spine-Testing.md §7).
-// `test` (the fast lane) = unit + integration + contract; types is opt-in (own script).
+// `test` (the fast lane) = unit + integration + contract; the two `types-*` lanes are opt-in (own script).
 //
 // CRITICAL: shared defaults live in the root `test` block, and EVERY project sets `extends: true` to
 // inherit them. Per-runner options (cleanup/determinism/expect) do NOT reach a project without it —
@@ -171,6 +171,31 @@ const LIVE_DRIVE = [
   "tests/tooling/_shared/theme.int.test.ts",
 ];
 
+// TYPES_BROWSER — every `.test-d.ts` file the DOM-less root graph (`tsconfig.json`) does NOT root, so
+// checking it there is a WRONG-LIB double-report (or, for the two `tests/client`/`tests/e2e` trees below,
+// simply UNCHECKED — `ignoreSourceErrors` swallowed both classes identically). #1313's own issue body named
+// six (the ones whose subject imports `@orb/ui`/`@orb/client` directly); a full `ts7 --showConfig` diff of
+// `tsconfig.json` against the whole `.test-d.ts` census found TWO more riding the same mask, both with
+// their OWN header already saying so: `tests/client/lib/collection-contracts.test-d.ts` ("that green is
+// VACUOUS (its program excludes `tests/client` wholesale)") and `tests/e2e/support/mirror-parity.test-d.ts`
+// ("that green is VACUOUS: that lane's program is `tsconfig.json`, which excludes `tests/e2e` entirely").
+// Fixing 6 of 8 would leave the exact defect class alive for the other 2, so all 8 land here. Explicit
+// list, not a directory glob — a `.test-d.ts` is added here deliberately, the same doctrine as
+// `tsconfig.tests-dom.json`'s own per-file `include` (its header). All eight already sit under
+// `tests/client/**/*.ts`, `tests/ui/**/*.ts` or `tests/e2e/**/*.ts`, which that config's `include` sweeps
+// wholesale — so no tsconfig edit is needed here, only re-routing WHICH vitest project checks them. Pinned
+// TOTAL by `tests/tooling/testd-lane-program-coverage.int.test.ts`.
+const TYPES_BROWSER = [
+  "tests/client/state/durable-local.test-d.ts",
+  "tests/client/state/create-gated-store.test-d.ts",
+  "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
+  "tests/client/lib/registry.test-d.ts",
+  "tests/client/lib/collection-contracts.test-d.ts",
+  "tests/ui/primitives/input/index.test-d.ts",
+  "tests/ui/primitives/button/index.test-d.ts",
+  "tests/e2e/support/mirror-parity.test-d.ts",
+];
+
 export default defineConfig({
   // NO `esbuild` key ON PURPOSE (2026-08-03): vitest 4 resolves the rolldown vite 8, which configures
   // oxc and IGNORES esbuild options — the old `esbuild: { target: "es2025" }` was a silent no-op that
@@ -334,22 +359,42 @@ export default defineConfig({
         test: { name: "contract", include: ["tests/**/*.contract.test.ts"] },
       },
       {
-        // types: `.test-d.ts` — typecheck-ONLY (no runtime pass) over the root tsconfig.
+        // types-node: `.test-d.ts` — typecheck-ONLY (no runtime pass) over the DOM-less root tsconfig.
+        // Every `.test-d.ts` file EXCEPT `TYPES_BROWSER` (#1313 — those are checked under the correct
+        // libs by `types-browser` below, so there is no wrong-lib double-report left for
+        // `ignoreSourceErrors` to swallow: SOURCE-file errors here now fail the lane like any other).
         extends: true,
         test: {
-          name: "types",
+          name: "types-node",
           include: [],
           typecheck: {
             enabled: true,
             only: true,
             include: ["tests/**/*.test-d.ts"],
+            exclude: TYPES_BROWSER,
             tsconfig: "tsconfig.json",
-            // Source-file errors here are wrong-lib double-reports (a DOM-touching import checked under
-            // the DOM-less root program — the authoritative per-package/graph stages check the same files
-            // under the CORRECT libs). Test-file type errors still fail the lane.
-            ignoreSourceErrors: true,
             // TS7 native checker (byte-identical diagnostics to tsc6, ~5x faster) — the CLI type lanes moved
             // off tsc6. ts-morph/typescript-eslint keep the TS6 API; this lane is CLI-only, so it's safe.
+            checker: "node_modules/ts7/bin/tsc",
+          },
+        },
+      },
+      {
+        // types-browser: exactly `TYPES_BROWSER` — the `.test-d.ts` files whose subject is a browser
+        // package, checked under `tsconfig.tests-dom.json` (dom + node), the same program
+        // `typecheck:tests-dom` runs standalone. Both this project and `types-node` share the DOM-less/
+        // DOM-having split every other type program already draws; splitting the ONE vitest `types`
+        // project the same way removes the last place a suppression flag hid a known-wrong program
+        // (#1313) rather than recording a decision.
+        extends: true,
+        test: {
+          name: "types-browser",
+          include: [],
+          typecheck: {
+            enabled: true,
+            only: true,
+            include: TYPES_BROWSER,
+            tsconfig: "tsconfig.tests-dom.json",
             checker: "node_modules/ts7/bin/tsc",
           },
         },

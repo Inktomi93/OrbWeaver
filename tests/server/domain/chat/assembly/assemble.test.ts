@@ -310,6 +310,32 @@ describe("assemblePrompt — injection_trigger section-gating", () => {
     expect(out.static).toBe("");
     expect(out.dynamic).toContain("sys");
   });
+
+  // #1462 — the PLAIN markers (chat_history, the two WI anchors) only just gained `trigger`, ST parity. The
+  // pivot is the one section the walk skips BEFORE the trigger check, so nothing else could read its gate;
+  // `sendHistory` is where it lands, or the field would be stored and silently ignored.
+  test("a trigger-gated chat_history pivot gates sendHistory, not just its own (empty) render", () => {
+    const config = configOf([literal("sys"), marker({ marker: "chat_history", trigger: ["swipe"] })]);
+
+    expect(assemblePrompt(config, ctxOf({ generationType: "swipe" })).sendHistory).toBe(true);
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).sendHistory).toBe(false);
+  });
+
+  test("an UNGATED pivot still sends history on every generation type", () => {
+    const config = configOf([literal("sys"), marker({ marker: "chat_history" })]);
+
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).sendHistory).toBe(true);
+    expect(assemblePrompt(config, ctxOf({ generationType: "quiet" })).sendHistory).toBe(true);
+  });
+
+  test("a trigger-gated WI anchor is dropped from the walk like any other gated section", () => {
+    const config = configOf([marker({ marker: "world_info_before", trigger: ["swipe"] })]);
+    const ctx = { worldInfoBefore: "ANCHOR LORE" };
+
+    expect(`${assemblePrompt(config, ctxOf({ ...ctx, generationType: "swipe" })).dynamic}`).toContain("ANCHOR LORE");
+    const normal = assemblePrompt(config, ctxOf({ ...ctx, generationType: "normal" }));
+    expect(`${normal.static}${normal.dynamic}`).toBe("");
+  });
 });
 
 // F6: in merged mode a co-speaker's scenario has ONE home — the char_description co-block (renderCoSpeakers,
@@ -356,7 +382,7 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
 
 // ── THE FACTORY main_prompt IS MODE-AWARE (C4) ───────────────────────────────────────────────────────
 // The shipped default framing says "You are {{char}} … write {{char}}'s perspective only" — true for a
-// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing the whole cast (the
+// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing every seated character (the
 // 2026-08-07 live drive read "write Charlotte, JFC's perspective only", a self-contradictory instruction).
 // The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "multi-voice"`,
 // `memberHeadingSlot`); every other turn keeps its bytes EXACTLY. Asserted on the assembled bytes — the
@@ -405,7 +431,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     expect(out.static).not.toContain("perspective only");
     expect(out.static).not.toContain("You are Aria, Kai in an immersive");
     // …replaced by a framing that names the job the round actually has, with `{{char}}` still bound to the
-    // joined cast (the one place cast-binding belongs — preset-authored framing, not card text).
+    // joined character names (the one place that binding belongs — preset-authored framing, not card text).
     expect(out.static).toContain("You are the narrator");
     expect(out.static).toContain("voicing Aria, Kai");
     // The address clause is preserved VERBATIM on this arm too (owner ruling 2026-08-02).
@@ -787,19 +813,66 @@ describe("assemblePrompt — the merged room-scope fallback", () => {
     expect(out.trace.overrideSources).toEqual({ mainPrompt: "from Aria" });
   });
 
-  test("the concatenated fallback is HARD-CAPPED at 4000 chars (the `{{original}}` blowup bound)", () => {
-    const mine = "A".repeat(3000);
-    const theirs = "B".repeat(3000);
+  // #1462 — the cap USED to be a positional `joined.slice(0, CAP)`, so a long FIRST member ate the whole
+  // budget and every later member's card reached the model as nothing at all, while the trace said only
+  // "merged (present characters)". It is now water-filled across contributors and cut on CODE POINTS. These
+  // three pins are the three halves of that: fair share, surplus release, and no split surrogate.
+  test("the fallback is capped by a FAIR PER-MEMBER SHARE, never positionally", () => {
     const out = assemblePrompt(
       overridable(),
       ctxOf({
-        character: { name: "Aria", description: "", systemPrompt: mine },
-        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: theirs }],
+        character: { name: "Aria", description: "", systemPrompt: "A".repeat(3000) },
+        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "B".repeat(3000) }],
       }),
     );
 
-    expect(out.static).toBe(`${mine}\n\n${theirs}`.slice(0, 4000));
-    expect(out.static.length).toBe(4000);
+    // The 4000 cap minus the 2-char join = 3998, split evenly: neither member is starved by the other.
+    expect(out.static).toBe(`${"A".repeat(1999)}\n\n${"B".repeat(1999)}`);
+    expect([...out.static].length).toBe(4000);
+    expect(out.trace.mergedFallbackTruncated).toEqual({ mainPrompt: ["Aria", "Kai"] });
+  });
+
+  test("a member that needs LESS than its share releases the surplus — a short member is never cut", () => {
+    const out = assemblePrompt(
+      overridable(),
+      ctxOf({
+        character: { name: "Aria", description: "", systemPrompt: "S".repeat(10) },
+        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "L".repeat(9000) }],
+      }),
+    );
+
+    expect(out.static).toBe(`${"S".repeat(10)}\n\n${"L".repeat(3988)}`);
+    expect([...out.static].length).toBe(4000);
+    // Only the member that was actually cut is reported.
+    expect(out.trace.mergedFallbackTruncated).toEqual({ mainPrompt: ["Kai"] });
+  });
+
+  test("the cut lands on CODE POINTS — a capped member never ships half a surrogate pair", () => {
+    // The leading BMP char makes the old UTF-16 cut land at an ODD unit offset, i.e. mid-pair.
+    const out = assemblePrompt(
+      overridable(),
+      ctxOf({
+        character: { name: "Aria", description: "", systemPrompt: `x${"\u{1F702}".repeat(4000)}` },
+        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "\u{1F703}".repeat(4000) }],
+      }),
+    );
+
+    expect(out.static).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/u);
+    expect(out.static).not.toMatch(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u);
+    expect([...out.static].length).toBe(4000);
+  });
+
+  test("a fallback UNDER the cap is byte-identical to the plain join and reports no truncation", () => {
+    const out = assemblePrompt(
+      overridable(),
+      ctxOf({
+        character: { name: "Aria", description: "", systemPrompt: "MINE" },
+        coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "THEIRS" }],
+      }),
+    );
+
+    expect(out.static).toBe("MINE\n\nTHEIRS");
+    expect(out.trace.mergedFallbackTruncated).toBeUndefined();
   });
 
   test("post_history reads the POST-HISTORY room override, and records under its own trace key", () => {
@@ -1251,6 +1324,32 @@ describe("assemblePrompt — implicit compact_summary placement", () => {
     expect(out.afterHistory).toHaveLength(1);
   });
 
+  // #1462 — the synthesis used to stand down for any ENABLED `compact_summary` section. A section whose
+  // `trigger` excludes this turn's generation type is dropped by the walk, so "enabled" was not the question:
+  // the compacted chat's summary reached the model NOWHERE, which is the exact silent break PD-140 exists to
+  // prevent.
+  test("an enabled but TRIGGER-MISMATCHED compact_summary does not suppress the synthesis", () => {
+    const config = configOf([
+      marker({ marker: "compact_summary", template: "REAL: {{compact_summary}}", trigger: ["swipe"] }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "SUM", generationType: "normal" }));
+
+    expect(`${out.static}\n${out.dynamic}`).toContain("Summary of the conversation so far:\nSUM");
+    expect(out.trace.compactSummaryIncluded).toBe(true);
+  });
+
+  test("a trigger-MATCHED compact_summary still wins — the summary is delivered once, by the real section", () => {
+    const config = configOf([
+      marker({ marker: "compact_summary", template: "REAL: {{compact_summary}}", trigger: ["normal"] }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ compactSummary: "SUM", generationType: "normal" }));
+
+    expect(out.dynamic).toBe("REAL: SUM");
+    expect(out.static).toBe("");
+  });
+
   test("the synthesized section carries its own budget identity", () => {
     const { slices } = assemblePromptWithSlices(configOf([marker({ marker: "chat_history" })]), ctxOf({ compactSummary: "SUM" }));
 
@@ -1262,6 +1361,51 @@ describe("assemblePrompt — implicit compact_summary placement", () => {
         sectionId: "__synthetic-compact-summary",
       },
     ]);
+  });
+});
+
+// #1462 — `postProcess` runs on the JOINED system halves, but `pushSlices` captured the PRE-transform text,
+// so with a `collapseNewlines` preset active the budget priced bytes that differ from the model's actual
+// input. The slices now run the same transform, and they agree with the half EXACTLY rather than
+// approximately: every part is `.trim()`ed before it joins on `\n\n`, so no collapsible newline run can span
+// a join seam and per-part collapsing is the same string as collapsing the join.
+describe("assemblePromptWithSlices — the budget prices the DELIVERED bytes", () => {
+  const collapsing = (sections: PromptSection[]): PromptConfig => ({
+    ...configOf(sections),
+    postProcess: { collapseNewlines: true, trimTrailingWhitespace: false, dropIncompleteSentence: false, singleLine: false },
+  });
+
+  test("each system-half slice is post-processed, and the slices still reconstruct the half exactly", () => {
+    const config = collapsing([literal("ONE\n\n\n\n\nTWO"), literal("THREE\n\n\n\nFOUR")]);
+    const { prompt, slices } = assemblePromptWithSlices(config, ctxOf());
+
+    expect(prompt.static).toBe("ONE\n\nTWO\n\nTHREE\n\nFOUR");
+    expect(slices.map((s) => s.text)).toEqual(["ONE\n\nTWO", "THREE\n\nFOUR"]);
+    expect(slices.map((s) => s.text).join("\n\n")).toBe(prompt.static);
+  });
+
+  test("a system-block chat injection is post-processed on the same terms — it joins the same half", () => {
+    const config = collapsing([literal("LIT")]);
+    const ctx = ctxOf({ chatInjections: [{ position: "in_static", depth: 0, role: "system", content: "A\n\n\n\nB", origin: "user" }] });
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    expect(prompt.static).toBe("LIT\n\nA\n\nB");
+    expect(slices.map((s) => s.text)).toEqual(["LIT", "A\n\nB"]);
+  });
+
+  test("an in_chat injection slice is NOT transformed — the pass never touches a spliced history row", () => {
+    const config = collapsing([marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ chatInjections: [{ position: "in_chat", depth: 0, role: "system", content: "A\n\n\n\nB", origin: "user" }] });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "chat injections", text: "A\n\n\n\nB" }]);
+  });
+
+  test("with NO postProcess block the slices are byte-identical to the rendered parts", () => {
+    const config = configOf([literal("ONE\n\n\n\n\nTWO")]);
+    const { prompt, slices } = assemblePromptWithSlices(config, ctxOf());
+
+    expect(prompt.static).toBe("ONE\n\n\n\n\nTWO");
+    expect(slices.map((s) => s.text)).toEqual(["ONE\n\n\n\n\nTWO"]);
   });
 });
 

@@ -18,7 +18,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;
@@ -36,20 +36,6 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (co
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn({ runCli, scratch });
   });
-}
-
-/** Every findings-table selector for one rule. The table is `severity rule selector message (value)`
- *  with fixed-width columns. Read from the TABLE rather than by substring: the same selectors also appear
- *  in the withheld/obscured denominators above it, where their presence says nothing about the verdict. */
-function findingSelectors(stdout: string, rule: string): readonly string[] {
-  const rows: string[] = [];
-  for (const line of stdout.split("\n")) {
-    const fields = line.trim().split(/\s+/u);
-    if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
-      rows.push(fields[2]);
-    }
-  }
-  return rows;
 }
 
 /** Border + radius + fill on both boxes: `isCardLike` for the inner, `hasEnclosingBox` for the outer. The
@@ -132,5 +118,58 @@ auditRuleTest(
       expect(selectors, `${rule}: the rule's real target must stay judged`).toContain("#real-stripe");
       expect(selectors, `${rule}: the picture of the tell is not the tell`).not.toContain("#art-stripe");
     }
+  },
+);
+
+// ── #1075 (orb-ui audit F3): the house media-zoom idiom — group-hover on the WRAPPER, not the <img> ──
+//
+// media-tile-grid's cover span carries `group-hover:scale-105` (packages/ui/src/primitives/
+// media-tile-grid/variants.ts:43); the <img> inside it carries no transform class of its own. The
+// class arm read only the img's OWN class list with a bare `hover:` prefix, so this idiom — the one
+// this codebase actually authors — was invisible in all three ways the audit named: the wrapper class
+// was never read, `group-hover:` was never an accepted prefix, and the stylesheet arm's `/img/i`
+// selector-text test never matches a selector naming only the wrapper's class.
+
+auditRuleTest(
+  [
+    {
+      rule: "animated-img-hover",
+      kind: "fires",
+      reason:
+        "the house media-zoom idiom — `group-hover:scale-105` on the cover WRAPPER around the <img>, media-tile-grid's real shape — was invisible before #1075: the class arm read only the img's own classes with a bare `hover:` prefix",
+    },
+  ],
+  "an img zoomed by a group-hover class on its wrapper is now caught",
+  async ({ runCli, scratch }) => {
+    const body = `<div class="group" style="width:200px;height:120px">
+  <span class="relative overflow-hidden group-hover:scale-105" id="cover-wrap" style="display:block;width:100%;height:100%">
+    <img id="cover-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
+  </span>
+</div>`;
+    await writeFile(join(scratch, "media-zoom-wrapper.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(findingSelectors(res.stdout, "animated-img-hover").length, "the wrapper-hover zoom must be caught").toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "animated-img-hover",
+      kind: "silent",
+      reason:
+        "a static image with no hover/group-hover transform anywhere in its wrapper chain is the negative control — the widened wrapper walk must not blanket-flag every image",
+    },
+  ],
+  "a static image with no hover transform in its wrapper chain is not flagged",
+  async ({ runCli, scratch }) => {
+    const body = `<div class="group" style="width:200px;height:120px">
+  <span class="relative overflow-hidden" id="cover-wrap-static" style="display:block;width:100%;height:100%">
+    <img id="cover-img-static" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
+  </span>
+</div>`;
+    await writeFile(join(scratch, "media-zoom-static.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
   },
 );

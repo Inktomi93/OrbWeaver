@@ -935,6 +935,7 @@ CREATE TABLE `refinery_sessions` (
 	`stage_config` text NOT NULL,
 	`guidance` text,
 	`iteration_count` integer DEFAULT 0 NOT NULL,
+	`inflight_until` integer,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,

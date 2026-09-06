@@ -1,4 +1,4 @@
-// persistence/identity — proves the ONE kind-polymorphic CAST producer loader (D137, Chat-Macro-Resolution.md
+// persistence/identity — proves the ONE kind-polymorphic IDENTITY producer loader (D137, Chat-Macro-Resolution.md
 // §1) against a real libSQL db. Ports the coverage assertions of the two per-kind loaders it replaced
 // (macro-names.int.test.ts + roster-avatars.int.test.ts — assertions intact, re-pointed; see the
 // test-baseline `deletions` ledger): member-gated coverage (participants' seat/active-persona ids UNION a
@@ -6,7 +6,7 @@
 // with no avatar resolves `avatarHash: null`, never dropped), the removed-character portrait floor, the
 // empty-input no-query floor, and the multi-human member-not-owner gating.
 //
-// (Leg D1 additionally carried a transitional §8.2 equivalence block proving the cast projections
+// (Leg D1 additionally carried a transitional §8.2 equivalence block proving the identity projections
 // reproduce the old builders' maps byte-for-byte; it died with the old loaders in leg D2 — the git
 // history of this file holds the receipt.)
 

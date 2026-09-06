@@ -47,6 +47,19 @@ function evidence(): ReviewMirrorEvidence {
   };
 }
 
+test("TS stripping PRESERVES a suppression/directive marker instead of erasing gate-ownership evidence (#1496)", () => {
+  const source =
+    "// @orb-gate-ignore caught-failure-ownership(default:catch): optional read\n" +
+    "const x = 1; // biome-ignore lint/x: reason\n" +
+    "// @ts-expect-error narrow union\n" +
+    "const y = 2; // plain narration, drop this\n";
+  const stripped = stripComments("sample.ts", source);
+  expect(stripped).toContain("@orb-gate-ignore caught-failure-ownership");
+  expect(stripped).toContain("biome-ignore lint/x: reason");
+  expect(stripped).toContain("@ts-expect-error narrow union");
+  expect(stripped).not.toContain("plain narration");
+});
+
 test("TS stripping removes comments without corrupting regex, template or line positions", () => {
   // biome-ignore lint/suspicious/noTemplateCurlyInString: this literal is the parser fixture's template source.
   const source = "const pattern = /https?:\\/\\//u; // prose\nconst value = `// ${pattern.source}`;\n/* block\ncomment */\nexport { value };\n";

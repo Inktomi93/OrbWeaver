@@ -37,6 +37,7 @@ export type {
 } from "./contract/views.ts";
 export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
+export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
 export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
 export { createExport as createExportPresets } from "./verbs/export.ts";

@@ -34,7 +34,8 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
   manual: "Manual order",
 };
 
-/** The sort-mode Select options, derived from the canonical tuple.
+/** The sort-mode Select options, derived from the canonical tuple — the DATA behind the host's control-row
+ *  sort (`CollectionContribution.sort`, DESIGN.md §3.2).
  *
  *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
  *  the list virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
@@ -43,29 +44,25 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
  *  comparator tiebreaks on name, making it pixel-identical to A–Z with nothing saying so (side-eye
  *  2026-08-03 P1). The option is DISABLED there rather than silently inert: an unselectable option with a
  *  stated reason is a fact about the library; a selectable one that does nothing is a control that lies.
- *  The picker still shows it as the current value for a device already persisted into it — which is what
- *  {@link tagOrderHint} explains. */
-export function tagSortItems(handlesAvailable: boolean): readonly SelectOption<TagSortMode>[] {
+ *
+ *  ═══ THE HINT IS THE OPTION'S DESCRIPTION NOW — THE RULING SURVIVES, ITS ADDRESS CHANGED (#1725) ══════
+ *  The 2026-08-03 P1/P2 findings bought a `tagOrderHint` LINE beside the Select: nothing told anyone that
+ *  dragging existed at all (it lives behind a third option in a control that reads as a view preference),
+ *  and above the cap nothing said why the mode was dead. Both sentences survive verbatim; what changed is
+ *  where they are said. The approved board 02 draws the control row as `filter · sort · create · overflow`
+ *  and no sentence, and "must match the mockups" is the newer and higher word — so the copy moved into
+ *  `SelectOption.description`, the option row's own gloss slot, which the primitive documents as existing
+ *  precisely because a legend outside the popup is OCCLUDED the moment the select opens. It is
+ *  `aria-describedby`-wired there, so it reaches a screen reader as a description rather than renaming the
+ *  option. The P2 half ("the Select sat alone on its line with 230px of dead space") is answered by the
+ *  control row itself: the Select now shares a line with the filter, the create verb and the overflow. */
+export function tagSortItems(handlesAvailable: boolean, cap: number): readonly SelectOption<TagSortMode>[] {
   return TAG_SORT_MODES.map((value) => ({
     label: SORT_MODE_LABELS[value],
     value,
     disabled: value === "manual" && !handlesAvailable,
+    ...(value === "manual" ? { description: handlesAvailable ? "Manual order lets you drag rows." : `Drag to reorder is off above ${String(cap)} tags.` } : {}),
   }));
-}
-
-/** The one-line gloss beside the sort control — the list's own statement about DRAG, which is otherwise
- *  a capability with no scent at all (side-eye 2026-08-03 P1: landing on Most-used, nothing says reordering
- *  lives behind a third option in a right-aligned Select that reads as a view preference; a user wanting to
- *  reorder has no reason to open a SORT control looking for a CAPABILITY). `null` = the list is already
- *  showing handles, and a line saying "drag to reorder" over visible drag handles is noise.
- *
- *  It doubles as the sort control's row-mate: alone on its line the Select read as "a control that got left
- *  behind when something else was removed" (side-eye P2). */
-export function tagOrderHint(handlesAvailable: boolean, mode: TagSortMode, cap: number): string | null {
-  if (!handlesAvailable) {
-    return `Drag to reorder is off above ${cap} tags.`;
-  }
-  return mode === "manual" ? null : "Manual order lets you drag rows.";
 }
 
 /** The prune confirm's ACTION label — it agrees in number with the title's count, because "Delete them"

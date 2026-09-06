@@ -30,8 +30,8 @@
 import type { LiveOnlyChatBusEvent, RoomEntityKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, chatParticipants, chats, globalBooks, personaBooks, worldBooks } from "@orb/db";
-import type { CharacterId, ChatId, PersonaId, WorldBookId } from "@orb/kit/ids";
+import { characterBooks, chatBooks, chatParticipants, chatRegexScripts, chats, globalBooks, personaBooks, worldBooks } from "@orb/db";
+import type { CharacterId, ChatId, PersonaId, RegexScriptId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 
@@ -42,6 +42,7 @@ interface RoomEntityIdOf {
   readonly character: CharacterId;
   readonly persona: PersonaId;
   readonly "world-info": WorldBookId;
+  readonly regex: RegexScriptId;
 }
 
 /** The declarative reach table's shape: every `RoomEntityKind` resolves its own rooms. */
@@ -62,7 +63,7 @@ async function resolveCharacterRooms(db: Db, characterId: CharacterId): Promise<
  *   • a present human seat whose `activePersonaId` is this persona (their member-visible displayName + avatar
  *     ARE this persona's, `entry/compose/chat.ts::resolveUserPublics`) — `chat_participants_active_persona_idx`;
  *   • the chat's ANCHOR persona, which resolves `{{user}}` for the room's assembly even while its owner is
- *     offline and holds no seat (`domain/chat/substrate/roster-humans.ts`) — `chats_anchor_persona_idx`.
+ *     offline and holds no seat (`domain/chat/substrate/participants-humans.ts`) — `chats_anchor_persona_idx`.
  *  Deduped by the caller. */
 async function resolvePersonaRooms(db: Db, personaId: PersonaId): Promise<ChatId[]> {
   const [seated, anchored] = await Promise.all([
@@ -130,6 +131,18 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
   return [...chatScoped, ...characterScoped, ...personaSeated, ...personaAnchored, ...globalScoped].map((row) => row.chatId);
 }
 
+/** Rooms whose OWN tier attaches this script — the `chat_regex_scripts` junction, which is the whole reach of
+ *  a library row on the member plane. A member of a room sees the room's attached scripts and nothing else
+ *  (`regex.listForChat`, room-public), so a rename or an `enabled` flip on a row attached HERE changes what
+ *  that member reads, and a row attached nowhere reaches nobody. The host/preset/character tiers are
+ *  deliberately absent: a member cannot see them (they are host-library facts, D19), so an edit to one of them
+ *  has no member-visible projection to refresh — only the HOST's own effective read moves, and that rides the
+ *  host's user-plane `regexChanged`. */
+async function resolveRegexScriptRooms(db: Db, scriptId: RegexScriptId): Promise<ChatId[]> {
+  const rows = await db.select({ chatId: chatRegexScripts.chatId }).from(chatRegexScripts).where(eq(chatRegexScripts.regexScriptId, scriptId));
+  return rows.map((row) => row.chatId);
+}
+
 /** THE DECLARATIVE REACH TABLE. `satisfies` is the belt: a new `RoomEntityKind` fails tsc here until it says
  *  which rooms read it. Not exported — the fan below is the only consumer, and the table is the engine's own
  *  dispatch, not a shape anyone else re-derives. */
@@ -137,6 +150,7 @@ const ROOM_REACH = {
   character: resolveCharacterRooms,
   persona: resolvePersonaRooms,
   "world-info": resolveWorldInfoRooms,
+  regex: resolveRegexScriptRooms,
 } satisfies RoomReachTable;
 
 /** Resolve + fan one kind. Deduped (the world-info scopes and the persona sources overlap by design — a chat
@@ -193,6 +207,40 @@ export function createDeleteReachCapture(db: Db, emitRoomEvent: (event: LiveOnly
   return {
     persona: (personaId) => captureRooms(() => resolvePersonaRooms(db, personaId), "persona", emitRoomEvent),
     "world-info": (bookId) => captureRooms(() => resolveWorldInfoRooms(db, bookId), "world-info", emitRoomEvent),
+  };
+}
+
+// ─── THE REGEX ROOM FAN (#1733) ──────────────────────────────────────────────────────────────────────────
+// The regex kind does not ride the DOMAIN-EVENT path above, and that is not an omission. Its member-visible
+// staleness has two shapes with two different inputs:
+//   • the ROOM's own junction moved (`attachToChat` / `detachFromChat` / the chat arm of `applyScopeOrder`) —
+//     the verb already holds the `chatId`, so there is nothing to resolve; a reach lookup would be a query
+//     that re-derives its own argument.
+//   • a LIBRARY ROW moved (`updateScript`, `bulkSetScriptsEnabled` — the section's row switch, which is
+//     off-EVERYWHERE by design) — the rooms are `ROOM_REACH.regex`'s answer.
+// Both are injected into `RegexContext` as flat ops (the `captureRoomReachForDelete` posture: the DOMAIN
+// declares the op it needs, the composition root owns the fan and the SQL). Before them, all three chat-arm
+// verbs emitted a `regexChanged` USER event only, so a host's attach repainted the host and left every other
+// member of the room reading a stale rack until they reloaded.
+
+/** Fan the room plane for ONE room whose regex junction the caller just wrote. Live-only, synchronous, no
+ *  durable row — the `roomEntityChanged` posture exactly. */
+export function createEmitRoomRegexChanged(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): (chatId: ChatId) => void {
+  return (chatId): void => {
+    fanTo(emitRoomEvent, "regex", [chatId]);
+  };
+}
+
+/** Fan every room that ATTACHES this library row. ERROR-ISOLATED like the delete capture: a reach-query
+ *  failure degrades to fanning nothing (the pre-#1733 stale behavior) and never rejects, so the library write
+ *  it follows can never be faulted by the freshness lookup. */
+export function createFanRegexScriptRooms(db: Db, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): (scriptId: RegexScriptId) => Promise<void> {
+  return async (scriptId): Promise<void> => {
+    const rooms = await resolveRegexScriptRooms(db, scriptId).catch((err: unknown): ChatId[] => {
+      getLog().warn({ err, scriptId }, "room-reach: regex script reach lookup failed; the write proceeds unannounced");
+      return [];
+    });
+    fanTo(emitRoomEvent, "regex", rooms);
   };
 }
 

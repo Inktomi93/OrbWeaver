@@ -335,10 +335,12 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
   return `This update changed what this plugin can reach, ${tail}`;
 }
 
-/** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. A `url`-origin
- *  plugin remembers where it was fetched from, so the app can re-check the source and offer a re-paste-free
- *  one-click update; a file (`upload`) install has no source and never shows these. `CHECK_FOR_UPDATES_LABEL`
- *  triggers the check; the three verdicts map 1:1 to the `PluginUpdateCheck` arms. */
+/** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. It is written
+ *  for BOTH update sources (`PluginView.updateSource`, #1740) and stays one vocabulary deliberately: "its
+ *  source" is the remembered URL for a `url` install and the copy Orbweaver ships for a seeded example, and the
+ *  person is asking the same question of both. A hand-uploaded plugin has neither and never shows these.
+ *  `CHECK_FOR_UPDATES_LABEL` triggers the check; the three verdicts map 1:1 to the `PluginUpdateCheck` arms
+ *  (a showcase row can only reach `unreachable` by dropping out of the batch — nothing was fetched for it). */
 export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
 /** The settled `up-to-date` line. */
 export const UPDATE_UP_TO_DATE_LINE = "Up to date — this is the latest version from its source.";

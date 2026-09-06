@@ -172,6 +172,12 @@ export const REFINERY_STAGE_NOT_READY_REASON = "refinery_stage_not_ready";
  *  receipt (the computed need, the cap, the knob), so the client quotes it rather than inventing copy. */
 export const REFINERY_OUTPUT_BUDGET_REASON = "refinery_output_budget_too_small";
 
+/** The coded reason for a refinement round refused because ANOTHER round already holds the session's
+ *  in-flight claim (#1568). Distinct from the two above because it is neither an ordering mistake nor a knob:
+ *  nothing is wrong, the session is simply busy, and the fix is to wait for the round in flight. Refused
+ *  BEFORE any model call, so a loser pays nothing. */
+export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
+
 // ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;

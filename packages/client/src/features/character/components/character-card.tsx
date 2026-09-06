@@ -10,6 +10,13 @@
 // hover-revealed controls — so `actionsFloat` is on outside bulk mode and the NAME keeps the row's full
 // width at rest instead of yielding 114px of a 290px row to a cluster that paints nothing.
 //
+// …AND THAT SPLIT IS A FINE-POINTER GUARANTEE, which is why the row still needed the COARSE COLLAPSE
+// (#1695). `actionsFloat` is a `pointer-fine:` arm and `ROW_REVEAL` pins the cluster permanently ON at
+// coarse, so on a phone all three controls sat in flow at the 44-48px touch floor. The star toggle — the
+// row's one SECONDARY affordance — now stands down into the kebab there (`ROW_ACTION_INLINE` +
+// `ROW_ACTION_OVERFLOW`), the ★ marker keeps its box (`ROW_REVEAL_SWAP_COARSE_KEEP`, the coupled site),
+// and the Chat CTA stays: it is the 1-click core loop, not a secondary, and its ruling below is preserved.
+//
 // THE KEBAB'S ITEM LIST IS THE `row` SLICE OF ONE VOCABULARY (`../lib/character-actions.ts`, #838) — labels,
 // glyphs, order and the export containers are the registry's; this file owns only the handlers and the
 // confirm copy. Its rendered items are unchanged by that move (Archive · Duplicate · Export card · Delete).
@@ -26,10 +33,11 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, MessagesSquare, Star } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu, RowToggleAction } from "#components";
+import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
 import { rowActionSubject } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
@@ -199,17 +207,24 @@ export function CharacterCardTile({
  *
  *  This is the half that makes `actionsFloat` legal on this row (P1-3): a floated cluster is inert and sits
  *  ON the title text, so anything the row shows AT REST has to earn its width where the text already is. The
- *  ★ here and the star TOGGLE in the cluster are ONE concept, so the marker rides `ROW_REVEAL_SWAP` — it
- *  paints the pressed state at rest and steps aside exactly when the control that sets it reveals, so the
- *  row never paints two stars. `undefined` when the row is in neither state: the slot is data-driven, never
- *  an empty reserved box. */
+ *  ★ here and the star TOGGLE in the cluster are ONE concept, so the marker SWAPS against it — it paints the
+ *  pressed state at rest and steps aside exactly when the control that sets it reveals, so the row never
+ *  paints two stars. `undefined` when the row is in neither state: the slot is data-driven, never an empty
+ *  reserved box.
+ *
+ *  COARSE KEEPS THE MARKER (#1695, the coupled half of the collapse below). Plain `ROW_REVEAL_SWAP` computes
+ *  `display:none` at a coarse pointer on one premise: that the toggle carrying the same datum is permanently
+ *  visible there. `ROW_ACTION_INLINE` on that toggle DELETES the premise — it stands down and its datum moves
+ *  into a CLOSED menu — so the swap is hover-only here and coarse keeps the ★ permanently. Without this the
+ *  measured result is a starred row with no star anywhere on it (proven on the chats roster, which is why
+ *  `ROW_REVEAL_SWAP_COARSE_KEEP` exists). */
 function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">): ReactNode {
   if (!(character.archived || character.starred)) {
     return;
   }
   return (
     <>
-      {character.starred ? <Icon className={`text-warning ${ROW_REVEAL_SWAP}`} icon={Star} label="Starred" size="sm" /> : null}
+      {character.starred ? <Icon className={`text-warning ${ROW_REVEAL_SWAP_COARSE_KEEP}`} icon={Star} label="Starred" size="sm" /> : null}
       {character.archived ? (
         <Badge intent="warning" size="sm">
           Archived
@@ -222,7 +237,10 @@ function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">):
 /** The normal-mode trailing actions — CONTROLS ONLY (the rest-visible markers moved to the title line, so
  *  the whole cluster is hover-revealed and can float): the Star state-toggle at `rest="never"` (its pressed
  *  face is the title-line ★), the dual-purpose Chat CTA (§4.4/§9c — the 1-click core loop, hover-revealed on
- *  fine pointers, always-on for coarse) + the ⋯ overflow. */
+ *  fine pointers, always-on for coarse) + the ⋯ overflow.
+ *
+ *  TWO CONTROLS AT A COARSE POINTER, THREE AT A FINE ONE (#1695): the star pair gates by `display`, so the
+ *  phone row spends its trailing budget on the CTA and the one overflow door. */
 function NormalRowActions({
   character,
   subject,
@@ -258,18 +276,34 @@ function NormalRowActions({
     <>
       {/* D11, in its MARKER form (`rest="never"`): the toggle is always reveal-gated because the title-line
           ★ (`rowMarkers`) is what carries the pressed state at rest — D11's invariant is met in the marker
-          slot, and the two never paint together (`ROW_REVEAL_SWAP`). That is what leaves this cluster
-          entirely hover-revealed, which is the precondition for `actionsFloat` returning the name its
-          114px (P1-3). Same split as the chats row. */}
-      <RowToggleAction
-        icon={Star}
-        labelOff={`Star ${subject}`}
-        labelOn={`Unstar ${subject}`}
-        onToggle={(): void => onToggleStar(character.id, !character.starred)}
-        pressed={character.starred}
-        pressedClassName="text-warning"
-        rest="never"
-      />
+          slot, and the two never paint together. That is what leaves this cluster entirely hover-revealed,
+          which is the precondition for `actionsFloat` returning the name its 114px (P1-3). Same split as
+          the chats row.
+
+          THE COARSE COLLAPSE (#1695, side-eye 2026-09-05 — the rule's home is `#components/row-reveal.ts`).
+          `ROW_REVEAL` pins this toggle permanently ON at a coarse pointer, where it is a 44-48px touch box
+          and `actionsFloat` (a `pointer-fine:` arm) is off, so it charges real in-flow width on every row of
+          a phone-width library. Measured on this tree at coarse BEFORE the collapse, title width / row
+          width: 0.31 @320 · 0.43 @390 · 0.48 @430, with `Calamity, Doomblade of the Ninth Epoch` clipped at
+          all three. It stands down here and rides the kebab instead (its `ROW_ACTION_OVERFLOW` twin below),
+          so the coarse cluster is the Chat CTA plus one overflow door. */}
+      <Row align="center" className={ROW_ACTION_INLINE}>
+        <RowToggleAction
+          icon={Star}
+          labelOff={`Star ${subject}`}
+          labelOn={`Unstar ${subject}`}
+          onToggle={(): void => onToggleStar(character.id, !character.starred)}
+          pressed={character.starred}
+          pressedClassName="text-warning"
+          rest="never"
+        />
+      </Row>
+      {/* THE CTA DOES NOT COLLAPSE, and that is this row's own standing ruling, preserved: the dual-purpose
+          Chat action is the library's 1-click core loop (§9c) and "stays a visible target … never folded
+          into the kebab" (this file's header). The collapse rule is written for a row's SECONDARY
+          affordances (`#components/row-reveal.ts`), which the star is and this is not — so #1695's symptom
+          (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
+          by reversing the CTA ruling. */}
       <Button aria-label={`Chat with ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
         <Icon icon={MessagesSquare} size="sm" />
       </Button>
@@ -285,6 +319,22 @@ function NormalRowActions({
           onConfirm: (): void => onDelete(character.id),
         }}
       >
+        {/* THE OVERFLOW ARM of the collapsed star (#1695) — present ONLY at a coarse pointer, where the
+            inline toggle above is `display:none`. Exactly one of the pair is in layout, and therefore in the
+            a11y tree, per pointer class, so the collapse never becomes double-telling.
+
+            HAND-SPELLED HERE, NOT ADDED TO `character-actions.ts`, and the registry's one-vocabulary law
+            (this file's header) is why. That registry is the membership list shared by the row kebab, the
+            CONTEXT kebab and the bulk bar, and it has no pointer axis: a `star` member would render in all
+            three at BOTH pointer classes — doubling the fine row's inline toggle, and minting a second home
+            for a state the CONTEXT pane already carries its own way. This item is not a new row VERB; it is
+            the coarse arm of a control the row already has, which is why the registry's item census
+            (`character-card.ct.tsx`) is unchanged at a fine pointer. Its label is the bare verb because the
+            menu's own name already carries the subject (#463) — the persona row's twin, same shape. */}
+        <MenuItem className={ROW_ACTION_OVERFLOW} onClick={(): void => onToggleStar(character.id, !character.starred)}>
+          <Icon icon={Star} size="sm" />
+          {character.starred ? "Unstar" : "Star"}
+        </MenuItem>
         {characterActionItemsForScope("row").map((action) => {
           const label = characterActionLabel(action, { archived: character.archived });
           if (action.formats.length > 0) {

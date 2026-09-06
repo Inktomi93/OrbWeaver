@@ -122,7 +122,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }
         return await ops.chat.listCharacters(chatId);
       },
-      applyVariableOps: (chatId, varOps) => ops.chat.applyVariableOps(chatId, varOps),
+      applyVariableOps: (chatId, varOps, expect) => ops.chat.applyVariableOps(chatId, varOps, expect),
       // The FUNDER is closed over the installer (never infra/guest-supplied) — the membrane passes only the
       // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"` + the room-host box +
       // the D17/membership belts + the per-member turn RATE budget + the cascade-depth guard (loop safety) are

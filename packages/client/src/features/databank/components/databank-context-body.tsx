@@ -57,6 +57,12 @@ export function DatabankContextBody(): ReactElement {
   return (
     // The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
     // panel owns the one its suspending reads need.
+    // DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `ContextBody` is not
+    // a suspending child: it reads through plain `useQuery` and renders its OWN one-line pending arm
+    // (below). `reserveKey`'s `MeasuredSettle` remembers the child's box on EVERY commit, so it would
+    // memorise that ~one-line pending render and thereafter reserve a box far shorter than the settled
+    // rail — a reservation that actively lies. Keying this rail means hoisting the pending arm above the
+    // boundary (or suspending the read); until then the honest state is no key at all.
     <QueryBoundary
       fallback={<Text voice="gloss">Loading…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this document's attachments" onRetry={retry} />}

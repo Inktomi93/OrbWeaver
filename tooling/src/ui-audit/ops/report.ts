@@ -197,8 +197,15 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
     const carried = Object.entries(row.carried ?? {})
       .map(([route, count]) => ` carried(${route}=${String(count)})`)
       .join("");
+    // The withheld SUBJECTS ride a SEPARATE trailing segment (#1704), never inside `withheld(...)`: that
+    // token is a stable machine surface several suites read by value, and a NO-VERDICT that names its
+    // subject must not cost a reader who was parsing the tally. Absent when nothing was withheld.
+    const withheldAt = Object.entries(row.withheldSubjects ?? {})
+      .filter(([reason]) => (row.withheld[reason] ?? 0) > 0)
+      .map(([reason, subjects]) => ` withheld-at(${reason}: ${subjects.join(", ")})`)
+      .join("");
     print(
-      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) excluded(${excluded}) collapsed(${collapsed})${carried}`,
+      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) excluded(${excluded}) collapsed(${collapsed})${carried}${withheldAt}`,
     );
   }
   if (Object.keys(accounting).length > 0) {

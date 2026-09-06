@@ -86,6 +86,12 @@ export { checkBorderContrast, classifyBorderContrast } from "./lib/checks-border
 export { checkCaveatHierarchy, classifyCaveatHierarchy } from "./lib/checks-caveat.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
 export { checkAccentBorder, checkGlowShadow, classifyAccentBorder, classifyGlowShadow } from "./lib/checks-decor.ts";
+export {
+  checkDuplicateDoorPopulations,
+  checkDuplicateDoors,
+  checkStaleDuplicateDoorAllowances,
+  DUPLICATE_DOOR_ALLOWANCES,
+} from "./lib/checks-duplicate-door.ts";
 export { checkFontCensus, fontCensusPopulations } from "./lib/checks-font-census.ts";
 export { checkBrokenImage, checkBuriedRaster, checkBuriedRasterPopulations, checkImageDistortion, classifyImageDistortion } from "./lib/checks-media.ts";
 export {
@@ -97,15 +103,7 @@ export {
   classifyMotionStatic,
   classifyRadialGlow,
 } from "./lib/checks-ornament.ts";
-export {
-  checkClippedOverflow,
-  checkDuplicateDoors,
-  checkEdgeFlush,
-  checkRepeatedText,
-  checkScriptErrors,
-  checkTextOverflow,
-  checkTruncatedText,
-} from "./lib/checks-quality.ts";
+export { checkClippedOverflow, checkEdgeFlush, checkRepeatedText, checkScriptErrors, checkTextOverflow, checkTruncatedText } from "./lib/checks-quality.ts";
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
 export { checkTextStyle, classifyTextStyle } from "./lib/checks-typography.ts";
 export { collectAudit, collectFindings } from "./lib/collect.ts";

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a1b0194a-8e71-4e6c-9a58-c51cab7df4fe",
+  "id": "05fa8c31-a8ca-4138-9453-2c794242aadf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -6002,6 +6002,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "inflight_until": {
+          "name": "inflight_until",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",

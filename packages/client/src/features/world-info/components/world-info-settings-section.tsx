@@ -13,10 +13,9 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
@@ -40,9 +39,14 @@ const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unk
 /** The World-info settings section body — mounted at the chat-behavior pane's contributed-sections anchor. */
 export function WorldInfoSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
+    // RESERVED (#1098). The settled child is the WHOLE section — heading, two number fields and the save
+    // status — so a one-line sentence in its place moved every contributed section below it on the
+    // chat-behavior pane when the settings read landed. Three `line` rows is the settled anatomy, and the
+    // box re-fills the count once this device has measured the section.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading your world-info settings…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world-info settings" onRetry={retry} />}
+      reserveKey="config.worldInfo.settings"
     >
       <WorldInfoSettingsFormBody sectionId={sectionId} />
     </QueryBoundary>

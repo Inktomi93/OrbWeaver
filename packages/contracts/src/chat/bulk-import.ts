@@ -91,8 +91,8 @@ export interface BulkImportMessageInput {
  *  {@link SeatKnobs} — the ONE home for what an AI seat's knobs ARE (D80) — rather than re-spelling
  *  `disabled`, so a knob added there travels here without a second vocabulary.
  *
- *  WHY A PARALLEL LIST rather than a richer `roster`: every existing caller states its cast as a flat
- *  `CharacterId[]` and a room's cast is not the same question as a seat's dial. `characterId` may name the
+ *  WHY A PARALLEL LIST rather than a richer `roster`: every existing caller states its characters as a flat
+ *  `CharacterId[]` and a room's characters are not the same question as a seat's dial. `characterId` may name the
  *  run's PRIMARY as well as an extra roster seat — ST disables members by position, and position 0 is
  *  disable-able like any other. The write op REFUSES a knob naming a character the chat does not seat (the
  *  `assertSeatedSpeakers` posture: an unseatable id is a caller defect, never a silent drop). */

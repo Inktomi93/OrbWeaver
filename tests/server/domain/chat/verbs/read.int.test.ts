@@ -6,12 +6,15 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
+import { characterRegexTierKey } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
+import type { RegexScriptRow } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import {
   characterBooks,
@@ -38,10 +41,10 @@ import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/s
 import { insertInvite, redeemInviteAtomic } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
-import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
-// The D16 policy SETTER (verbs/roster.ts) — imported here so the round-trip tests below drive the real
+// The D16 policy SETTER (verbs/participants.ts) — imported here so the round-trip tests below drive the real
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
-import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { createParticipants, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
+import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
@@ -61,16 +64,16 @@ import {
 } from "../_support.ts";
 
 // The `DEFAULT_PROMPT_CONFIG` main-section framing, `{{char}}` resolved through the speaker arm: the JOINED
-// cast (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
+// every seated character (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
 // the narrator arm gets `NARRATOR_MAIN_PROMPT_TEMPLATE` ("…voicing {{char}} and the world around them"),
 // every other arm keeps the shipped per-speaker bytes. Hoisted per biome's top-level-regex rule.
-const JOINED_CAST_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
+const JOINED_CHARACTERS_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
 const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
 /** The `listChats` page ceiling (`CHAT_LIST_MAX_LIMIT` in verbs/read.ts). Named here so the clamp arm below
  *  fails loudly if the verb's number moves, instead of silently testing a bound that no longer exists. */
 const CHAT_LIST_PAGE_CEILING = 100;
 
-const JOINED_CAST_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
+const JOINED_CHARACTERS_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -114,6 +117,156 @@ async function seedRoom(key: string, host: UserId): Promise<ChatId> {
   return chatId;
 }
 
+// ── #1742 — `listEffectiveRegex`, the room's Regex section's body ───────────────────────────────────────
+describe("read — listEffectiveRegex (host-only, #1742)", () => {
+  /** A room whose four tiers each hold one script. The rows come through the INJECTED scope resolver (the
+   *  same op a turn uses), so this exercises the read's own job — gate, tier assembly, run order — without
+   *  re-testing the junction queries `resolve-sources.int.test.ts` owns. */
+  function regexSources(characterId: CharacterId): ChatContext["resolveRegexSources"] {
+    const row = (name: string): RegexScriptRow =>
+      regexScriptSchema.parse({
+        id: mintTypeId(ID_PREFIX.regexScript),
+        name,
+        updatedAt: 1_700_000_000_000,
+        findRegex: name,
+        replaceString: `<${name}>`,
+        placement: ["USER_INPUT"],
+      });
+    return () =>
+      Promise.resolve({
+        hostGlobal: [row("g1")],
+        preset: [row("p1")],
+        character: [{ characterId, scripts: [row("c1")] }],
+        chat: [row("r1")],
+      });
+  }
+
+  test("the HOST reads every tier in run order, with the ranks the turn will apply", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host"));
+    const chatId = await seedChat(db, "rx-read");
+    const character = await seedCharacter(db, host, "rx-read-char");
+    await seedParticipant(db, { chatId, key: "rxr_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+
+    expect(view.enabled).toBe(true);
+    expect(view.tiers.map((t) => t.scope)).toEqual(["global", "preset", characterRegexTierKey(character), "chat"]);
+    expect(view.tiers.flatMap((t) => t.rows.map((r) => r.script.name))).toEqual(["g1", "p1", "c1", "r1"]);
+    expect(view.effective.map((e) => e.runsAt)).toEqual([1, 2, 3, 4]);
+  });
+
+  test("a MEMBER is refused — three of the four tiers are the host's own library (D19)", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host2"));
+    const member = await seedUser(db, castId<Handle>("rx-read-member"));
+    const chatId = await seedChat(db, "rx-read2");
+    const character = await seedCharacter(db, host, "rx-read-char2");
+    await seedParticipant(db, { chatId, key: "rxr2_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr2_m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "rxr2_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    await expect(createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(member), chatId })).rejects.toThrow();
+  });
+
+  test("the room's levers are HONOURED by the read, not just by the turn", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-read-host3"));
+    const chatId = await seedChat(db, "rx-read3");
+    const character = await seedCharacter(db, host, "rx-read-char3");
+    await seedParticipant(db, { chatId, key: "rxr3_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxr3_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+    const roster = createParticipants(ctx, { emit: (): Promise<void> => Promise.resolve(), claimChat: (): Promise<void> => Promise.resolve() });
+    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
+
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+
+    // The switched-off tier is LISTED (the host has to be able to switch it back on) and contributes no rank.
+    expect(view.tiers.find((t) => t.scope === "preset")?.allowed).toBe(false);
+    expect(view.tiers.find((t) => t.scope === "preset")?.rows.map((r) => r.runsAt)).toEqual([null]);
+    expect(view.effective).toHaveLength(3);
+  });
+
+  // ── #1754 — THE PRESET TIER'S NAME ────────────────────────────────────────────────────────────────
+  // The tier KEY is the bare word `preset`, so the client has no way to a name except the VIEWER's own
+  // active preset chip (`chat-context-band.tsx`) — which is NOT the preset this room assembles whenever the
+  // rpg GM redirect fires. The name therefore has to come from the read, which already resolves through
+  // `resolvePreviewInputs` (the redirect included). These three pin the three answers it can give.
+
+  /** `resolveForeignInputs` as the composition root behaves: the RESOLVED preset's name travels beside its
+   *  id, so the redirected arm and the host-default arm are two different strings, never one shared fake. */
+  function namingDeps(names: { readonly redirected: string | null; readonly hostDefault: string | null }): Parameters<typeof createRead>[1] {
+    return makeDeps({
+      resolveForeignInputs: (params) =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          presetId: params.presetOverride ?? null,
+          presetName: params.presetOverride === undefined ? names.hostDefault : names.redirected,
+          personas: { anchor: null, active: null },
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    });
+  }
+
+  test("the preset tier is named by the preset THIS ROOM assembles — the GM redirect's, not the host default's", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-gm"));
+    const chatId = await seedChat(db, "rx-label-gm");
+    const character = await seedCharacter(db, host, "rx-label-gm-char");
+    await seedParticipant(db, { chatId, key: "rxlg_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxlg_c", characterId: character });
+    // FABRICATION-OK: minimal ChatRpgOps stub — the read path reaches only these three ops.
+    const rpg = {
+      resolvePresetOverride: () => Promise.resolve(castId<PresetId>("preset_gm_voice_rx")),
+      resolveUserMacros: () => Promise.resolve([]),
+      gatherTurnContext: () => Promise.resolve(null),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const ctx = makeChatContext(db, { rpg, resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBe("Grimdark GM");
+    // Only the preset tier is named from the wire — the other three keys carry their own identity.
+    expect(view.tiers.filter((t) => t.scope !== "preset").map((t) => t.label)).toEqual([undefined, undefined, undefined]);
+  });
+
+  test("a plain room names the preset the host's own turn assembles", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-plain"));
+    const chatId = await seedChat(db, "rx-label-plain");
+    const character = await seedCharacter(db, host, "rx-label-plain-char");
+    await seedParticipant(db, { chatId, key: "rxlp_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxlp_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBe("House default");
+  });
+
+  test("a preset-less room names NOTHING rather than the wrong thing", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-none"));
+    const chatId = await seedChat(db, "rx-label-none");
+    const character = await seedCharacter(db, host, "rx-label-none-char");
+    await seedParticipant(db, { chatId, key: "rxln_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxln_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: null, hostDefault: null })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBeUndefined();
+  });
+});
+
 describe("read — listings (membership-scoped, D18)", () => {
   test("listChats returns ONLY the caller's chats, with canon stats + participant names", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
@@ -129,7 +282,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect(chats.map((c) => c.id)).not.toContain(theirs);
     expect(chats[0]?.messageCount).toBe(1);
     expect(chats[0]?.lastMessageAt).not.toBeNull();
-    // The cast is the OTHER seats (see the viewer-suppression arms below) — here, the room's character.
+    // The characters are the OTHER seats (see the viewer-suppression arms below) — here, the room's character.
     expect(chats[0]?.participantNames).toEqual(["character_mine_char"]);
   });
 
@@ -154,7 +307,7 @@ describe("read — listings (membership-scoped, D18)", () => {
       expect(theirs?.participantNames).toEqual(["character_shared_char", "user_me"]);
     });
 
-    test("a SOLO chat keeps the viewer's name — suppression never empties the cast", async () => {
+    test("a SOLO chat keeps the viewer's name — suppression never empties the characters", async () => {
       const me = await seedUser(db, castId<Handle>("me"));
       const solo = await seedChat(db, "solo");
       await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
@@ -573,7 +726,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
     const row = (await listChats({ principal: principal(me), limit: 50 })).items[0];
 
     expect(row?.participantPortraits.map((seat) => seat.characterId)).toEqual([her, him]);
-    // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CAST.
+    // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CHARACTER.
     expect(row?.participantPortraits.some((seat) => seat.characterId === castId<CharacterId>(me))).toBe(false);
     // …while the reverse read keeps the departed seat, exactly as its own promise says.
     expect([...(row?.participantCharacterIds ?? [])].sort()).toEqual([gone, her, him].sort());
@@ -761,7 +914,7 @@ describe("read — single reads", () => {
     expect(detail.participants.some((p) => p.role === "host" && p.userId === me)).toBe(true);
     expect(detail.group.output).toBe("per-speaker"); // DEFAULT_GROUP_CONFIG applied
     expect(detail.opening).toBeNull();
-    // The participant-scoped cast producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
+    // The participant-scoped identity producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
     expect(detail.identities.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
     // The viewer-scoped fields (host-of-this-room, no persona set yet).
     expect(detail.viewerUserId).toBe(me);
@@ -774,7 +927,7 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("room", me);
     const personaId = await seedPersona(db, me, "worn");
     // `persona.setActivePersona` ultimately writes this same column (`setParticipantActivePersona`,
-    // verbs/roster.ts) — seeding it directly proves getChat's VIEW reads what that write produces.
+    // verbs/participants.ts) — seeding it directly proves getChat's VIEW reads what that write produces.
     await db
       .update(chatParticipants)
       .set({ activePersonaId: personaId })
@@ -1011,7 +1164,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
 
-    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
+    const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "from-join" });
 
     const after = await listMessages({ principal: principal(joiner), chatId });
@@ -1030,7 +1183,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
 
-    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
+    const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "full" });
 
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
@@ -1441,12 +1594,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
   });
 
-  // NARRATOR-CAST follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
-  // NARRATOR room previewed its per-speaker shape — under-reporting the joined-cast `{{char}}` binding and
+  // NARRATOR follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
+  // NARRATOR room previewed its per-speaker shape — under-reporting the joined-character-names `{{char}}` binding and
   // framing the co-speaker cards as bystanders. The fix threads the room's `GroupConfig.output` (the SAME axis
   // `TurnSpeakerShape` carries into the turn) through `PreviewInputs`. Asserted through the surface the host
   // reads: `prompt.static`.
-  test("a NARRATOR room previews its CAST shape — joined {{char}} + [Cast —] framing, not per-speaker", async () => {
+  test("a NARRATOR room previews its NARRATOR shape — joined {{char}} + [Character —] framing, not per-speaker", async () => {
     const me = await seedUser(db, castId<Handle>("narr_host"));
     // The narrator arm is a `strictObject`; `policy` is its only non-defaulted field, so this parses to a real
     // narrator GroupConfig (a malformed blob `.catch`es to the per-speaker default and would silently defeat
@@ -1469,10 +1622,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
 
     // The `DEFAULT_PROMPT_CONFIG` main section is a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves
-    // through the speaker arm: a narrator turn binds it to the JOINED cast. The shipped preview bound it to a
+    // through the speaker arm: a narrator turn binds it to the JOINED character names. The shipped preview bound it to a
     // single primary name. The narrator arm also resolves the narrator-true DEFAULT — the host previewing a
     // narrator room must see the bytes that round actually sends, never the per-speaker framing.
-    expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
+    expect(prompt.static).toMatch(JOINED_CHARACTERS_FRAMING);
     expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING); // never the single-speaker binding
     expect(prompt.static).not.toContain("perspective only"); // …nor its single-perspective clause
     // Both character cards reach the wire, framed as the round's VOICES (narrator "[Character — X]"), never bystanders.
@@ -1504,9 +1657,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Per-speaker is the shipped shape: one speaker voiced, `{{char}}` bound to that ONE primary, the rest
     // framed as bystanders. Threading the real output axis must leave this arm identical.
     expect(prompt.static).toMatch(SINGLE_SPEAKER_FRAMING);
-    expect(prompt.static).not.toMatch(JOINED_CAST_ANYWHERE);
+    expect(prompt.static).not.toMatch(JOINED_CHARACTERS_ANYWHERE);
     expect(prompt.static).toContain("[Also present — ");
-    expect(prompt.static).not.toContain("[Cast —");
+    // The mirror of the narrator arm's own fence. This used to read `not.toContain("[Cast —")` — the narrator
+    // heading's PRE-v2 bytes, which no default has produced since 2026-08-30, so the fence was vacuously true
+    // and would not have caught a per-speaker preview taking the narrator framing (#1738).
+    expect(prompt.static).not.toContain("[Character — ");
   });
 
   test("the budget ceiling is the CONNECTED model's window; an unknown window says so (owner bug, D41)", async () => {
@@ -1774,7 +1930,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, personaId: oldPersona, content: "an old line" });
     const ctx = makeChatContext(db);
     const emit = async (): Promise<void> => undefined;
-    // "Playing as Alex" — the REAL write `persona.setActivePersona` delegates to (verbs/roster.ts).
+    // "Playing as Alex" — the REAL write `persona.setActivePersona` delegates to (verbs/participants.ts).
     await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
     const life = createChatLifecycle(ctx, {
       claimChat: (): Promise<void> => Promise.resolve(),

@@ -98,6 +98,10 @@ const INSTALLED_ROW = {
   version: "1.0.0",
   status: "disabled",
   origin: "upload",
+  sourceUrl: null,
+  // A HAND upload of something this build does not ship: nothing can serve it a newer version, so the server
+  // names no update source and the row offers no update-check affordance at all (#1740).
+  updateSource: null,
   declaredCapabilities: ["chat.read", "turn.trigger", "net.fetch"],
   grantedCapabilities: ["chat.read", "net.fetch"],
   netHosts: ["api.weather.example"],
@@ -115,7 +119,8 @@ const INSTALLED_ROW = {
 
 /** A `url`-ORIGIN installed row (U8 2b): fetched from a remembered `sourceUrl`, so the pane offers the auto
  *  update-check + one-click upgrade. Kept deliberately simple (one granted capability, no netHosts) so the
- *  reach-widening assertion below is crisp. */
+ *  reach-widening assertion below is crisp. `updateSource` is the SERVER's own answer to "who can serve the
+ *  next version" (#1740) — the field the row gates its update affordance on, not `origin`. */
 const URL_INSTALLED_ROW = {
   ...INSTALLED_ROW,
   id: "plugin_ct0000000000000000010",
@@ -123,10 +128,34 @@ const URL_INSTALLED_ROW = {
   name: "URL Teller",
   origin: "url",
   sourceUrl: "https://plugins.example.com/url-teller.zip",
+  updateSource: "url",
   declaredCapabilities: ["chat.read"],
   grantedCapabilities: ["chat.read"],
   netHosts: null,
 };
+
+/** A SEEDED SHOWCASE row (#1740): it arrived as an `upload` like any hand install and has no remembered URL —
+ *  the server is what knows this build ships a bundle under its slug, and says so with
+ *  `updateSource: "showcase"`. This is the DIVERGED case (the owner took it over), which is precisely the one
+ *  the boot auto-upgrade passes over, so this one-click is the only path a newer bundle has to it. */
+const SHOWCASE_ROW = {
+  ...INSTALLED_ROW,
+  id: "plugin_ct0000000000000000011",
+  slug: "oracle-deck",
+  name: "Oracle Deck",
+  version: "1.1.0",
+  origin: "upload",
+  sourceUrl: null,
+  updateSource: "showcase",
+  declaredCapabilities: ["chat.read"],
+  grantedCapabilities: ["chat.read"],
+  netHosts: null,
+};
+
+/** The row the showcase one-click's server verb returns: the SHIPPED version, and nothing widened — so the
+ *  outcome is the plain success arm rather than the re-consent wall (the widening half is already pinned on the
+ *  url twin, and it is the same `upgrade` verb underneath either way). */
+const SHOWCASE_UPGRADED_ROW = { ...SHOWCASE_ROW, version: "1.2.0" };
 
 /** What the one-click upgrade's server verb returns for a REACH-WIDENING update: the NEW version, `disabled`,
  *  `reconsentPending: true`, and a newly-declared capability the prior grant never confirmed — so the SAME
@@ -666,6 +695,45 @@ test("url plugin one-click update; a widening one lands disabled pending re-cons
 
   // ONESHOT-OK: the notice settle above proves the mutation completed; the one-click input names ONLY the pluginId (no url) because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
   expect(recorder.lastInput("plugin.upgradeFromStoredUrl")).toEqual({ pluginId: URL_INSTALLED_ROW.id });
+});
+
+test("a DIVERGED seeded showcase plugin offers the same one-click, served by the bundled copy (#1740)", async ({ mount, page }) => {
+  // THE ROW #1740 EXISTS FOR: an upload-origin seeded example with NO remembered URL, which the boot
+  // auto-upgrade deliberately leaves alone because its owner took it over. The affordance is the SAME
+  // UpdateCheckRow the url install gets — one row, two sources — and the source the server named on the row is
+  // what decides which verb the click fires. The list is stateful so the barrier is the SETTLED upgraded row.
+  let upgraded = false;
+  const recorder: TrpcRecorder = await routeTrpc(page, {
+    "plugin.list": () => [upgraded ? SHOWCASE_UPGRADED_ROW : SHOWCASE_ROW],
+    "plugin.checkForUpdates": () => [{ pluginId: SHOWCASE_ROW.id, status: "update-available", newVersion: "1.2.0" }],
+    "plugin.upgradeFromShowcase": () => {
+      upgraded = true;
+      return SHOWCASE_UPGRADED_ROW;
+    },
+    "plugin.getLog": () => [],
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByText("Oracle Deck")).toBeVisible();
+  await page.getByRole("button", { name: "Check Oracle Deck for updates" }).click();
+
+  // SETTLED: the one-click appears only once the check's verdict has rendered, and NAMES the shipped version.
+  const updateButton = page.getByRole("button", { name: "Update Oracle Deck to 1.2.0" });
+  await expect(updateButton).toBeVisible();
+
+  await updateButton.click();
+
+  // SETTLED on the REFETCHED row: the pane reports the version that actually landed, which is the durable
+  // truth (the transient verdict is dropped) — the whole point of reading the server's own row back.
+  await expect(page.getByText("Version 1.2.0", { exact: false })).toBeVisible();
+
+  // The SOURCE is the assertion — a showcase row must drive `upgradeFromShowcase` (which packs the shipped
+  // bundle) and must never reach the stored-url verb, which would throw `PluginNoSourceUrlError` on a row
+  // that has no remembered source. Polled: the recorder is written by the mutation's own microtask.
+  await expect.poll(() => recorder.lastInput("plugin.upgradeFromShowcase")).toEqual({ pluginId: SHOWCASE_ROW.id });
+  await expect.poll(() => recorder.count("plugin.upgradeFromStoredUrl")).toBe(0);
 });
 
 test("an up-to-date url plugin says so; a file plugin offers no update check (U8 2b)", async ({ mount, page }) => {

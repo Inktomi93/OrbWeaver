@@ -11,7 +11,10 @@ import { nonArmFlagKind, nonArmFlagMeta, nonArmFlagUniverse } from "./flags-meta
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --help");
 
-const INTERNAL_FLAGS: ReadonlySet<string> = new Set(["--session-daemon"]);
+/** The entries snap SPAWNS for itself: the session daemon and the band idle timer (#1163 arm b). Both are
+ *  real accepted flags — they are hidden from the printed grammar and the generated index because an
+ *  operator typing one would be starting a background process by hand, not asking for evidence. */
+const INTERNAL_FLAGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
 const GRAMMAR_COLUMN_WIDTH = 40;
 
 /** The section order the printed grammar block and the generated flag index both follow — the SAME order

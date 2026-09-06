@@ -10,6 +10,7 @@
 // The `reset groups` button is determinism, not product: the disclosure store is device-local
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
 
+import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
 import type { CommandPaletteSource } from "@orb/client/lib";
@@ -21,7 +22,9 @@ import {
   CommandPaletteSourceRegistryProvider,
   clearCollectionSelection,
   openConfigTo,
+  setActiveSection,
   setMobileViewport,
+  useActiveSection,
 } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -31,7 +34,7 @@ import { makeConfigSection } from "../../../../packages/client/src/features/conf
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/ct/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {
@@ -235,6 +238,47 @@ export function ConfigMobileListStory(): ReactElement {
           </div>
         </div>
       </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** THE CONFIG SECTION INSIDE THE REAL APP SHELL, at a phone (#1747) — the ONE mount in which the mobile
+ *  ONE-SHELL rule and its BACK STACK exist at all.
+ *
+ *  WHY NOT `ConfigHostStory mobile`: that story publishes the viewport REGIME and then renders both panes
+ *  side by side in a fixed flex box, so "the LIST is the screen" and "Back pops one rung" are not properties
+ *  it can have — the shell owns both (`use-shell-layout.ts`: `listIsPrimaryContent`, and `backToList`, which
+ *  is the config section's OWN declared `selection.clear`, `config-section.tsx`'s three-rung stack). This
+ *  story mounts the production `AppShell` over the REAL section registry, so the rungs under test are the
+ *  ones the phone actually pops.
+ *
+ *  IT CARRIES NO DRIVER ANY MORE (#1741 closed). It used to ship a `show the list` button that put the
+ *  store into "nothing selected, no active group, the LIST docked", because a cold mount could not reach
+ *  the LIST-is-the-screen arm at all: the shell published its viewport regime from a PASSIVE effect, which
+ *  runs after the subtree's layout effects, so the config LIST's arrival default read a stale desktop
+ *  regime and auto-selected a group on a phone. The seed in `use-shell-layout.ts` fixed the ordering, and a
+ *  driver that stayed would be a story hiding a regression in the very state it exists to mount. */
+export function ConfigMobileShellStory(): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    clearCollectionSelection();
+    setActiveSection("config");
+    return null;
+  });
+  // THE SECTION IS ACTIVE BEFORE `AppShell` EVER RENDERS, which is the whole arrival under test (#1741).
+  // `router.tsx`'s `/config` alias calls `setActiveSection` in `beforeLoad` and only THEN renders the app,
+  // so the config LIST is in the shell's very FIRST commit. A story that landed the section from a mounted
+  // effect instead (`useEffect(() => setActiveSection("config"))`) mounted the LIST one commit LATER — by
+  // which time the shell's own viewport publish had already run, and the story silently measured an arrival
+  // no reader can perform. Holding the shell back for one render is what makes the two orders agree.
+  if (useActiveSection() !== "config") {
+    return <CtDataProviders>{null}</CtDataProviders>;
+  }
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <AppShell />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

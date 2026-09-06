@@ -6,13 +6,28 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { parseSnapArgs, snapFlagDescriptors } from "../../../../tooling/src/snap/index.ts";
+import { vi } from "vitest";
+// THE PARSER, NOT THE BARREL (#1743). `snap/index.ts` re-exports the whole op graph — `ops/run.ts` and
+// with it Playwright — so importing the two grammar doors through it made this pure file pay for the
+// browser driver at collection. Measured on this box at loadavg ~30 (node, type-stripped, 5 runs each):
+// the barrel 0.86-2.05s vs the three own modules 0.73-0.76s. Both doors have a module of their own, so
+// the cheap seam is simply naming them (`ops/flags-handlers.ts` was already named this way below).
+import { snapFlagDescriptors } from "../../../../tooling/src/snap/ops/flag-grammar.ts";
 import { FLAG_HANDLERS } from "../../../../tooling/src/snap/ops/flags-handlers.ts";
+import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 const SNAP_CLI = fileURLToPath(new URL("../../../../tooling/src/snap/cli.ts", import.meta.url));
+// THE WALL CLOCK IS FOUR CHILD PROCESSES, NOT THE ASSERTIONS (#1743). Three of these four tests shell the
+// REAL snap CLI (`runSnap`), and a snap CLI child costs 0.83-2.85s on this box at loadavg ~30 — measured
+// with `spawnSync(node, [cli, …])`, three spawns per argv. The whole file therefore runs 5.9s of test
+// body ALONE at that load (1.5s/1.9s/2.5s per test, `test:scoped` 2026-09-05) against vitest's 5s
+// default, and any co-scheduled snap suite pushes the first case past it: measured 7.4s → `Test timed out
+// in 5000ms` with nothing wrong in the parser. `budget()`'s config-load reading cannot help — it is taken
+// before the sibling suites start — so the ceiling belongs HERE, where the base states the real cost.
+vi.setConfig({ testTimeout: scaledBudget(30_000) });
 
 function runSnap(args: readonly string[]): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [SNAP_CLI, ...args], {
@@ -22,10 +37,14 @@ function runSnap(args: readonly string[]): SpawnSyncReturns<string> {
   });
 }
 
+/** Snap's own spawned child entries — accepted, but hidden from the printed grammar and the generated
+ *  index (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET, so a second such entry is one row here. */
+const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
+
 function undocumentedAcceptedFlags(): string[] {
   const documented = new Set(snapFlagDescriptors().map((row) => row.flag));
   return Object.keys(FLAG_HANDLERS)
-    .filter((flag) => flag !== "--session-daemon")
+    .filter((flag) => !INTERNAL_SPELLINGS.has(flag))
     .filter((flag) => !documented.has(flag))
     .sort();
 }

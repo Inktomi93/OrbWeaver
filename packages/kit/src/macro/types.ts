@@ -246,8 +246,8 @@ export interface MacroContext {
   char: string;
   user: string;
   /** The present CHARACTER names (primary first), INCLUDING muted members. Drives `{{group}}`/
-   *  `{{charIfNotGroup}}`/`{{notChar}}`. A solo chat is a cast-of-one, so `{{group}}` == `{{char}}` (byte-
-   *  identical). Absent ⇒ treated as the cast-of-one `[char]`. */
+   *  `{{charIfNotGroup}}`/`{{notChar}}`. A solo chat is a room of one character, so `{{group}}` == `{{char}}` (byte-
+   *  identical). Absent ⇒ treated as the one-character `[char]`. */
   characterNames?: readonly string[];
   /** The ACTIVE (non-muted) character names — drives `{{groupNotMuted}}`, distinct from `{{group}}`
    *  (which includes muted members for their lore). Absent ⇒ `{{groupNotMuted}}` falls back to `characterNames`. */

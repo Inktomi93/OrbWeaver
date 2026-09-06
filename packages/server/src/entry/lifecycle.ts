@@ -57,7 +57,11 @@ import { setChatOpenTap } from "../transport/trpc/index.ts";
 import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
+  backfillPluginProvenanceOnBoot,
   DB_LAUNCHED,
+  healLegacyBackgroundPinsOnBoot,
+  migrateHandoffOfferVocabOnBoot,
+  migrateProseSlotVocabOnBoot,
   reclaimLocksOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -300,6 +304,31 @@ export function createLifecycle(): Lifecycle {
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
     await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+
+    // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
+    // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
+    // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
+    // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
+    await migrateHandoffOfferVocabOnBoot({ db });
+
+    // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
+    // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
+    // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
+    // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
+    // first. Runs before compose, which is where the first preset read lives.
+    await migrateProseSlotVocabOnBoot({ db });
+
+    // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
+    // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
+    // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
+    // after the first, and on a db seeded entirely post-#1478.
+    await healLegacyBackgroundPinsOnBoot({ db });
+    // #1708 DATA repair, in the same window and for the same reason: a card ingested through a plugin BEFORE
+    // #1702 shipped never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null
+    // `importedFrom` to `authored` — so an un-migrated row silently misreports "Made here" on every read
+    // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
+    // compose, which is where the first character read lives.
+    await backfillPluginProvenanceOnBoot({ db });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.

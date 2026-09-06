@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
@@ -43,7 +43,7 @@ import type {
   RequestTurnOp,
   ResolveCanonWindow,
   ResolveRpgCardCorpus,
-  ResolveRpgRoster,
+  ResolveRpgParticipants,
   SetRpgPointer,
   TurnMessage,
   TurnRequest,
@@ -65,7 +65,7 @@ import {
   createReactAsCharacter,
   createResolveCanonWindow,
   createResolveRpgCardCorpus,
-  createResolveRpgRoster,
+  createResolveRpgParticipants,
   createSetRpgPointer,
   getGroupConfig,
   getRoomOverrides,
@@ -82,17 +82,18 @@ import { PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
+import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
-import { createCopyHandoffBooks } from "#domain/world-info";
+import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
-import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
+import type { AgentSeedBlock, AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
+import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
 import { publishNotification } from "../../transport/trpc/index.ts";
@@ -110,13 +111,54 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 // Agent-sdk turn shape: the stateful backend wants a session seed (transcript before this turn) + a prompt
 // tail (trailing user rows). With both it resumes its cached session and reseeds on divergence, so history
 // rides the session instead of being re-sent flattened every turn. Tool and system rows ride the seed as
-// their own frames (#1593); only the ABSENCE of a trailing user row (continue-mode) falls back to the
-// pre-existing flatten (one prompt string with each row's blank lines collapsed, fresh throwaway session).
+// their own frames (#1593), and a history with NO trailing user row seeds everything and asks the
+// host-authored continuation stub (#1607) — there is no flattened-transcript prompt string on this wire at all.
 
-/** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
- *  stamped into the text (agent-sdk seed frames carry no `name` field). */
-function agentRowText(m: TurnMessage): string {
-  const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
+/**
+ * What a NON-TEXT content part leaves behind in a seed frame's text — TOTAL over `ChatContentPart`, because the
+ * honest answer is per-KIND (#1606). It used to be one literal `[Image]` for every part, so a real `tool` row —
+ * which carries a `tool-result` part and no text (`domain/chat/engine/pipeline.ts::toolExchangeMessages` is the
+ * only producer) — announced itself to the model as `Tool result: [Image]`: a false statement about the
+ * transcript, and one that hides the drop (the model cannot tell that bytes it was told about are missing).
+ *
+ * NAMES THE KIND, NEVER THE PAYLOAD. Emitting a tool result's bytes here would widen what the agent-sdk request
+ * carries — the separate structural arm (#1605), not a rendering decision. The wording follows the house drop
+ * vocabulary already used at the engine's own media seam (`droppedMediaPlaceholder`, `[<kind> omitted]`).
+ *
+ * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
+ * `Exclude<TurnContentPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
+ * (`lint/suspicious/noUnnecessaryConditions` — the computed-type sibling of the cross-module-union and
+ * intersection cases). The Record keeps the enforcement identical: a new content-part member is a missing
+ * property here and fails `tsc` (verified by planting one — `TS2741` at this site).
+ */
+/**
+ * One part of a row compose was handed — DERIVED from the domain message, never re-spelled and deliberately
+ * not the D51 seam symbol: compose does not PRODUCE content parts (the engine request seam does) and does not
+ * put them on a wire (the sealed runners do). It maps the message it is given onto the provider request, and
+ * this alias is the type of what is already in its hand.
+ */
+type TurnContentPart = TurnMessage["content"][number];
+
+const DROPPED_PART_TEXT: Record<Exclude<TurnContentPart, { type: "text" }>["type"], string> = {
+  image: "[image omitted]",
+  video: "[video omitted]",
+  "tool-call": "[tool call omitted]",
+  "tool-result": "[tool result omitted]",
+};
+
+/**
+ * One rendered row: a non-text part leaves the marker naming its own kind ({@link DROPPED_PART_TEXT}); the wire
+ * `name` label is stamped into the text (agent-sdk seed frames carry no `name` field).
+ *
+ * `parts` defaults to the whole row and is narrowed by the seed builder, which lifts the parts that ride as
+ * REAL SDK blocks (#1605) out first and renders only what is left. An EMPTY render takes no name stamp: an
+ * empty row is not a turn, and `Alice: ` is not a truer statement of that than an empty string is.
+ */
+function agentRowText(m: TurnMessage, parts: readonly TurnContentPart[] = m.content): string {
+  const text = parts.map((c) => (c.type === "text" ? c.text : DROPPED_PART_TEXT[c.type])).join("");
+  if (text.length === 0) {
+    return "";
+  }
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 
@@ -206,7 +248,7 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
   }
   const text = history
     .slice(sysStart, sysEnd)
-    .map(agentRowText)
+    .map((m) => agentRowText(m))
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
   // Drop the system band; keep the canon head AND the nudge tail (the nudge is a real user turn).
@@ -222,44 +264,12 @@ export function extractTrailingSystemRows(history: readonly TurnMessage[]): { ro
  * apparently authored by the human, which is the confusion role separation exists to prevent. TOTAL, not
  * defaulted, so the recurrence is a COMPILE error: a new `HISTORY_ROLES` member with no label here fails `tsc`
  * instead of silently inheriting the user's voice (the §5.5 mapped-Record dispatch shape).
+ *
+ * The labels now announce a SEED FRAME rather than a line in a flattened blob (#1607 deleted the blob), so a
+ * label is no longer a boundary anything could forge — but it is still the only thing that says whose voice a
+ * `user`-framed row speaks in, which is the whole of #1457.
  */
 const AGENT_ROW_LABELS: Record<TurnMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
-
-/** A run of two-or-more newlines — the blank line that IS a turn boundary in {@link flattenAgentHistory}. */
-const BLANK_LINE_RUN = /\n{2,}/g;
-
-/**
- * The flatten fallback: the whole history as one role-labeled blob, reached when the history has no trailing
- * USER row and there is therefore nothing to query the SDK with (continue-mode; a transcript ending in tool
- * results). Exported for bridge tests only — not a composition surface.
- *
- * THE TURN BOUNDARY IS UNFORGEABLE FROM CONTENT (#1593), and that is what the `BLANK_LINE_RUN` collapse buys.
- * In a single prompt string a boundary is TEXT — a blank line plus a label — so hostile content carrying a
- * literal `\n\nUser: …` opened a user turn the host never wrote. Escaping the label spellings would be a
- * blocklist, and a blocklist is whitespace-shape-fragile (`\n\n\nUser:`, `\n\n  User:`). Collapsing each ROW's
- * own blank lines instead makes the host's joiner the only blank line in the blob, so EVERY blank-line-preceded
- * header is host-written, for every shape. THE PRICE: paragraph breaks inside a flatten-arm row reach the model
- * as single newlines. The seed arm pays nothing — its rows are separate SDK frames.
- *
- * THE LIMIT, stated rather than discovered: a line-initial `User:` after a SINGLE newline is still content, and
- * a model that reads any such line as a turn is a model-side weakness no string prompt can close. The
- * structural close is to stop sending a multi-row transcript as a string at all — see {@link splitAgentHistory},
- * which now covers every history that HAS a user tail.
- *
- * REFUSING the agent-sdk path for tool-bearing histories was the other fail-closed candidate and was
- * rejected (#1457): the backend can run those turns, so refusal buys no confidentiality and costs the user
- * their chat — and the forge is not tool-specific anyway, so refusal would close none of the class.
- */
-export function flattenAgentHistory(history: readonly TurnMessage[]): string {
-  return history
-    .map((m) => {
-      const prefix = AGENT_ROW_LABELS[m.role];
-      const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
-      const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
-      return `${prefix}${name}: ${text.replace(BLANK_LINE_RUN, "\n")}`;
-    })
-    .join(AGENT_PROMPT_TAIL_JOINER);
-}
 
 /**
  * How each history role rides the SESSION SEED. TOTAL, and both facts are load-bearing: `frame` is the SDK
@@ -267,6 +277,11 @@ export function flattenAgentHistory(history: readonly TurnMessage[]): string {
  * frame's text must carry its own label. A role with no native frame (`tool`, `system`) can only ride as a
  * `user` frame, so it MUST announce itself or it wears the human's voice — #1457's confusion, relocated. A new
  * `HISTORY_ROLES` member fails `tsc` here instead of silently inheriting `user`.
+ *
+ * `announce` governs the TEXT half only. A tool exchange that rides as real `tool_use`/`tool_result` blocks
+ * (#1605) needs no label at all — the wire carries the role — and {@link seedBlocksFor} stamps one only on what
+ * is left as prose. The `tool` row's `user` frame is therefore the CARRIER of the blocks, not a claim about who
+ * spoke.
  */
 const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeedTurn["role"]; readonly announce: boolean }> = {
   user: { frame: "user", announce: false },
@@ -276,39 +291,186 @@ const AGENT_SEED_FRAMES: Record<TurnMessage["role"], { readonly frame: AgentSeed
 };
 
 /**
- * Split the shaped history into the session seed + the joined prompt tail; `null` when the history has no
- * trailing USER row (the caller falls back to {@link flattenAgentHistory}).
+ * Split the shaped history into the session seed + the prompt this turn queries with. TOTAL — every history
+ * reaches the SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
  *
- * THIS IS THE STRUCTURAL ARM (#1593). The seed is not a nicety — `session/frames.ts::buildSeedFrames` emits ONE
- * `SessionStoreEntry` per seed turn, so a turn boundary here is a JSON frame and content inside a frame cannot
- * create another frame. Every history that reaches it therefore has boundaries content cannot forge, which is
- * why a `tool` row no longer forces the flat string: it rides as an ANNOUNCED `user` frame instead.
+ * THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
+ * `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
+ * JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
+ * string: it rides as an ANNOUNCED `user` frame instead.
  *
  * THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree
  * on every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first),
  * and they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the
  * QUERY PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door.
  * The tail carries NO host labels, so there is nothing in it for content to imitate.
+ *
+ * NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
+ * live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on the recursion's next request, and a
+ * turn whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one
+ * prompt string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593
+ * had to install is gone too (rows keep their bytes — they are separate frames).
+ *
+ * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
+ * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
  */
-export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
+export function splitAgentHistory(history: readonly TurnMessage[]): { seed: readonly AgentSeedTurn[]; prompt: string } {
   let tailStart = history.length;
   while (tailStart > 0 && history[tailStart - 1]?.role === "user") {
     tailStart -= 1;
   }
-  const prompt = history
+  const tail = history
     .slice(tailStart)
-    .map(agentRowText)
+    .map((m) => agentRowText(m))
     .filter((t) => t.length > 0)
     .join(AGENT_PROMPT_TAIL_JOINER);
-  if (prompt.length === 0) {
-    return null;
-  }
-  const seed = history.slice(0, tailStart).map((m): AgentSeedTurn => {
-    const { frame, announce } = AGENT_SEED_FRAMES[m.role];
-    const text = agentRowText(m);
-    return { role: frame, content: announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text };
+  // An empty tail means the trailing user run said nothing (or there was none): the whole history seeds and the
+  // stub is the query. Never a blank prompt, and never a bare tool row promoted to one.
+  const seedRows = tail.length > 0 ? history.slice(0, tailStart) : history;
+  return { seed: seedTurnsFor(seedRows), prompt: tail.length > 0 ? tail : AGENT_CONTINUATION_PROMPT_STUB };
+}
+
+/**
+ * The tool-call ids whose exchange may ride the seed STRUCTURALLY — both halves present AND ADJACENT: a
+ * `tool-call` part on an assistant row, answered by a `tool-result` with the same id in the tool run that
+ * immediately follows it.
+ *
+ * THE ADJACENCY IS A FAIL-CLOSED RULE, not tidiness. The Anthropic wire requires every `tool_use` to be
+ * answered by a `tool_result` in the very next message and refuses an orphan in either direction, so a seed
+ * that emits half a pair is not a degraded turn — it is a 400 on EVERY later turn of that lineage. A history
+ * can arrive half-paired for ordinary reasons (a context-window slide cuts between the call and its result,
+ * an assembly materializes a recorded-but-unexecuted call), so the unpaired half degrades to the announced
+ * text it rode as before #1605 and the turn still runs.
+ *
+ * PARSEABILITY IS PART OF THE SAME QUESTION. The wire's `tool_use.input` is an OBJECT and `arguments` is the
+ * RAW model-emitted string, so a blob that is not a JSON object cannot become a valid `tool_use` — and the
+ * decision has to be made HERE, with the pair, or the frame builder would drop one half of a pair this
+ * function had already blessed and mint the orphan itself.
+ */
+function pairedToolCallIds(history: readonly TurnMessage[]): ReadonlySet<string> {
+  const paired = new Set<string>();
+  history.forEach((row, index) => {
+    if (row.role !== "assistant") {
+      return;
+    }
+    const answered = answeredIdsAfter(history, index);
+    for (const part of row.content) {
+      if (part.type === "tool-call" && answered.has(part.toolCallId) && isJsonObject(part.arguments)) {
+        paired.add(part.toolCallId);
+      }
+    }
   });
-  return { seed, prompt };
+  return paired;
+}
+
+/** The tool-call ids answered by the run of `tool` rows IMMEDIATELY following `index` — the only place the wire
+ *  accepts an answer, so a result further down the transcript does not count as one. */
+function answeredIdsAfter(history: readonly TurnMessage[], index: number): ReadonlySet<string> {
+  const answered = new Set<string>();
+  for (let j = index + 1; j < history.length && history[j]?.role === "tool"; j += 1) {
+    for (const part of history[j]?.content ?? []) {
+      if (part.type === "tool-result") {
+        answered.add(part.toolCallId);
+      }
+    }
+  }
+  return answered;
+}
+
+/** Does this raw model-emitted argument blob parse to a JSON OBJECT — the only thing the wire's `tool_use.input`
+ *  may be? `JSON.parse`, never an object literal: `parse` defines a `__proto__` key as an OWN property where a
+ *  literal would set the prototype. */
+function isJsonObject(raw: string): boolean {
+  let parsed: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+}
+
+/** Is this part riding as a REAL SDK block rather than as announced text? Only a tool part, and only when its
+ *  other half is present and adjacent ({@link pairedToolCallIds}). */
+function ridesAsBlock(part: TurnContentPart, paired: ReadonlySet<string>): boolean {
+  return (part.type === "tool-call" || part.type === "tool-result") && paired.has(part.toolCallId);
+}
+
+/**
+ * One history row's seed blocks: the rendered text (label- and name-stamped) FIRST, then the structural tool
+ * blocks in their own order — the shape the engine actually produces (`[text?, tool-call…]` on the assistant
+ * row, `[tool-result]` on each tool row).
+ *
+ * A STRUCTURAL BLOCK TAKES NO LABEL, and that is the point of the arm: `Tool result:` is a host claim the
+ * model has to believe, where a `tool_result` block is a role the wire itself carries. The label survives for
+ * everything that still rides as text — a degraded pair, a system row — so nothing ever wears the human's
+ * voice by default (#1457).
+ */
+function seedBlocksFor(m: TurnMessage, paired: ReadonlySet<string>): AgentSeedBlock[] {
+  const structural: AgentSeedBlock[] = [];
+  const rendered: TurnContentPart[] = [];
+  for (const part of m.content) {
+    if (ridesAsBlock(part, paired)) {
+      structural.push(part as AgentSeedBlock);
+    } else {
+      rendered.push(part);
+    }
+  }
+  const text = agentRowText(m, rendered);
+  const labelled = text.length > 0 && AGENT_SEED_FRAMES[m.role].announce ? `${AGENT_ROW_LABELS[m.role]}: ${text}` : text;
+  return [...(labelled.length > 0 ? [{ type: "text", text: labelled } as const] : []), ...structural];
+}
+
+/**
+ * The seed: one turn per history row, EXCEPT that a contiguous run of `tool` rows folds into ONE `user` turn.
+ * The fold is required by the same wire rule the pairing check serves — every `tool_result` answering one
+ * assistant message must ride in a SINGLE following user message, and the engine emits one `tool` row per
+ * executed call, so a row-per-turn seed would split a two-call batch across two user messages and 400.
+ *
+ * A row that renders to nothing contributes NO frame: `content: [{type:"text", text:""}]` is a body the
+ * Anthropic wire rejects, and an empty frame is not a turn anyone took.
+ */
+function seedTurnsFor(rows: readonly TurnMessage[]): AgentSeedTurn[] {
+  const paired = pairedToolCallIds(rows);
+  const seed: AgentSeedTurn[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const row = rows[i];
+    if (row === undefined) {
+      i += 1;
+      continue;
+    }
+    if (row.role === "tool") {
+      const run = foldToolRun(rows, i, paired);
+      if (run.content.length > 0) {
+        seed.push({ role: AGENT_SEED_FRAMES.tool.frame, content: run.content });
+      }
+      i = run.next;
+      continue;
+    }
+    const content = seedBlocksFor(row, paired);
+    if (content.length > 0) {
+      seed.push({ role: AGENT_SEED_FRAMES[row.role].frame, content });
+    }
+    i += 1;
+  }
+  return seed;
+}
+
+/** The blocks of the whole contiguous `tool` run starting at `start`, plus the index after it. */
+function foldToolRun(rows: readonly TurnMessage[], start: number, paired: ReadonlySet<string>): { content: AgentSeedBlock[]; next: number } {
+  const content: AgentSeedBlock[] = [];
+  let i = start;
+  while (i < rows.length) {
+    const row = rows[i];
+    if (row === undefined || row.role !== "tool") {
+      break;
+    }
+    content.push(...seedBlocksFor(row, paired));
+    i += 1;
+  }
+  return { content, next: i };
 }
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
@@ -404,7 +566,7 @@ export interface ChatComposeResult {
     /** The opaque pointer write — `createGame` calls it once. */
     readonly setRpgPointer: SetRpgPointer;
     /** The roster projection — the tracker view's roster ∪ sheets source. */
-    readonly resolveRpgRoster: ResolveRpgRoster;
+    readonly resolveRpgParticipants: ResolveRpgParticipants;
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
@@ -439,7 +601,7 @@ export interface ChatComposeResult {
   /** The standalone (out-of-turn) runtime-variable write, bound over chat's own
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
-  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+  readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[], expect?: readonly VariablePrecondition[]) => Promise<VariableWriteResult>;
   /** The room HOST's app-tier prose overrides for a chat (PROSE-1 §4.3, owner-decision 8 option (a)) —
    *  surfaced so automation's `set_chat_background` quiet pick reads the SAME host prose the room's other
    *  side generations do, instead of re-deriving the host itself. */
@@ -479,7 +641,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
         principal: await resolveHostPrincipal(frame.runAsUserId),
         triggeredBy: frame.triggeredBy,
         chatId: frame.chatId,
-        roster: frame.roster,
+        roster: frame.participants,
         turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
       }),
@@ -493,7 +655,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
           principal: await resolveHostPrincipal(frame.runAsUserId),
           triggeredBy: frame.triggeredBy,
           chatId: frame.chatId,
-          roster: frame.roster,
+          roster: frame.participants,
           turnId: frame.turnId,
           ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
         },
@@ -528,8 +690,8 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
 /** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been
  *  lifted out of the transcript by {@link extractTrailingSystemRows} and joined onto `dynamic`, because the SDK
  *  delivers mid-conversation system authority through the dynamic-context hook channel rather than as history
- *  rows. `agentSplit` present ⇒ the seeded resume shape (chatId + seed turns + the clean user tail); absent ⇒
- *  the whole transcript flattened into one prompt. */
+ *  rows. The shape is ONE (#1607): chatId + seed frames + a prompt, which is the trailing user run when there is
+ *  one and the host-authored continuation stub when there is not. */
 function agentSdkChatRequest(args: {
   readonly req: TurnRequest;
   readonly orSkinTierModels: NonNullable<Awaited<ReturnType<ConnectionService["getOrSkinTierModels"]>>>;
@@ -562,7 +724,9 @@ function agentSdkChatRequest(args: {
     // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
     // so the pipeline's fold reads one shape.
     ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
-    ...(split !== null ? { chatId: req.chatId, seed: split.seed, prompt: split.prompt } : { prompt: flattenAgentHistory(extract.rows) }),
+    chatId: req.chatId,
+    seed: split.seed,
+    prompt: split.prompt,
     onDelta,
     signal: req.signal,
   };
@@ -772,21 +936,25 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
   // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
   // can't drift; takes the id (not the whole settings read) so a caller that already loaded it doesn't double-read.
-  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<PromptConfig> => {
+  //
+  // It returns the resolved row's NAME beside its config (#1754), and the two travel together by
+  // construction: the name comes off the very `PresetDetail` the config did, so nothing downstream can
+  // name one preset while assembling another. `null` = the system default stood in (there is no row to name).
+  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
     if (defaultPresetId === null) {
-      return DEFAULT_PROMPT_CONFIG;
+      return { config: DEFAULT_PROMPT_CONFIG, name: null };
     }
     try {
       const detail = await input.preset.get({
         userId: runAsUserId,
         id: castId<PresetId>(defaultPresetId),
       });
-      return detail.config;
+      return { config: detail.config, name: detail.name };
     } catch (err) {
       // Only a genuinely stale/unowned/missing preset id degrades to the system default — a database,
       // I/O, or program failure must surface, never run the turn with the wrong prompt (#759).
       if (err instanceof PresetNotFoundError) {
-        return DEFAULT_PROMPT_CONFIG;
+        return { config: DEFAULT_PROMPT_CONFIG, name: null };
       }
       throw err;
     }
@@ -801,13 +969,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     runAsUserId: UserId,
     presetOverride: PresetId | undefined,
     defaultPresetId: string | null,
-  ): Promise<{ config: PromptConfig; presetId: PresetId | null }> => {
+  ): Promise<{ config: PromptConfig; presetId: PresetId | null; presetName: string | null }> => {
     if (presetOverride !== undefined) {
       // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — documented below: only a
       // genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule,
       // #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes.
       try {
-        return { config: (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config, presetId: presetOverride };
+        const detail = await input.preset.get({ userId: runAsUserId, id: presetOverride });
+        return { config: detail.config, presetId: presetOverride, presetName: detail.name };
       } catch (err) {
         // Only a genuinely stale/unowned/missing override falls through to the host's normal default (the
         // lenient-id rule) — a database, I/O, or program failure must surface (#759).
@@ -816,9 +985,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       }
     }
-    const config = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
+    const { config, name } = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
     // The effective id is the host default only when it actually resolved a preset (not the DEFAULT fallback).
-    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null) };
+    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null), presetName: name };
   };
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
@@ -840,7 +1009,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return [];
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.variables;
   };
 
@@ -854,7 +1023,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return [];
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.userMacros;
   };
 
@@ -867,7 +1036,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return DEFAULT_PROMPT_CONFIG.params;
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.params;
   };
 
@@ -969,10 +1138,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
     maybeRevokeOnAuthFailed: input.credentials.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
-    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5) — the three OWNING-domain write factories the accepted
-    // property offer executes. Each lives in the domain that owns its tables and is injected here, so chat
-    // never writes a `characters`, `world_books` or `chat_digests` row (`own-tables-only`). All three are
-    // unreachable without a stored offer, so an offer-less handoff never calls any of them.
+    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
+    // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
+    // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
+    // row (`own-tables-only`). All four are unreachable without a stored offer, so an offer-less handoff
+    // never calls any of them.
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
       bumpStatsCanonVersion,
@@ -1009,6 +1179,16 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       newBookId: minter(ID_PREFIX.worldBook),
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
+    copyHandoffRegexScripts: createCopyHandoffRegexScripts({
+      db: input.db,
+      now: input.now,
+      newScriptId: minter(ID_PREFIX.regexScript),
+    }),
+    // …and their NOMINATE-side disclosure twins (#1762), each from the SAME domain file as its copy so the
+    // number the nominee is shown comes out of the plan the accept executes. `db` only: these run before
+    // the nominee has consented to anything, so they are structurally unable to mint (no clock, no minter).
+    countHandoffBooks: createCountHandoffBooks(input.db),
+    countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
@@ -1403,7 +1583,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
       // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
       // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
-      const { config: promptConfig, presetId } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
+      const { config: promptConfig, presetId, presetName } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
 
       // THE ROOM-PLANE PERSONA READ (the multi-human widening). NOT `persona.get` under a host Principal:
       // that owner-scoped keyhole silently nulled every NON-HOST member's persona, so a member's own turn
@@ -1443,6 +1623,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         promptConfig,
         // WAVE MU — the resolved preset id for user-macro source attribution (override id / host default / null).
         presetId,
+        // #1754 — the SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
+        // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
+        presetName,
         personas: { anchor, active },
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.
@@ -1499,7 +1682,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: createClaimChat(chatCtx) }),
       getPendingUserText: createGetPendingUserText(chatCtx),
       setRpgPointer: createSetRpgPointer(chatCtx),
-      resolveRpgRoster: createResolveRpgRoster(chatCtx),
+      resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
@@ -1507,7 +1690,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveChatPresetProse,
     },
     promptTransforms: promptTransformRegistry,
-    applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
+    applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
     isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",

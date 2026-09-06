@@ -58,8 +58,17 @@ const EVAL_RE = /EVAL\[0\][^\n]*\n(\d+)/u;
 const QUIET = ["--no-shot"];
 /** A promise-returning eval snap awaits — the in-flight window T2 and the busy case need. */
 const SLOW_EVAL = "new Promise((resolve) => setTimeout(() => resolve('slow-done'), 4000))";
-/** Safely beyond T5 ACTIVE's 1.2s idle TTL while staying well below the fixed 5s call watchdog. */
-const ACTIVE_TTL_EVAL = "new Promise((resolve) => setTimeout(() => resolve('active-ttl-done'), 2000))";
+/** T5 ACTIVE's long call: beyond that case's 9s idle TTL, and it rides the NAVIGATING watchdog (180s
+ *  base, `sessionCallWatchdogBaseMs`) because its argv carries `--file` — the 5s non-navigating ceiling
+ *  never applies to it. The pair moved from 1.2s TTL / 2s eval on 2026-09-05 (#1744): an idle TTL is
+ *  never load-scaled (the ONE policy's IDLE class), so the only way the arm survives co-scheduling is a
+ *  TTL the HARNESS's own gap cannot beat — a fresh snap CLI child costs 0.83-2.85s on this box at
+ *  loadavg ~30, which at 1.2s reaped the daemon between the long call and the next one and turned the
+ *  follow-up into a correct `never navigated` refusal (exit 3) with nothing wrong in the substrate. */
+const ACTIVE_TTL_EVAL = "new Promise((resolve) => setTimeout(() => resolve('active-ttl-done'), 12000))";
+/** T5 ACTIVE's second call is LIVE (no `--file`), so it is held to the 5s non-navigating watchdog: it only
+ *  has to be in flight long enough for the row's `inflightOp` to be observed and the close to race it. */
+const IN_FLIGHT_EVAL = "new Promise((resolve) => setTimeout(() => resolve('in-flight-done'), 2000))";
 /** T17's dead promise keeps the call in flight without blocking the browser protocol that aborts it. */
 const HANGING_EVAL = "new Promise(() => {})";
 const POLL_MS = 250;
@@ -302,7 +311,9 @@ test("T5 — a tiny TTL reaps an idle daemon; a call inside the window resets it
 });
 
 test("T5 ACTIVE — a call longer than the TTL keeps its daemon, rearms only after settling, and close cannot rearm it", async ({ plantedTree, runCli }) => {
-  const r = await rig(plantedTree, runCli, envOf([[SESSION_TTL_KEY, "0.02"]]));
+  // 9s, not the original 1.2s (#1744) — see ACTIVE_TTL_EVAL: the TTL has to outlast the harness's own
+  // child-spawn gap, which an idle TTL may never be load-scaled to cover.
+  const r = await rig(plantedTree, runCli, envOf([[SESSION_TTL_KEY, "0.15"]]));
   const a = uniq("t5-active");
   try {
     const long = await r.snap(["--session", a, "--file", r.fixture, "--eval", ACTIVE_TTL_EVAL, ...QUIET]);
@@ -316,7 +327,7 @@ test("T5 ACTIVE — a call longer than the TTL keeps its daemon, rearms only aft
     expect(next.stdout).toContain("fixture");
     expect(next.stdout).not.toContain("booting");
 
-    const draining = r.snap(["--session", a, "--eval", ACTIVE_TTL_EVAL, ...QUIET]);
+    const draining = r.snap(["--session", a, "--eval", IN_FLIGHT_EVAL, ...QUIET]);
     expect(await until(() => rowOf(r.home, a).inflightOp !== null)).toBe(true);
     const close = r.snap(["--session-close", a]);
     await expect(draining).resolves.toMatchObject({ code: EXIT.clean });

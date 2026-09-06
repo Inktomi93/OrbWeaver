@@ -378,6 +378,9 @@ importers:
       '@orb/server':
         specifier: workspace:*
         version: link:packages/server
+      '@orb/showcase-plugins':
+        specifier: workspace:*
+        version: link:packages/showcase-plugins
       '@orb/tooling':
         specifier: workspace:*
         version: link:tooling
@@ -714,6 +717,9 @@ importers:
       '@orb/kit':
         specifier: workspace:*
         version: link:../kit
+      '@orb/showcase-plugins':
+        specifier: workspace:*
+        version: link:../showcase-plugins
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.18.0(typescript@6.0.3)
@@ -759,6 +765,15 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.4.3
+
+  packages/showcase-plugins:
+    dependencies:
+      '@orb/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      fflate:
+        specifier: 'catalog:'
+        version: 0.8.3
 
   packages/ui:
     dependencies:

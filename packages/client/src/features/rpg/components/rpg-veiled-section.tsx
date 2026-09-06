@@ -63,7 +63,15 @@ export interface RpgVeiledSectionProps {
  *  rendered for a host (the caller gates on `isHost`; the verb is a second, server-side host gate). */
 export function RpgVeiledSection({ chatId }: RpgVeiledSectionProps): ReactElement {
   return (
-    <QueryBoundary fallback={null} renderError={(_error, retry): ReactElement => <QueryErrorState label="the veiled ledger" onRetry={retry} />}>
+    // RESERVED (#1098) — the purest case in the sweep, and the `rpg-hud-band` precedent: with
+    // `fallback={null}` this section is literally ABSENT while the reveal read is in flight, so the
+    // roster above it and everything below shift by the ledger's whole height when it lands. The
+    // remembered box holds that space open; nothing is painted into it, which is the point.
+    <QueryBoundary
+      fallback={null}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the veiled ledger" onRetry={retry} />}
+      reserveKey="rpg.veiledLedger"
+    >
       <VeiledLedger chatId={chatId} />
     </QueryBoundary>
   );

@@ -61,6 +61,7 @@ export interface ContrastInput {
    *  as snap's `--contrast` does. Optional because this type also describes samples from an older
    *  walker string (a CT pinning a historical sample set); absent reads as 1, the pre-#188 behavior. */
   readonly foregroundOpacity?: number;
+  /** Text/ancestor carries `mask-image` (#1078, `.scroll-fade-x/-y`); absent = unmasked. */ readonly foregroundMasked?: boolean;
 }
 
 export interface ImageDistortionInput {

@@ -425,6 +425,12 @@ const GIT_RESTORE = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}restore\b([^
 const RESTORE_WORKTREE_ARM = /--worktree|(^|\s)-W\b|(^|\s)-[a-zA-Z]*W/;
 const RESTORE_STAGED = /--staged|(^|\s)-S\b/;
 const GIT_CHECKOUT = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}checkout\s+(.*)`);
+// checkout-index: with `-f`/`--force` (or `-a`/`--all`) it overwrites worktree files from the INDEX — `git checkout
+// <path>` under a fourth spelling (a lane destroyed its own uncommitted regex-section.tsx with `checkout-index -f --
+// <path>` on 2026-09-06 while restoring a planted control). Without a force/all flag it refuses to overwrite an
+// existing file, so that arm passes.
+const GIT_CHECKOUT_INDEX = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}checkout-index\b([^\n;|&]*)`);
+const CHECKOUT_INDEX_OVERWRITE = /(^|\s)--(?:force|all)\b|(^|\s)-[a-zA-Z]*[fa]/;
 // `--ours`/`--theirs` is a CONFLICT-RESOLUTION checkout: it overwrites the worktree file with one merge
 // side, discarding any hand-edit already made there. Named explicitly (not left to the extension list)
 // because the pathspec is often extension-less or an unlisted suffix — and refused UNIFORMLY per #497:
@@ -633,7 +639,7 @@ const REASONS = {
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
   gitDestructive:
-    "`git stash` / `git restore` / `git checkout <path>` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>` (redirect it to write one: `git show HEAD:<path> > <path>`); undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first, then `mv <f>.bak <f>` to revert. A GLOBAL OPTION does not exempt the spelling — `git -C <worktree> checkout -- <path>` destroys exactly as much as the bare form. In an ACTIVE MERGE, `checkout --ours/--theirs <path>` is refused the same way (it discards any hand-edit already in the worktree file): take one side with `git show MERGE_HEAD:<path> > <path>` (theirs) or `git show HEAD:<path> > <path>` (ours). Read-only inspection still passes: `git stash list` / `git stash show`, and `git restore --staged <path>` (index-only, no `--worktree`).",
+    "`git stash` / `git restore` / `git checkout <path>` / `git checkout-index -f` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>` (redirect it to write one: `git show HEAD:<path> > <path>`); undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first, then `mv <f>.bak <f>` to revert. A GLOBAL OPTION does not exempt the spelling — `git -C <worktree> checkout -- <path>` destroys exactly as much as the bare form. In an ACTIVE MERGE, `checkout --ours/--theirs <path>` is refused the same way (it discards any hand-edit already in the worktree file): take one side with `git show MERGE_HEAD:<path> > <path>` (theirs) or `git show HEAD:<path> > <path>` (ours). Read-only inspection still passes: `git stash list` / `git stash show`, and `git restore --staged <path>` (index-only, no `--worktree`).",
   biomeWrite:
     "A whole-tree biome fix-all (`--write` with no explicit paths, or `.`; `pnpm lint:fix`) applies EVERY autofix including INFO-level ones that change behavior — the `/u` unicode-regex wave crashed server boot (doctrine ban). Scope it: name the paths and/or a single rule (`biome check --write --only=<rule> <paths>`), or fix ERROR-level diagnostics by hand.",
   cdWorktree:
@@ -1886,6 +1892,10 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   if (checkout && CHECKOUT_PATHISH.test(checkout[1])) {
     return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
   }
+  const checkoutIndex = blank.match(GIT_CHECKOUT_INDEX);
+  if (checkoutIndex && CHECKOUT_INDEX_OVERWRITE.test(checkoutIndex[1])) {
+    return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
+  }
 
   // 2. biome write-mode — blast radius decides (owner ruling 2026-08-03): a WHOLE-TREE fix-all is the
   //    doctrine-banned wave (DENY); a path-scoped and/or --only= single-rule rewrite is the sanctioned
@@ -2092,7 +2102,7 @@ const BRIEFING = [
   "  artifacts survive. A pipeline returns the READER's status, and it can hang forever because",
   "  playwright/vite/stack children inherit the pipe. Just redirect: `<cmd> > run.log 2>&1`, then read",
   "  the log and reports/verify.json.",
-  "· DENIES: `git stash`/`restore`/`checkout <path>` (they destroy uncommitted work — use",
+  "· DENIES: `git stash`/`restore`/`checkout <path>`/`checkout-index -f` (they destroy uncommitted work — use",
   "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
   "· DENIES `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",

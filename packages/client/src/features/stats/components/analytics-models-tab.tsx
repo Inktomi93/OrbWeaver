@@ -27,12 +27,22 @@ import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 
 export function AnalyticsModelsTab(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="gloss">Loading model stats…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
-    >
-      <ModelsBody />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1727, the #1133 hoist). `reserveKey` wraps the settled
+    // child in an auto-height measuring Stack, so a scroller UNDER the boundary resolves `flex-1` against an
+    // indefinite parent, stops scrolling, and strands everything past the fold. Hoisted here, the measuring
+    // wrapper sits INSIDE the scroller — an auto-height child is exactly what a scroller wants — and the
+    // scroller itself now survives the read instead of remounting with it. `relative` rides along: a scroll
+    // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
+    // area (the containing-block pin in the overview surface's CT is the class's fence).
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsModelsTab")}>
+      <QueryBoundary
+        fallback={<Text voice="gloss">Loading model stats…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
+        reserveKey="analytics.models"
+      >
+        <ModelsBody />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -42,7 +52,7 @@ function ModelsBody(): ReactElement {
   const { data: models } = useSuspenseQuery(trpc.stats.byModel.queryOptions());
 
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsModelsTab")}>
+    <Stack gap="section">
       <LibraryScopeNotice reason="Model usage is rolled up per model, with no per-character breakdown to narrow to." />
 
       {drilled === null ? <OwnerLatency /> : null}

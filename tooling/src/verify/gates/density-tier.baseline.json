@@ -59,12 +59,6 @@
     "why": "RATIFIED raw axes (#573): this is INLINE EMPHASIS inside another voice's (`gloss`) run, not a voice of its own — every voice re-spells size and color, so one here would break the sentence it sits in. It carries `gloss`'s own micro step plus the weight and foreground ink that make the name stand out. The file's own comment states the ruling.",
     "cite": ["packages/client/src/features/character/components/character-overview-card.tsx#L117-L123"]
   },
-  "packages/client/src/features/character/surfaces/character-editor-surface.tsx": {
-    "count": 2,
-    "ratified": 2,
-    "why": "a mono token-count readout at `size=\"micro\" tone=\"muted\"` does not byte-match `datumMono`'s step (`text-code` + regular + muted) — adopting `datumMono` would change the rendered type step, not just the vocabulary, so this stays a judgment call rather than a silent conversion.",
-    "cite": ["packages/client/src/features/character/surfaces/character-editor-surface.tsx#L230-L235"]
-  },
   "packages/client/src/features/chat/anchors/join-invite-dialog.tsx": {
     "count": 7,
     "ratified": 7,
@@ -105,6 +99,16 @@
     "why": "the notification row's `weight` is a CONDITIONAL expression (`item.readAt === null ? \"medium\" : undefined`) keyed on unread state — a closed voice cannot express a per-instance conditional weight, so this is call-site logic, not a taste choice a voice would replace.",
     "cite": ["packages/client/src/features/notifications/components/notification-bell.tsx#L234"]
   },
+  "packages/client/src/features/persona/components/persona-account-foot.tsx": {
+    "count": 3,
+    "ratified": 3,
+    "why": "the retired account-surface's two ratified rows, moved WITH the anatomy (#866 S4 — the modal's facts became the switcher's foot): the `weight=\"semibold\"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size=\"label\" tone=\"muted\"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).",
+    "cite": [
+      "packages/client/src/features/persona/components/persona-account-foot.tsx#L36",
+      "packages/client/src/features/persona/components/persona-account-foot.tsx#L62",
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
+    ]
+  },
   "packages/client/src/features/persona/components/persona-editor.tsx": {
     "count": 2,
     "ratified": 2,
@@ -117,6 +121,12 @@
     "why": "RATIFIED raw axes (#582, the character-facet-row precedent): a row's own NAME is a directory entry, one step under `promoted` (reserved for the single item a surface promotes above its siblings) — body step at medium, deliberately. The file's own comment states the ruling.",
     "cite": ["packages/client/src/features/persona/components/persona-row-name-column.tsx#L121-L126"]
   },
+  "packages/client/src/features/persona/components/persona-switch-list.tsx": {
+    "count": 1,
+    "ratified": 1,
+    "why": "RATIFIED raw axes (#582, the character-facet-row precedent): a switch row's own NAME is a directory entry, one step under `promoted` — body step at medium, deliberately (the persona-row-name-column ruling, same list one mount over).",
+    "cite": ["packages/client/src/features/persona/components/persona-switch-list.tsx#L105"]
+  },
   "packages/client/src/features/persona/components/persona-this-chat-section.tsx": {
     "count": 3,
     "ratified": 3,
@@ -126,22 +136,6 @@
       "packages/client/src/features/persona/components/persona-this-chat-section.tsx#L147",
       "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
-  },
-  "packages/client/src/features/persona/components/persona-account-foot.tsx": {
-    "count": 3,
-    "ratified": 3,
-    "why": "the retired account-surface's two ratified rows, moved WITH the anatomy (#866 S4 — the modal's facts became the switcher's foot): the `weight=\"semibold\"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size=\"label\" tone=\"muted\"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).",
-    "cite": [
-      "packages/client/src/features/persona/components/persona-account-foot.tsx#L36",
-      "packages/client/src/features/persona/components/persona-account-foot.tsx#L62",
-      "docs/architecture/core/UI-Density-Law.md#§2.3"
-    ]
-  },
-  "packages/client/src/features/persona/components/persona-switch-list.tsx": {
-    "count": 1,
-    "ratified": 1,
-    "why": "RATIFIED raw axes (#582, the character-facet-row precedent): a switch row's own NAME is a directory entry, one step under `promoted` — body step at medium, deliberately (the persona-row-name-column ruling, same list one mount over).",
-    "cite": ["packages/client/src/features/persona/components/persona-switch-list.tsx#L105"]
   },
   "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": {
     "count": 1,

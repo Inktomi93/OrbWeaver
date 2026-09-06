@@ -25,11 +25,11 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;
@@ -64,9 +64,9 @@ async function resolveUserMacroRegistry(deps: ExtractQuietDeps, chatId: ChatId):
 export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
   return async (p: ExtractQuietParams): Promise<ExtractQuietResult> => {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
-    const roster = await loadRoster(deps.db, p.chatId);
-    const hostUserId = hostUserIdOf(roster);
-    const firstPresentCharacterId = roster.flatMap((r) => {
+    const participants = await loadParticipants(deps.db, p.chatId);
+    const hostUserId = hostUserIdOf(participants);
+    const firstPresentCharacterId = participants.flatMap((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" ? [actor.characterId] : [];
     })[0];

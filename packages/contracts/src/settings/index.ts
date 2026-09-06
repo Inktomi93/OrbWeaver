@@ -648,6 +648,9 @@ const chatSchema = z
       .object({
         enabled: z.boolean().default(false),
         minLength: z.number().int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
+        // NO `.catch` (#1532's versioned-config class sweep, `#versioned-config`'s header §2): a bad element
+        // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
+        // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
         // PD-146: the max auto-swipe regenerations for a rejected reply (the bound the turn engine's
         // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
@@ -813,13 +816,38 @@ const onboardingSchema = z
     // immutable; a stamp behind the shipped pack runs the seeder's heal, which only ever fills fields still
     // at their seeded default (it never stomps a choice the user made in their copy of an example).
     demoChatsPackVersion: z.number().int().min(0).catch(0).default(0),
-    // The two SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch for the same
-    // reason the demo chats have theirs: the examples are installed (disabled, ungranted) per user, and this
-    // flag is also the DELETION-RESPECT guard. A user who uninstalls an example must not find it back on
-    // their next request. No pack-version twin: a plugin's own manifest `version` + the `upgrade` verb are
-    // the release channel for bundle content, and re-dressing an INSTALLED plugin behind the user's back is
-    // exactly what the consent posture exists to prevent.
+    // The SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch for the same reason
+    // the demo chats have theirs: the examples are installed (disabled, ungranted) per user, and this flag is
+    // also the DELETION-RESPECT guard. A user who uninstalls an example must not find it back on their next
+    // request. It gates the INSTALL half only; the upgrade half below runs on every pass, because a latch
+    // that meant "never look at these rows again" is exactly what kept improvements from existing installs.
     examplePluginsSeeded: z.boolean().catch(false).default(false),
+    // WHAT WE LAST WROTE, per showcase slug: `{ "card-atlas": "1.1.0", … }`. #803's auto-upgrade oracle
+    // (owner-ruled 2026-09-05, arm (a)), and the thing that makes "has the user taken this plugin over?"
+    // answerable at all.
+    //
+    // THE PRIOR RULING ON THIS FIELD'S NEIGHBOUR SURVIVES; ITS INPUT CHANGED. `examplePluginsSeeded`'s
+    // comment used to end "No pack-version twin: a plugin's own manifest `version` + the `upgrade` verb are
+    // the release channel for bundle content, and re-dressing an INSTALLED plugin behind the user's back is
+    // exactly what the consent posture exists to prevent." Both halves still hold and are LOAD-BEARING here:
+    // this is NOT a pack-version counter and it is NOT a release channel — the release channel is still the
+    // shipped manifest's `version` read straight off the bundle (`@orb/showcase-plugins`'s
+    // `readShowcaseManifest`) and still the REAL `upgrade` verb, whose own wall is what keeps the upgrade
+    // from happening behind anyone's back (widened reach lands the row DISABLED with a standing re-consent,
+    // the grant carried forward is the intersection, and a plugin the user turned off stays off). What this
+    // map records is PROVENANCE: the version this system itself last installed, so the seeder can tell an
+    // untouched copy of its own gift from one the user has since replaced.
+    //
+    // DIVERGENCE IS A VERSION MISMATCH, which is the plugin domain's OWN existing oracle rather than a new
+    // idea — `domain/plugin/verbs/uninstall-for-all-users.ts` already skips a recipient whose
+    // `row.version !== record.version` as `version-diverged`, reasoning that they have taken the plugin over.
+    // Same rule here, same word. A slug ABSENT from this map on a row that is nonetheless installed is the
+    // pre-#803 backfill arm and is adopted as ours (see the seeder's header for why that is the safe arm
+    // pre-launch); the arm self-retires, because the first pass records every held slug.
+    //
+    // `.catch({})` on purpose, like every latch here: a settings blob that comes back at schema defaults
+    // costs at most one redundant upgrade pass that the version compare then finds nothing to do in.
+    seededPluginVersions: z.record(z.string(), z.string()).catch({}).default({}),
     // The SERVER-WIDE published plugin set (D147 clause (d)) applied to THIS user — its own latch, distinct
     // from `examplePluginsSeeded` because the two carry different content from different authors: the examples
     // ship with the build, the distributed set is whatever this deployment's admin published. A fan-out reaches

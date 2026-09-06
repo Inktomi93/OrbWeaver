@@ -75,6 +75,7 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
         onChange={(next): void => {
           setBackground.mutate({ chatId, background: next });
         }}
+        reserveKey="chat.roomOverrides.background"
         value={background}
       />
       {carried?.arm === "card-carried" ? (

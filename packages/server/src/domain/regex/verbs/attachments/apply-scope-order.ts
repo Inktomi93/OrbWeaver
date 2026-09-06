@@ -112,6 +112,12 @@ export function createApplyScopeOrder(ctx: RegexContext): RegexService["applySco
       at,
     );
     ctx.emitUserEvent(params.principal.userId, { type: "regexChanged" });
+    // #1733 — the CHAT arm's reorder is room state (the run order every member's turns assemble in), so it
+    // fans the room plane too. The other three arms are owner-library state with no member-visible
+    // projection of their own: their rooms hear it through the library-row fan when a row changes.
+    if (params.scope.kind === "chat") {
+      ctx.emitRoomRegexChanged(params.scope.chatId);
+    }
     return { reordered };
   };
 }

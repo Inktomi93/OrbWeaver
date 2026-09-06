@@ -28,7 +28,7 @@ beforeEach(async () => {
 describe("group memory build↔recall round-trip (F1 regression)", () => {
   test("digests built under the engine's resolved key are recalled under the same key — no fabricated handle", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
-    // Two cast characters + the REAL synthetic group-as-character (a hidden `characters` row minted for the
+    // Two seated characters + the REAL synthetic group-as-character (a hidden `characters` row minted for the
     // room). The FK target for the shared bucket is this synthetic row — NOT the `__group__` handle string.
     const c1 = await seedCharacter(db, host, "aria");
     const c2 = await seedCharacter(db, host, "bram");

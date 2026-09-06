@@ -1,4 +1,4 @@
-// The PUBLISHED-SDK conformance pin (#774): `seed-assets/plugins/host-v1.d.ts` is the copyable, script-kind
+// The PUBLISHED-SDK conformance pin (#774): `@orb/showcase-plugins`'s `bundles/host-v1.d.ts` is the copyable, script-kind
 // mirror of the plugin contract a plugin author drops next to their `main.js` — and a mirror is only safe
 // while something makes drift RED. This file is that something.
 //
@@ -17,7 +17,7 @@
 // and THIS comment is the instruction: add the brand to `GuestBrand` below AND spell it `string` (documented)
 // in the published file — never widen the mirror to carry a brand an author cannot construct.
 
-/// <reference path="../../../packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts" />
+/// <reference path="../../../packages/showcase-plugins/bundles/host-v1.d.ts" />
 
 import type {
   PluginSurfaceAnchor as ContractAnchor,

@@ -14,6 +14,13 @@ const GOOD_HTML = `<!doctype html><html><body style="background:#ffffff">
 </body></html>`;
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
+// THE ARGV-ONLY CASES SPAWN CHILDREN TOO (#1744). "refuses before any browser boots" means no Chromium —
+// it does NOT mean no wall clock: each refusal is a whole snap CLI child (0.83-2.85s on this box at
+// loadavg ~30, measured 2026-09-05), and two of the cases below spend a pair of them. Under the parallel
+// lane's 5s default that is green alone and `Test timed out in 5000ms` the moment a snap sibling is
+// co-scheduled — measured on a whole-directory `test:scoped tests/tooling/snap --maxWorkers=4`. A ceiling
+// of their own, load-scaled like every other clock in this file.
+const ARGV_TIMEOUT_MS = scaledBudget(30_000);
 
 const DEAD_CSS_HTML = `<!doctype html><html data-app-ready="settled"><head><style>.defined { color: black }</style></head>
 <body><p class="never-defined">dead selector plant</p></body></html>`;
@@ -87,7 +94,7 @@ test("a --contrast selector that matches NOTHING is a refusal, never a clean zer
   await expect(res).toExitWith(EXIT.violations);
 });
 
-test("CLI misuse refuses before any browser boots (exit 3 posture is the parse contract)", async ({ runCli }) => {
+test("CLI misuse refuses before any browser boots (exit 3 posture is the parse contract)", { timeout: ARGV_TIMEOUT_MS }, async ({ runCli }) => {
   const res = await runCli("snap", ["--viewport", "banana", "--no-failure-evidence"]);
   expect(res.stdout).toContain("ARG ERROR");
   await expect(res).toExitWith(EXIT.misuse);
@@ -199,7 +206,7 @@ test("--upload against a selector that matches NOTHING is a loud step failure, n
   await expect(res).toExitWith(EXIT.violations);
 });
 
-test("--upload misuse (no '=', or an empty path list) refuses before any browser boots", async ({ runCli }) => {
+test("--upload misuse (no '=', or an empty path list) refuses before any browser boots", { timeout: ARGV_TIMEOUT_MS }, async ({ runCli }) => {
   const noEq = await runCli("snap", ["--upload", "input#f", "--no-failure-evidence"]);
   expect(noEq.stdout).toContain("ARG ERROR");
   await expect(noEq).toExitWith(EXIT.misuse);
@@ -280,7 +287,7 @@ test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame
   await expect(loaded).toExitWith(EXIT.clean);
 });
 
-test("a bad --cpu-throttle/--network value refuses before any browser boots", async ({ runCli }) => {
+test("a bad --cpu-throttle/--network value refuses before any browser boots", { timeout: ARGV_TIMEOUT_MS }, async ({ runCli }) => {
   const rate = await runCli("snap", ["--cpu-throttle", "0", "--no-failure-evidence"]);
   expect(rate.stdout).toContain("ARG ERROR");
   expect(rate.stdout).toContain("--cpu-throttle expects a rate >= 1");

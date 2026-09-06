@@ -253,33 +253,33 @@ describe("selectSpeakers — pooled (round-robin: least-recently-spoken first)",
 });
 
 describe("resolveMentions — @mention extraction (human-authored text only)", () => {
-  const cast = [
+  const characters = [
     { ref: charRef("aria"), name: "Aria" },
     { ref: charRef("ariastorm"), name: "Aria Stormborn" },
     { ref: charRef("bran"), name: "Bran" },
   ];
 
   test("extracts @mentions in first-appearance order", () => {
-    expect(resolveMentions("hey @Bran and @Aria", cast)).toEqual([cid("bran"), cid("aria")]);
+    expect(resolveMentions("hey @Bran and @Aria", characters)).toEqual([cid("bran"), cid("aria")]);
   });
 
   test("longest-name-first: @Aria Stormborn matches the longer name, not @Aria", () => {
-    expect(resolveMentions("@Aria Stormborn, attack!", cast)).toEqual([cid("ariastorm")]);
+    expect(resolveMentions("@Aria Stormborn, attack!", characters)).toEqual([cid("ariastorm")]);
   });
 
   test("case-insensitive; no @ → nothing", () => {
-    expect(resolveMentions("@aria", cast)).toEqual([cid("aria")]);
-    expect(resolveMentions("Aria without an at-sign", cast)).toEqual([]);
+    expect(resolveMentions("@aria", characters)).toEqual([cid("aria")]);
+    expect(resolveMentions("Aria without an at-sign", characters)).toEqual([]);
   });
 
   // FIRST-OCCURRENCE MASKING: a shorter name whose FIRST occurrence sits inside a longer name's consumed
   // span must still fire on a LATER standalone occurrence — the human typed `@Aria` on purpose.
   test("a later standalone @Aria still forces her, even after @Aria Stormborn consumed the first hit", () => {
-    expect(resolveMentions("@Aria Stormborn opens the door… @Aria, what do you think?", cast)).toEqual([cid("ariastorm"), cid("aria")]);
+    expect(resolveMentions("@Aria Stormborn opens the door… @Aria, what do you think?", characters)).toEqual([cid("ariastorm"), cid("aria")]);
   });
 
   test("the nested-only case is unchanged: @Aria Stormborn alone forces ONLY the longer name", () => {
-    expect(resolveMentions("@Aria Stormborn opens the door.", cast)).toEqual([cid("ariastorm")]);
+    expect(resolveMentions("@Aria Stormborn opens the door.", characters)).toEqual([cid("ariastorm")]);
   });
 
   // The masking unit is the NAME, not the ONE span that name happened to claim. A human who emphasises a
@@ -287,18 +287,18 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
   // INSIDE it and a second, never-named character was forced into the round (and in a narrator room that
   // forced override also coerces the round to per-speaker — a round the host never asked for).
   test("a REPEATED @Aria Stormborn never leaks the nested @Aria (masking is per-NAME, not per-span)", () => {
-    expect(resolveMentions("@Aria Stormborn opens the door… @Aria Stormborn kicks it shut.", cast)).toEqual([cid("ariastorm")]);
+    expect(resolveMentions("@Aria Stormborn opens the door… @Aria Stormborn kicks it shut.", characters)).toEqual([cid("ariastorm")]);
   });
 
-  test("empty text / empty cast → no mentions", () => {
-    expect(resolveMentions("", cast)).toEqual([]);
+  test("empty text / empty characters → no mentions", () => {
+    expect(resolveMentions("", characters)).toEqual([]);
     expect(resolveMentions("@Aria", [])).toEqual([]);
   });
 
-  // #1439 — the boundary was `\b`, which JavaScript defines over ASCII `\w` even under the `u` flag. A cast
+  // #1439 — the boundary was `\b`, which JavaScript defines over ASCII `\w` even under the `u` flag. A character
   // name whose LAST character is not an ASCII word character therefore had no letter→non-letter transition
   // to assert at an ordinary `@Name ` and the mention silently did not resolve. This runs on every human turn.
-  describe("Unicode cast names resolve (the boundary is a property class, not \\b)", () => {
+  describe("Unicode character names resolve (the boundary is a property class, not \\b)", () => {
     const world = [
       { ref: charRef("cyr"), name: "Аня" },
       { ref: charRef("cjk"), name: "結衣" },

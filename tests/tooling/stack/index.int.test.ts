@@ -18,7 +18,7 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -40,6 +40,11 @@ const MANUAL_CLEANUP_INT_RE = /manual cleanup|relaunch/u;
  *  while the assertion never ran (#1040's lesson, one tier down). Two arms that predate #1162 flaked this
  *  way under lane load; the pre-#1162 sources timed the SAME, so the budget is the defect, not the code. */
 const IDENTITY_ARM_TIMEOUT_MS = scaledBudget(60_000);
+/** The same budget, for the arms that spawn `stack.sh` ITSELF (each invocation is a bash + a node
+ *  `classify` child, ~0.3-0.6s, and several per arm). Measured 2026-09-05: under lane load the posture and
+ *  GPU-probe arms both blew vitest's 5s default and reported TIMEOUTs that read exactly like assertion
+ *  reds — the identical trap this file's identity budget above was minted for. */
+const SHELL_ARM_TIMEOUT_MS = scaledBudget(60_000);
 
 interface Dispatch {
   readonly status: number;
@@ -651,7 +656,7 @@ function postureProbe(env: Record<string, string | undefined>): string {
   return (res.stdout ?? "").split("\n").find((line) => line.startsWith("POSTURE ")) ?? "";
 }
 
-test("a FALSY VLLM_DISABLED falls through to the pin/default — it never leaves engines.sh posture-less (#1618)", () => {
+test("a FALSY VLLM_DISABLED falls through to the pin/default — it never leaves engines.sh posture-less (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   // The defect, exactly: `false` used to consume the branch and export no posture at all.
   const line = postureProbe({ VLLM_DISABLED: "false" });
   expect(line).toContain("vllm-disabled=false");
@@ -661,14 +666,14 @@ test("a FALSY VLLM_DISABLED falls through to the pin/default — it never leaves
   expect(line, "…and it must NOT be the spawning posture").not.toContain("engines=adopt-or-start");
 });
 
-test("a TRUTHY VLLM_DISABLED maps EXPLICITLY to posture off, named by its source (#1618)", () => {
+test("a TRUTHY VLLM_DISABLED maps EXPLICITLY to posture off, named by its source (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   const line = postureProbe({ VLLM_DISABLED: "true" });
   expect(line).toContain("engines=off");
   expect(line).toContain("source=VLLM_DISABLED=true");
   expect(line).toContain("vllm-disabled=true");
 });
 
-test("VLLM_DISABLED is matched CASE-INSENSITIVELY — `TRUE` must not be rewritten to false (#1618 residual)", () => {
+test("VLLM_DISABLED is matched CASE-INSENSITIVELY — `TRUE` must not be rewritten to false (#1618 residual)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   // THE INVERSION THIS PINS: the case-sensitive first cut read `TRUE` as falsy, fell into the normalising
   // else-branch, and EXPORTED `VLLM_DISABLED=false` — an operator who spelled the spawn-safety switch in
   // caps got the opposite of what they asked for, silently, on the variable whose only job is "do not start
@@ -686,7 +691,7 @@ test("VLLM_DISABLED is matched CASE-INSENSITIVELY — `TRUE` must not be rewritt
   }
 });
 
-test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the SOURCE is printed (#1618)", () => {
+test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the SOURCE is printed (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   // A host export still wins outright (the e2e harness's adopt-only depends on it).
   expect(postureProbe({ ENGINES_POSTURE: "adopt-or-start", VLLM_DISABLED: "false" })).toContain("engines=adopt-or-start source=host");
   // Unset behaves exactly like the falsy case — that equivalence IS the fix. The key is DELETED, not
@@ -694,4 +699,278 @@ test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the
   const unset = postureProbe({ VLLM_DISABLED: undefined });
   const falsy = postureProbe({ VLLM_DISABLED: "false" });
   expect(unset.replace(/vllm-disabled=\S+/u, "")).toBe(falsy.replace(/vllm-disabled=\S+/u, ""));
+});
+
+// ── #1495: the GPU idle probe must not report idle for a probe that never ran ────────────────────────
+//
+// `force_teardown` printed "teardown complete — ports free, GPU idle" on the strength of `gpu_idle`,
+// whose whole body was a `while read` fed by `nvidia-smi … 2>/dev/null` in a process substitution: a
+// MISSING or ERRORING probe produced zero rows, the loop never ran, and control fell to an unconditional
+// `return 0`. The probe's failure was byte-identical to its success — VRAM reported idle without ever
+// being measured. RED-FIRST RECEIPT (2026-09-05, the original body replanted under the seam below): the
+// four failure arms and the absent-binary arm ALL answered `GPU code=0 text=GPU idle`.
+//
+// The one caller is force_teardown, which SIGKILLs the live dev stack and the whole vLLM fleet before it
+// ever asks — so it can never be driven here (`.claude/rules/lane-standing-facts.md`: the engines and the
+// live stack are off limits to a lane). `STACK_GPU_PROBE=1` is the seam, the `STACK_DISPATCH_PROBE`
+// convention: print the verdict, exit, spawn nothing, touch no port.
+const GPU_PROBE_LINE_RE = /^GPU code=(\d) text=(.*)$/mu;
+
+interface GpuProbe {
+  readonly code: string;
+  readonly text: string;
+}
+
+/** Drive stack.sh's GPU probe seam with `nvidia-smi` PLANTED as `body` (a bash script first on PATH).
+ *  `binDir` overrides PATH wholesale — the absent-binary arm hands in a symlink farm with no nvidia-smi. */
+function gpuProbe(opts: { readonly body?: string; readonly pathOverride?: string; readonly env?: Record<string, string> }): GpuProbe {
+  const home = mkdtempSync(path.join(tmpdir(), "orb-gpu-probe-"));
+  try {
+    const bin = path.join(home, "bin");
+    mkdirSync(bin, { recursive: true });
+    if (opts.body !== undefined) {
+      const fake = path.join(bin, "nvidia-smi");
+      writeFileSync(fake, `#!/usr/bin/env bash\n${opts.body}\n`, { mode: 0o755 });
+    }
+    const res: SpawnSyncReturns<string | null> = spawnSync("bash", [STACK_SH, "status"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ...opts.env,
+        STACK_GPU_PROBE: "1",
+        STACK_RUN_DIR: path.join(home, "run"),
+        PATH: opts.pathOverride ?? `${bin}:${process.env["PATH"] ?? ""}`,
+      },
+    });
+    const match = GPU_PROBE_LINE_RE.exec(res.stdout ?? "");
+    if (match === null) {
+      throw new Error(`the GPU probe seam printed no verdict line — stdout=${res.stdout ?? ""} stderr=${res.stderr ?? ""}`);
+    }
+    return { code: match[1] ?? "", text: match[2] ?? "" };
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+}
+
+test("a GPU probe that could not run is UNKNOWN, never idle (#1495)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
+  // The four shapes of "the probe did not measure anything", each of which used to read as idle.
+  expect(gpuProbe({ body: "exit 1" }).code, "a probe that exits non-zero measured nothing").toBe("2");
+  expect(gpuProbe({ body: 'echo "Unable to determine the device handle" >&2; exit 9' }).code, "a driver error measured nothing").toBe("2");
+  expect(gpuProbe({ body: "exit 0" }).code, "a probe that succeeded but printed NO rows measured no GPU").toBe("2");
+  expect(gpuProbe({ body: 'echo "[N/A]"' }).code, "a non-numeric row is not a VRAM reading").toBe("2");
+  // …and the UNKNOWN verdict says so out loud, with the operator's way forward.
+  expect(gpuProbe({ body: "exit 1" }).text).toContain("GPU UNKNOWN");
+  expect(gpuProbe({ body: "exit 1" }).text).toContain("STACK_GPU_CHECK=skip");
+});
+
+test("the GPU probe still answers idle/busy when it DOES measure (#1495 planted control)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
+  // The other direction: the refusal must not swallow a real reading, or force-restart never completes.
+  expect(gpuProbe({ body: "echo 0\necho 0" }).code, "two GPUs under the floor is idle").toBe("0");
+  expect(gpuProbe({ body: "echo 40000" }).code, "40GiB held is busy").toBe("1");
+  expect(gpuProbe({ body: "echo 0\necho 40000" }).code, "ONE busy GPU makes the fleet busy").toBe("1");
+  expect(gpuProbe({ body: "echo 1025" }).code, "one MiB over the 1024MiB floor is busy").toBe("1");
+  expect(gpuProbe({ body: "echo 1024" }).code, "exactly at the floor is still idle").toBe("0");
+});
+
+test("a host with no nvidia-smi is NOT-MEASURED (3), which is not the same fact as UNKNOWN (#1495)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
+  // A GPU-less dev box holds no fleet VRAM and must still be able to force-restart; "there is no driver"
+  // is a different fact from "the driver is here and would not answer", and only the latter refuses.
+  // PATH is replaced by a symlink farm of every real PATH entry MINUS nvidia-smi, so `command -v` really
+  // misses while bash/node/sed/curl stay reachable.
+  const farmHome = mkdtempSync(path.join(tmpdir(), "orb-gpu-farm-"));
+  try {
+    const farm = path.join(farmHome, "farm");
+    mkdirSync(farm, { recursive: true });
+    let linked = 0;
+    for (const dir of (process.env["PATH"] ?? "").split(":").filter((entry) => entry !== "")) {
+      if (!existsSync(dir)) {
+        continue;
+      }
+      for (const entry of readdirSync(dir)) {
+        if (entry === "nvidia-smi" || existsSync(path.join(farm, entry))) {
+          continue;
+        }
+        symlinkSync(path.join(dir, entry), path.join(farm, entry));
+        linked += 1;
+      }
+    }
+    // A farm that linked nothing would "prove" absence by breaking the shell instead — the zero-is-not-a-
+    // measurement floor.
+    expect(linked, "the PATH farm must actually contain the host's binaries").toBeGreaterThan(10);
+    expect(existsSync(path.join(farm, "bash")), "bash must survive the farm or the probe cannot run").toBe(true);
+    expect(existsSync(path.join(farm, "nvidia-smi")), "the farm's whole point is that nvidia-smi is missing").toBe(false);
+    expect(gpuProbe({ pathOverride: farm }).code).toBe("3");
+  } finally {
+    rmSync(farmHome, { recursive: true, force: true });
+  }
+});
+
+test("STACK_GPU_CHECK=skip opts out LOUDLY and never claims idle (#1495)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
+  // The escape hatch the UNKNOWN refusal owes an operator whose driver is wedged. It reports 3
+  // (not measured) — never 0 — even while a planted probe would have said busy.
+  const skipped = gpuProbe({ body: "echo 40000", env: { STACK_GPU_CHECK: "skip" } });
+  expect(skipped.code).toBe("3");
+  expect(skipped.text).toContain("not measured");
+});
+
+// ── #1013: a leaderless group is ADOPTED by its launch marker, or it is refused ──────────────────────
+//
+// Four receipts in one session (2026-09-01) came from one premise: ownership was written once at spawn and
+// never reconciled against the LIVING tree, so any leader death made the pidfile lie in both directions —
+// `engines:stop` refusing to signal engines it owned, and `stack start` refusing cleanup while its
+// detached tree carried on healthy. The fix does not weaken the standing rule (a survivor with no launch
+// identity signals nothing); it gives survivors an identity to carry. These drive the REAL entry through
+// real processes: a marked group adopts, one unmarked member refuses, and a pre-marker record refuses.
+const LAUNCH_MARKER_ENV = "ORB_STACK_LAUNCH_ID";
+const PLANTED_MARKER = "9f8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d";
+
+/** The leader body for the adoption arms: fork ONE child (optionally with the marker STRIPPED from its
+ *  environment — the unmarked-member control), publish its pid, then hang. */
+function leaderWithChild(pidFile: string, stripChildMarker: boolean): string {
+  const childEnv = stripChildMarker ? `(() => { const e = { ...process.env }; delete e[${JSON.stringify(LAUNCH_MARKER_ENV)}]; return e; })()` : "process.env";
+  return [
+    "const { spawn } = require('node:child_process');",
+    "const { writeFileSync } = require('node:fs');",
+    `const kid = spawn(process.execPath, ['-e', 'setInterval(() => undefined, 1e9)'], { stdio: 'ignore', env: ${childEnv} });`,
+    `writeFileSync(${JSON.stringify(pidFile)}, String(kid.pid));`,
+    "setInterval(() => undefined, 1e9);",
+  ].join("\n");
+}
+
+/** A disposable repo root whose CAPTURED leader carries `marker` (or none), plus its forked child's pid. */
+async function markedFakeLeader(opts: { readonly marker: string | null; readonly stripChildMarker: boolean }): Promise<{
+  readonly root: string;
+  readonly pid: number;
+  readonly childPid: number;
+}> {
+  const root = mkdtempSync(path.join(tmpdir(), "orb-dev-identity-1013-"));
+  mkdirSync(path.join(root, "tooling", "src", "stack"), { recursive: true });
+  const pidFile = path.join(root, "child.pid");
+  const env = { ...process.env };
+  if (opts.marker === null) {
+    delete env[LAUNCH_MARKER_ENV];
+  } else {
+    env[LAUNCH_MARKER_ENV] = opts.marker;
+  }
+  const child = spawn(
+    process.execPath,
+    ["-e", leaderWithChild(pidFile, opts.stripChildMarker), path.join(root, "tooling", "src", "stack", "stack.sh"), "_leader"],
+    {
+      cwd: root,
+      detached: true,
+      stdio: "ignore",
+      env,
+    },
+  );
+  await once(child, "spawn");
+  const pid = child.pid;
+  if (pid === undefined || pid <= 1) {
+    throw new Error("#1013 fixture: the disposable leader did not receive a safe pid");
+  }
+  // The capture reads the LEADER's own /proc environ, so the record's marker is proof about the process,
+  // never about the shell that asked.
+  const capture = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "capture", String(pid)], { cwd: root, encoding: "utf8", env });
+  expect(capture.status, `capture must own the fixture leader — got ${capture.stdout}${capture.stderr}`).toBe(0);
+  for (let i = 0; i < 100 && !existsSync(pidFile); i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return { root, pid, childPid: Number(readFileSync(pidFile, "utf8")) };
+}
+
+async function awaitGone(pid: number): Promise<boolean> {
+  for (let i = 0; i < 100; i += 1) {
+    if (!existsSync(`/proc/${pid}`)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
+}
+
+test("adopt-signal STOPS a leaderless group whose every member carries the launch marker (#1013)", { timeout: IDENTITY_ARM_TIMEOUT_MS }, async () => {
+  const { root, pid, childPid } = await markedFakeLeader({ marker: PLANTED_MARKER, stripChildMarker: false });
+  try {
+    // Kill ONLY the leader: the exact state that made `stack stop` refuse and every teardown end in a
+    // hand-run `kill -TERM -<pgid>`.
+    process.kill(pid, "SIGKILL");
+    await new Promise((resolve) => setTimeout(resolve, GROUP_EXIT_GRACE_MS));
+    expect(existsSync(`/proc/${pid}`), "the fixture leader must really be gone before the verdict is taken").toBe(false);
+    expect(existsSync(`/proc/${childPid}`), "…and its child must still be holding the group").toBe(true);
+
+    // The STANDING RULE first: the ordinary signal door still refuses, and still signals nothing.
+    const refused = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "signal", "SIGTERM"], { cwd: root, encoding: "utf8" });
+    expect(refused.status, "a dead leader must NOT authorize the ordinary signal door").toBe(1);
+    expect(refused.stdout).toMatch(MANUAL_CLEANUP_INT_RE);
+    expect(existsSync(`/proc/${childPid}`), "…and nothing may have been signalled by it").toBe(true);
+
+    // …then the stricter door, which has evidence the first one does not.
+    const adopted = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "adopt-signal", "SIGKILL"], { cwd: root, encoding: "utf8" });
+    expect(adopted.status, `a fully-marked group must adopt — said ${adopted.stdout}${adopted.stderr}`).toBe(0);
+    expect(adopted.stdout).toContain("verdict=adopted");
+    expect(await awaitGone(childPid), "the adopted group must actually die").toBe(true);
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("adopt-signal REFUSES a group holding ONE unmarked member, and signals nothing (#1013 planted control)", {
+  timeout: IDENTITY_ARM_TIMEOUT_MS,
+}, async () => {
+  // The reused-pgid / unrelated-joiner case: the leader was ours, but something in its group was not.
+  const { root, pid, childPid } = await markedFakeLeader({ marker: PLANTED_MARKER, stripChildMarker: true });
+  try {
+    process.kill(pid, "SIGKILL");
+    await new Promise((resolve) => setTimeout(resolve, GROUP_EXIT_GRACE_MS));
+
+    const refused = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "adopt-signal", "SIGKILL"], { cwd: root, encoding: "utf8" });
+    expect(refused.status, "one unmarked member must refuse the whole group").toBe(1);
+    expect(refused.stdout).toContain(String(childPid));
+    expect(refused.stdout).toMatch(MANUAL_CLEANUP_INT_RE);
+    expect(existsSync(`/proc/${childPid}`), "a refused group must be left completely untouched").toBe(true);
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("adopt-signal REFUSES a pre-#1013 record that carries no marker at all (#1013 planted control)", { timeout: IDENTITY_ARM_TIMEOUT_MS }, async () => {
+  // Every pidfile written before the marker existed lands here. The old refusal is the fallback.
+  const { root, pid, childPid } = await markedFakeLeader({ marker: null, stripChildMarker: false });
+  try {
+    process.kill(pid, "SIGKILL");
+    await new Promise((resolve) => setTimeout(resolve, GROUP_EXIT_GRACE_MS));
+
+    const refused = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "adopt-signal", "SIGKILL"], { cwd: root, encoding: "utf8" });
+    expect(refused.status).toBe(1);
+    expect(refused.stdout).toContain("no launch marker");
+    expect(existsSync(`/proc/${childPid}`), "an unmarkable group must be left untouched").toBe(true);
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("describe names the EVIDENCE behind the verdict, not just the state (#1013 receipt 1)", { timeout: IDENTITY_ARM_TIMEOUT_MS }, async () => {
+  // `status` used to print a pidfile group number, and a group id from a DIFFERENT era read exactly like
+  // the live one. Every basis below is a different answer to "how do you know".
+  const { root, pid, childPid } = await markedFakeLeader({ marker: PLANTED_MARKER, stripChildMarker: false });
+  try {
+    const live = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "describe"], { cwd: root, encoding: "utf8" });
+    expect(live.status).toBe(0);
+    expect(live.stdout).toContain("basis=leader-identity");
+    expect(live.stdout).toContain("witnessed");
+
+    process.kill(pid, "SIGKILL");
+    await new Promise((resolve) => setTimeout(resolve, GROUP_EXIT_GRACE_MS));
+    const adoptable = spawnSync(process.execPath, [DEV_IDENTITY_ENTRY, "describe"], { cwd: root, encoding: "utf8" });
+    expect(adoptable.status, "an adoptable group is not a problem state").toBe(0);
+    expect(adoptable.stdout).toContain("basis=adoptable");
+    expect(adoptable.stdout).toContain(String(childPid));
+    // …and describing is non-destructive: it reads /proc and signals nothing.
+    expect(existsSync(`/proc/${childPid}`)).toBe(true);
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
+  }
 });

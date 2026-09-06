@@ -35,8 +35,8 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
-import { characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The canon present at claim (slots + every variant), the delta replay's input. */
@@ -143,10 +143,10 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
     if (candidate === undefined) {
       return;
     }
-    const roster = await loadRoster(ctx.db, chatId);
+    const participants = await loadParticipants(ctx.db, chatId);
     // D18: the room has no owner column — the stats owner is the HOST SEAT, looked up from the loaded
-    // roster (`substrate/roster-host`, the one home for role→identity), never an owner comparison.
-    const hostUserId = hostUserIdOf(roster);
+    // roster (`substrate/participants-host`, the one home for role→identity), never an owner comparison.
+    const hostUserId = hostUserIdOf(participants);
     // A hostless room (an archived orphan / a racing delete) has nobody to attribute economics to, so the
     // replay is skipped — but the visibility flip still lands: the row is claimed either way.
     const statements: BatchStmt[] = [
@@ -159,7 +159,7 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
       ),
     ];
     if (hostUserId !== null) {
-      const characterIds = roster.flatMap((r) => {
+      const characterIds = participants.flatMap((r) => {
         const actor = classifyParticipant(r);
         return actor?.kind === "character" ? [actor.characterId] : [];
       });

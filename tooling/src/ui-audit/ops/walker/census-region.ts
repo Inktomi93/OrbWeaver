@@ -264,7 +264,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
     // loudness against an unmeasured one is the fabricated comparison #987 refuses.
     if (unfilled > 0 || authoredCohort.some(function (entry) { return entry.contrast === null || entry.context === null; })) {
       relationalAccounting["quiet-state"].candidates += 1;
-      withholdRelational(relationalAccounting["quiet-state"], "unresolved");
+      withholdRelational(relationalAccounting["quiet-state"], "unresolved", authoredCohort[0].selector);
       return;
     }
     var byContext = new Map();
@@ -304,11 +304,11 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
         return;
       }
       if (on === 0) {
-        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOff");
+        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOff", cohort[0].selector);
         return;
       }
       if (off === 0 || offSelector === null) {
-        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOn");
+        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOn", cohort[0].selector);
         return;
       }
       relationalAccounting["quiet-state"].judged += 1;

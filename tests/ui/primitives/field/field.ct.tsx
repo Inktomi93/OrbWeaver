@@ -120,6 +120,53 @@ test("two hinted fields on one surface get DISTINCT hint-trigger accnames", asyn
   await expect(page.getByRole("button", { name: "More info about Notes" })).toBeVisible();
 });
 
+// THE HINT'S TOUCH PSEUDO MUST CLEAR THE LABEL, AND NOTHING PINNED IT (#871 → #1286).
+//
+// `HintTrigger` renders `size="inline"` here: a 12px icon box whose layout-neutral touch-target `::after`
+// (button/variants.ts's `inline` arm) is centred on the box and reaches `(touch-target − 12)/2` past each
+// edge — 8px at a fine pointer. `labelRow`'s `gap-field` (6px) left 2px of that pseudo painted over the
+// adjacent label TEXT, and a pseudo does NOT self-report to `elementFromPoint` (measured, #807), so the
+// point resolved to the label span. design-audit read that as "another element's text owns this pixel" and
+// filed NINE P1 `tap-target` rows at 22×22 on the presets editor — the auditor was RIGHT and the surface
+// was the defect. #1286 (08e2b0436) fixed it with `pointer-fine:gap-row` (8px — reach 8, overlap 0) and
+// shipped NO geometry pin, so re-spelling that one utility back to `gap-field` would silently re-open all
+// nine.
+//
+// This asserts the AFFORDANCE, not the class: a pointer just inside the pseudo's near edge must land on
+// something that CONTAINS the trigger, which is exactly the ownership question the auditor asks. Fine
+// pointer is the arm under test — at a coarse pointer `HintTrigger` swaps to a real `size-touch-target`
+// box that occupies flex space, so 6px was always correct there and this row measures nothing.
+test("the hint trigger's touch pseudo clears the label text, so its near edge is still the trigger's", async ({ mount, page }) => {
+  await mount(
+    <Field hint="Saved every 30 seconds" label="Display name">
+      <Input />
+    </Field>,
+  );
+  const probe = await page.evaluate(() => {
+    const trigger = document.querySelector('[data-slot="hint-trigger"]');
+    if (!(trigger instanceof HTMLElement) || trigger.parentElement === null) {
+      throw new Error("no hint trigger rendered");
+    }
+    const rect = trigger.getBoundingClientRect();
+    const reach = Number.parseFloat(getComputedStyle(trigger, "::after").width) / 2;
+    // One pixel INSIDE the pseudo's near edge — the widest point the trigger can still claim.
+    const hit = document.elementFromPoint(rect.left + rect.width / 2 - (reach - 1), rect.top + rect.height / 2);
+    return {
+      boxPx: Math.round(Math.min(rect.width, rect.height)),
+      pseudoWidthPx: Math.round(reach * 2),
+      labelRowGap: getComputedStyle(trigger.parentElement).columnGap,
+      hitOwnsTrigger: hit !== null && (hit === trigger || hit.contains(trigger)),
+      hitText: (hit?.textContent ?? "").trim().slice(0, 40),
+    };
+  });
+  // The anatomy this row is about, stated so a failure names which half moved.
+  expect(probe.boxPx, "the inline arm keeps the 12px icon box — a control height would shear the row").toBe(12);
+  expect(probe.pseudoWidthPx, "the fine-pointer touch pseudo is 28px, an 8px reach past each edge of the box").toBe(28);
+  expect(probe.labelRowGap, "labelRow's fine-pointer gap must be gap-row (8px), not gap-field (6px) — #1286").toBe("8px");
+  // The verdict: no other element's text sits under the pseudo's near edge.
+  expect(probe.hitOwnsTrigger, `the label paints over the hint's touch target — hit carried "${probe.hitText}"`).toBe(true);
+});
+
 test("a hinted field with no label falls back to the plain 'More info' name", async ({ mount, page }) => {
   await mount(
     <Field hint="Saved every 30 seconds" label="">

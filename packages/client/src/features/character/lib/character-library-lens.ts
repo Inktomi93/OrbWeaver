@@ -52,15 +52,12 @@ export function loadedProgressLabel(loaded: number, totalCount: number | null): 
   return totalCount === null || loaded >= totalCount ? null : `${String(loaded)} of ${String(totalCount)} loaded`;
 }
 
-/** What the GROUP-BY-TAG mode says about its own scope, or `null` when the loaded set IS the matched set —
- *  the buckets are then library facts and need no caveat. The rest of the reasoning is at the render site
- *  (`character-categorized-list.tsx`'s `PartialGroupingNotice`): the counts describe the paged-in rows, and
- *  a bucket count that re-forms as you scroll is worse than none unless it says what it is counting. */
-export function partialGroupingLabel(loaded: number, totalCount: number | null): string | null {
-  return totalCount === null || loaded >= totalCount
-    ? null
-    : `Grouping the ${String(loaded)} of ${String(totalCount)} characters loaded so far — the counts below are this page's, not the library's.`;
-}
+// `partialGroupingLabel` USED TO LIVE HERE and is gone with the defect it described (#1696). It was the
+// blanket caveat over the categorized view — "the counts below are this page's, not the library's" — which
+// was the honest thing to say while the counts really were the page's. The counts are the server's census
+// now (`character.listTagGroups`), so a sentence disclaiming them would be false; what survives of #493's
+// ruling is the PER-BUCKET loaded-vs-total note, which `character-categorized-list.tsx` renders from the
+// group's own numbers and therefore needs no derivation here.
 
 /**
  * REFERENTIAL INTEGRITY FOR THE PERSISTED FILTER (staleness-and-session-freshness.md §4.2.2, W5) — the tag
