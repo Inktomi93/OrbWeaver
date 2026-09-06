@@ -1,6 +1,12 @@
 // CommandChip — the topbar's ⌘K affordance (chip + "jump" label + divider), extracted from app-shell
 // when that file crossed the component-size cap. Desktop-shaped by ruling (see the doc comment below);
 // the You sheet carries the same command modal on a phone.
+//
+// IT IS NOW THE TRAIL'S MODAL PRESENTATION, not a sibling of the trail (#1789): `topbar-trail.tsx` renders
+// it for a `topbar.trail` chrome entry whose behavior is `modal`, so the chip's PRESENCE and its POSITION
+// are the registry's answers. Both props it used to need died with the lookup that fed them — the modal id
+// is the entry's, and the desktop-only `show` is the entry's own `mobile: "sheet"` curation, applied by the
+// zone's one filter instead of a second viewport read here.
 
 import { Button } from "@orb/ui/button";
 import { Kbd } from "@orb/ui/kbd";
@@ -13,10 +19,7 @@ import { openModal } from "#state";
 /** The ⌘K chip — DESKTOP-SHAPED (side-eye P1's budget): a phone has no ⌘K key, and at 320px this chip plus
  *  its divider was ~60px of a row that had none to give. Nothing is lost: the You sheet carries the same
  *  command modal as a named row (you-sheet.tsx), which is where every other overflow affordance lives. */
-export function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefined; readonly show: boolean }): ReactNode {
-  if (!show) {
-    return null;
-  }
+export function CommandChip({ modalId }: { readonly modalId: ModalSlotId }): ReactNode {
   return (
     <>
       <Tooltip>
@@ -40,11 +43,7 @@ export function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId |
               // the chip out loud gets a match either way now, and the trailing clause still says what
               // activating it does.
               aria-label="⌘K jump — the command menu"
-              onClick={(): void => {
-                if (modalId !== undefined) {
-                  openModal(modalId);
-                }
-              }}
+              onClick={(): void => openModal(modalId)}
             >
               <Kbd>⌘K</Kbd>
               {/* THE SEPARATING TEXT NODE (side-eye rail-home P3-3, 2026-08-22) — and it is not cosmetic.

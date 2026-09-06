@@ -12,12 +12,17 @@
 // A REGISTRATION CENSUS, NOT A VISIBILITY ONE — `list()` returns what the door registered, and
 // `character-create` declares `useVisible` (mobile + the characters section + a docked list). This probe
 // never calls it; the entry is here because it is REGISTERED, on every viewport.
+//
+// `command` LEADS THE ZONE (#1789): the ⌘K palette is a real chrome entry now — a `topbar.trail` MODAL
+// trigger derived from `commandModal`, not a bespoke chip the topbar looked up for itself — and its
+// `trigger.order: -10` is where its lead position is spelled. That it appears in a WIDGET census is the
+// point: the zone holds entries, not widgets.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ChromeRegistryProbe } from "./_ct-stories.tsx";
 
-test("useChromeRegistry resolves the real registered topbar.trail widgets inside the provider", async ({ mount }) => {
+test("useChromeRegistry resolves the real registered topbar.trail entries inside the provider", async ({ mount }) => {
   const probe = await mount(<ChromeRegistryProbe />);
   const out = probe.locator("output");
-  await expect(out).toContainText("ids=notifications-bell,character-create,fullscreen-toggle,context-toggle");
+  await expect(out).toContainText("ids=command,notifications-bell,character-create,fullscreen-toggle,context-toggle");
 });
