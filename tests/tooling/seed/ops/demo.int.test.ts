@@ -9,7 +9,21 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assets, characters, chatParticipants, chats, documentChunks, users } from "@orb/db";
+import {
+  assets,
+  characterRegexScripts,
+  characters,
+  chatParticipants,
+  chatRegexScripts,
+  chats,
+  documentChunks,
+  globalRegexScripts,
+  presetRegexScripts,
+  regexScripts,
+  rosterPresetMembers,
+  rosterPresets,
+  users,
+} from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNotNull } from "drizzle-orm";
@@ -90,6 +104,24 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
   // The databank document ingested into at least one embedded chunk (the vector write path ran).
   const chunkCount = await db.$count(documentChunks);
   expect(chunkCount).toBeGreaterThan(0);
+
+  // Regex scripts: 4 rows total, one attached at EACH of the four tiers (#1725 boards 04/05, #1742's
+  // room Regex section) — a fresh demo db must show every tier populated, not just the global rack.
+  expect(await db.$count(regexScripts)).toBeGreaterThanOrEqual(4);
+  expect(await db.$count(globalRegexScripts)).toBeGreaterThanOrEqual(1);
+  expect(await db.$count(characterRegexScripts)).toBeGreaterThanOrEqual(1);
+  expect(await db.$count(presetRegexScripts)).toBeGreaterThanOrEqual(1);
+  expect(await db.$count(chatRegexScripts)).toBeGreaterThanOrEqual(1);
+
+  // The disabled script stays disabled through the create + attach — a seeder that dropped `enabled:
+  // false` on the way to the row would silently turn a parked script live.
+  const disabledRows = await db.select({ enabled: regexScripts.enabled }).from(regexScripts).where(eq(regexScripts.enabled, false));
+  expect(disabledRows.length).toBeGreaterThanOrEqual(1);
+
+  // Saved rosters: at least 2 rows, with at least one member each (through the roster-preset library
+  // door, not a raw insert).
+  expect(await db.$count(rosterPresets)).toBeGreaterThanOrEqual(2);
+  expect(await db.$count(rosterPresetMembers)).toBeGreaterThanOrEqual(3);
 });
 
 test("resolveSeedVllmDisabled: matches the same force-off-OR-no-GPU derivation boot uses", () => {
