@@ -89,7 +89,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/identity/index.ts": "export interface Principal {\n  readonly userId: string;\n}\n",
         "packages/server/src/domain/chat/engine/a.ts":
-          'import type { Principal } from "../../../../../../contracts/src/identity/index.ts";\nexport const p: Principal = { userId: "u" };\n',
+          'import type { Principal } from "../../../../../contracts/src/identity/index.ts";\nexport const p: Principal = { userId: "u" };\n',
       },
       expect: { count: 1, token: "Principal" },
       why: "the founding shape — the caller's identity TYPE named inside the engine, which is how the id reaches a wallet lookup",
@@ -99,7 +99,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/identity/index.ts": "export interface Principal {\n  readonly userId: string;\n}\n",
         "packages/server/src/domain/chat/engine/alias.ts":
-          'import type { Principal as Caller } from "../../../../../../contracts/src/identity/index.ts";\nexport const p: Caller = { userId: "u" };\n',
+          'import type { Principal as Caller } from "../../../../../contracts/src/identity/index.ts";\nexport const p: Caller = { userId: "u" };\n',
       },
       expect: { count: 1, token: "Principal" },
       why: "AN IMPORT ALIAS is the same type — the identity arm keys on the canonical declaration, so renaming the binding is not an escape",
@@ -110,7 +110,7 @@ export const gate = defineGate({
         "packages/contracts/src/identity/index.ts": "export interface Principal {\n  readonly userId: string;\n}\n",
         "packages/contracts/src/index.ts": 'export type { Principal } from "./identity/index.ts";\n',
         "packages/server/src/domain/chat/engine/reexport.ts":
-          'import type { Principal } from "../../../../../../contracts/src/index.ts";\nexport const p: Principal = { userId: "u" };\n',
+          'import type { Principal } from "../../../../../contracts/src/index.ts";\nexport const p: Principal = { userId: "u" };\n',
       },
       expect: { count: 1, token: "Principal" },
       why: "A RE-EXPORT through the contracts barrel is the same declaration — the barrel is not a laundry for a blindness rule",
@@ -145,7 +145,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/identity/index.ts": "export interface Principal {\n  readonly userId: string;\n}\n",
         "packages/server/src/domain/chat/verbs/c.ts":
-          'import type { Principal } from "../../../../../../contracts/src/identity/index.ts";\nexport function ok(principal: Principal): string {\n  return principal.userId;\n}\n',
+          'import type { Principal } from "../../../../../contracts/src/identity/index.ts";\nexport function ok(principal: Principal): string {\n  return principal.userId;\n}\n',
         "packages/server/src/domain/chat/engine/quiet.ts": "export const quiet = 1;\n",
       },
       why: "the VERB LAYER legitimately holds the caller's Principal and names it — only `engine/**` is blind, and the engine file in the same fixture stays silent",
@@ -163,7 +163,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/identity/index.ts": "export interface Principal {\n  readonly userId: string;\n}\n",
         "packages/server/src/domain/chat/engine/waived.ts":
-          '// @orb-waive turn-identity(Principal): the engine\'s own re-export shim during the D19 migration; ends when the shim is deleted.\nimport type { Principal } from "../../../../../../contracts/src/identity/index.ts";\nexport type P = Principal;\n',
+          '// @orb-waive turn-identity(Principal): the engine\'s own re-export shim during the D19 migration; ends when the shim is deleted.\nimport type { Principal } from "../../../../../contracts/src/identity/index.ts";\nexport type P = Principal;\n',
       },
       why: "the ONE central positioned waiver naming the exact reported token, per arm — the identity arm's token is `Principal`, the vocabulary arm's is `principal`",
     },

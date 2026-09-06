@@ -1,136 +1,187 @@
-// Gate: no-handwritten-wire-json-schema (core/Core-Path-Registry.md D79) — the T6 seal. After the
-// structured-output UNIFICATION WAVE there is exactly ONE way to fill a wire `schema` field: project a zod
-// schema through `@orb/kit/json-schema` `projectJsonSchema`. A hand-authored JSON-Schema literal
-// (`schema: { type: "object", ... }`) passed to a `responseFormat`/wire `schema` field is the retired debt —
-// RED. The projected value is a CALL (`schema: projectJsonSchema(x)`) or a spread of an already-projected
-// schema (`schema: { ...format.schema }`), neither of which carries a literal `type: "object"` member, so the
-// live translators + migrated consumers stay green; only a reintroduced hand-authored literal bites.
-import type { Identifier, ObjectLiteralExpression } from "ts-morph";
+// core/Core-Path-Registry.md D79 — the T6 seal. After the structured-output unification wave there is
+// exactly ONE way to fill a wire `schema` field: project a zod schema through `@orb/kit/json-schema`
+// `projectJsonSchema`. A hand-authored JSON-Schema literal is the retired debt. Both reads are shared: the
+// field NAME through the member/static readers (so a computed `["schema"]` key is the same field) and the
+// VALUE through the stable-binding resolver, which follows a const or an imported constant to the literal
+// it names — the indirection the legacy same-file-only arm could not cross. Limits live in mustPass.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
 
-/** Strip `as`/`satisfies`/parenthesized wraps so the reader isn't blinded to the underlying literal. */
-function unwrap(node: Node | undefined): Node | undefined {
-  let n = node;
-  while (n !== undefined && (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n))) {
-    n = n.getExpression();
+const SCHEMA_KEY = "schema";
+const TYPE_KEY = "type";
+const OBJECT_TYPE = "object";
+
+const MESSAGE =
+  "a hand-authored JSON-Schema literal is passed to a wire `schema` field — after the D79 unification wave " +
+  "the ONE source of a wire schema is `projectJsonSchema` (zod → JSON Schema). Core-Path-Registry.md D79.";
+
+const FIX =
+  'declare a zod payload schema and project it: `schema: projectJsonSchema(payloadSchema)` — never a hand-authored `{ type: "object", ... }` literal.';
+
+/** Legacy `scanRoot` admitted `packages/{server,contracts,kit}/src` minus every `.test.` and `.test-d.`
+ *  path (its `scripts/` clause was already unreachable under those three prefixes). */
+const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit"], notNamed: ["*.test.*", "*.test-d.*"], ext: ["ts", "tsx"] } as const;
+
+/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */
+function propertyName(property: MorphNode): string | null {
+  if (!Node.isPropertyAssignment(property)) {
+    return null;
   }
-  return n;
+  const nameNode = property.getNameNode();
+  if (Node.isIdentifier(nameNode)) {
+    return nameNode.getText();
+  }
+  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
+    return nameNode.getLiteralText();
+  }
+  if (!Node.isComputedPropertyName(nameNode)) {
+    return null;
+  }
+  const computed = readStaticString(nameNode.getExpression());
+  return computed.kind === "resolved" ? computed.value : null;
 }
 
-/** Resolve a MODULE-LOCAL `const NAME = <initializer>` in the same file to its unwrapped initializer — the
- *  identifier-indirect debt shape (`const S = { type: "object", … }; … schema: S`, exactly how all three
- *  retired sites spelled it). An IMPORTED identifier has no local declaration here → undefined (LEGAL: a
- *  `projectJsonSchema(x)` result const resolves to a CallExpression, not an object literal, and a shared
- *  import isn't this gate's concern). One level of indirection is the documented shape; deeper re-aliasing
- *  is not the debt. Wraps on the const's initializer are stripped by `unwrap`. */
-function localConstInitializer(id: Identifier): Node | undefined {
-  const name = id.getText();
-  const decls = id.getSourceFile().getVariableDeclarations();
-  const decl = decls.find((d) => d.getName() === name);
-  return decl === undefined ? undefined : unwrap(decl.getInitializer());
+/** The terminal expression a value names, following stable bindings through consts and imports. A value the
+ *  shared reader refuses (a call, a member read) is returned unchanged, which is what keeps a projected
+ *  `projectJsonSchema(...)` result out of the object-literal arm below. */
+function terminalValue(node: MorphNode): MorphNode {
+  const stable = resolveStableExpression(node);
+  return stable.kind === "resolved" ? stable.value : node;
 }
 
-/** True when `value` is a hand-authored wire-schema literal — either inline, or the identifier-indirect
- *  form resolved to a module-local const carrying `type: "object"`. */
-function isHandwrittenWireSchema(value: Node | undefined): boolean {
-  if (value === undefined) {
+/** Does this object literal carry the `type: "object"` member that marks a hand-authored JSON Schema? Both
+ *  halves go through the shared readers, so a computed key and a const-held `"object"` still count. */
+function isJsonSchemaObjectLiteral(value: MorphNode): boolean {
+  if (!Node.isObjectLiteralExpression(value)) {
     return false;
   }
-  if (Node.isObjectLiteralExpression(value)) {
-    return isJsonSchemaObjectLiteral(value);
-  }
-  if (Node.isIdentifier(value)) {
-    const resolved = localConstInitializer(value);
-    return resolved !== undefined && Node.isObjectLiteralExpression(resolved) && isJsonSchemaObjectLiteral(resolved);
-  }
-  return false;
+  return value.getProperties().some((property) => {
+    if (!Node.isPropertyAssignment(property) || propertyName(property) !== TYPE_KEY) {
+      return false;
+    }
+    const initializer = property.getInitializer();
+    if (initializer === undefined) {
+      return false;
+    }
+    const literal = readStaticString(initializer);
+    return literal.kind === "resolved" && literal.value === OBJECT_TYPE;
+  });
 }
 
-/** True when the object literal carries a `type: "object"` member — the tell of a hand-authored JSON Schema. */
-function isJsonSchemaObjectLiteral(obj: ObjectLiteralExpression): boolean {
-  for (const prop of obj.getProperties()) {
-    if (!Node.isPropertyAssignment(prop) || prop.getName() !== "type") {
-      continue;
-    }
-    const value = unwrap(prop.getInitializer());
-    if (value !== undefined && Node.isStringLiteral(value) && value.getLiteralText() === "object") {
-      return true;
-    }
-  }
-  return false;
-}
-
-export const gate: GateDescriptor = {
-  name: "no-handwritten-wire-json-schema",
-  docRow: "core/Core-Path-Registry.md D79",
-  status: "active",
-  scopeSafety: "incremental-safe", // per-file: a `schema:` literal is judged entirely within its own file
-  message:
-    "a hand-authored JSON-Schema literal is passed to a wire `schema` field — after the D79 unification wave the ONE source of a wire schema is `projectJsonSchema` (zod → JSON Schema). Core-Path-Registry.md D79.",
-  fix: 'declare a zod payload schema and project it: `schema: projectJsonSchema(payloadSchema)` — never a hand-authored `{ type: "object", ... }` literal.',
-  // The wire/model-facing schemas live in server/contracts/kit; tests legitimately build wire shapes for
-  // assertions, and the gate corpus's own EXAMPLE strings are fixtures — exclude all three.
-  scanRoot: (p) =>
-    (p.startsWith("packages/server/src/") || p.startsWith("packages/contracts/src/") || p.startsWith("packages/kit/src/")) &&
-    !p.includes(".test.") &&
-    !p.includes(".test-d.") &&
-    !p.startsWith("scripts/"),
-  kinds: [SyntaxKind.PropertyAssignment],
-  visit: (node, _sf, ctx) => {
-    if (!Node.isPropertyAssignment(node) || node.getName() !== "schema") {
-      return;
-    }
-    if (isHandwrittenWireSchema(unwrap(node.getInitializer()))) {
-      ctx.report(node, { token: "schema", offset: 0 });
-    }
-  },
+export const gate = defineGate({
+  id: "no-handwritten-wire-json-schema",
+  family: "no-handwritten-wire-json-schema",
+  authority: "ordinary",
+  severity: "error",
+  population: WIRE_HOME_POPULATION,
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.PropertyAssignment],
+        visit: (node) => {
+          if (!Node.isPropertyAssignment(node) || propertyName(node) !== SCHEMA_KEY) {
+            return;
+          }
+          const initializer = node.getInitializer();
+          if (initializer === undefined || !isJsonSchemaObjectLiteral(terminalValue(initializer))) {
+            return;
+          }
+          const nameNode = node.getNameNode();
+          ctx.report.node(nameNode, { token: SCHEMA_KEY, offset: nameNode.getText().indexOf(SCHEMA_KEY) });
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const rf = { name: "x", schema: { type: "object", properties: {} } };\n',
-      at: "packages/server/src/domain/x/verbs/y.ts",
-      expect: { messageIncludes: "hand-authored JSON-Schema literal" },
-      why: 'a hand-authored `schema: { type: "object" }` literal on a ResponseFormat — the retired debt (D79)',
+      mode: "types",
+      files: { "packages/server/src/domain/x/verbs/y.ts": 'export const rf = { name: "x", schema: { type: "object", properties: {} } };\n' },
+      expect: { count: 1, token: "schema" },
+      why: 'the founding shape — a hand-authored `schema: { type: "object" }` literal on a ResponseFormat, the retired D79 debt',
     },
     {
-      files: 'export const rf = { name: "x", schema: { type: "object", properties: {} } as const };\n',
-      at: "packages/contracts/src/z.ts",
-      expect: { messageIncludes: "hand-authored JSON-Schema literal" },
-      why: "the same literal behind an `as const` wrap — the reader unwraps it, no silent GREEN",
+      mode: "types",
+      files: { "packages/contracts/src/z.ts": 'export const rf = { name: "x", schema: { type: "object", properties: {} } as const };\n' },
+      expect: { count: 1, token: "schema" },
+      why: "the same literal behind an `as const` wrap — the shared reader unwraps it, so the wrapper is no silent green",
     },
     {
-      files: 'const S = { type: "object", properties: {} };\nexport const rf = { name: "x", schema: S };\n',
-      at: "packages/server/src/domain/x/verbs/y.ts",
-      expect: { messageIncludes: "hand-authored JSON-Schema literal" },
-      why: "the identifier-indirect shape — a module-local const passed by reference, EXACTLY how all three retired sites spelled it; resolving the local decl closes the silent-GREEN gap (D79)",
+      mode: "types",
+      files: { "packages/server/src/domain/x/verbs/local.ts": 'const S = { type: "object", properties: {} };\nexport const rf = { name: "x", schema: S };\n' },
+      expect: { count: 1, token: "schema" },
+      why: "the identifier-indirect shape — a module-local const passed by reference, EXACTLY how all three retired sites spelled it",
     },
     {
-      files: 'const S = { type: "object", properties: {} } as const;\nexport const rf = { name: "x", schema: S };\n',
-      at: "packages/contracts/src/z.ts",
-      expect: { messageIncludes: "hand-authored JSON-Schema literal" },
-      why: "identifier-indirect with an `as const` wrap on the CONST's initializer — unwrapped after resolution, still bites",
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/shared.ts": 'export const SHARED_SCHEMA = { type: "object", properties: {} };\n',
+        "packages/server/src/domain/x/verbs/imported.ts":
+          'import { SHARED_SCHEMA } from "./shared.ts";\nexport const rf = { name: "x", schema: SHARED_SCHEMA };\n',
+      },
+      expect: { count: 1, token: "schema" },
+      why: "AN IMPORTED hand-authored literal is the same retired debt, moved one file away. The legacy reader resolved only same-file consts and declared imports 'not this gate's concern', which made an extraction the escape hatch — a DELIBERATE widening, recorded here and measured on the real tree",
+    },
+    {
+      mode: "types",
+      files: { "packages/kit/src/x/computed.ts": 'export const rf = { name: "x", ["schema"]: { type: "object" } };\n' },
+      expect: { count: 1, token: "schema" },
+      why: "a COMPUTED key names the same wire field, and a computed `type` key would hide the tell just as well — both go through the shared name reader now",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/const-type.ts":
+          'const OBJECT = "object";\nexport const rf = { name: "x", schema: { type: OBJECT, properties: {} } };\n',
+      },
+      expect: { count: 1, token: "schema" },
+      why: "the `type` value held in a CONST — the legacy reader required a StringLiteral node at that exact position and answered no to a binding",
     },
   ],
   mustPass: [
     {
-      files: 'export const rf = { name: "x", schema: projectJsonSchema(payloadSchema) };\n',
-      at: "packages/server/src/domain/x/verbs/y.ts",
-      why: "the ONE sanctioned form — the schema is projected from a zod schema, not hand-authored",
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/projected.ts":
+          'declare function projectJsonSchema(input: unknown): unknown;\ndeclare const payloadSchema: unknown;\nexport const rf = { name: "x", schema: projectJsonSchema(payloadSchema) };\n',
+      },
+      why: "the ONE sanctioned form — the schema is PROJECTED from a zod schema, and a call is not an object literal at any number of binding hops",
     },
     {
-      files: "export const body = { json_schema: { name: format.name, schema: { ...format.schema } } };\n",
-      at: "packages/server/src/infra/providers/backends/kit/wire.ts",
-      why: 'a translator spreading an already-projected schema — no literal `type: "object"` member, passes',
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/backends/kit/wire.ts":
+          "declare const format: { readonly name: string; readonly schema: Record<string, unknown> };\nexport const body = { json_schema: { name: format.name, schema: { ...format.schema } } };\n",
+      },
+      why: 'a translator SPREADING an already-projected schema carries no literal `type: "object"` member — the live wire-translation shape, and the reason the tell is the member rather than the shape of the object',
     },
     {
-      files: 'const S = projectJsonSchema(payloadSchema);\nexport const rf = { name: "x", schema: S };\n',
-      at: "packages/server/src/domain/x/verbs/y.ts",
-      why: "a projected schema held in a local const passed by reference — the const resolves to a CALL, not a literal; the sanctioned form survives the indirect-resolution arm",
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/projected-const.ts":
+          'declare function projectJsonSchema(input: unknown): unknown;\ndeclare const payloadSchema: unknown;\nconst S = projectJsonSchema(payloadSchema);\nexport const rf = { name: "x", schema: S };\n',
+      },
+      why: "a projected schema held in a local const still resolves to a CALL, not a literal — the sanctioned form survives the indirection arm the widening above adds",
     },
     {
-      files: 'import { SHARED_SCHEMA } from "./shared.ts";\nexport const rf = { name: "x", schema: SHARED_SCHEMA };\n',
-      at: "packages/server/src/domain/x/verbs/y.ts",
-      why: "an IMPORTED identifier — no module-local declaration to resolve; imports are LEGAL (not this gate's concern), so it must not bite",
+      mode: "types",
+      files: { "packages/contracts/src/array-schema.ts": 'export const rf = { name: "x", schema: { type: "array", items: {} } };\n' },
+      why: 'DECLARED LIMIT — the tell is `type: "object"`, the shape every retired site had. A non-object JSON-Schema literal is out of subject rather than silently in it',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/waived.ts":
+          '// @orb-waive no-handwritten-wire-json-schema(schema): a fixed provider handshake shape that has no zod source to project from; ends when the provider contract is modelled.\nexport const rf = { name: "x", schema: { type: "object", properties: {} } };\n',
+      },
+      why: "the ONE central positioned waiver naming the exact reported field — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
     },
   ],
-};
+});
