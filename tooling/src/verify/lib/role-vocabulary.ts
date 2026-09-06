@@ -95,11 +95,31 @@ function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
   return members.size === 0 ? undefined : members;
 }
 
-/** Does the read's own TYPE name exactly this vocabulary? Exact set equality on purpose: a proper subset is
- *  either a narrowed binding (not a lattice comparison) or a DIFFERENT axis that happens to overlap. */
-export function readIsOnAxis(read: MorphNode, vocabulary: ReadonlySet<string>): boolean {
+/** The three answers a caller needs, and the reason this is not a boolean. A boolean forced the two role
+ *  policies to fail OPEN on everything the checker could not close: a read typed `any`, a read typed plain
+ *  `string`, and a read whose type is a strict SUPERSET of the vocabulary all passed silently, while the
+ *  legacy hardcoded-literal readers caught the `string` case. Only a CLOSED literal union that provably
+ *  omits a vocabulary member is another axis; everything else is fail-closed evidence. */
+export type RoleAxisVerdict = "on-axis" | "foreign" | "unreadable";
+
+/** Judge a role read against one vocabulary.
+ *
+ *  - `on-axis` — the read's literal members are EXACTLY the vocabulary.
+ *  - `unreadable` — the checker resolved no closed literal union (`any`, `unknown`, `string`, a call result),
+ *    or resolved a strict SUPERSET that still carries the whole vocabulary (`ParticipantRole | "observer"`).
+ *    Both cases MIGHT be the lattice, so the caller reports them.
+ *  - `foreign` — a closed literal union missing at least one vocabulary member: the message-row axis, a
+ *    StreamAuthority tier, `"host" | "guest"`. A narrowed binding lands here too, which is the ONE declared
+ *    narrowing (a value already narrowed to a single member is not a lattice comparison). */
+export function readAxisVerdict(read: MorphNode, vocabulary: ReadonlySet<string>): RoleAxisVerdict {
   const members = literalMembers(read);
-  return members !== undefined && members.size === vocabulary.size && [...members].every((member) => vocabulary.has(member));
+  if (members === undefined) {
+    return "unreadable";
+  }
+  if (![...vocabulary].every((member) => members.has(member))) {
+    return "foreign";
+  }
+  return members.size === vocabulary.size ? "on-axis" : "unreadable";
 }
 
 /** Bind a vocabulary tuple to its DECLARING MODULE: a tuple of the right name declared anywhere else is a
