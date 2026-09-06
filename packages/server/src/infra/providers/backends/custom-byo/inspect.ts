@@ -23,7 +23,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, redactHeaders, redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
+import { applyIncludeExclude, customOpenAiSecretLiterals, redactHeaders, redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -97,7 +97,11 @@ export async function inspectCustomByoEndpoint(args: {
     ...(args.headers ?? {}),
   };
   const url = `${args.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
-  const secrets = [...(args.apiKey !== null ? [args.apiKey] : []), ...Object.values(args.headers ?? {})];
+  // Through the ONE producer (#1760) rather than a third hand-rolled `[apiKey, ...headerValues]`: this
+  // surface DISPLAYS both the request body it sent and the response the endpoint returned, so a BYO
+  // endpoint authenticating by a BODY field (`includeBody: {"api_key": …}`) had its credential rendered in
+  // cleartext twice — the same response-echo class as the P0 above, one field over.
+  const secrets = customOpenAiSecretLiterals(args);
   const request = {
     url: redactSecretsFromText(url, secrets),
     headers: redactHeaders(headers, secrets),
