@@ -1,42 +1,59 @@
-// message-kind-policy-coverage (#947) — the axis set is the RESOLVED interface type's properties, so an
-// axis inherited from an imported base is still law that owes a production reader. Conformance pins the
-// inherited red/green pair; this file pins the REFUSAL, which conformance structurally cannot (a throwing
-// example is a failed proof, not a proven refusal).
+// message-kind-policy-coverage (#947, #1584) — the axis set is the RESOLVED interface type's properties,
+// so an axis inherited from an imported base is still law that owes a production reader. Conformance pins
+// the inherited red/green pair; this file pins what conformance structurally cannot: the REFUSALS, where a
+// throwing or withheld owner is a failed proof rather than a proven refusal.
+import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { ctxFor } from "../../_support.ts";
 
+const ROOT = "/message-kind-policy";
 const HOME = "packages/contracts/src/chat/participants.ts";
 
-function passOf(files: Readonly<Record<string, string>>): ReturnType<typeof runPass> {
-  const { project, root } = ctxFor({ ...files });
-  return runPass([gate], {
-    root,
-    project,
-    scope: { kind: "project" },
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
+function passOf(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
 }
 
 test("an `extends` clause that resolves to no interface REFUSES instead of judging a smaller axis set", () => {
-  const pass = passOf({
+  const result = passOf({
     [HOME]:
       "export interface MessageKindPolicy extends MissingBase {\n  readonly prompt: 'conversation' | 'never';\n}\nexport const MESSAGE_KIND_POLICY = {};\n",
   });
-  expect(pass.toolErrors[0]?.message).toContain("resolves to no interface declaration");
+
+  expect(result.toolErrors).toMatchObject([
+    { policyId: "message-kind-policy-coverage", message: expect.stringContaining("resolves to no interface declaration") },
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["message-kind-policy-coverage"]);
 });
 
-test("the local/inherited/total axis population rides the scan line, so a base that stopped resolving is visible", () => {
-  const pass = passOf({
+test("the axis receipt is the policy's denominator, so a base that stopped resolving is visible as a shrink", () => {
+  const result = passOf({
     "packages/contracts/src/chat/policy-base.ts": "export interface CoreMessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n}\n",
     [HOME]:
       'import type { CoreMessageKindPolicy } from "./policy-base.ts";\n' +
       "export interface MessageKindPolicy extends CoreMessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n}\n" +
       "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest', prompt: 'conversation' } };\n",
     "packages/server/src/domain/chat/assembly/shape.ts":
-      "export const p = MESSAGE_KIND_POLICY.standard.prompt;\nexport const m = MESSAGE_KIND_POLICY.standard.memory;\n",
+      'import { MESSAGE_KIND_POLICY } from "../../../../../contracts/src/chat/participants.ts";\nexport const p = MESSAGE_KIND_POLICY.standard.prompt;\nexport const m = MESSAGE_KIND_POLICY.standard.memory;\n',
   });
-  expect(pass.gates[0]?.scan.declared?.unit).toBe("policy axis [MessageKindPolicy local=1 inherited=1 total=2]");
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.receipts).toEqual([{ kind: "population", source: "MessageKindPolicy axis", members: 2, unresolved: 0 }]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("a renamed record or interface takes the denominator to zero and withholds the verdict", () => {
+  const result = passOf({
+    [HOME]:
+      "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n}\nexport const KIND_POLICY = { standard: { prompt: 'conversation' } };\n",
+  });
+
+  // The legacy gate raised its own mode-B finding against a real-tree ANCHOR FILE. The final runtime owns
+  // that blindness directly: an empty denominator cannot render a clean pass.
+  expect(result.toolErrors).toMatchObject([{ policyId: "message-kind-policy-coverage", phase: "receipt", message: expect.stringContaining("zero members") }]);
+  expect(result.authority.withheldPolicyIds).toEqual(["message-kind-policy-coverage"]);
 });

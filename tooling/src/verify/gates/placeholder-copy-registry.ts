@@ -246,5 +246,16 @@ export const gate = defineGate({
       },
       why: "the factory arm's FALSE branch — a factory section with its own distinct copy passes, so widening the subject is not a blanket accusation",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T", description: "D" } };\n',
+        "packages/client/src/features/b/lib/b-section.ts":
+          'interface SectionDefinition {\n  readonly id: string;\n}\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
+      },
+      why: "THE COUNTERFACTUAL: `bSection` is annotated with a LOCAL type that merely shares the name, so it is not a section and cannot duplicate a section's copy. Identity is the canonical declaration the shared fact resolved, never the word at the annotation site",
+    },
   ],
 });

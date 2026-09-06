@@ -199,5 +199,17 @@ export const gate = defineGate({
       },
       why: "SAME-FILE indirection resolves, so the real body is judged",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => null };\n',
+        "packages/client/src/features/settings/lib/impostor-modal.tsx":
+          'import { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\ninterface ModalDefinition {\n  readonly id: string;\n}\nexport const fake: ModalDefinition = { id: "fake", body: () => <SectionPlaceholder /> };\n',
+      },
+      why: "THE COUNTERFACTUAL for the SUBJECT's identity: `fake` renders the real placeholder from a real function body, but it is annotated with a LOCAL type that merely shares the ModalDefinition name — it is not a modal, so it is not this policy's subject",
+    },
   ],
 });
