@@ -67,6 +67,7 @@
 //     `budgetExhausted`, which the runner prints — an exhausted budget is a refusal, not a clean run.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { IMPLICIT_INTERACTIVE_ROLES_JS } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -182,7 +183,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var doorNameKey = function (name) {
     return String(name || "").replace(/\\s+/g, " ").trim().toLowerCase().replace(/[.\\u2026:;,!?]+$/, "");
   };
-  var IMPLICIT_ROLES = { a: "link", button: "button", summary: "button", select: "combobox", textarea: "textbox" };
+  var IMPLICIT_ROLES = ${IMPLICIT_INTERACTIVE_ROLES_JS};
   var doorRole = function (el) {
     var explicit = el.getAttribute("role");
     if (explicit) return explicit.trim().toLowerCase();

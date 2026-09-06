@@ -248,3 +248,69 @@ auditRuleTest(
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
   },
 );
+
+// ── #1074 (orb-ui audit F2): textarea + summary enter the base interactive population ───────────────
+//
+// INTERACTIVE_SELECTOR (ops/walker/core.ts) omitted `textarea` and `summary` while five sibling census
+// vocabularies already carried both, so a native <textarea> (Textarea/MacroTextarea) and a <summary>
+// disclosure trigger (ToolCallBlock) were invisible to tap-target/aria-name candidacy entirely — not a
+// wrong verdict, an ABSENT one. The proof is the CANDIDATE COUNT (populationAccounting), not a finding:
+// an unnamed, undersized instance of each must now be COUNTED (and therefore judged and filed), where
+// before the fix it was never in the denominator at all.
+
+function tapTargetSelectorsIn(report: RelationalPopulationReport): readonly { readonly rule: string }[] {
+  return report.findings.filter(({ rule }) => rule === "tap-target");
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "fires",
+      reason:
+        "a native <textarea> with no accessible name and a sub-floor box was invisible to INTERACTIVE_SELECTOR before #1074 — never a candidate, so never judged and never filed",
+    },
+  ],
+  "an undersized unlabeled textarea now enters the tap-target population",
+  async ({ runCli, scratch }) => {
+    const body = '<textarea style="width:20px;height:20px;display:block;box-sizing:border-box;border:0;padding:0;margin:0"></textarea>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea", body);
+    expect(tapTargetSelectorsIn(report).length, "a sub-floor textarea must now be a judged candidate").toBeGreaterThan(0);
+    expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "fires",
+      reason:
+        "a <summary> disclosure trigger (ToolCallBlock's shape) with a sub-floor box was equally invisible before #1074 — the same absent-candidate defect on the other omitted tag",
+    },
+  ],
+  "an undersized summary disclosure now enters the tap-target population",
+  async ({ runCli, scratch }) => {
+    const body = '<details><summary style="width:20px;height:20px;display:block">show</summary><p>detail</p></details>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-summary", body);
+    expect(tapTargetSelectorsIn(report).length, "a sub-floor summary must now be a judged candidate").toBeGreaterThan(0);
+    expect(report.populationAccounting?.["tap-target"]?.candidates ?? 0).toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "silent",
+      reason:
+        "a floor-sized, fully-named textarea is the negative control proving the population read is not blanket-firing on every textarea now that it is a candidate",
+    },
+  ],
+  "a floor-sized labeled textarea does not file a tap-target finding",
+  async ({ runCli, scratch }) => {
+    const body = '<label for="notes">Notes</label><textarea id="notes" style="width:64px;height:64px;display:block"></textarea>';
+    const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea-clean", body);
+    expect(tapTargetSelectorsIn(report)).toHaveLength(0);
+  },
+);

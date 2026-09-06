@@ -4,6 +4,7 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { INTERACTIVE_SELECTOR_JS } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -14,7 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
  *  and snap's per-selector `--contrast` arm composes the pair for ONE element (#1325). Running the
  *  census half for a single target would walk every node on the page and install this walk's mutation
  *  observer on a live `--session` page, which is why the split exists rather than a second resolver. */
-export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
+export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SELECTOR_JS};
   // AN OVERLAY SURFACE IS NAMED BY ITS ROLE, NEVER BY A WORD IN ITS CLASS STRING (#1317 item 7, the
   // #552 shape). The old word regex was tested against el.className, so any Tailwind utility CONTAINING
   // one of the six words excluded the element, while a word-boundary test over a role attribute was a
