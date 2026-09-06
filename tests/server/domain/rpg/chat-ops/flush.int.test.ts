@@ -88,6 +88,38 @@ test("continue replaces its variant snapshot from the current head instead of in
   expect(await listSnapshots(db, gameId)).toHaveLength(1);
 });
 
+test("a CONTINUE's journal entries APPEND beside the first half's — the same-variant re-flush is not an idempotent replace (#1468 item 3)", async () => {
+  const db = await freshDb();
+  // THE REFUTATION PIN. #1468 item 3 read `writeStagedSnapshotAndJournal`'s unconditional journal INSERT beside
+  // its snapshot UPSERT as a duplicate-on-retry defect, and proposed a conflict target (or a delete-then-insert)
+  // keyed on `variantId`. That fix would be DATA LOSS: the only reachable second flush of one variant is a
+  // CONTINUE (`chat-ops/index.ts` fires `flushTurn` once per completed turn, and `staging.take` deletes the
+  // bucket, so no staged entry can be flushed twice), and a continuation's entries are NEW beats of the same
+  // slot — keying the write on the variant would erase the first half's archive on every continue. The failed-
+  // flush retry is covered by the #723 pin below: the batch rolls the whole beat back, so its retry writes one
+  // row, not two. This test is what makes both halves red if a later reader "fixes" the append away.
+  const { chatId, h } = await seedLiteGame(db, {
+    toolRoundDelta: {
+      statePatch: { location: "the kitchen" },
+      journal: [{ type: "location", label: "", title: "Arrival", content: "They reached the kitchen." }],
+    },
+  });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  expect(await listJournalByVariant(db, variantId)).toHaveLength(1);
+
+  h.fakes.toolRoundDelta = { statePatch: {}, journal: [{ type: "combat", label: "", title: "Ambush", content: "The cook drew a knife." }] };
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_continue"), turnConnection({ kind: "continue" }));
+
+  const entries = await listJournalByVariant(db, variantId);
+  expect(entries.map((e) => e.title).sort()).toEqual(["Ambush", "Arrival"]);
+  // One SNAPSHOT (the upsert did replace in place) beside TWO journal rows — the two planes have different
+  // per-variant cardinalities on purpose, which is the whole distinction the item collapsed.
+  expect(await findSnapshotByVariant(db, variantId)).toBeDefined();
+});
+
 test("F2 (readonly gate): a turn connection without the mode's writer capability fires NO round and writes nothing", async () => {
   const db = await freshDb();
   // Both surviving modes need `tools`. A turn connection whose capability LACKS them is readonly
