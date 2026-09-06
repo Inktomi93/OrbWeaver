@@ -30,7 +30,9 @@ const PACKED_SHA256: Readonly<Record<(typeof SHOWCASE_PLUGIN_SLUGS)[number], str
   "card-atlas": "9d0327e4147787dba5cb7a1a7bd7887631c09b933ec74e38736cb0e6390e344c",
   "draft-polish": "543a5cdaf0549ca64a366b7f0b2d866becf7dfe50b715d3568b3a1408a7347c4",
   "keepsake-camera": "053696f2e17fc77668d255c5f7818a587dec4f18f34292301557aa34bc256e39",
-  "oracle-deck": "2e5a49acb000b327c90ae9173b3f8ed7cfca6ec5c0d84e4d82f531ba31a8225c",
+  // re-pinned 2026-09-06: 3d1047b66 (#1391) rewrote the injective wire-name mint's comments
+  // (`plugin_oracle_deck_*` -> `plugin_oracle__deck_*`, the hyphen-doubling rule) plus README.
+  "oracle-deck": "71a9b63273768ec906baf189324e9f5eec79281ed9e69e121fc5b91d745d4032",
   "pocket-arcade": "7143d14c13b0e562e49b5834792e8205ba3e39c10bae4791508e9d4e768c4bbb",
   "research-familiar": "618d950dc5be019212fb7793a4c60d715d24b1ed8ba303abe0cd0069acaaf01e",
   "scene-chips": "f3cebbf02131bd20b2f7a5f2bfd34eabcbf29e1b3369ca3be8150582f531527e",
