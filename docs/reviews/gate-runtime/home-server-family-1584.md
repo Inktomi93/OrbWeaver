@@ -46,7 +46,7 @@ row. `entire-population` DEFERS the policy on such a selection instead. The two 
   bound from TypeScript's own lib declarations — and answered it with `getText()` comparisons. The reader
   returns `ambient` / `other` / `unreadable`, routing its refusal through the shared
   `classifyOriginRefusal` so a proven local binding passes and an unreadable one is reported.
-- **`lib/role-vocabulary.ts`** — `readRoleComparison`, `readIsOnAxis`, `vocabularyAtHome`,
+- **`lib/role-vocabulary.ts`** — `readRoleComparison`, `readAxisVerdict`, `vocabularyAtHome`,
   `vocabularyMembers`. `owner-role-split` and `two-class-role-authority` each hardcoded a literal set
   inside the gate and matched the operand's TEXT. Both halves are now facts: the literal set is READ from
   `USER_ROLES`/`PARTICIPANT_ROLES`' own declaration through the existing `tupleVocabularyFact` and BOUND to
@@ -157,7 +157,15 @@ the same tree, and the spread is contention rather than the policies — the sha
 moved 4.3 s → 17.7 s across them while every policy's own share scaled by the same factor. The post-review
 arms (a bare `now()`/`random()` call, the env destructure site, the const-alias prefilter hop) cost nothing
 measurable: `no-raw-clock` moved 0.6 s → 2.8 s in the same window in which `content-part-seam`, which
-gained no arm, moved 2.9 s → 12.0 s. **All 40 grant
+gained no arm, moved 2.9 s → 12.0 s.
+
+**One cost OBSERVATION, recorded as an observation and not as a defect** (verifier-F, round 2): the COMPOSED
+89-policy pass moved **186.8 s → 247.3 s** of `passMs` across the two tooling bases over the same corpus.
+The colder run was the newer one, so some of that +32% is measurement and some is real — the three new
+candidate arms (a bare `now()`/`random()` call, the env destructure site) and the const hop are the only
+work this family added, and each is a per-candidate symbol lookup rather than a per-file walk. Nobody has
+attributed the split yet, and the composed baseline is the orchestrator's instrument on a quiesced tree; it
+is recorded here so the next composed measurement has a number to compare against rather than a memory. **All 40 grant
 rows consumed EXACTLY once** — no stale row, no over-broad row. Per-policy cost is concentrated where the
 population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s over 3,367,
 `no-raw-clock` 0.6 s, `sole-env-reader` 0.6 s over 1,488; the other seven total under 1 s combined.
@@ -166,8 +174,8 @@ population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/home-server-family.test.ts`) | green — 11 policies, 8 tests: 92 policy proofs plus 7 runtime pins |
-| the two new readers' own specs (`tests/tooling/verify/lib/{ambient-determinism,role-vocabulary}.test.ts`) | green — 11 tests, each ARMED (neutralising the identity comparison reds 3 of 6 and 2 of 5 rows respectively) |
+| family conformance (`tests/tooling/verify/gates/home-server-family.test.ts`) | green — 11 policies, 8 test cases: **122 policy proofs** (70 `mustFlag` + 52 `mustPass`, summed from the descriptors) plus 7 runtime pins |
+| the shared readers' own specs (`tests/tooling/verify/lib/{ambient-determinism,role-vocabulary,origin-verdict}.test.ts`) | green — **17 tests across 3 files**. The two new readers are ARMED: neutralising the identity comparison reds **3 of 6** rows in each. `origin-verdict` asserts the prefilter and the classifier directly, including the const hop's two invisible properties |
 | fixture-specifier resolution control | 59 relative specifiers across all 11 policies' proofs; **0 accidental unresolved**, 5 deliberate `./missing*.ts` fail-closed rows |
 | receipt refusals, pinned through `runPolicyPass` | the D51 declaration home leaving `contracts/src/chat/`; the kit content home holding no source; the participant vocabulary absent AND relocated |
 | grant liveness, pinned through `runPolicyPass` | consumed-exactly-once with TWO constructions in the granted carrier; STALE when the home stops constructing; STALE plus an effective finding when the grant names another subject |
@@ -191,7 +199,8 @@ and each carries its own proof row.
 - **Five escape spellings are now CAUGHT rather than declared**: the const-aliased constructor
   (`const D = Date; new D()`), the const-aliased class (`const EE = EventEmitter; new EE()`), the
   destructured globals (`const { now } = Date`, `const { random } = Math`) and the destructured env bag
-  (`const { env } = process`). The first two came free from teaching the shared name prefilter to follow an
+  (`const { env } = process`). Two of those had been WRITTEN LIMITS in round 1 — the method aliases
+  `const now = Date.now` / `const random = Math.random` — and their `mustPass` rows became `mustFlag` rows. The first two came free from teaching the shared name prefilter to follow an
   immutable const hop; the rest are one extra candidate arm each, prefiltered so tightly that the destructure
   arm looks at one node per destructure.
 - **Both role policies stopped failing OPEN** on `any` / `string` / superset axes (above).
@@ -209,9 +218,18 @@ and each carries its own proof row.
   subject for `bus-channel-primitive`, `content-part-seam`, `no-direct-users-read` and `scrubber-home`. Same
   limit the legacy name readers carried; closing it means resolving an origin on every identifier in a
   3,367-file population, which does not finish.
-- **`no-raw-clock` / `no-raw-random` see a MEMBER read or a zero-argument `new`.** A bare local alias of the
-  method (`const now = Date.now; now()`) is outside the prefilter — widening it means resolving an origin on
-  \~700 injected-clock call sites per pass. The legacy text comparison missed the shape too.
+- **The const hop stops at a REASSIGNABLE binding**, so `let D = Date; new D()` is out of subject — a binding
+  that can be written is not one identity, and following it would claim an origin the reader cannot prove.
+  Bounded in practice by biome's `useConst`, which reds a `let` that is never reassigned. Both policies that
+  exercise the hop carry the limit as a `mustPass` row, and the hop's TERMINATION (a mutual `const a = b;
+  const b = a` cycle and a self cycle both end through the visited set, returning `false` rather than
+  throwing or recursing) is asserted in `tests/tooling/verify/lib/origin-verdict.test.ts` rather than being
+  left to the JSDoc.
+- **`no-raw-clock` / `no-raw-random` see a MEMBER read, a BARE `now()`/`random()` call, and (for the clock) a
+  zero-argument `new` whose callee NAMES `Date`.** Nothing on those three arms is a declared limit any more:
+  the bare-call arm CLOSED the destructured global (`const { now } = Date`) and the method alias
+  (`const now = Date.now`), both of which the first cut had declared, and each is now a `mustFlag` row. The
+  arm costs one symbol hop across the 43 candidate `now()` sites in the whole 3,367-file population.
 - **`no-raw-random`'s subject is the CALL.** `prng: Math.random` passes the ambient generator as an injected
   default (live at `entry/compose/automation-plugin.ts`, `infra/providers/backends/kit/retry.ts` and three
   `kit/macro` seams); widening onto those references is a burn-down with its own decision to make.
