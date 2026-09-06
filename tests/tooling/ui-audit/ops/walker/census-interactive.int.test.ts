@@ -314,3 +314,55 @@ auditRuleTest(
     expect(tapTargetSelectorsIn(report)).toHaveLength(0);
   },
 );
+
+// ── #1077 (orb-ui audit F5): a rest-hidden reveal cluster is WITHHELD by name at fine pointer ────────
+//
+// ROW_REVEAL (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100 revealed) fails
+// `isVisible`'s opacity gate at fine-pointer rest and was silently dropped from every offered-control
+// census with no accounting reason at all. `reveal-coverage` is accounting-only (no Finding, no
+// severity ever fires) — its job is to name the gap: present with a WITHHELD count when a rest-hidden
+// reveal control exists, absent entirely when none does.
+
+auditRuleTest(
+  [
+    {
+      rule: "reveal-coverage",
+      kind: "fires",
+      reason:
+        "an opacity-0-at-rest control (the ROW_REVEAL shape — real geometry, zero paint, hover/coarse-revealed) must be named as a withheld reveal-coverage candidate instead of vanishing from the census with no reason",
+    },
+  ],
+  "a rest-hidden reveal cluster produces a reveal-coverage WITHHELD row",
+  async ({ runCli, scratch }) => {
+    // The stray labeled control gives the walker something ELSE to censuse (evidence.ts's own
+    // `censusTotal` doctrine): the subject under test is entirely invisible by design, so without it
+    // the page would census zero nodes everywhere and refuse as NO VERDICT before this rule ever runs.
+    const body =
+      '<label for="anchor">Anchor</label><input id="anchor" style="width:64px;height:32px" />' +
+      '<div class="group"><button id="reveal-btn" style="opacity:0;width:40px;height:40px">Reveal</button></div>';
+    const report = await auditFixture(scratch, runCli, "reveal-coverage-fires", body);
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 1, judged: 0, withheld: { restHiddenReveal: 1 } });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "reveal-coverage",
+      kind: "silent",
+      reason:
+        "a fully-opaque control of the same shape is the negative control — no rest-hidden reveal cluster exists, so no reveal-coverage row prints at all",
+    },
+  ],
+  "a page with no rest-hidden reveal cluster produces no reveal-coverage row",
+  async ({ runCli, scratch }) => {
+    const body =
+      '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />' +
+      '<div class="group"><button id="visible-btn" style="opacity:1;width:40px;height:40px">Visible</button></div>';
+    const report = await auditFixture(scratch, runCli, "reveal-coverage-silent", body);
+    // The JSON accounting record is always present (every family carries its own zero); the row this
+    // test names is the PRINTED `POPULATION reveal-coverage …` line, which report.ts folds a
+    // zero-candidate rule into the `nothing-to-judge` summary instead of printing on its own.
+    expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 0, withheld: {} });
+  },
+);

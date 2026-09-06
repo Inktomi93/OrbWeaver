@@ -119,6 +119,12 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const borderContrasts = partitionedFindings("border-contrast", samples.borderContrasts ?? [], classifyBorderContrast);
   const names = totalJudge("aria-name", samples.accessibleNames, checkAccessibleName);
   const tabIndexes = totalJudge("tabindex-positive", samples.tabIndexes, checkTabIndexSmell);
+  // Accounting-only (#1077): no items, no checker — `census-interactive.ts`'s `restHiddenRevealFine`
+  // count is the whole rule, carried entirely on `relationalAccounting`'s WITHHELD reason.
+  const revealCoverage = accountedFindings<never>("reveal-coverage", [], () => null, {
+    census: samples.relationalAccounting?.["reveal-coverage"],
+    samplesAreJudged: false,
+  });
   runArray(state, () => tapTargets.findings);
   runArray(state, () => controlAspects.findings);
   runArray(state, () => borderContrasts.findings);
@@ -127,6 +133,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => tabIndexes.findings);
   runArray(state, () => checkHeadingOrder(samples.headings));
   runArray(state, () => obscured.findings);
+  runArray(state, () => revealCoverage.findings);
   return {
     ...state,
     populationAccounting: {
@@ -134,6 +141,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
       "border-contrast": borderContrasts.accounting,
       "control-aspect": controlAspects.accounting,
       "obscured-target": obscured.accounting,
+      "reveal-coverage": revealCoverage.accounting,
       "tabindex-positive": tabIndexes.accounting,
       "tap-target": tapTargets.accounting,
     },

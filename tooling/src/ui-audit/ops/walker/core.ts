@@ -89,6 +89,24 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   function isOperable(el) {
     return isVisible(el) && el.closest("[inert],[aria-hidden='true']") === null;
   }
+  // A REST-HIDDEN REVEAL CLUSTER, NOT A GENUINELY HIDDEN ONE (#1077, orb-ui audit F5). ROW_REVEAL
+  // (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100) and ListRow's
+  // subtitleReveal are the house idiom: display stays IN FLOW, the box has real geometry, only PAINT
+  // is zeroed. isVisible's opacity gate reads that identically to display:none, so the census-interactive
+  // tap-target loop silently drops these candidates with no accounting reason at all. This predicate
+  // isolates the SPECIFIC shape — everything isVisible checks EXCEPT opacity passes, and opacity alone
+  // is zero — so a genuinely hidden/detached/zero-rect element is never miscounted as a reveal cluster.
+  function isOpacityOnlyHidden(el) {
+    if (!(el instanceof Element) || isDevChrome(el) || el.closest("[inert],[aria-hidden='true']") !== null) return false;
+    var ohSelf = getComputedStyle(el);
+    if (ohSelf.visibility === "hidden" || ohSelf.visibility === "collapse") return false;
+    for (var ohAnc = el; ohAnc !== null; ohAnc = ohAnc.parentElement) {
+      var ohStyle = getComputedStyle(ohAnc);
+      if (ohAnc.hidden || ohStyle.display === "none") return false;
+    }
+    var ohRect = el.getBoundingClientRect();
+    return ohRect.width > 0 && ohRect.height > 0 && accumulatedOpacity(el) === 0;
+  }
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";
   // The owner-RATIFIED ListRow selection accent (2026-08-22, issue #485): a 2px left ember bar on the

@@ -72,6 +72,11 @@ import { IMPLICIT_INTERACTIVE_ROLES_JS } from "../../lib/checks-interactive.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
+  // THE TWO-ARM REVEAL CONTRACT (#1077): ROW_REVEAL/subtitleReveal is opacity-0 at fine rest, ALWAYS-ON
+  // at coarse (\`pointer-coarse:opacity-100\`) — coarse covers itself, so the gap is fine-only.
+  // \`restHiddenRevealFine\` feeds census-collision.ts's \`reveal-coverage\` WITHHELD row, never a silent drop.
+  var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
+  var restHiddenRevealFine = 0;
   var tapTargets = [];
   var accessibleNames = [];
   // The name-text source, the native-label / labelledby / alt resolvers and the ONE spec-ordered
@@ -248,6 +253,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   }
   for (var m2 = 0; m2 < interactiveEls.length; m2 += 1) {
     var iel = interactiveEls[m2];
+    if (!pointerCoarse && !isOperable(iel) && isOpacityOnlyHidden(iel)) restHiddenRevealFine += 1;
     if (!isOperable(iel) || isDevChrome(iel)) continue;
     // Base UI mints 1-2px native-input TWINS (aria-hidden and/or tabindex=-1) behind
     // Select/Slider/Switch — hidden plumbing, not offered targets, and the measured #1 FP class
@@ -417,11 +423,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     if (isVisible(mainLandmarks[ml])) { mainLandmarkPresent = true; break; }
   }
 
-  // Which target-size floor applies is pointer-conditional (see design-audit-checks.ts checkTapTarget):
-  // sample the REAL pointer type this render is under so the tap-target check judges it against the
-  // right WCAG floor instead of holding a fine-pointer desktop scale to the 44px touch number.
-  var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
-
+  // pointerCoarse is declared ABOVE, #1077 — the WCAG floor this feeds (checkTapTarget) reads it here.
   // ── tabindex smell ────────────────────────────────────────────────────────
   var tabIndexes = [];
   var tabIndexEls = document.querySelectorAll("[tabindex]");

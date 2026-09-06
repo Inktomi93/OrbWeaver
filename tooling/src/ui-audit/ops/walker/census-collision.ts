@@ -40,6 +40,13 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     "truncated-to-nothing": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
     "obscured-target": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
   };
+  // \`relationalAccounting\` is FIRST INITIALIZED here (this segment runs before cohort/selection/grid,
+  // which only ADD keys) — and AFTER census-interactive.ts, whose \`restHiddenRevealFine\` this reads
+  // (#1077). Present ONLY when nonzero: a page with no reveal cluster prints no \`reveal-coverage\` row
+  // at all, never a zeroed one.
+  if (restHiddenRevealFine > 0) {
+    relationalAccounting["reveal-coverage"] = { candidates: restHiddenRevealFine, judged: 0, withheld: { restHiddenReveal: restHiddenRevealFine }, excluded: {} };
+  }
   var truncatedTexts = [];
   // Below this there is no word to lose — a 4px sliver is a rounding artefact, not an erased label.
   var TRUNC_MIN_NATURAL_PX = 8;

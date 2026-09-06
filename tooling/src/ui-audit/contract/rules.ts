@@ -15,6 +15,11 @@ interface DesignAuditRuleDefinition {
 
 export const DESIGN_AUDIT_RULES = [
   { id: "tap-target", family: "a11y", severity: ["P1", "P2"] },
+  // Accounting-only (#1077, orb-ui audit F5): never emits a Finding — its checker is `() => null` —
+  // it exists so a rest-hidden reveal cluster (opacity:0 at rest, revealed on hover/focus/coarse) is
+  // WITHHELD by name at fine pointer instead of silently vanishing from every census that requires
+  // `isVisible`. See ops/walker/census-interactive.ts's header for the two-arm contract.
+  { id: "reveal-coverage", family: "a11y", severity: ["P3"] },
   { id: "control-aspect", family: "a11y", severity: ["P2"] },
   { id: "obscured-target", family: "a11y", severity: ["P0", "P1"] },
   { id: "aria-name", family: "a11y", severity: ["P1"] },
