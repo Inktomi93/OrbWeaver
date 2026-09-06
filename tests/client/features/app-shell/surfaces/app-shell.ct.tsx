@@ -2112,8 +2112,11 @@ async function seatNotificationBell(page: Page): Promise<void> {
 
 /** Drive the context pane to `mode`, settle, and read the identity row in ONE in-page pass. Rendered
  *  visibility is `offsetParent !== null` — the yield is `display: none`, which is exactly what that answers,
- *  and it does not care that the identity arm is `display: contents`. */
-async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" | "collapsed"): Promise<TopbarIdentityReadout> {
+ *  and it does not care that the identity arm is `display: contents`. `expectTitleShed` names what the
+ *  shed selector (`shell.css`'s `:has([data-slot="context-bracket-band"] :is(h1,h2,h3))`) is about to do —
+ *  the caller already knows this from `mode` + the band it mounted, and stating it here turns it into a
+ *  BARRIER instead of a hope. */
+async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" | "collapsed", expectTitleShed: boolean): Promise<TopbarIdentityReadout> {
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
   const current = await contextPanel.getAttribute("data-panel-mode");
   if (current !== mode) {
@@ -2126,6 +2129,15 @@ async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" 
   // room's `getChat` lands; a row read before that measures the shape of an identity, not one.
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [aria-busy="true"]')).toHaveCount(0);
   await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"]')).toHaveCount(1);
+  // BARRIER ON THE DOCKED BAND OWNING THE TITLE (#1686) — the mode/context-mode attributes above are DOM
+  // writes the assertions above already retried to settlement, but the `:has()` shed rule's effect on
+  // `offsetParent` is a SEPARATE style/layout recalculation Chromium can perform on a later frame under
+  // contention. The old code went straight from those attribute reads into a ONE-SHOT `page.evaluate()`
+  // snapshot with no retry of its own — exactly the one-shot-cannot-certify-a-later-surface shape. A
+  // web-first `toBeHidden()`/`toBeVisible()` on the title RETRIES until the shed rule has actually painted,
+  // so the snapshot below always reads a settled row.
+  const wideTitle = page.locator('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+  await expect(wideTitle)[expectTitleShed ? "toBeHidden" : "toBeVisible"]();
   return page.evaluate(() => {
     const shown = (element: Element | null): boolean => element !== null && (element as HTMLElement).offsetParent !== null;
     const title = document.querySelector<HTMLElement>('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
@@ -2154,7 +2166,7 @@ test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + c
   // never has — which is exactly what this pin did until #896 put the condition in the selector.
   const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
-  const readout = await settledTopbarIdentity(page, shell, "docked");
+  const readout = await settledTopbarIdentity(page, shell, "docked", true);
   // The premise: the row carries the SAME trailing furniture a real account has.
   expect(readout.bell).toBe(true);
   // THE DEFECT PIN: nothing of the identity that the band now carries is on this row — no crushed title.
@@ -2170,7 +2182,7 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
   await page.setViewportSize({ width: 1280, height: 800 });
   const shell = await mount(<AppShellChatTopbarIdentityStory />);
 
-  const readout = await settledTopbarIdentity(page, shell, "collapsed");
+  const readout = await settledTopbarIdentity(page, shell, "collapsed", false);
   expect(readout.bell).toBe(true);
   expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
   await expect(page.locator(".shell-topbar-title:visible")).toHaveText(TOPBAR_IDENTITY_ROOM.title);
@@ -2935,15 +2947,41 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
 
   await shell.getByRole("button", { name: "Hide list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  // BARRIER ON THE FLIP'S OWN CLOCK, never a wall-clock guess (#1686). The old barrier was a fixed
+  // [100,200,300,400]ms poll (1s total) past the nominal 220ms motion — under multi-lane load the box's
+  // real frame timing stretches past that budget, so a layout-shift entry from a still-finishing FLIP or
+  // co-motion transition can land AFTER the read. Wait for every animation the toggle actually started
+  // (`.shell-main`'s FLIP animation + the list panel's own transform transition — both are `Animation`
+  // objects) to reach `finished` before reading the counter; an already-finished animation resolves its
+  // `finished` promise immediately, so this never blocks a fast run.
+  await waitForShellFlipToSettle(page);
   await shell.getByRole("button", { name: "Show list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await waitForShellFlipToSettle(page);
 
   const readTotal = (): Promise<number> =>
     // FABRICATION-OK: reads back the probe slot installed above.
     page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
-  // Polls PAST the 220ms motion so a late entry cannot land after the read.
-  await expect.poll(readTotal, { intervals: [100, 200, 300, 400] }).toBeLessThan(0.1);
+  // A short poll remains for the observer's OWN dispatch latency (PerformanceObserver callbacks fire on a
+  // microtask after the frame that produced the entry, not synchronously with `finished`), never for the
+  // motion itself.
+  await expect.poll(readTotal, { intervals: [50, 100, 150] }).toBeLessThan(0.1);
 });
+
+/** Wait for every `Animation` object currently on the shell's motion-bearing nodes (the FLIP on
+ *  `.shell-main`, the co-motion transform transition on the list panel) to reach `playState: "finished"`.
+ *  Read AFTER the triggering attribute assertion already resolved (§#1686) — the attribute and the
+ *  animation start in the SAME commit (`useListTrackFlip`'s `useLayoutEffect`), so by then the `Animation`
+ *  objects already exist; grabbing them here (rather than re-polling `getAnimations().length`) avoids the
+ *  vacuous-true race of asking "is anything animating" before the animation has been created. */
+async function waitForShellFlipToSettle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const nodes = [document.querySelector<HTMLElement>(".shell-main"), document.querySelector<HTMLElement>('.shell-panel[data-panel-side="list"]')].filter(
+      (node): node is HTMLElement => node !== null,
+    );
+    await Promise.all(nodes.flatMap((node) => node.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
+  });
+}
 
 // ── #151: with motion OFF there is no counter-translate to hold the wrong corner ────────────────────
 // The owner saw "a weird glitch where the home header is and where the chats header with the count
