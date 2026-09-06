@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -52,7 +52,7 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 
 | module | contract |
 | - | - |
-| `browser.ts` | the one Playwright bootstrap; the only legal `chromium.launch` site |
+| `browser.ts` | the one Playwright bootstrap; the only legal `chromium.launch` site; also carries the test-only, protocol-level CDP fault injector (`ORB_PROBE_TEST_CDP_FAULT=<Domain.method>[@<nth>]`, VITEST-only, #1093) that every launched/attached context installs |
 | `ts-workspace.ts` | the one ts-morph loader (`getWorkspace`/`harnessGlobs`/`searchGlobs`/`collectByKinds`); the only legal `new Project(` site |
 | `artifacts.ts` | `reports/<kind>/` artifact filing (`artifactFile`/`artifactKey`) + the RESULT-line convention (`print`/`printResult`) + the RUN-SLOT layout that makes concurrent runs safe (`runId`/`checkoutName`/`openRunSlot`/`runFile`/`publishRunSlot`/`abandonedRuns`, #1029 — the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b) |
 | `argv.ts` | flag-parsing idioms (`splitFirstEq`/`splitLastEq`/`parseViewport`/`splitPageSuffix`/`parseGotoTarget`) |
