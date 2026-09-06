@@ -172,9 +172,58 @@ function countingClient<T extends object>(client: T, log: string[]): T {
   });
 }
 
+/** A regex's `lastIndex` survives across calls when it carries the `g`/`y` flag — reset it on both sides
+ *  of a test so a caller's own `/pattern/g` cannot silently start matching from the wrong offset. */
+function gateMatches(gate: StatementGate, sqlText: string): boolean {
+  gate.pattern.lastIndex = 0;
+  const hit = gate.pattern.test(sqlText);
+  gate.pattern.lastIndex = 0;
+  return hit;
+}
+
+/** Advance `gate` by `arrivals` matched statements and return the promise the call should await before
+ *  actually entering the driver — the shared tail of both `execute` and `batch`'s held path. */
+function parkOnGate(gate: StatementGate, arrivals: number): Promise<void> {
+  gate.remaining -= arrivals;
+  if (gate.remaining <= 0) {
+    gate.reached.resolve();
+  }
+  return gate.released.promise;
+}
+
+function heldExecute<T extends object>(target: T, value: (...a: unknown[]) => unknown, current: () => StatementGate | undefined) {
+  return (...args: unknown[]): unknown => {
+    const gate = current();
+    if (gate === undefined || !gateMatches(gate, sqlOf(args[0]))) {
+      return value.apply(target, args);
+    }
+    return parkOnGate(gate, 1).then(() => value.apply(target, args));
+  };
+}
+
+/** A libSQL batch is intercepted as ONE UNIT, never per inner statement: it is the atomic write this
+ *  house's own law names it (`batch-is-the-only-atomic-unit-and-it-bans-read-first`) — there is no way to
+ *  let a batch's non-matching statements through while holding only the matching one, so a hold that
+ *  matches ANY statement inside the array parks the WHOLE call. */
+function heldBatch<T extends object>(target: T, value: (...a: unknown[]) => unknown, current: () => StatementGate | undefined) {
+  return (...args: unknown[]): unknown => {
+    const gate = current();
+    const statements = Array.isArray(args[0]) ? (args[0] as readonly unknown[]) : [];
+    const matches = gate === undefined ? 0 : statements.filter((stmt) => gateMatches(gate, sqlOf(stmt))).length;
+    if (gate === undefined || matches === 0) {
+      return value.apply(target, args);
+    }
+    return parkOnGate(gate, matches).then(() => value.apply(target, args));
+  };
+}
+
 /** Proxy shape mirrors {@link countingClient}: bind all private-field methods to the target and intercept
- * only `execute`. A held invocation has not entered SQLite yet, so unrelated statements can establish the
- * exact mid-race state before release. */
+ *  `execute` AND `batch` — the two planes a real statement can arrive on (#1549). A held invocation has
+ *  not entered SQLite yet, so unrelated statements can establish the exact mid-race state before release.
+ *  Before this, only `execute` was intercepted: a hold armed for a statement that only ever runs inside
+ *  `db.batch` (a common `refinery`/`chat` write shape) never saw it — `execute` never fired,
+ *  `gate.remaining` never decremented, and the pin hung to the 5s vitest timeout instead of fencing
+ *  anything, which reads as "flaky", not "the fence is on the wrong plane". */
 function holdingClient<T extends object>(client: T, current: () => StatementGate | undefined): T {
   return new Proxy(client, {
     get(target, prop): unknown {
@@ -182,25 +231,13 @@ function holdingClient<T extends object>(client: T, current: () => StatementGate
       if (typeof value !== "function" || typeof prop !== "string") {
         return value;
       }
-      if (prop !== "execute") {
-        return value.bind(target);
+      if (prop === "execute") {
+        return heldExecute(target, value as (...a: unknown[]) => unknown, current);
       }
-      return (...args: unknown[]): unknown => {
-        const gate = current();
-        if (gate === undefined) {
-          return (value as (...a: unknown[]) => unknown).apply(target, args);
-        }
-        gate.pattern.lastIndex = 0;
-        if (!gate.pattern.test(sqlOf(args[0]))) {
-          return (value as (...a: unknown[]) => unknown).apply(target, args);
-        }
-        gate.pattern.lastIndex = 0;
-        gate.remaining -= 1;
-        if (gate.remaining === 0) {
-          gate.reached.resolve();
-        }
-        return gate.released.promise.then(() => (value as (...a: unknown[]) => unknown).apply(target, args));
-      };
+      if (prop === "batch") {
+        return heldBatch(target, value as (...a: unknown[]) => unknown, current);
+      }
+      return value.bind(target);
     },
   });
 }
