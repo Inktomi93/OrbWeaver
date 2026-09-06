@@ -348,14 +348,19 @@
   font-size: var(--text-display);
   line-height: var(--leading-display);
 }
-/* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
- * background-clip: transparent padding-box fill + gradient border-box) so it composes over the
- * element's own fill instead of clobbering it. Chrome/CTA/cells only, never message prose.
+/* Gradient border ring on the primary CTA: a ::after overlay (dual background-clip: transparent
+ * padding-box fill + gradient border-box) so it composes over the element's own fill instead of
+ * clobbering it. Chrome/CTA only, never message prose.
  * The gradient's FOOT is --color-sheen: a polarity-fixed sheen highlight — a deliberate white gloss
  * unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays here; only the
- * colour is the token's call. Same pairing in the active-tab ring below and .shell-rail-button. */
-[data-slot="button"][data-cta]::after,
-[data-slot="media-grid-cell"][data-selected]::after {
+ * colour is the token's call. Same pairing in .shell-rail-button.
+ *
+ * THE SELECTED MEDIA CELL LEFT THIS RULE (#1840, side-eye 2026-09-06 E2). It was a THIRD layer on a state
+ * that already had a ring and a check badge, and it made `MediaGrid` a third grid idiom beside the two
+ * ruled ones. A selected cell is `SELECTION_RING_SELECTED` and nothing else now
+ * (packages/ui/src/lib/selection-ring.ts). The CTA arm is untouched: a call-to-action is not a selection
+ * state, so it is not one of the idioms E2 is counting. */
+[data-slot="button"][data-cta]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -373,7 +378,21 @@
 }
 
 /* Active-tab accent gradient border, same recipe as the CTA ring above (primary head, --color-sheen
- * foot), lower alpha. */
+ * foot), lower alpha.
+ *
+ * E2 CALLED THIS A REDUNDANT SECOND SELECTION LAYER AND THE PREMISE IS FALSE ON THIS TREE (#1840,
+ * measured 2026-09-06). The review's reading — "the tabs' redundant second selected layer", on top of the
+ * sliding indicator bar — assumes every tab list HAS that bar. `TabsIndicator` is an OPT-IN CHILD a
+ * consumer renders itself (`tabs.tsx` exports it; `TabsList` does not draw one), and of the three tab
+ * consumers on the tree only `preset-editor-header.tsx` does. For `workloads-jobs-section.tsx` and the
+ * app shell's `context-rail.tsx` this rule is not the SECOND layer — it is the only geometric mark the
+ * active tab carries, leaving `data-active:text-foreground` alone if it goes.
+ *
+ * Deleting it was tried and reverted with that receipt rather than shipped: the honest collapse is to make
+ * the ONE layer present by construction (the list draws its own indicator), which is a seal change with a
+ * vertical/`stacked` arm the rail would need rendered receipts for — reported for a follow-up, not
+ * improvised at the end of a lane. The other two E2 targets (the media cell's four layers, the table row's
+ * accent fill) landed; this one is a NAMED miss, pinned by `tests/ui/lib/selection-ring.ct.tsx`. */
 [data-slot="tabs-tab"][data-active]::after {
   content: "";
   position: absolute;
