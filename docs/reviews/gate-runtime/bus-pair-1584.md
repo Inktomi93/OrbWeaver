@@ -67,6 +67,15 @@ fact-health failure.
 (`discriminatorTranslation`) and maps the caller's proven members through it. A skewed table that maps
 `chatsChanged → {type:"settingsChanged"}` credits `settingsChanged`, and the spec pins exactly that.
 
+**A door held one binding later is the same door.** `emitterSink` used to RETURN at an Identifier callee,
+so `const emit = deps.emit; emit({…})` and `const p = bus.publish; p(u, e)` were silent non-producers —
+a LOCAL NAME deciding identity, which is the thing this family exists to refuse. The identifier now falls
+through to the same member resolution, which follows an immutable const alias. The live tree had one
+(`domain/chat/verbs/edit.ts:516`), but a live anchor is not a pin: four hermetic rows carry it — the
+aliased channel publish credits its member, while an alias of a same-named member on an unrelated
+receiver, a local `function publish`, and a local `const publish = () => …` credit nothing. The credit row
+REDs when the early return is restored; the decoy REDs when the door is reduced to a name check.
+
 **Fail-closed is scoped to a PROVEN door.** An argument the checker cannot read — `any`/`unknown`/`never`,
 a constituent with no literal discriminator — is an unresolved identity at that call, surfaced by
 `bus-fact-health`. A candidate call whose door does not resolve is simply not a subject.
@@ -225,7 +234,9 @@ than a stale permission, and the census above is where it will show.
 
 ## 3. Verification
 
-- **Conformance** — `tests/tooling/verify/gates/bus-pair.test.ts`: 6 policies, 25 proof rows, plus four
+- **Conformance** — `tests/tooling/verify/gates/bus-pair.test.ts`: 6 policies, 32 proof rows (derived from
+  the descriptors: belt-total 1+3, consumer-belt 2+4, coverage-owner 4+3, definition-belts 3+3,
+  user-bus-coverage 3+3, deferred-member 1+2), plus four
   `runPolicyPass` pins (the deferral refusal, the deferred member's exclusive ownership in both states,
   the definition-fact and coverage-owner blindness refusals, and the derived-vs-name-table control that
   REDs a same-named alias which stopped being a subset). Fixture-specifier resolution is controlled on BOTH
@@ -237,7 +248,7 @@ than a stale permission, and the census above is where it will show.
   NAME-CHECK mutant of the door it exists to pin. With the specifier repaired it goes RED under that
   mutant (receipt in §3).
 
-- **Fact spec** — `tests/tooling/verify/lib/bus-fact-relay.test.ts`, 9 rows, red-first as above.
+- **Fact spec** — `tests/tooling/verify/lib/bus-fact-relay.test.ts`, 13 rows, red-first as above.
 
 - **Scoped suites** — 122 tests across 7 files green (`bus-pair`, `bus-fact-relay`, `bus-fact-health`,
   `bus-payload-allowlist`, `bus-coverage`, `reviewed-grants`, `policy-pass`).
@@ -304,9 +315,13 @@ Two things are load-bearing in that table and neither is the algorithm:
    Consolidating them into one policy quantified over every belted union in the fact would also make
    `bus-coverage-owner` structurally unnecessary. Not taken in this lane: it would rewrite four policies
    the wave just credited, and their conversion manifest, mid-train.
-2. `canonicalTypeAlias` now follows an import alias one hop. It refused with ZERO declarations when the
-   type was read at a node in a CONSUMING module (every client mapped type), which is the difference
-   between locating a union and silently not finding it. The producer census is unchanged by the repair;
-   any other reader that resolves a type read outside its declaring module wants the same hop.
+2. The one-hop import-alias resolution is now a shared reader (`aliasResolvedDeclarations`), consumed by
+   both `canonicalTypeAlias` and the descriptor-ownership read. The same gap appeared twice: a symbol read
+   at a node in a CONSUMING module is the IMPORT's symbol, whose declarations are the `ImportSpecifier`, so
+   a client mapped type located no union and a descriptor consuming a SHARED identity const registered as
+   owning no bus (fail-loud, and latent — all five live policies declare the const locally). Both are
+   pinned: the alias-keyed client map row on `bus-consumer-belt`, and the imported-const row on
+   `bus-coverage-owner`, which REDs when the hop is dropped. Any other reader resolving a symbol outside
+   its declaring module wants the same helper rather than a third copy.
 3. The composed 78-policy baseline must be re-measured with these six policies and two providers added,
    on a quiesced tree, before cutover acceptance.

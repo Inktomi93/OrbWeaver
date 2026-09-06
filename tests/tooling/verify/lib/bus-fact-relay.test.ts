@@ -294,3 +294,54 @@ test("the republish translation is READ from the table, never assumed to be the 
   // would credit the wrong member — the exact false-green shape the coarse fan would hide.
   expect(emittedMembers(fact, "ProbeBusEvent")).toEqual(["settingsChanged"]);
 });
+
+// ── the ALIASED DOOR ──────────────────────────────────────────────────────────────────────────────────
+// `emitterSink` used to RETURN at an Identifier callee, so a door held one binding later was a silent
+// non-producer. The tree had a real one (`const emit = deps.emit` in domain/chat/verbs/edit.ts), but a
+// live anchor is not a pin: refactor that call site and the door regresses green with nothing to say so.
+// These four rows are the pin — one credit and three near-misses that share its exact spelling.
+
+const ALIAS_CHANNEL = `import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";
+import { defineBusChannel } from "./bus-channel.ts";
+const bus = defineBusChannel<string, ProbeBusEvent>((key) => key);
+const publish = bus.publish;
+export function go(userId: string): void {
+  publish(userId, { type: "chatsChanged" });
+}
+`;
+
+test("a channel publisher held in a const alias credits the member — the door is the member, not the spelling", () => {
+  const { fact } = runFact({ ...BASE_FILES, "packages/server/src/transport/trpc/aliased.ts": ALIAS_CHANNEL });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual(["chatsChanged"]);
+});
+
+test("an alias of a same-named member on an unrelated receiver credits nothing", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/domain/settings/logger-alias.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\ndeclare const logger: { publish: (key: string, event: ProbeBusEvent) => void };\nconst p = logger.publish;\nexport function go(userId: string): void {\n  p(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("a local function named publish credits nothing", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/domain/settings/local-fn.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nfunction publish(_userId: string, _event: ProbeBusEvent): void {}\nexport function go(userId: string): void {\n  publish(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("a local arrow bound to the name publish credits nothing", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/domain/settings/local-arrow.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nconst publish = (_userId: string, _event: ProbeBusEvent): void => undefined;\nexport function go(userId: string): void {\n  publish(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});

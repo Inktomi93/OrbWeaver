@@ -1,5 +1,5 @@
 // Canonical identity and authored-value composition for the visitor-fed bus fact collector.
-import type { CallExpression, Node as MorphNode, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import type { BusAnchor, BusDeclarationIdentity, BusMemberIdentity, BusOperationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
@@ -33,18 +33,26 @@ export function busDeclarationIdentity(context: GateFactContext, declaration: Ty
   return { path: context.relativePath(declaration.getSourceFile()), exportName: declaration.getName() };
 }
 
-/** The ONE type-alias declaration a resolved type names, followed through an import alias. The extra hop
- *  is not optional: when the type is read at a node in a CONSUMING module (a client mapped type keyed by
- *  `ChatBusEvent["type"]`), the alias symbol is the IMPORT's symbol and `getDeclarations()` answers an
- *  empty list — measured, and it is the difference between locating the union and silently not finding it. */
-export function canonicalTypeAlias(type: Type): TypeAliasDeclaration | undefined {
-  const symbol = type.getAliasSymbol() ?? type.getSymbol();
-  const declarations = (symbol?.getDeclarations() ?? []).filter(Node.isTypeAliasDeclaration);
-  if (declarations.length === 1) {
-    return declarations[0];
+/** Every declaration a symbol names, INCLUDING the one hop through an import alias. The hop is not
+ *  optional and it is not local to one reader: a symbol read at a node in a CONSUMING module is the
+ *  IMPORT's symbol, whose own declarations are the `ImportSpecifier` — so a caller looking for the real
+ *  declaration (a type alias, a const) finds nothing at all. Measured twice on this tree: a client mapped
+ *  type keyed by `ChatBusEvent["type"]` located no union, and a policy descriptor consuming a SHARED union
+ *  identity const registered as owning no bus. Both are the same missing hop, so it lives here once. */
+export function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly MorphNode[] {
+  const rows: MorphNode[] = [];
+  for (const declaration of [...(symbol?.getDeclarations() ?? []), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])]) {
+    if (!rows.some((existing) => existing.compilerNode === declaration.compilerNode)) {
+      rows.push(declaration);
+    }
   }
-  const aliased = declarations.length === 0 ? (symbol?.getAliasedSymbol()?.getDeclarations() ?? []).filter(Node.isTypeAliasDeclaration) : [];
-  return aliased.length === 1 ? aliased[0] : undefined;
+  return rows;
+}
+
+/** The ONE type-alias declaration a resolved type names, through {@link aliasResolvedDeclarations}. */
+export function canonicalTypeAlias(type: Type): TypeAliasDeclaration | undefined {
+  const declarations = aliasResolvedDeclarations(type.getAliasSymbol() ?? type.getSymbol()).filter(Node.isTypeAliasDeclaration);
+  return declarations.length === 1 ? declarations[0] : undefined;
 }
 
 interface RefusalInput {
