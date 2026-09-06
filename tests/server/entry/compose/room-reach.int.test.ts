@@ -11,7 +11,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatBooks, chatRegexScripts, globalBooks, personaBooks, personas, regexScripts, worldBooks, worldEntries } from "@orb/db";
 import type { ChatId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture, createRoomEntityFan } from "@orb/server/entry/compose";
@@ -20,6 +20,9 @@ import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
+// The regex library-row factory (a plain insert, no verb) — the regex domain's own, so this file never
+// re-spells a `regex_scripts` fixture.
+import { seedScript } from "../../domain/regex/_support.ts";
 
 const FROZEN_AT = 1_700_000_000_000;
 
@@ -286,6 +289,35 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     fanReach();
     expect(roomsFor(captured, "world-info")).toEqual(new Set([chatScoped, charScoped]));
     expect(captured).toHaveLength(2);
+  });
+
+  test("REGEX — captured before the delete, fans the attaching rooms; a capture taken AFTER sees ∅", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, castId<Handle>("rr_del_r_owner"));
+    const doomed = await seedScript(db, { ownerId: owner, id: "regex_script_rr_del", name: "doomed" });
+    const kept = await seedScript(db, { ownerId: owner, id: "regex_script_rr_keep", name: "kept" });
+    const attached = await seedChat(db, "rr_del_r_attached");
+    const other = await seedChat(db, "rr_del_r_other");
+    await db.insert(chatRegexScripts).values({ chatId: attached, regexScriptId: doomed, position: 0, createdAt: FROZEN_AT });
+    await db.insert(chatRegexScripts).values({ chatId: other, regexScriptId: kept, position: 0, createdAt: FROZEN_AT });
+
+    const captured: LiveOnlyChatBusEvent[] = [];
+    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+
+    // Snapshot WHILE `chat_regex_scripts` still names the row.
+    const fanReach = await capture.regex([doomed]);
+    await db.delete(regexScripts).where(eq(regexScripts.id, doomed));
+
+    // THE DEFECT the capture exists for: the same reach taken after the CASCADE resolves nothing at all, so a
+    // verb that fanned post-write would leave every OTHER member of `attached` on a stale rack.
+    const post: LiveOnlyChatBusEvent[] = [];
+    (await createDeleteReachCapture(db, (event) => post.push(event)).regex([doomed]))([doomed]);
+    expect(post).toEqual([]);
+
+    // THE FIX: the captured thunk still reaches the room — and only the confirmed-deleted id's rooms.
+    fanReach([doomed]);
+    expect(roomsFor(captured, "regex")).toEqual(new Set([attached]));
+    expect(captured).toHaveLength(1);
   });
 
   test("a persona seated / anchored NOWHERE captures ∅ — the thunk is a no-op", async () => {
