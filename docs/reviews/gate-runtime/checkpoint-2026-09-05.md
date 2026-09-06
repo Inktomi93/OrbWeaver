@@ -110,10 +110,85 @@ Lessons this wave paid for, for the next briefs: prove a counterfactual row by s
 
 Runtime follow-ups added: the overload-aware origin reader now has three callers waiting (React `useState`, drizzle operators, `@trpc/server` `TRPCError` / `defineBusChannel`); no shared reader normalizes a `QualifiedName` type reference; the DOM-less analysis program leaves `window`/`self`/bare DOM globals fail-closed rather than precise; the composed pass cost is a RANGE under today's box load (64 s idle at 78 policies this morning, 1:23 to 4:35 across the wave's loaded runs at flat RSS) and the quiet-tree remeasurement is owed before cutover; the generic-producer consolidation of the five per-union coverage policies is UNBLOCKED by the relay model and would retire `bus-coverage-owner`.
 
+## Resume 2026-09-06, wave 5: the overload-aware origin reader and the generic producer policy
+
+One lane (`cb-runtime-origin`) from `0c7bc1eca`, two deliverables, both closing rows this checkpoint's own
+follow-up list opened.
+
+**1. The OVERLOAD-AWARE origin reader.** `resolveModuleMemberOrigin` answered `ambiguous` for any export
+whose symbol carried more than one declaration. An overloaded callable is ONE symbol in ONE file with N
+declarations, so the identity home is unique even though the count is not — and the refusal cost three
+families their precise verdict and closed the `.publish` door for every bus channel on the tree.
+`reference-fact-module.ts#overloadHome` now resolves a set of declarations to one home when every declaration
+is a `FunctionDeclaration`, in the same source file, with at most one implementation body; the home is the
+implementation when there is one, otherwise the first signature, and `canonical.declarationCount` carries the
+count. Both refusal sites take it (the export-symbol path at the old `:207`, and the local-export-specifier
+path at the old `:129`). **DELIBERATE NARROWING, stated:** the brief's kind list also named
+`MethodDeclaration`/`MethodSignature`/call-signature overload sets; every symbol that reaches this reader
+comes from `SourceFile#getExportSymbols()` or an export specifier's aliased symbol, so its declarations are
+module-level and those kinds are unreachable here — an arm no proof row could ever turn red. A member
+resolved off a receiver's TYPE keeps asking every declaration (`type-member-origin.ts`,
+`drizzle-client-call.ts`): its question is "is EVERY declaration of this member declared by that home", a
+set-membership test an overload set already answers correctly. That is written in the reader's own doc
+comment.
+
+- **Armed spec, red-first**: `tests/tooling/verify/lib/reference-fact-module.test.ts` — 3 new positive rows
+  (a same-file overload set with an implementation → home at the implementation, count 3; an ambient
+  `declare function` set behind a planted `node_modules/vendor` package door with `types` → home in the
+  `.d.ts`, count 2; a LOCAL export specifier over an overload set → count 3) and 4 counterfactual rows (two
+  files of one package fanned in by `export *`; an interface/value merge; a `function`+`namespace` merge; two
+  implementations of one name in one file). Against the unmodified reader: **3 fail, 8 pass** — the four
+  counterfactuals pass in BOTH states by design, and the planted package door is its own resolution control
+  (an unresolvable door answers `external-door` and would prove nothing about declaration counting).
+- **Live arm census** (real workspace, 7,245 sources): **557** client/server import specifiers now resolve to
+  an overload set — `useState` 206, `useQuery` 135, `useRef` 103, drizzle `inArray` 53, the project's own
+  `createAutosaveEntityForm` 27, `defineBusChannel` 4 — while **88** stay `ambiguous` and are all genuine
+  merges (drizzle's `sql` 58, `SQL` 23, `Component`, `SubstituteFindRegex`, `Agent`, `buildConnector`,
+  `Quantization`). `@trpc/server`'s `TRPCError` is in NEITHER list: it is a single-declaration class, so
+  `home-server-family-1584.md`'s claim that it was "a third live instance" of this refusal is REFUTED — those
+  five accusations came from the missing name prefilter alone.
+- **Composed pre/post over the same corpus, all 109 final policies**: 237 raw = 157 waived + 78 granted + 2
+  effective, 0 alarms, 0 tool/fact/authority errors — and the diff is EMPTY in every direction: no per-policy
+  count moved, no finding appeared or disappeared, no waiver or grant consumption changed, every provider
+  receipt identical (bus-producers 66, drizzle-schema 1,288, registry-definitions 99, tuple-vocabularies
+  2,137, bus-definitions 8, bus-coverage-owners 270). The widening is therefore proven widening-only on this
+  tree by the diff, not asserted — and the arm is proven REACHED by the 557-row census above, which is what
+  makes an empty diff evidence rather than a false clean.
+- **Two gate-local workarounds DELETED** as superseded, each with its receipt: `overloadedDrizzleDoor` in
+  `lib/schema-fact-value.ts` and its twin in `gates/nullable-column-inequality.ts` (both read trace
+  declarations for a drizzle import specifier when the origin refused as `ambiguous`). The
+  `drizzleSchemaFact` receipt is byte-identical across the deletion (1,288 members, 0 unresolved) and the
+  planted-overload proof row now passes through the canonical origin.
+- **Two declared limits converted into caught rows**: `no-forward-ref` `mustFlag[1]` and `no-use-context`
+  `mustFlag[1]`, built on the new `reactOverloadedProofModule()` (React's door with `forwardRef`/`useContext`
+  declared twice) and asserting the DEPRECATION message, which the fail-closed `unreadable` arm does not
+  carry. Red-first: both fail against the unmodified reader on exactly that assertion.
+
+**2. The generic producer-coverage policy.** The five per-union coverage policies (`bus-coverage`,
+`rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage`, `user-bus-coverage`) differed only in
+a `UNION` constant; they are one `bus-producer-coverage` (ordinary/error, family `bus-fact`) quantified over
+the belted roster of `busDefinitionFact`. `bus-coverage-owner` retires with them — the belted roster IS the
+denominator, so a belted bus nobody quantifies over cannot exist — and `busCoverageOwnerFact` (270 gate
+modules, 3.6 s of every composed pass) is deleted with it. `user-bus-deferred-member` stays; its export is now
+`BUS_MEMBER_DEFERRALS`, keyed by `(union, member)` because a bare NAME would defer a same-named member of any
+other bus once the quantifier went generic. All 21 proof rows of the five retired modules moved verbatim, plus
+one new row only the consolidated shape can express (two belted unions, one produced and one not, judged by
+one policy). Conformance and the two refusal pins are in `bus-fact-health.test.ts` — that spec already WAS the
+producer family's entry — and `bus-pair.test.ts` keeps the definition family plus the deferral pins. Real
+pass over the family: 0/0/0/0; producer fact 66 members / **271 emitter anchors** / 0 unresolved, compared as
+a SET difference against the pre arm and IDENTICAL. Full evidence: [bus-pair-1584.md](bus-pair-1584.md) §5.
+
+**Fold receipts** (lane worktree, base `0c7bc1eca`): tooling TS7 clean; 49 focused tests across 26 files
+green (reader battery 178 tests / 13 files, family battery 56 / 10, bus family 23 / 3, schema 18 / 3 — with
+per-test wall times in the lane report); biome + eslint clean over every touched `.ts`/`.tsx`; both
+line-coupled ledgers re-derived; zero control bytes. The corpus is **259 modules, 104 final and 155 legacy**;
+the composed pass over all 104 is 237 raw = 157 waived + 78 granted + 2 effective (the #1816 pair), 0 alarms,
+**5 providers** (one fewer than wave 4), 84.6 s wall / 6.13 GB peak RSS on a loaded box.
+
 ## Resume order
 
-1. Remeasure the composed pass on a quiet box and record it as the cutover cost row; then close the runtime follow-ups in dependency order (the overload-aware origin reader first — three callers wait on it; the `QualifiedName` normalizer; the DOM-global receiver precision).
-2. Consolidate the five per-union producer-coverage policies onto the proven relay model (unblocked this wave) and retire `bus-coverage-owner` with them.
+1. Remeasure the composed pass on a quiet box and record it as the cutover cost row; then close the remaining runtime follow-ups (the `QualifiedName` normalizer; the DOM-global receiver precision). ~~the overload-aware origin reader~~ DONE in wave 5.
+2. ~~Consolidate the five per-union producer-coverage policies … and retire `bus-coverage-owner` with them.~~ DONE in wave 5.
 3. Repair static-class parity, then convert the class/style family (six sanctioned-home gates plus the CSS/style policies) and the remaining resource/layout rows individually.
 4. Convert the remaining simple ordinary visitors, 12–15 per lane, each brief carrying the wave-4 lessons above; then the mixed timing-sensitive modules.
 5. The atomic loader/CLI/report/scaffold cutover: delete the legacy runtime, the `__g_` fixture suites (`check-gates.int`, `gate-ignore-grammar.int`), the nine baseline files, the temporary census command, and re-attest the documentation catalog.
@@ -123,7 +198,7 @@ Runtime follow-ups added: the overload-aware origin reader now has three callers
 - Legacy all-corpus gate tests, `check:structure`, and the graph type program still assume every module is a `GateDescriptor`; no compatibility adapter exists. Lane floors skip them by owner directive; the orchestrator takes the census on the merged tip.
 - CSS/static-class checkpoint code remains WIP; the bus pair converted this wave.
 - The documentation catalog is stale by design and was not re-attested during the folds; both line-coupled ledgers are fresh at `0688f876e`.
-- `types:graph` carries 12 pre-existing errors in five legacy-loader test files (listed in the wave-4 section); `gate-ignore-grammar.int.test.ts` and `check-gates.int.test.ts` are red under the legacy loader and the former leaks `__g_gi` fixtures on a `beforeAll` failure — never run it on a shared tree.
+- `types:graph` carries 12 pre-existing errors in five legacy-loader test files (listed in the wave-4 section); `gate-ignore-grammar.int.test.ts` and `check-gates.int.test.ts` are red under the legacy loader and the former leaks `__g_gi` fixtures on a `beforeAll` failure — never run it on a shared tree. Wave 5 repointed `tests/tooling/verify/ops/scoped.int.test.ts` (one of those five) from the retired `bus-coverage` module to `bus-producer-coverage`: it stays known-red for the legacy-loader reason, but it no longer imports a deleted file.
 - Sixteen unproven caught-failure sites in the runtime foundation are ledgered, not resolved.
 - No full structure, broad test, or final old/new differential applies to the current tip; the composed baselines above are measurements, not acceptance.
 - Two effective findings (#1816, `embeddings/indexer/caption.ts`) are carried unwaived in the composed pass by design until the product row lands.

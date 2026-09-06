@@ -186,6 +186,23 @@ The wave-3 resume converted the canonical-origin client family (twelve policies 
 
 The wave-4 resume converted the two sanctioned-home families as exact reviewed grants (ten server gates into eleven policies with forty rows; fourteen client gates into fourteen policies with thirty rows and one authority split to ordinary), and modeled the `chatsChanged` conditional publisher in the shared bus producer fact: the blocking cause was the OVERLOADED `defineBusChannel` export closing the `.publish` door, which is now proven by the method's declaration home; a whole-union flow type is ruled a forward, never a producer and never a refusal. `user-bus-coverage` and `bus-definition-belts` then converted, the latter into four hard policies whose three legacy tables are derived from types and descriptors, and the deferred `connectionsChanged` member became typed warning debt on #1822. Every lane went through a fresh-context verifier loop (two, three and four rounds) whose findings were fixed on the warm lane before its fold. At `0688f876e` the corpus is 264 modules, 109 final and 155 legacy, and `gate:contract` reports 1,070 findings. The composed measurement over all 109 final policies on a near-quiet box is 83.3 s wall and 6.83 GB peak RSS on 7,243 loaded sources with zero errors and six effective findings, none introduced by the wave; family evidence is in [home-server-family-1584.md](../reviews/gate-runtime/home-server-family-1584.md), [home-client-family-1584.md](../reviews/gate-runtime/home-client-family-1584.md), [bus-pair-1584.md](../reviews/gate-runtime/bus-pair-1584.md) and the appended [bus-family-1584.md](../reviews/gate-runtime/bus-family-1584.md). The generic-producer consolidation the bus-family doc blocked on this relay is now unblocked.
 
+The wave-5 resume closed the shared-reader row three families were waiting on and consolidated the producer
+family. `resolveModuleMemberOrigin` used to refuse any multiply-declared export as `ambiguous`; a FUNCTION
+overload set (same kind, same source file, at most one implementation body) now resolves to one home with the
+declaration count carried in the verdict, while a value/type merge, a `function`+`namespace` merge, an
+`export *` fan-in and a two-file split still refuse. 557 live import specifiers gained a precise verdict
+(React's `useState`/`useRef`, query's `useQuery`, drizzle's `inArray`, our own `defineBusChannel` and
+`createAutosaveEntityForm`), 88 correctly still refuse, two gate-local trace-declaration workarounds were
+deleted as superseded, and the composed pre/post over the same corpus moved NOTHING — no per-policy count, no
+finding, no waiver or grant consumption — which is evidence rather than a false clean because the arm is
+proven reached by that census. The five per-union bus coverage policies then became one
+`bus-producer-coverage` quantified over the belted roster, retiring `bus-coverage-owner` (its guarantee is now
+the policy's own denominator plus two refusals) and its 270-module provider; all 21 proof rows moved verbatim
+and the 66-member/271-anchor producer census is set-identical. At the lane tip the corpus is 259 modules, 104
+final and 155 legacy, and the composed pass over all 104 is 237 raw = 157 waived + 78 granted + 2 effective
+with zero alarms on 5 providers. Evidence: [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md)
+§"Resume 2026-09-06, wave 5" and [bus-pair-1584.md](../reviews/gate-runtime/bus-pair-1584.md) §5.
+
 Work proceeds in dependency order:
 
 1. population algebra plus old/new admitted-set equivalence;
