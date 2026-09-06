@@ -16,10 +16,12 @@
 // creates nor fixes (filed separately as the process-locality row). Every caller states the key it serializes
 // on and why that key covers the state it is protecting.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 
 /**
- * THE AUTOMATION SCOPE KEY — one lane per chat, one for the whole domain bus, and this is its ONE home.
+ * THE AUTOMATION SCOPE KEYS — one lane per chat, one per OWNER on the domain bus (#1554 — the domain bus
+ * used to be ONE lane, full stop; the header below states why per-owner is the improvement and per-subject
+ * is not), and this pair is their ONE home.
  *
  * Every entry into the dispatch engine derives its key here rather than spelling the string: the bus door
  * (`substrate/handle-event.ts`), the host's "Run now" and the S4 invitation confirm (`substrate/run-now.ts`),
@@ -27,11 +29,21 @@ import type { ChatId } from "@orb/kit/ids";
  * on lanes that only LOOK like the same lane — which is exactly the shape of the defect they exist to close
  * (a host's Run-now read-modify-writing the chat variable plane beside a bus fire).
  *
- * `null` is the owner-GLOBAL scope: a chat-less rule dispatched off the domain bus. `handle-event.ts` carries
- * the argument for why that whole bus is ONE lane rather than one per subject id.
+ * TWO FUNCTIONS, never one taking `chatId: ChatId | null` — a chat dispatch's lane never depends on WHICH
+ * rule's owner is contending (many owners' rules can share one chat's variable plane, correctly serialized
+ * together), so a single signature would force every chat-lane call site to thread an owner id it does not
+ * use. Each caller already knows, from its own `chatId === null` branch, which one it means.
  */
-export function automationLaneKey(chatId: ChatId | null): string {
-  return chatId === null ? "automation:domain" : `automation:chat:${chatId}`;
+export function automationChatLaneKey(chatId: ChatId): string {
+  return `automation:chat:${chatId}`;
+}
+
+/** The owner-GLOBAL (chat-less) lane, keyed by OWNER — never the whole bus (the old single-lane shape) and
+ *  never the event's SUBJECT id (`characterId`/`assetId`/…): `handle-event.ts` carries the argument that
+ *  rules contend over their AUTHOR's own variable plane, which a subject id does not name and would look
+ *  like scope while buying nothing. */
+export function automationDomainLaneKey(ownerId: UserId): string {
+  return `automation:domain:${ownerId}`;
 }
 
 // ASSUMES(single-replica): the lane table holds LIVE in-process Promises, which is what a promise IS — there

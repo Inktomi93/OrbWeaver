@@ -24,7 +24,7 @@ import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
 import { runDispatch } from "../engine/dispatch.ts";
 import { synthFact } from "./dry-run.ts";
-import { automationLaneKey, runInLane } from "./serial-lanes.ts";
+import { automationChatLaneKey, automationDomainLaneKey, runInLane } from "./serial-lanes.ts";
 
 /** The depth a host-initiated run starts at: 0, the human plane (a manual run is not a cascade step). */
 const MANUAL_DEPTH = 0;
@@ -36,7 +36,8 @@ export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: C
   // #1565 — A MANUAL RUN TAKES THE SAME LANE THE BUS DOOR TAKES. It is a full `runDispatch` over the chat's
   // shared variable env, so a host pressing "Run now" while a bus event is mid-dispatch read the same
   // snapshot, computed the same increment and wrote the same value — the exact interleave #1423 closed one
-  // door over. The key is derived through `automationLaneKey`, never re-spelled: two entries on
+  // door over. The key is derived through `automationChatLaneKey`/`automationDomainLaneKey`, never
+  // re-spelled: two entries on
   // lanes that only LOOK alike is the same defect wearing a typo.
   //
   // NO RE-ENTRANCY, and it is structural rather than lucky (receipts, 2026-09-05): `dispatchRuleNow` has
@@ -46,7 +47,7 @@ export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: C
   // nest. Nothing reachable from an arm re-enters here either: the bus door's own entries are all
   // `superviseDetached` roots (`watcher/start-automation-watcher.ts:17,22`, `entry/lifecycle.ts:480`), so an
   // arm that generates chat events (`trigger_turn` → `requestTurn`) never AWAITS the resulting `handleEvent`.
-  return runInLane(automationLaneKey(chatId), () => dispatchNow(ctx, rule, chatId, manualBy));
+  return runInLane(chatId === null ? automationDomainLaneKey(rule.ownerId) : automationChatLaneKey(chatId), () => dispatchNow(ctx, rule, chatId, manualBy));
 }
 
 async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
