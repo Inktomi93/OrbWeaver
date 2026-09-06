@@ -62,7 +62,7 @@ export const tagRouter = t.router({
       z.object({
         tagId: brandedId<TagId>(),
         targetType: tagTargetTypeSchema,
-        // @orb-gate-ignore no-raw-id: polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
+        // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
         targetId: z.string().min(1),
         status: tagStatusSchema.optional(),
       }),
@@ -82,7 +82,7 @@ export const tagRouter = t.router({
       z.object({
         tagId: brandedId<TagId>(),
         targetType: tagTargetTypeSchema,
-        // @orb-gate-ignore no-raw-id: polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
+        // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
         targetId: z.string().min(1),
       }),
     )
@@ -100,7 +100,7 @@ export const tagRouter = t.router({
       z.object({
         tagIds: z.array(brandedId<TagId>()).min(1),
         targetType: tagTargetTypeSchema,
-        // @orb-gate-ignore no-raw-id: polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
+        // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
         targetId: z.string().min(1),
         status: tagStatusSchema.optional(),
       }),

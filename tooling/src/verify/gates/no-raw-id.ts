@@ -1,192 +1,134 @@
-// Gate: no-raw-id (Spine-TypeScript-and-Patterns.md §1) — an `*Id` field typed as a bare `z.string()` drops
-// the brand that makes FK drift a compile error.
-//
-// TWO-SIDED (gate-hub #10): the ONE exemption is keyed on a SYMBOL (`triggerFactSchema`, the guest-
-// marshalling contract), so its stale arm is symbol existence — if no declaration by that name is left in
-// the project, the carve-out is a dead name that silently exempts nothing (and would quietly re-attach if a
-// future unrelated declaration reused the name). The arm self-guards on a REAL-TREE ANCHOR (gate-hub #11):
-// the kit ids home whose `brandedId` the message prescribes.
+// A Zod field in an id-named position cannot remain a raw string unless the exact occurrence is waived.
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
+import { ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { idCastProofModule } from "./_proof/id-brand.ts";
 
-const EXEMPT_SYMBOL = "triggerFactSchema";
-const EXEMPT_PAYLOAD_SYMBOL = "triggerFactPayloadSchema";
-const GATE_SELF = "tooling/src/verify/gates/no-raw-id.ts";
-/** Real-tree anchor (gate-hub #11): the id-brand home this gate's message prescribes. */
-const ANCHOR = "packages/kit/src/ids/index.ts";
-const STALE_MESSAGE =
-  `stale exemption — no \`${EXEMPT_SYMBOL}\` declaration is left in the project, so the guest-marshalling ` +
-  "carve-out exempts nothing and would silently re-attach to any future declaration that reuses the name " +
-  "(ratchet down): delete it in tooling/src/verify/gates/no-raw-id.ts";
+const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity.";
 
-export const gate: GateDescriptor = {
-  name: "no-raw-id",
-  docRow: "Spine-TypeScript-and-Patterns.md §1",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "id field typed as a raw z.string() — use brandedId<T>() (nanoid) or typeIdSchema(ID_PREFIX.x) (TypeID). The brand flows through the contract surface into services + client, so swapping a ChatId for a CharacterId becomes a type error instead of silent FK drift. (Spine-TypeScript-and-Patterns.md §1)",
-  kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.PropertySignature],
-  visit(node, _sf, ctx): void {
-    let nameNode: Node | undefined;
-    let valueNode: Node | undefined;
+function memberReceiver(node: MorphNode): MorphNode | undefined {
+  const callee = Node.isCallExpression(node) ? node.getExpression() : node;
+  return Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee) ? callee.getExpression() : undefined;
+}
 
-    if (Node.isPropertyAssignment(node)) {
-      nameNode = node.getNameNode();
-      valueNode = node.getInitializer();
-    } else if (Node.isPropertySignature(node)) {
-      nameNode = node.getNameNode();
-      valueNode = node.getTypeNode();
+function builderRoot(node: MorphNode): CallExpression | null {
+  let current = node;
+  while (Node.isCallExpression(current)) {
+    const receiver = memberReceiver(current);
+    if (!Node.isCallExpression(receiver)) {
+      return current;
     }
+    current = receiver;
+  }
+  return null;
+}
 
-    if (!(nameNode && valueNode)) {
-      return;
+function isZodString(root: CallExpression): boolean {
+  const callee = root.getExpression();
+  if (Node.isIdentifier(callee)) {
+    return (callee.getSymbol()?.getDeclarations() ?? []).some(
+      (declaration) =>
+        Node.isImportSpecifier(declaration) && declaration.getName() === "string" && declaration.getImportDeclaration().getModuleSpecifierValue() === "zod",
+    );
+  }
+  if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
+    return false;
+  }
+  const name = Node.isPropertyAccessExpression(callee) ? callee.getName() : callee.getArgumentExpression()?.getText().replaceAll(/["']/gu, "");
+  const receiver = callee.getExpression();
+  if (name !== "string" || !Node.isIdentifier(receiver)) {
+    return false;
+  }
+  return (receiver.getSymbol()?.getDeclarations() ?? []).some((declaration) => {
+    if (Node.isImportSpecifier(declaration)) {
+      return declaration.getName() === "z" && declaration.getImportDeclaration().getModuleSpecifierValue() === "zod";
     }
+    return Node.isNamespaceImport(declaration) && declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue() === "zod";
+  });
+}
 
-    const keyName = nameNode.getText().replace(/['"]/g, "");
-    if (!keyName.endsWith("Id")) {
-      return;
-    }
+function idProperty(node: MorphNode): { readonly name: string; readonly nameNode: MorphNode; readonly initializer: MorphNode } | null {
+  if (!Node.isPropertyAssignment(node)) {
+    return null;
+  }
+  const nameNode = node.getNameNode();
+  const initializer = node.getInitializer();
+  const name = Node.isIdentifier(nameNode) || Node.isStringLiteral(nameNode) ? nameNode.getText().replaceAll(/["']/gu, "") : "";
+  return name.endsWith("Id") && initializer !== undefined ? { name, nameNode, initializer } : null;
+}
 
-    // ALLOWLIST — `triggerFactSchema` (contracts/automation). Its ids (chatId, message.authorUserId /
-    // characterId, turn.speakerCharacterId, top-level characterId, assetId) are UNBRANDED z.string() BY DESIGN:
-    // this schema IS the guest-marshalling contract for the QuickJS plugin realm — a read-only predicate
-    // value-bag structure-cloned into an untrusted guest, NOT an FK surface. A branded id would survive the
-    // structured-clone as a bare string but LIE about its type across the realm boundary (the
-    // tool-schema-no-branded-transform lesson applies to guest-marshalled shapes), and branding a field whose
-    // whole point is to cross the membrane as a plain scalar breaks the boundary. Keyed on the enclosing
-    // declaration name so the gate stays LIVE for every other id field in the same file.
-    const declarationName = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName();
-    if (declarationName === EXEMPT_SYMBOL) {
-      return;
-    }
-    if (declarationName === EXEMPT_PAYLOAD_SYMBOL) {
-      const finalDeclaration = node.getSourceFile().getVariableDeclaration(EXEMPT_SYMBOL);
-      const finalInitializer = finalDeclaration?.getInitializerIfKind(SyntaxKind.CallExpression);
-      const arms = finalInitializer?.getArguments()[1];
-      const payloadOwnsEveryArm =
-        finalInitializer?.getExpression().getText() === "z.discriminatedUnion" &&
-        Node.isArrayLiteralExpression(arms) &&
-        arms.getElements().length > 0 &&
-        arms.getElements().every((arm) => {
-          if (!Node.isCallExpression(arm)) {
-            return false;
+export const gate = defineGate({
+  id: "no-raw-id",
+  family: "id-brand-flow",
+  authority: "ordinary",
+  severity: "error",
+  population: "@authored",
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: "use the canonical kit id schema. For a foreign, polymorphic, or deliberately lenient id-shaped string, attach `@orb-waive no-raw-id(<field>): <reason + end condition>` to that exact property.",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.PropertyAssignment],
+        visit: (node) => {
+          const property = idProperty(node);
+          const root = property === null ? null : builderRoot(property.initializer);
+          if (property !== null && root !== null && isZodString(root)) {
+            ctx.report.node(property.nameNode, { token: property.name, offset: 0 });
           }
-          const expression = arm.getExpression();
-          return (
-            Node.isPropertyAccessExpression(expression) && expression.getName() === "extend" && expression.getExpression().getText() === EXEMPT_PAYLOAD_SYMBOL
-          );
-        });
-      if (payloadOwnsEveryArm) {
-        return;
-      }
-    }
-
-    // Whitespace-NORMALIZED before the substring match: a prettier-wrapped chain spells the same schema
-    // `z\n  .string()\n  .regex(…)`, which a raw `includes("z.string()")` does NOT see (GATE-AUTHORING.md
-    // §5 literal-shape blindness). Two live `*Id` fields in contracts/settings sat unflagged behind that
-    // hole — found 2026-08-03 by gate-ignore-inventory's new stale-marker arm, which reported their
-    // `@orb-gate-ignore no-raw-id` markers as guarding nothing.
-    const valText = valueNode.getText().replace(/\s+/gu, "");
-    const isRawString = valText.includes("z.string()");
-    const brands = ["brandedId", "typeIdSchema", "castId"];
-    const isBranded = brands.some((b) => valText.includes(b));
-
-    if (isRawString && !isBranded) {
-      ctx.report(node);
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const declared = ctx.project.getSourceFiles().some((sf) => sf.getVariableDeclaration(EXEMPT_SYMBOL) !== undefined);
-    if (!declared) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_MESSAGE });
-    }
-  },
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      why: "raw string Zod schema for an Id field",
-      files: `
-        import { z } from "zod";
-        const schema = z.object({
-          userId: z.string()
-        });
-      `,
+      mode: "types",
+      files: { "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const schema = z.object({ userId: z.string() });\n' },
+      expect: { count: 1, token: "userId" },
+      why: "a raw id field loses its brand",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const brandedId = null;\n",
-        "packages/contracts/src/automation/index.ts": 'import { z } from "zod";\nexport const otherSchema = z.object({});\n',
+        "packages/contracts/src/x.ts":
+          'import { z as schema } from "zod";\nexport const value = schema.object({ chatId: schema.string().nullable().optional() });\n',
       },
-      expect: { count: 1, messageIncludes: "stale exemption" },
-      why: "THE STALE ARM: the anchor (the id-brand home) is loaded and no `triggerFactSchema` declaration exists any more — a symbol-keyed carve-out that names nothing must ratchet down before an unrelated future declaration inherits it",
-    },
-    {
-      files: {
-        [ANCHOR]: "export const brandedId = null;\n",
-        "packages/contracts/src/automation/index.ts": `
-          import { z } from "zod";
-          const triggerFactPayloadSchema = z.object({ chatId: z.string().nullable() });
-          export const triggerFactSchema = z.object({ bus: z.literal("chat") });
-        `,
-      },
-      why: "a same-named payload does not earn the guest-marshalling exemption unless the exported TriggerFact union actually derives every arm from it",
+      expect: { count: 1, token: "chatId" },
+      why: "Zod aliases and wrapper chains cannot hide the raw string root",
     },
   ],
   mustPass: [
     {
-      why: "branded nanoid",
-      files: `
-        import { z } from "zod";
-        import { brandedId } from "@orb/kit/ids";
-        const schema = z.object({
-          userId: brandedId<UserId>()
-        });
-      `,
-    },
-    {
-      why: "non-id field as raw string",
-      files: `
-        import { z } from "zod";
-        const schema = z.object({
-          username: z.string()
-        });
-      `,
-    },
-    {
-      why: "triggerFactSchema guest-marshalled ids are unbranded by design (allowlisted); with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
-      files: `
-        import { z } from "zod";
-        export const triggerFactSchema = z.object({
-          chatId: z.string().nullable(),
-          assetId: z.string().optional()
-        });
-      `,
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const brandedId = null;\n",
-        "packages/contracts/src/automation/index.ts":
-          'import { z } from "zod";\nexport const triggerFactSchema = z.object({\n  chatId: z.string().nullable(),\n});\n',
+        [ID_BRAND_HOME]: idCastProofModule("export function typeIdSchema(_prefix: string): unknown { return {}; }\n"),
+        "packages/contracts/src/x.ts": 'import { typeIdSchema } from "../../../kit/src/ids/index";\nexport const schema = { userId: typeIdSchema("user") };\n',
       },
-      why: "the carve-out STILL EARNED, judged against the real-tree anchor: the guest-marshalling schema exists, so its unbranded ids pass and the stale arm stays quiet",
+      why: "the canonical validating schema carries branded output",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const brandedId = null;\n",
-        "packages/contracts/src/automation/index.ts": `
-          import { z } from "zod";
-          const triggerFactPayloadSchema = z.object({ chatId: z.string().nullable() });
-          export const triggerFactSchema = z.discriminatedUnion("bus", [
-            triggerFactPayloadSchema.extend({ bus: z.literal("chat") }),
-            triggerFactPayloadSchema.extend({ bus: z.literal("domain") }),
-          ]);
-        `,
+        "packages/contracts/src/x.ts": "const z = { string: () => ({}) };\nexport const schema = { userId: z.string() };\n",
       },
-      why: "the shared guest payload earns the exemption only when every discriminated-union arm derives directly from that exact declaration",
+      why: "a local same-named builder is not Zod evidence",
+    },
+    {
+      mode: "types",
+      files: { "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const schema = z.object({ username: z.string() });\n' },
+      why: "ordinary strings with no id position are untouched",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/x.ts":
+          'import { z } from "zod";\nexport const schema = z.object({\n  // @orb-waive no-raw-id(requestId): an upstream correlation id; ends if it becomes an Orb entity.\n  requestId: z.string(),\n});\n',
+      },
+      why: "a foreign id-shaped string uses the one central positioned waiver",
     },
   ],
-};
+});

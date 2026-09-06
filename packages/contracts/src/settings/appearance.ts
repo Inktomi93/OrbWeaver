@@ -93,7 +93,7 @@ export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number
 // reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer (BG-V) over the image one;
 // `assetHash` builds `blobUrl(hash)` for the grid thumbnail without an async id→hash round-trip.
 export const backgroundLibraryEntrySchema = z.object({
-  // @orb-gate-ignore no-raw-id: not an entity FK — a blob-internal per-ROW ui identity, the SAME shape as the sibling client-minted blob-row ids (`regex.scripts[].id`, preset `sections[].id` — plain `crypto.randomUUID()`), and the sibling lenient UserSettings-tier `*Id` exemptions in this file. A branded kit/ids TypeID does NOT fit: the row is minted CLIENT-side (no client TypeID minter) and the v3→v4 backfill is DETERMINISTIC (`${assetId}:${index}`, so it's stable across the reads that re-run the lift before the first v4 write) — neither is a mintable `prefix_…` TypeID.
+  // @orb-waive no-raw-id(entryId): not an entity FK — a blob-internal per-ROW ui identity, the SAME shape as the sibling client-minted blob-row ids (`regex.scripts[].id`, preset `sections[].id` — plain `crypto.randomUUID()`), and the sibling lenient UserSettings-tier `*Id` exemptions in this file. A branded kit/ids TypeID does NOT fit: the row is minted CLIENT-side (no client TypeID minter) and the v3→v4 backfill is DETERMINISTIC (`${assetId}:${index}`, so it's stable across the reads that re-run the lift before the first v4 write) — neither is a mintable `prefix_…` TypeID.
   // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
   // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
   // stays the content pointer; `entryId` identifies the row.
@@ -172,7 +172,7 @@ export const appearanceSettingsSchema = z
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.boolean().catch(false).default(false),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-    // @orb-gate-ignore no-raw-id: not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
+    // @orb-waive no-raw-id(backgroundSeededId): not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
     backgroundSeededId: z
       .string()
       .regex(/^[a-z0-9-]*$/u)
@@ -183,7 +183,7 @@ export const appearanceSettingsSchema = z
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
     // paintable external field (the BG-C invariant, side-eye F-P0-2). The kind enum keeps `external` only as a
     // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
-    // @orb-gate-ignore no-raw-id: lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
+    // @orb-waive no-raw-id(backgroundAssetId): lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
     backgroundAssetId: z
       .string()
       .regex(/^(asset_[a-z0-9]+)?$/u)

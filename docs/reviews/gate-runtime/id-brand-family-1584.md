@@ -54,10 +54,16 @@ only candidate calls. The repeated full-project run took 22.45 s, produced zero 
 all six `no-loose-id-cast` waivers, and reported no waiver, policy, fact, or authority errors. Peak RSS was
 3,455,360 KiB with no swap or major page faults.
 
-One identity-flow policy remains before leaving this area:
+The final slice converts `no-raw-id`. It recognizes the authored Zod import door and call chain through
+named/namespace aliases instead of substring matching. Seventeen existing foreign, polymorphic, lenient,
+and opaque id-shaped fields moved from legacy `@orb-gate-ignore` comments to exact central waivers. The old
+whole-symbol `triggerFactSchema` bypass is deleted: its nine guest-marshalling fields now carry nine
+independent occurrence waivers, so one new raw id cannot inherit a schema-wide exemption.
 
-- `no-raw-id`: replace textual Zod recognition and gate-local symbol exemption with canonical call/type
-  identity and central authority;
+The real pass found 26 raw Zod id positions, consumed all 26 waivers, and produced zero effective findings,
+waiver alarms, or tool errors. The schema and id-brand-flow conformance entries cover all six final identity
+policies. The identity-flow conversion slice is complete; later work may share more generic callable-origin
+facts with other families, but no identity policy remains on the legacy descriptor contract.
 
 `registry-context-via-mint` contains the word mint but is a registry-construction policy, not an identity
 brand policy, and remains in its own family.

@@ -192,7 +192,7 @@ export const macroFreezeRecordSchema = z.array(macroFreezeSchema);
 export type MacroFreezeRecord = z.infer<typeof macroFreezeRecordSchema>;
 
 export const toolCallRecordSchema = z.object({
-  // @orb-gate-ignore no-raw-id: PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
+  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
   /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
