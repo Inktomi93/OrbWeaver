@@ -116,7 +116,7 @@ export function mintKnobOverrides(knobs: readonly RulePresetKnobView[], values: 
  *  small lie over a chooser — an entityRef is picked, not filled.
  *
  *  THE PURE DEFAULT, not the whole answer (#655). An `entityRef` whose chooser has NOTHING to offer is
- *  blocked on a PREREQUISITE, not on a choice, and "Choose a lorebook to add this rule." is then an
+ *  blocked on a PREREQUISITE, not on a choice, and "Choose a world book to add this rule." is then an
  *  instruction the host cannot obey — but which door to name is a live chat-scoped read, which is not this
  *  module's business (it is pure over the descriptors by construction). `KnobBlockingLine`, in
  *  `components/rule-preset-knob-field.tsx`, owns that override and falls back here for every other case. */

@@ -5,7 +5,7 @@
 // rows no longer fan out one membership request apiece.
 //
 // THE FOURTH SCOPE IS NOT MISSING, IT LIVES IN THE ROOM (#640). `worldInfo.attachToChat` is host-gated on a
-// MEMBERSHIP-scoped chat, so its affordance is the "This chat" tab's Lorebooks section
+// MEMBERSHIP-scoped chat, so its affordance is the "This chat" tab's World books section
 // (`features/chat/chat-books-section.tsx`), not a fourth row here. `databank-active-in.tsx`'s header records
 // the ruling for the identical shape: a junction row OUTLIVES the attacher's seat (chats carry no `ownerId`,
 // D18), so naming rooms from the OWNER's library would tell an ex-host about a room they can no longer open

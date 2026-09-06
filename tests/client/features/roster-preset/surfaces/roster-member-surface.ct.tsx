@@ -77,7 +77,7 @@ test("the editor's Start door reports what it applied and names the room after t
       configApplied: false,
       rulesMinted: ["pacingNudge"],
       rulesAlreadyPresent: [],
-      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no lorebook attached" }],
+      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no world book attached" }],
     },
   });
 
@@ -87,7 +87,7 @@ test("the editor's Start door reports what it applied and names the room after t
   const notice = page.getByTestId("cbcf-notice");
   await expect(notice).toContainText("Adventuring Roster:");
   await expect(notice).toContainText("1 rule on");
-  await expect(notice).toContainText("this chat has no lorebook attached");
+  await expect(notice).toContainText("this chat has no world book attached");
   await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Roster" });
 });
 

@@ -91,7 +91,7 @@ interface CarriedContent {
 /** The operator-facing line a KEPT book puts on the outcome. One spelling, so the report, the bundle notes
  *  and the tests all say the same thing. */
 const BOOK_KEPT_NOTE =
-  "the card's embedded lorebook was NOT re-asserted — this character already holds a primary world book, and your edits to it win (use the card lorebook restore door to put the card's version back)";
+  "the card's embedded world book was NOT re-asserted — this character already holds a primary world book, and your edits to it win (use the card world book restore door to put the card's version back)";
 
 /** #1598: is the character's PRIMARY book seat already taken? A re-upload of the same card file re-runs every
  *  overlay plane (#1470), and the embedded-book plane is the one that is not idempotent — world-info's write

@@ -262,7 +262,7 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       report.unreadablePresets.map((f) => `\`${f}\``),
     ),
     section("Regex scripts (cards · presets · global)", regexLines(report)),
-    section("World lorebook name-links (card `extensions.world` + `charLore`)", worldLinkLines(report)),
+    section("World book name-links (card `extensions.world` + `charLore`)", worldLinkLines(report)),
     section("ST Data Bank / character-gallery planes (counted every run)", userPlaneLines(report)),
     section("Themes converted — what did NOT map", noteLines(report.themeNotes)),
     section(

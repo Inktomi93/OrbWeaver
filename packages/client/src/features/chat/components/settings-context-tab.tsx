@@ -23,7 +23,7 @@
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
 // member-READABLE, so it belongs above the host-only band rather than inside it.
 //
-// "LOREBOOKS" LANDS DIRECTLY AFTER IT (#640) — the same family one step further, and member-readable for the
+// "WORLD BOOKS" LANDS DIRECTLY AFTER IT (#640) — the same family one step further, and member-readable for the
 // same reason (`worldInfo.listForChat` is `requireChatMember`). It is also the WRITE surface that had no
 // client affordance at all: `chat_books` rows were server-written only, so the automation rule-preset's
 // lorebook picker had an empty list in every fresh room and nowhere to send the host.
@@ -77,7 +77,7 @@ const MACRO_PICKS_SKELETON_ROWS = 3;
 //
 // `size="inline"` (#829, not `sm`) — the count's arrival is a PAINT, not a layout: `sm` is `inline-flex`
 // with its own type axes, so on arrival it more than doubled the kicker's line box (13.125px → 30.25px,
-// #821), shoving every section below by that much on THREE kickers (Injections/Documents/Lorebooks). The
+// #821), shoving every section below by that much on THREE kickers (Injections/Documents/World books). The
 // `inline` arm inherits the kicker's own font-size/line-height instead of establishing a flex box, so the
 // line box is identical whether the badge is absent or present.
 function HeadingWithCount({ label, count, unit }: { readonly label: string; readonly count: number; readonly unit?: string }): ReactNode {
@@ -106,11 +106,11 @@ function countSetOverrides(overrides: RoomOverrides): number {
 
 // EVERY SECTION IN THIS PANE IS A DISCLOSURE, AND THE CLOSED PANE IS THE INDEX (#830 — the #821 residue).
 // With the injection rows collapsed the tab STILL settled at 2,836px desktop over fourteen sections (Host
-// controls' eight alone are 1,880px), so Documents and Lorebooks were still below the fold and a host at the
+// controls' eight alone are 1,880px), so Documents and World books were still below the fold and a host at the
 // top of the pane had fourteen competing destinations and no map of them. The side-eye §7 verdict named the
 // two candidate affordances — "a section index or a collapse-all" — and this is the collapse-all arm,
 // because it is also the index: a closed section is its kicker, and the kicker already carries the count
-// chip, so "DOCUMENTS 1 / LOREBOOKS 2 / HOST CONTROLS" reads as the map WITHOUT spending a second navigation
+// chip, so "DOCUMENTS 1 / WORLD BOOKS 2 / HOST CONTROLS" reads as the map WITHOUT spending a second navigation
 // element on a pane the same review praised as chrome-clean. Height becomes the host's choice, not the
 // pane's, which is the property an anchor list cannot buy.
 //
@@ -137,7 +137,7 @@ function countSetOverrides(overrides: RoomOverrides): number {
 // it is the only section whose height is FIXED — three rows, 202px desktop / 225px mobile, whatever the
 // room holds. Everything else is data-driven, and MEASURED (isolated stage, non-game room "Example —
 // Midnight Run", 2 content-bearing injections): opening Injections too puts its 309px desktop / 327px
-// mobile between the host and the map, which pushes Documents (762) and Lorebooks (830) back below a
+// mobile between the host and the map, which pushes Documents (762) and World books (830) back below a
 // 740px mobile fold — the exact #830 symptom, re-created by a default. A map whose own entries can be
 // shoved off-screen by one entry's contents is not a map, so the rule is: the index is always whole, and
 // every data-driven section — the racks, the host band, and every grafted §6c contribution — opens on
@@ -187,13 +187,13 @@ function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
 }
 
-// The Lorebooks count, on the same non-suspending shared-cache idiom as the two above (#640). Every viewer
+// The World books count, on the same non-suspending shared-cache idiom as the two above (#640). Every viewer
 // receives the same rows — `worldInfo.listForChat` is member-read and NOT owner-filtered (the room's books
 // are room-public prompt content) — so unlike Documents there is no hidden subset for the chip to leak.
 function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Lorebooks" />;
+  return <HeadingWithCount count={data?.length ?? 0} label="World books" />;
 }
 
 export interface CommittedSettingsTabProps {
@@ -236,7 +236,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           <ChatDocumentsSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
       </DisclosureSection>
-      {/* Lorebooks (#640) — the per-chat world-info rack, directly after Documents because it is the SAME
+      {/* World books (#640) — the per-chat world-info rack, directly after Documents because it is the SAME
           family one step further ("extra content entering this room's prompt", here as keyword-fired
           entries) and, like Documents, member-READABLE: `worldInfo.listForChat` is `requireChatMember`, so a
           member sees the rows and simply gets no attach and no detach (the §8.1 permission-OMIT at ROW
@@ -245,16 +245,16 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<LorebooksHeading chatId={chatId} />} sectionId="lorebooks">
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's world books" onRetry={retry} />}
           reserveKey="chat.context.lorebooks"
         >
           <ChatBooksSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
       </DisclosureSection>
       {/* REGEX (#1742) — "what regex runs in this room, in run order, and every lever that changes it", the
-          sibling of Injections and Lorebooks it was designed as (`docs/design/mocks/regex-section/DESIGN.md`,
+          sibling of Injections and World books it was designed as (`docs/design/mocks/regex-section/DESIGN.md`,
           owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
-          Documents/Lorebooks reason: the room's own tier is member-READABLE (`regex.listForChat` is
+          Documents/World books reason: the room's own tier is member-READABLE (`regex.listForChat` is
           `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
           rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
           The host's HALF is host-gated in the verb, not here: `chat.listEffectiveRegex` refuses a member,

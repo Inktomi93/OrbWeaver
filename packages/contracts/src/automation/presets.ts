@@ -127,10 +127,10 @@ export const RULE_PRESET_ENTITY_REF_SCHEMAS = {
   worldInfoBook: typeIdSchema(ID_PREFIX.worldBook),
 } as const satisfies { readonly [TEntity in RulePresetEntityKind]: z.ZodType<string> };
 
-/** The NOUN a refusal names an entity by — host vocabulary, never the wire key ("lorebook", not
+/** The NOUN a refusal names an entity by — host vocabulary, never the wire key ("world book", not
  *  "worldInfoBook"). Mapped over the axis for the same `tsc` reason as the schemas. */
 export const RULE_PRESET_ENTITY_NOUNS = {
-  worldInfoBook: "lorebook",
+  worldInfoBook: "world book",
 } as const satisfies { readonly [TEntity in RulePresetEntityKind]: string };
 
 /** Shared by every descriptor: what the picker labels the field, and the optional one-line help under it. */
@@ -193,7 +193,7 @@ export interface RulePresetChoiceKnobDescriptor<TOption extends string = string>
   readonly default: TOption;
 }
 
-/** A reference to an ENTITY the rule will act on — the lorebook the auto-add-lore preset writes into. The
+/** A reference to an ENTITY the rule will act on — the world book the auto-add-lore preset writes into. The
  *  picker renders it as a chooser over what the CHAT actually has, so minting needs no typed id.
  *
  *  IT CARRIES NO `default`, and that absence is load-bearing rather than an omission: no entity is "the"

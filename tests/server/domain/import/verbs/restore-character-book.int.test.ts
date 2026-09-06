@@ -112,7 +112,7 @@ describe("restoreCharacterBook — the explicit way back to the card's own loreb
     await service.importCharacter({ card: { bytes: ENC.encode(CARD_WITHOUT_BOOK), filename: "bookless.json" } });
 
     const noBook = await service.restoreCharacterBook({ card: { bytes: ENC.encode(CARD_WITHOUT_BOOK), filename: "bookless.json" } });
-    expect(noBook).toStrictEqual({ ok: false, error: expect.stringContaining("carries no embedded lorebook") });
+    expect(noBook).toStrictEqual({ ok: false, error: expect.stringContaining("carries no embedded world book") });
 
     const garbage = await service.restoreCharacterBook({ card: { bytes: ENC.encode("not a card"), filename: "junk.json" } });
     expect(garbage).toStrictEqual({ ok: false, error: expect.stringContaining("isn't a readable V2/V3 character card") });

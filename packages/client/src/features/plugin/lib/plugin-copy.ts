@@ -87,13 +87,13 @@ export const CAPABILITY_COPY_ROWS = [
     // lore the room already renders, scoped to books attached to rooms the person is in — it reaches nothing
     // outside its own sandbox, unlike the write that adds durable room state.
     id: "worldinfo.read",
-    label: "Read this room's lorebooks",
-    consequence: "Reads the lorebook entries attached to rooms you are in — the room's own lore, never another room's or another person's.",
+    label: "Read this room's world books",
+    consequence: "Reads the world book entries attached to rooms you are in — the room's own lore, never another room's or another person's.",
   },
   {
     id: "worldinfo.write",
-    label: "Write lorebook entries",
-    consequence: "Adds and updates entries in lorebooks already attached to the room, up to 64 entries.",
+    label: "Write world book entries",
+    consequence: "Adds and updates entries in world books already attached to the room, up to 64 entries.",
     risk: true,
   },
   {

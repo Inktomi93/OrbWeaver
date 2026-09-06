@@ -37,7 +37,7 @@ const CHAT = castId<ChatId>("chat_ct_plugin_0001");
 /** A re-consent row's accessible name carries the "New" pill after the label, so match by prefix. (A prefix
  *  matcher is right for a row whose identity is the point and wrong for the NAME's own shape — the exact-name
  *  pin near the bottom of this file owns that, and is what caught a run-on these regexes matched happily.) */
-const NEW_LORE_CAPABILITY = /^Write lorebook entries/u;
+const NEW_LORE_CAPABILITY = /^Write world book entries/u;
 /** Same prefix-match reason: the spendy capability a partial re-consent deliberately leaves unticked. */
 const NEW_TURN_CAPABILITY = /^Ask for a reply on its own/u;
 /** The re-consent notice's own escape action — named by the plugin, since a settings pane can hold several. */
@@ -500,8 +500,8 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // the notice is what this badge reads, so the two can never disagree.
   await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
   // WHAT widened — the new capability by its own name and consequence, not a bare count…
-  await expect(notice).toContainText("Write lorebook entries");
-  await expect(notice).toContainText("lorebooks already attached to the room");
+  await expect(notice).toContainText("Write world book entries");
+  await expect(notice).toContainText("world books already attached to the room");
   // …and the host count too, which used to be un-nameable: the server compares against the PRIOR manifest,
   // and nothing persisted it until `widenedNetHosts` (#659). "It can now also reach one new host" is the
   // decision a person can make; "re-read these hostnames" is not.
@@ -631,7 +631,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
   // TWO capabilities are outstanding, and the headline counts them — this is also the pre-state the settle
   // below is read against, so the barrier cannot pass on the local draft.
   await expect(notice).toContainText("asks for 2 permissions you hadn't allowed and adds a new host it can reach");
-  // The owner allows the lorebook one and leaves the spendy one alone.
+  // The owner allows the world book one and leaves the spendy one alone.
   await notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY }).click();
   await expect(notice.getByRole("checkbox", { name: NEW_TURN_CAPABILITY })).not.toBeChecked();
   await notice.getByRole("button", { name: "Allow selected" }).click();
@@ -691,7 +691,7 @@ test("url plugin one-click update; a widening one lands disabled pending re-cons
   await expect(notice).toBeVisible();
   await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
   // What widened — the new capability by its own plain-English name (never the wire spelling).
-  await expect(notice).toContainText("Write lorebook entries");
+  await expect(notice).toContainText("Write world book entries");
 
   // ONESHOT-OK: the notice settle above proves the mutation completed; the one-click input names ONLY the pluginId (no url) because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
   expect(recorder.lastInput("plugin.upgradeFromStoredUrl")).toEqual({ pluginId: URL_INSTALLED_ROW.id });
@@ -924,7 +924,7 @@ test("a re-consent row's checkbox name is exactly the label + the new-mark, with
   // The NEWLY-asked row carries BOTH pills and a consequence — the strictest case. Exact name ⇒ the "New"
   // mark is spoken (a re-consent screen has to say which rows changed), "Reaches further" is not, and the
   // consequence is not (it reaches AT via `aria-describedby`, once).
-  await expect(notice.getByRole("checkbox", { name: "Write lorebook entries New", exact: true })).toHaveCount(1);
+  await expect(notice.getByRole("checkbox", { name: "Write world book entries New", exact: true })).toHaveCount(1);
   // A carried-forward row has no mark at all — the mark is a fact about THIS update, never decoration.
   await expect(notice.getByRole("checkbox", { name: "Read this room's messages", exact: true })).toHaveCount(1);
   // Both pills are still on the screen and still in the a11y tree as plain text; they are simply not the NAME.

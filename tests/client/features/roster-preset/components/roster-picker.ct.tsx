@@ -304,7 +304,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     "rosterPreset.applyToChat": applyResult({
       added: ["character_ct_1", "character_ct_2"],
       rulesMinted: ["pacingNudge"],
-      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no lorebook attached" }],
+      rulesSkipped: [{ rulePresetId: "loreAutoAdd", reason: "this chat has no world book attached" }],
     }),
   });
 
@@ -315,7 +315,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
   await expect(notice).toContainText("Adventuring Roster:");
   await expect(notice).toContainText("1 rule on");
   // The build record §6.4 law: a skipped rule is reported WITH its reason, not as a count.
-  await expect(notice).toContainText("this chat has no lorebook attached");
+  await expect(notice).toContainText("this chat has no world book attached");
   await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Roster" });
 });
 

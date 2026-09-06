@@ -26,7 +26,7 @@ const LORE = RULE_PRESETS.autoAddLore;
 const STORY_PACING = RULE_PRESETS.storyPacing;
 
 /** The entityRef refusal, verbatim: the host's noun, not "expected text" or a TypeID complaint. */
-const NO_BOOK_CHOSEN = /knob 'bookId': choose a lorebook/u;
+const NO_BOOK_CHOSEN = /knob 'bookId': choose a world book/u;
 
 test("an empty override bag resolves to every descriptor's declared default", () => {
   expect(resolveRulePresetKnobs(PACING.knobs, {})).toEqual({

@@ -39,7 +39,7 @@ const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
 const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
 /** The defect this row killed: a TEXT BOX asking for a lorebook id. Any textbox named for the lorebook knob. */
-const LOREBOOK_TEXTBOX = /Lorebook/u;
+const LOREBOOK_TEXTBOX = /World book/u;
 /** WCAG 2.5.5's coarse-pointer target floor — asserted on the RESOLVED token before it is trusted, so a
  *  fine-pointer run (where the token answers 28) cannot read as a pass. */
 const WCAG_TOUCH_FLOOR_PX = 44;
@@ -107,14 +107,14 @@ const PACING_PRESET = {
 const LORE_PRESET = {
   id: "autoAddLore",
   title: "Auto-add lore entries",
-  summary: "Every so often, offer to write what has happened into one of this room's lorebooks.",
+  summary: "Every so often, offer to write what has happened into one of this room's world books.",
   ruleCount: 1,
   confirmFirst: true,
   // #655: its only arm writes a lore entry — free. The contrast that proves the spend line is DERIVED from
   // the preset's arms rather than pasted onto every row.
   spends: false,
   knobs: [
-    { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
+    { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to write into — one of this room's own." },
     { key: "everyN", kind: "number", label: "Every N messages", default: 10, min: 2, max: 200 },
   ],
 };
@@ -378,7 +378,7 @@ test("the picker mints a rule from a rule preset — createRuleFromPreset fires 
 // The row's whole defect: `bookId` was a TEXT field with an empty default, so minting the stated
 // natural-first card required knowing a lorebook TypeID by heart. These four pin the replacement.
 
-test("#630: the lorebook knob is a PICKER over this chat's books — minting needs no typed id", async ({ mount, page }) => {
+test("#630: the world book knob is a PICKER over this chat's books — minting needs no typed id", async ({ mount, page }) => {
   const trpc = await stub(page, { rules: [], presets: [LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
@@ -390,10 +390,10 @@ test("#630: the lorebook knob is a PICKER over this chat's books — minting nee
   await expect(page.getByRole("textbox", { name: LOREBOOK_TEXTBOX })).toHaveCount(0);
 
   // P1-4 still holds: the form does NOT open accusing before the host has touched anything.
-  await expect(page.getByText("Choose a lorebook.")).toHaveCount(0);
+  await expect(page.getByText("Choose a world book.")).toHaveCount(0);
 
   // The chooser lists THIS ROOM's attached books, by name, and the read was scoped to this chat.
-  const chooser = page.getByRole("combobox", { name: "Lorebook" });
+  const chooser = page.getByRole("combobox", { name: "World book" });
   await expect(chooser).toBeVisible();
   await expect.poll(() => trpc.lastInput("worldInfo.listForChat")).toMatchObject({ chatId: CHAT });
   await chooser.click();
@@ -411,18 +411,18 @@ test("#630: the lorebook knob is a PICKER over this chat's books — minting nee
     .toMatchObject({ presetId: "autoAddLore", knobs: { bookId: "worldbook_ct_lore_0001", everyN: 10 } });
 });
 
-test("#630: an unchosen lorebook blocks the mint and says so in PICKING words, not typing ones", async ({ mount, page }) => {
+test("#630: an unchosen world book blocks the mint and says so in PICKING words, not typing ones", async ({ mount, page }) => {
   const trpc = await stub(page, { rules: [], presets: [LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toBeVisible();
 
   // Pressing Add says what is missing and mints NOTHING. "Fill in" would be a small lie over a chooser.
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
-  await expect(page.getByText("Choose a lorebook.")).toBeVisible();
+  await expect(page.getByText("Choose a world book to add this rule.")).toBeVisible();
+  await expect(page.getByText("Choose a world book.")).toBeVisible();
   // Settled snapshot: the two barriers above are the RENDERED result of this very click, so the press is
   // provably processed; the recorder only grows on a request that would already have been sent.
   await expect.poll(async () => trpc.count("automation.createRuleFromPreset")).toBe(0);
@@ -435,13 +435,13 @@ test("#630: a room with NO attached books says so — an empty dropdown would be
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
 
-  await expect(page.getByText("This room has no lorebooks attached yet, so there is nothing for this rule to write into.")).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toHaveCount(0);
+  await expect(page.getByText("This room has no world books attached yet, so there is nothing for this rule to write into.")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toHaveCount(0);
   // #640: …and it now POINTS somewhere. The copy deliberately prescribed nothing while no client affordance
-  // attached a book to a chat; the "This chat" tab's Lorebooks section is that affordance, and it is the SAME
+  // attached a book to a chat; the "This chat" tab's World books section is that affordance, and it is the SAME
   // attachment `substrate/validate.ts` gates this mint on — so the sentence names the one place that makes
   // this card completable instead of leaving the host at a dead end.
-  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
+  await expect(page.getByText("Attach one under World books", { exact: false })).toBeVisible();
 });
 
 test("#630: the typed mint refusal stays reachable — a listed book that stopped qualifying is SAID", async ({ mount, page }) => {
@@ -456,7 +456,7 @@ test("#630: the typed mint refusal stays reachable — a listed book that stoppe
 
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await page.getByRole("combobox", { name: "Lorebook" }).click();
+  await page.getByRole("combobox", { name: "World book" }).click();
   await page.getByRole("option", { name: "Ashfall Canon", exact: true }).click();
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
 
@@ -668,7 +668,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
     "databank.listActiveForChat": () => [],
-    // #640: the tab now carries a Lorebooks section too, and its read must be fed or that boundary
+    // #640: the tab now carries a World books section too, and its read must be fed or that boundary
     // error-arms silently inside this composition.
     "worldInfo.listForChat": () => ROOM_BOOKS,
     "automation.listRules": () => [RULE],
@@ -725,7 +725,7 @@ test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a pr
 // so the remount below stands in for that tick — a fresh QueryClient per `mount()` (ct-data-providers.tsx).
 // The claim it proves is the one that matters and could not be checked before: the write the rack sends is
 // the write that makes the picker offer the book. The bus leg is the persona-lorebook wire, already pinned.
-test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto-add-lore card can be completed", async ({ mount, page }) => {
+test("#640 END-TO-END: a room with no books → attach in World books → the auto-add-lore card can be completed", async ({ mount, page }) => {
   // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
   const attached: unknown[] = [];
   const trpc = await routeTrpc(page, {
@@ -749,32 +749,32 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   });
 
   const before = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
-  // #830 — both halves of this walk live behind disclosures now (Lorebooks is a closed rack, Rules a closed
+  // #830 — both halves of this walk live behind disclosures now (World books is a closed rack, Rules a closed
   // graft inside the closed host band). `openContextSections` is idempotent, so the same line is correct
   // after the remount below, where the posture is already remembered.
-  await openContextSections(before, "Lorebooks", HOST_BAND, "Rules");
+  await openContextSections(before, "World books", HOST_BAND, "Rules");
 
   // ① The dead end, as reported: no books, so the card says so — and now names the way out.
   await before.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
-  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toBeVisible();
+  await expect(page.getByText("Attach one under World books", { exact: false })).toBeVisible();
   await page.keyboard.press("Escape");
 
   // ② The way out, taken — in the same pane the sentence points at.
-  await before.getByRole("button", { name: "Attach a lorebook" }).click();
+  await before.getByRole("button", { name: "Attach a world book" }).click();
   await page.getByRole("button", { name: `Attach ${ATTACHABLE_BOOK_NAME} to this chat` }).click();
   await expect.poll(() => trpc.lastInput("worldInfo.attachToChat"), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT });
   await before.unmount();
 
   // ③ The room now carries the book — and the card that was uncompletable can be completed.
   const after = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
-  await openContextSections(after, "Lorebooks", HOST_BAND, "Rules");
+  await openContextSections(after, "World books", HOST_BAND, "Rules");
   await expect(after.getByText(ATTACHABLE_BOOK_NAME, { exact: true }).first()).toBeVisible();
   await after.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toHaveCount(0);
-  const chooser = page.getByRole("combobox", { name: "Lorebook" });
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toHaveCount(0);
+  const chooser = page.getByRole("combobox", { name: "World book" });
   await expect(chooser).toBeVisible();
   await chooser.click();
   await expect(page.getByRole("option", { name: ATTACHABLE_BOOK_NAME, exact: true })).toBeVisible();
@@ -871,18 +871,18 @@ test("#655: a prompt knob is a TEXTAREA showing the whole prompt, and a choice o
   await expect(page.getByRole("option", { name: "notify", exact: true })).toHaveCount(0);
 });
 
-test("#655: with no lorebook attached, the blocking line names the DOOR, not an impossible choice", async ({ mount, page }) => {
+test("#655: with no world book attached, the blocking line names the DOOR, not an impossible choice", async ({ mount, page }) => {
   await stub(page, { rules: [], presets: [LORE_PRESET], books: [] });
   await mount(<RulesSectionStory chatId={CHAT} />);
   const popup = await openPicker(page);
   await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   // The line above Add used to say "Choose a lorebook to add this rule." — directly contradicting the field
   // three lines up, in the position a host reads LAST, and naming an action this surface cannot perform.
-  await expect(page.getByText("Attach a lorebook under Lorebooks, higher up this tab", { exact: false })).toBeVisible();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toHaveCount(0);
+  await expect(page.getByText("Attach a world book under World books, higher up this tab", { exact: false })).toBeVisible();
+  await expect(page.getByText("Choose a world book to add this rule.")).toHaveCount(0);
 });
 
 test("#655: with a book attached, the blocking line still asks for the CHOICE (the fix did not swallow the old arm)", async ({ mount, page }) => {
@@ -890,11 +890,11 @@ test("#655: with a book attached, the blocking line still asks for the CHOICE (t
   await mount(<RulesSectionStory chatId={CHAT} />);
   const popup = await openPicker(page);
   await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toBeVisible();
 
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
-  await expect(page.getByText("Attach a lorebook under Lorebooks", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Choose a world book to add this rule.")).toBeVisible();
+  await expect(page.getByText("Attach a world book under World books", { exact: false })).toHaveCount(0);
 });
 
 // The reported two-step defect had two halves. This pins the heading half: the popover speaks with ONE
