@@ -6,7 +6,7 @@ updated: 2026-09-05
 
 # Gate-runtime emergency fold checkpoint
 
-Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current resume tip after local integration repairs: `2797b1c17`. The worktree is clean. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
+Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current resume tip after local integration repairs and the first resource conversion pair: `96e103fe4`. The worktree is clean. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
 
 This checkpoint deliberately preserves incomplete and red work. A committed WIP is not conversion credit or verification evidence.
 
@@ -44,9 +44,11 @@ Commit `00017c0bf` repaired the mechanical conflicts after all checkpoints were 
 
 Cold review then refuted missing-resource waiver collection, Markdown multi-comment/adjacency, bare node-report tokens, and schema mutation tracking. Commits `49b797e9f`, `7a1139846`, and `2797b1c17` repair those seams centrally. Fresh independent rechecks confirm the resource declaration slice at 119/119, the waiver slice at 121/121, and all fourteen converted policies at 89/89 proofs. The final shared `Object.assign` plus exact array/object destructuring repair is locally green at 36/36 reference/schema tests and tooling TypeScript; it has not received another independent review after the owner restricted further agent use.
 
+Commit `96e103fe4` re-derived and converted `feature-owns-definition` and `package-layout` from the formerly blocked resource family. Direct feature directories and definition owners match 25/25; package loose-module subjects match exactly at zero; current legacy/final findings are 0/0 for both. The sixteen credited final policies pass 95/95 proofs. Structural permissions use hard or exact reviewed-grant authority rather than inline path exclusions.
+
 ## Resume order
 
-1. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
+1. Continue re-deriving the eleven remaining layout/size/resource candidates against the folded resource declarations; convert only complete rows.
 2. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
 3. Finish registry fact tests/review, then convert its closed gate set.
 4. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
