@@ -44,10 +44,10 @@ export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, person
   return rows[0];
 }
 
-/** The ROSTER read (the multi-human widening — `contract/ops.ts`): the rows among `personaIds` whose owner
+/** The PARTICIPANTS read (the multi-human widening — `contract/ops.ts`): the rows among `personaIds` whose owner
  *  is in `ownerIds`. The consent gate is part of the WHERE (`ownerId IN (…)`), never a post-filter — same
  *  discipline as every owner-scoped read here, only the predicate is a SET (the room's present humans)
- *  instead of one caller. No avatar join: the roster view is the presentation surface (name/description/
+ *  instead of one caller. No avatar join: the participants view is the presentation surface (name/description/
  *  placement metadata), not the entity. Either list empty ⇒ no query (an empty result is the honest answer). */
 export async function loadPersonasForOwners(db: Db, personaIds: readonly PersonaId[], ownerIds: readonly UserId[]): Promise<PersonaListView[]> {
   if (personaIds.length === 0 || ownerIds.length === 0) {
