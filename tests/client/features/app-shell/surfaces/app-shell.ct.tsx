@@ -3253,6 +3253,141 @@ test("#1316 no END-pinned counter on a phone: the trail's flip animation is canc
   expect(animationNames, `mobile must cancel BOTH halves of the FLIP, got ${animationNames.join(" / ")}`).toEqual(["none", "none"]);
 });
 
+// NEW DESCRIBE (cb-list-collapse-motion / p-client-polish #1646, 2026-09-05) — a SEPARATE block from the
+// #1316 tests above by design: p-client-ct-honesty is landing its own #846/CLS arms in this same file this
+// week, and a fresh describe keeps the two lanes' edits union cleanly at merge (orchestrator notified).
+//
+// ── #1646: THE THIRD ALIGNMENT CLASS — a CENTRED child's honest FLIP distance is HALF the track ───────
+// #1316 proved the END-pinned trail needs its own FULL-magnitude inverse counter because its honest delta
+// is ZERO, not the track. `[data-slot=message-row]` is the THIRD shape (shell.css's own new header comment,
+// re-opening the "content gutter re-centring … a width change no transform can cancel" acceptance): a
+// FIXED-width box centred by auto margins inside `.shell-main` moves by exactly HALF of `.shell-main`'s own
+// resize — the #1316 receipt itself measured this as the retained residue (154px against a 307px track).
+//
+// READ THE KEYFRAME, NOT THE INTERPOLATED COMPUTED STYLE: a running CSS animation's `getComputedStyle(...)
+// .translate` is whatever frame happens to be current when Playwright samples it — exactly why the phone
+// fence above asserts `animationName` rather than a value. `Animation.effect.getKeyframes()` returns the
+// AUTHORED (var/calc-resolved) keyframe list regardless of playback position, so it is what this test reads
+// — the same technique, aimed at the encoded DISTANCE rather than at whether a rule matched at all.
+//
+// FABRICATED, not routed: this file never stubs `message.list`/canon assembly (see the file header, #1677
+// — it is the floor for shell CHROME, not section content), so a real transcript row is out of reach here.
+// A synthetic `[data-slot="message-row"]` div is FABRICATION-OK — the CSS rule matches on the selector
+// alone, so a bare node with the production data-slot exercises exactly the same rule a real row would.
+test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's own, opposite sign, on both FLIP arms", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  await page.locator(".shell-main").evaluate((main) => {
+    const row = document.createElement("div");
+    row.setAttribute("data-slot", "message-row");
+    row.setAttribute("data-testid", "pcp-1646-fab-row");
+    main.appendChild(row);
+  });
+
+  // BARRIER ON THE SETTLED DOCK (#1316's own corridor test uses the identical geometric identity): the #242
+  // squeeze resolves `--list-track-docked` a beat after the list's own mode, so reading before it settles
+  // risks the keyframe baking in a pre-squeeze value.
+  await page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    return mainEl !== null && panelEl !== null && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+
+  for (const direction of ["in", "out"] as const) {
+    const { mainRaw, rowRaw } = await page.locator(".shell-grid").evaluate((grid, dir) => {
+      grid.setAttribute("data-list-flip", dir);
+      const read = (selector: string): string | null => {
+        const el = document.querySelector(selector);
+        const anim = el?.getAnimations()[0];
+        if (!(anim?.effect instanceof KeyframeEffect)) {
+          return null;
+        }
+        const translate = anim.effect.getKeyframes()[0]?.["translate"];
+        return typeof translate === "string" ? translate : null;
+      };
+      const result = { mainRaw: read(".shell-main"), rowRaw: read('[data-testid="pcp-1646-fab-row"]') };
+      grid.removeAttribute("data-list-flip");
+      return result;
+    }, direction);
+    // `"-307px 0px"` → `-307`; anything else fails loud via `not.toBeNull()` below.
+    const leadingPx = (value: string | null): number | null => {
+      const match = value === null ? null : /^(-?[\d.]+)px/.exec(value);
+      return match?.[1] === undefined ? null : Number(match[1]);
+    };
+    const mainPx = leadingPx(mainRaw);
+    const rowPx = leadingPx(rowRaw);
+    expect(mainPx, `.shell-main must carry a FLIP keyframe on the "${direction}" arm, got ${String(mainRaw)}`).not.toBeNull();
+    expect(rowPx, `the fabricated row must carry a counter keyframe on the "${direction}" arm, got ${String(rowRaw)}`).not.toBeNull();
+    expect(Math.abs(mainPx ?? 0), "the FLIP distance must be a real track width, not zero").toBeGreaterThan(100);
+    // OPPOSITE SIGN, HALF MAGNITUDE: composed with .shell-main's own translate, a row centred at rest before
+    // the toggle would sit at `main + row = main/2` for that first frame — the honest half-track delta the
+    // #1316 receipt measured, never zero (the OLD, un-recentring behaviour) and never a full track (the bug
+    // the #1316 comment on the trail already named: riding the full counter "did not cancel motion, it
+    // MANUFACTURED it").
+    expect(Math.round((rowPx ?? 0) * 2), `row keyframe must be exactly half of main's, opposite sign: main ${mainRaw}, row ${rowRaw}`).toBe(
+      -Math.round(mainPx ?? 0),
+    );
+  }
+});
+
+// THE REDUCED-MOTION SETTLE (#262) TWIN — the CSS-contract style the #1316 settle test above uses: the
+// held frame sets `translate` directly (no animation), so `getComputedStyle` is safe to read immediately.
+test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half the inverse of .shell-main's held corner", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+
+  await page.locator(".shell-main").evaluate((main) => {
+    const row = document.createElement("div");
+    row.setAttribute("data-slot", "message-row");
+    row.setAttribute("data-testid", "pcp-1646-fab-row-settle");
+    main.appendChild(row);
+  });
+
+  // BARRIER ON THE SETTLED DOCK (the #1316 settle test's own fix, restated): `--list-track-docked` depends
+  // on the CONTEXT pane's own mode via the #242 squeeze, which resolves a beat after the list's — an
+  // unbarriered read races it and samples `.shell-main` and the row against DIFFERENT track widths (a real
+  // flake this test hit once: main 181.583px against a row still reading the pre-squeeze 307px). The
+  // geometric identity is a token-free stand-in for "the squeeze has resolved".
+  await page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    return mainEl !== null && panelEl !== null && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+
+  const heldTranslates = (direction: "in" | "out"): Promise<{ main: string; row: string }> =>
+    grid.evaluate((el, value) => {
+      el.setAttribute("data-list-settle", value);
+      const read = (selector: string): string => {
+        const target = document.querySelector(selector);
+        return target === null ? "absent" : getComputedStyle(target).translate;
+      };
+      const pair = { main: read(".shell-main"), row: read('[data-testid="pcp-1646-fab-row-settle"]') };
+      el.removeAttribute("data-list-settle");
+      return pair;
+    }, direction);
+
+  const offset = (value: string): number | null => {
+    const px = /^(-?[\d.]+)px/.exec(value);
+    return px?.[1] === undefined ? null : Number(px[1]);
+  };
+
+  for (const direction of ["in", "out"] as const) {
+    const held = await heldTranslates(direction);
+    const mainOffset = offset(held.main);
+    const rowOffset = offset(held.row);
+    expect(mainOffset, `the settle must hold .shell-main on the "${direction}" arm, got ${held.main}`).not.toBeNull();
+    expect(rowOffset, `the settle must hold the fabricated row on the "${direction}" arm, got ${held.row}`).not.toBeNull();
+    expect(Math.abs(mainOffset ?? 0), "the held corner must be a real track width, not zero").toBeGreaterThan(100);
+    expect(Math.round((rowOffset ?? 0) * 2), `row must be held at exactly half the inverse of main: main ${held.main}, row ${held.row}`).toBe(
+      -Math.round(mainOffset ?? 0),
+    );
+  }
+});
+
 // ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────
 // The #151 fix above stopped ARMING the FLIP under reduced motion — correct, a FLIP is a motion mechanism
 // — and the track then just resized in one frame. That is a real, recorded layout shift, and it lands on
