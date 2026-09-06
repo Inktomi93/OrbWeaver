@@ -1023,6 +1023,7 @@
     "tests/server/domain/chat/substrate/user-macros.test.ts",
     "tests/server/domain/chat/substrate/variable-ops.int.test.ts",
     "tests/server/domain/chat/substrate/variables.test.ts",
+    "tests/server/domain/chat/substrate/wire-history.test.ts",
     "tests/server/domain/chat/teaching-contribution.int.test.ts",
     "tests/server/domain/chat/teaching-contribution.test.ts",
     "tests/server/domain/chat/verbs/chat-lifecycle.int.test.ts",

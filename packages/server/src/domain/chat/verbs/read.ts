@@ -153,6 +153,7 @@ import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
+import { buildWireHistory, wireCostRows } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -532,9 +533,17 @@ async function previewGatherFields(
     readonly identity: TeachingIdentity;
   },
 ): Promise<{
-  rpgMacros?: Readonly<Record<string, string>>;
-  teachingInjections?: readonly ChatInjection[];
-  rpgCelBindings?: Readonly<Record<string, unknown>>;
+  /** The fields spread into `gatherAssembleContext` (the BUILD half). */
+  readonly fields: {
+    rpgMacros?: Readonly<Record<string, string>>;
+    teachingInjections?: readonly ChatInjection[];
+    rpgCelBindings?: Readonly<Record<string, unknown>>;
+  };
+  /** The M2 keep-last-X card window this room's game contributes (#1540) — NOT an assemble-ctx field: it is
+   *  the WIRE knob the CONVERT step reads, and the preview's fit must price the same stubs the turn's does.
+   *  ABSENT ≠ ZERO (`verbs/turn.ts::buildTurnContext` states the rule): only a game's gather contributes it,
+   *  so a non-game chat previews with NO window, exactly as its turn converts with none. */
+  readonly cardKeepLastX: number | undefined;
 }> {
   const rpg =
     ctx.rpg === null
@@ -558,8 +567,11 @@ async function previewGatherFields(
     rpgGather: rpg,
   });
   return {
-    ...(rpg === null ? {} : { rpgMacros: rpg.macros, ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}) }),
-    ...(teaching.injections.length > 0 ? { teachingInjections: teaching.injections } : {}),
+    fields: {
+      ...(rpg === null ? {} : { rpgMacros: rpg.macros, ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}) }),
+      ...(teaching.injections.length > 0 ? { teachingInjections: teaching.injections } : {}),
+    },
+    cardKeepLastX: rpg?.cardKeepLastX,
   };
 }
 
@@ -572,17 +584,22 @@ async function previewGatherFields(
  *  (`shapeContextForSpeaker`, `cardScope: "merged"` — the same assumption `shapeNextTurn` already makes for
  *  the wire history): without it the preview rendered ONLY the primary character's card, while the real turn
  *  merges every present roster member's — so a multi-character room's preview under-reported both its prompt
- *  and its context cost. Solo / hand-built ctxs return unchanged (the shape is a no-op there). */
+ *  and its context cost. Solo / hand-built ctxs return unchanged (the shape is a no-op there).
+ *
+ *  RETURNS THE GAME'S WIRE KNOB ALONGSIDE THE CTX (#1540): `cardKeepLastX` comes off the SAME gather the
+ *  ctx does, and the CONVERT step every fit-consuming preview now runs needs it. It is not an assemble-ctx
+ *  field (the ctx is the BUILD plane, this is the WIRE plane), so it rides out as its own value rather than
+ *  being smuggled onto a shape it does not belong to. */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
   chatId: ChatId,
   opts: { readonly deps: ReadDeps; readonly registry: MacroRegistry | null; readonly guided?: GuidedSteer | undefined },
-): ReturnType<typeof gatherAssembleContext> {
+): Promise<{ assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>; cardKeepLastX: number | undefined }> {
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
   // the active persona; `{{char}}` = the Ruling-B joined present characters (a preview has no triggering speaker).
-  const gatherFields = await previewGatherFields(ctx, {
+  const gather = await previewGatherFields(ctx, {
     chatId,
     hostUserId: inputs.hostUserId,
     identity: {
@@ -609,7 +626,7 @@ async function buildPreviewContext(
       // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
       // while the real turn borrows for them.
       triggerUserId: inputs.hostUserId,
-      ...gatherFields,
+      ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
@@ -622,7 +639,10 @@ async function buildPreviewContext(
   // framing), a per-speaker room renders the primary speaker's turn byte-identically to before. A preview has
   // no arbitrated round, so `cardScope` stays pinned `merged` (narrator is always merged; per-speaker's
   // scoped fold is a per-round selection a shapeless peek can't make) — only the output axis is now honest.
-  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: inputs.group.output, cardScope: "merged" });
+  return {
+    assembleContext: primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: inputs.group.output, cardScope: "merged" }),
+    cardKeepLastX: gather.cardKeepLastX,
+  };
 }
 
 /** `listChats` — ONE KEYSET PAGE of the caller's chats (pure membership, host or member), newest
@@ -1084,15 +1104,38 @@ async function shapeNextTurn(
   return { canon, shaped };
 }
 
-/** Run the SAME history FIT the engine's turn pipeline runs over an already-shaped history: the budget is the
- *  model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output budget + the
- *  assembled system tokens. One home for the preview reads that need a boundary/ceiling. */
-function fitShapedHistory(args: {
+/** Run the SAME CONVERT → FIT pair the engine's turn pipeline runs over an already-shaped history: the budget
+ *  is the model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output
+ *  budget + the assembled system tokens. One home for the preview reads that need a boundary/ceiling.
+ *
+ *  CONVERT PRECEDES FIT HERE TOO (#1540 — the read-side half of #1434). The fitter prices WIRE TEXT, and the
+ *  conversion is lossy on purpose: a stored `:::card` body collapses to `[card: Title]`, a choices block
+ *  drops entirely, a display-only image becomes a short marker. Pricing the RAW shaped rows — which is what
+ *  this did — charged the preview for multi-KB bodies the provider never receives, so on a card-heavy or
+ *  choices-heavy chat `previewContextFit` reported rows as out of context that the very next turn keeps, and
+ *  the transcript divider drew its line in the wrong place. Both halves now come from the ONE
+ *  `substrate/wire-history` module the pipeline calls, so the preview's fit input IS the turn's fit input.
+ *
+ *  ASYNC because the conversion resolves user-attachment media (`resolveImageUrl`) — the same per-row cost
+ *  the turn pays, and zero I/O on a history with no attachment. */
+async function fitShapedHistory(args: {
   readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
   readonly assembled: AssembledPrompt;
   readonly capability: ModelCapability | undefined;
   readonly shaped: ReturnType<typeof shapeTurn>;
-}): { fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> } {
+  /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
+   *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
+  readonly convert: {
+    /** The room's frozen host — the owner scope the attachment resolve runs under. */
+    readonly hostUserId: UserId;
+    readonly chatId: ChatId;
+    /** The rpg gather's keep-last-X card window; `undefined` on a non-game chat ⇒ no window (ABSENT ≠ ZERO). */
+    readonly cardKeepLastX: number | undefined;
+    /** The loaded canon — read only for the assistant-authored set the attachment rule needs. */
+    readonly canon: readonly MessageView[];
+  };
+  readonly ctx: ChatContext;
+}): Promise<{ fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
   const params = args.assembleContext.promptConfig.params;
   const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
   const budget = buildHistoryBudget({
@@ -1101,7 +1144,17 @@ function fitShapedHistory(args: {
     maxOutputTokens: params.maxOutputTokens,
     systemTokens,
   });
-  return { fitted: fitHistory(args.shaped.history, budget), budget };
+  const converted = await buildWireHistory(
+    {
+      visionOk: args.capability?.input?.vision === true,
+      videoOk: args.capability?.input?.video === true,
+      resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref }),
+      cardKeepLastX: args.convert.cardKeepLastX,
+      canon: args.convert.canon,
+    },
+    args.shaped.history,
+  );
+  return { fitted: fitHistory(wireCostRows(converted), budget), budget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's
@@ -1161,10 +1214,17 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       ...(presetOverride === undefined ? {} : { presetOverride }),
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-    const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
-    const { fitted } = fitShapedHistory({ assembleContext, assembled: prompt, capability: inputs.capability, shaped });
+    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { fitted } = await fitShapedHistory({
+      assembleContext,
+      assembled: prompt,
+      capability: inputs.capability,
+      shaped,
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon },
+      ctx,
+    });
     const budget = buildAssemblyBudget({
       slices,
       // The RACK the readout draws — the RESOLVED config (the override's, when one was passed), never the
@@ -1195,7 +1255,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
     return buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
@@ -1215,7 +1275,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
     const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
@@ -1307,11 +1367,19 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
-    // FIT — the same budget the engine's turn pipeline builds (one home: `fitShapedHistory`).
-    const { fitted, budget } = fitShapedHistory({ assembleContext, assembled, capability: inputs.capability, shaped });
+    // CONVERT → FIT — the same pair, in the same order, over the same rows the engine's turn pipeline runs
+    // (one home: `fitShapedHistory` → `substrate/wire-history`).
+    const { fitted, budget } = await fitShapedHistory({
+      assembleContext,
+      assembled,
+      capability: inputs.capability,
+      shaped,
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon },
+      ctx,
+    });
     const chatRow = await loadChatRow(ctx.db, chatId);
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
     // same verdict `toChatDetail` applies to the `ChatDetail` copy of these two fields. The fit NUMBERS stay
@@ -1359,7 +1427,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
       throw new DomainNotFoundError("prompt_section", sectionId);
     }
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     return previewSection(section, assembleContext, inputs.foreign.promptConfig, registry ?? undefined);
   };
 }
@@ -1410,7 +1478,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
       presetOverride: presetId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const config = inputs.foreign.promptConfig;
     return {
       // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can
