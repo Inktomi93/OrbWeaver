@@ -17,6 +17,10 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  *
  * `size="inline"` is the IN-FLOW arm — a chip rendered inside a run of prose (a `{{macro}}` token in a
  * preview), which must not perturb the line box it lives in. See the variant's own note.
+ *
+ * `size="dot"` is the INDICATOR arm — a CHILDLESS 6px circle meaning "something is here", with no number
+ * in it (#1798). Render it with no children and `aria-hidden`; the fact it marks belongs in the host
+ * control's accessible name, and its POSITION belongs to the call site. See the variant's own note.
  */
 export function Badge({ className, intent, tone, size, ...props }: BadgeProps): ReactElement {
   // The className AND the `data-intent`/`data-tone`/`data-size` axis stamp, from ONE selection object (#1080).
