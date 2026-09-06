@@ -126,9 +126,15 @@ export function createReactExportMatcher(exportedName: string): ReactExportMatch
       }
       return verdictOf(resolveModuleMemberOrigin(node), exportedName, node);
     },
+    // AN IMPORT SPECIFIER'S OWN NAME IS THE MODULE'S EXPORT NAME, alias or not, so a specifier spelled
+    // anything else is a PROVEN different export and never a candidate. Resolving every `from "react"`
+    // specifier instead cost 439 false "unreadable" findings per policy on the real tree — React's own
+    // overloaded hooks (`useState` has two declarations) refuse as `ambiguous`, and a refusal on a
+    // non-candidate is not a verdict about this export at all.
+    // DECLARED LIMIT: a re-export shim that RENAMES (`export { forwardRef as fr }`, then `import { fr }`)
+    // is not a candidate at its door; the call site still resolves it.
     importDoor: (specifier): ReactOriginVerdict | undefined => {
-      const door = specifier.getImportDeclaration().getModuleSpecifierValue();
-      if (door !== REACT_MODULE && specifier.getName() !== exportedName) {
+      if (specifier.getName() !== exportedName) {
         return;
       }
       return verdictOf(resolveModuleMemberOrigin(specifier), exportedName, specifier.getNameNode());

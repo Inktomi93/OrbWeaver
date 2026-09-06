@@ -86,7 +86,9 @@ export const gate = defineGate({
             continue;
           }
           if (isMutationError(node.getLeft(), home) && isMutationError(node.getRight(), home)) {
-            ctx.report.node(node);
+            // Anchored on the multiplexed member, not on the left receiver's name: `ctx.report.node` would
+            // otherwise take the token from the first identifier (`a`), which names no position at all.
+            ctx.report.node(node, { token: ERROR_MEMBER, offset: Math.max(node.getText().indexOf(ERROR_MEMBER), 0) });
           }
         }
       },
