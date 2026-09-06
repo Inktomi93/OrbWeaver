@@ -8,6 +8,7 @@ import type { SchemaFact, SchemaModel, SchemaQuery } from "../../../../tooling/s
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { createSchemaQuery, drizzleSchemaFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/repo/";
 
@@ -293,48 +294,58 @@ test("a spread override produces one effective Drizzle column at the final autho
   expect(fact.receipt).toMatchObject({ tables: 1, columns: 1, members: 2 });
 });
 
-test("written, cyclic, dynamic, and computed column populations refuse instead of shrinking", () => {
-  const cases = [
-    {
-      source:
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\ncolumns.id = text("other");\nexport const t = sqliteTable("t", columns);',
-      reason: /mutated|assigned|write/u,
-    },
-    {
-      source:
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nObject.assign(columns, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
-      reason: /mutated|assigned|write/u,
-    },
-    {
-      source:
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst [alias] = [columns];\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
-      reason: /mutated|assigned|write/u,
-    },
-    {
-      source:
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst { value: alias } = { value: columns };\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
-      reason: /mutated|assigned|write/u,
-    },
-    {
-      source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nconst a = { ...b };\nconst b = { ...a };\nexport const t = sqliteTable("t", a);',
-      reason: /cycle/u,
-    },
-    {
-      source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", buildColumns());',
-      reason: /runtime evaluation|authored object/u,
-    },
-    {
-      source: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst key = getKey();\nexport const t = sqliteTable("t", { [key]: text("id") });',
-      reason: /computed schema member|static string|runtime evaluation/u,
-    },
-  ];
-  for (const row of cases) {
-    const { query } = queryOf({ "packages/db/src/schema/x.ts": row.source });
-    const fact = query.schema();
-    expect(unresolvedReason(fact)).toMatch(row.reason);
-    expect(fact.receipt.status).toBe("unresolved");
-  }
-});
+// A fresh Project PER ROW inside ONE test: the per-TEST default (5 s, contention-blind) is the wrong number
+// for a row-scaled sweep, and this row timed out at 5,000 ms in three separate loaded batches while passing
+// in under a second alone. `scaledBudget` is the house spelling and grows with the box.
+const ROW_SWEEP_TIMEOUT_MS = scaledBudget(60_000);
+
+test(
+  "written, cyclic, dynamic, and computed column populations refuse instead of shrinking",
+  () => {
+    const cases = [
+      {
+        source:
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\ncolumns.id = text("other");\nexport const t = sqliteTable("t", columns);',
+        reason: /mutated|assigned|write/u,
+      },
+      {
+        source:
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nObject.assign(columns, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+        reason: /mutated|assigned|write/u,
+      },
+      {
+        source:
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst [alias] = [columns];\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+        reason: /mutated|assigned|write/u,
+      },
+      {
+        source:
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst { value: alias } = { value: columns };\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+        reason: /mutated|assigned|write/u,
+      },
+      {
+        source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nconst a = { ...b };\nconst b = { ...a };\nexport const t = sqliteTable("t", a);',
+        reason: /cycle/u,
+      },
+      {
+        source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", buildColumns());',
+        reason: /runtime evaluation|authored object/u,
+      },
+      {
+        source:
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst key = getKey();\nexport const t = sqliteTable("t", { [key]: text("id") });',
+        reason: /computed schema member|static string|runtime evaluation/u,
+      },
+    ];
+    for (const row of cases) {
+      const { query } = queryOf({ "packages/db/src/schema/x.ts": row.source });
+      const fact = query.schema();
+      expect(unresolvedReason(fact)).toMatch(row.reason);
+      expect(fact.receipt.status).toBe("unresolved");
+    }
+  },
+  ROW_SWEEP_TIMEOUT_MS,
+);
 
 test("shadowed Object.assign and schema populations outside arg0 remain ready", () => {
   const cases = [

@@ -12,6 +12,7 @@ import {
   resolveStableExpression,
 } from "../../../../tooling/src/verify/lib/reference-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -205,43 +206,56 @@ test("member assignment, postfix/prefix update, and delete targets refuse as wri
   ]);
 });
 
-test("canonical Object.assign mutates arg0 through direct and exact alias shapes", () => {
-  const cases = [
-    "Object.assign(value, { late: 1 });",
-    'Object["assign"](value, { late: 1 });',
-    "const alias = value; Object.assign(alias, { late: 1 });",
-    "let alias; alias = value; Object.assign(alias, { late: 1 });",
-    "const [alias] = [value]; Object.assign(alias, { late: 1 });",
-    "const { value: alias } = { value }; Object.assign(alias, { late: 1 });",
-    "let alias; [alias] = [value]; Object.assign(alias, { late: 1 });",
-    "let alias; ({ value: alias } = { value }); Object.assign(alias, { late: 1 });",
-  ];
-  for (const effect of cases) {
-    const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
+// The two rows that build SEVERAL projects in one test: the per-TEST default (5 s, contention-blind) is
+// the wrong number for them, and the first timed out at 5,000 ms in a 29-file batch (8.4 s) after passing
+// in 1.5 s alone. `scaledBudget` is the house spelling and grows with the box.
+const MULTI_PROJECT_TIMEOUT_MS = scaledBudget(60_000);
 
-    expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
-      kind: "unresolved",
-      reason: "write",
-    });
-  }
-});
+test(
+  "canonical Object.assign mutates arg0 through direct and exact alias shapes",
+  () => {
+    const cases = [
+      "Object.assign(value, { late: 1 });",
+      'Object["assign"](value, { late: 1 });',
+      "const alias = value; Object.assign(alias, { late: 1 });",
+      "let alias; alias = value; Object.assign(alias, { late: 1 });",
+      "const [alias] = [value]; Object.assign(alias, { late: 1 });",
+      "const { value: alias } = { value }; Object.assign(alias, { late: 1 });",
+      "let alias; [alias] = [value]; Object.assign(alias, { late: 1 });",
+      "let alias; ({ value: alias } = { value }); Object.assign(alias, { late: 1 });",
+    ];
+    for (const effect of cases) {
+      const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
 
-test("shadowed Object.assign and references outside arg0 remain stable", () => {
-  const cases = [
-    "const Object = { assign: (...args: unknown[]) => args }; Object.assign(value, { late: 1 });",
-    "const run = (Object: ObjectConstructor) => Object.assign(value, { late: 1 });",
-    "Object.assign({}, value);",
-    "const [alias] = [other, value]; Object.assign(alias, { late: 1 });",
-  ];
-  for (const effect of cases) {
-    const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
+      expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
+        kind: "unresolved",
+        reason: "write",
+      });
+    }
+  },
+  MULTI_PROJECT_TIMEOUT_MS,
+);
 
-    expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
-      kind: "resolved",
-      value: true,
-    });
-  }
-});
+test(
+  "shadowed Object.assign and references outside arg0 remain stable",
+  () => {
+    const cases = [
+      "const Object = { assign: (...args: unknown[]) => args }; Object.assign(value, { late: 1 });",
+      "const run = (Object: ObjectConstructor) => Object.assign(value, { late: 1 });",
+      "Object.assign({}, value);",
+      "const [alias] = [other, value]; Object.assign(alias, { late: 1 });",
+    ];
+    for (const effect of cases) {
+      const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
+
+      expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
+        kind: "resolved",
+        value: true,
+      });
+    }
+  },
+  MULTI_PROJECT_TIMEOUT_MS,
+);
 
 test("a parameter shadow stays distinct from a same-spelled namespace import", () => {
   const sf = sourceOf(`
