@@ -1852,14 +1852,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "355762dd299c1feacab21f3fa8af7143bee73e4a612892461252f7d9d2098864",
+      "assignedSha256": "530f5503606d3d11f8a1684fc983acc41cbd396b56bf493975ff03726d1ae0e2",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "355762dd299c1feacab21f3fa8af7143bee73e4a612892461252f7d9d2098864",
-      "verifiedCommit": "f62e701cb3890302e9e9e02125c8d0059c76686b",
+      "verifiedSha256": "530f5503606d3d11f8a1684fc983acc41cbd396b56bf493975ff03726d1ae0e2",
+      "verifiedCommit": "db6bd94beff2fa859204fc96f6901631e44a360c",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
         "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "c68f32c3a (#1774: row 155 → LANDED FOR THE RPG DOMAIN; row 44 residue struck for the rpg family) — re-attested at the fold",
