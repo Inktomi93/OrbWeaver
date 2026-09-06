@@ -32,7 +32,7 @@ import type { ListTurnToolCallsParams } from "../../contract/params.ts";
 import type { RpgContext, RpgService } from "../../contract/service.ts";
 import { resolveMember } from "../../guard.ts";
 import { listTurnToolCalls as listRows } from "../../persistence/turn-tool-calls.ts";
-import { projectToolCallsForViewer } from "../../substrate/tool-call-visibility.ts";
+import { projectFailureForViewer, projectToolCallsForViewer } from "../../substrate/tool-call-visibility.ts";
 
 /** The transcript window a disclosure needs, in TURNS (message slots) — deep enough to cover a scrollback
  *  session, bounded so a long game never serves its whole history for a surface most people never open.
@@ -54,6 +54,9 @@ export function createListTurnToolCalls(ctx: RpgContext): Pick<RpgService, "list
       variantId: r.variantId,
       messageId: r.messageId,
       calls: projectToolCallsForViewer(r.calls, readsHidden),
+      // The round-could-not-run sentence, host-verbatim / summary-only for everyone else (#1468 item 2) — the
+      // same viewer verdict the args ride, for the same reason.
+      failure: projectFailureForViewer(r.failure, readsHidden),
       createdAt: r.createdAt,
     }));
   }

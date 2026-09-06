@@ -1139,6 +1139,7 @@ CREATE TABLE `rpg_turn_tool_calls` (
 	`message_id` text NOT NULL,
 	`variant_id` text NOT NULL,
 	`calls` text NOT NULL,
+	`failure` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,

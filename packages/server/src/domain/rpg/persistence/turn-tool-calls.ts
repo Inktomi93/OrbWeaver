@@ -41,7 +41,12 @@ export async function recordTurnToolCalls(db: Db, values: NewRpgTurnToolCalls): 
   const rows = await db
     .insert(rpgTurnToolCalls)
     .values(values)
-    .onConflictDoUpdate({ target: rpgTurnToolCalls.variantId, set: { calls: values.calls, messageId: values.messageId, createdAt: values.createdAt } })
+    .onConflictDoUpdate({
+      target: rpgTurnToolCalls.variantId,
+      // `failure` is in the set for the same reason `calls` is: the newest description of the turn wins WHOLE.
+      // Omitting it would leave a continuation's successful record still claiming the first half's failure.
+      set: { calls: values.calls, failure: values.failure ?? null, messageId: values.messageId, createdAt: values.createdAt },
+    })
     .returning();
   const row = rows[0];
   if (!row) {
