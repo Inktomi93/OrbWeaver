@@ -268,10 +268,31 @@ export async function seedCharacterEmbedding(
   });
 }
 
+// #1791: CLAIMED by default (`startedAt: FROZEN_AT`) — the stats-owned economics op the discovery insights
+// verbs inject (`domain/stats/persistence/messages-economics.ts`) now scopes through `ownerChatIds`
+// (#1477), which excludes husk chats (`started_at IS NULL`). Every fixture here represents a real,
+// populated conversation, not an unclaimed seeded-greeting husk, so it must be born claimed or the
+// economics-insights reads silently see zero generations for it.
 export async function seedChat(db: Db, id: string): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT, startedAt: FROZEN_AT });
   return chatId;
+}
+
+/** #1791: the D18 character-membership junction `ownerChatIds` (stats' one owner-chat predicate, #1477)
+ *  joins through — a character posting into a chat here must be seeded as a `kind: 'character'` participant
+ *  or the injected economics ops (`characterEconomics`/`characterModelEconomics`) see it as no one's chat and
+ *  silently read zero generations for that character. Discovery's chats can host several characters at once
+ *  (unlike stats' one-character-per-chat fixtures), so this is a separate call, not a `seedChat` param. */
+export async function seedCharacterParticipant(db: Db, chatId: ChatId, characterId: CharacterId): Promise<void> {
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chat_participant_${chatId}_${characterId}`),
+    chatId,
+    kind: "character",
+    characterId,
+    role: "member",
+    joinSeq: 0,
+  });
 }
 
 /** Seed a chat with its human host participant (the digest→chat→host owner derivation). */
