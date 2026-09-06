@@ -1,190 +1,193 @@
-// Gate: sole-env-reader (Tier-2-Foundation.md invariant #1) — `foundation/env` is the ONE place that
-// touches `process.env`; every other tier imports the frozen `env` object. biome's `noProcessEnv`
-// already catches `process.env.X`; this gate is the AST backstop that also catches the bracket trick
-// `process["env"]` and reads only real access nodes (comments naming process.env are ignored).
-// `domain/sessions`' sanctioned call-time reads are allowlisted below.
+// Policy: sole-env-reader (Tier-2-Foundation.md invariant #1) — `foundation/env` is the ONE place that
+// touches `process.env`; every other tier imports the frozen `env` object. Biome's `noProcessEnv` catches the
+// dotted spelling; this policy is the AST backstop that also catches `process["env"]`, reads only real access
+// nodes (a comment naming process.env is not a read), and — since the conversion — resolves the RECEIVER's
+// identity rather than its text.
 //
-// TWO-SIDED (gate-hub #10): the sanction ratchets DOWN — a SANCTIONED_KEYS entry that role-policy.ts does
-// not read any more is RED (a dead licence to bypass the frozen `env` for that var), and so is the whole
-// exception if role-policy.ts itself has left the project. The arm self-guards on a REAL-TREE ANCHOR
-// (gate-hub #11): `foundation/env/index.ts`, the home this gate exists to protect — a conformance
-// mini-project only has it when an example materializes it deliberately.
+// IDENTITY, NOT SPELLING: the legacy check was `obj.getText() === "process"`, which a local variable named
+// `process` false-reds and a re-bound one walks past. The subject is now the `env` member of the real
+// `process` — either the AMBIENT global or the DEFAULT export of the `node:process` module, which is how
+// every live reader on this tree spells it (`import process from "node:process"`). Both doors resolve
+// through the shared origin readers; a member of anything else is provably not a subject.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): foundation/env is SCANNED and exempted by a cited
-// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home follows its old path
-// into the void the day it moves, and the new sole reader is judged by nobody. The tripwire anchors on the
-// SHARED anchor, never on this gate's ANCHOR: that file is INSIDE the home, so it would take its own guard
-// down with it.
+// THE OPERATION IS DERIVED FROM THE READ'S OWN SHAPE, uniformly, with no path knowledge inside the policy:
+// a read with a STATICALLY-READABLE KEY carries `process-env-read:<KEY>`, and a dynamic key or a read of the
+// whole bag (`envSchema.parse(process.env)`, `{ ...process.env }`) carries the bare `process-env-read`.
+// That is what preserves the legacy ledger's PER-KEY grain for the sanctioned call-time reader
+// (`domain/sessions/substrate/role-policy.ts` reads exactly five governance vars at call time so per-test
+// `vi.stubEnv` drives the role matrix) while the sole reader's own many reads collapse per carrier — and it
+// does it without a file allowlist, because the grain follows the read rather than the path.
+//
+// AUTHORITY IS reviewed-grant. Both legacy tables were recurring PERMISSIONS: the `foundation/env/` home,
+// and the five `SANCTIONED_KEYS` of the role-policy exception. Each is one exact `(subject, operation)` row
+// in the central table, and the legacy per-key stale arm IS that table's liveness — a key role-policy stops
+// reading leaves its row consumed zero times, which is the central STALE alarm.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
-import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 
-const GATE_SELF = "tooling/src/verify/gates/sole-env-reader.ts";
+const PROCESS_GLOBAL = "process";
+const ENV_MEMBER = "env";
+const OPERATION = "process-env-read";
+/** The two authored spellings of node's own process door; the canonical origin reports the one it entered. */
+const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 
-/** The ONE home that may touch process.env — everything else imports the frozen `env`. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/server/src/foundation/env/": {
-    why: "THE sole reader (Tier-2-Foundation.md inv #1) — it is what freezes `env` for every other tier, so it cannot violate its own rule. Ends when the env home moves: the rename tripwire reds the row at its dead path instead of letting the exemption follow it",
-  },
-};
-/** Real-tree anchor (gate-hub #11): the frozen-env home itself. */
-const ANCHOR = "packages/server/src/foundation/env/index.ts";
-const ROLE_POLICY_REL = "packages/server/src/domain/sessions/substrate/role-policy.ts";
-const STALE_KEY_PREFIX =
-  "stale SANCTIONED_KEYS entry — role-policy.ts no longer reads this var at call time, so the sanction is a dead licence to bypass the frozen `env` (ratchet down): ";
-const STALE_HOME =
-  "stale exception — the sanctioned call-time reader `packages/server/src/domain/sessions/substrate/role-policy.ts` is not in the project any more, so the whole ROLE_POLICY/SANCTIONED_KEYS exception is dead (ratchet down): delete it in tooling/src/verify/gates/sole-env-reader.ts";
+const MESSAGE =
+  "reads process.env outside foundation/env — env is the SOLE reader: import the frozen `env` and " +
+  "dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
+const FIX = "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.";
 
-/** The sanctioned keys role-policy.ts actually read this run — the stale arm's truth set. */
-const seenKeys = new Set<string>();
+/** Is this `env` member read taken off the real `process` — the ambient global or the `node:process` default
+ *  export? Fail-closed on an unreadable receiver (a written or cyclic binding still HOLDS the identity); a
+ *  member of a provably different declaration is not a subject. */
+function readsProcessEnv(node: MorphNode): boolean {
+  const global = resolveGlobalMemberOrigin(node);
+  if (global.kind === "resolved") {
+    return global.value.globalName === PROCESS_GLOBAL && global.value.memberPath.length === 1 && global.value.memberPath[0] === ENV_MEMBER;
+  }
+  const module = resolveModuleMemberOrigin(node);
+  if (module.kind === "resolved") {
+    const path = module.value.memberPath;
+    return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && path.length === 1 && path[0] === ENV_MEMBER;
+  }
+  return classifyOriginRefusal(module.reason, node) === "unreadable";
+}
 
-// The ONE sanctioned call-time process.env EXCEPTION: the
-// role-derivation policy reads exactly these vars at CALL time (not via the frozen `env`) so per-test
-// `vi.stubEnv` drives the role/access matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other
-// key, or any process.env read elsewhere in the domain, stays RED. OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS
-// are the group→role governance vars (admin grant + login gate; declared in foundation/env, read here).
-const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/u;
-const SANCTIONED_KEYS = new Set(["OWNER_HANDLES", "OWNER_GROUP", "RE_DERIVE_ROLE_ON_LOGIN", "OIDC_ADMIN_GROUPS", "OIDC_ALLOWED_GROUPS"]);
-// A `process.env` node is a sanctioned role-policy read iff it is the object of `process.env["<KEY>"]`
-// where KEY is one of the three allowlisted vars.
-function isSanctionedRolePolicyRead(node: Node): boolean {
+/** The KEY this read asks for, when the syntax names one: `process.env.FOO`, `process.env["FOO"]`. A dynamic
+ *  key and a read of the whole bag name none, and share the bare operation. */
+function readKey(node: MorphNode): string | undefined {
   const parent = node.getParent();
-  if (parent === undefined || !Node.isElementAccessExpression(parent)) {
-    return false;
+  if (parent === undefined || !(Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent))) {
+    return;
   }
-  const arg = parent.getArgumentExpression();
-  if (!(arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText()))) {
-    return false;
+  if (parent.getExpression() !== node) {
+    return;
   }
-  seenKeys.add(arg.getLiteralText());
-  return true;
+  const member = readMemberReference(parent);
+  return member.kind === "resolved" ? member.value.name : undefined;
 }
 
-// Is this node a `process.env` access (property `process.env` or element `process["env"]`)?
-function isProcessEnvAccess(node: Node): boolean {
-  if (Node.isPropertyAccessExpression(node)) {
-    const obj = node.getExpression();
-    return Node.isIdentifier(obj) && obj.getText() === "process" && node.getName() === "env";
-  }
-  if (Node.isElementAccessExpression(node)) {
-    const obj = node.getExpression();
-    const arg = node.getArgumentExpression();
-    return Node.isIdentifier(obj) && obj.getText() === "process" && arg !== undefined && Node.isStringLiteral(arg) && arg.getLiteralText() === "env";
-  }
-  return false;
-}
-
-/** A role-policy source that reads exactly `keys` at call time — derived from the ledger itself so the
- *  stale arm's proofs never drift out of sync with SANCTIONED_KEYS. */
-function rolePolicyReading(keys: readonly string[]): string {
-  return keys.map((k, i) => `export const v${i} = process.env["${k}"];\n`).join("");
-}
-const ALL_SANCTIONED = [...SANCTIONED_KEYS];
-
-const SOLE_ENV_MESSAGE =
-  "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
-
-export const gate: GateDescriptor = {
-  name: "sole-env-reader",
-  docRow: "core/Tier-2-Foundation.md inv #1 (Core-Laws-and-Precedents.md)",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: SOLE_ENV_MESSAGE,
-  fix: "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.",
-  scanRoot: (p) => p.includes("packages/server/src/"),
-  kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-  visit: (node, sf, ctx) => {
-    if (!isProcessEnvAccess(node)) {
-      return;
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (ROLE_POLICY.test(sf.getFilePath()) && isSanctionedRolePolicyRead(node)) {
-      return;
-    }
-    ctx.report(node, { token: "process.env", offset: 0 });
-  },
-  begin: () => {
-    seenKeys.clear();
-  },
-  finalize: (ctx) => {
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "sole process.env reader" });
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    if (!fileLoaded(ctx, ROLE_POLICY_REL)) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_HOME });
-      return; // the whole exception is dead — per-key noise would only bury that
-    }
-    for (const key of SANCTIONED_KEYS) {
-      if (!seenKeys.has(key)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_KEY_PREFIX}"${key}" — delete it from SANCTIONED_KEYS in tooling/src/verify/gates/sole-env-reader.ts`,
-        });
-      }
-    }
+export const gate = defineGate({
+  id: "sole-env-reader",
+  family: "sole-env-reader",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: "@server",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const reads = new Map<string, { readonly node: MorphNode; readonly subject: string; readonly operation: string }>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile: SourceFile) => {
+            const member = readMemberReference(node);
+            const isEnvRead = member.kind === "resolved" && member.value.name === ENV_MEMBER;
+            if (!(isEnvRead && readsProcessEnv(node))) {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            const key = readKey(node);
+            const operation = key === undefined ? OPERATION : `${OPERATION}:${key}`;
+            const identity = `${subject} ${operation}`;
+            if (!reads.has(identity)) {
+              reads.set(identity, { node, subject, operation });
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const [, read] of [...reads].toSorted(([left], [right]) => left.localeCompare(right))) {
+          ctx.report.node(read.node, {
+            subject: read.subject,
+            operation: read.operation,
+            message: `${MESSAGE} Read: ${read.operation} in ${read.subject}.`,
+            fix: FIX,
+          });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const x = process.env.SOME_VAR;\n",
-      at: "packages/server/src/domain/hub/x.ts",
-      why: "a process.env read outside foundation/env — env is the sole reader (inv #1)",
+      mode: "types",
+      files: { "packages/server/src/domain/hub/x.ts": "export const x = process.env.SOME_VAR;\n" },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: "the founding shape — a `process.env` read outside foundation/env, with the exact grant OPERATION (the key) in the message",
     },
     {
-      files: 'export const x = process["env"].SOME_VAR;\n',
-      at: "packages/server/src/domain/hub/y.ts",
-      why: 'the bracket trick process["env"] the property-form biome rule can miss — the AST backstop',
+      mode: "types",
+      files: { "packages/server/src/domain/hub/y.ts": 'export const x = process["env"].SOME_VAR;\n' },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: 'the bracket trick `process["env"]` the property-form biome rule can miss — this policy is the AST backstop and normalizes both spellings to one fact',
     },
     {
+      mode: "types",
+      files: { "packages/server/src/domain/hub/door.ts": 'import process from "node:process";\nexport const x = process.env["OWNER_HANDLES"];\n' },
+      expect: { count: 1, messageIncludes: "process-env-read:OWNER_HANDLES" },
+      why: 'THE LIVE SPELLING: every reader on this tree imports `process` from `node:process`, which is a MODULE default export and not the ambient global. The legacy `getText() === "process"` test happened to pass it; the identity reader proves it',
+    },
+    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const env = {};\n",
-        [ROLE_POLICY_REL]: rolePolicyReading(ALL_SANCTIONED.slice(1)),
+        "packages/server/src/domain/hub/keys.ts":
+          'import process from "node:process";\nexport const a = process.env["OWNER_HANDLES"];\nexport const b = process.env["OWNER_GROUP"];\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED_KEYS entry" },
-      why: "THE STALE ARM at KEY grain: the anchor is loaded and role-policy reads every sanctioned var but the first — that key's licence to bypass the frozen `env` is dead and ratchets down (the example derives its source from the ledger, so it can never drift out of sync with it)",
+      expect: { count: 2 },
+      why: "TWO KEYS ARE TWO FINDINGS: the grant grain follows the READ, which is what preserves the legacy SANCTIONED_KEYS ledger's per-key ratchet for the sanctioned call-time reader",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const env = {};\n",
+        "packages/server/src/domain/hub/bag.ts":
+          'import process from "node:process";\nexport const snapshot = { ...process.env };\nexport const parsed = JSON.stringify(process.env);\n',
       },
-      expect: { count: 1, messageIncludes: "stale exception" },
-      why: "the coarser staleness: the sanctioned reader file itself is gone, so the whole ROLE_POLICY exception is dead — reported ONCE instead of one-per-key",
+      expect: { count: 1, messageIncludes: "Read: process-env-read in" },
+      why: "a read of the WHOLE BAG names no key, so both sites share the bare operation and dedupe per carrier — one grant row, not one per call site",
     },
     {
+      mode: "types",
       files: {
-        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
+        "packages/server/src/domain/hub/dynamic.ts":
+          'import process from "node:process";\nexport const pick = (key: string): string | undefined => process.env[key];\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but foundation/env/ resolves to no file — the env home moved, which the old scanRoot exclusion could not see at all",
+      expect: { count: 1, messageIncludes: "Read: process-env-read in" },
+      why: "a DYNAMIC key names none either — it shares the bare operation rather than being dropped, so a computed read can never be silently unaccounted",
     },
   ],
   mustPass: [
     {
-      files: 'export const env = Object.freeze({ ok: process.env["OK"] });\n',
-      at: "packages/server/src/foundation/env/read.ts",
-      why: "THE ALLOWLIST ITSELF: the sole reader is now SCANNED and passes only because a cited SANCTIONED_HOMES row covers foundation/env/ — deliberately NOT at the gate's own ANCHOR path, so neither stale arm is armed here",
+      mode: "types",
+      files: { "packages/server/src/domain/hub/z.ts": "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n" },
+      why: "a process.env mention in a COMMENT — only real access nodes are read, which is the whole reason this AST backstop exists beside the lint rule",
     },
     {
-      files: "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n",
-      at: "packages/server/src/domain/hub/z.ts",
-      why: "a process.env mention in a COMMENT — only real access nodes are read, docs are exempt",
-    },
-    {
-      files: 'export const owners = process.env["OWNER_HANDLES"];\n',
-      at: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-      why: "the sanctioned call-time role-policy read (OWNER_HANDLES in role-policy.ts) — the isSanctionedRolePolicyRead allowlist, passes; and with no anchor in this project the stale arm stays silent",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const env = {};\n",
-        [ROLE_POLICY_REL]: rolePolicyReading(ALL_SANCTIONED),
+        "packages/server/src/domain/hub/local.ts": 'const process = { env: { SOME_VAR: "x" } };\nexport const x = process.env.SOME_VAR;\n',
       },
-      why: "every sanctioned key STILL EARNED, judged against the real-tree anchor — the ledger mirrors the reader exactly, so neither arm fires",
+      why: 'THE COUNTERFACTUAL — a LOCAL object named `process` is provably a different declaration, so its `env` is not the runtime\'s. The legacy `getText() === "process"` comparison red it, and deleting the origin resolution turns this row red again',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/frozen.ts": 'import { env } from "../../foundation/env/index.ts";\nexport const x = env.SOME_VAR;\n',
+        "packages/server/src/foundation/env/index.ts": 'export const env = Object.freeze({ SOME_VAR: "x" });\n',
+      },
+      why: "THE SANCTIONED SHAPE — a consumer dot-accessing the frozen `env` object touches no `process` at all, which is the whole point of the invariant",
+    },
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/hub/other-member.ts": 'import process from "node:process";\nexport const pid = process.pid;\n' },
+      why: "a DIFFERENT member of the same `process` object passes — the invariant is about the environment bag, not about the process global",
     },
   ],
-};
+});

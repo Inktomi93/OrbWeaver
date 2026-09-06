@@ -1,79 +1,200 @@
-// Gate: bus-channel-primitive (client-architecture-lockdown.md §13/§16 G10) — `defineBusChannel`
+// Policy: bus-channel-primitive (client-architecture-lockdown.md §13/§16 G10) — `defineBusChannel`
 // (transport/trpc/bus-channel.ts) is the ONE transport EventEmitter home. chat/user/notifications used to
 // hand-roll `new EventEmitter()` + `setMaxListeners(0)` + a channel-key fn + `on(emitter, channel, {signal})`
 // three times over (M9); a fourth bus reaching for a bespoke emitter instead of the mint is the same drift
-// reappearing. Buddy's `@orb/kit/replay-buffer`-backed bus (`domain/buddy`) is domain-minted, not a transport
-// `EventEmitter` — out of this gate's scope by owner ruling (O4, tracked separately).
+// reappearing. Buddy's `@orb/kit/replay-buffer`-backed bus is domain-minted, not a transport `EventEmitter` —
+// out of scope by owner ruling (O4).
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the mint's own home is SCANNED and exempted by a
-// cited row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot — an excluded home would carry its
-// exemption silently through a move, and the whole claim of this gate is that the mint has ONE address.
+// IDENTITY, NOT SPELLING: the legacy check was `node.getExpression().getText() === "EventEmitter"`, which a
+// local class of that name false-reds and an alias (`import { EventEmitter as EE }`), a namespace member
+// (`events.EventEmitter`) or a barrel re-export walks straight past. The subject is now the CONSTRUCTED
+// CLASS resolved through the shared callable-origin reader: the `EventEmitter` export entering through the
+// `node:events` door, however the consumer spelled it. Node's builtin has no declaration file in this
+// program, so the canonical origin is an EXTERNAL DOOR — the door plus the export name IS the identity
+// available, and a project class of the same name resolves to a project declaration and is therefore not it.
+//
+// AUTHORITY IS reviewed-grant. The mint's own module is not a per-occurrence mistake; it is a recurring
+// repository PERMISSION — the emitter it wraps is constructed THERE, which is the entire point of the mint.
+// It is one exact `(subject, operation)` row in the central reviewed-grant table with `why` and `endsWhen`.
+// A row consumed zero times is STALE — which is exactly the rename tripwire the legacy `SANCTIONED_HOMES`
+// table carried, now owned centrally: the day the mint moves, the row goes red at its dead subject. Nothing
+// here subtracts a path from the population and this policy holds no allowlist of its own.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { repoRel } from "../lib/pass.ts";
-import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
+import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
+import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 
-const TRANSPORT_SCOPE = /\/packages\/server\/src\/transport\//u;
-const GATE_SELF = "tooling/src/verify/gates/bus-channel-primitive.ts";
-
-/** The ONE transport EventEmitter home. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/server/src/transport/trpc/bus-channel.ts": {
-    why: "`defineBusChannel`'s own module — the emitter it wraps is constructed HERE, which is the entire point of the mint (M9, client-architecture-lockdown.md §13/§16 G10). Ends when the mint moves: the rename tripwire reds the row at its dead path",
-  },
-};
+const EMITTER_EXPORT = "EventEmitter";
+const OPERATION = "event-emitter-construction";
+/** The two authored spellings of node's own events door; the canonical origin reports the one it entered. */
+const EVENTS_DOORS: readonly string[] = ["node:events", "events"];
 
 const MESSAGE =
-  "`new EventEmitter(` under packages/server/src/transport/ outside bus-channel.ts — defineBusChannel (client-architecture-lockdown.md §13/§16 G10) is the ONE transport EventEmitter home; a bespoke emitter re-introduces the machinery M9 unified. Buddy's domain-minted replay-buffer bus is out of scope (O4).";
+  "`new EventEmitter()` under packages/server/src/transport/ outside the mint — defineBusChannel " +
+  "(transport/trpc/bus-channel.ts, client-architecture-lockdown.md §13/§16 G10) is the ONE transport " +
+  "EventEmitter home; a bespoke emitter re-introduces the machinery M9 unified. Buddy's domain-minted " +
+  "replay-buffer bus is out of scope (O4).";
+const FIX = "route the bus through defineBusChannel (transport/trpc/bus-channel.ts) instead of a bespoke `new EventEmitter()`.";
 
-export const gate: GateDescriptor = {
-  name: "bus-channel-primitive",
-  docRow: "client-architecture-lockdown.md §13/§16 G10",
-  status: "active",
-  scopeSafety: "incremental-safe",
+interface Construction {
+  readonly node: MorphNode;
+  readonly subject: string;
+}
+
+/** Does this construction reach node's `EventEmitter`, or is it unreadable? Fail-closed: a `new` whose class
+ *  cannot be read at all is reported, because a one-home rule an unreadable barrel can walk through is not
+ *  one. A construction that PROVABLY binds another declaration is a different class and passes. */
+function constructsEventEmitter(node: MorphNode): boolean {
+  if (!Node.isNewExpression(node)) {
+    return false;
+  }
+  // THE CANDIDATE PREFILTER, and fail-closure's mandatory companion: without it every `new X()` whose class
+  // the reader cannot name — `new TRPCError(…)` five times over on the live tree — is accused of being the
+  // emitter. An import ALIAS still names the export, so the prefilter loses only a re-export under a
+  // DIFFERENT name (a declared limit with its own row).
+  if (!referenceNamesExport(node.getExpression(), EMITTER_EXPORT)) {
+    return false;
+  }
+  const origin = resolveCallableOrigin(node);
+  if (origin.kind === "unresolved") {
+    // The CALLEE is the binding whose identity is in question — the refusal's own node can sit anywhere
+    // along the trace, and classifying that one answers a different question than the policy asked.
+    return classifyOriginRefusal(origin.reason, node.getExpression()) === "unreadable";
+  }
+  const target = origin.value.target;
+  if (target.kind !== "module") {
+    return false;
+  }
+  return target.canonical.exportedName === EMITTER_EXPORT && EVENTS_DOORS.includes(originModuleSpecifier(target));
+}
+
+export const gate = defineGate({
+  id: "bus-channel-primitive",
+  family: "bus-channel-primitive",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: { in: ["@server"], under: ["packages/server/src/transport/**"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "route the bus through defineBusChannel (transport/trpc/bus-channel.ts) instead of a bespoke `new EventEmitter()`.",
-  scanRoot: (p) => TRANSPORT_SCOPE.test(`/${p}`),
-  kinds: [SyntaxKind.NewExpression],
-  visit: (node, sf, ctx) => {
-    if (!Node.isNewExpression(node)) {
-      return;
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (node.getExpression().getText() === "EventEmitter") {
-      ctx.report(node, { token: "new EventEmitter(", offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "transport EventEmitter mint" });
+  fix: FIX,
+  create: (ctx) => {
+    const constructions = new Map<string, Construction>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.NewExpression],
+          visit: (node, sourceFile: SourceFile) => {
+            if (!constructsEventEmitter(node)) {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            // ONE finding per carrier: a grant licenses one `(subject, operation)`, and a home that
+            // constructs twice would make its own row OVER-BROAD and license nothing.
+            if (!constructions.has(subject)) {
+              constructions.set(subject, { node, subject });
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const [subject, construction] of [...constructions].toSorted(([left], [right]) => left.localeCompare(right))) {
+          ctx.report.node(construction.node, {
+            subject,
+            operation: OPERATION,
+            message: `${MESSAGE} Constructor: ${subject}.`,
+            fix: FIX,
+          });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
-      at: "packages/server/src/transport/trpc/__probe-bus.ts",
-      why: "a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own home — reintroduces the pre-M9 pattern",
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/probe-bus.ts": 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/transport/trpc/probe-bus.ts" },
+      why: "the founding shape — a bespoke `new EventEmitter()` under transport/, which reintroduces the pre-M9 pattern; the message carries the exact grant SUBJECT",
     },
     {
+      mode: "types",
       files: {
-        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
-        "packages/server/src/transport/trpc/routers/x.ts": "export const r = null;\n",
+        "packages/server/src/transport/trpc/alias-bus.ts": 'import { EventEmitter as EE } from "node:events";\nexport const bus = new EE();\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but bus-channel.ts resolves to no file — the mint moved, which the old scanRoot exclusion could not see",
+      expect: { count: 1 },
+      why: 'AN IMPORT ALIAS constructs the same class — the legacy `getText() === "EventEmitter"` check saw `EE` and passed it',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/ns-bus.ts": 'import * as events from "node:events";\nexport const bus = new events.EventEmitter();\n',
+      },
+      expect: { count: 1 },
+      why: "A NAMESPACE MEMBER is the same class and produces no import specifier the legacy text match could read",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/barrel.ts": 'export { EventEmitter } from "node:events";\n',
+        "packages/server/src/transport/trpc/reexport-bus.ts": 'import { EventEmitter } from "./barrel.ts";\nexport const bus = new EventEmitter();\n',
+      },
+      expect: { count: 1, messageIncludes: "reexport-bus.ts" },
+      why: "A RE-EXPORT through a project barrel is the same node class — the canonical origin still names the `node:events` door, so the barrel is not a laundry",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/twice.ts":
+          'import { EventEmitter } from "node:events";\nexport const a = new EventEmitter();\nexport const b = new EventEmitter();\n',
+      },
+      expect: { count: 1 },
+      why: "GRANT GRANULARITY: two constructions in one carrier are ONE finding, because a reviewed grant licenses one `(subject, operation)` and two matching findings make the row OVER-BROAD and license neither",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/unreadable.ts": 'import { EventEmitter } from "./missing-barrel.ts";\nexport const bus = new EventEmitter();\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED: a construction whose class door does not resolve is reported rather than silently admitted",
     },
   ],
   mustPass: [
     {
-      files: 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
-      at: "packages/server/src/transport/trpc/bus-channel.ts",
-      why: "THE ALLOWLIST ITSELF: the primitive's own home is now SCANNED and passes only on a cited SANCTIONED_HOMES row — this is where `new EventEmitter()` is SUPPOSED to live",
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/barrel.ts": 'export { EventEmitter as Bus } from "node:events";\n',
+        "packages/server/src/transport/trpc/renamed.ts": 'import { Bus } from "./barrel.ts";\nexport const bus = new Bus();\n',
+      },
+      why: "DECLARED LIMIT — a barrel that RE-EXPORTS the emitter under a DIFFERENT name is outside the candidate prefilter. The prefilter is what keeps fail-closure honest (an unprefiltered arm accused five `new TRPCError(…)` sites on the live tree), and the legacy text comparison missed this shape too",
     },
     {
-      files: "export class Thing {}\nexport const t = new Thing();\n",
-      at: "packages/server/src/transport/trpc/__probe-other.ts",
-      why: "a `new` expression for a non-EventEmitter constructor under transport/ — not the gate's target",
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/other.ts": "export class Thing {}\nexport const t = new Thing();\n",
+      },
+      why: "a `new` of a locally declared class under transport/ — a different class, and the reader proves it by its declaration rather than by its name",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/lookalike.ts": "export class EventEmitter {\n  on(): void {}\n}\n",
+        "packages/server/src/transport/trpc/lookalike-bus.ts": 'import { EventEmitter } from "./lookalike.ts";\nexport const bus = new EventEmitter();\n',
+      },
+      why: "THE HOME COUNTERFACTUAL — a GENUINE module export named `EventEmitter` that resolves cleanly to a PROJECT declaration is not node's emitter. Deleting the door comparison turns this row red, which is what proves the identity was resolved and not spelled",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/globals.ts": "export const seen = new Map<string, number>();\nexport const once = new Set<string>();\n",
+      },
+      why: "ambient global constructions under transport/ resolve to a GLOBAL origin, never a module one — the arm keys on the node:events door and abstains on everything else",
     },
   ],
-};
+});

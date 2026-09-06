@@ -1,167 +1,187 @@
-// Gate: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal) — `users` is the
-// identity root every single-owned table FKs; it is read/written through exactly TWO sanctioned domains
-// (`sessions` — the resolution-path writer, and `admin` — user-management). Every other domain takes
-// `userId` from the resolved `Principal`; joining `users` sideways re-couples identity into a feature.
-// A domain outside sessions/admin importing the `users` table symbol from `@orb/db` is RED — reached by a
-// NAMED import or through an `import * as schema` namespace member in either spelling (`schema.users`,
-// `schema["users"]`). The namespace route produces no ImportSpecifier at all and walked past this
-// chokepoint in silence until #1506; the reference is one thing however it is written.
+// Policy: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal). `users` is the
+// identity root every single-owned table FKs, and it is read/written through exactly TWO sanctioned domains:
+// `sessions` (the resolution-path writer that turns a session into the Principal) and `admin` (user
+// management). Every other domain takes `userId` from the resolved Principal; joining `users` sideways
+// re-couples identity into a feature.
 //
-// TWO-SIDED (gate-hub #10): the carve-out ratchets DOWN — an EXEMPT_DOMAINS row whose domain imports no
-// `users` symbol any more is RED (the sanctioned-reader claim died; a standing carve-out for a domain that
-// no longer touches identity is a licence waiting to be used). The arm self-guards on a REAL-TREE ANCHOR
-// (gate-hub #11): the identity root's own schema file, which a conformance mini-project only has when an
-// example materializes it deliberately.
+// IDENTITY, NOT SPELLING: the legacy reader keyed on the NAME `users` plus a `/^@orb\/db/` module-specifier
+// regex, so a local object with a `users` key had to be excluded by hand and a re-export through any other
+// barrel walked past. The subject is now the reference whose CANONICAL DECLARATION is the `users` export of
+// the db schema, resolved through the shared sealed-origin reader — the named import, the namespace member
+// (`schema.users`) and the bracket spelling (`schema["users"]`) are one reference however they are written,
+// and a same-named export of another module is provably not it.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the two identity domains are SCANNED and exempted
-// by cited rows, not scoped out of scanRoot — a carve-out keyed on a path that no longer exists is
-// unfalsifiable, and the shared RENAME TRIPWIRE (mode B) is what makes it falsifiable.
-import type { SourceFile, Node as TsMorphNode } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
-import { homeFiles, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
-import { MEMBER_ACCESS_KINDS, moduleMemberReference } from "../lib/symbol-reference.ts";
+// AUTHORITY IS reviewed-grant. The two identity domains are not per-occurrence mistakes; each importing
+// module is a recurring repository PERMISSION and takes one exact `(subject, operation)` row in the central
+// reviewed-grant table. A row per FILE, deliberately: the legacy `domain/sessions/` and `domain/admin/` rows
+// were DIRECTORY licences that admitted every future file under them, which the final law forbids. The two
+// legacy staleness arms are BOTH the grant table now — a domain that stops reading `users` (mode A) and a
+// domain that moves (mode B) each leave their rows consumed zero times, which is the central STALE alarm.
+// The db schema home is outside this policy's population, so its own liveness is that same alarm rather
+// than a receipt: if `users` moves out of the schema, every reference resolves foreign, every row goes
+// stale, and the run says so at each row instead of silently having nothing to judge.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import type { SealedHome } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 const TABLE = "users";
-const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
+const OPERATION = "users-table-reference";
+
+/** The identity root's declaration home: the db schema directory, so an internal split cannot retire the arm. */
+const USERS_HOME: SealedHome = { pathInfix: "/packages/db/src/schema/", exportedNames: new Set([TABLE]) };
+
 const MESSAGE =
-  "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
-const MSG_DIR = /packages\/server\/src\/domain\//u;
-const DOMAIN_ROOT = "packages/server/src/domain/";
+  "the `users` table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read " +
+  "chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal " +
+  "(the injected context) and never queries users directly.";
+const FIX = "take userId from the resolved Principal (the injected context); the `users` table is read/written ONLY by domain/sessions + domain/admin.";
 
-/** The TWO sanctioned identity domains (Spine-Identity-and-Auth.md): sessions writes on the resolution
- *  path, admin does user management. Keyed by PATH so both staleness modes can name the dead one. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  [`${DOMAIN_ROOT}sessions/`]: {
-    why: "the resolution-path writer — it is what turns a session into the Principal every other domain reads userId from, so it must touch the identity root. Ends when sessions stops importing `users` (mode A) or moves (mode B)",
-  },
-  [`${DOMAIN_ROOT}admin/`]: {
-    why: "user MANAGEMENT (role grants, the owner/admin surface) is the other sanctioned reader. Same two end conditions",
-  },
-};
-
-const GATE_SELF = "tooling/src/verify/gates/no-direct-users-read.ts";
-/** Real-tree anchor (gate-hub #11): the identity root's own schema file. */
-const ANCHOR = "packages/db/src/schema/users.ts";
-const STALE_PREFIX =
-  "stale EXEMPT_DOMAINS row — this domain imports no `users` symbol any more, so its sanctioned-reader " +
-  "claim is dead and the carve-out is just a standing licence (ratchet down): ";
-
-/** Every spelling of a `users` reference from `@orb/db` — the named ImportSpecifier and the namespace
- *  member read. ONE predicate, so the two arms can never disagree about what a `users` read is, and the
- *  stale arms below judge the same set the visit does. */
-function isUsersReference(node: TsMorphNode): boolean {
-  const reference = moduleMemberReference(node, (specifier) => DB_SPECIFIER.test(specifier));
-  return reference !== undefined && reference.name === TABLE;
+/** THE CANDIDATE PREFILTER: an `ImportSpecifier`'s `getName()` is the exported name even under an alias, and
+ *  a namespace member is spelled with the exported name too. A re-export under a DIFFERENT name is the one
+ *  loss, declared in a `mustPass` row and shared with the legacy reader. */
+function candidate(node: MorphNode): MorphNode | undefined {
+  if (Node.isImportSpecifier(node)) {
+    return node.getName() === TABLE ? node : undefined;
+  }
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return;
+  }
+  const member = readMemberReference(node);
+  return member.kind === "resolved" && member.value.name === TABLE ? node : undefined;
 }
 
-/** Does this file read `users` from `@orb/db` at all, in ANY spelling? The stale (mode A) arm's question. */
-function readsUsers(sf: SourceFile): boolean {
-  return sf.forEachDescendant((node) => (isUsersReference(node) ? true : undefined)) === true;
-}
-
-export const gate: GateDescriptor = {
-  name: "no-direct-users-read",
-  docRow: "Spine-Identity-and-Auth.md (no-direct-users-read chokepoint)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-direct-users-read",
+  family: "no-direct-users-read",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: { in: ["@server"], under: ["packages/server/src/domain/**"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "take userId from the resolved Principal (the injected context); the `users` table is read/written ONLY by domain/sessions + domain/admin.",
-  scanRoot: (p) => MSG_DIR.test(p),
-  kinds: [SyntaxKind.ImportSpecifier, ...MEMBER_ACCESS_KINDS],
-  visit: (node, sf, ctx) => {
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (isUsersReference(node)) {
-      ctx.report(node, { token: TABLE, offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    // MODE B (the rename tripwire) — a carve-out whose domain dir resolves to nothing.
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "sanctioned identity domain", anchor: ANCHOR });
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    // MODE A — the domain exists but no longer reads `users`, so its sanctioned-reader claim is dead.
-    for (const key of Object.keys(SANCTIONED_HOMES)) {
-      const files = homeFiles(ctx, key);
-      const reads = files.some((sf) => readsUsers(sf));
-      if (files.length > 0 && !reads) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}"${key}" — delete the row in tooling/src/verify/gates/no-direct-users-read.ts`,
-        });
-      }
-    }
+  fix: FIX,
+  create: (ctx) => {
+    const readers = new Map<string, MorphNode>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile: SourceFile) => {
+            const anchor = candidate(node);
+            if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, USERS_HOME), anchor)) {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            // ONE finding per carrier: a grant licenses one `(subject, operation)`, and a module that both
+            // imports and dereferences the table would otherwise make its own row OVER-BROAD.
+            if (!readers.has(subject)) {
+              readers.set(subject, anchor);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const [subject, anchor] of [...readers].toSorted(([left], [right]) => left.localeCompare(right))) {
+          ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Reader: ${subject}.`, fix: FIX });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { users } from "@orb/db";\nexport const u = users;\n',
-      at: "packages/server/src/domain/billing/x.ts",
-      why: "a `users` named import from @orb/db in a domain outside sessions/admin — the chokepoint dodge",
-    },
-    {
-      files: 'import * as schema from "@orb/db";\nexport const u = schema.users;\n',
-      at: "packages/server/src/domain/billing/ns.ts",
-      expect: { count: 1, token: TABLE },
-      why: "#1506: the NAMESPACE spelling of the same read. Before the shared reader this produced ZERO findings — there is no ImportSpecifier to visit, so the identity chokepoint was one `import * as` away",
-    },
-    {
-      files: 'import * as schema from "@orb/db";\nexport const u = schema["users"];\n',
-      at: "packages/server/src/domain/billing/bracket.ts",
-      expect: { count: 1, token: TABLE },
-      why: "#1506: the bracket spelling of the namespace read — the same reference, so the same finding",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: 'export const users = sqliteTable("users", {});\n',
-        "packages/server/src/domain/sessions/persistence/users.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/domain/billing/x.ts": 'import { users } from "../../../../db/src/schema/users.ts";\nexport const u = users;\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "MODE B (the rename tripwire): the anchor is loaded and sessions still reads `users`, while admin resolves to NO file — the carve-out names a domain that is gone. Exactly ONE finding: mode A is guarded on the home having files, so the two arms never double-report the same row",
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/billing/x.ts" },
+      why: "the founding shape — a `users` import in a domain outside sessions/admin, the chokepoint dodge; the message carries the exact grant SUBJECT",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: 'export const users = sqliteTable("users", {});\n',
-        "packages/server/src/domain/sessions/persistence/users.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
-        "packages/server/src/domain/admin/verbs/set-role.ts": "export const setRole = null;\n",
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/db/src/index.ts": 'export { users } from "./schema/users.ts";\n',
+        "packages/server/src/domain/billing/barrel.ts": 'import { users } from "../../../../db/src/index.ts";\nexport const u = users;\n',
       },
-      expect: { count: 1, messageIncludes: "stale EXEMPT_DOMAINS row" },
-      why: "MODE A alone: admin still EXISTS but imports no `users` symbol any more — its sanctioned-reader claim is dead and the carve-out is just a standing licence",
+      expect: { count: 1 },
+      why: "A RE-EXPORT through the db barrel is the same table — the canonical declaration is still the schema module, so the barrel is not a laundry",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/domain/billing/ns.ts": 'import * as schema from "../../../../db/src/schema/users.ts";\nexport const u = schema.users;\n',
+      },
+      expect: { count: 1 },
+      why: "#1506: the NAMESPACE spelling of the same read produces no ImportSpecifier at all — the identity chokepoint was one `import * as` away before the shared reader",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/domain/billing/bracket.ts": 'import * as schema from "../../../../db/src/schema/users.ts";\nexport const u = schema["users"];\n',
+      },
+      expect: { count: 1 },
+      why: "#1506: the BRACKET spelling of the namespace read is the same reference, so it is the same finding",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/domain/billing/twice.ts":
+          'import { users } from "../../../../db/src/schema/users.ts";\nexport const a = users;\nexport const b = users;\n',
+      },
+      expect: { count: 1 },
+      why: "GRANT GRANULARITY: the import and its uses are ONE finding per carrier, because a reviewed grant licenses one `(subject, operation)` and two matching findings make the row OVER-BROAD and license neither",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/billing/unreadable.ts": 'import { users } from "./missing-barrel.ts";\nexport const u = users;\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED at the DECLARED DOOR — a `users` import that resolves to nothing is reported rather than admitted",
     },
   ],
   mustPass: [
     {
-      files: 'import * as schema from "@orb/db";\nexport const m = schema.messages;\n',
-      at: "packages/server/src/domain/billing/ns-other.ts",
-      why: "#1506's NEGATIVE control: a namespace member naming a DIFFERENT table passes — the new arm keys on the `users` name, not on 'reached through a namespace'",
-    },
-    {
-      files: "const schema = { users: 1 };\nexport const u = schema.users;\n",
-      at: "packages/server/src/domain/billing/local.ts",
-      why: "#1506's other negative control: a LOCAL object with a `users` key is not an @orb/db reference — the receiver must resolve to a namespace import of @orb/db",
-    },
-    {
-      files: 'import { messages } from "@orb/db";\nexport const m = messages;\n',
-      at: "packages/server/src/domain/billing/y.ts",
-      why: "a DIFFERENT table from @orb/db passes — only `users` is the identity-root chokepoint",
-    },
-    {
-      files: 'import { users } from "@orb/db";\nexport const u = users;\n',
-      at: "packages/server/src/domain/sessions/x.ts",
-      why: "THE ALLOWLIST ITSELF: the `users` import in a sanctioned identity domain (sessions — the resolution-path writer) is now SCANNED and passes on a cited row; with no anchor in this project both stale arms stay silent (THE ANCHOR GUARD)",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: 'export const users = sqliteTable("users", {});\n',
-        "packages/server/src/domain/sessions/persistence/users.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
-        "packages/server/src/domain/admin/verbs/set-role.ts": 'import { users } from "@orb/db";\nexport const u = users;\n',
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\nexport const messages = { name: "messages" };\n',
+        "packages/server/src/domain/billing/y.ts": 'import { messages } from "../../../../db/src/schema/users.ts";\nexport const m = messages;\n',
       },
-      why: "both carve-outs STILL EARNED, judged against the real-tree anchor: each identity domain does read `users`, so neither arm fires",
+      why: "a DIFFERENT table from the same schema home passes — only `users` is the identity-root chokepoint",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/server/src/domain/billing/local.ts": "const schema = { users: 1 };\nexport const u = schema.users;\n",
+      },
+      why: "#1506's negative control, now proven by IDENTITY rather than by a specifier regex: a LOCAL object with a `users` key binds its own property declaration, so the member read is not a subject at all",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/billing/foreign.ts": "export const users = { name: 'not the table' };\nexport const u = users;\n",
+        "packages/server/src/domain/billing/import-foreign.ts": 'import { users } from "./foreign.ts";\nexport const u = users;\n',
+      },
+      why: "THE HOME COUNTERFACTUAL — a GENUINE module export named `users` that resolves cleanly to a declaration OUTSIDE the db schema is a different symbol. Deleting the home comparison turns this row red, which is what proves the identity was resolved and not spelled",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
+        "packages/db/src/barrel.ts": 'export { users as identityRoot } from "./schema/users.ts";\n',
+        "packages/server/src/domain/billing/renamed.ts": 'import { identityRoot } from "../../../../db/src/barrel.ts";\nexport const u = identityRoot;\n',
+      },
+      why: "DECLARED LIMIT — a barrel that RE-EXPORTS the table under a DIFFERENT name is outside the candidate prefilter. The legacy name reader missed it too, so this is a written baseline rather than a regression; closing it means resolving an origin on every identifier in a 1,144-file population, which does not finish",
     },
   ],
-};
+});

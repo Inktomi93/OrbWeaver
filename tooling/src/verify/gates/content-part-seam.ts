@@ -1,140 +1,207 @@
-// Gate: content-part-seam (D51 — the multimodal content-part shape is threaded at the engine WIRE SEAM,
-// content stays a `string` everywhere upstream). `ChatContentPart` is produced exactly once (at
-// domain/chat/substrate/wire-history.ts, the CONVERT step both the turn pipeline and the read verb's
-// previews call — it moved out of engine/pipeline.ts at #1540 so the previews price the same converted rows
-// the turn fits) and consumed only by infra/providers/** (the sealed runners). Everything else stays
-// `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a `ChatContentPart` import
-// from a file outside the seam set is RED.
+// Policy: content-part-seam (Core-Path-Registry.md D51) — the multimodal content-part shape is threaded at
+// the engine WIRE SEAM; content stays a `string` everywhere upstream. `ChatContentPart` is produced at one
+// CONVERT step (`domain/chat/substrate/wire-history.ts`), assembled by the engine request seam, carried by
+// the domain-side request DTO, and consumed only by the sealed runner tier. Everything else stays
+// `content: string`, and a module that NAMES the symbol outside that set is reaching for parts too early.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the seam members are SCANNED and exempted by cited
-// rows, not scoped out of scanRoot — an excluded member that moves takes its exemption with it AND leaves a
-// hole in the scan (every file the pattern covered silently stops being checked).
+// IDENTITY, NOT SPELLING: the legacy check was an `ImportSpecifier` named `ChatContentPart` whose module
+// specifier matched `/^@orb\/contracts\/chat/`. That is two spellings at once — a namespace member
+// (`chat.ChatContentPart`), a computed-literal member, and a re-export through any other barrel all walked
+// past it, while a same-named type declared elsewhere would have red as the real one. The subject is now the
+// reference whose CANONICAL DECLARATION lives in the contracts chat home, resolved through the shared sealed
+// -origin reader, and the home's own existence is RECEIPTED: if the declaration moves out of
+// `packages/contracts/src/chat/`, the receipt goes to zero members and the run REFUSES rather than rendering
+// a clean pass over a rule that has quietly stopped having a subject.
 //
-// TWO-SIDED (gate-hub #10): a row resolving to NO file is RED, through the ONE shared rename tripwire
-// (lib/sanctioned-home.ts) rather than a hand-rolled sweep. It self-guards on a REAL-TREE ANCHOR
-// (gate-hub #11) that sits OUTSIDE every row — this gate's own declaration-home anchor lives INSIDE the
-// contracts row, so guarding on it would let a dead home take its own tripwire down with it.
+// AUTHORITY IS reviewed-grant. The seam members are not per-occurrence mistakes; each is a recurring
+// repository PERMISSION with its own reason, so each is one exact `(subject, operation)` row in the central
+// reviewed-grant table. That is a row PER FILE, deliberately: the legacy `packages/server/src/infra/
+// providers/` row was a DIRECTORY licence that admitted every future file under it, which the final law
+// forbids — a new runner that needs parts is a reviewed row, not a silent inheritance. The legacy
+// `packages/contracts/src/chat/` row is DELETED rather than translated: the home DECLARES the symbol and
+// imports it from nobody, so that row licensed nothing at all and, as a grant, would be permanently STALE.
+// Its liveness is the home receipt above, which is strictly stronger.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { repoRel } from "../lib/pass.ts";
-import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+import { defineGate } from "../contract/policy.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import type { SealedHome } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 const SYMBOL = "ChatContentPart";
-const CONTRACTS_CHAT = /^@orb\/contracts\/chat(?:\/|$)/u;
-// Production source only — the seam rule governs the runtime dependency graph; the centralized `tests/`
-// mirror legitimately imports the contract type to test it.
-const PROD_SRC = /\/packages\/[^/]+\/src\//u;
+const OPERATION = "chat-content-part-reference";
+const HOME_RECEIPT = "ChatContentPart declaration home";
 
-/** Files sanctioned to import `ChatContentPart` — the seam producer + the request DTO it fills + the
- *  infra consumers + the contracts home. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/contracts/src/chat/": {
-    why: "the contracts home DECLARES the symbol — the whole chat namespace, since the declaration and its barrel move together. Ends when the chat contracts move: the rename tripwire reds the row at its dead path",
-  },
-  "packages/server/src/infra/providers/": {
-    why: "the sealed runner tier is the ONLY consumer — it maps parts onto each backend wire (D51). Same end condition",
-  },
-  "packages/server/src/domain/chat/substrate/wire-history.ts": {
-    why: "THE one producer (D51). The CONVERT step MOVED here at #1540 — the read verb's previews must price the same converted rows the turn's fitter prices, and a pure read cannot import the turn-execution module — so the request seam's conversion lives in the engine↔verbs substrate seam that both call. Still exactly ONE producer, still string-shaped upstream. Ends when that module moves",
-  },
-  "packages/server/src/domain/chat/engine/pipeline.ts": {
-    why: "the engine request seam ASSEMBLES the parts the producer above builds, and mints its own for the TOOL-RESULT rows (`toolResultMessages` — an assistant row of tool-call parts plus one row per result, which never pass through the history conversion). Ends when the pipeline moves",
-  },
-  "packages/server/src/domain/chat/contract/results.ts": {
-    why: "the domain-side request DTO the seam populates (`content: ChatContentPart[]` handed to the runner). Same end condition",
-  },
-};
-
-const GATE_SELF = "tooling/src/verify/gates/content-part-seam.ts";
+/** The declaration home is the chat NAMESPACE, not one file: the declaration and its barrel move together. */
+const CONTENT_PART_HOME: SealedHome = { pathInfix: "/packages/contracts/src/chat/", exportedNames: new Set([SYMBOL]) };
 
 const MESSAGE =
-  "`ChatContentPart` is imported outside the D51 seam set (the CONVERT producer `domain/chat/substrate/" +
-  "wire-history.ts` · the engine request seam `domain/chat/engine/pipeline.ts` · the request DTO " +
-  "`domain/chat/contract/results.ts` · the infra/providers consumers · the @orb/contracts/chat home) — " +
-  "content-parts are produced ONCE at the request seam's conversion and everything upstream stays " +
-  "`content: string`. See Core-Path-Registry.md D51.";
-/** Is this ImportSpecifier a `ChatContentPart` named import from `@orb/contracts/chat`? */
-function isContentPartImport(spec: Node): boolean {
-  if (!Node.isImportSpecifier(spec) || spec.getName() !== SYMBOL) {
-    return false;
+  "`ChatContentPart` is named outside the D51 seam set (the CONVERT producer domain/chat/substrate/" +
+  "wire-history.ts · the engine request seam domain/chat/engine/pipeline.ts · the request DTO " +
+  "domain/chat/contract/results.ts · the sealed infra/providers consumers) — content-parts are produced ONCE " +
+  "at the request seam's conversion and everything upstream stays `content: string` (Core-Path-Registry.md D51).";
+const FIX =
+  "keep `content: string` upstream; ChatContentPart is produced ONCE at the request seam's CONVERT step (domain/chat/substrate/wire-history.ts) and consumed only by the sealed runner tier.";
+
+/** THE CANDIDATE PREFILTER: an `ImportSpecifier`'s `getName()` is the ORIGINAL exported name even under an
+ *  alias, and a namespace member is spelled with the exported name too, so gating on the sealed NAME loses
+ *  only a re-export under a DIFFERENT name — a declared limit with its own row, and one the legacy reader
+ *  carried as well. Every candidate still pays full origin resolution. */
+function candidate(node: MorphNode): MorphNode | undefined {
+  if (Node.isImportSpecifier(node)) {
+    return node.getName() === SYMBOL ? node : undefined;
   }
-  const decl = spec.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-  return decl !== undefined && CONTRACTS_CHAT.test(decl.getModuleSpecifierValue());
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return;
+  }
+  const member = readMemberReference(node);
+  return member.kind === "resolved" && member.value.name === SYMBOL ? node : undefined;
 }
 
-export const gate: GateDescriptor = {
-  name: "content-part-seam",
-  docRow: "Core-Path-Registry.md D51",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "content-part-seam",
+  family: "content-part-seam",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: "@packages",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "keep `content: string` upstream; ChatContentPart is produced ONCE at the request seam's CONVERT step (domain/chat/substrate/wire-history.ts) and consumed only by infra/providers/**.",
-  scanRoot: (p) => PROD_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier],
-  visit: (node, sf, ctx) => {
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (isContentPartImport(node)) {
-      ctx.report(node, { token: SYMBOL, offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    // The declaration-home ANCHOR still guards nothing here — the sweep's guard is the SHARED anchor, which
-    // is outside every row (a member that dies must not be able to silence its own tripwire).
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "D51 content-part seam member" });
+  fix: FIX,
+  create: (ctx) => {
+    const references = new Map<string, MorphNode>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile: SourceFile) => {
+            const anchor = candidate(node);
+            if (anchor === undefined) {
+              return;
+            }
+            // FAIL-CLOSED at the DECLARED DOOR: an unreadable import door reports, a member read that
+            // provably binds something else is not a subject (lib/sealed-origin.ts::sealedOriginReports).
+            if (!sealedOriginReports(readSealedOrigin(anchor, CONTENT_PART_HOME), anchor)) {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            if (!references.has(subject)) {
+              references.set(subject, anchor);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        // THE RENAME TRIPWIRE, as a receipt: the home must still DECLARE the symbol this seam is about.
+        const home = ctx.files.filter(
+          (file) => file.getFilePath().replaceAll("\\", "/").includes(CONTENT_PART_HOME.pathInfix) && file.getExportedDeclarations().has(SYMBOL),
+        );
+        ctx.receipt({ kind: "population", source: HOME_RECEIPT, members: home.length, unresolved: 0 });
+        for (const [subject, anchor] of [...references].toSorted(([left], [right]) => left.localeCompare(right))) {
+          ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Importer: ${subject}.`, fix: FIX });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type T = ChatContentPart;\n',
-      at: "packages/server/src/domain/chat/verbs/assemble.ts",
-      why: "an upstream verb importing ChatContentPart — reaching for parts before the engine seam (D51)",
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/assemble.ts":
+          'import type { ChatContentPart } from "../../../../../contracts/src/chat/bus.ts";\nexport type T = ChatContentPart;\n',
+      },
+      expect: { count: 1, messageIncludes: "packages/server/src/domain/chat/verbs/assemble.ts" },
+      why: "the founding shape — an upstream verb reaching for parts before the engine seam, with the exact grant SUBJECT in the message",
     },
     {
+      mode: "types",
       files: {
-        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
         "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/alias.ts":
+          'import type { ChatContentPart as Part } from "../../../../../contracts/src/chat/bus.ts";\nexport type T = Part;\n',
       },
-      expect: { count: 4, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, so the seam set is judged — the four rows naming homes no file resolves (infra/providers, substrate/wire-history.ts, engine/pipeline.ts, contract/results.ts) each ratchet down; the contracts row resolves (the declaration file itself) and stays",
+      expect: { count: 1 },
+      why: "AN IMPORT ALIAS is the same declaration — the seam is a claim about where the type LIVES, not about what a consumer called it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/contracts/src/chat/index.ts": 'export type { ChatContentPart } from "./bus.ts";\n',
+        "packages/server/src/domain/chat/verbs/reexport.ts":
+          'import type { ChatContentPart } from "../../../../../contracts/src/chat/index.ts";\nexport type T = ChatContentPart;\n',
+      },
+      expect: { count: 1, messageIncludes: "reexport.ts" },
+      why: "A RE-EXPORT through the chat barrel is the same declaration — the legacy specifier regex only recognised one door",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/twice.ts":
+          'import type { ChatContentPart } from "../../../../../contracts/src/chat/bus.ts";\nexport type A = ChatContentPart;\nexport type B = readonly ChatContentPart[];\n',
+      },
+      expect: { count: 1 },
+      why: "GRANT GRANULARITY: one finding per carrier, because a reviewed grant licenses one `(subject, operation)` and a second matching finding would make the row OVER-BROAD and license neither",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/unreadable.ts":
+          'import type { ChatContentPart } from "./missing-barrel.ts";\nexport type T = ChatContentPart;\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED — a `ChatContentPart` door that resolves to nothing is reported; a seam an unreadable module can walk through is not one",
     },
   ],
   mustPass: [
     {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "packages/server/src/infra/providers/backends/kit/map.ts",
-      why: "THE ALLOWLIST ITSELF: the infra/providers consumer is now SCANNED and passes on a cited row — the sealed runner maps parts to wire",
-    },
-    {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "packages/server/src/domain/chat/substrate/wire-history.ts",
-      why: "the CONVERT step (substrate/wire-history.ts) is the ONE sanctioned producer of parts (D51, #1540) — the turn and the previews both call it",
-    },
-    {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "packages/server/src/domain/chat/engine/pipeline.ts",
-      why: "the engine request seam assembles the produced parts and mints the TOOL-RESULT rows (D51)",
-    },
-    {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "packages/server/src/domain/chat/contract/results.ts",
-      why: "the request DTO (contract/results.ts) is the sanctioned member the seam populates",
-    },
-    {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "packages/contracts/src/chat/index.ts",
-      why: "the contracts home declares the symbol — a sanctioned seam member",
-    },
-    {
-      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
-      at: "tests/contracts/chat/index.test-d.ts",
-      why: "the centralized tests/ mirror (not prod src) legitimately imports the contract type to test it — exempt",
-    },
-    {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/ns.ts":
+          'import type * as chat from "../../../../../contracts/src/chat/bus.ts";\nexport type T = chat.ChatContentPart;\n',
       },
-      why: "THE ANCHOR GUARD: a project without the shared real-tree anchor is not the real tree — the tripwire stays silent instead of 'proving' all four seam members vanished",
+      why: "DECLARED LIMIT, written down rather than assumed: `ChatContentPart` is a TYPE-only symbol, so its namespace spelling is a `QualifiedName` in type position — not a `PropertyAccessExpression` — and no shared reader normalizes that node today. The legacy import-keyed detector was blind to it too, so this is a written baseline plus a runtime follow-up, not a regression",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/verbs/quiet.ts": "export const quiet = 1;\n",
+      },
+      why: "the home DECLARES the symbol and imports it from nobody, which is why the legacy contracts row licensed nothing — and the home receipt is non-zero, so the rename tripwire is armed and silent",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/lib/local.ts": "export type ChatContentPart = { readonly other: number };\nexport type T = ChatContentPart;\n",
+      },
+      why: "THE HOME COUNTERFACTUAL — a GENUINE declaration of the same name in another module is a different type by the type-home law. Deleting the home comparison turns this row red, which is what proves the identity was resolved rather than spelled",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\nexport type MessageView = { readonly id: string };\n",
+        "packages/server/src/domain/chat/verbs/sibling.ts":
+          'import type { MessageView } from "../../../../../contracts/src/chat/bus.ts";\nexport type T = MessageView;\n',
+      },
+      why: "a DIFFERENT export from the same chat home passes — the seam is about one symbol, not about the module",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/contracts/src/chat/barrel.ts": 'export type { ChatContentPart as WirePart } from "./bus.ts";\n',
+        "packages/server/src/domain/chat/verbs/renamed.ts":
+          'import type { WirePart } from "../../../../../contracts/src/chat/barrel.ts";\nexport type T = WirePart;\n',
+      },
+      why: "DECLARED LIMIT — a barrel that RE-EXPORTS the seam symbol under a DIFFERENT name is outside the candidate prefilter. The legacy name reader missed it too, so this is a written baseline rather than a regression; closing it means resolving an origin on every identifier in a 3,367-file population, which does not finish",
     },
   ],
-};
+});
