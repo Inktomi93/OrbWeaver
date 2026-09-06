@@ -244,6 +244,17 @@ const TAB_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
   "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+  // The #1742 Regex section's four reads (#1786). Its HEADING chip reads `chat.listEffectiveRegex`
+  // eagerly — outside any disclosure — so an unfed tab took the section's error arm and the whole host
+  // band failed to render, which is what made the two tests below red. Fed with the section's OFF-and-
+  // EMPTY projection rather than `settings-context-tab.ct.tsx`'s populated `REGEX_READS` constant (the
+  // same four keys, different values): this file is about PLUGIN ANCHORS, and a script row here would put
+  // an unrelated surface's rows in the band these tests count headings in. Copied, not imported — a CT
+  // spec never reaches into a sibling spec.
+  "chat.listEffectiveRegex": () => ({ enabled: false, tiers: [], effective: [] }),
+  "regex.listForChat": () => [],
+  "regex.listScripts": () => [],
+  "regex.listRoomDisplayScripts": () => [],
 };
 
 /** The panel a plugin registers at `chat-settings-section`: one bound line plus an action. */
