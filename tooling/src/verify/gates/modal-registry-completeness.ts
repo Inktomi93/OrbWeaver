@@ -18,6 +18,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
+import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFact } from "../lib/registry-fact.ts";
@@ -63,10 +64,6 @@ function triggerPlacement(object: ObjectLiteralExpression): string | undefined {
   }
   const placement = definitionStringField(trigger.value, "placement");
   return placement !== undefined && placement.kind === "resolved" ? placement.value : undefined;
-}
-
-function declaredName(node: MorphNode): string {
-  return Node.isVariableDeclaration(node) || Node.isFunctionDeclaration(node) ? (node.getName() ?? "<anonymous>") : "<anonymous>";
 }
 
 /** The imported local names that could denote the canonical opener — a candidate filter, never a verdict. */
@@ -151,7 +148,7 @@ export const gate = defineGate({
     const openedIds = new Set<string>();
     const surfaceModals: { readonly definition: RegistryDefinitionFact; readonly id: string }[] = [];
 
-    const report = (node: MorphNode, detail: string): void => ctx.report.node(node, { message: `${MESSAGE} ${detail}`, fix: FIX });
+    const report = (node: MorphNode, detail: string): void => ctx.report.node(node, { ...definitionAnchor(node), message: `${MESSAGE} ${detail}`, fix: FIX });
 
     /** The definition's own authored literal plus its home path, or the co-location/readability finding. */
     const resolveHome = (definition: RegistryDefinitionFact, name: string): Home | undefined => {
@@ -220,7 +217,7 @@ export const gate = defineGate({
     };
 
     const judge = (definition: RegistryDefinitionFact): void => {
-      const name = declaredName(definition.declaration);
+      const name = definitionName(definition.declaration);
       const home = resolveHome(definition, name);
       if (home === undefined) {
         return;

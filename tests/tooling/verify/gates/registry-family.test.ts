@@ -3,6 +3,7 @@ import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/veri
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
+import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -10,7 +11,15 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const ROOT = "/registry-family";
 
 test("registry definition policies keep their founding and nearest-legal fixtures", () => {
-  expect(verifyPolicyProofs([chromeRegistryCompleteness, modalBodyNotPlaceholder, modalRegistryCompleteness, placeholderCopyRegistry])).toEqual([]);
+  expect(
+    verifyPolicyProofs([
+      chromeRegistryCompleteness,
+      modalBodyNotPlaceholder,
+      modalRegistryCompleteness,
+      placeholderCopyRegistry,
+      sectionFactoryContributionBundle,
+    ]),
+  ).toEqual([]);
 });
 
 test("a zone vocabulary that stops resolving withholds the chrome verdict instead of passing", () => {
