@@ -12,8 +12,8 @@
     },
     "byGrammar": {
       "promise": 142,
-      "default": 152,
-      "empty": 262
+      "default": 151,
+      "empty": 263
     }
   },
   "rows": [
@@ -1996,7 +1996,7 @@
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 165,
+      "line": 229,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2004,38 +2004,25 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the probe failing means the db is unwell — the",
-      "markerLine": 159
+      "markerLine": 223
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 260,
-      "column": 9,
+      "line": 344,
+      "column": 7,
       "grammar": "default",
       "position": "default:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
-      "reason": "classified by classifyFailedAppend (ground-truth",
-      "markerLine": 254
-    },
-    {
-      "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
-      "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 302,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:err",
-      "ordinal": 2,
-      "snippet": "} catch (err) {",
-      "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 284
+      "markerLine": 326
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 133,
+      "line": 137,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2043,7 +2030,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 128
+      "markerLine": 132
+    },
+    {
+      "siteId": "packages/server/src/domain/chat/bus.ts::empty:err::1",
+      "path": "packages/server/src/domain/chat/bus.ts",
+      "line": 194,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "`err` is handed to `handleAppendFailure`, which",
+      "markerLine": 186
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
