@@ -205,5 +205,13 @@ export const gate = defineGate({
       },
       why: "ambient global constructions under transport/ resolve to a GLOBAL origin, never a module one — the arm keys on the node:events door and abstains on everything else",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/mutable-alias.ts":
+          'import { EventEmitter } from "node:events";\nlet EE = EventEmitter;\nEE = EventEmitter;\nexport const bus = new EE();\n',
+      },
+      why: "DECLARED LIMIT on the shared name prefilter: it follows an IMMUTABLE const hop and stops at a reassignable one, because a binding that can be written is not one identity and following it would claim an origin the reader cannot prove. Bounded in practice by biome's `useConst`, which reds a `let` that is never reassigned; the termination behaviour of the hop itself (a mutual or self alias cycle ends through the visited set) is pinned in tests/tooling/verify/lib/origin-verdict.test.ts",
+    },
   ],
 });
