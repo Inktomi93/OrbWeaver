@@ -57,7 +57,7 @@ export async function loadPresentVisibilityRows(
   chatIds: readonly ChatId[],
   userId: UserId,
 ): Promise<Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for the per-chat viewer verdict
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the per-chat viewer verdict. Ends if it outlives the call.
   const out = new Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>();
   if (chatIds.length === 0) {
     return out;

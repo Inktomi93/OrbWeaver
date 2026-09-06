@@ -457,7 +457,7 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
  *  there is no non-message canon row left to exclude (a count-inflation class — "7 messages" over 3 real
  *  ones — is unrepresentable now, not filtered). */
 export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat message stats
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for chat message stats. Ends if it outlives the call.
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
   if (chatIds.length === 0) {
     return out;
@@ -485,7 +485,7 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
  *  {@link loadChatMessageStats} (the selected-variant join), so the row that sets `lastMessageAt`
  *  is the row that supplies the preview. A chat with no visible message is absent from the map. */
 export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { seq: number; content: string }>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for the per-chat last message
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the per-chat last message. Ends if it outlives the call.
   const out = new Map<ChatId, { seq: number; content: string }>();
   if (chatIds.length === 0) {
     return out;
@@ -512,7 +512,7 @@ export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): 
  *  set of chatIds (one junction read, no N+1). Deduped; includes departed seats (no `leftSeq` filter) —
  *  Activity wants "every chat you've had with them." A chat with no seats is absent from the map. */
 export async function loadChatParticipantCharacterIds(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, CharacterId[]>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat participant ids
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for chat participant ids. Ends if it outlives the call.
   const out = new Map<ChatId, CharacterId[]>();
   if (chatIds.length === 0) {
     return out;
@@ -540,7 +540,7 @@ export async function loadChatParticipantCharacterIds(db: Db, chatIds: readonly 
  *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
 export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
   const chain: ChatRow[] = [];
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local visited Set for ancestor chain cycle guard
+  // @orb-waive persistence-no-in-memory-state(Set): query-local visited Set for ancestor chain cycle guard. Ends if it outlives the call.
   const visited = new Set<ChatId>();
   let current: ChatId | undefined = chatId;
   while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {

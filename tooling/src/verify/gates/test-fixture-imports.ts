@@ -47,9 +47,18 @@ function fixtureCandidate(node: Node): { readonly name: string; readonly anchor:
   return member.kind === "resolved" && FIXTURE_NAMES.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
-function doorIsIllegal(door: FixtureDoor, inToolingMirror: boolean): boolean {
-  if (door.kind === "runner" || door.kind === "unresolved") {
+/** FAIL-CLOSED IS SCOPED TO A DECLARED IMPORT DOOR. An ImportSpecifier whose door does not resolve is
+ *  reported: a door nobody can read cannot be shown to install the serializer. A MEMBER read is the
+ *  opposite case — `pattern.test(value)` and `page.expect` name the same three words on receivers that are
+ *  not namespace imports at all, so an unresolved door there means NOT A SUBJECT, not unproven innocence.
+ *  Reading it as fail-closed produced 89 confident false positives on the real tree, nearly all of them
+ *  `RegExp.prototype.test`. */
+function doorIsIllegal(door: FixtureDoor, inToolingMirror: boolean, viaImportDoor: boolean): boolean {
+  if (door.kind === "runner") {
     return true;
+  }
+  if (door.kind === "unresolved") {
+    return viaImportDoor;
   }
   return door.kind === "project" && inToolingMirror && !registersSnapshotSerializer(door.sourceFile);
 }
@@ -81,7 +90,7 @@ export const gate = defineGate({
             if (candidate === null) {
               return;
             }
-            if (doorIsIllegal(readFixtureDoor(candidate.anchor), inToolingMirror)) {
+            if (doorIsIllegal(readFixtureDoor(candidate.anchor), inToolingMirror, Node.isImportSpecifier(candidate.anchor))) {
               ctx.report.node(candidate.anchor, { token: candidate.name, offset: candidate.anchor.getText().indexOf(candidate.name) });
             }
           },
@@ -131,6 +140,22 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/@playwright/experimental-ct-react/index.ts": "export declare const test: unknown;\nexport declare const expect: unknown;\n",
+        "tests/tooling/snap/overflow.ct.tsx": 'import { expect, test } from "@playwright/experimental-ct-react";\nexport const t = [test, expect];\n',
+      },
+      why: "THE EXTERNAL-DOOR CONTROL — a typed workspace resolves a PACKAGE specifier to its shipped declarations, so a package door answers `getModuleSpecifierSourceFile()` with a real file. Reading that as a composed project door made the tooling mirror demand a serializer registration from a third-party runner: four false positives on the real tree, on the CT specs that legitimately enter through the CT runner. DECLARED LIMIT: the ban names the two doors the doctrine names, and the CT runner is not one of them",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/kit/regex.test.ts":
+          "export const matches = (pattern: RegExp, value: string): boolean => pattern.test(value);\nexport const has = (bag: { readonly expect: number }): number => bag.expect;\n",
+      },
+      why: "THE MEMBER COUNTERFACTUAL — `pattern.test(value)` and a property named `expect` spell the doctrine's three words on receivers that are not namespace imports at all. Reading an unresolved door as fail-closed HERE produced 89 confident false positives on the real tree, nearly all of them `RegExp.prototype.test`; fail-closure belongs to a DECLARED import door and nowhere else",
+    },
     {
       mode: "types",
       files: {

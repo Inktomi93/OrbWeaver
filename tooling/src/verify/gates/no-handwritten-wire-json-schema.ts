@@ -7,7 +7,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
+import { inspectReferenceWrites, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
 
 const SCHEMA_KEY = "schema";
 const TYPE_KEY = "type";
@@ -45,8 +45,18 @@ function propertyName(property: MorphNode): string | null {
 
 /** The terminal expression a value names, following stable bindings through consts and imports. A value the
  *  shared reader refuses (a call, a member read) is returned unchanged, which is what keeps a projected
- *  `projectJsonSchema(...)` result out of the object-literal arm below. */
+ *  `projectJsonSchema(...)` result out of the object-literal arm below.
+ *
+ *  A BINDING WHOSE MEMBERS ARE WRITTEN IS NOT FOLLOWED. `resolveStableExpression` resolves the binding to
+ *  its initializer and says so explicitly: origin/value readers refuse member effects separately. A
+ *  transpiler that seeds `const root = { type: "object", … }` and then ASSEMBLES it
+ *  (`root["required"] = …`) has authored a skeleton, not a schema — its value is the assembly, which is
+ *  exactly the shape D79 encourages. Following it anyway accused `contracts/src/refinery/schema-forge.ts`
+ *  on the real tree. */
 function terminalValue(node: MorphNode): MorphNode {
+  if (Node.isIdentifier(node) && inspectReferenceWrites(node).kind === "unresolved") {
+    return node;
+  }
   const stable = resolveStableExpression(node);
   return stable.kind === "resolved" ? stable.value : node;
 }
@@ -146,6 +156,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/forge.ts":
+          'export function transpile(fields: readonly string[]): { readonly schema: Record<string, unknown> } {\n  const root: Record<string, unknown> = { type: "object", properties: {}, required: [] };\n  const properties = root["properties"] as Record<string, unknown>;\n  for (const field of fields) {\n    properties[field] = { type: "string" };\n  }\n  root["required"] = [...fields];\n  return { schema: root };\n}\n',
+      },
+      why: "A MEMBER-MUTATED BUILDER ROOT is not a hand-authored literal: the transpiler seeds a skeleton and then ASSEMBLES the schema from a design, which is the derive D79 encourages. `resolveStableExpression` resolves the binding and says explicitly that value readers must refuse member effects separately — omitting that guard accused `contracts/src/refinery/schema-forge.ts` on the real tree",
+    },
     {
       mode: "types",
       files: {

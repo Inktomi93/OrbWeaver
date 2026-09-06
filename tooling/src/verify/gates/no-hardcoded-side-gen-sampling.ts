@@ -9,7 +9,16 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readStaticNumber, readStaticString, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
-const SAMPLING_KEYS = new Set(["temperature", "maxOutputTokens", "maxTokens", "topP"]);
+/** The knobs that name a sampling posture and NOTHING else. */
+const UNAMBIGUOUS_SAMPLING_KEYS = new Set(["temperature", "maxOutputTokens", "topP"]);
+/** `maxTokens` is SHARED VOCABULARY: it is the summarize seam's output cap AND the canon-window budget
+ *  `ResolveCanonWindow` takes (`chat/contract/context.ts`). Which word names which concept is not decided
+ *  here (AGENTS.md §3 → docs/design/vocabulary-map.md), so the policy asks the OBJECT to corroborate:
+ *  `maxTokens` is a sampling knob when its own literal also carries an unambiguous one. A lone
+ *  `{ maxTokens }` is a DECLARED LIMIT with its row — the live `rpg/verbs/game/resync-from-story.ts`
+ *  transcript budget is exactly that shape, and accusing it would be a confident false positive. */
+const AMBIGUOUS_SAMPLING_KEYS = new Set(["maxTokens"]);
+const SAMPLING_KEYS = new Set([...UNAMBIGUOUS_SAMPLING_KEYS, ...AMBIGUOUS_SAMPLING_KEYS]);
 
 /** The two homes that OWN side-gen floor data: the `SIDE_GEN_POSTURES` catalog and the pure ladder. A value
  *  derived from either is the sanctioned rung, not a buried constant. */
@@ -53,6 +62,19 @@ function propertyName(property: MorphNode): string | null {
   return computed.kind === "resolved" ? computed.value : null;
 }
 
+/** Does the object literal this property belongs to carry an UNAMBIGUOUS sampling knob? That is the
+ *  corroboration the shared `maxTokens` word needs before it can be read as a generation cap. */
+function inSamplingBag(property: MorphNode): boolean {
+  const bag = property.getParent();
+  if (!Node.isObjectLiteralExpression(bag)) {
+    return false;
+  }
+  return bag.getProperties().some((sibling) => {
+    const name = propertyName(sibling);
+    return name !== null && UNAMBIGUOUS_SAMPLING_KEYS.has(name);
+  });
+}
+
 /** Does this value DERIVE from the catalog? A named export of the preset catalog or the pure ladder is the
  *  sanctioned rung even when it resolves to a number; anything else that resolves to a number is authored
  *  at the call site or one hop away, which is exactly what the ladder replaced. */
@@ -84,6 +106,9 @@ export const gate = defineGate({
         visit: (node) => {
           const name = Node.isPropertyAssignment(node) ? propertyName(node) : null;
           if (name === null || !SAMPLING_KEYS.has(name) || !Node.isPropertyAssignment(node)) {
+            return;
+          }
+          if (AMBIGUOUS_SAMPLING_KEYS.has(name) && !inSamplingBag(node)) {
             return;
           }
           const initializer = node.getInitializer();
@@ -131,6 +156,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/rpg/verbs/game/window.ts":
+          "const RPG_RESYNC_MAX_TOKENS = 24000;\ndeclare function resolveCanonWindow(chatId: string, opts: { readonly maxTokens: number }): Promise<readonly string[]>;\nexport const read = async (chatId: string): Promise<readonly string[]> => resolveCanonWindow(chatId, { maxTokens: RPG_RESYNC_MAX_TOKENS });\n",
+      },
+      why: "THE SHARED-WORD CONTROL — `maxTokens` also names the CANON-WINDOW budget (`ResolveCanonWindow`), which is a transcript size, not a generation cap. A lone `{ maxTokens }` carries no unambiguous sampling sibling to corroborate it, so it is out of subject; the live `resync-from-story.ts` deep-read is exactly this shape and the value-following widening would otherwise have accused it",
+    },
     {
       mode: "types",
       files: {

@@ -77,7 +77,7 @@ function latestTwoMonths(rows: MonthCountRow[]): {
 
 /** Collapse the per-(character, month) rows into one `MomentumRow` per character over the two months. */
 function momentumRows(rows: MonthCountRow[], latestMonth: string, prevMonth: string): MomentumRow[] {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for momentum rows by character
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for momentum rows by character. Ends if it outlives the call.
   const byChar = new Map<string, { name: string; current: number; prev: number }>();
   for (const r of rows) {
     if (r.month !== latestMonth && r.month !== prevMonth) {

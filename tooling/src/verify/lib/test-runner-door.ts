@@ -27,6 +27,13 @@ export type FixtureDoor =
   /** A relative/alias door that resolves to no module. Absence is never a verdict. */
   | { readonly kind: "unresolved"; readonly detail: string };
 
+/** A DOOR RESOLVING TO A FILE IS NOT A PROJECT DOOR. A typed workspace resolves a package specifier to its
+ *  shipped declarations, so `@playwright/experimental-ct-react` answers `getModuleSpecifierSourceFile()`
+ *  with a real file under `node_modules/`. Classifying that as a composed project door made the tooling
+ *  mirror demand a serializer registration from a third-party package — four false positives on the real
+ *  tree, on the two CT specs that legitimately enter through the CT runner. */
+const EXTERNAL_PACKAGE_INFIX = "/node_modules/";
+
 function classify(declaration: ImportDeclaration): FixtureDoor {
   const specifier = declaration.getModuleSpecifierValue();
   if (TEST_RUNNER_MODULES.has(specifier)) {
@@ -34,7 +41,9 @@ function classify(declaration: ImportDeclaration): FixtureDoor {
   }
   const sourceFile = declaration.getModuleSpecifierSourceFile();
   if (sourceFile !== undefined) {
-    return { kind: "project", specifier, sourceFile };
+    return sourceFile.getFilePath().replaceAll("\\", "/").includes(EXTERNAL_PACKAGE_INFIX)
+      ? { kind: "external", specifier }
+      : { kind: "project", specifier, sourceFile };
   }
   return specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith("#")
     ? { kind: "unresolved", detail: `door ${specifier} resolves to no module` }

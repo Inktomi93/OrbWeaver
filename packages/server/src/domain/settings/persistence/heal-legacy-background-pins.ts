@@ -61,7 +61,7 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
     .select({ id: assets.id })
     .from(assets)
     .where(and(eq(assets.ownerId, userId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup over THIS call's own SELECT result
+  // @orb-waive persistence-no-in-memory-state(Set): query-local lookup over THIS call's own SELECT result. Ends if it outlives the call.
   // (membership test for the ids just read), not module state — discarded when the function returns.
   const validIds = new Set<AssetId>(owned.map((row) => row.id));
   if (ids.every((id) => validIds.has(id))) {

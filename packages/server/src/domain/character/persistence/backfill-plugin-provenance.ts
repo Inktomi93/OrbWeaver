@@ -89,6 +89,7 @@ export async function backfillPluginProvenance(db: Db): Promise<BackfillPluginPr
       leftAuthored += 1;
       continue;
     }
+    // @orb-waive no-await-db-in-loop(returning): one owner-scoped UPDATE per candidate because the written value is computed per row from that row's own plugin id and import hash; a single statement cannot carry per-row values here. Ends when the backfill is expressed as one CTE-joined update.
     const updated = await db
       .update(characters)
       .set({ importedFrom: pluginImportedFrom(pluginId, candidate.importHash) })

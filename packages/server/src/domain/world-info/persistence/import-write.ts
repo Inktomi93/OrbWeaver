@@ -150,7 +150,7 @@ async function loadOwnedBooksByNameForDedup(db: Db, ownerId: UserId, name: strin
     })
     .from(worldEntries)
     .where(inArray(worldEntries.worldBookId, bookIds));
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local grouping of candidate entries by book for the content-dedup planner (the DECISION lives in substrate/book-dedup).
+  // @orb-waive persistence-no-in-memory-state(Map): query-local grouping of candidate entries by book for the content-dedup planner (the DECISION lives in substrate/book-dedup). Ends if it outlives the call.
   const byBook = new Map<WorldBookId, DedupLoreEntry[]>();
   for (const e of entries) {
     const list = byBook.get(e.worldBookId) ?? [];
@@ -255,7 +255,7 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
       .from(worldBooks)
       .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.name, [...names])))
       .orderBy(asc(worldBooks.createdAt), asc(worldBooks.id));
-    // @orb-gate-ignore persistence-no-in-memory-state: query-local newest-wins fold for the batch resolve
+    // @orb-waive persistence-no-in-memory-state(Map): query-local newest-wins fold for the batch resolve. Ends if it outlives the call.
     const newestByName = new Map<string, WorldBookId>();
     for (const row of candidates) {
       newestByName.set(row.name, row.id);

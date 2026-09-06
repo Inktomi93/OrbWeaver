@@ -8,7 +8,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
+import { inspectReferenceWrites, readMemberReference, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
 import { readStaticTextOf } from "../lib/template-static-text.ts";
 
 const SCREENSHOT = "screenshot";
@@ -48,6 +48,11 @@ function propertyName(property: MorphNode): string | null {
 /** The options object a call was handed, following a stable binding so a hoisted options const is the same
  *  argument. Never a descendant sweep — one delivered node, resolved through the shared reader. */
 function optionsObject(argument: MorphNode): MorphNode | null {
+  // A bag whose MEMBERS are written after construction is assembled, not authored — its `path` at the call
+  // site is not the value that reaches disk, so following the binding would be a guess.
+  if (Node.isIdentifier(argument) && inspectReferenceWrites(argument).kind === "unresolved") {
+    return null;
+  }
   const stable = resolveStableExpression(argument);
   const terminal = stable.kind === "resolved" ? stable.value : argument;
   return Node.isObjectLiteralExpression(terminal) ? terminal : null;
@@ -165,6 +170,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "tests/ui/mutated-options.ct.tsx":
+          'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }, name: string): Promise<void> {\n  const options: { path: string } = { path: "reports/snaps/x.png" };\n  options.path = name;\n  await page.screenshot(options);\n}\n',
+      },
+      why: "A MEMBER-MUTATED OPTIONS BAG is assembled, not authored — the `path` visible at construction is not the value that reaches disk, so following the binding would be a guess in the accusing direction",
+    },
     {
       mode: "types",
       files: {

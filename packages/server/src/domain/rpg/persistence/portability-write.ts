@@ -79,7 +79,7 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
     }
     // The checkpoint's target rides as a POSITION in the snapshot array this same read just ordered — the
     // only way a checkpoint can name its snapshot when neither row's id survives the trip.
-    // @orb-gate-ignore persistence-no-in-memory-state: query-local index over the row set this query just returned
+    // @orb-waive persistence-no-in-memory-state(Map): query-local index over the row set this query just returned. Ends if it outlives the call.
     const snapshotPosition = new Map<RpgSnapshotId, number>(snapshotRows.map((row, i) => [row.id, i]));
     return {
       mode: game.mode,

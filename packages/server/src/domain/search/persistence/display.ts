@@ -68,7 +68,7 @@ export async function resolveAvatarOwners(db: ReadOnlyDb, ownerId: UserId, asset
     .from(characters)
     .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), inArray(characters.avatarAssetId, [...assetIds])))
     .orderBy(characters.id);
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set — one destination per asset
+  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set — one destination per asset. Ends if it outlives the call.
   const seen = new Set<AssetId>();
   const owners: AvatarOwnerRow[] = [];
   for (const row of rows) {
@@ -159,7 +159,7 @@ export async function resolveSegmentDisplay(
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
     .where(and(eq(chatDigests.tier, 0), blockMatch, owned));
 
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for segment credit deduplication
+  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for segment credit deduplication. Ends if it outlives the call.
   const seen = new Set<string>();
   const credits: SegmentCredit[] = [];
   for (const r of [...speakerRows, ...scopedRows]) {

@@ -55,7 +55,7 @@ export function createLinkCarriedBooks(ctx: WorldInfoDuplicateCarryContext): Lin
           ),
         ),
       );
-    // @orb-gate-ignore persistence-no-in-memory-state: query-local membership Set for the owned-source gate
+    // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set for the owned-source gate. Ends if it outlives the call.
     const ownedIds = new Set(owned.map((r) => r.id));
     const linkable = refs.filter((r) => ownedIds.has(r.worldBookId));
     if (linkable.length === 0) {
