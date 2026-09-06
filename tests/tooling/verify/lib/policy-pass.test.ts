@@ -1,4 +1,3 @@
-import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
