@@ -1,332 +1,461 @@
-// Gate: modal-registry-completeness (client-architecture-lockdown.md §6d / §16 G13) — the modal
-// registry's structural walls tsc can't see. tsc forces the door Record total over MODAL_SLOT_IDS; this
-// adds: (1) CO-LOCATION — a `ModalDefinition` lives only in `features/<owner>/lib/<id>-modal.{ts,tsx}`;
-// (2) DUPLICATE ID — two co-located defs declaring the same `id` (a shadow def rots green while edits
-//     land in the dead twin; the door assembly silently picks one name);
-// (3) the PLANNED discipline — `body: { planned }` needs a non-empty reason AND no real function body
-//     (a planned modal wiring a real body is dishonest);
-// (4) the SINGLETON-PLACEMENT arm — the mobile-bar derivation assumes exactly ONE modal per `mobile-tab`
-//     (the You sheet); two claiming it → RED (`rail.end`/`topbar.trail`/`surface` are cluster placements
-//     that may repeat — `surface` carries both new-chat AND the account modal, §E-7);
-// (5) the ANTI-GOD-MAP arm — a `modals={{…}}` object literal in a route file (the deleted override map);
-// (6) the SURFACE-REACHABILITY arm (§E-7) — a `surface`-placed modal has NO chrome affordance deriving it
-//     (it lives inside a feature surface), so it MUST have ≥1 explicit `openModal("<id>")` call site or it
-//     is unreachable dead chrome. A DECLARED-PLANNED surface modal is exempt (not wired yet, by design).
-// (7) UNREADABLE DEFINITION (#944, 2026-09-01) — the reader used to `continue` past any initializer that
-//     was not a bare object literal, so `export const xModal: ModalDefinition = importedDefinition;` left
-//     the duplicate-id, singleton-placement, planned-honesty and surface-reachability arms with NOTHING to
-//     judge while the file still sat at its sanctioned `*-modal.tsx` path and every path check stayed
-//     green. §6d gives the definition ONE home and sanctions no builder for modals, so an unresolvable
-//     initializer FAILS CLOSED. A same-file const and an `as`/`satisfies` wrapper still resolve — both are
-//     still co-located. The gate declares its MODAL POPULATION (#946) so the next shrink is loud.
-import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
+// Policy: modal-registry-completeness (client-architecture-lockdown.md §6d / §16 G13) — the modal
+// registry's structural walls tsc cannot see. tsc forces the door Record total over MODAL_SLOT_IDS; this
+// adds CO-LOCATION, DUPLICATE ID, the DECLARED-PLANNED honesty rule, the mobile-tab SINGLETON placement,
+// the `surface` REACHABILITY rule (§E-7), and the anti-god-map ban on a route re-forming a `modals` map.
+//
+// Definition identity is the shared `registryDefinitionFact`: a modal is whatever the checker says is
+// annotated with the canonical exported `ModalDefinition`, so an alias, a namespace qualification, or a
+// re-export is the same subject and a local shadow type is not. The definition's own object literal is
+// resolved across files, which is STRICTLY STRONGER than the legacy same-file read: an imported
+// initializer is no longer an unjudgeable blob, it is a definition whose HOME is checked directly.
+//
+// The `surface` reachability arm resolves its openers semantically (`resolveCallableOrigin`), so a local
+// function that happens to be named `openModal` no longer satisfies the rule and an aliased import does.
+// The import-name prefilter is a CANDIDATE filter only; every candidate is confirmed through the shared
+// reader before it counts as an opener.
+import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readObjectLiteral, readStringValue } from "../lib/ast-read.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
+import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
+import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
+import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
-const CLIENT_SRC = "/packages/client/src/";
-/** A co-located modal definition file: `features/<owner>/lib/<id>-modal.{ts,tsx}`. */
-const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
-const ROUTES_DIR = "/packages/client/src/routes/";
-/** Placements the derivation renders as EXACTLY ONE affordance — a second claimant breaks the .find(). */
-const SINGLETON_PLACEMENTS = new Set(["mobile-tab"]);
-/** The placement whose modals are reached ONLY by an explicit `openModal(id)` opener (arm 6). */
+const OPENER = "openModal";
+const ROUTES = "packages/client/src/routes/";
+const GOD_MAP_PROP = "modals";
+/** The one placement the mobile-bar derivation renders as EXACTLY ONE affordance (the You sheet). */
+const SINGLETON_PLACEMENT = "mobile-tab";
+/** The placement whose modals are reached ONLY by an explicit `openModal(id)` opener. */
 const SURFACE_PLACEMENT = "surface";
 
-function rel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
+const MESSAGE =
+  "a modal is dishonest: a ModalDefinition whose declaration or resolved definition is not co-located at " +
+  "packages/client/src/features/<owner>/lib/<id>-modal.{ts,tsx}, a definition this policy cannot resolve to an authored " +
+  "object literal, an unreadable or duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the " +
+  "mobile-tab singleton placement, a `surface` modal with no openModal(id) opener, or a route re-forming the `modals` " +
+  "override god-map — client-architecture-lockdown.md §6d.";
+const FIX =
+  'co-locate the definition and write it as an authored object literal; a planned modal is a non-empty reason; one modal per mobile-tab; give a `surface` modal at least one openModal("<id>") call site; a route is a thin mount — modals ride the registry.';
+
+interface Opener {
+  readonly call: MorphNode;
 }
 
-function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
-  const prop = obj.getProperty(name);
-  return prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
-}
-
-/** A modal definition's declared `id` string literal (through any as/satisfies/paren wrapper), or undefined. */
-function modalId(modal: ObjectLiteralExpression): string | undefined {
-  const id = objProp(modal, "id");
-  return id === undefined ? undefined : readStringValue(id);
-}
-
-/** A modal definition's `trigger.placement` string literal (through any wrapper), or undefined. */
-function triggerPlacement(modal: ObjectLiteralExpression): string | undefined {
-  const trigger = objProp(modal, "trigger");
-  if (trigger === undefined || !Node.isObjectLiteralExpression(trigger)) {
-    return;
-  }
-  const placement = trigger.getProperty("placement");
-  if (placement === undefined || !Node.isPropertyAssignment(placement)) {
-    return;
-  }
-  const init = placement.getInitializer();
-  return init === undefined ? undefined : readStringValue(init);
-}
-
-/** The `body: { planned }` reason if the body is the planned arm (empty string when planned but no
- *  string reason); undefined when `body` is a real function. */
-function plannedReason(modal: ObjectLiteralExpression): string | undefined {
-  const body = objProp(modal, "body");
-  if (body === undefined || !Node.isObjectLiteralExpression(body)) {
-    return;
-  }
-  const planned = body.getProperty("planned");
-  if (planned === undefined || !Node.isPropertyAssignment(planned)) {
-    return;
-  }
-  const init = planned.getInitializer();
-  return (init === undefined ? undefined : readStringValue(init)) ?? "";
-}
-
-interface Seen {
+interface Claim {
   readonly name: string;
   readonly file: string;
 }
 
-interface ModalDef {
-  readonly name: string;
+/** One definition's own authored literal and the repo-relative path that literal is declared at. */
+interface Home {
+  readonly object: ObjectLiteralExpression;
   readonly path: string;
-  readonly init: ObjectLiteralExpression;
 }
 
-/** A `surface`-placed modal with a real body — subject to the reachability arm (needs ≥1 opener). Keeps
- *  its own object-literal NODE so the deferred post-pass arm can still report node-anchored. */
-interface SurfaceModal {
-  readonly id: string;
-  readonly name: string;
-  readonly init: ObjectLiteralExpression;
-}
-
-/** The single-pass accumulators (bundled so the per-def check stays under the param cap). */
-interface Accum {
-  readonly seenIds: Map<string, Seen>;
-  readonly seenSingletons: Map<string, Seen>;
-  readonly surfaceModals: SurfaceModal[];
-  readonly openModalCallSites: Set<string>;
-  /** The #946 member tally: definitions this pass RESOLVED, and definitions it could not read. */
-  members: number;
-  unresolved: number;
-}
-
-/** The population's stable name — what a reader diffs run over run (#946). */
-const POPULATION = "ModalDefinition";
-
-/** Collects the id argument of every `openModal("<id>")` call — the explicit opener a `surface` modal
- *  needs. Matches a call whose callee is the bare identifier `openModal` with a first string-literal arg;
- *  ignores prop passing (`openModal={…}`) and identifier args (`openModal(commandModalId)`). */
-function collectOpenModalCallSites(sf: SourceFile, sites: Set<string>): void {
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const expr = call.getExpression();
-    if (!Node.isIdentifier(expr) || expr.getText() !== "openModal") {
-      continue;
-    }
-    const [arg] = call.getArguments();
-    const id = arg === undefined ? undefined : readStringValue(arg);
-    if (id !== undefined) {
-      sites.add(id);
-    }
-  }
-}
-
-/** Records `key` against `seen`; returns the FIRST owner if `key` is already claimed (a duplicate). */
-function claim(key: string, def: ModalDef, seen: Map<string, Seen>): Seen | undefined {
-  const firstOwner = seen.get(key);
-  if (firstOwner === undefined) {
-    seen.set(key, { name: def.name, file: rel(def.path) });
+/** The modal's declared `trigger.placement`, or undefined when it is absent or not an authored string. */
+function triggerPlacement(object: ObjectLiteralExpression): string | undefined {
+  const trigger = definitionObjectField(object, "trigger");
+  if (trigger === undefined || trigger.kind === "unresolved") {
     return;
   }
-  return firstOwner;
+  const placement = definitionStringField(trigger.value, "placement");
+  return placement !== undefined && placement.kind === "resolved" ? placement.value : undefined;
 }
 
-// Node-anchored: every arm reports a NODE directly (`ctx.report(node, {token, offset})`), never an
-// explicit `Finding` — that overload bypasses `hasGateIgnore` (GATE-AUTHORING.md §1). The per-arm prose
-// that used to ride the Finding's `message` field is folded into the gate's ONE `message` below; the
-// dynamic identity (id/placement/name/prior claimant) moves into `token`.
-function checkModalDef(def: ModalDef, ctx: GateRunCtx, acc: Accum): void {
-  const id = modalId(def.init);
-  const placement = triggerPlacement(def.init);
-  const reason = plannedReason(def.init);
-  if (id !== undefined && placement === SURFACE_PLACEMENT && reason === undefined) {
-    acc.surfaceModals.push({ id, name: def.name, init: def.init });
-  }
-  const idOwner = id === undefined ? undefined : claim(id, def, acc.seenIds);
-  if (idOwner !== undefined) {
-    ctx.report(def.init, {
-      token: `duplicate id "${id}" (${def.name}) — first claimed by "${idOwner.name}" (${idOwner.file})`,
-      offset: 0,
-    });
-  }
-  const singletonOwner = placement !== undefined && SINGLETON_PLACEMENTS.has(placement) ? claim(placement, def, acc.seenSingletons) : undefined;
-  if (singletonOwner !== undefined) {
-    ctx.report(def.init, {
-      token: `duplicate singleton placement "${placement}" (${def.name}) — first claimed by "${singletonOwner.name}" (${singletonOwner.file})`,
-      offset: 0,
-    });
-  }
-  if (reason !== undefined && reason.length === 0) {
-    ctx.report(def.init, { token: `planned empty reason (${def.name})`, offset: 0 });
+function declaredName(node: MorphNode): string {
+  return Node.isVariableDeclaration(node) || Node.isFunctionDeclaration(node) ? (node.getName() ?? "<anonymous>") : "<anonymous>";
+}
+
+/** The imported local names that could denote the canonical opener — a candidate filter, never a verdict. */
+function noteOpenerImport(node: MorphNode, names: Set<string>): void {
+  if (Node.isImportSpecifier(node) && node.getName() === OPENER) {
+    names.add(node.getAliasNode()?.getText() ?? node.getName());
   }
 }
 
-function checkModalDefs(sf: SourceFile, ctx: GateRunCtx, acc: Accum): void {
-  const path = sf.getFilePath();
-  const coLocated = MODAL_FILE_RE.test(path);
-  for (const decl of sf.getVariableDeclarations()) {
-    const typeNode = decl.getTypeNode();
-    if (typeNode === undefined || !typeNode.getText().startsWith("ModalDefinition")) {
-      continue;
-    }
-    if (!coLocated) {
-      ctx.report(decl, { token: `not co-located: ${decl.getName()}`, offset: 0 });
-      continue;
-    }
-    // FAIL CLOSED (#944): an initializer this gate cannot resolve to a co-located object literal leaves
-    // every arm below with nothing to judge — that is the law being unestablishable, not a clean skip.
-    const read = readObjectLiteral(decl.getInitializer());
-    if (read.kind === "unresolved") {
-      acc.unresolved += 1;
-      ctx.report(decl, { token: `unreadable definition: ${decl.getName()} — ${read.shape}`, offset: 0 });
-      continue;
-    }
-    acc.members += 1;
-    checkModalDef({ name: decl.getName(), path, init: read.object }, ctx, acc);
+function calleeName(call: MorphNode): string | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
   }
+  const expression = call.getExpression();
+  if (Node.isIdentifier(expression)) {
+    return expression.getText();
+  }
+  return Node.isPropertyAccessExpression(expression) ? expression.getName() : undefined;
 }
 
-function checkRouteFile(sf: SourceFile, ctx: GateRunCtx): void {
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    if (attr.getNameNode().getText() !== "modals") {
-      continue;
-    }
-    const init = attr.getInitializer();
-    if (init !== undefined && Node.isJsxExpression(init)) {
-      const expr = init.getExpression();
-      if (expr !== undefined && Node.isObjectLiteralExpression(expr)) {
-        ctx.report(attr, { token: "modals god-map prop", offset: 0 });
-      }
-    }
+/** Confirm one candidate call through the shared callable reader and read its authored slot id. */
+function openedSlotId(call: MorphNode): string | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
   }
+  const origin = resolveCallableOrigin(call);
+  if (origin.kind === "unresolved" || origin.value.target.kind !== "module" || origin.value.target.canonical.exportedName !== OPENER) {
+    return;
+  }
+  const [argument] = call.getArguments();
+  if (argument === undefined) {
+    return;
+  }
+  const scalar = readStaticAuthoredScalar(argument);
+  return scalar.kind === "resolved" && typeof scalar.value === "string" ? scalar.value : undefined;
 }
 
-export const gate: GateDescriptor = {
-  name: "modal-registry-completeness",
-  docRow: "client-architecture-lockdown.md §6d / §16 G13",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a modal is dishonest: a ModalDefinition not co-located in a feature modal file, a co-located definition this gate cannot READ (an imported/builder initializer — every arm below then has nothing to judge), a duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the mobile-tab singleton placement, a `surface` modal with no `openModal(id)` opener, or a route re-forming the `modals` override god-map — client-architecture-lockdown.md §6d.",
-  fix: 'co-locate the definition and write it as an object literal (a same-file const and an `as`/`satisfies` wrapper read fine — an IMPORT does not); a planned modal is a non-empty reason (no function body); one modal per mobile-tab; give a `surface` modal ≥1 `openModal("<id>")` call site; a route is a thin mount — modals ride the registry.',
-  run: (ctx) => {
-    const acc: Accum = { seenIds: new Map(), seenSingletons: new Map(), surfaceModals: [], openModalCallSites: new Set(), members: 0, unresolved: 0 };
-    for (const sf of ctx.project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!path.includes(CLIENT_SRC)) {
-        continue;
+/** A `modals={{…}}` object-literal prop — the deleted override god-map re-formed at a route. */
+function isGodMapAttribute(node: MorphNode): boolean {
+  if (!(Node.isJsxAttribute(node) && node.getNameNode().getText() === GOD_MAP_PROP)) {
+    return false;
+  }
+  const initializer = node.getInitializer();
+  if (initializer === undefined || !Node.isJsxExpression(initializer)) {
+    return false;
+  }
+  const expression = initializer.getExpression();
+  return expression !== undefined && Node.isObjectLiteralExpression(expression);
+}
+
+/** The `{ planned }` reason of a modal body, or undefined when the body is not the declared-planned arm. */
+function plannedReason(object: ObjectLiteralExpression): { readonly resolved: boolean; readonly empty: boolean } | undefined {
+  const body = definitionObjectField(object, "body");
+  if (body === undefined || body.kind === "unresolved") {
+    return;
+  }
+  const planned = definitionStringField(body.value, "planned");
+  if (planned === undefined) {
+    return definitionField(body.value, "planned") === undefined ? undefined : { resolved: false, empty: false };
+  }
+  return planned.kind === "resolved" ? { resolved: true, empty: planned.value.length === 0 } : { resolved: false, empty: false };
+}
+
+export const gate = defineGate({
+  id: "modal-registry-completeness",
+  family: "registry-definitions",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [registryDefinitionFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const openerNames = new Set<string>([OPENER]);
+    const openerCandidates: Opener[] = [];
+    const godMaps: MorphNode[] = [];
+    const claimedIds = new Map<string, Claim>();
+    const claimedSingletons = new Map<string, Claim>();
+    const openedIds = new Set<string>();
+    const surfaceModals: { readonly definition: RegistryDefinitionFact; readonly id: string }[] = [];
+
+    const report = (node: MorphNode, detail: string): void => ctx.report.node(node, { message: `${MESSAGE} ${detail}`, fix: FIX });
+
+    /** The definition's own authored literal plus its home path, or the co-location/readability finding. */
+    const resolveHome = (definition: RegistryDefinitionFact, name: string): Home | undefined => {
+      const declarationPath = ctx.relativePath(definition.declaration.getSourceFile());
+      if (!isDefinitionHome(declarationPath, DEFINITION_SLOTS.modal)) {
+        report(definition.declaration, `Not co-located: "${name}" is declared at ${declarationPath}.`);
+        return;
       }
-      checkModalDefs(sf, ctx, acc);
-      collectOpenModalCallSites(sf, acc.openModalCallSites);
-      if (path.includes(ROUTES_DIR)) {
-        checkRouteFile(sf, ctx);
+      if (definition.object.kind === "unresolved") {
+        report(definition.declaration, `Unreadable definition: "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
+        return;
       }
-    }
-    for (const m of acc.surfaceModals) {
-      if (!acc.openModalCallSites.has(m.id)) {
-        ctx.report(m.init, { token: `surface modal unreachable: "${m.id}" (${m.name})`, offset: 0 });
+      const object = definition.object.value;
+      const objectPath = ctx.relativePath(object.getSourceFile());
+      if (!isDefinitionHome(objectPath, DEFINITION_SLOTS.modal)) {
+        report(definition.declaration, `Definition outside its home: "${name}" resolves to an object literal declared at ${objectPath}.`);
+        return;
       }
-    }
-    // The SEMANTIC denominator (#946): what the six arms above actually ran over. Zero members on the real
-    // tree, or a single unresolved definition, refuses the verdict rather than rendering a healthy ✓.
-    ctx.scan({ population: [{ source: POPULATION, members: acc.members, unresolved: acc.unresolved }] });
+      return { object, path: objectPath };
+    };
+
+    const claimId = (definition: RegistryDefinitionFact, name: string, home: Home): string | undefined => {
+      const id = definitionStringField(home.object, "id");
+      if (id === undefined || id.kind === "unresolved") {
+        report(definition.declaration, `Unreadable id: "${name}" declares no authored string id, so the duplicate-id arm cannot judge it.`);
+        return;
+      }
+      const owner = claimedIds.get(id.value);
+      if (owner === undefined) {
+        claimedIds.set(id.value, { name, file: home.path });
+        return id.value;
+      }
+      report(definition.declaration, `Duplicate id "${id.value}": "${name}" repeats the id first claimed by "${owner.name}" (${owner.file}).`);
+      return id.value;
+    };
+
+    const claimSingleton = (definition: RegistryDefinitionFact, name: string, home: Home, placement: string | undefined): void => {
+      if (placement !== SINGLETON_PLACEMENT) {
+        return;
+      }
+      const owner = claimedSingletons.get(placement);
+      if (owner === undefined) {
+        claimedSingletons.set(placement, { name, file: home.path });
+        return;
+      }
+      report(
+        definition.declaration,
+        `Duplicate singleton placement "${placement}": "${name}" repeats the placement first claimed by "${owner.name}" (${owner.file}).`,
+      );
+    };
+
+    const judgePlanned = (definition: RegistryDefinitionFact, name: string, home: Home): "planned" | "real" | "refused" => {
+      const planned = plannedReason(home.object);
+      if (planned === undefined) {
+        return "real";
+      }
+      if (!planned.resolved) {
+        report(definition.declaration, `Unreadable planned reason: "${name}" declares a \`body.planned\` this policy cannot read as an authored string.`);
+        return "refused";
+      }
+      if (planned.empty) {
+        report(definition.declaration, `Empty planned reason: "${name}" declares \`body: { planned: "" }\`, which states nothing.`);
+        return "refused";
+      }
+      return "planned";
+    };
+
+    const judge = (definition: RegistryDefinitionFact): void => {
+      const name = declaredName(definition.declaration);
+      const home = resolveHome(definition, name);
+      if (home === undefined) {
+        return;
+      }
+      const id = claimId(definition, name, home);
+      if (id === undefined) {
+        return;
+      }
+      const placement = triggerPlacement(home.object);
+      claimSingleton(definition, name, home, placement);
+      if (judgePlanned(definition, name, home) === "real" && placement === SURFACE_PLACEMENT) {
+        surfaceModals.push({ definition, id });
+      }
+    };
+
+    return {
+      visitors: [
+        { kinds: [SyntaxKind.ImportSpecifier], visit: (node) => noteOpenerImport(node, openerNames) },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            const name = calleeName(node);
+            if (name !== undefined && openerNames.has(name)) {
+              openerCandidates.push({ call: node });
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.JsxAttribute],
+          visit: (node, sourceFile: SourceFile) => {
+            if (ctx.relativePath(sourceFile).startsWith(ROUTES) && isGodMapAttribute(node)) {
+              godMaps.push(node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const view = ctx.fact(registryDefinitionFact).forKind("modal");
+        ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
+        for (const candidate of openerCandidates) {
+          const slot = openedSlotId(candidate.call);
+          if (slot !== undefined) {
+            openedIds.add(slot);
+          }
+        }
+        for (const definition of view.definitions) {
+          judge(definition);
+        }
+        for (const surface of surfaceModals) {
+          if (!openedIds.has(surface.id)) {
+            report(
+              surface.definition.declaration,
+              `Unreachable surface modal "${surface.id}": a \`surface\` modal with a real body has no explicit ${OPENER}("${surface.id}") call site, so nothing can open it.`,
+            );
+          }
+        }
+        for (const attribute of godMaps) {
+          report(attribute, "A route declares a `modals={{…}}` object-literal prop — the override god-map the registry replaced.");
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const xModal: ModalDefinition = { id: 'x' };\n",
-      at: "packages/client/src/features/x/lib/not-a-modal-file.ts",
-      expect: { token: "not co-located: xModal" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/features/x/lib/not-a-modal-file.ts":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = { id: "x" };\n',
+      },
+      expect: { count: 1, token: "xModal", messageIncludes: "Not co-located" },
       why: "a ModalDefinition outside a `*-modal` file — the co-location arm",
     },
     {
-      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: { planned: '' } };\n",
-      at: "packages/client/src/features/x/lib/x-modal.ts",
-      expect: { token: "planned empty reason (xModal)" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-definition.ts": 'export const xDef = { id: "x", trigger: { placement: "surface" }, body: () => null };\n',
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { xDef } from "./x-definition.ts";\nexport const xModal: ModalDefinition = xDef;\n',
+      },
+      expect: { count: 1, token: "xModal", messageIncludes: "Definition outside its home" },
+      why: "THE #944 CASE, judged instead of refused: the initializer is IMPORTED, so the file at the sanctioned path holds no definition. The legacy reader could not read it at all; the shared fact resolves it and checks the object's OWN home",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = buildModal();\ndeclare function buildModal(): ModalDefinition;\n',
+      },
+      expect: { count: 1, token: "xModal", messageIncludes: "Unreadable definition" },
+      why: "a BUILDER initializer stays fail-closed — §6d sanctions no builder, so the co-location law cannot be established through it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = { id: "x", trigger: { placement: "surface" }, body: { planned: "" } };\n',
+      },
+      expect: { count: 1, token: "xModal", messageIncludes: "Empty planned reason" },
       why: "a DECLARED-PLANNED modal with an empty reason — the planned-reason arm",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'x', trigger: { placement: 'mobile-tab' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'y', trigger: { placement: 'mobile-tab' } };\n",
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "x", trigger: { placement: "mobile-tab" }, body: () => null };\n',
+        "packages/client/src/features/b/lib/b-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const bModal: ModalDefinition = { id: "y", trigger: { placement: "mobile-tab" }, body: () => null };\n',
       },
-      expect: { token: 'duplicate singleton placement "mobile-tab" (bModal) — first claimed by "aModal" (packages/client/src/features/a/lib/a-modal.ts)' },
+      expect: { count: 1, token: "bModal", messageIncludes: "Duplicate singleton placement" },
       why: "two modals claiming the `mobile-tab` singleton placement — the singleton-placement arm",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup', trigger: { placement: 'rail.end' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup', trigger: { placement: 'rail.end' } };\n",
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "dup" as never, trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/features/b/lib/b-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const bModal: ModalDefinition = { id: "dup" as never, trigger: { placement: "rail.end" }, body: () => null };\n',
       },
-      expect: { token: 'duplicate id "dup" (bModal) — first claimed by "aModal" (packages/client/src/features/a/lib/a-modal.ts)' },
-      why: "two co-located ModalDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
+      expect: { count: 1, token: "bModal", messageIncludes: "Duplicate id" },
+      why: "duplicate ids written `'dup' as never` — the wrapped-literal shape a plain StringLiteral reader passes silently",
     },
     {
-      files: "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
-      at: "packages/client/src/features/x/lib/x-modal.tsx",
-      expect: { token: 'surface modal unreachable: "x" (xModal)' },
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = { id: "x", trigger: { placement: "surface" }, body: () => null };\n',
+      },
+      expect: { count: 1, token: "xModal", messageIncludes: "Unreachable surface modal" },
       why: "a `surface` modal with a real body and NO openModal(id) opener — the surface-reachability arm (§E-7)",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup' as never, trigger: { placement: 'rail.end' } };\n",
-        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup' as never, trigger: { placement: 'rail.end' } };\n",
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/state/shell-store.ts": "export function openModal(id: string): void { void id; }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = { id: "x", trigger: { placement: "surface" }, body: () => null };\n',
+        "packages/client/src/features/x/components/opener.tsx":
+          'function openModal(id: string): void { void id; }\nexport const open = (): void => openModal("x");\n',
       },
-      expect: { token: 'duplicate id "dup" (bModal) — first claimed by "aModal" (packages/client/src/features/a/lib/a-modal.ts)' },
-      why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening (readStringValue unwraps it)",
+      expect: { count: 1, token: "xModal", messageIncludes: "Unreachable surface modal" },
+      why: "THE SEMANTIC UPGRADE: a LOCAL function named `openModal` is not the canonical shell opener, so the modal is still unreachable. The legacy text match counted it and reported a clean modal",
     },
     {
-      files: "export const G = <AppShell modals={{ theme: 1, settings: 2 }} />;\n",
-      at: "packages/client/src/routes/some-route.tsx",
-      expect: { token: "modals god-map prop" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell modals={{ theme: 1, settings: 2 }} />;\n",
+      },
+      expect: { count: 1, token: "modals", messageIncludes: "god-map" },
       why: "a `modals` prop object literal in a route — the anti-god-map arm",
-    },
-    {
-      files: {
-        "packages/client/src/features/x/lib/x-definition.ts": "export const xDef = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
-        "packages/client/src/features/x/lib/x-modal.tsx": 'import { xDef } from "./x-definition.ts";\nexport const xModal: ModalDefinition = xDef;\n',
-      },
-      expect: {
-        token: "unreadable definition: xModal — the identifier `xDef` (not an object literal declared in this file — an imported or re-exported definition)",
-      },
-      why: "THE #944 CONTROL: an IMPORTED initializer at a sanctioned `*-modal.tsx` path. The surface-reachability arm above would have RED'd this modal (no `openModal('x')` anywhere) — instead the gate returned silently, which is the audit's exact escape",
     },
   ],
   mustPass: [
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null };\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const themeModal: ModalDefinition = { id: "theme", trigger: { placement: "rail.end" }, body: () => null };\n',
+      },
       why: "a FULL co-located modal (function body, repeatable rail.end placement) — passes",
     },
     {
-      files: "export const draftModal: ModalDefinition = { id: 'draft', trigger: { placement: 'surface' }, body: { planned: 'build pending' } };\n",
-      at: "packages/client/src/features/x/lib/draft-modal.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/draft-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const draftModal: ModalDefinition = { id: "draft", trigger: { placement: "surface" }, body: { planned: "build pending" } };\n',
+      },
       why: "a DECLARED-PLANNED surface modal — planned bodies are exempt from the opener requirement — passes",
     },
     {
+      mode: "types",
       files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/state/shell-store.ts": "export function openModal(id: string): void { void id; }\n",
+        "packages/client/src/state/index.ts": 'export { openModal } from "./shell-store.ts";\n',
         "packages/client/src/features/x/lib/x-modal.tsx":
-          "export const xModal: ModalDefinition = { id: 'x', trigger: { placement: 'surface' }, body: () => null };\n",
-        "packages/client/src/features/x/components/opener.tsx": "import { openModal } from '#state';\nexport const O = (): void => openModal('x');\n",
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const xModal: ModalDefinition = { id: "x", trigger: { placement: "surface" }, body: () => null };\n',
+        "packages/client/src/features/x/components/opener.tsx":
+          'import { openModal as open } from "../../../state/index.ts";\nexport const Opener = (): void => open("x");\n',
       },
-      why: "a `surface` modal with a real body AND an `openModal('x')` opener call site — reachable, passes",
+      why: "THE ALIAS + RE-EXPORT CONTROL: the opener is imported under a different local name through a barrel, and still proves reachability — resolving origin widens what the arm SEES, never what it accuses",
     },
     {
-      files:
-        "const themeModalDef = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null };\nexport const themeModal: ModalDefinition = themeModalDef;\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "SAME-FILE indirection — still co-located, so `readObjectLiteral` follows it and every arm judges the real definition. The declared limit this row writes down: only an import/builder fails closed",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nconst themeModalDef = { id: "theme", trigger: { placement: "rail.end" }, body: () => null };\nexport const themeModal: ModalDefinition = themeModalDef;\n',
+      },
+      why: "SAME-FILE indirection — the resolved object literal is still in the modal's own home, so every arm judges the real definition",
     },
     {
-      files: "export const themeModal: ModalDefinition = { id: 'theme', trigger: { placement: 'rail.end' }, body: () => null } satisfies ModalDefinition;\n",
-      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
-      why: "a WHOLE-literal `satisfies` wrapper — the shape the plain ObjectLiteral check treated as unreadable and silently skipped before #944 (config-group-completeness's `literalInit` closed the same class on groups 2026-08-30)",
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const themeModal: ModalDefinition = { id: "theme", trigger: { placement: "rail.end" }, body: () => null } satisfies ModalDefinition;\n',
+      },
+      why: "a WHOLE-literal `satisfies` wrapper — the shape a plain ObjectLiteral check treats as unreadable and silently skips",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/state/shadow.ts":
+          'interface ModalDefinition { readonly id: string }\nexport const notAModal: ModalDefinition = { id: "shadow" };\n',
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+      },
+      why: "THE SHADOW CONTROL: a LOCAL type that merely shares the name is not the canonical ModalDefinition, so an uncolocated declaration annotated with it is not this policy's subject",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell modals={modalRegistry} />;\n",
+      },
+      why: "the god-map arm's FALSE branch: a `modals` prop that forwards the assembled registry is not an object-literal override map",
     },
   ],
-};
+});
