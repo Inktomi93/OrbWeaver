@@ -6,7 +6,7 @@ updated: 2026-09-05
 
 # Gate-runtime emergency fold checkpoint
 
-Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Checkpoint tip: `b32797507`. The worktree is clean. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
+Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current resume tip after local integration repairs: `2797b1c17`. The worktree is clean. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
 
 This checkpoint deliberately preserves incomplete and red work. A committed WIP is not conversion credit or verification evidence.
 
@@ -42,14 +42,15 @@ This checkpoint deliberately preserves incomplete and red work. A committed WIP 
 
 Commit `00017c0bf` repaired the mechanical conflicts after all checkpoints were folded: one canonical TS/TSX predicate, explicit `resources: []` on the five bus drafts, an `authored-css` declaration and valid regexes on the CSS draft, and the three incomplete-return paths in bus/static-class facts. Commit `b240cc66a` then added closed waiver carriers for declared CSS, Markdown, JSONC, JSON, and SQL resources and repaired the static-class integration test without weakening the nonempty-policy contract. `pnpm exec tsc -p tooling/tsconfig.json --noEmit --pretty false` passes on the combined worktree. The six-file CSS/ResourceHost/static-class slice passes 19/19; the broader resource-waiver run passed 101 focused tests. Plain JSON supplies finding coordinates but has no comment grammar.
 
+Cold review then refuted missing-resource waiver collection, Markdown multi-comment/adjacency, bare node-report tokens, and schema mutation tracking. Commits `49b797e9f`, `7a1139846`, and `2797b1c17` repair those seams centrally. Fresh independent rechecks confirm the resource declaration slice at 119/119, the waiver slice at 121/121, and all fourteen converted policies at 89/89 proofs. The final shared `Object.assign` plus exact array/object destructuring repair is locally green at 36/36 reference/schema tests and tooling TypeScript; it has not received another independent review after the owner restricted further agent use.
+
 ## Resume order
 
-1. Finish cold review of the resource-declaration seam, waiver plane, and schema fact. Re-run the orphan-grant, exact-loaded-descriptor, TS/TSX, same-path hybrid, and resource-waiver controls.
-2. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
-3. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
-4. Finish registry fact tests/review, then convert its closed gate set.
-5. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
-6. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
+1. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
+2. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
+3. Finish registry fact tests/review, then convert its closed gate set.
+4. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
+5. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
 
 ## Known red state
 
