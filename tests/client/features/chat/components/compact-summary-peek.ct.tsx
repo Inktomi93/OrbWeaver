@@ -12,6 +12,21 @@ import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
 const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe map changed hands.";
 
+// ── #1216 class (#1632 item 3): the peek's "View" is INTERACTIVE COPY, so it takes the readable step ──
+// `voice="kicker"` rides `--text-micro` (0.65625rem ≈ 10.5px), the FOOTNOTE step — and "View" is this
+// button's whole visible label. `interactiveKicker` exists for exactly that case and says so in its own
+// note in `packages/ui/src/primitives/text/variants.ts`. Same shape as the "Add background" door #1216
+// landed, same pin: the floor is the 11px functional minimum for interactive copy, read off the RESOLVED
+// computed style rather than a hardcoded 13, so it fails on the defect and survives a retune of the step.
+test("#1216: the peek trigger's label clears the 11px interactive floor", async ({ mount, page }) => {
+  await mount(<CompactSummaryPeekStory summary={SUMMARY} />);
+  const label = page.getByRole("button", { name: "View compaction summary" }).locator('[data-slot="text"]');
+  await expect(label).toBeVisible();
+  await expect
+    .poll(async (): Promise<number> => await label.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).fontSize)))
+    .toBeGreaterThanOrEqual(11);
+});
+
 test("the trigger renders but the summary text is hidden until opened", async ({ mount, page }) => {
   await mount(<CompactSummaryPeekStory summary={SUMMARY} />);
   await expect(page.getByRole("button", { name: "View compaction summary" })).toBeVisible();

@@ -3313,6 +3313,30 @@ export function MacroPicksSectionStory(): ReactElement {
   );
 }
 
+/** The SAME picks pane on the REAL app QueryClient + the production Toaster (#1582, pinned #1632 item 4).
+ *  `useSetUserMacroValues` suppresses its `errorToast` for the `unknown_macro_pick` refusal because the pane
+ *  says that refusal beside the knob — "one refusal, one surface". `CtDataProviders`' plain QueryClient has
+ *  NO MutationCache error channel, so on that stack the toast half is invisible and the count reads zero
+ *  whether the suppression works or not. A SECOND story rather than switching the shared one: the other
+ *  nineteen tests in `macro-picks-section.ct.tsx` are pinned against `CtDataProviders`' deterministic
+ *  defaults (`retry: false`, infinite `staleTime`), which the app client does not share. */
+export function MacroPicksSectionToastStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div style={{ width: 480, padding: 16 }}>
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading macro picks…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
+          >
+            <MacroPicksSection chatId={CHAT_ID} />
+          </QueryBoundary>
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
 // ── The three CHAT-owned appearance SECTIONS (SET-SEAMS stage 1) ──────────────────────────────────
 // Each is a self-owned settings section at the `appearance` anchor: its own cache-first read, its own
 // autosave form session and its own KEY-MINIMAL `updateUserSettingsSection("appearance")` write. Mounted

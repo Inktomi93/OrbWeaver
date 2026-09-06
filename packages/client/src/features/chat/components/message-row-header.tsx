@@ -212,9 +212,12 @@ export function renderRowNameRow(args: {
  *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
  *  scrollport with the stream flowing under it, layout-neutral (`-my-row` cancels `py-row`).
  *
- *  ARIA: plain text inside the transcript's `role="log"`/`aria-live="polite"` region, and nothing more. It
+ *  ARIA: plain text inside the ghost ROW's own live region, and nothing more. Post-#1499 the transcript
+ *  CONTAINER is explicitly `aria-live="off"` (its implicit `role="log"` politeness announced every
+ *  historical row a scroll-back remounted) and the live region moved to the append point — the last row,
+ *  which is the ghost while a turn streams (`@orb/ui/message-list`'s `announce.ts` owns that rule). The name
  *  is deliberately NOT given a second accessible home (no `role="article"`/`aria-label` on the ghost, the
- *  way the settled row has one): the region is not `aria-atomic`, so the name enters the announcement
+ *  way the settled row has one): the row's region is not `aria-atomic`, so the name enters the announcement
  *  stream exactly ONCE, when the row appears, and every later delta announces only the delta. */
 export function renderGhostNameRow(args: {
   readonly attribution: RowAttribution | undefined;
