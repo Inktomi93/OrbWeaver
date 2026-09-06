@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Schema fact family checkpoint for #1584
@@ -156,27 +156,228 @@ plane; they must not preserve `@foreign-id-ok`, textual `castId` recognition, or
 
 ## Conversion eligibility at checkpoint
 
-The following two policies remain in the next schema conversion slice:
-
-- `asset-refs-fk-coverage`;
-- `schema-banned-shapes`.
-
-They are not all pure schema policies. `asset-refs-fk-coverage` reconciles schema-produced obligations
-against RETAINING and DERIVED registry classes, each with an independent receipt. `schema-banned-shapes`
-combines schema table/column bans with contract declarations and repo-wide import bans. Their final policy
-populations must reflect those additional evidence planes.
-
-`ownerid-registry` is detector-ready, and its 27 ownership rows are authoritative classification data rather
-than grants. Its final family is coupled to blocked `no-untyped-soft-ref`, so the checkpoint leaves it
-unconverted rather than creating temporary family churn.
+Both policies this checkpoint listed for the next slice are now resolved, in different directions:
+`asset-refs-fk-coverage` is RETIRED into a Drizzle-runtime stage and `schema-banned-shapes` is SPLIT by
+evidence plane. `ownerid-registry` is converted too: its 27 ownership rows are authoritative classification
+data rather than grants, and nothing in that judgement waits on `no-untyped-soft-ref` — the coupling was to
+a shared *family* name, which the singleton-family rule makes unnecessary. See the slice below.
 
 The original six-policy estimate was based on the earlier 1,447 census. Current measured deltas supersede
 that estimate; future slices must record their own before/after counts.
 
+## Second conversion slice: obligations, ledger bans, ownership, enums, nullability
+
+Five items, one lane (`cb-schema-family`). Four became final policies on `drizzleSchemaFact`; one left the
+gate corpus entirely. Base for every count below is `0dd6f17c6`.
+
+### `asset-refs-fk-coverage` retires into `structure:asset-refs`
+
+The AST gate is deleted. `compareAssetRefsCoverage`
+(`tooling/src/verify/ops/asset-refs-coverage.ts`) reconciles the registry against the LIVE schema through
+`getTableConfig`, with two callers in the `compareSchemaBaseline` shape: the new `pnpm check:asset-refs`
+stage (`structure:asset-refs`, static tier, no `scopedArgv`) and
+`tests/server/domain/assets/persistence/asset-refs.int.test.ts`. The registry reaches the comparator through
+the assets FRONT DOOR — `ASSET_REFS`/`DERIVED_ASSET_COLUMNS` are now exported from
+`packages/server/src/domain/assets/index.ts`, because the server exports map is `"./*": "./src/*/index.ts"`
+and no deeper path resolves.
+
+Equal-or-better, measured rather than asserted:
+
+- **population.** The runtime enumerates every table exported from `@orb/db/schema` (97 tables), so an
+  authoring shape the old reader could not parse cannot shrink the denominator; `db-structure` separately
+  enforces that every schema file is re-exported from that barrel. The AST gate saw only `sqliteTable(`
+  calls it could parse.
+- **findings.** Legacy replay over the same 7,135-file harness workspace: 0 findings, 13.8 s. New command:
+  0 findings, **1.92 s wall / 438 MB peak RSS**. With the registry emptied as a positive control BOTH
+  produce the SAME 12 columns — an exact population equality, not an assumed one.
+- **behavior added.** Phantom rows (a key naming no live asset FK) and retaining/derived overlap were
+  invisible to the gate; both are now verdicts, both proven on planted schemas.
+- **failure honesty.** Zero tables, no `assets` table, zero FK→`assets.id`, or an unresolvable registry row
+  are each exit 2. The legacy gate reported a silent zero.
+- **actionable output.** Every row prints its `table.column` key and the FIX names the registry file.
+
+Live verdict: `97 schema table(s), 12 asset-FK column(s), 10 retaining, 2 derived` — clean. Planted
+positive controls on the real tree: dropping the `plugin_assets` row reds it unclassified (exit 1); adding a
+phantom derived key reds it phantom (exit 1); the restore returns exit 0.
+
+**Two identity defects were found in cold review and fixed with red-first controls.** Both are the same
+class — a claim about IDENTITY tested by SPELLING:
+
+1. the reader compared only `reference().foreignTable`, so an FK to ANY `assets` column counted. `columns`
+   and `foreignColumns` are positionally paired; the pair is now zipped and only `assets.id` counts. An FK
+   to a non-`id` assets column is ruled OUT OF SUBJECT (the GC live-set and the export bundle are keyed on
+   `AssetId`), with a control asserting it owes no registry row.
+2. the coverage key was built from the row's DECLARED table name, so
+   `{ table: characters, column: personas.avatarAssetId }` read as coverage of `characters` while leaving
+   `personas` silently uncovered. The key now derives from `column.table` — the column's own identity — and
+   the incoherent pair is its own `mismatched` verdict.
+
+Red-first receipt: with both reads reverted to their pre-fix form, exactly those two controls fail and the
+other nine tests stay green.
+
+### `schema-banned-shapes` splits by evidence plane; D12 moves to Biome
+
+The old module judged three subjects at once. The rows move to one shared vocabulary
+(`tooling/src/verify/lib/ledger-banned-shapes.ts`) partitioned by evidence plane, and two `hard`/`error`
+policies import their own partition:
+
+- **`schema-banned-shapes`** — the Drizzle fact. Tables by `sqlName`, columns by `identity.propertyName`.
+  Findings anchor on the column (or table) declaration, replacing the legacy line-1 stub.
+- **`contract-banned-shapes`** (new id, singleton family) — authored `@orb/contracts` declarations.
+  `Principal.kind` (D60) and `appSettingsSchema.guidedActions` (D33), the latter read by walking the Zod
+  builder chain for shape KEYS only, through `object`/`extend`/`merge` and past preserving operations.
+- **D12** (`@orb/contracts/sessions`) is a plain module-specifier ban, which Biome's native
+  `style/noRestrictedImports` owns completely (GATE-AUTHORING §10). It is a `patterns` row in `biome.json`,
+  pinned hermetically by `tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts`: the real binary over a
+  copy of the real config, three planted importers proving reach into `packages/`, `tooling/` AND `tests/`,
+  the singular `@orb/contracts/session` twin clean in the SAME invocation, and the D-cite asserted in the
+  diagnostic. A `**/__probe*` path is useless here — it is gitignored, so Biome's `useIgnoreFile` never sees
+  it (measured: "No files were processed in the specified paths").
+
+Both policies are `hard`, so the three `@finding-overload-ok` markers in the old module DELETE rather than
+translate; **the ordinary-waiver manifest's 24 authored `@finding-overload-ok` sites drop to 21.**
+
+Population: `schema-banned-shapes` is byte-equal to the legacy admitted set (30 files).
+`contract-banned-shapes` NARROWS to `@contracts` (105 files) from the legacy whole-project run — a recorded
+delta, re-derived on the whole tree: `interface Principal` has exactly one declaration
+(`packages/contracts/src/identity/index.ts:45`; ast-grep ts=1 hit, tsx=0 against 629 tsx interface
+declarations as the positive control) and `appSettingsSchema =` exactly one
+(`packages/contracts/src/settings/index.ts:364`). Both subjects' one home is `@orb/contracts` by the
+type-home law, so a same-spelled declaration elsewhere is a DIFFERENT type. The narrowing is safe BECAUSE of
+a two-sided arm the legacy gate lacked: a ruled subject that stops resolving in its declared home REDs
+(both halves proven — subject renamed away, and home file gone entirely).
+
+### `db-enum-from-tuple` (D34)
+
+`hard` — `rg` found zero live `@orb-gate-ignore db-enum-from-tuple` markers across `packages/`, `tests/` and
+`tooling/` (with a `packages/db` positive control proving the search reached). The config is read off the
+resolved builder call rather than off every `enum:` property assignment, so a spread-reached inline array is
+the same re-spelling. The legacy "outside the schema dir is not scanned" `mustPass` is retired: a `mustPass`
+cannot prove a population in a virtual project, and the population equality below is the real receipt.
+
+Cold review found the identifier arm accepted any name. It now has to EARN the pass through the shared
+readers: a canonical `@orb/contracts` / `@orb/kit` origin (alias, namespace member and re-export included),
+or a co-located `as const` array literal in the column's OWN file. A call result, a `let` binding, a plain
+non-`as const` array, and a real `as const` tuple imported from a db-local module are all fail-closed
+findings, each with its own control. Red-first: with the old "any named reference passes" rule restored,
+exactly the four new counterfactuals fail.
+
+The local arm is fenced to the column's own file deliberately — `resolveStableExpression` follows an import
+to its declaration, so without the fence a `./local-vocab` tuple would pass. The live composed shape
+(`AUTOMATION_FIRE_STORAGE_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "reserved"] as const`) keeps its own
+`mustPass` row: deriving from the one home and adding a storage-only member is what D34 sanctions.
+
+### `nullable-column-inequality` (D124)
+
+Nullability comes from the fact (composite primary-key terms included); the drizzle callee comes from the
+shared module-origin reader, so an alias or namespace import is still SQL and a same-named local helper is
+not. The block-window marker parser, the local stale/malformed/ambiguous arms, and the `isVocabularyHome`
+fence are deleted — the fence became population algebra, because the central waiver engine derives its
+marker universe from the effective population and a tool file mentioning the grammar is outside the policy.
+Malformed / stale / over-broad markers are CENTRAL engine behaviors and are not re-proven per policy.
+
+Two mechanisms this cost, both worth copying:
+
+1. **`drizzle-orm`'s comparison operators are OVERLOADED.** `notInArray` has three declarations, so
+   `resolveModuleMemberOrigin` correctly refuses it as `ambiguous` — and the live site therefore produced
+   ZERO findings while its waiver read as unconsumed. `schema-fact-value.ts` had already solved this for the
+   sqlite-core builders; the same trace-declaration door is now in this policy. The proof needed a PLANTED
+   overloaded `node_modules/drizzle-orm/index.ts`, because the virtual conformance project otherwise
+   resolves the module as an unloadable external door and never reaches the ambiguity.
+2. **Resolving a canonical origin on every CallExpression in a 6,112-file population does not finish in ten
+   minutes** (the id-brand lane's lesson, re-paid here). A per-file candidate index — the canonical names
+   plus every local alias and namespace spelling the file's own drizzle imports bind — gates the expensive
+   resolution, which still runs, so a shadowed local of a candidate name is refused exactly as before.
+
+**CO-LOCATION IS NOT GUARDING.** Cold review refuted the "a guard anywhere in the same enclosing statement"
+rule this document's brief carried: `choose(isNull(col), ne(col, "x"))` puts guard and predicate in one
+statement AND one argument list while every NULL row still vanishes. The guard must PARTICIPATE IN THE
+CONTROLLING BOOLEAN EXPRESSION: an inequality is guarded iff some drizzle `and`/`or` call is an ancestor of
+both it and a guard on the SAME canonical column key. Nesting composes. This is an intentional strengthening
+of the legacy semantics and it CHANGED the live verdict: the one product site now produces a raw finding
+that its `@orb-waive` consumes, where before both the finding and the waiver were absent.
+
+Population: legacy admitted 6,113 paths, `{ in: ["@packages", "@tests"], ext: ["ts","tsx"] }` admits 6,112.
+The single dropped path is `packages/showcase-plugins/src/index.ts` — one file, ZERO `drizzle-orm`
+references, and guest showcase code has no db reach through the plugin membrane to acquire one.
+
+The one live `@nullable-cmp-ok` marker is translated to
+`@orb-waive nullable-column-inequality(characters.avatarAssetId): …` at
+`packages/server/src/domain/discovery/persistence/embed-store-reads.ts`.
+
+### `ownerid-registry` (D23/D30/D21/D49)
+
+`hard`. `OWNERID_ALLOWLIST` is renamed `OWNERID_CLASSIFICATIONS` and typed locally rather than through the
+legacy `ExemptionTable` — that type intentionally conflates allowlists, sanctioned homes and deferred debt,
+and the exception census rules these 27 rows authoritative D23 classification data. The stamp arm reports on
+the column declaration; the stale arm reports on the schema barrel.
+
+DECLARED LIMIT, recorded: the stale arm requires `packages/db/src/schema/index.ts` in the effective
+population. Without that anchor a partial fileset would report all 27 rows as stale — the §4.5 misfire — and
+the anchor is not any row's own path, so a table deleted outright is still judged (§4.4a mode B, proven).
+
+Both arms key on the SQL table name, with counterfactuals in both directions for a JS binding whose
+declaration name disagrees with the table it creates.
+
+### Population equality, over one frozen 7,138-path candidate set
+
+| Policy | Legacy admitted | Final admitted | Verdict |
+| - | -: | -: | - |
+| `schema-banned-shapes` | 30 | 30 | exact |
+| `db-enum-from-tuple` | 30 | 30 | exact |
+| `ownerid-registry` | 30 | 30 | exact |
+| `nullable-column-inequality` | 6,113 | 6,112 | classified delta (one file, no subject) |
+| `contract-banned-shapes` | 7,138 | 105 | deliberate narrowing (receipted above) |
+
+### Real-tree final pass
+
+`runPolicyPass` over `getWorkspace({ types: true })`, all five selected, the converted sibling ordinary
+policies supplied as `knownPolicies` so their live waivers resolve as known-but-unselected:
+
+- 7,145 loaded project sources; **2:16 wall, 4,885,808 KiB peak RSS, zero swap, zero major page faults**;
+  117.1 s pass total (43.8 s fact, 44.9 s policy).
+- `drizzleSchemaFact` ready over its exact 30 files: 1,287 members, zero unresolved.
+- Owner status `success` for all five. Raw findings: 1 (the waived nullable site); every other policy 0.
+- Waivers consumed 1/1, **effective findings 0**, verdict `{errors: 0, blocking: 0}`.
+- Zero fact errors, zero policy tool errors, zero authority tool errors, **zero authority alarms**, nothing
+  withheld.
+
+Conformance: `schema-fact-wave-1.test.ts` (both waves) and `ledger-banned-shapes.test.ts` green; the
+asset-refs suites 15/15 including the live reconciliation.
+
+### `gate:contract` delta
+
+1,373 findings across 257 modules at `0dd6f17c6` → **1,341 across 257**. The −32 is exactly these six
+modules' prior contribution, and every one of them now reports zero:
+
+| Module | Base | After |
+| - | -: | -: |
+| `schema-banned-shapes` | 6 | 0 |
+| `db-enum-from-tuple` | 3 | 0 |
+| `nullable-column-inequality` | 11 | 0 |
+| `ownerid-registry` | 6 | 0 |
+| `asset-refs-fk-coverage` | 6 | retired |
+| `contract-banned-shapes` | — | 0 (born conformant) |
+
+The module count is unchanged because one module retired and one was added.
+
+### Two rulings recorded rather than silently taken
+
+1. **A fail-closed finding does NOT also count `unresolved` in the receipt.** `policyReceiptFailures`
+   refuses any receipt with `unresolved > 0` — unconditionally, not only behind a green — so declaring it
+   turns every proof of the fail-closed arm into a tool error. GATE-AUTHORING §1 rules the same thing from
+   the other side: a policy that already REPORTED the unreadable declaration rides the ordinary violation
+   exit, because one cause must not produce both a violation and a "the checker is broken" verdict. These
+   policies therefore report and do not declare `unresolved`; the denominator receipt is the shared fact's
+   1,287 members. If the runtime should instead distinguish "reported-and-unresolved" from "the run is not a
+   verdict", that is a runtime-contract change and belongs to the runtime owner.
+2. **An ARRAY spread inside an `as const` tuple is a derive, not a re-spelling.** Fail-closing on "a spread"
+   would red `AUTOMATION_FIRE_STORAGE_OUTCOMES`, which composes the contracts tuple with one storage-only
+   member — the shape D34 exists to encourage. The fail-closed spread case is the OBJECT spread that
+   smuggles an inline array into a column config (`{ ...CONFIG }`), which is a finding and has its row.
+
 ## Explicit blockers
 
-- `nullable-column-inequality`: needs the central ordinary-marker migration plus canonical Drizzle
-  call/column/null-guard facts; one live product marker is out of this lane's edit scope.
 - `own-tables-only`: needs canonical table import/write provenance, exact central grants, invocation-local
   state, and separate reviewed-read, hard-write, and hard-health policies.
 - `table-scoping-class`: its registry/helper surface has 13 importers plus four semantic duplicators; one
