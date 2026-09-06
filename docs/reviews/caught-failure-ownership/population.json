@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 551,
-    "enforced": 546,
+    "sites": 553,
+    "enforced": 548,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 546,
+      "deliberate-absorb": 548,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
       "default": 150,
-      "empty": 259
+      "empty": 261
     }
   },
   "rows": [
@@ -5816,6 +5816,32 @@
       "markerLine": 82
     },
     {
+      "siteId": "tooling/src/snap/ops/contrast-edge.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/contrast-edge.ts",
+      "line": 157,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).",
+      "markerLine": 154
+    },
+    {
+      "siteId": "tooling/src/snap/ops/contrast-fill.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/contrast-fill.ts",
+      "line": 67,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).",
+      "markerLine": 64
+    },
+    {
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/design-audit-walk.ts",
       "line": 215,
@@ -6234,7 +6260,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 70,
+      "line": 81,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -6242,12 +6268,12 @@
       "snippet": "(\"recover\" in state ? state.recover() : terminatePageExecution(state.session)).then(",
       "verdict": "deliberate-absorb",
       "reason": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.",
-      "markerLine": 69
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:reload::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 33,
+      "line": 44,
       "column": 11,
       "grammar": "promise",
       "position": "promise:reload",
@@ -6255,12 +6281,12 @@
       "snippet": "await session.page.reload({ waitUntil: \"commit\", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.",
-      "markerLine": 32
+      "markerLine": 43
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:resolve::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 50,
+      "line": 61,
       "column": 16,
       "grammar": "promise",
       "position": "promise:resolve",
@@ -6268,20 +6294,20 @@
       "snippet": "const work = Promise.resolve()",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.",
-      "markerLine": 49
+      "markerLine": 60
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:send::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 31,
+      "line": 42,
       "column": 25,
       "grammar": "promise",
       "position": "promise:send",
       "ordinal": 1,
-      "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(TERMINATION_ACK_WAIT_MS)]);",
+      "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);",
       "verdict": "deliberate-absorb",
       "reason": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.",
-      "markerLine": 30
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::default:catch::1",
