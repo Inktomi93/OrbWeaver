@@ -111,8 +111,10 @@ test("the env door reads the committed file end to end", () => {
  *  stays the oracle for every other case in this file. */
 function sharedRowWith(field: string, value?: unknown): string {
   const file = JSON.parse(BODY) as { readonly profiles: Record<string, Record<string, unknown>> };
-  const kept = Object.entries(file.profiles["shared"] ?? {}).filter(([key]) => key !== field);
-  const entries = value === undefined ? kept : [...kept, [field, value] as [string, unknown]];
+  const entries: [string, unknown][] = Object.entries(file.profiles["shared"] ?? {}).filter(([key]) => key !== field);
+  if (value !== undefined) {
+    entries.push([field, value]);
+  }
   return JSON.stringify({ ...file, profiles: { ...file.profiles, shared: Object.fromEntries(entries) } });
 }
 
