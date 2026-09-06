@@ -12,6 +12,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFact } from "../lib/registry-fact.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
@@ -24,11 +25,6 @@ const MESSAGE =
   'that renders <SectionPlaceholder> — an unbuilt modal is the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`), ' +
   "never a placeholder-rendering function body (client-architecture-lockdown.md §6d).";
 const FIX = 'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body.';
-
-function declaredName(definition: RegistryDefinitionFact): string {
-  const declaration = definition.declaration;
-  return Node.isVariableDeclaration(declaration) || Node.isFunctionDeclaration(declaration) ? (declaration.getName() ?? "<anonymous>") : "<anonymous>";
-}
 
 /** The local names an import binds to the canonical placeholder — a candidate filter, never a verdict. */
 function notePlaceholderImport(node: MorphNode, names: Set<string>): void {
@@ -87,7 +83,7 @@ export const gate = defineGate({
     const placeholderNames = new Set<string>([PLACEHOLDER]);
     const candidates: MorphNode[] = [];
     const report = (definition: RegistryDefinitionFact, detail: string): void =>
-      ctx.report.node(definition.declaration, { message: `${MESSAGE} ${detail}`, fix: FIX });
+      ctx.report.node(definition.declaration, { ...definitionAnchor(definition.declaration), message: `${MESSAGE} ${detail}`, fix: FIX });
 
     return {
       visitors: [
@@ -107,7 +103,7 @@ export const gate = defineGate({
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         const placeholders = candidates.filter(isCanonicalPlaceholder);
         for (const definition of view.definitions) {
-          const name = declaredName(definition);
+          const name = definitionName(definition.declaration);
           if (definition.object.kind === "unresolved") {
             report(definition, `Unreadable definition: "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
             continue;

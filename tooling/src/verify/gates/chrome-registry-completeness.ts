@@ -16,9 +16,9 @@
 // derived list and resolves to the Array symbol, not to the canonical entry type, so the assembler stays
 // out of the population by type identity rather than by matching an annotation's head text.
 import type { ObjectLiteralExpression } from "ts-morph";
-import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFact } from "../lib/registry-fact.ts";
@@ -46,11 +46,6 @@ interface Home {
   readonly path: string;
 }
 
-function declaredName(definition: RegistryDefinitionFact): string {
-  const declaration = definition.declaration;
-  return Node.isVariableDeclaration(declaration) || Node.isFunctionDeclaration(declaration) ? (declaration.getName() ?? "<anonymous>") : "<anonymous>";
-}
-
 export const gate = defineGate({
   id: "chrome-registry-completeness",
   family: "registry-definitions",
@@ -66,7 +61,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const claimedIds = new Map<string, Claim>();
     const report = (definition: RegistryDefinitionFact, detail: string): void =>
-      ctx.report.node(definition.declaration, { message: `${MESSAGE} ${detail}`, fix: FIX });
+      ctx.report.node(definition.declaration, { ...definitionAnchor(definition.declaration), message: `${MESSAGE} ${detail}`, fix: FIX });
 
     const resolveHome = (definition: RegistryDefinitionFact, name: string): Home | undefined => {
       const declarationPath = ctx.relativePath(definition.declaration.getSourceFile());
@@ -128,7 +123,7 @@ export const gate = defineGate({
         }
         const zones = new Set(vocabulary.entries.map(({ value }) => value));
         for (const definition of view.definitions) {
-          const name = declaredName(definition);
+          const name = definitionName(definition.declaration);
           const home = resolveHome(definition, name);
           if (home !== undefined && claimId(definition, name, home)) {
             judgeZone(definition, name, home, zones);

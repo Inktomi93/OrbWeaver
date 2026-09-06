@@ -12,9 +12,9 @@
 // A placeholder the reader cannot resolve now FAILS CLOSED: an unjudgeable pair is a section whose copy is
 // invisible to the distinctness comparison, which is exactly what a re-home behind a builder produces.
 import type { ObjectLiteralExpression } from "ts-morph";
-import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { registryDefinitionFact } from "../lib/registry-fact.ts";
 
@@ -30,11 +30,6 @@ const FIX =
 
 interface Claim {
   readonly name: string;
-}
-
-function declaredName(definition: RegistryDefinitionFact): string {
-  const declaration = definition.declaration;
-  return Node.isVariableDeclaration(declaration) || Node.isFunctionDeclaration(declaration) ? (declaration.getName() ?? "<anonymous>") : "<anonymous>";
 }
 
 type CopyRead =
@@ -85,7 +80,7 @@ export const gate = defineGate({
   create: (ctx) => {
     const claimedPairs = new Map<string, Claim>();
     const report = (definition: RegistryDefinitionFact, detail: string): void =>
-      ctx.report.node(definition.declaration, { message: `${MESSAGE} ${detail}`, fix: FIX });
+      ctx.report.node(definition.declaration, { ...definitionAnchor(definition.declaration), message: `${MESSAGE} ${detail}`, fix: FIX });
 
     const judgePair = (definition: RegistryDefinitionFact, name: string, title: string, description: string): void => {
       if (title.length === 0 || description.length === 0) {
@@ -102,7 +97,7 @@ export const gate = defineGate({
     };
 
     const judge = (definition: RegistryDefinitionFact): void => {
-      const name = declaredName(definition);
+      const name = definitionName(definition.declaration);
       if (definition.object.kind === "unresolved") {
         report(definition, `Unreadable definition: section "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
         return;
