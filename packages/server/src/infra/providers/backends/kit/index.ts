@@ -55,6 +55,7 @@ export {
   redactSecretsFromText,
   reduceChatCompletionStream,
   secretHeaderValues,
+  secretScrubOverhang,
 } from "./openai-compat/index.ts";
 // ── The shared `provider.*` structured-log sink (hoisted from agent-sdk; per-call `backend` tag) ─────
 export type {
