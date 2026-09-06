@@ -327,7 +327,7 @@ export const WITHHELD_RULES: Readonly<Record<string, string>> = {
   "radial-halo": "same sanctioned-carrier derivation as glow-shadow",
   "radial-spotlight-glow": "same sanctioned-carrier derivation as glow-shadow",
   "border-accent-on-rounded":
-    "badgeLike/tabContext/statusContext/listRowSelected are walker-derived carrier flags (ops/walker/census-decor.ts, under rework) — a thin re-spelling forks the mechanism being fixed",
+    "badgeLike/tabContext/statusContext/selectionRail are walker-derived carrier flags (ops/walker/census-decor.ts, under rework) — a thin re-spelling forks the mechanism being fixed",
   "side-tab": "same walker-derived carrier flags as border-accent-on-rounded",
   "tap-target":
     "the effective hit box needs the walker's hit-extent probe (::before touch-target union, elementFromPoint rings); the coarse floor is already covered per size arm by tests/ui/touch-target-floor.suite.ct.tsx",
