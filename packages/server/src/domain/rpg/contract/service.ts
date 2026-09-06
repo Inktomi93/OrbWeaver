@@ -597,6 +597,19 @@ export interface RpgStateDelta {
    *  projection only after the round survives cancellation, so cheap post-commit rounds are as inspectable as
    *  folded character turns without letting an aborted round leave an observability ghost. */
   readonly recordedToolCalls?: readonly RpgRecordedToolCall[];
+  /** THE ROUND COULD NOT RUN — the legible sentence saying why, present ONLY on that arm (`undefined` on every
+   *  round that actually produced a verdict, including the quiet one).
+   *
+   *  WHY THE EMPTY DELTA NEEDED A SECOND BIT. Errors-as-data is right — a broken vehicle must never corrupt
+   *  canon — but a provider throw and a beat that changed nothing were returning the BYTE-IDENTICAL empty
+   *  delta, so the flush reported the failure as `no-writes` ("the round ran and staged nothing") and recorded
+   *  no disclosure at all. The committed narrative then carried an invisible missing state update whose only
+   *  trace was a transient warn line. This is the SAME correction `RpgRunResyncExtraction`/the populate round
+   *  already carry as `{ok:false, reason}`; the state rounds take a field rather than a result union because
+   *  their three producers (`runToolRound`, `runExtraction`, `foldTurnToolCalls`) all feed ONE accumulator that
+   *  must keep staging the planes it did get. The flush turns it into a `failed` settle outcome + the durable
+   *  turn record's `failure`. */
+  readonly failure?: string;
 }
 
 /** The id mints the verbs use (injected for determinism — a test supplies stable ids, no ambient `crypto`;
@@ -688,7 +701,11 @@ export interface RpgContext {
    *  the gather AWAITS it before assembling the reminder, so a fast re-send reads the just-committed state, not
    *  stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung flush never deadlocks a turn. */
   readonly flushBarrier: RpgFlushBarrier;
-  /** OBSERVABILITY: the flush's write-boundary DROP hook (the F1 backstop refusing a contract-invalid state).
+  /** OBSERVABILITY: the flush's DROP hook — "a state round fired and its writes are not in canon", on every arm
+   *  that can end that way: the F1 backstop refusing a contract-invalid state, the fold's two losing arms
+   *  (`refused`/`shadowed`, prefixed in the reason), and the round that could not RUN at all
+   *  ({@link RpgStateDelta.failure} — #1468 item 2, where the variant is the correlation the vehicle's own warn
+   *  cannot carry).
    *  Called with the schema failure reason when `writeStagedSnapshot` refuses — so the drop is never silent
    *  (a state extraction fired, produced applicable output, and vanished at the backstop is the exact
    *  visibility violation this program kills). Wired at compose to the `rpg.flush.dropped` warn log; a fake

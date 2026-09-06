@@ -797,7 +797,10 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
         return empty;
       }
       logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
-      return empty;
+      // The tool round's twin (#1468 item 2) — and NOT an optional half of it: `runToolRound` DEGRADES to this
+      // vehicle on every agent-sdk wire, so a failure arm that stayed silent here would leave that whole class
+      // of connection with the defect the tool round just lost.
+      return { ...empty, failure: roundFailure(err) };
     }
     // EXT-4a — SALVAGE PER PLANE / PER ENTRY, never all-or-nothing. The old whole-object `safeParse` let ONE
     // malformed nested field (the measured case: a journal entry missing its nested-required `type`) discard all
@@ -1020,6 +1023,19 @@ function logCancelled(args: {
       ? `rpg ${args.vehicle} cancelled before its model call — nothing billed, no state written`
       : `rpg ${args.vehicle} cancelled in flight (the caller aborted the turn) — no state written`,
   );
+}
+
+/** THE STATE ROUND'S FAILURE SENTENCE (#1468 item 2) — the resync/populate `*_FAILED_REASON` precedent, one
+ *  vehicle down. It rides `RpgStateDelta.failure` to the flush, which settles the turn `failed` and writes it
+ *  onto the turn's durable record, where the person who just played the turn reads it under "Game actions on
+ *  this turn". Vehicle-FREE on purpose: which of the two rounds carried the call is operator vocabulary (the
+ *  `rpg.toolround.failed` / `rpg.extraction.failed` warn beside each catch names it), while THIS text answers
+ *  "why is my panel unchanged".
+ *  PROSE-OK: the per-turn disclosure's reason line (`RpgTurnToolCallsView.failure` → the UI), never a model prompt */
+const STATE_ROUND_FAILED_REASON = "the model call that records game state failed, so this turn changed nothing:";
+
+function roundFailure(err: unknown): string {
+  return `${STATE_ROUND_FAILED_REASON} ${errorMessage(err)}`;
 }
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
@@ -1264,7 +1280,11 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         return empty;
       }
       logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
-      return empty;
+      // ERRORS-AS-DATA, AND SAID SO (#1468 item 2): the delta stays empty (canon is never corrupted by a broken
+      // vehicle) but it now carries WHY, so the flush reports this turn as `failed` with a durable record
+      // instead of as the quiet beat it is byte-identical to. The warn above stays the operator trail; this is
+      // the half that reaches the person whose state update went missing.
+      return { ...empty, failure: roundFailure(err) };
     }
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
     if (needsInventoryAudit(baseState, turnConnection.transcript, calls)) {

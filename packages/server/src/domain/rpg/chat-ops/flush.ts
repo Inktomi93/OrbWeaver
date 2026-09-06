@@ -70,12 +70,16 @@ interface CompletedTurn {
 // `runRound` is the mode's injected op (`RpgRunToolRound`) or the folded turn's own fold — they share this
 // exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
-async function stageStateRound(
-  ctx: RpgContext,
-  game: RpgGameRow,
-  turn: CompletedTurn,
-  runRound: RpgRunToolRound,
-): Promise<readonly RpgRecordedToolCall[] | undefined> {
+/** WHAT ONE STATE ROUND PRODUCED, past the accumulator: the calls to disclose (absent when the vehicle had
+ *  none) and — when the vehicle could not RUN — the sentence saying so ({@link RpgStateDelta.failure}). The two
+ *  travel together because the caller's next decision reads both: a round that failed staged nothing, and
+ *  "staged nothing" alone is the quiet beat, which is exactly the conflation this pair exists to end. */
+interface StagedRound {
+  readonly calls: readonly RpgRecordedToolCall[] | undefined;
+  readonly failure: string | null;
+}
+
+async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunToolRound): Promise<StagedRound> {
   // A continuation's canon and reminder INCLUDE the selected slot, and its variant is extended in place. Its
   // delta therefore rebases on the current head. Every other turn creates a new variant and must exclude its
   // own slot (VER-1a), especially a swipe whose rejected sibling already has consequences. This mirrors the
@@ -93,9 +97,12 @@ async function stageStateRound(
     signal: turn.signal,
     reconcile,
   });
+  // THE VEHICLE'S OWN FAILURE, carried out rather than collapsed into the empty delta it necessarily returns
+  // with (#1468 item 2). `undefined` on every round that reached a verdict — including the quiet one.
+  const failure = delta.failure ?? null;
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
-    return delta.recordedToolCalls; // no state write, but a dropped/no_changes call still belongs in the trail
+    return { calls: delta.recordedToolCalls, failure }; // no state write, but a dropped/no_changes call still belongs in the trail
   }
   ctx.staging.ensure(turn.turnId, baseState);
   if (hasStatePatch) {
@@ -104,7 +111,7 @@ async function stageStateRound(
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
-  return delta.recordedToolCalls;
+  return { calls: delta.recordedToolCalls, failure };
 }
 
 /** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
@@ -332,7 +339,7 @@ async function flushWritableTurn(
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: false });
     return;
   }
-  const roundCalls = await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
+  const produced = await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
   // THE WRITE BOUNDARY, RE-READ: REFUSE TO WRITE, NEVER ROLL
   // BACK. A round that was cancelled while in flight discards whatever it staged and writes nothing — so a
   // cancelled round is byte-identical to a non-writing turn, the same errors-as-data invariant a failed
@@ -362,8 +369,12 @@ async function flushWritableTurn(
   const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
   try {
     if (flush === undefined) {
-      // The quiet beat: the round ran, staged nothing, and that IS its terminal state.
-      settle.outcome = "no-writes";
+      // The quiet beat: the round ran, staged nothing, and that IS its terminal state — UNLESS the vehicle
+      // told us it could not run at all (#1468 item 2). A provider throw returns the BYTE-IDENTICAL empty
+      // delta, so without that bit this arm reported a failed state round as the quiet beat: the committed
+      // narrative carried an invisible missing state update whose only trace was a transient warn line.
+      settle.outcome = produced.failure === null ? "no-writes" : "failed";
+      settle.droppedReason = produced.failure;
     } else {
       const written = await writeFlush(ctx, game, flush, turn);
       suppressed.push(...written.suppressed);
@@ -373,8 +384,14 @@ async function flushWritableTurn(
       settle.outcome = written.droppedReason === null ? "wrote" : "dropped";
       settle.droppedReason = written.droppedReason;
     }
+    if (produced.failure !== null) {
+      // ANNOUNCED on the same channel every other "a round fired and its state vanished" arm uses (the write
+      // -boundary backstop and the fold's two losing arms), with the variant the missing update belonged to —
+      // the correlation the vehicle's own warn cannot carry.
+      ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: produced.failure });
+    }
   } finally {
-    await recordTurnCalls(ctx, game, turn, { roundCalls, suppressed });
+    await recordTurnCalls(ctx, game, turn, { roundCalls: produced.calls, suppressed });
   }
 }
 
