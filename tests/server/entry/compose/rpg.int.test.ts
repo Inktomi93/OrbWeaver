@@ -48,7 +48,7 @@ import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packa
 import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
@@ -1656,6 +1656,78 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   expect(byTurn).toContain("flush");
   expect(byTurn).toContain("flushed");
   expect(byTurn).not.toContain("mount");
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// #1468 item 2 — A STATE ROUND THAT COULD NOT RUN IS NOT A QUIET BEAT. Both vehicles return the empty delta on
+// a provider throw (errors-as-data: a broken round must never corrupt canon), and both used to return it BARE —
+// byte-identical to the beat that legitimately changed nothing. The flush then settled `no-writes` and recorded
+// no disclosure at all, so the committed narrative carried an invisible missing state update whose only trace
+// was a transient warn line. These drive the REAL compose round with a provider that rejects and assert the
+// settle the trace ring publishes (`flushed` — the event a barrier and the debug route both read).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The `flushed` settle event this turn published, or `undefined`. */
+function flushedEvent(recorder: ReturnType<typeof createRpgTraceRecorder>, chatId: ChatId): Extract<RpgTraceEvent, { phase: "flushed" }> | undefined {
+  return recorder
+    .recent({ chatId })
+    .map((record) => record.event)
+    .find((event): event is Extract<RpgTraceEvent, { phase: "flushed" }> => event.phase === "flushed");
+}
+
+test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the reason, never the quiet beat's `no-writes`", async ({ app, db }) => {
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const { chatId, hostId } = await seedHostGameChat(db, "roundfail-cheap");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    // The live shape: the wire took the request and refused it (a 502, a context overflow, a dead engine).
+    chatThrows: new Error("upstream 502 from the state-round wire"),
+    trace: recorder.sink,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const flushed = flushedEvent(recorder, chatId);
+  expect(flushed?.outcome).toBe("failed");
+  // The provider's OWN sentence rides out, so the failure is root-causable from the turn rather than from a
+  // log line that has already rolled over.
+  expect(flushed?.droppedReason).toContain("upstream 502 from the state-round wire");
+  // ERRORS-AS-DATA IS UNCHANGED: canon stays untouched — the fix is about what the turn SAYS, never about
+  // letting a broken round write.
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+});
+
+test("#1468: the AGENT-SDK degrade (structured extraction) carries the same failure arm — it is not the tool round's optional half", async ({ app, db }) => {
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const { chatId, hostId } = await seedHostGameChat(db, "roundfail-sdk");
+  // An agent-sdk wire carries no `tools[]`, so `runToolRound` degrades INSIDE itself to one structured call —
+  // a whole class of connection whose failure arm lives in the OTHER catch.
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "agent-sdk",
+    spy: emptySpy(),
+    cannedText: "{}",
+    chatThrows: new Error("agent-sdk transport closed"),
+    trace: recorder.sink,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  const flushed = flushedEvent(recorder, chatId);
+  expect(flushed?.outcome).toBe("failed");
+  expect(flushed?.droppedReason).toContain("agent-sdk transport closed");
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
 });
 
 test("TOOLCALLS arm A: a folded turn RECORDS what it called, keyed to the producing variant", async ({ app, db }) => {
