@@ -27,6 +27,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     population: "@client",
     analysis: "syntax",
     execution: "selected-files",
+    facts: [],
     resources: [],
     message: `${id} message`,
     create: (ctx) => ({
@@ -70,6 +71,7 @@ test("source and types proofs receive their exact files and relative imports res
     population: "@client",
     analysis: "types",
     execution: "selected-files",
+    facts: [],
     resources: [],
     message: "the relative import resolves to the planted declaration",
     create: (ctx) => ({
@@ -275,6 +277,7 @@ test("resource proofs materialize exact content and clean temp roots after succe
     population: "@client",
     analysis: "resource",
     execution: "selected-files",
+    facts: [],
     resources: [{ kind: "package-metadata", id: "root" }],
     message: "resource content is planted",
     create: (ctx) => ({
@@ -410,6 +413,7 @@ test("typed authored-tree declarations keep resource-only TS proofs off source d
     population: { of: "none", why: "the TS file is raw authored-tree data, not syntax input" },
     analysis: "resource",
     execution: "entire-population",
+    facts: [],
     resources: [{ kind: "authored-tree", id: "client-source" }],
     message: "resource-only TS proof",
     create: (ctx) => ({
@@ -458,6 +462,7 @@ test("hybrid TS proofs share one identity across source and resource manifests",
     population: "@client",
     analysis: "resource",
     execution: "selected-files",
+    facts: [],
     resources: [{ kind: "authored-tree", id: "client-source" }],
     message: "hybrid TS proof",
     create: (ctx) => ({
@@ -540,6 +545,7 @@ test("thrown path details are stable and retain only repo-relative proof identit
     population: "@client",
     analysis: "resource",
     execution: "selected-files",
+    facts: [],
     resources: [{ kind: "authored-tree", id: "client-source" }],
     message: "resource path throw",
     create: (ctx) => ({

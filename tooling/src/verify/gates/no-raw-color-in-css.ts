@@ -52,6 +52,7 @@ export const gate = defineGate({
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
   analysis: "resource",
   execution: "entire-population",
+  facts: [],
   resources: [{ kind: "authored-css" }],
   message: MESSAGE,
   fix: "use a var(--color-*) token or oklch(from var(--color-*) l c h / α)",

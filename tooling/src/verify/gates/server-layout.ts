@@ -27,6 +27,7 @@ export const gate = defineGate({
   population: { of: "none", why: "server root structure is a closed ResourceHost tree fact" },
   analysis: "resource",
   execution: "entire-population",
+  facts: [],
   resources: [
     { kind: "authored-tree", id: "server" },
     { kind: "package-metadata", id: "server" },

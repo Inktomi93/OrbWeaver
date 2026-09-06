@@ -23,6 +23,7 @@ export const gate = defineGate({
   },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "split the file into sub-files, or extract a self-contained vocabulary/config into state/ or lib/ and re-export it from the original front door.",

@@ -1,5 +1,7 @@
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
+import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -32,6 +34,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     population: "@client",
     analysis,
     execution: "selected-files",
+    facts: [],
     resources: analysis === "resource" ? [{ kind: "package-metadata", id: "root" }] : [],
     message: `${id} message`,
     create: () => ({ evaluate: () => undefined }),
@@ -87,6 +90,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
     family: "invalid-policy",
     analysis: "bogus",
     execution: "bogus",
+    facts: [],
     mustFlag: [],
     mustPass: [],
   } as never);
@@ -584,74 +588,205 @@ test("create state is invocation-local across re-entry", () => {
   expect(second.policies[0]?.findings).toHaveLength(1);
 });
 
-test("shared facts collect once per pass and reset across re-entry", () => {
-  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
-  const key = Object.freeze({ id: "fixture-fact" });
+test("declared fact providers collect once over their own population and reset across re-entry", () => {
+  const project = projectOf({
+    "packages/client/src/a.ts": "export const client = 1;\n",
+    "tooling/src/fact.ts": "export const fact = 1;\n",
+  });
   let constructions = 0;
   let visits = 0;
   const seen = new Set<object>();
-  const sharedPolicy = (id: string): GatePolicy =>
-    policy(id, {
-      create: (ctx) => {
-        const shared = ctx.sharedFact(key, () => {
-          constructions += 1;
-          return { visits: 0 };
-        });
-        seen.add(shared.value);
-        return {
-          ...(shared.collect
-            ? {
-                visitors: [
-                  {
-                    kinds: [SyntaxKind.VariableDeclaration],
-                    visit: () => {
-                      shared.value.visits += 1;
-                      visits += 1;
-                    },
-                  },
-                ],
-              }
-            : {}),
-          evaluate: () => {
-            if (shared.value.visits !== 1) {
-              throw new Error("shared fact did not observe the exact population once");
-            }
+  const provider = defineFact({
+    id: "fixture-fact",
+    population: "@tooling",
+    analysis: "syntax",
+    resources: [],
+    create: (ctx) => {
+      constructions += 1;
+      const value = { visits: 0 };
+      return {
+        visitors: [
+          {
+            kinds: [SyntaxKind.VariableDeclaration],
+            visit: () => {
+              value.visits += 1;
+              visits += 1;
+            },
           },
-        };
-      },
+        ],
+        finish: () => {
+          ctx.receipt({ kind: "population", source: "fixture-fact", members: value.visits });
+          return value;
+        },
+      };
+    },
+  });
+  const consumer = (id: string): GatePolicy =>
+    policy(id, {
+      execution: "entire-population",
+      facts: [provider],
+      create: (ctx) => ({
+        evaluate: () => {
+          const value = ctx.fact(provider);
+          seen.add(value);
+          if (value.visits !== 1) {
+            throw new Error("fact did not collect its exact independent population once");
+          }
+        },
+      }),
     });
-  const policies = [sharedPolicy("shared-a"), sharedPolicy("shared-b")];
+  const policies = [consumer("fact-consumer-a"), consumer("fact-consumer-b")];
 
-  expect(run(policies, project).toolErrors).toEqual([]);
+  const first = run(policies, project);
+  expect(first.factErrors).toEqual([]);
+  expect(first.toolErrors).toEqual([]);
+  expect(first.facts).toMatchObject([{ id: "fixture-fact", status: "success", population: { effectiveSourcePaths: ["tooling/src/fact.ts"] } }]);
   expect(constructions).toBe(1);
   expect(visits).toBe(1);
   expect(seen.size).toBe(1);
 
-  expect(run(policies, project).toolErrors).toEqual([]);
+  const second = run(policies, project);
+  expect(second.factErrors).toEqual([]);
+  expect(second.toolErrors).toEqual([]);
   expect(constructions).toBe(2);
   expect(visits).toBe(2);
   expect(seen.size).toBe(2);
+
+  const unused = policy("unused-fact-consumer", {
+    execution: "entire-population",
+    facts: [provider],
+    create: () => ({ evaluate: () => undefined }),
+  });
+  expect(run([unused], project).toolErrors).toMatchObject([
+    { policyId: "unused-fact-consumer", phase: "receipt", message: expect.stringMatching(/facts.*not consumed.*fixture-fact/i) },
+  ]);
 });
 
-test("shared facts refuse consumers with different effective populations", () => {
+test("fact access is declared and post-finish while one provider failure withholds every consumer", () => {
   const project = projectOf({
-    "packages/client/src/a.ts": "export const a = 1;\n",
-    "tooling/src/a.ts": "export const a = 1;\n",
+    "packages/client/src/a.ts": "export const client = 1;\n",
+    "tooling/src/fact.ts": "export const fact = 1;\n",
   });
-  const key = Object.freeze({ id: "population-bound-fact" });
-  const shared = (id: string, population: GatePolicy["population"]): GatePolicy =>
-    policy(id, {
-      population,
-      create: (ctx) => {
-        ctx.sharedFact(key, () => ({}));
-        return { evaluate: () => undefined };
+  const failing = defineFact({
+    id: "failing-fact",
+    population: "@tooling",
+    analysis: "syntax",
+    resources: [],
+    create: (ctx) => ({
+      finish: () => {
+        ctx.receipt({ kind: "population", source: "failing-fact", members: 1 });
+        throw new Error("shared finish boom");
       },
+    }),
+  });
+  const dependent = (id: string): GatePolicy =>
+    policy(id, {
+      execution: "entire-population",
+      facts: [failing],
+      create: (ctx) => ({ evaluate: () => void ctx.fact(failing) }),
     });
+  const failed = run([dependent("dependent-a"), dependent("dependent-b")], project);
 
-  const result = run([shared("client-shared", "@client"), shared("tooling-shared", "@tooling")], project);
+  expect(failed.factErrors).toEqual([{ factId: "failing-fact", phase: "finish", message: "shared finish boom" }]);
+  expect(failed.toolErrors).toMatchObject([
+    { policyId: "dependent-a", phase: "evaluate", message: expect.stringMatching(/failing-fact.*finish boom/i) },
+    { policyId: "dependent-b", phase: "evaluate", message: expect.stringMatching(/failing-fact.*finish boom/i) },
+  ]);
+  expect(failed.authority.withheldPolicyIds).toEqual(["dependent-a", "dependent-b"]);
 
-  expect(result.toolErrors).toMatchObject([{ policyId: "tooling-shared", phase: "create", message: expect.stringMatching(/identical.*populations/i) }]);
-  expect(result.authority.withheldPolicyIds).toEqual(["tooling-shared"]);
+  const early = policy("early-fact-read", {
+    execution: "entire-population",
+    facts: [failing],
+    create: (ctx) => {
+      ctx.fact(failing);
+      return { evaluate: () => undefined };
+    },
+  });
+  expect(run([early], project).toolErrors).toMatchObject([{ policyId: "early-fact-read", phase: "create", message: expect.stringMatching(/not finished/i) }]);
+
+  const undeclared = policy("undeclared-fact-read", {
+    execution: "entire-population",
+    create: (ctx) => ({ evaluate: () => void ctx.fact(failing) }),
+  });
+  expect(run([undeclared], project).toolErrors).toMatchObject([
+    { policyId: "undeclared-fact-read", phase: "evaluate", message: expect.stringMatching(/undeclared fact/i) },
+  ]);
+});
+
+test("different provider objects cannot claim the same fact id", () => {
+  const fact = (value: number): GateFact<number> =>
+    defineFact({
+      id: "duplicate-fact",
+      population: "@tooling",
+      analysis: "syntax",
+      resources: [],
+      create: (ctx) => ({
+        finish: () => {
+          ctx.receipt({ kind: "population", source: "duplicate-fact", members: 1 });
+          return value;
+        },
+      }),
+    });
+  const first = fact(1);
+  const second = fact(2);
+  expect(first).not.toBe(second);
+  const consumer = (id: string, provider: typeof first): GatePolicy =>
+    policy(id, {
+      execution: "entire-population",
+      facts: [provider],
+      create: (ctx) => ({ evaluate: () => void ctx.fact(provider) }),
+    });
+  const project = projectOf({
+    "packages/client/src/a.ts": "export const client = 1;\n",
+    "tooling/src/a.ts": "export const tooling = 1;\n",
+  });
+
+  expect(() => run([consumer("duplicate-consumer-a", first), consumer("duplicate-consumer-b", second)], project)).toThrow(
+    /different fact descriptors.*duplicate-fact/i,
+  );
+});
+
+test("a resource fact owns acquisition and receipts independently of its consumers", () => {
+  const provider = defineFact({
+    id: "package-fact",
+    population: { of: "none", why: "package metadata is a resource" },
+    analysis: "resource",
+    resources: [{ kind: "package-metadata", id: "root" }],
+    create: (ctx) => ({
+      finish: () => {
+        const resource = ctx.resources.packageMetadata("root");
+        if (resource.status !== "ready") {
+          throw new Error(resource.reason);
+        }
+        return resource.value.name;
+      },
+    }),
+  });
+  const consumer = policy("package-fact-consumer", {
+    execution: "entire-population",
+    facts: [provider],
+    create: (ctx) => ({
+      evaluate: () => {
+        if (ctx.fact(provider) !== "orb") {
+          throw new Error("consumer received the wrong package fact");
+        }
+      },
+    }),
+  });
+  const result = run([consumer], projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" }), {
+    resourceOptions: { overlay: { "package.json": JSON.stringify({ name: "orb", private: true }) } },
+  });
+
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.facts).toMatchObject([
+    {
+      id: "package-fact",
+      status: "success",
+      population: { effectiveSourcePaths: [], effectiveResourcePaths: ["package.json"] },
+      receipts: [{ kind: "resource", source: "package:root", resources: 1, unresolved: 0 }],
+    },
+  ]);
 });
 
 test("every hook throw withholds only its owner and siblings survive", () => {
@@ -793,6 +928,7 @@ function resourceWaiverPolicy(input: {
     population: { of: "none", why: "resource-only waiver fixture" },
     analysis: "resource",
     execution: "entire-population",
+    facts: [],
     resources: [{ kind: "authored-tree", id: "client-source" }],
     create: (ctx) => ({
       evaluate: () => {
@@ -924,6 +1060,7 @@ test("undeclared resource files cannot contribute ordinary waiver markers", () =
     population: { of: "none", why: "authored CSS only" },
     analysis: "resource",
     execution: "entire-population",
+    facts: [],
     resources: [{ kind: "authored-css" }],
     create: (ctx) => ({
       evaluate: () => {
@@ -1077,7 +1214,7 @@ test("the public context type and runtime surface expose neither Project nor roo
   run([gate], project);
 
   expect(noForbiddenKeys).toBe(true);
-  expect(keys).toEqual(["checker", "files", "receipt", "relativePath", "report", "resourcePaths", "resources", "sharedFact", "sourceFile"]);
+  expect(keys).toEqual(["checker", "fact", "files", "receipt", "relativePath", "report", "resourcePaths", "resources", "sourceFile"]);
   expect(frozen).toEqual([true, true, true, true]);
   expect(mutations).toEqual([false, false, true]);
 });

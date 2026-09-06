@@ -18,6 +18,8 @@ export type {
 } from "./contract/baseui.ts";
 export type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
 export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
+export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
+export { defineFact } from "./contract/fact.ts";
 export type {
   ExemptionRow,
   ExemptionTable,
@@ -38,6 +40,9 @@ export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResu
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof, GatePolicyReceipt } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
 export type {
+  GateFactOwnerResult,
+  GateFactPhase,
+  GateFactToolError,
   PolicyOwnerPlan,
   PolicyOwnerPlanMode,
   PolicyOwnerResult,
@@ -45,7 +50,7 @@ export type {
   PolicyPassResult,
   PolicyPopulationReceipt,
 } from "./contract/policy-pass.ts";
-export { POLICY_OWNER_PLAN_MODES } from "./contract/policy-pass.ts";
+export { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES } from "./contract/policy-pass.ts";
 export type {
   PlannedPolicy,
   PolicyCommandParseResult,

@@ -1,6 +1,7 @@
 // Descriptor resource declarations resolve only through the closed ResourceHost fact surface.
 
 import { PRODUCT_STYLESHEETS } from "../contract/css-family.ts";
+import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { ResourceFact } from "../contract/resource.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
@@ -95,11 +96,19 @@ export function resolveResourceDeclarations(host: ResourceHost, requests: readon
 
 /** Resolve descriptor-owned declarations once for planning; the returned map is derived, never maintained. */
 export function resolvePolicyResourcePaths(policies: readonly GatePolicy[], options: ResourceHostOptions): ReadonlyMap<string, readonly string[]> {
+  return resolveResourceOwnerPaths(policies, options);
+}
+
+/** Resolve policy or shared-fact declarations without creating a second maintained resource roster. */
+export function resolveResourceOwnerPaths(
+  owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
+  options: ResourceHostOptions,
+): ReadonlyMap<string, readonly string[]> {
   const invocation = createResourceHost(options);
   return new Map(
-    policies
-      .filter((policy) => policy.resources.length > 0)
-      .map((policy) => [policy.id, resolveResourceDeclarations(invocation.host, policy.resources)] as const)
+    owners
+      .filter((owner) => owner.resources.length > 0)
+      .map((owner) => [owner.id, resolveResourceDeclarations(invocation.host, owner.resources)] as const)
       .toSorted(([left], [right]) => left.localeCompare(right)),
   );
 }

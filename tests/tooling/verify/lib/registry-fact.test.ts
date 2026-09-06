@@ -3,7 +3,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { RegistryDefinitionKind, RegistryDefinitionKindFacts } from "../../../../tooling/src/verify/contract/registry-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { createRegistryDefinitionFacts, REGISTRY_DEFINITION_VISITOR_KINDS, readJsxTagFact } from "../../../../tooling/src/verify/lib/registry-fact.ts";
+import { readJsxTagFact, registryDefinitionFact } from "../../../../tooling/src/verify/lib/registry-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/registry-facts";
@@ -25,18 +25,16 @@ function policyFor(kind: RegistryDefinitionKind, capture: (facts: RegistryDefini
     population: "@client",
     analysis: "types",
     execution: "entire-population",
+    facts: [registryDefinitionFact],
+    resources: [],
     message: "registry definition fact control",
-    create: (ctx) => {
-      const facts = createRegistryDefinitionFacts();
-      return {
-        visitors: [{ kinds: REGISTRY_DEFINITION_VISITOR_KINDS, visit: facts.visit }],
-        evaluate: () => {
-          const view = facts.forKind(kind);
-          capture(view);
-          ctx.receipt({ kind: "population", source: view.source, members: view.members, unresolved: view.unresolved });
-        },
-      };
-    },
+    create: (ctx) => ({
+      evaluate: () => {
+        const view = ctx.fact(registryDefinitionFact).forKind(kind);
+        capture(view);
+        ctx.receipt({ kind: "population", source: view.source, members: view.members, unresolved: view.unresolved });
+      },
+    }),
     mustFlag: [{ mode: "types", files: { "packages/client/src/flag.ts": "export const flag = 1;" }, why: "descriptor proof control" }],
     mustPass: [{ mode: "types", files: { "packages/client/src/pass.ts": "export const pass = 1;" }, why: "descriptor proof control" }],
   });
@@ -47,12 +45,12 @@ function runRegistry(
   files: Readonly<Record<string, string>>,
 ): { readonly facts: RegistryDefinitionKindFacts; readonly result: ReturnType<typeof runPolicyPass> } {
   let captured: RegistryDefinitionKindFacts | undefined;
+  const gate = policyFor(kind, (facts) => {
+    captured = facts;
+  });
   const result = runPolicyPass({
-    policies: [
-      policyFor(kind, (facts) => {
-        captured = facts;
-      }),
-    ],
+    knownPolicies: [gate],
+    policies: [gate],
     root: ROOT,
     project: projectOf(files),
     reviewedGrants: [],

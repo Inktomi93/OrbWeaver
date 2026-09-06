@@ -1,5 +1,6 @@
 // The final Orb policy descriptor and the capability-bounded context created once per invocation.
 import type { Node, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import type { GateFact, GateFactValue } from "./fact.ts";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
 import type { PopulationExpr } from "./population.ts";
 import type { GateResourceRequest } from "./resource-declaration.ts";
@@ -56,12 +57,6 @@ export interface GatePolicyReportSink {
   readonly file: (path: string, details?: GatePolicyFileFindingDetails) => void;
 }
 
-export interface GateSharedFactLease<Value> {
-  readonly value: Value;
-  /** True only for the first consumer over this exact invocation population. */
-  readonly collect: boolean;
-}
-
 /** The policy-visible surface. Deliberately contains no Project, root, filesystem, parser, or grants. */
 export interface GatePolicyContext {
   readonly files: readonly SourceFile[];
@@ -70,8 +65,8 @@ export interface GatePolicyContext {
   readonly relativePath: (sourceFile: SourceFile) => string;
   readonly sourceFile: (repoRelativePath: string) => SourceFile;
   readonly checker: () => TypeChecker;
-  /** Invocation-local shared derivation; shared reader modules own keys and collection visitors. */
-  readonly sharedFact: <Value>(key: object, create: () => Value) => GateSharedFactLease<Value>;
+  /** Read one declared provider after the shared walk; early or undeclared access refuses. */
+  readonly fact: <Fact extends GateFact>(provider: Fact) => GateFactValue<Fact>;
   readonly report: GatePolicyReportSink;
   readonly receipt: (receipt: GatePolicyReceipt) => void;
 }
@@ -94,6 +89,8 @@ interface GatePolicyBase {
   readonly population: PopulationExpr;
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
+  /** Shared providers required by this whole-population policy; `[]` is explicit. */
+  readonly facts: readonly GateFact[];
   /** Explicit closed ResourceHost facts; `[]` is required when the policy consumes none. */
   readonly resources: readonly GateResourceRequest[];
   readonly message: string;

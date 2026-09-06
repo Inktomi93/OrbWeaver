@@ -28,6 +28,7 @@ export const gate = defineGate({
   },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message:
     "a test factory violates the pure/persisted split — a `make*` pure builder must NOT accept a db, a `seed*` persisted builder MUST (core/Spine-Testing.md §4).",

@@ -33,6 +33,7 @@ export const gate = defineGate({
   },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "split the primitive into part files, or extract pure logic to lib/; one primitive remains one sealed component.",

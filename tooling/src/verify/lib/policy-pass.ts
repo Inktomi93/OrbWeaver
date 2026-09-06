@@ -3,11 +3,15 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { performance } from "node:perf_hooks";
 import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import type { GateFact, GateFactHooks } from "../contract/fact.ts";
 import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type {
+  GateFactOwnerResult,
+  GateFactPhase,
+  GateFactToolError,
   PolicyOwnerPlan,
   PolicyOwnerResult,
   PolicyPassInput,
@@ -18,21 +22,32 @@ import type {
   PolicyTiming,
   PolicyToolError,
 } from "../contract/policy-pass.ts";
-import { POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
+import { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { ordinaryWaiverResourceFormat } from "./ordinary-waiver-source.ts";
-import type { PolicySharedFactRegistry } from "./policy-pass-context.ts";
-import { makePolicyContext } from "./policy-pass-context.ts";
+import type { PolicyFactValueRegistry } from "./policy-pass-context.ts";
+import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
-import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
+import {
+  assertGateFactDescriptor,
+  assertGateFactHooks,
+  assertGatePolicyDescriptor,
+  assertGatePolicyHooks,
+  assertRepoPathIdentity,
+  normalizePathSet,
+} from "./policy-validation.ts";
 import { resolvePopulation } from "./population-resolver.ts";
 import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
 interface MutableTiming {
   readonly phaseMs: Record<PolicyPhase, number>;
+}
+
+interface MutableFactTiming {
+  readonly phaseMs: Record<GateFactPhase, number>;
 }
 
 interface PolicyRun {
@@ -46,9 +61,31 @@ interface PolicyRun {
   hooks: GatePolicyHooks | undefined;
   receipts: readonly PolicySemanticReceipt[];
   finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
+  unconsumedFacts: (() => readonly string[]) | undefined;
   unconsumedResources: (() => readonly string[]) | undefined;
   unconsumedResourceRequests: (() => readonly string[]) | undefined;
   resourceRequests: readonly GateResourceRequest[];
+}
+
+interface FactRun {
+  readonly fact: GateFact;
+  readonly timing: MutableFactTiming;
+  population: PolicyPopulationReceipt;
+  status: "success" | "incomplete";
+  error: string | null;
+  files: readonly SourceFile[];
+  effectivePathSet: ReadonlySet<string>;
+  hooks: GateFactHooks<unknown> | undefined;
+  receipts: readonly PolicySemanticReceipt[];
+  finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
+  unconsumedResources: (() => readonly string[]) | undefined;
+  unconsumedResourceRequests: (() => readonly string[]) | undefined;
+  resourceRequests: readonly GateResourceRequest[];
+}
+
+interface FactControl {
+  readonly errors: GateFactToolError[];
+  readonly values: PolicyFactValueRegistry;
 }
 
 const EMPTY_POPULATION: PolicyPopulationReceipt = {
@@ -61,6 +98,10 @@ const EMPTY_POPULATION: PolicyPopulationReceipt = {
 
 function phaseRecord(): Record<PolicyPhase, number> {
   return { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0, receipt: 0 };
+}
+
+function factPhaseRecord(): Record<GateFactPhase, number> {
+  return { population: 0, create: 0, visitFile: 0, visit: 0, finish: 0, receipt: 0 };
 }
 
 function floorMs(value: number): number {
@@ -87,6 +128,20 @@ function finishTiming(timing: MutableTiming): PolicyTiming {
   return { phaseMs, totalMs: POLICY_PHASES.reduce((sum, phase) => sum + phaseMs[phase], 0) };
 }
 
+function finishFactTiming(timing: MutableFactTiming): GateFactOwnerResult["timing"] {
+  const phaseMs = Object.fromEntries(GATE_FACT_PHASES.map((phase) => [phase, floorMs(timing.phaseMs[phase])])) as Record<GateFactPhase, number>;
+  return { phaseMs, totalMs: GATE_FACT_PHASES.reduce((sum, phase) => sum + phaseMs[phase], 0) };
+}
+
+function chargeFact<T>(timing: MutableFactTiming, phase: GateFactPhase, operation: () => T): T {
+  const started = performance.now();
+  try {
+    return operation();
+  } finally {
+    timing.phaseMs[phase] += performance.now() - started;
+  }
+}
+
 function sourcePath(root: string, sourceFile: SourceFile): string {
   const rel = relative(resolve(root), resolve(sourceFile.getFilePath()));
   const normalized = sep === "/" ? rel : rel.split(sep).join("/");
@@ -97,8 +152,8 @@ function sourcePath(root: string, sourceFile: SourceFile): string {
   return normalized;
 }
 
-function isExplicitNone(policy: GatePolicy): boolean {
-  const population = policy.population;
+function isExplicitNone(owner: Pick<GatePolicy, "population"> | Pick<GateFact, "population">): boolean {
+  const population = owner.population;
   return typeof population === "object" && !Array.isArray(population) && "of" in population && population.of === "none";
 }
 
@@ -123,6 +178,25 @@ function guard(run: PolicyRun, phase: Exclude<PolicyPhase, "population">, errors
   }
 }
 
+function markFactIncomplete(run: FactRun, phase: GateFactPhase, error: unknown, control: FactControl): void {
+  const message = messageOf(error);
+  run.status = "incomplete";
+  run.error = `${phase}: ${message}`;
+  control.errors.push({ factId: run.fact.id, phase, message });
+  control.values.set(run.fact, { status: "failed", message: run.error });
+}
+
+function guardFact(run: FactRun, phase: Exclude<GateFactPhase, "population">, control: FactControl, operation: () => void): void {
+  if (run.status !== "success") {
+    return;
+  }
+  try {
+    chargeFact(run.timing, phase, operation);
+  } catch (error) {
+    markFactIncomplete(run, phase, error, control);
+  }
+}
+
 function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
   return [...findings].toSorted(
     (left, right) =>
@@ -140,6 +214,7 @@ function assertInvocationPolicies(policies: readonly GatePolicy[]): void {
     throw new Error("runPolicyPass requires a nonempty policy array");
   }
   const ids = new Set<string>();
+  const facts = new Map<string, GateFact>();
   for (const candidate of value) {
     if (!isDefinedGatePolicy(candidate)) {
       throw new Error("runPolicyPass accepts only policies branded by defineGate");
@@ -149,6 +224,13 @@ function assertInvocationPolicies(policies: readonly GatePolicy[]): void {
       throw new Error(`runPolicyPass received duplicate policy id ${candidate.id}`);
     }
     ids.add(candidate.id);
+    for (const fact of candidate.facts) {
+      const existing = facts.get(fact.id);
+      if (existing !== undefined && existing !== fact) {
+        throw new Error(`loaded policies import different fact descriptors with id ${fact.id}`);
+      }
+      facts.set(fact.id, fact);
+    }
   }
 }
 
@@ -172,6 +254,25 @@ function newRun(policy: GatePolicy): PolicyRun {
     findings: [],
     population: EMPTY_POPULATION,
     owner: { status: "incomplete", population: "incomplete", reason: "population has not resolved" },
+    files: [],
+    effectivePathSet: new Set(),
+    hooks: undefined,
+    receipts: [],
+    finishReceipts: undefined,
+    unconsumedFacts: undefined,
+    unconsumedResources: undefined,
+    unconsumedResourceRequests: undefined,
+    resourceRequests: [],
+  };
+}
+
+function newFactRun(fact: GateFact): FactRun {
+  return {
+    fact,
+    timing: { phaseMs: factPhaseRecord() },
+    population: EMPTY_POPULATION,
+    status: "incomplete",
+    error: "population has not resolved",
     files: [],
     effectivePathSet: new Set(),
     hooks: undefined,
@@ -311,16 +412,83 @@ function resolveRuns(
   return { runs, sourceFiles };
 }
 
+function selectedFacts(runs: readonly PolicyRun[]): readonly GateFact[] {
+  const byId = new Map<string, GateFact>();
+  for (const selected of runs.filter(({ owner }) => owner.status === "success").map(({ policy: descriptor }) => descriptor)) {
+    for (const fact of selected.facts) {
+      assertGateFactDescriptor(fact);
+      const existing = byId.get(fact.id);
+      if (existing !== undefined && existing !== fact) {
+        throw new Error(`selected policies import different fact descriptors with id ${fact.id}`);
+      }
+      byId.set(fact.id, fact);
+    }
+  }
+  return [...byId.values()].toSorted((left, right) => left.id.localeCompare(right.id));
+}
+
+interface ResolveFactRunsInput {
+  readonly facts: readonly GateFact[];
+  readonly sourceFiles: ReadonlyMap<string, SourceFile>;
+  readonly resources: ResourceHost;
+  readonly control: FactControl;
+}
+
+function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFactRunsInput): FactRun[] {
+  const candidates = [...sourceFiles.keys()].toSorted();
+  return facts.map((fact) => {
+    const run = newFactRun(fact);
+    control.values.set(fact, { status: "pending" });
+    try {
+      chargeFact(run.timing, "population", () => {
+        const declaredSourcePaths = resolvePopulation(fact.population, candidates).paths;
+        const declaredResourcePaths = resolveResourceDeclarations(resources, fact.resources);
+        if (isExplicitNone(fact) && declaredResourcePaths.length === 0) {
+          throw new Error(`resource-only fact ${fact.id} resolved no resource paths`);
+        }
+        if (declaredSourcePaths.length + declaredResourcePaths.length === 0) {
+          throw new Error(`fact ${fact.id} resolved an empty declared population`);
+        }
+        run.population = {
+          declaredSourcePaths,
+          declaredResourcePaths,
+          requestedPaths: null,
+          effectiveSourcePaths: declaredSourcePaths,
+          effectiveResourcePaths: declaredResourcePaths,
+        };
+        run.files = declaredSourcePaths.map((path) => {
+          const sourceFile = sourceFiles.get(path);
+          if (sourceFile === undefined) {
+            throw new Error(`resolved fact source path has no SourceFile: ${path}`);
+          }
+          return sourceFile;
+        });
+        run.effectivePathSet = new Set([...declaredSourcePaths, ...declaredResourcePaths]);
+        const effectiveResources = new Set(declaredResourcePaths);
+        run.resourceRequests = fact.resources.filter((request) =>
+          resolveResourceDeclarations(resources, [request]).some((path) => effectiveResources.has(path)),
+        );
+        run.status = "success";
+        run.error = null;
+      });
+    } catch (error) {
+      markFactIncomplete(run, "population", error, control);
+      run.population = EMPTY_POPULATION;
+    }
+    return run;
+  });
+}
+
 interface CreateRunsInput {
   readonly runs: readonly PolicyRun[];
   readonly input: PolicyPassInput;
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
   readonly errors: PolicyToolError[];
-  readonly sharedFacts: PolicySharedFactRegistry;
+  readonly factValues: PolicyFactValueRegistry;
 }
 
-function createRuns({ runs, input, resources, checker, errors, sharedFacts }: CreateRunsInput): void {
+function createRuns({ runs, input, resources, checker, errors, factValues }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -334,9 +502,10 @@ function createRuns({ runs, input, resources, checker, errors, sharedFacts }: Cr
       resourceRequests: run.resourceRequests,
       checker,
       findings: run.findings,
-      sharedFacts,
+      factValues,
     });
     run.finishReceipts = runtime.finishReceipts;
+    run.unconsumedFacts = runtime.unconsumedFacts;
     run.unconsumedResources = runtime.unconsumedResources;
     run.unconsumedResourceRequests = runtime.unconsumedResourceRequests;
     guard(run, "create", errors, () => {
@@ -347,11 +516,52 @@ function createRuns({ runs, input, resources, checker, errors, sharedFacts }: Cr
   }
 }
 
-function indexVisitors(
-  runs: readonly PolicyRun[],
-  errors: PolicyToolError[],
-): ReadonlyMap<SyntaxKind, readonly ((node: import("ts-morph").Node, sf: SourceFile) => void)[]> {
-  const index = new Map<SyntaxKind, ((node: import("ts-morph").Node, sf: SourceFile) => void)[]>();
+interface CreateFactRunsInput {
+  readonly runs: readonly FactRun[];
+  readonly input: PolicyPassInput;
+  readonly resources: ResourceHost;
+  readonly checker: () => TypeChecker;
+  readonly control: FactControl;
+}
+
+function createFactRuns({ runs, input, resources, checker, control }: CreateFactRunsInput): void {
+  for (const run of runs) {
+    if (run.status !== "success") {
+      continue;
+    }
+    const runtime = makeFactContext({
+      ownerId: run.fact.id,
+      analysis: run.fact.analysis,
+      root: input.root,
+      files: run.files,
+      resourcePaths: run.population.effectiveResourcePaths,
+      resources,
+      resourceRequests: run.resourceRequests,
+      checker,
+    });
+    run.finishReceipts = runtime.finishReceipts;
+    run.unconsumedResources = runtime.unconsumedResources;
+    run.unconsumedResourceRequests = runtime.unconsumedResourceRequests;
+    guardFact(run, "create", control, () => {
+      const hooks = run.fact.create(runtime.context);
+      assertGateFactHooks(hooks);
+      run.hooks = hooks;
+    });
+  }
+}
+
+type VisitorIndex = Map<SyntaxKind, ((node: import("ts-morph").Node, sf: SourceFile) => void)[]>;
+
+function addVisitor(index: VisitorIndex, kind: SyntaxKind, visit: (node: import("ts-morph").Node, sf: SourceFile) => void): void {
+  const existing = index.get(kind);
+  if (existing === undefined) {
+    index.set(kind, [visit]);
+  } else {
+    existing.push(visit);
+  }
+}
+
+function indexPolicyVisitors(runs: readonly PolicyRun[], errors: PolicyToolError[], index: VisitorIndex): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -361,30 +571,56 @@ function indexVisitors(
         const dispatch = (node: import("ts-morph").Node, sourceFile: SourceFile): void => {
           guard(run, "visit", errors, () => visitor.visit(node, sourceFile));
         };
-        const existing = index.get(kind);
-        if (existing === undefined) {
-          index.set(kind, [dispatch]);
-        } else {
-          existing.push(dispatch);
-        }
+        addVisitor(index, kind, dispatch);
       }
     }
   }
-  return index;
 }
 
-function walkRuns(runs: readonly PolicyRun[], sourceFiles: ReadonlyMap<string, SourceFile>, errors: PolicyToolError[]): void {
-  const relevantPaths = new Set(runs.flatMap((run) => (run.owner.status === "success" ? run.population.effectiveSourcePaths : [])));
+function indexFactVisitors(runs: readonly FactRun[], control: FactControl, index: VisitorIndex): void {
+  for (const run of runs) {
+    if (run.status !== "success") {
+      continue;
+    }
+    for (const visitor of run.hooks?.visitors ?? []) {
+      for (const kind of visitor.kinds) {
+        addVisitor(index, kind, (node, sourceFile) => guardFact(run, "visit", control, () => visitor.visit(node, sourceFile)));
+      }
+    }
+  }
+}
+
+interface WalkRunsInput {
+  readonly runs: readonly PolicyRun[];
+  readonly factRuns: readonly FactRun[];
+  readonly sourceFiles: ReadonlyMap<string, SourceFile>;
+  readonly errors: PolicyToolError[];
+  readonly factControl: FactControl;
+}
+
+function walkRuns({ runs, factRuns, sourceFiles, errors, factControl }: WalkRunsInput): void {
+  const relevantPaths = new Set([
+    ...runs.flatMap((run) => (run.owner.status === "success" ? run.population.effectiveSourcePaths : [])),
+    ...factRuns.flatMap((run) => (run.status === "success" ? run.population.effectiveSourcePaths : [])),
+  ]);
   for (const [path, sourceFile] of [...sourceFiles]
     .filter(([candidate]) => relevantPaths.has(candidate))
     .toSorted(([left], [right]) => left.localeCompare(right))) {
     const fileRuns = runs.filter((run) => run.owner.status === "success" && run.effectivePathSet.has(path));
+    const fileFactRuns = factRuns.filter((run) => run.status === "success" && run.effectivePathSet.has(path));
     for (const run of fileRuns) {
       if (run.hooks?.visitFile !== undefined) {
         guard(run, "visitFile", errors, () => run.hooks?.visitFile?.(sourceFile));
       }
     }
-    const visitors = indexVisitors(fileRuns, errors);
+    for (const run of fileFactRuns) {
+      if (run.hooks?.visitFile !== undefined) {
+        guardFact(run, "visitFile", factControl, () => run.hooks?.visitFile?.(sourceFile));
+      }
+    }
+    const visitors: VisitorIndex = new Map();
+    indexPolicyVisitors(fileRuns, errors, visitors);
+    indexFactVisitors(fileFactRuns, factControl, visitors);
     collectByKinds([sourceFile], visitors);
   }
 }
@@ -402,6 +638,78 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
   return failures;
 }
 
+function factReceiptFailures(run: FactRun): string[] {
+  const failures: string[] = [];
+  if (!run.receipts.some((receipt) => receipt.kind === "population" || receipt.kind === "resource")) {
+    failures.push("fact produced no semantic receipt");
+  }
+  if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
+    failures.push("declared fact resource population produced no resource receipt");
+  }
+  const unconsumed = run.unconsumedResources?.() ?? [];
+  if (unconsumed.length > 0) {
+    failures.push(`declared fact resource population has unconsumed paths: ${unconsumed.join(", ")}`);
+  }
+  const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
+  if (unconsumedRequests.length > 0) {
+    failures.push(`declared fact resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
+  }
+  return failures;
+}
+
+function finishFactRuns(runs: readonly FactRun[], control: FactControl): void {
+  for (const run of runs) {
+    guardFact(run, "finish", control, () => {
+      const finish = run.hooks?.finish;
+      if (finish === undefined) {
+        throw new Error("fact collector has no finish hook");
+      }
+      control.values.set(run.fact, { status: "ready", value: finish() });
+    });
+    run.receipts = run.finishReceipts?.() ?? [];
+    guardFact(run, "receipt", control, () => {
+      const failures = factReceiptFailures(run);
+      if (failures.length > 0) {
+        throw new Error(`fact receipt refused: ${failures.join("; ")}`);
+      }
+    });
+  }
+}
+
+function withholdFactDependents(runs: readonly PolicyRun[], errors: PolicyToolError[], values: PolicyFactValueRegistry): void {
+  for (const run of runs) {
+    if (run.owner.status !== "success") {
+      continue;
+    }
+    const failed = run.policy.facts.find((fact) => values.get(fact)?.status === "failed");
+    if (failed !== undefined) {
+      const value = values.get(failed);
+      const message = value?.status === "failed" ? value.message : "unknown fact failure";
+      markIncomplete(run, "evaluate", new Error(`declared fact failed: ${failed.id}: ${message}`), errors);
+    }
+  }
+}
+
+function policyReceiptFailures(run: PolicyRun): string[] {
+  const failures = run.receipts.flatMap(receiptFailures);
+  const unconsumedFacts = run.unconsumedFacts?.() ?? [];
+  if (unconsumedFacts.length > 0) {
+    failures.push(`declared facts were not consumed: ${unconsumedFacts.join(", ")}`);
+  }
+  if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
+    failures.push("declared resource population produced no resource receipt");
+  }
+  const unconsumed = run.unconsumedResources?.() ?? [];
+  if (unconsumed.length > 0) {
+    failures.push(`declared resource population has unconsumed paths: ${unconsumed.join(", ")}`);
+  }
+  const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
+  if (unconsumedRequests.length > 0) {
+    failures.push(`declared resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
+  }
+  return failures;
+}
+
 function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): void {
   for (const run of runs) {
     if (run.hooks?.evaluate !== undefined) {
@@ -409,18 +717,7 @@ function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): vo
     }
     run.receipts = run.finishReceipts?.() ?? [];
     guard(run, "receipt", errors, () => {
-      const failures = run.receipts.flatMap(receiptFailures);
-      if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
-        failures.push("declared resource population produced no resource receipt");
-      }
-      const unconsumed = run.unconsumedResources?.() ?? [];
-      if (unconsumed.length > 0) {
-        failures.push(`declared resource population has unconsumed paths: ${unconsumed.join(", ")}`);
-      }
-      const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
-      if (unconsumedRequests.length > 0) {
-        failures.push(`declared resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
-      }
+      const failures = policyReceiptFailures(run);
       if (failures.length > 0) {
         throw new Error(`policy receipt refused: ${failures.join("; ")}`);
       }
@@ -436,6 +733,17 @@ function ownerResult(run: PolicyRun): PolicyOwnerResult {
     findings: canonicalFindings(run.findings),
     receipts: run.receipts,
     timing: finishTiming(run.timing),
+  };
+}
+
+function factResult(run: FactRun): GateFactOwnerResult {
+  return {
+    id: run.fact.id,
+    status: run.status,
+    population: run.population,
+    receipts: run.receipts,
+    timing: finishFactTiming(run.timing),
+    error: run.error,
   };
 }
 
@@ -484,17 +792,25 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertOwnerPlans(input);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
+  const factErrors: GateFactToolError[] = [];
   const resourceInvocation = createResourceHost({ ...input.resourceOptions, root: input.root });
   const resources = resourceInvocation.host;
   const { runs, sourceFiles } = resolveRuns(input, resources, toolErrors);
+  const factValues: PolicyFactValueRegistry = new Map();
+  const factControl = { errors: factErrors, values: factValues } satisfies FactControl;
+  const factRuns = resolveFactRuns({ facts: selectedFacts(runs), sourceFiles, resources, control: factControl });
   let checker: TypeChecker | undefined;
   const sharedChecker = (): TypeChecker => {
     checker ??= input.project.getTypeChecker();
     return checker;
   };
-  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors, sharedFacts: new Map() });
-  walkRuns(runs, sourceFiles, toolErrors);
+  createFactRuns({ runs: factRuns, input, resources, checker: sharedChecker, control: factControl });
+  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors, factValues });
+  walkRuns({ runs, factRuns, sourceFiles, errors: toolErrors, factControl });
+  finishFactRuns(factRuns, factControl);
+  withholdFactDependents(runs, toolErrors, factValues);
   evaluateRuns(runs, toolErrors);
+  const facts = factRuns.map(factResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const authority = coordinateGateAuthority({
     knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
@@ -515,6 +831,20 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
       POLICY_PHASES.indexOf(left.phase) - POLICY_PHASES.indexOf(right.phase) ||
       left.message.localeCompare(right.message),
   );
+  const sortedFactErrors = factErrors.toSorted(
+    (left, right) =>
+      left.factId.localeCompare(right.factId) ||
+      GATE_FACT_PHASES.indexOf(left.phase) - GATE_FACT_PHASES.indexOf(right.phase) ||
+      left.message.localeCompare(right.message),
+  );
   const policyMs = policies.reduce((sum, policyResult) => sum + policyResult.timing.totalMs, 0);
-  return { policies, toolErrors: sortedErrors, authority, timing: { totalMs: Math.max(ceilMs(performance.now() - started), policyMs), policyMs } };
+  const factMs = facts.reduce((sum, fact) => sum + fact.timing.totalMs, 0);
+  return {
+    facts,
+    policies,
+    factErrors: sortedFactErrors,
+    toolErrors: sortedErrors,
+    authority,
+    timing: { totalMs: Math.max(ceilMs(performance.now() - started), policyMs + factMs), policyMs, factMs },
+  };
 }

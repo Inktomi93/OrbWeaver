@@ -2,6 +2,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { ts } from "ts-morph";
+import type { GateFact, GateFactContext, GateFactValue } from "../contract/fact.ts";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type {
   GatePolicy,
@@ -10,7 +11,6 @@ import type {
   GatePolicyFindingDetails,
   GatePolicyNodeFindingDetails,
   GatePolicyReceipt,
-  GateSharedFactLease,
 } from "../contract/policy.ts";
 import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
@@ -34,22 +34,37 @@ interface ContextInput {
   readonly resourceRequests: readonly GateResourceRequest[];
   readonly checker: () => TypeChecker;
   readonly findings: RawGateFinding[];
-  readonly sharedFacts: PolicySharedFactRegistry;
+  readonly factValues: PolicyFactValueRegistry;
 }
 
-export interface PolicySharedFactEntry {
-  readonly sourcePaths: readonly string[];
-  readonly resourcePaths: readonly string[];
-  readonly value: unknown;
-}
+export type PolicyFactValueEntry =
+  | { readonly status: "pending" }
+  | { readonly status: "ready"; readonly value: unknown }
+  | { readonly status: "failed"; readonly message: string };
 
-export type PolicySharedFactRegistry = Map<object, PolicySharedFactEntry>;
+export type PolicyFactValueRegistry = Map<GateFact, PolicyFactValueEntry>;
 
 export interface PolicyContextRuntime {
   readonly context: GatePolicyContext;
   readonly finishReceipts: () => readonly PolicySemanticReceipt[];
+  readonly unconsumedFacts: () => readonly string[];
   readonly unconsumedResources: () => readonly string[];
   readonly unconsumedResourceRequests: () => readonly string[];
+}
+
+interface CapabilityContextInput {
+  readonly ownerId: string;
+  readonly analysis: GatePolicy["analysis"];
+  readonly root: string;
+  readonly files: readonly SourceFile[];
+  readonly resourcePaths: readonly string[];
+  readonly resources: ResourceHost;
+  readonly resourceRequests: readonly GateResourceRequest[];
+  readonly checker: () => TypeChecker;
+}
+
+export interface FactContextRuntime extends Omit<PolicyContextRuntime, "context" | "unconsumedFacts"> {
+  readonly context: GateFactContext;
 }
 
 function exactKeys(value: object, allowed: ReadonlySet<string>, label: string): void {
@@ -89,10 +104,6 @@ function appendDetails(base: { file: string; line: number; column: number }, det
     ...(details.subject === undefined ? {} : { subject: details.subject }),
     ...(details.operation === undefined ? {} : { operation: details.operation }),
   };
-}
-
-function samePaths(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((path, index) => path === right[index]);
 }
 
 function derivedNodePosition(node: Node): { readonly offset: number; readonly token: string } {
@@ -187,13 +198,11 @@ function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, value: unkn
   throw new Error(`policy receipt has invalid discriminant ${JSON.stringify(receipt["kind"])}`);
 }
 
-/** Construct one invocation-local context. No internal Project/root reference is exposed on it. */
-export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
+function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntime {
   const files = Object.freeze([...input.files]);
   const resourcePaths = Object.freeze([...input.resourcePaths]);
   const paths = new Map(files.map((candidate) => [repoRelative(input.root, candidate), candidate]));
   const sourceIdentities = new Set(files.map((candidate) => candidate.compilerNode));
-  const effectivePaths = new Set([...paths.keys(), ...resourcePaths]);
   const receipts = new Map<string, PolicySemanticReceipt>();
   const consumedResources = new Set<string>();
   const consumedResourceRequests = new Set<string>();
@@ -204,7 +213,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     }
     return repoRelative(input.root, candidate);
   };
-  const getSourceFile = (path: string): SourceFile => {
+  const sourceFile = (path: string): SourceFile => {
     assertRepoPathIdentity(path, "sourceFile path");
     const found = paths.get(path);
     if (found === undefined) {
@@ -212,11 +221,62 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     }
     return found;
   };
+  const receipt = (value: GatePolicyReceipt): void => acceptReceipt(receipts, value);
+  const context: GateFactContext = Object.freeze({
+    files,
+    resourcePaths,
+    resources: bindPolicyResources({
+      host: input.resources,
+      context: { resourcePaths, receipt },
+      declarations: input.resourceRequests,
+      onConsumed: (requestIdentity, acquiredPaths) => {
+        consumedResourceRequests.add(requestIdentity);
+        for (const path of acquiredPaths) {
+          consumedResources.add(path);
+        }
+      },
+    }),
+    relativePath,
+    sourceFile,
+    checker: () => {
+      if (input.analysis === "syntax") {
+        throw new Error(`syntax owner ${input.ownerId} cannot access the type checker`);
+      }
+      return input.checker();
+    },
+    receipt,
+  });
+  return {
+    context,
+    unconsumedResources: () => resourcePaths.filter((path) => !consumedResources.has(path)),
+    unconsumedResourceRequests: () => input.resourceRequests.map(resourceRequestIdentity).filter((identity) => !consumedResourceRequests.has(identity)),
+    finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
+  };
+}
+
+export function makeFactContext(input: CapabilityContextInput): FactContextRuntime {
+  return makeCapabilityContext(input);
+}
+
+/** Construct one invocation-local policy context. No internal Project/root reference is exposed on it. */
+export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
+  const capability = makeCapabilityContext({
+    ownerId: input.policy.id,
+    analysis: input.policy.analysis,
+    root: input.root,
+    files: input.files,
+    resourcePaths: input.resourcePaths,
+    resources: input.resources,
+    resourceRequests: input.resourceRequests,
+    checker: input.checker,
+  });
+  const effectivePaths = new Set([...capability.context.files.map(capability.context.relativePath), ...capability.context.resourcePaths]);
+  const consumedFacts = new Set<GateFact>();
   const reportNode = (node: Node, rawDetails?: GatePolicyNodeFindingDetails): void => {
     const details = rawDetails ?? {};
     exactKeys(details, NODE_DETAIL_KEYS, "node finding");
     const common = findingDetails(details);
-    const path = relativePath(node.getSourceFile());
+    const path = capability.context.relativePath(node.getSourceFile());
     let position = node.getStart();
     const runtime = details as GatePolicyFindingDetails & { readonly token?: unknown; readonly offset?: unknown };
     const token = runtime.token;
@@ -260,51 +320,31 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       appendDetails({ file: path, line: assertCoordinate(details.line, "finding line"), column: assertCoordinate(details.column, "finding column") }, details),
     );
   };
-  const report = Object.freeze({ node: reportNode, file: reportFile });
-  const receipt = (value: GatePolicyReceipt): void => acceptReceipt(receipts, value);
-  const sourcePaths = [...paths.keys()];
-  const sharedFact = <Value>(key: object, create: () => Value): GateSharedFactLease<Value> => {
-    const existing = input.sharedFacts.get(key);
-    if (existing !== undefined) {
-      if (!(samePaths(existing.sourcePaths, sourcePaths) && samePaths(existing.resourcePaths, resourcePaths))) {
-        throw new Error("shared fact consumers must have identical effective source and resource populations");
-      }
-      return Object.freeze({ value: existing.value as Value, collect: false });
+  const fact = <Fact extends GateFact>(provider: Fact): GateFactValue<Fact> => {
+    if (!input.policy.facts.includes(provider)) {
+      throw new Error(`policy ${input.policy.id} requested undeclared fact ${provider.id}`);
     }
-    const value = create();
-    input.sharedFacts.set(key, { sourcePaths, resourcePaths, value });
-    return Object.freeze({ value, collect: true });
+    const value = input.factValues.get(provider);
+    if (value === undefined) {
+      throw new Error(`declared fact is absent from this pass: ${provider.id}`);
+    }
+    if (value.status === "pending") {
+      throw new Error(`declared fact is not finished: ${provider.id}`);
+    }
+    if (value.status === "failed") {
+      throw new Error(`declared fact failed: ${provider.id}: ${value.message}`);
+    }
+    consumedFacts.add(provider);
+    return value.value as GateFactValue<Fact>;
   };
   const context: GatePolicyContext = Object.freeze({
-    files,
-    resourcePaths,
-    resources: bindPolicyResources({
-      host: input.resources,
-      context: { resourcePaths, receipt },
-      declarations: input.resourceRequests,
-      onConsumed: (requestIdentity, acquiredPaths) => {
-        consumedResourceRequests.add(requestIdentity);
-        for (const path of acquiredPaths) {
-          consumedResources.add(path);
-        }
-      },
-    }),
-    relativePath,
-    sourceFile: getSourceFile,
-    checker: () => {
-      if (input.policy.analysis === "syntax") {
-        throw new Error(`syntax policy ${input.policy.id} cannot access the type checker`);
-      }
-      return input.checker();
-    },
-    sharedFact,
-    report,
-    receipt,
+    ...capability.context,
+    fact,
+    report: Object.freeze({ node: reportNode, file: reportFile }),
   });
   return {
+    ...capability,
     context,
-    unconsumedResources: () => resourcePaths.filter((path) => !consumedResources.has(path)),
-    unconsumedResourceRequests: () => input.resourceRequests.map(resourceRequestIdentity).filter((identity) => !consumedResourceRequests.has(identity)),
-    finishReceipts: () => [...receipts.values()].toSorted((left, right) => left.kind.localeCompare(right.kind) || left.source.localeCompare(right.source)),
+    unconsumedFacts: () => input.policy.facts.filter((provider) => !consumedFacts.has(provider)).map(({ id }) => id),
   };
 }

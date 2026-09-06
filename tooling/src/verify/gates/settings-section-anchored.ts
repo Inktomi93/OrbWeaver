@@ -60,6 +60,7 @@ export const gate = defineGate({
   population: { in: ["@client"], ext: ["tsx"] },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "stamp `id={configAnchorId(group, sub)}` on the heading-bearing <Section>, where `sub` is the owning ConfigSectionContribution's `nav.id`, so the LIST + search can reach it.",

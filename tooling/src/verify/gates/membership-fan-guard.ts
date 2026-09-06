@@ -20,6 +20,7 @@ export const gate = defineGate({
   population: { in: ["@server"], under: ["packages/server/src/domain/chat/**"] },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "fan member-visible state through emitChatChanged (or the chat bus) — never emitUserEvent inside domain/chat.",

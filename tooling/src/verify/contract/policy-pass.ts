@@ -1,11 +1,14 @@
 // Exact population, phase, owner, and authority receipts emitted by the final policy dispatcher.
 import type { Project } from "ts-morph";
+import type { GateFact } from "./fact.ts";
 import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant } from "./gate-authority.ts";
 import type { GatePolicy } from "./policy.ts";
 import type { ResourceHostOptions } from "./resource-host.ts";
 
 export const POLICY_PHASES = ["population", "create", "visitFile", "visit", "evaluate", "receipt"] as const;
 export type PolicyPhase = (typeof POLICY_PHASES)[number];
+export const GATE_FACT_PHASES = ["population", "create", "visitFile", "visit", "finish", "receipt"] as const;
+export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
 
 export interface PolicyPopulationReceipt {
   readonly declaredSourcePaths: readonly string[];
@@ -40,6 +43,21 @@ export interface PolicyToolError {
   readonly message: string;
 }
 
+export interface GateFactToolError {
+  readonly factId: string;
+  readonly phase: GateFactPhase;
+  readonly message: string;
+}
+
+export interface GateFactOwnerResult {
+  readonly id: string;
+  readonly status: "success" | "incomplete";
+  readonly population: PolicyPopulationReceipt;
+  readonly receipts: readonly PolicySemanticReceipt[];
+  readonly timing: { readonly totalMs: number; readonly phaseMs: Readonly<Record<GateFactPhase, number>> };
+  readonly error: string | null;
+}
+
 export interface PolicyOwnerResult {
   readonly id: string;
   readonly owner: GateOwnerCompletion;
@@ -52,6 +70,7 @@ export interface PolicyOwnerResult {
 export interface PolicyPassTiming {
   readonly totalMs: number;
   readonly policyMs: number;
+  readonly factMs: number;
 }
 
 /** Internal invocation input. Project/root stop here and never enter GatePolicyContext. */
@@ -71,8 +90,13 @@ export interface PolicyPassInput {
 }
 
 export interface PolicyPassResult {
+  readonly facts: readonly GateFactOwnerResult[];
   readonly policies: readonly PolicyOwnerResult[];
+  readonly factErrors: readonly GateFactToolError[];
   readonly toolErrors: readonly PolicyToolError[];
   readonly authority: GateAuthorityBatchResult;
   readonly timing: PolicyPassTiming;
 }
+
+/** Runtime-only loaded fact token union derived from selected policy descriptors. */
+export type SelectedGateFact = GateFact;

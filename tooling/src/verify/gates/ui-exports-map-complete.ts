@@ -90,6 +90,7 @@ export const gate = defineGate({
   population: { of: "none", why: "the UI tree and package exports are closed ResourceHost facts" },
   analysis: "resource",
   execution: "entire-population",
+  facts: [],
   resources: [
     { kind: "authored-tree", id: "packages" },
     { kind: "package-metadata", id: "ui" },

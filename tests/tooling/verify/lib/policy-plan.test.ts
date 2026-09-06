@@ -1,12 +1,12 @@
 import type { GatePolicy, PolicyCommandRequest, PolicyPassResult, PolicyScopeResolution } from "@orb/tooling/verify";
-import { defineGate, executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
+import { defineFact, defineGate, executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode, policySourceCandidates } from "@orb/tooling/verify";
 import { Project, SyntaxKind } from "ts-morph";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 function policy(
   id: string,
-  options: Partial<Pick<GatePolicy, "family" | "execution" | "analysis" | "population" | "resources" | "severity">> = {},
+  options: Partial<Pick<GatePolicy, "family" | "execution" | "analysis" | "population" | "facts" | "resources" | "severity" | "create">> = {},
 ): GatePolicy {
   const analysis = options.analysis ?? "syntax";
   const proofMode = analysis === "syntax" ? "source" : analysis;
@@ -19,9 +19,11 @@ function policy(
     population: options.population ?? "@tooling",
     analysis,
     execution: options.execution ?? "selected-files",
+    facts: options.facts ?? [],
     resources,
     message: `${id} message`,
-    create: () => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (): void => undefined }] }),
+    create:
+      options.create ?? ((): ReturnType<GatePolicy["create"]> => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (): void => undefined }] })),
     mustFlag: [{ mode: proofMode, files, why: "founding defect" }],
     mustPass: [{ mode: proofMode, files, why: "nearest legal shape" }],
   } as const;
@@ -147,6 +149,58 @@ test.describe("final policy planner", () => {
       ok: true,
       plan: { failOnWarnings: true, policies: [{ mode: "run", population: { requestedPaths: null, effectiveSourcePaths: PROGRAM.files } }] },
     });
+  });
+
+  test("plans and reconciles a provider's independent population before policy execution", () => {
+    const provider = defineFact({
+      id: "planned-fact",
+      population: { in: ["@tooling"], named: ["b.ts"] },
+      analysis: "syntax",
+      resources: [],
+      create: (ctx) => {
+        let members = 0;
+        return {
+          visitFile: () => {
+            members += 1;
+          },
+          finish: () => {
+            ctx.receipt({ kind: "population", source: "planned-fact", members });
+            return members;
+          },
+        };
+      },
+    });
+    const gate = policy("fact-policy", {
+      execution: "entire-population",
+      population: { in: ["@tooling"], named: ["a.ts"] },
+      facts: [provider],
+      create: (ctx) => ({ evaluate: () => void ctx.fact(provider) }),
+    });
+    const corpus = { gates: [gate], families: [gate.family] };
+
+    const narrowed = planPolicyCommand({
+      request: runRequest({ scope: { kind: "file", paths: ["tooling/src/a.ts"] } }),
+      corpus,
+      scope: scope(["tooling/src/a.ts"], "file"),
+    });
+    expect(narrowed).toMatchObject({ ok: true, plan: { policies: [{ mode: "deferred" }], facts: [] } });
+
+    const planned = planPolicyCommand({ request: runRequest({ scope: { kind: "whole" } }), corpus, scope: scope(PROGRAM.files) });
+    expect(planned).toMatchObject({
+      ok: true,
+      plan: {
+        policies: [{ mode: "run", population: { effectiveSourcePaths: ["tooling/src/a.ts"] } }],
+        facts: [{ factId: "planned-fact", population: { effectiveSourcePaths: ["tooling/src/b.ts"], requestedPaths: null } }],
+      },
+    });
+    if (!planned.ok || planned.plan.mode !== "run") {
+      throw new Error("fact fixture plan did not resolve");
+    }
+    const project = new Project({ useInMemoryFileSystem: true });
+    project.createSourceFile("/repo/tooling/src/a.ts", "export const a = 1;\n");
+    project.createSourceFile("/repo/tooling/src/b.ts", "export const b = 1;\n");
+    const executed = executePolicyPlan({ root: "/repo", project, corpus, plan: planned.plan, reviewedGrants: [] });
+    expect(executed).toMatchObject({ ok: true, exitCode: 0, pass: { facts: [{ id: "planned-fact", status: "success" }] } });
   });
 
   test("resource populations ride the existing per-policy pass seam with exact receipts", () => {
@@ -533,17 +587,29 @@ test.describe("final policy planner", () => {
   });
 
   test("list and explain derive stable JSON-ready rows from the loaded corpus", () => {
+    const rosterFact = defineFact({
+      id: "roster-fact",
+      population: "@tooling",
+      analysis: "syntax",
+      resources: [],
+      create: (ctx) => ({
+        finish: () => {
+          ctx.receipt({ kind: "population", source: "roster-fact", members: 1 });
+          return true;
+        },
+      }),
+    });
     const gates = [
       policy("z-policy", { family: "shared", analysis: "resource", population: { of: "none", why: "resource-only" } }),
-      policy("a-policy", { family: "shared", severity: "warning" }),
+      policy("a-policy", { family: "shared", severity: "warning", execution: "entire-population", facts: [rosterFact] }),
     ];
     const list = planPolicyCommand({ request: { mode: "list", json: true }, corpus: { gates, families: ["shared"] } });
     expect(list).toMatchObject({
       ok: true,
       plan: {
         policies: [
-          { id: "a-policy", workItem: 1584, resources: [] },
-          { id: "z-policy", workItem: null, resources: [{ kind: "package-metadata", id: "tooling" }] },
+          { id: "a-policy", workItem: 1584, facts: ["roster-fact"], resources: [] },
+          { id: "z-policy", workItem: null, facts: [], resources: [{ kind: "package-metadata", id: "tooling" }] },
         ],
         families: ["shared"],
       },
@@ -706,6 +772,7 @@ test.describe("final policy planner", () => {
       population: { of: "none", why: "resource-only" },
       analysis: "resource",
       execution: "selected-files",
+      facts: [],
       resources: [{ kind: "package-metadata", id: "tooling" }],
       message: "resource host must resolve",
       create: (ctx) => ({
@@ -789,7 +856,9 @@ test.describe("final policy planner", () => {
 
   test("maps completed policy results onto the stable exit classes", () => {
     const result = {
+      facts: [],
       policies: [],
+      factErrors: [],
       toolErrors: [],
       authority: {
         effectiveFindings: [],
@@ -802,10 +871,11 @@ test.describe("final policy planner", () => {
         reviewedGrantConsumption: [],
         verdict: { errors: 0, warnings: 0, blocking: 0, failOnWarnings: false },
       },
-      timing: { totalMs: 0, policyMs: 0 },
+      timing: { totalMs: 0, policyMs: 0, factMs: 0 },
     } satisfies PolicyPassResult;
     expect(policyPassExitCode(result)).toBe(0);
     expect(policyPassExitCode({ ...result, authority: { ...result.authority, verdict: { ...result.authority.verdict, blocking: 1 } } })).toBe(1);
     expect(policyPassExitCode({ ...result, toolErrors: [{ policyId: "x", phase: "create", message: "boom" }] })).toBe(2);
+    expect(policyPassExitCode({ ...result, factErrors: [{ factId: "x", phase: "finish", message: "boom" }] })).toBe(2);
   });
 });

@@ -147,6 +147,7 @@ function policy(): GatePolicy {
     population: "@client",
     analysis: "types",
     execution: "selected-files",
+    facts: [],
     resources: [],
     message: "dark class token",
     create: (context) => {

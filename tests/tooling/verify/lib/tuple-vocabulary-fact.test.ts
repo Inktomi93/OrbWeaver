@@ -30,6 +30,8 @@ function tuplePolicy(capture: (fact: TupleVocabularyFact) => void): GatePolicy {
     population: "@client",
     analysis: "types",
     execution: "entire-population",
+    facts: [],
+    resources: [],
     message: "tuple vocabulary fact control",
     create: (ctx) => {
       const facts = createTupleVocabularyFacts();
@@ -49,12 +51,12 @@ function tuplePolicy(capture: (fact: TupleVocabularyFact) => void): GatePolicy {
 
 function runTuple(files: Readonly<Record<string, string>>): { readonly fact: TupleVocabularyFact; readonly result: ReturnType<typeof runPolicyPass> } {
   let captured: TupleVocabularyFact | undefined;
+  const gate = tuplePolicy((fact) => {
+    captured = fact;
+  });
   const result = runPolicyPass({
-    policies: [
-      tuplePolicy((fact) => {
-        captured = fact;
-      }),
-    ],
+    knownPolicies: [gate],
+    policies: [gate],
     root: ROOT,
     project: projectOf(files),
     reviewedGrants: [],

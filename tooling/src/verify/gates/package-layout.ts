@@ -34,6 +34,7 @@ export const gate = defineGate({
   population: { in: ["@client", "@ui", "@db", "@contracts", "@kit"], ext: ["ts", "tsx"] },
   analysis: "resource",
   execution: "entire-population",
+  facts: [],
   resources: [{ kind: "authored-tree", id: "packages" }],
   message: MESSAGE,
   fix: "move the loose module into its own directory with an index.ts front door.",

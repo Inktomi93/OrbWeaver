@@ -15,6 +15,7 @@ export const gate = defineGate({
   },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message:
     "`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on the explicit COUNT of the room's characters, NO-OPing at one (so byte-identity holds). See Core-Laws-and-Precedents.md §7 D16 (unified group chat).",

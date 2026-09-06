@@ -2,7 +2,7 @@
 // Missing, empty, dynamic, written, cyclic, ambiguous, or unsupported identities fail hard here.
 import { describeBusFactFailure } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createBusFactQuery } from "../lib/bus-fact.ts";
+import { busProducerFact } from "../lib/bus-fact.ts";
 
 const MESSAGE = "shared bus fact is incomplete — bus policy verdicts are withheld until every union, belt, member, and emitter identity resolves.";
 
@@ -14,26 +14,23 @@ export const gate = defineGate({
   population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  facts: [busProducerFact],
   resources: [],
   message: MESSAGE,
   fix: "restore the missing canonical declaration or rewrite the dynamic/ambiguous shape through the supported typed bus seams.",
-  create: (ctx) => {
-    const query = createBusFactQuery(ctx);
-    return {
-      ...query.hooks,
-      evaluate: () => {
-        const fact = query.finish();
-        ctx.receipt({ kind: "population", source: "bus-fact-health", members: 1 });
-        if (fact.status !== "ready") {
-          const anchor = ctx.files[0];
-          if (anchor === undefined) {
-            throw new Error("bus fact health received an empty effective source population");
-          }
-          ctx.report.file(ctx.relativePath(anchor), { message: `${MESSAGE} ${describeBusFactFailure(fact)}` });
+  create: (ctx) => ({
+    evaluate: () => {
+      const fact = ctx.fact(busProducerFact);
+      ctx.receipt({ kind: "population", source: "bus-fact-health", members: 1 });
+      if (fact.status !== "ready") {
+        const anchor = ctx.files[0];
+        if (anchor === undefined) {
+          throw new Error("bus fact health received an empty effective source population");
         }
-      },
-    };
-  },
+        ctx.report.file(ctx.relativePath(anchor), { message: `${MESSAGE} ${describeBusFactFailure(fact)}` });
+      }
+    },
+  }),
   mustFlag: [
     {
       mode: "types",

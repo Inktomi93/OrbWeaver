@@ -121,6 +121,9 @@ function sanitizeProofRoot(detail: string, root: string): string {
 }
 
 function toolFailure(result: PolicyPassResult, policy: GatePolicy, examplePaths: ReadonlySet<string>): string | null {
+  if (result.factErrors.length > 0) {
+    return `FACT TOOL ERROR ${result.factErrors.map(({ factId, phase, message }) => `[${factId}:${phase}] ${message}`).join("; ")}`;
+  }
   if (result.toolErrors.length > 0) {
     return `PASS TOOL ERROR ${result.toolErrors.map(({ phase, message }) => `[${phase}] ${message}`).join("; ")}`;
   }
