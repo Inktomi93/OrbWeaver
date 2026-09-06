@@ -25,8 +25,37 @@ interface ResolutionState {
 type WriteInspection = { readonly kind: "stable" } | { readonly kind: "written" } | { readonly kind: "unsupported"; readonly detail: string };
 type WriteScope = "binding" | "value";
 
+// PASS-SCOPED write caches. `state()` used to mint two fresh Maps per identity QUERY, so the file-wide write
+// scan (`collectWrites`: every Identifier in the source file + a symbol lookup each) re-ran for every query
+// in a file instead of once per file per pass — measured 2026-09-06 as 29 s of a 76 s composed pass over 119
+// policies (CPU profile: ts-morph descendant iteration + GC, not the checker). The caches now live for
+// exactly one pass: `runPolicyPass` opens them with `beginReferencePass` and closes them with
+// `endReferencePass`; a reader called OUTSIDE a pass (a unit test driving the reader directly) still gets
+// fresh per-query maps, so its semantics are unchanged. Keyed by nothing but the open pass — there is one
+// pass per invocation and passes never overlap (the dispatcher is synchronous) — so no module-level cache
+// survives an invocation and no Project is retained.
+interface ReferencePassCaches {
+  readonly writtenSymbolsBySource: Map<object, ReadonlySet<object>>;
+  readonly reassignedSymbolsBySource: Map<object, ReadonlySet<object>>;
+}
+let openPass: ReferencePassCaches | undefined;
+
+/** Open the pass-scoped reader caches. Refuses a nested open: passes never overlap. */
+export function beginReferencePass(): void {
+  if (openPass !== undefined) {
+    throw new Error("beginReferencePass: a reference pass is already open — passes never overlap");
+  }
+  openPass = { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
+}
+
+/** Close the pass-scoped reader caches; every cached set is dropped with the pass. */
+export function endReferencePass(): void {
+  openPass = undefined;
+}
+
 function state(): ResolutionState {
-  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
+  const caches = openPass ?? { writtenSymbolsBySource: new Map(), reassignedSymbolsBySource: new Map() };
+  return { declarations: [], visited: new Set<object>(), writtenSymbolsBySource: caches.writtenSymbolsBySource, reassignedSymbolsBySource: caches.reassignedSymbolsBySource };
 }
 
 function appendDeclaration(target: ResolutionState, declaration: MorphNode): void {

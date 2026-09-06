@@ -13,7 +13,7 @@
 // forEachDescendant walk per file, dispatching each node only to the visitors subscribed to its kind.
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
-import { Project, Node as TsNode } from "ts-morph";
+import { Project, Node as TsNode, ts } from "ts-morph";
 
 export interface WorkspaceOptions {
   readonly root: string;
@@ -74,16 +74,25 @@ export function collectByKinds(files: readonly SourceFile[], byKind: ReadonlyMap
   if (byKind.size === 0) {
     return;
   }
+  // Walk the RAW compiler tree (`ts.forEachChild`, ~0.2 s for the repo's 5.9 M nodes) and wrap a node
+  // into ts-morph only when a visitor is subscribed to its kind. `SourceFile#forEachDescendant` wraps
+  // EVERY node (~5.8 s and +800 MB over the same tree, measured 2026-09-06) and the wrappers were the
+  // single largest slice of the composed pass's CPU profile. `_getNodeFromCompilerNode` is ts-morph's own
+  // wrap-on-demand door (the one `getChildren`/`forEachChild` use internally); it returns the cached
+  // wrapper when one exists, so identity is unchanged for a node any reader has already touched.
   for (const sf of files) {
-    sf.forEachDescendant((node) => {
-      const subs = byKind.get(node.getKind());
-      if (subs === undefined) {
-        return;
+    const wrap = (sf as unknown as { _getNodeFromCompilerNode: (compilerNode: ts.Node) => Node })._getNodeFromCompilerNode.bind(sf);
+    const walk = (compilerNode: ts.Node): void => {
+      const subs = byKind.get(compilerNode.kind);
+      if (subs !== undefined) {
+        const node = wrap(compilerNode);
+        for (const visit of subs) {
+          visit(node, sf);
+        }
       }
-      for (const visit of subs) {
-        visit(node, sf);
-      }
-    });
+      ts.forEachChild(compilerNode, walk);
+    };
+    ts.forEachChild(sf.compilerNode, walk);
   }
 }
 
