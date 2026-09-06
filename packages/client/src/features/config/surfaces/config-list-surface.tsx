@@ -198,6 +198,12 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
  *    auto-selected group would push CONTENT over the LIST and the reader would arrive inside a settings body
  *    they never chose, with the map behind a Back button. On a phone the LIST *is* the screen, which is the
  *    same posture the amendment asks for on the desktop: arrive on what you came for.
+ *    THIS CONDITION IS ONLY AS TRUE AS THE REGIME IT READS (#1741). `useMobileViewport()` is the shell's
+ *    published mirror, and while that publish lived only in a PASSIVE effect the mirror still said `false`
+ *    at the moment this layout effect ran — the guard was written, shipped, and silently inert on every
+ *    phone. `use-shell-layout.ts` now seeds the regime during its own render (see its note); a future
+ *    change that moves the seed back into an effect re-opens this exact hole, and the pin that catches it
+ *    is `tests/client/features/config/lib/config-section.ct.tsx`'s cold-arrival test.
  *
  * `useLayoutEffect`, not `useEffect`: the write lands BEFORE the browser paints, so the arrival's first
  * frame is the settings body rather than one frame of the landing followed by a swap.

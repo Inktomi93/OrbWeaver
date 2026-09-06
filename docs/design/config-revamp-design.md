@@ -918,7 +918,21 @@ mutually exclusive. Receipts: review doc §8.
 | - | - | - |
 | Before this row (desktop) | **1** | The launcher landing (`ConfigWelcome`) held CONTENT; one band click landed the group AND its first section — the owner's "category then section" was measured against the pre-`fd85639f8` surface; the nav fold had already collapsed the second click. |
 | After (desktop) | **0** | The first group is active in the first painted frame; its band is expanded (the ACTIVE-group rule, unchanged) and its first section row is `aria-current`. |
-| After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. |
+| After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. **True since #1741 — see the repair below; the row described the code's intent for three eras while the phone did the opposite.** |
+
+**TRUTH REPAIR (#1741, 2026-09-05) — the phone row above was a WISH, not a behaviour, and the ruling is
+untouched: its INPUT changed.** The guard was written and shipped exactly as stated, and it was inert on
+every phone. `useMobileViewport()` reads the shell's PUBLISHED regime mirror in `#state` (a feature may not
+read matchMedia — `no-raw-matchmedia`), and `use-shell-layout.ts` published that mirror only from a PASSIVE
+effect. A passive effect runs after every layout effect in the same commit's subtree, and `/config` puts the
+LIST in the shell's FIRST commit (`router.tsx` sets the section in `beforeLoad`), so the arrival default's
+`useLayoutEffect` read the store's pre-mount `false` DEFAULT, took the desktop arm, and selected a group —
+after which the one-shell rule correctly pushed CONTENT over the LIST and the whole map was unreachable
+without a panel drive. The fix is at the publisher: the regime is now SEEDED during `useShellLayout`'s own
+render, so no reader in the shell's first commit ever sees the pre-mount default. Every other `#state`
+viewport reader was wrong for one frame by the same mechanism; only this one latched. The pin is the
+cold-arrival test in `tests/client/features/config/lib/config-section.ct.tsx`, which is red on the old
+publisher.
 
 Three conditions, each a real state: once per mount (a reader who backs out to the landing STAYS there —
 `clearActiveConfigGroup` is a door they walked through), never when a member or a deep-linked group is
