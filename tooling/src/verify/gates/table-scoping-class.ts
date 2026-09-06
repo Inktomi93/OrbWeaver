@@ -43,7 +43,7 @@ type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
 
 /** EVERY table in `packages/db/src/schema/**`, classified. TOTAL and TWO-SIDED: an unlisted table is RED,
  *  a listed table the schema no longer declares is RED. The (a) rows mirror `ownerid-registry`'s
- *  OWNERID_ALLOWLIST (that gate owns WHETHER the stamp is legal; this one owns what the stamp MEANS for a
+ *  OWNERID_CLASSIFICATIONS (that gate owns WHETHER the stamp is legal; this one owns what the stamp MEANS for a
  *  read), so their reasons stay short and cite it. Verified against the schema 2026-08-08 (refinery R0 —
  *  which also corrected a two-row drift the previous census missed): 86 tables — 23 ownerId ·
  *  19 membership · 15 junction · 24 parent · 5 global (D121-E added the regex library + its four scope
@@ -52,7 +52,7 @@ type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
  *  rider added `roster_preset_rules` (parent — one FK, the catalogue side is code); #802 added
  *  `plugin_assets` (junction) → 87 tables, 16 junction). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
-  // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
+  // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_CLASSIFICATIONS. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
   automation_rules: { scope: "ownerId", why: "D46 host-authored rule — runs as its author; the ownerId is the funding/authority subject." },
   characters: { scope: "ownerId", why: "D23 true producer — the card library is single-owned." },
