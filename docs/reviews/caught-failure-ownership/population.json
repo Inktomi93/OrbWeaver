@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 548,
-    "enforced": 543,
+    "sites": 551,
+    "enforced": 546,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 543,
+      "deliberate-absorb": 546,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 149,
-      "empty": 257
+      "default": 150,
+      "empty": 259
     }
   },
   "rows": [
@@ -1966,6 +1966,32 @@
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — only a handle-conflict",
       "markerLine": 99
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts::empty:failed::1",
+      "path": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts",
+      "line": 49,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:failed",
+      "ordinal": 1,
+      "snippet": "} catch (failed) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —",
+      "markerLine": 38
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts::empty:failed::1",
+      "path": "packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts",
+      "line": 44,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:failed",
+      "ordinal": 1,
+      "snippet": "} catch (failed) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —",
+      "markerLine": 33
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
@@ -6401,6 +6427,19 @@
       "markerLine": 295
     },
     {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::3",
+      "path": "tooling/src/snap/ops/stage-marker.ts",
+      "line": 327,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the rename target is already gone — someone",
+      "markerLine": 322
+    },
+    {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
       "line": 186,
@@ -6416,7 +6455,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 335,
+      "line": 365,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6424,7 +6463,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.",
-      "markerLine": 330
+      "markerLine": 360
     },
     {
       "siteId": "tooling/src/snap/ops/stage-reap-log.ts::default:catch::1",

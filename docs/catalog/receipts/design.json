@@ -1847,14 +1847,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "1b5e8da46262e8016877b58e3cc550027bb867fd586cf340b8b4b3420407e4ab",
+      "assignedSha256": "fe19e366cd8280739f7ca9767e23017d728aaff311b4b29bb06d820b1ae466ef",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "1b5e8da46262e8016877b58e3cc550027bb867fd586cf340b8b4b3420407e4ab",
-      "verifiedCommit": "5e491d1ee7b1dd26db8d92a79c239c0f9d1ef111",
+      "verifiedSha256": "fe19e366cd8280739f7ca9767e23017d728aaff311b4b29bb06d820b1ae466ef",
+      "verifiedCommit": "5cc98a324ea8799034fb923a3f1839fb10ecbb78",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after the #1754 fold (cb-regex-label: the regex register's per-tier label rows) at 5cc98a324",
         "re-attested after the #1739 fold (cb-regex-handoff): the regex register's previous-host row — mark = no switch, detach offered (the #1742 rationale half-retired by the room-gated detach) at 5e491d1ee",
         "re-attested at ffd7d9a33 by the orchestrator after reading the regex REGISTER in full (cb-regex-section, #1742): five minted rows recorded BEFORE the strings exist (the map's own rule — a word changes HERE first) plus the REUSED table citing each shipped carrier; the server half landed with the mint, the client half is the step-4 build.",
         "re-attested at b0e62f3bd by the orchestrator after reading the #1737/#1738 edit in full: the HELD survivor table is EMPTY (its last row, the prose-slot id, closed by the rename) and is replaced by a dated closure paragraph; the section keeps its re-derivation command and the false-stem fence; the drive-axis prose sweep (#1738) took the map's words (seated/present characters, joined character names, multi-voice, presence-gating).",
