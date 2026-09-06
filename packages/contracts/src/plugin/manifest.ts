@@ -105,9 +105,50 @@ export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
  *  Derived once so a third egress capability lands in ONE place instead of a hand-updated `||` chain. */
 const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies readonly PluginCapability[];
 
+/** THE MINT'S BYTE BUDGET (#1803, the #1391 fork). `pluginToolWireName` (`registrations.ts`) mints
+ *  `plugin_<slug'>_<name>` where `slug'` doubles every hyphen, and the ONE registry grammar `TOOL_NAME_RE`
+ *  (`packages/server/src/domain/tool-use/contract/params.ts`) refuses a name over 64 bytes. Contracts
+ *  cannot import server (the cake), so the 64 here is PINNED to that regex by a cross-package test
+ *  (`tests/contracts/plugin/registrations.contract.test.ts`), never a second guess at the number.
+ *
+ *  BEFORE THIS BUDGET EXISTED a plugin whose slug+name flattened past 64 bytes registered nothing useful:
+ *  the mint ran unconditionally, activation proceeded, and only `registerPluginTool`'s downstream
+ *  `TOOL_NAME_RE.test` refused the result — AFTER the guest handler was already collected, with a
+ *  `ToolNameCollisionError` whose text never mentioned length. Bounding `slug` HERE (the manifest parse,
+ *  this file) and the guest-local tool `name` at the membrane's `tools.register` trust boundary
+ *  (`infra/plugin-host/membrane.ts`) moves the refusal to the SAME call the author made, and the two
+ *  boundaries are provably sufficient: a slug ≤ {@link PLUGIN_SLUG_MAX} and a name ≤
+ *  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} can NEVER mint past 64 bytes (the arithmetic below is the proof),
+ *  so `registerPluginTool`'s regex test is a pure backstop from here on — unreachable by construction for
+ *  a plugin-sourced name, kept loud in case a future caller bypasses either boundary. */
+export const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
+/** `PLUGIN_TOOL_NAME_PREFIX.length` (`registrations.ts`, the literal `"plugin_"`) restated as a number so
+ *  the arithmetic below reads as arithmetic rather than a bare `7`. A same-package import here would reach
+ *  BACK into `registrations.ts`, which itself type-imports `./ui.ts` — this file's own downstream
+ *  consumer — so the tie is a literal, PINNED by the cross-package test named above rather than a second
+ *  import edge. */
+const PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN = 7;
+/** The install slug's hard cap. Every showcase plugin's slug is ≤ 17 bytes
+ *  (`research-familiar`, `packages/showcase-plugins/bundles/research-familiar/manifest.json`); 20 clears
+ *  every real slug with margin. It is the DOMINANT term in the budget below because the mint doubles
+ *  every hyphen — one byte of slug can cost two bytes of wire name. */
+export const PLUGIN_SLUG_MAX = 20;
+/** The guest-local tool name's hard cap — DERIVED, not independently chosen. The mint is
+ *  `prefix + slug' + "_" + name`; `slug'` doubles only the HYPHENS in `slug` (not every byte), so its
+ *  worst case (a slug of `PLUGIN_SLUG_MAX` bytes that is one leading alnum char plus ALL hyphens, the
+ *  maximum `SLUG_RE` admits) is `2 * PLUGIN_SLUG_MAX - 1` bytes, not `2 * PLUGIN_SLUG_MAX` — the `-1`
+ *  that separator's own `+1` immediately cancels, which is why the formula below has no `-1`/`+1` of its
+ *  own. Raising `PLUGIN_SLUG_MAX` automatically SHRINKS this instead of silently reopening the overrun
+ *  #1803 fixes. Every showcase tool name (`advance_clock`, 13 bytes,
+ *  `packages/showcase-plugins/bundles/story-clocks/main.js`) clears it with margin. Consumed by
+ *  `PLUGIN_TOOL_NAME_RE` (`ui.ts`) — the SAME grammar the membrane's `tools.register` trust boundary and
+ *  the `tool-card` surface's `toolName` linkage both enforce (one grammar, both boundaries). */
+export const PLUGIN_TOOL_NAME_LOCAL_MAX = PLUGIN_TOOL_WIRE_NAME_MAX - PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN - 2 * PLUGIN_SLUG_MAX;
+
 /** A lowercase slug, unique per installing owner — NOT reverse-DNS (nothing federates; a slug is what users
- *  type and logs show). Also the tool namespace prefix root. */
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
+ *  type and logs show). Also the tool namespace prefix root. Length capped at {@link PLUGIN_SLUG_MAX} (the
+ *  wire-mint budget above), tighter than an arbitrary "reasonable identifier" cap would otherwise need to be. */
+const SLUG_RE = new RegExp(`^[a-z0-9][a-z0-9-]{1,${PLUGIN_SLUG_MAX - 1}}$`);
 /** The slug as a STANDALONE input schema — the manifest field's own grammar, exported so a transport verb
  *  that takes a slug (`plugin.uninstallForAllUsers`) validates with the ONE rule rather than re-spelling a
  *  length cap that would drift from it. Same regex object, so the two can never disagree. */

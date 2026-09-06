@@ -35,9 +35,17 @@ export const notificationsChrome: ChromeEntry = {
   // THE PHONE'S UNREAD SIGNAL (side-eye home re-score 2026-08-18, #214 residue). Curating this widget into
   // the You sheet gave the inbox room, and cost it its only phone-side TELL: the desktop bell badges the
   // unread count, and a phone showed nothing anywhere until the user opened the sheet and scrolled to it.
-  // The mobile bar's You tab — the sheet's own door — badges this number. It is the SAME read the bell
+  // The mobile bar's You tab — the sheet's own door — carries this signal. It is the SAME read the bell
   // makes (one producer; react-query dedupes the key, so this is a second reader, not a second source).
-  useBadge: (): number => useInbox().unreadCount,
+  //
+  // IT IS THE UNION, NOT THE UNREAD COUNT (#1815, owner ruling ARM A — mirror the bell on the phone).
+  // `waitingCount` is `unread || actionable`, exactly the predicate behind the desktop dot (#1799), and the
+  // reason the phone specifically needs the second half is the SHEET LENS: opening the sheet marks every row
+  // read on mount, so an unread-only tell went dark the first time a reader looked and never came back —
+  // even with an invite still sitting there undecided. The pending half is server-derived
+  // (`InboxView.actionable`) and never re-derived here, so an invite settled from a share link stops
+  // lighting the tab without the reader touching anything.
+  useBadge: (): number => useInbox().waitingCount,
   // BOTH LENSES ARE REAL now: `"bar"` is the badged bell + popover, `"sheet"` is the inline inbox block
   // the mobile You sheet renders (see `NotificationBell`).
   behavior: { kind: "widget", body: (presentation): ReactElement => <NotificationBell presentation={presentation} /> },

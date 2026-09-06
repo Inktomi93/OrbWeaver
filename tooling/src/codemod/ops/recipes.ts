@@ -23,9 +23,11 @@ await runCodemod("my-codemod", (ctx) => {
   // ... ctx.plan(...) calls
 });
 
-// Run from the repo root:
-//   node scripts/codemods/my-codemod.ts            # preview only
-//   node scripts/codemods/my-codemod.ts --apply    # write changes`,
+// Run from the repo root. \`codemod:run\` is \`node\` UNDER the workspace heap floor
+// (pnpm-workspace.yaml \`nodeOptions\`); a bare \`node\`/\`npx\` carries no floor and a
+// whole-project ts-morph pass OOMs at node's ~4GB self-cap, so runCodemod refuses to start:
+//   pnpm codemod:run scripts/codemods/my-codemod.ts            # preview only
+//   pnpm codemod:run scripts/codemods/my-codemod.ts --apply    # write changes`,
   },
   {
     name: "move-files",

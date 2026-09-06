@@ -153,7 +153,7 @@ function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
     // the attribute-gloss cases pass a real profile.
     statProfile: RPG_PROFILE_FREEFORM,
     features: features(),
-    rosterNames: {},
+    participantNames: {},
     deception: false,
     omniscience: false,
     dateMode: "narrated",

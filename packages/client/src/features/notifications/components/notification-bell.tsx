@@ -18,14 +18,16 @@ import type { NotificationEvent, NotificationType } from "@orb/contracts/notific
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Bell, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
+import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -84,7 +86,7 @@ export interface NotificationBellProps {
 export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { items, unreadCount } = useInbox();
+  const { items, unreadCount, pendingCount } = useInbox();
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const [open, setOpen] = useState(false);
@@ -106,12 +108,18 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const isSheet = presentation === "sheet";
   const hasUnread = unreadCount > 0;
   // THE INDICATOR PREDICATE — ONE boolean, computed here, so the bar lens's dot is never re-derived at the
-  // JSX. It reads `unread` today and #1799 widens it to `unread || pending` (the dot must persist while any
-  // row still needs a decision — an invite, a handoff nomination, the consent ask — and opening the popover
-  // must not clear an actionable row). That is the seam: one predicate changes, the rendering does not.
-  // Deliberately NOT folded into `hasUnread`: that one is the mark-read trigger and stays "new since you
-  // looked", which is exactly the meaning #1799 separates the indicator FROM.
-  const showIndicator = hasUnread;
+  // JSX. It means NEW **OR** PENDING (owner ruling, #1799), and the two halves clear on different acts:
+  //   · NEW  (`hasUnread`) — "something arrived since you looked". OPENING the popover clears it, because
+  //     opening IS looking; that is what `onOpenChange` fires markAllRead for.
+  //   · PENDING (`hasPending`) — "something is still waiting on your decision": an invite nobody has
+  //     answered, a nomination nobody has confirmed, a standing consent ask. Reading it changes NOTHING.
+  //     Only acting — accept / decline / confirm / dismiss — takes the row out of the actionable set, and
+  //     the server is what decides that (`InboxView.actionable`, derived from the chat domain's own state),
+  //     so an invite settled from a share link stops lighting the bell without anyone touching the inbox.
+  // Deliberately two derivations rather than one: `hasUnread` is ALSO the mark-read trigger below, and
+  // folding pending into it would make opening the bell mark-read on a loop it can never satisfy.
+  const hasPending = pendingCount > 0;
+  const showIndicator = hasUnread || hasPending;
   const markAllReadNow = markAllRead.mutate;
   useEffect(() => {
     if (isSheet && hasUnread) {
@@ -168,20 +176,45 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     );
 
   const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount} unread)`;
+  // THE INBOX BODY, in ONE place for both lenses (#1799 restyle). `gap="block"` rather than `row`: the rows
+  // are now two-line blocks with their own action cluster, and at `row` the copy of one row sat closer to
+  // the buttons of the next than to its own. The width floor grew with them — a decision row's copy plus
+  // two buttons could not share 16rem without the buttons wrapping under a truncated sentence.
+  //
+  // NOT `ListRow` (checked before inventing, UI-Primitives-and-Reuse §13.7): that primitive's whole shape is
+  // a CLICKABLE row whose accessible name is its `title` string, and an inbox row is a statement with its
+  // own buttons inside it — nesting Accept/Decline in a button is invalid, and a row-level click has nowhere
+  // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
   const inbox = (
-    <Stack gap="row" className="min-w-64">
+    <Stack gap="block" className="min-w-80">
       {items.length === 0 ? (
-        <Text voice="quiet">No notifications.</Text>
+        // A STATE, not a shrug (`empty-states-are-load-bearing`): the old bare "No notifications." read as a
+        // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a
+        // second one would invent structure the pane does not have.
+        <EmptyState
+          title="You're all caught up"
+          titleAs="p"
+          description="Invitations, host handoffs and notices from your plugins land here."
+          icon={<Icon icon={Bell} size="md" />}
+        />
       ) : (
-        items.map((item) => (
-          <InboxRow
-            key={item.id}
-            item={item}
-            acceptedHandoff={acceptedHandoffIds.includes(item.id)}
-            onAccepted={onAccepted}
-            onOpenPlugins={onOpenPlugins}
-            onRequestHandoff={onRequestHandoff}
-          />
+        // A HAIRLINE BETWEEN ROWS, and it is a MEASURED fix rather than decoration. Two CT-browser shots
+        // (gap `field`-in/`block`-out, then `tight`-in/`block`-out) both came back with the same defect:
+        // a row's copy sat ~28px above its own buttons and ~35px above the NEXT row's copy, because a
+        // `size="sm"` Button's own box height dominates a flex gap — so no gap ratio this list can afford
+        // makes the action cluster visibly belong to one row. The rule states the boundary instead of
+        // implying it, and it is the house primitive `Section` already uses for exactly this.
+        items.map((item, index) => (
+          <Fragment key={item.id}>
+            {index > 0 ? <Separator aria-hidden={true} /> : null}
+            <InboxRow
+              item={item}
+              acceptedHandoff={acceptedHandoffIds.includes(item.id)}
+              onAccepted={onAccepted}
+              onOpenPlugins={onOpenPlugins}
+              onRequestHandoff={onRequestHandoff}
+            />
+          </Fragment>
         ))
       )}
     </Stack>
@@ -357,18 +390,38 @@ function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenP
     });
   };
   return (
-    <Row gap="field" align="center" justify="between" data-slot="inbox-row">
-      <Text as="span" size="label" weight={item.readAt === null ? "medium" : undefined}>
-        {rowCopy(item.payload)}
-      </Text>
-      <Row gap="field" align="center">
+    // THE ROW IS A BLOCK, AND EVERY ROW IS THE SAME BLOCK (#1799 restyle): the statement on its own line,
+    // the controls on their own line under it, ended flush right. Side-by-side was the previous shape and it
+    // could not hold both — a decision row's sentence truncated to make room for two buttons, so the one row
+    // that needed reading was the one that could not be read.
+    //
+    // `data-pending` IS THE MACHINE-READABLE HALF of the pending/informational distinction — an attribute,
+    // not just paint, so a probe (and the CT) can tell the two apart without decoding pixels, and so the
+    // fact travels wherever the row does. Present-with-empty-value, the house `data-*` idiom.
+    // `gap="tight"` INSIDE against the list's `gap="block"` OUTSIDE, and the ratio is the whole point:
+    // MEASURED on the CT-browser shot at the first attempt (`field` inside, `block` outside), a row's own
+    // copy sat ~30px from its buttons while the NEXT row's copy sat ~35px from those same buttons — near
+    // enough that the cluster read as belonging to whichever row you looked at first. 4px against 12px is
+    // unambiguous without a rule between rows.
+    <Stack gap="tight" data-slot="inbox-row" {...(item.actionable ? { "data-pending": "" } : {})}>
+      <Row gap="field" align="start">
+        {/* THE SAME MARK THE BELL WEARS. A row that is still waiting on you gets the dot the trigger got
+            (#1798's `size="dot"` arm), so "there is a dot" means one thing in this feature rather than two —
+            you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
+            own actions are what say it is decidable; the mark is the sighted shorthand. */}
+        {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mt-field" /> : null}
+        <Text as="span" size="label" weight={item.readAt === null || item.actionable ? "medium" : undefined}>
+          {rowCopy(item.payload)}
+        </Text>
+      </Row>
+      <Row gap="field" align="center" justify="end">
         {isInvite && !acted ? (
           <>
             <Button
               aria-label={`Accept invitation from ${item.payload.invitedByHandle}`}
               type="button"
               disabled={isPending}
-              intent="secondary"
+              intent="primary"
               size="sm"
               onClick={acceptInvite}
             >
@@ -378,7 +431,7 @@ function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenP
               aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
               type="button"
               disabled={isPending}
-              intent="ghost"
+              intent="secondary"
               size="sm"
               onClick={declineInvite}
             >
@@ -391,7 +444,7 @@ function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenP
             aria-label="Accept the host handoff"
             type="button"
             disabled={isPending}
-            intent="secondary"
+            intent="primary"
             size="sm"
             onClick={(): void => onRequestHandoff(item)}
           >
@@ -399,10 +452,15 @@ function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenP
           </Button>
         ) : null}
         {isConsent ? (
-          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} intent="secondary" size="sm" onClick={reviewConsent}>
+          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} intent="primary" size="sm" onClick={reviewConsent}>
             Review
           </Button>
         ) : null}
+        {/* DISMISS STAYS GHOST, and that is a deviation from the brief's "Decline/Dismiss = secondary" with
+            a reason: Dismiss is on EVERY row, including the nine-strong run of notices and consent asks a
+            fresh boot lands, and at `secondary` that run is a wall of bordered boxes with no focal point
+            left for the one row that actually asks something. Decline DID move up — it is Accept's peer, a
+            real second answer — but Dismiss is the escape hatch, never the row's point. */}
         {isInvite && !acted ? null : (
           <Button type="button" disabled={isPending} intent="ghost" size="sm" onClick={dismissRow}>
             Dismiss
@@ -414,6 +472,6 @@ function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenP
           </Text>
         ) : null}
       </Row>
-    </Row>
+    </Stack>
   );
 }

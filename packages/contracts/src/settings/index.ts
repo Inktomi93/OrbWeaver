@@ -816,6 +816,23 @@ const onboardingSchema = z
     // immutable; a stamp behind the shipped pack runs the seeder's heal, which only ever fills fields still
     // at their seeded default (it never stomps a choice the user made in their copy of an example).
     demoChatsPackVersion: z.number().int().min(0).catch(0).default(0),
+    // The example slugs a seed pass SKIPPED — the per-example evidence the latch above cannot carry (#1550).
+    // `demoChatsSeeded` latches unconditionally, so an example skipped during a partial seed (its cast handle
+    // not in the library yet, a transcript missing from the bundle, a parse failure) was unreachable forever:
+    // a demo room's ABSENCE reads identically whether we never created it or the user deleted it, and the
+    // latch owns deletion-respect. This records the fact at the moment we KNOW it, so a later touch can
+    // finish the job without resurrecting anything.
+    //
+    // THE SKIPPED SET, NOT THE SEEDED ONE, AND THE INVERSION IS THE SAFETY ARGUMENT. A "which examples are
+    // ours" ledger fails DANGEROUS: `.catch` on this blob (every latch here has one) means a corrupt or
+    // defaulted read says "we created none", and a retry driven off that would re-create every example the
+    // user deleted — precisely what `demoChatsSeeded` exists to prevent. A skip list fails CLOSED: empty or
+    // lost ⇒ no retries ⇒ the pre-#1550 behaviour, which is also why the pre-ledger cohort needs no backfill
+    // (their empty list seals them). The seeder DROPS a slug from here the moment it lands.
+    //
+    // NOT the `seededPluginVersions` shape below: that map answers "is this copy still ours?" for rows that
+    // EXIST and can diverge. This answers "did our own write never happen?", which has no version to compare.
+    demoChatsSkipped: z.array(z.string()).catch([]).default([]),
     // The SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch for the same reason
     // the demo chats have theirs: the examples are installed (disabled, ungranted) per user, and this flag is
     // also the DELETION-RESPECT guard. A user who uninstalls an example must not find it back on their next

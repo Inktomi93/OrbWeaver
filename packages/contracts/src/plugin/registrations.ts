@@ -67,8 +67,11 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *  cost the second plugin its whole activation, and two legitimately named plugins could not coexist. The
  *  owner ruled for the injective form plus a migration of the persisted spellings, over keeping the refusal.
  *
- *  THE PROOF. `SLUG_RE` is `^[a-z0-9][a-z0-9-]{1,63}$` and `PLUGIN_TOOL_NAME_RE` is `^[a-z][a-z0-9_]{0,40}$`,
- *  so: a slug contains NO `_` and never begins with `-`; a name never begins with `_`. Doubling each hyphen
+ *  THE PROOF. `SLUG_RE` (`manifest.ts`) is `^[a-z0-9][a-z0-9-]{1,N}$` and `PLUGIN_TOOL_NAME_RE` (`ui.ts`)
+ *  is `^[a-z][a-z0-9_]{0,M}$` for whatever `N`/`M` the wire-mint budget (`manifest.ts` `PLUGIN_SLUG_MAX`/
+ *  `PLUGIN_TOOL_NAME_LOCAL_MAX`, #1803) currently sets — the injectivity proof below depends only on the
+ *  CHARSETS, never the lengths, so it survives either cap moving: a slug contains NO `_` and never begins
+ *  with `-`; a name never begins with `_`. Doubling each hyphen
  *  gives a flattened slug in which every maximal `_` run has EVEN length (exactly 2 per hyphen) and which
  *  never begins with `_`. The single `_` separator therefore lands at the end of a run of length `2k+1`
  *  (`k` = the slug's trailing hyphens) — ODD — and every run before it is even.
@@ -82,16 +85,21 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *  PINNED as an executable decoder in `tests/contracts/plugin/ui.contract.test.ts`, which is what keeps this
  *  proof falsifiable.
  *
- *  LENGTH IS A SEPARATE, PRE-EXISTING WALL, not a regression of this change: `domain/tool-use`'s
- *  `TOOL_NAME_RE` caps a registry name at 64 bytes, which `plugin_` + a 64-byte slug + `_` + a 41-byte name
- *  already exceeded under the old flattening (113). Doubling raises the worst case, and a hyphen-dense slug
- *  that busts the cap is refused LOUDLY at `registerPluginTool` (`ToolNameCollisionError`, activation-fatal
- *  for that plugin) exactly as before — never truncated, never silently mis-routed.
+ *  LENGTH WAS A SEPARATE WALL that this change's own doubling made worse, and #1803 closed it at the
+ *  INPUT boundaries instead of leaving it as a downstream refusal: `domain/tool-use`'s `TOOL_NAME_RE` caps
+ *  a registry name at 64 bytes (`manifest.ts` `PLUGIN_TOOL_WIRE_NAME_MAX`, pinned to that regex by a
+ *  cross-package test), and `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX` are sized so
+ *  `PLUGIN_TOOL_NAME_PREFIX.length + 2*slug.length + 1 + name.length` can NEVER exceed it — a slug over
+ *  budget is refused at the manifest parse (contracts), a name over budget is refused at the membrane's
+ *  `tools.register` (`infra/plugin-host/membrane.ts`, the guest-input trust boundary), and BOTH refusals
+ *  name the length, not "collision". `registerPluginTool`'s `TOOL_NAME_RE.test` is therefore a pure
+ *  BACKSTOP from here on — unreachable by construction for a plugin-sourced name (kept loud in case a
+ *  future caller bypasses either boundary), never the primary wall it used to be.
  *
  *  THE COLLISION REFUSAL AT `registerPluginTool` SURVIVES this change and is still reachable: one plugin
- *  registering the same tool twice, a second copy of the same slug on one shelf, a name a first-party tool
- *  already holds, and the length case above. What it no longer has to catch is two DIFFERENT slugs flattening
- *  alike — that arm is now unreachable by construction, and the property pin above is what proves it. */
+ *  registering the same tool twice, a second copy of the same slug on one shelf, and a name a first-party
+ *  tool already holds. What it no longer has to catch is two DIFFERENT slugs flattening alike — that arm
+ *  is now unreachable by construction, and the property pin above is what proves it. */
 export function pluginToolWireName(slug: string, name: string): string {
   return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "__")}_${name}`;
 }

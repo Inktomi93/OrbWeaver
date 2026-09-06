@@ -164,6 +164,9 @@ describe("providerErrorFromHttp", () => {
     expect(pe.kind).toBe("auth_failed");
   });
 
+  // SHAPE-BELT CONTROL (#1760/#1785/#1809): this fixture matches the `sk-…` shape, so the defense-in-depth
+  // sweep inside `redactSecretsFromText` removes it whatever the BY-VALUE belt does. Kept deliberately — it
+  // pins the sweep — but it can never serve as the by-value pin; those arms are at the foot of this file.
   test("scrubs reflected credentials before ProviderError construction and replaces the raw cause", () => {
     const secret = "sk-or-reflected-secret-123456";
     const raw = Object.assign(new Error(`provider rejected ${secret}`), {
@@ -231,5 +234,65 @@ describe("providerErrorFromHttp — a key-in-body credential (#1760)", () => {
     const diag = extractHttpErrorDiagnostic({ body: `echo ${inBodyKey}`, cause: new Error(`parse near ${inBodyKey}`) }, providerCredentialSecretValues(cred));
     expect(JSON.stringify(diag)).not.toContain(inBodyKey);
     expect(diag.body).toContain("█");
+  });
+});
+
+// #1809 (SECURITY): these sites were spelled `redactSecretsFromText(sanitizeApiError(x), secrets)` —
+// SANITIZE, then scrub. `sanitizeApiError` MUTATES the text first: it replaces every `<…>` span with a
+// space and hard-caps the result at 500 chars. Either edit can bite a known credential in half, and once
+// the literal is fragmented NEITHER of its spellings matches, so the by-value belt never reaches the
+// remainder — which then rides `ProviderError.message` into the #1373 `securityEvent("credential_revoked")`
+// and the credential audit row, a DURABLE sink. The order is now scrub-then-sanitize: the by-value belt
+// reads intact text, and the length cap applies to already-scrubbed bytes.
+//
+// SHAPE-BLIND FIXTURES (the #1760/#1785 instrument-lie): an `sk-…`/`Bearer …` credential is removed by
+// `redactSecretsFromText`'s defense-in-depth shape sweep whatever the by-value belt does, so a pin written
+// with one goes green against the BROKEN source. These match neither shape and are assembled from parts.
+// The `sk-or-reflected-secret-123456` arm above is kept as the labelled shape-belt control.
+//
+// Every arm also asserts surviving non-secret content: `redactKnownSecrets` FAIL-CLOSES to `""` when a
+// literal survives, and a blank string satisfies every `not.toContain` vacuously.
+describe("the by-value scrub runs BEFORE sanitize mangles the text (#1809)", () => {
+  const lt = "<";
+  const gt = ">";
+  /** A BYO credential carrying markup characters — a user-authored header/body auth value is arbitrary text,
+   *  and `sanitizeApiError` turns `<tag>` into a space, leaving {@link angleTail} standing. */
+  const angleKey = `byo${lt}tag${gt}cred4d8e1b6a2c90`;
+  const angleTail = "cred4d8e1b6a2c90";
+
+  // The cap is 500. With 484 chars of padding plus one space the credential starts at index 485, so the cut
+  // lands 15 chars into it — and those 15 are the key's entropy prefix, not a guessable label.
+  const straddlePadLength = 484;
+  const straddlePadding = "y".repeat(straddlePadLength);
+  const straddleKey = "9f2b7e4a1c6d8305-straddle-cred";
+  const straddleSurvivingPrefix = "9f2b7e4a1c6d830";
+
+  test("a markup-bearing credential reflected in the upstream BODY is scrubbed whole (error-classify:190)", () => {
+    const diag = extractHttpErrorDiagnostic({ body: `upstream echoed ${angleKey}` }, scrubSetFor(angleKey));
+    expect(diag.body).not.toContain(angleKey);
+    expect(diag.body).not.toContain(angleTail);
+    expect(diag.body).toContain("█");
+    expect(diag.body).toContain("upstream echoed");
+  });
+
+  test("a markup-bearing credential reflected in the CAUSE is scrubbed whole (error-classify:196)", () => {
+    const diag = extractHttpErrorDiagnostic({ cause: new Error(`wire parser saw ${angleKey}`) }, scrubSetFor(angleKey));
+    expect(diag.cause).not.toContain(angleKey);
+    expect(diag.cause).not.toContain(angleTail);
+    expect(diag.cause).toContain("█");
+    expect(diag.cause).toContain("wire parser saw");
+  });
+
+  test("a credential straddling the 500-char cap never reaches the durable message (error-classify:216)", () => {
+    const raw = new Error(`${straddlePadding} ${straddleKey}`);
+    const pe = providerErrorFromHttp(raw, "custom-byo (https://byo.test/v1)", scrubSetFor(straddleKey));
+
+    // The truncation used to cut the key in half and the by-value belt, running after it, saw neither
+    // spelling — so this prefix was written to the audit row.
+    expect(pe.message).not.toContain(straddleSurvivingPrefix);
+    expect(pe.message).toContain("█");
+    expect(pe.message).toContain(straddlePadding);
+    expect(JSON.stringify(pe.toLog())).not.toContain(straddleSurvivingPrefix);
+    expect((pe.cause as Error).message).not.toContain(straddleSurvivingPrefix);
   });
 });

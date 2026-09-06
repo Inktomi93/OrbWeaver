@@ -134,9 +134,18 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
     forInstaller.set(req.slug, entries);
     byInstaller.set(req.installer, forInstaller);
     return {
+      // THE HANDLE UNREGISTERS ITS OWN REGISTRATION, NOT THE KEY (#1480 item 5). `entries` is this call's
+      // freshly-built array, so the identity check answers "does the map still hold what I put there?" —
+      // a handle kept from a superseded registration is inert. Without it, `unregister` deleted whatever
+      // (installer, slug) currently mapped to, so a stale handle silently evicted the registration that
+      // replaced it: the plugin stays ACTIVE in the activation registry while every one of its macros
+      // renders as raw `{{…}}` bytes in that installer's prompts until a re-activation heals it. No caller
+      // holds a stale handle today (`deactivate` re-reads the live handles; `activate`'s rollback only
+      // unregisters its own failed attempt before any `registry.set`) — this is the local belt so that
+      // staying true is not a property of every future caller's discipline.
       unregister: (): void => {
         const live = byInstaller.get(req.installer);
-        if (live === undefined) {
+        if (live === undefined || live.get(req.slug) !== entries) {
           return;
         }
         live.delete(req.slug);

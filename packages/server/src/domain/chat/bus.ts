@@ -26,6 +26,21 @@
 //     being one undifferentiated `null`. A lost event on a live chat is a permanent replay gap — a missing turn
 //     terminal, a missed automation trigger, a stranded client — so the transient half of that class (write
 //     contention) is now recovered instead of merely logged.
+// `emitAfterClaim` IS FIRE-ONCE BY DESIGN, AND THAT IS A RULING, NOT A GAP (#1522). `emit` retries because
+// its append stands ALONE: a lost append is a permanent replay gap with no other record of the thing it
+// announced. The claim door's append rides the SAME SQLite batch as the state change it announces, and that
+// atomicity answers both halves of "a claim-carrying event lost to a transient fault is terminal for replay":
+//   • the batch did NOT commit ⇒ the claim was not consumed and the state change did not happen. There is
+//     nothing to replay, and re-announcing would be a lie. The CALLER's own retry re-does both planes.
+//   • the batch COMMITTED and the driver died reporting it ⇒ both planes stand, so the event has a
+//     `chat_events` row and its cursor: a reconnect replays it exactly once. Only the LIVE FAN is lost —
+//     the same recoverable half the terminal-drop branches below name for `emit`.
+// A retry is also structurally incapable of double-consuming (the co-statement's `changes() > 0` guard makes
+// a re-run of an already-consumed claim a converged no-op that answers `false`) — so the missing retry costs
+// a LIVE FAN in one branch and nothing at all in the other. Both are pinned in `tests/server/domain/chat/
+// bus.int.test.ts`. WHAT WOULD REOPEN THIS: a caller whose claim does NOT ride this batch, or a caller that
+// must tell `false` (converged) apart from `null` (dropped) — today no caller reads either.
+//
 // THE TERMINAL DROP HAS TWO BRANCHES, and they state opposite facts (#1544 — `reportTerminalDrop`): #1537's
 // one-id-per-retry made "the first attempt COMMITTED and the same-id retry tripped the PK" reachable, and
 // there the row (with its replay slot) STANDS while only the live fan is lost. Both are ERROR — a stranded
@@ -285,7 +300,10 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
       }
       return publishCommitted(seq, event);
     } catch (err) {
-      // Terminal on sight — the claim statement is single-consumption, so a replay could apply it twice.
+      // Terminal on sight, and the header's `emitAfterClaim` ruling (#1522) is why that is correct rather
+      // than merely careful: this append rides the CALLER's claim in one batch, so a failure means the thing
+      // being announced did not happen (nothing to replay) — or it did, durably, and only the live fan was
+      // lost (a reconnect replays it). Neither case is a retry's to fix.
       if ((await classifyFailedAppend(deps.db, event)) === "live-fault") {
         getLog().error({ err, chatId, type: event.type }, "chat bus: DURABLE APPEND FAILED on a live chat — claimed event dropped");
       }

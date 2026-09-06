@@ -4,6 +4,7 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
+import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
 import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
 import type { InboxView } from "./views.ts";
@@ -12,6 +13,12 @@ import type { InboxView } from "./views.ts";
 export interface NotificationsContext {
   db: Db;
   now: () => number;
+  /** The ONE cross-feature read this domain consumes (#1799) — which of a page's chat-owned decisions are
+   *  still standing, so `list`/`replaySince` can stamp `InboxView.actionable`. Declared in `./ops.ts` (the
+   *  consumer's own contract) and supplied by `entry/compose` from the chat domain; NOT optional, because a
+   *  missing resolver would silently answer "nothing is standing" and the bell's dot would go quiet on
+   *  exactly the rows it exists for. */
+  resolveStandingAsks: ResolveStandingAsks;
 }
 
 /** The producer-facing op a producer injects to deliver a notification — the one cross-feature edge. `emit`

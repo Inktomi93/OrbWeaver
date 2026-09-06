@@ -19,16 +19,23 @@ import { rmSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import {
+  characterRegexScripts,
   chatBooks,
   chatParticipants,
+  chatRegexScripts,
   chats,
   createDb,
   documentChunks,
   documents,
+  globalRegexScripts,
   localPath,
   messages,
   personas,
   preCloseHousekeeping,
+  presetRegexScripts,
+  regexScripts,
+  rosterPresetMembers,
+  rosterPresets,
   tags,
   users,
   worldBooks,
@@ -73,6 +80,7 @@ import {
   WORLD_BOOK_NAME,
 } from "../lib/fixture.ts";
 import { parseDemoArgs } from "../lib/transcript.ts";
+import { seedDemoPresetRegexTier, seedDemoRegexTiers, seedDemoRosters } from "./demo-library-arms.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
@@ -106,7 +114,26 @@ function dbFilePath(url: string): string | null {
 }
 
 async function countRows(db: Db): Promise<Record<string, number>> {
-  const tablesByLabel = { users, personas, chats, chatParticipants, messages, worldBooks, worldEntries, chatBooks, documents, documentChunks, tags };
+  const tablesByLabel = {
+    users,
+    personas,
+    chats,
+    chatParticipants,
+    messages,
+    worldBooks,
+    worldEntries,
+    chatBooks,
+    documents,
+    documentChunks,
+    tags,
+    regexScripts,
+    globalRegexScripts,
+    characterRegexScripts,
+    presetRegexScripts,
+    chatRegexScripts,
+    rosterPresets,
+    rosterPresetMembers,
+  };
   const pairs = await Promise.all(Object.entries(tablesByLabel).map(async ([label, table]): Promise<[string, number]> => [label, await db.$count(table)]));
   return Object.fromEntries(pairs);
 }
@@ -220,6 +247,9 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     });
     await services.worldInfo.attachToChat({ principal: owner, chatId: group.chat.id, bookId: book.id });
     log(`world book created + attached: ${WORLD_BOOK_NAME}`);
+
+    await seedDemoRegexTiers({ services, owner, log }, { assistantId, chatId: group.chat.id });
+    await seedDemoRosters({ services, owner, log }, { assistantId, groupCharIds });
   }
 
   // A databank document (paste-origin) + a synchronous ingest so document_chunks + embeddings exist.
@@ -228,8 +258,10 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   log(`databank document ingested: ${DEMO_DOCUMENT_NAME} (${ingest.chunksUpserted} chunk(s) embedded)`);
 
   // A saved generation preset.
-  await services.preset.create({ userId: ownerId, name: DEMO_PRESET_NAME, kind: "chat" });
+  const preset = await services.preset.create({ userId: ownerId, name: DEMO_PRESET_NAME, kind: "chat" });
   log(`preset created: ${DEMO_PRESET_NAME}`);
+
+  await seedDemoPresetRegexTier({ services, owner, log }, preset.id);
 
   // A tag, attached to the assistant character.
   const tag = await services.tag.createTag({ principal: owner, input: { name: DEMO_TAG_NAME } });

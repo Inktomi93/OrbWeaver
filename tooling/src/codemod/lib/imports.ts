@@ -88,26 +88,43 @@ export function repointImports(ctx: CodemodContext, fromSpecifier: string, toSpe
  */
 export function repointAliasPaths(ctx: CodemodContext, rewrites: ReadonlyArray<readonly [RegExp, string]>, opts: OperationOptions = {}): Plan {
   assert(rewrites.length > 0, "repointAliasPaths called with empty rewrites list");
-  // Materialise the source files up-front so we don't iterate while ts-morph
-  // is mutating its own internal list.
-  const affected = ctx.project.getSourceFiles().map((sf) => sf.getFilePath());
+  // Declare only the files this sweep actually REWRITES — computed by running the same rewrite chain
+  // the transform runs (#1781). Declaring every project file instead widened the harness's pre-emit
+  // diagnostics filter from a change's ~50 files to the whole workspace, burying the codemod's own
+  // signal under thousands of pre-existing unrelated errors; that is why the roster rename hand-rolled
+  // its own extension plan rather than calling this helper.
+  const affected = ctx.project
+    .getSourceFiles()
+    .filter((sf) => applyRewrites(sf.getFullText(), rewrites) !== undefined)
+    .map((sf) => sf.getFilePath());
 
   return {
-    description: `Alias-path sweep (${rewrites.length} pattern${rewrites.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
+    description: `Alias-path sweep (${rewrites.length} pattern${rewrites.length === 1 ? "" : "s"}, ${affected.length} file${affected.length === 1 ? "" : "s"})${noteSuffix(opts)}`,
     touchedFiles: affected,
     transform(innerCtx): void {
       for (const sf of innerCtx.project.getSourceFiles()) {
-        const before = sf.getFullText();
-        let after = before;
-        for (const [re, replacement] of rewrites) {
-          after = after.replace(re, replacement);
+        const after = applyRewrites(sf.getFullText(), rewrites);
+        if (after === undefined) {
+          continue;
         }
-        if (after !== before) {
-          sf.replaceWithText(after);
-        }
+        // The declared set is computed at plan-build time; an earlier plan in the same run can have
+        // changed a file since. Re-declaring here is idempotent and keeps the declaration law honest.
+        innerCtx.snapshot(sf);
+        sf.replaceWithText(after);
       }
     },
   };
+}
+
+/** Run every rewrite over `text` in order. Returns the new text, or undefined when nothing matched —
+ *  the ONE place the "did this file change?" question is answered, so the declared set and the
+ *  transform can never disagree about it. */
+function applyRewrites(text: string, rewrites: ReadonlyArray<readonly [RegExp, string]>): string | undefined {
+  let after = text;
+  for (const [re, replacement] of rewrites) {
+    after = after.replace(re, replacement);
+  }
+  return after === text ? undefined : after;
 }
 
 /** vi's module-mocking methods whose first argument is a module-specifier string.

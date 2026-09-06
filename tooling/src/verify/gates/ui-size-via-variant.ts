@@ -125,12 +125,14 @@ const ALLOWLIST: ExemptionTable = {
   "packages/client/src/features/config/components/config-collection-landing.tsx": {
     why: "`w-auto` on the library's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the control row for a three-word label, and the filter is what should take the slack.",
   },
-  // Re-pointed 2026-08-17 (`rpg-hud.tsx` → `rpg-hud-rail.tsx`, the `component-size` split) and again
-  // 2026-08-30 (#860: the rail moved into the shell tier as the context bracket's rail). Same code, same
-  // exemption, new path.
-  "packages/client/src/features/app-shell/components/context-rail.tsx": {
-    why: "`size-1.5` on a CHILDLESS Badge dot — Badge declares no h/w/size of its own (padding-sized), so there is no variant to fight; a features-tier surface can't paint a raw <span>, so the dot is a Badge sized at the call site (see the site comment).",
-  },
+  // RETIRED 2026-09-06 (#1799), and it retired the way the ratchet says a survivor should: by the
+  // exemption's own premise being PAID. The row read "`size-1.5` on a CHILDLESS Badge dot — Badge declares
+  // no h/w/size of its own (padding-sized), so there is no variant to fight" — true when it was written and
+  // false the moment Badge grew `size="dot"` (#1798, packages/ui/src/primitives/badge/variants.ts). There
+  // IS a variant to fight now, `context-rail.tsx` uses it, and the fix at both ends of the ratchet is the
+  // same one: the primitive learned the shape. Do not re-add the row for a new dot — add a consumer of the
+  // arm. (Kept as a comment, not deleted outright: the next reader of this table meets the ONE worked
+  // example of a survivor being paid off rather than re-pointed.)
 };
 
 const MESSAGE =

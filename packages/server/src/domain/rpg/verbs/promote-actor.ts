@@ -5,7 +5,7 @@
 // plane, RE-KEYED under her new identity with everything the acquaintance wrote still on it.
 //
 // TWO HALVES, IN THIS ORDER, AND THE ORDER IS THE DESIGN:
-//   1. the DURABLE half (`ctx.promoteToRoster`, an injected compose op over the character + chat front doors —
+//   1. the DURABLE half (`ctx.promoteToCharacter`, an injected compose op over the character + chat front doors —
 //      rpg owns neither table): resolve-or-mint the marked card, ensure its roster seat, hand back the `CharacterId`;
 //   2. the SNAPSHOT half (`writeHandState` + `rekeyActor`): move the actor's row, presence and hand PINS from
 //      `npc:<slug>` onto `character:<id>` against the TRUE head, clone-forwarding like every hand door.
@@ -66,16 +66,16 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     // actor from canon over a name, so the mint CLAMPS instead (`clampActorCardName`, `contracts/rpg/actor.ts`)
     // and reports the cut back as data (`issues`) rather than it vanishing silently into a shortened card.
     const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
-    const roster = await ctx.resolveRoster(game.chatId);
+    const participants = await ctx.resolveParticipants(game.chatId);
 
-    const minted = await ctx.promoteToRoster({
+    const minted = await ctx.promoteToCharacter({
       chatId: game.chatId,
       // The ROOM HOST, threaded explicitly: this verb gated `role === "host"`, so the caller IS that human, and
-      // the card must be minted under them (`resolveRpgRoster` reads roster cards under the host's ownership —
+      // the card must be minted under them (`resolveRpgParticipants` reads participant cards under the host's ownership —
       // a card owned by anyone else resolves to no actor at all).
       hostUserId: params.principal.userId,
       sourceActorKey: fromKey,
-      roster,
+      participants,
       name,
       // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT (#1386). `rpgNpcSlug` is the
       // ACTOR-KEY engine — its whole job is "never merge two people", so it is NFC-preserving, keeps every

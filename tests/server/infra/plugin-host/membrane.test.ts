@@ -17,7 +17,7 @@ import type {
   PluginSuggestedAct,
   PluginToastLevel,
 } from "@orb/contracts/plugin";
-import { PLUGIN_CAPABILITIES, PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, PLUGIN_FRAME_HTML_MAX_CHARS, PLUGIN_FRAME_SURFACES_MAX, PLUGIN_TOOL_NAME_LOCAL_MAX } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
@@ -659,20 +659,39 @@ describe("attachMembrane — sync registration metadata is guarded before ctx.du
       },
     });
     await withRuntime(runtime, (ctx) => {
-      // Uppercase + spaces + punctuation; a leading digit; and a name past the 41-char bound.
+      // Uppercase + spaces + punctuation; a leading digit; and a name past PLUGIN_TOOL_NAME_LOCAL_MAX
+      // (#1803 — the OTHER half of the wire-mint's byte budget, PLUGIN_SLUG_MAX being the manifest half).
       const attempt = (name: string): string =>
         `(() => { try { host.tools.register({ name: ${JSON.stringify(name)}, description: "d", parameters: {}, handler: () => {} }); return "collected"; }
                   catch (e) { return "caught:" + e.message; } })()`;
-      const bad = ["Draw Card!", "9lives", "x".repeat(64), "draw-card", ""];
+      const bad = ["Draw Card!", "9lives", "x".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX + 1), "draw-card", ""];
       for (const name of bad) {
         const result = ctx.evalCode(attempt(name));
         expect(readString(ctx, result.error ?? result.value)).toContain("caught:");
       }
-      // …and the grammar's own spelling still registers.
-      const ok = ctx.evalCode(attempt("draw_card"));
+      // …and the grammar's own spelling still registers, at-cap included (#1803: a length refusal is a
+      // boundary miss, never a truncation — the cap admits exactly `PLUGIN_TOOL_NAME_LOCAL_MAX` bytes).
+      const atCap = `a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX - 1)}`;
+      const ok = ctx.evalCode(attempt(atCap));
       expect(readString(ctx, ok.error ?? ok.value)).toBe("collected");
     });
-    expect(collected).toEqual(["draw_card"]);
+    expect(collected).toEqual([`a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX - 1)}`]);
+  });
+
+  // #1803 — the failure text says LENGTH: `PLUGIN_TOOL_NAME_RE.source` carries the numeric bound
+  // (`{0,N}`), so a caller reading the thrown message sees the byte cap, not a bare charset complaint.
+  test("tools.register's over-length refusal message states the numeric bound", async () => {
+    const { bridge } = fakeBridge();
+    const runtime = makeRuntime(["tools.register"], false, bridge, { collectTool: (_registration, handler): void => handler.dispose() });
+    await withRuntime(runtime, (ctx) => {
+      const overLong = "x".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX + 1);
+      const result = ctx.evalCode(
+        `(() => { try { host.tools.register({ name: ${JSON.stringify(overLong)}, description: "d", parameters: {}, handler: () => {} }); return "collected"; }
+                  catch (e) { return "caught:" + e.message; } })()`,
+      );
+      const message = readString(ctx, result.error ?? result.value);
+      expect(message).toContain(`{0,${PLUGIN_TOOL_NAME_LOCAL_MAX - 1}}`);
+    });
   });
 });
 

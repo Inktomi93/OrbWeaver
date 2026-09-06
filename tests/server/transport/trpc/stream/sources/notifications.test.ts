@@ -48,6 +48,8 @@ function inboxView(seq: number): InboxView {
     id: castId<NotificationId>(`notification_${seq}`),
     type: "kicked",
     payload: { type: "kicked", recipientUserId: RECIPIENT, chatId: castId<ChatId>("chat_1") },
+    // `kicked` is informational — it asks nothing of its reader, so it never raises the bell's dot (#1799).
+    actionable: false,
     seq,
     readAt: null,
     dismissedAt: null,

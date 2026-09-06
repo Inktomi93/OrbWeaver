@@ -9,7 +9,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, principal, rosterCharacter, rosterUser, seedLiteGame, seedUser, test } from "../../_support.ts";
+import { expect, participantCharacter, participantUser, principal, seedLiteGame, seedUser, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -19,8 +19,8 @@ beforeEach(async () => {
 describe("getTrackerView — the turnless-game default-state synthesis (no born snapshot)", () => {
   test("a game with NO snapshot rows renders the synthesized default: null ambient, empty planes, roster projected", async () => {
     await seedUser(db, castId<Handle>("host"));
-    const roster = [rosterUser(castId<Handle>("host"), "The Host"), rosterCharacter("gorak", "Gorak")];
-    const { chatId, h } = await seedLiteGame(db, { roster });
+    const participants = [participantUser(castId<Handle>("host"), "The Host"), participantCharacter("gorak", "Gorak")];
+    const { chatId, h } = await seedLiteGame(db, { participants });
 
     const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
     // No snapshot ⇒ synthesized default: null ambient, empty quests/cast/beats.
@@ -35,8 +35,8 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
 
   test("a written sheet is projected onto its roster actor; a non-roster sheet is NOT projected", async () => {
     const hostId = await seedUser(db, castId<Handle>("host"));
-    const roster = [rosterUser(castId<Handle>("host"), "The Host")]; // only the host is in the roster
-    const { chatId, h } = await seedLiteGame(db, { roster });
+    const participants = [participantUser(castId<Handle>("host"), "The Host")]; // only the host is in the roster
+    const { chatId, h } = await seedLiteGame(db, { participants });
     // Re-seed the game with the d20 profile (seedLiteGame defaults to freeform) — patch a sheet referencing it.
     await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     await h.service.patchSheet({
@@ -54,8 +54,8 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
 
   test("the no-drift invariant: snapshot-less view == after one empty hand-edit turn", async () => {
     await seedUser(db, castId<Handle>("host"));
-    const roster = [rosterUser(castId<Handle>("host"), "The Host"), rosterCharacter("gorak", "Gorak")];
-    const { chatId, h } = await seedLiteGame(db, { roster });
+    const participants = [participantUser(castId<Handle>("host"), "The Host"), participantCharacter("gorak", "Gorak")];
+    const { chatId, h } = await seedLiteGame(db, { participants });
 
     // Render the SYNTHESIZED default (no snapshot rows — the no-born-seed ruling).
     const synthesized = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
@@ -110,7 +110,7 @@ describe("getTrackerView — hidden spans are the HOST's plane, not the member's
   test("an actor's volatile prose is stripped for a member too (the recursive walk, not a field list)", async () => {
     const hostId = await seedUser(db, castId<Handle>("host"));
     await seedUser(db, castId<Handle>("member"));
-    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
     h.fakes.membership.set("user_member", "member");
     await h.service.patchActor({
       principal: principal(castId<Handle>("host")),

@@ -113,12 +113,12 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   const curSnapshot: RpgSnapshotState = cur !== undefined ? snapshotRowToState(cur) : defaultSnapshotState();
   const prevSnapshot: RpgSnapshotState | null = prev !== undefined ? snapshotRowToState(prev) : null;
   // The delta's roster-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name roster
-  // actors ("Kael HP 12→16", not "character HP 12→16"). Resolved HERE (the gather has `ctx.resolveRoster` reach —
+  // actors ("Kael HP 12→16", not "character HP 12→16"). Resolved HERE (the gather has `ctx.resolveParticipants` reach —
   // the same source `buildTrackerView` reads) and handed to the PURE delta as data (no I/O in the registry).
-  const roster = await ctx.resolveRoster(chatId);
-  const rosterNames: Record<string, string> = {};
-  for (const entry of roster) {
-    rosterNames[actorRefKey(entry.actorRef)] = entry.name;
+  const participants = await ctx.resolveParticipants(chatId);
+  const participantNames: Record<string, string> = {};
+  for (const entry of participants) {
+    participantNames[actorRefKey(entry.actorRef)] = entry.name;
   }
   // The host-authored steeringNote's identity-macro binding (the substitution fix) — BOTH values resolved
   // CHAT-SIDE and threaded in (chat owns `{{user}}`/`{{char}}` identity resolution; rpg SPLICES, never
@@ -168,7 +168,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
     // The attribute vocabulary (label + hint) the state block teaches once — the sheet's steering lever.
     statProfile: game.config.statProfile,
     features: game.config.features,
-    rosterNames,
+    participantNames,
     // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
     deception: game.config.features.deception,
     omniscience: game.config.features.omniscience,
@@ -188,7 +188,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   // The macro + CEL feed (parity-plus §12) — populates `rpgSceneState`/`rpgCast`/`rpgQuests`/`rpgDelta` from the
   // SAME tracker view the reminder + panel read (one projection, three consumers), plus the data-only `rpg` CEL
   // tree so `{{expr::rpg.…}}` reads state on a game turn. A READ mirror, never a write. The delta context mirrors
-  // the reminder's (same rosterNames/castFields/relationshipHints) so the `{{rpgDelta}}` macro == the reminder's
+  // the reminder's (same participantNames/castFields/relationshipHints) so the `{{rpgDelta}}` macro == the reminder's
   // delta block. Full-mode macros (`rpgMap`/`rpgMorale`/…) are ABSENT from the map ⇒ they resolve "" (honest empty).
   // `dateMode` + `statProfile` are handed in for the same reason `buildLiteReminder` gets them: the feed composes
   // the REMINDER'S line builders, so the host's date ruling + attribute vocabulary govern both surfaces alike.
@@ -196,7 +196,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
     view,
     prevSnapshot,
     curSnapshot,
-    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints, prose },
+    deltaContext: { participantNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints, prose },
     dateMode: game.config.dateMode,
     statProfile: game.config.statProfile,
   });

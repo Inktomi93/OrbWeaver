@@ -130,6 +130,29 @@ test("unregister removes a plugin's macros from the NEXT turn (deactivate leaves
   expect(await registry.resolveForTurn(ALICE, CHAT)).toEqual([]);
 });
 
+// #1480 item 5 — THE HANDLE UNREGISTERS ITS OWN REGISTRATION, NOT THE KEY. `unregister` closed over
+// (installer, slug) only and deleted whatever the map held for that pair, so a handle kept from an earlier
+// registration silently evicted the one that replaced it — the plugin stays ACTIVE in the activation registry
+// while every one of its macros renders as raw `{{…}}` bytes in the author's prompts, and only a re-activation
+// heals it. No caller holds a stale handle today (`deactivate` re-reads the live handles; `activate`'s
+// rollback only unregisters its own failed attempt), which is why this is a latent seam and not a live bug.
+test("a STALE handle unregisters NOTHING — a re-register under the same key survives it", async () => {
+  const registry = createPluginMacroRegistry();
+  const { invoke } = invoker({ [HANDLER]: "first", [OTHER_HANDLER]: "second" });
+  const stale = registry.register({ installer: ALICE, slug: "oracle", macros: [{ name: "draw", description: "", handler: HANDLER }], invoke });
+  const live = registry.register({ installer: ALICE, slug: "oracle", macros: [{ name: "omen", description: "", handler: OTHER_HANDLER }], invoke });
+
+  stale.unregister();
+
+  // B (the live registration) is untouched: same installer, same slug, a NEWER registration object.
+  const defs = await registry.resolveForTurn(ALICE, CHAT);
+  expect(defs.map((d) => d.name)).toEqual(["plugin_oracle_omen"]);
+  expect(defs[0]?.body).toBe("second");
+  // …and the LIVE handle still works, so the identity check is a fence, not a wedge.
+  live.unregister();
+  expect(await registry.resolveForTurn(ALICE, CHAT)).toEqual([]);
+});
+
 test('a THROWING resolver degrades that macro to "" — the turn is never eaten', async () => {
   const registry = createPluginMacroRegistry();
   const { invoke } = invoker({ [HANDLER]: () => Promise.reject(new Error("guest blew up")) });

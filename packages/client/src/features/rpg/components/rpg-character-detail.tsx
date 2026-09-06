@@ -347,7 +347,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       <Row gap="field" align="center">
         <Button intent="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
           <Icon icon={ChevronLeft} size="xs" />
-          Roster
+          Characters
         </Button>
         <Text as="span" voice="gloss" aria-hidden={true}>
           /

@@ -179,6 +179,8 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  *
  * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is (#1599) — the
  * peeled `body` is the reflected upstream body, the single most secret-prone string on this boundary.
+ *
+ * ORDER (#1809): SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
  */
 export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScrubSet): HttpErrorDiagnostic {
   if (!isRecord(error)) {
@@ -187,13 +189,13 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScru
   const out: { body?: string; cause?: string } = {};
   const body = error["body"];
   if (typeof body === "string" && body.length > 0) {
-    out.body = redactSecretsFromText(sanitizeApiError(body), secrets);
+    out.body = sanitizeApiError(redactSecretsFromText(body, secrets));
   }
   const cause = error["cause"];
   if (cause !== undefined && cause !== null) {
     const causeMsg = errorMessage(cause);
     if (causeMsg.length > 0) {
-      out.cause = redactSecretsFromText(sanitizeApiError(causeMsg), secrets);
+      out.cause = sanitizeApiError(redactSecretsFromText(causeMsg, secrets));
     }
   }
   return out;
@@ -210,10 +212,14 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScru
  * (the #1373 strike-out logs it as `securityEvent("credential_revoked", { reason })`). A credential-bearing
  * runner now cannot omit it, and cannot fake it with a bare `[]`: the only two admissible values are
  * `providerCredentialSecretValues(credential)` and the loudly-named `NO_PROVIDER_SECRETS`.
+ *
+ * ORDER (#1809): the by-value scrub runs FIRST, on intact text, and `sanitizeApiError` mangles what is
+ * left — a message reaching that durable sink cannot carry a credential fragment the 500-char cap or the
+ * `<…>` strip created. See {@link sanitizeApiError}'s file header.
  */
 export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
-  const safe = redactSecretsFromText(sanitizeApiError(errorMessage(error)), secrets);
+  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
