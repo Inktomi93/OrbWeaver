@@ -20,16 +20,15 @@ import {
   __resetConfigGroupOpen,
   __resetConfigNav,
   CommandPaletteSourceRegistryProvider,
-  clearActiveConfigGroup,
   clearCollectionSelection,
   openConfigTo,
   setActiveSection,
   setMobileViewport,
-  setPanelMode,
+  useActiveSection,
 } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
@@ -253,44 +252,35 @@ export function ConfigMobileListStory(): ReactElement {
  *  story mounts the production `AppShell` over the REAL section registry, so the rungs under test are the
  *  ones the phone actually pops.
  *
- *  THE `show the list` BUTTON IS A DRIVER, NOT PRODUCT, AND IT NAMES A DEFECT: on a phone the section
- *  arrives INSIDE CONTENT with the LIST collapsed (#1741, measured on the live stage at two shas — the
- *  arrival default's phone guard is bypassed and something selects on arrival), so a cold mount here cannot
- *  reach the LIST-is-the-screen arm at all. The button drives the store to the state the phone SHOULD arrive
- *  in — nothing selected, no active group, the LIST docked — and this story neither fixes nor hides #1741;
- *  it declares the workaround so the back-stack can be pinned while that bug is open. */
+ *  IT CARRIES NO DRIVER ANY MORE (#1741 closed). It used to ship a `show the list` button that put the
+ *  store into "nothing selected, no active group, the LIST docked", because a cold mount could not reach
+ *  the LIST-is-the-screen arm at all: the shell published its viewport regime from a PASSIVE effect, which
+ *  runs after the subtree's layout effects, so the config LIST's arrival default read a stale desktop
+ *  regime and auto-selected a group on a phone. The seed in `use-shell-layout.ts` fixed the ordering, and a
+ *  driver that stayed would be a story hiding a regression in the very state it exists to mount. */
 export function ConfigMobileShellStory(): ReactElement {
   useState(() => {
     __resetConfigNav();
     clearCollectionSelection();
+    setActiveSection("config");
     return null;
   });
+  // THE SECTION IS ACTIVE BEFORE `AppShell` EVER RENDERS, which is the whole arrival under test (#1741).
+  // `router.tsx`'s `/config` alias calls `setActiveSection` in `beforeLoad` and only THEN renders the app,
+  // so the config LIST is in the shell's very FIRST commit. A story that landed the section from a mounted
+  // effect instead (`useEffect(() => setActiveSection("config"))`) mounted the LIST one commit LATER — by
+  // which time the shell's own viewport publish had already run, and the story silently measured an arrival
+  // no reader can perform. Holding the shell back for one render is what makes the two orders agree.
+  if (useActiveSection() !== "config") {
+    return <CtDataProviders>{null}</CtDataProviders>;
+  }
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <LandOnConfig />
-        <button
-          onClick={(): void => {
-            clearCollectionSelection();
-            clearActiveConfigGroup();
-            setPanelMode("list", "docked");
-          }}
-          type="button"
-        >
-          show the list
-        </button>
         <AppShell />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
-}
-
-/** Lands the shell on Configuration — the rail tap, without the tap. */
-function LandOnConfig(): null {
-  useEffect(() => {
-    setActiveSection("config");
-  }, []);
-  return null;
 }
 
 /** The whole Configuration workspace: LIST roster · CONTENT · CONTEXT, over the real registries. */

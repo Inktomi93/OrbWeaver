@@ -14,12 +14,17 @@
 // `backToList` is non-null exactly when the phone has something pushed over the LIST, so the shell paints
 // `Back to Settings` in that state and in no other. Its ABSENCE is the assertion that the LIST is the screen.
 //
-// THIS IS A FENCE, NOT A DEFECT PROOF, and it is labelled honestly: every rung below already popped
-// correctly before #1747 (the drill row's move changed WHO draws the in-content exit, not what Back does).
-// What was missing was the pin. It is also driven around an OPEN defect — #1741: on a phone the section
-// arrives INSIDE CONTENT with the LIST collapsed, so the story's `show the list` button puts the store in
-// the state a cold phone arrival SHOULD produce. This file neither fixes nor hides that; when #1741 closes,
-// the button becomes redundant and the cold arrival can be asserted here instead.
+// THE BACK-STACK TESTS ARE A FENCE, NOT A DEFECT PROOF, and they are labelled honestly: every rung below
+// already popped correctly before #1747 (the drill row's move changed WHO draws the in-content exit, not
+// what Back does). What was missing was the pin.
+//
+// THE FIRST TEST IS A REAL DEFECT PROOF (#1741), and it is what the other two now stand on. They used to
+// begin by clicking a `show the list` driver on the story, because a cold phone arrival could not reach the
+// LIST-is-the-screen arm at all: `use-shell-layout.ts` published the viewport regime to `#state` from a
+// PASSIVE effect, which runs after every layout effect in the same commit's subtree, so the config LIST's
+// once-per-mount arrival default read the store's `false` default, took its DESKTOP arm on a phone, and
+// auto-selected a group — which the one-shell rule then honoured by pushing CONTENT over the map. The
+// driver is gone with the defect; the arrival is asserted instead.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -41,6 +46,18 @@ const MEMBER_VERBS = '[data-slot="config-member-verbs"]';
 /** The world-info member editor's own root — the tell that CONTENT is showing a BOOK, at a regime where the
  *  drill row is deliberately absent. */
 const BOOK_EDITOR = '[data-slot="world-info-member-editor"]';
+/** The LIST surface's own root (`config-list-surface.tsx`'s `role="region"`). */
+const CONFIG_LIST = '[data-slot="config-list"]';
+/** One group BAND per registered group — the MAP itself. */
+const BAND = '[data-slot="config-band"]';
+/** The phone's cold-start teaching frame — rendered ONLY on a mobile viewport with no member selected AND
+ *  no active group, so its presence is also the pin that nothing selected on arrival. */
+const TEACHING = '[data-slot="config-mobile-teaching"]';
+/** Every group the door registers MINUS the admin one: `CONFIG_GROUP_IDS` is 13, and `admin-group.tsx`
+ *  declares `when: (viewer) => viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`)
+ *  is not. A plain user therefore sees TWELVE bands — the live stage's own 13 is the owner's read of the
+ *  same projection, not a different map. */
+const GROUP_COUNT = 12;
 
 const TAG = {
   id: "tag_zeal",
@@ -118,15 +135,37 @@ function stub(page: Page): Promise<TrpcRecorder> {
 test.describe("the phone", () => {
   test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
 
+  // THE COLD ARRIVAL IS ITS OWN PIN (#1741), and it is the one every test below stands on: they used to
+  // start by driving the store into the LIST-is-the-screen arm (a `show the list` button on the story),
+  // because a cold mount could not reach it. The defect was an ORDERING one — `use-shell-layout.ts`
+  // published the viewport regime from a PASSIVE effect, which runs after every layout effect in the same
+  // commit's subtree, so the LIST's arrival default (`config-list-surface.tsx`, a `useLayoutEffect` whose
+  // third condition is "never on a phone") read the store's `false` default and fired its desktop arm.
+  test("the COLD phone arrival lands on the LIST — no drive, nothing pushed over it", async ({ mount, page }) => {
+    await stub(page);
+    await mount(<ConfigMobileShellStory />);
+
+    // SETTLE ON THE MAP FIRST: the bands are in the tree in BOTH arms (a collapsed pane still renders its
+    // body), so their full count is the barrier that the config LIST has mounted — never the verdict.
+    await expect(page.locator(BAND)).toHaveCount(GROUP_COUNT);
+
+    // THE VERDICT, in three rendered facts. Nothing is pushed, so the shell offers no way back…
+    await expect(page.getByRole("button", { name: SHELL_BACK })).toHaveCount(0);
+    // …the LIST is the screen's PRIMARY CONTENT, which is what makes its aside carry `main` (#1349)…
+    await expect(page.getByRole("main").locator(CONFIG_LIST)).toBeVisible();
+    // …and the phone's cold-start frame is on screen, which no state with an active group can produce.
+    await expect(page.locator(TEACHING)).toBeVisible();
+  });
+
   test("the phone's back stack pops ONE rung at a time: entry → member → group → the LIST", async ({ mount, page }) => {
     await stub(page);
-    const shell = await mount(<ConfigMobileShellStory />);
-    await shell.getByRole("button", { name: "show the list" }).click();
+    await mount(<ConfigMobileShellStory />);
 
-    // ── rung 0 · THE LIST IS THE SCREEN. Nothing is pushed, so the shell offers no way back.
-    await expect(page.getByRole("button", { name: SHELL_BACK })).toHaveCount(0);
+    // ── rung 0 · THE LIST IS THE SCREEN. The band is the settle (the sibling test above owns the arrival's
+    // own proof); only then is the ABSENCE of a way back a statement about a rendered screen.
     const band = page.getByRole("button", { name: /World Info/ });
     await expect(band).toBeVisible();
+    await expect(page.getByRole("button", { name: SHELL_BACK })).toHaveCount(0);
 
     // ── rung 1 · A BAND TAP MAKES CONTENT THE SCREEN (#1725: a collection pushes like every other group).
     await band.click();
@@ -178,8 +217,7 @@ test.describe("the phone", () => {
 
   test("the phone draws NO in-content drill row — the topbar is the exit, and the member's h2 survives", async ({ mount, page }) => {
     await stub(page);
-    const shell = await mount(<ConfigMobileShellStory />);
-    await shell.getByRole("button", { name: "show the list" }).click();
+    await mount(<ConfigMobileShellStory />);
 
     await page.getByRole("button", { name: /Tags/ }).first().click();
     await page.getByRole("button", { name: "zeal", exact: true }).click();

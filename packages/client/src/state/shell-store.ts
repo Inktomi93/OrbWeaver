@@ -67,7 +67,12 @@ interface ShellState {
   readonly focusMode: boolean;
   /** The shell's viewport regime, published by app-shell (the sole `useIsMobileViewport` home) so
    *  `#state` projections can branch on viewport WITHOUT importing the matchMedia hook
-   *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted. */
+   *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted.
+   *
+   *  THE `false` BELOW IS A PRE-MOUNT DEFAULT, NOT A DEVICE ANSWER, and `useShellLayout` seeds the real
+   *  one DURING ITS OWN RENDER so no reader in the shell's first commit ever sees it (#1741 — a
+   *  passive-effect-only publish landed after the subtree's layout effects, and the config LIST's
+   *  once-per-mount arrival default acted on the stale desktop reading). */
   readonly mobileViewport: boolean;
   /** The shell-narrow regime (≤64rem, wider than `mobileViewport`'s 48rem) — published the same way, by
    *  the sibling `useIsShellNarrowViewport` hook. Drives `resolvePanelMode`'s auto-overlay: a `docked`
@@ -336,15 +341,27 @@ export function setOpenOverlayPanel(panel: OverlayPanelRequest): void {
   useShellStore.setState({ openOverlayPanel: panel, focusMode }, false, "shell/setOpenOverlayPanel");
 }
 
-/** Publish the shell's current viewport regime — called from app-shell's `useIsMobileViewport` sync
- *  effect only (that hook is the sole matchMedia read; this store must never read it directly). */
+/** Publish the shell's current viewport regime — called from `use-shell-layout.ts` only, which owns both
+ *  the `useIsMobileViewport` matchMedia read and its ARRIVAL seed (this store must never read matchMedia
+ *  directly).
+ *
+ *  AN UNCHANGED REGIME IS NOT A STATE CHANGE, and spelling that out is what makes the arrival seed legal:
+ *  `useShellLayout` publishes from a lazy `useState` initializer so the value is true for the subtree's
+ *  FIRST commit (#1741), and a later mount of that hook under an already-subscribed tree would otherwise
+ *  notify every shell-store reader from inside another component's render. */
 export function setMobileViewport(isMobile: boolean): void {
+  if (useShellStore.getState().mobileViewport === isMobile) {
+    return;
+  }
   useShellStore.setState({ mobileViewport: isMobile }, false, "shell/setMobileViewport");
 }
 
-/** Publish the shell's narrow-desktop regime — called from app-shell's `useIsShellNarrowViewport` sync
- *  effect only (the sibling matchMedia read next to `useIsMobileViewport`). */
+/** Publish the shell's narrow-desktop regime — same caller, same seed, same unchanged-is-not-a-change rule
+ *  as {@link setMobileViewport} (the sibling matchMedia read next to `useIsMobileViewport`). */
 export function setNarrowViewport(isNarrow: boolean): void {
+  if (useShellStore.getState().narrowViewport === isNarrow) {
+    return;
+  }
   useShellStore.setState({ narrowViewport: isNarrow }, false, "shell/setNarrowViewport");
 }
 

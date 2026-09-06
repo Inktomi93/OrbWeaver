@@ -13,7 +13,7 @@
 // move CONTEXT between those two channels — so `carryContextAcrossListFlip` writes the destination channel
 // at that one moment (#383). Without it the toggle silently orphaned whichever channel it left.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
 import {
   registerListFlipCarry,
@@ -99,6 +99,28 @@ export function useShellLayout(): ShellLayout {
   const contextContentConstrained = useIsContextContentConstrained();
   // Publishes both viewport regimes to #state so feature-tier projections (useSectionListMode) can branch on
   // them without importing these matchMedia-backed hooks (client-features-no-cross / no-raw-matchmedia).
+  //
+  // THE ARRIVAL VALUE IS SEEDED DURING RENDER, AND THAT IS THE WHOLE POINT (#1741). These hooks answer
+  // synchronously (`useSyncExternalStore` over matchMedia), but until the seed below the mirror they feed
+  // was written ONLY from the passive effects that follow — and a passive effect runs after EVERY layout
+  // effect in the subtree the same commit mounts. So on the shell's first commit every `#state` reader saw
+  // the store's `false` DEFAULT no matter what device it was on. For a render-time reader that was one
+  // wrong frame; for a reader that ACTS ONCE on arrival it was permanent, and it made the config LIST's
+  // arrival default (`config-list-surface.tsx` — a `useLayoutEffect` whose third condition is "never on a
+  // phone") fire its desktop arm on a phone, auto-select a group, and hand the mobile one-shell rule a
+  // selection: the reader landed inside a settings body with the map behind a Back button.
+  //
+  // The seed is a lazy `useState` initializer because that is the only hook that runs BEFORE this
+  // component's children render, and it is safe to write a store from there precisely because it runs once
+  // per mount with no subscriber below yet. The setters are no-ops when the regime is unchanged
+  // (`shell-store.ts`), so a second mount of this hook under an already-subscribed tree notifies nobody.
+  // The effects stay for the SUBSEQUENT transitions (a rotate, a resize), where a passive publish is
+  // correct — those are not arrivals, and nothing latches on them.
+  useState(() => {
+    setMobileViewport(isMobile);
+    setNarrowViewport(isNarrow);
+    return null;
+  });
   useEffect(() => {
     setMobileViewport(isMobile);
   }, [isMobile]);
