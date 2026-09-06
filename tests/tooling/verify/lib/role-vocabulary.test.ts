@@ -6,7 +6,7 @@
 // its own module, so a same-named tuple elsewhere is never adopted.
 import { Project, SyntaxKind } from "ts-morph";
 import type { TupleVocabularyFact } from "../../../../tooling/src/verify/contract/tuple-vocabulary-fact.ts";
-import { readIsOnAxis, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../../../../tooling/src/verify/lib/role-vocabulary.ts";
+import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../../../../tooling/src/verify/lib/role-vocabulary.ts";
 import { createTupleVocabularyFacts, TUPLE_VOCABULARY_VISITOR_KINDS } from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -44,20 +44,30 @@ test("a non-equality operator and a non-`role` read are not comparisons at all",
   expect(readOne('export const b = (r: { kind: string }): boolean => r.kind === "host";\n')).toBeUndefined();
 });
 
+function verdictOf(source: string): ReturnType<typeof readAxisVerdict> {
+  const comparison = readOne(source);
+  expect(comparison).toBeDefined();
+  return readAxisVerdict((comparison as NonNullable<typeof comparison>).read, PARTICIPANT);
+}
+
 test("the AXIS is the read's own TYPE — the distinction a hardcoded literal set cannot make", () => {
-  const participant = readOne('export const a = (r: { role: "host" | "member" }): boolean => r.role === "host";\n');
-  expect(participant).toBeDefined();
-  expect(readIsOnAxis((participant as NonNullable<typeof participant>).read, PARTICIPANT)).toBe(true);
+  expect(verdictOf('export const a = (r: { role: "host" | "member" }): boolean => r.role === "host";\n')).toBe("on-axis");
 
-  // The message-row axis shares the property NAME and, for `user`, a lexeme with the global-role axis.
-  const message = readOne('export const b = (m: { role: "system" | "user" | "assistant" }): boolean => m.role === "user";\n');
-  expect(message).toBeDefined();
-  expect(readIsOnAxis((message as NonNullable<typeof message>).read, PARTICIPANT)).toBe(false);
+  // The message-row axis shares the property NAME and, for `user`, a lexeme with the global-role axis. It
+  // omits a participant member, so it is PROVABLY another axis.
+  expect(verdictOf('export const b = (m: { role: "system" | "user" | "assistant" }): boolean => m.role === "user";\n')).toBe("foreign");
 
-  // A `string`-typed carrier names no closed axis, so it is never claimed as one.
-  const loose = readOne('export const c = (r: { role: string }): boolean => r.role === "host";\n');
-  expect(loose).toBeDefined();
-  expect(readIsOnAxis((loose as NonNullable<typeof loose>).read, PARTICIPANT)).toBe(false);
+  // A narrowed binding is the ONE declared narrowing: a proper subset is not a lattice comparison.
+  expect(verdictOf('export const c = (r: { role: "host" }): boolean => r.role === "host";\n')).toBe("foreign");
+});
+
+test("an axis the checker cannot CLOSE is unreadable, never foreign — the fail-open the boolean verdict left", () => {
+  // `string` is the shape the LEGACY hardcoded-literal readers bit; answering `foreign` here would make the
+  // conversion a narrowing.
+  expect(verdictOf('export const a = (r: { role: string }): boolean => r.role === "host";\n')).toBe("unreadable");
+  expect(verdictOf('declare const r: any;\nexport const b = (): boolean => r.role === "host";\n')).toBe("unreadable");
+  // A strict SUPERSET still carries the whole vocabulary: the axis plus something, not another axis.
+  expect(verdictOf('export const c = (r: { role: "host" | "member" | "observer" }): boolean => r.role === "host";\n')).toBe("unreadable");
 });
 
 function vocabularyFrom(files: Readonly<Record<string, string>>, exportedName: string): TupleVocabularyFact {

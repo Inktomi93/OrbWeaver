@@ -12,7 +12,7 @@
 // `fetch` / `forwardRef` lookalike) or a silent green (every unreadable door). One home so the twelve
 // canonical-origin policies cannot drift apart on the answer.
 import type { Node as MorphNode } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, VariableDeclarationKind } from "ts-morph";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { readMemberReference } from "./reference-fact.ts";
 
@@ -61,18 +61,42 @@ export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: M
  *  being node's `EventEmitter` (five sites) and `new AsyncLocalStorage(…)`, `new Hono(…)`,
  *  `new CardNotDistillableError(…)` of being the ambient clock (fourteen sites), because each refuses as
  *  `ambiguous`/`missing` and a bare classifier calls that unreadable. Prefilter on the name, resolve the
- *  identity, and fail closed only inside the candidate set. */
+ *  identity, and fail closed only inside the candidate set.
+ *
+ *  The name is followed through an import ALIAS and through immutable CONST-ALIAS hops, because both are
+ *  spellings of the same export and neither is visible in the written text of the use site. */
 export function referenceNamesExport(node: MorphNode, exportedName: string): boolean {
+  return namesExport(node, exportedName, new Set<object>());
+}
+
+/** One CONST-ALIAS hop, bounded by a visited set. `const D = Date; new D()` and
+ *  `import { EventEmitter } from "node:events"; const EE = EventEmitter; new EE()` name their export through
+ *  an immutable local binding, and a prefilter that stops at the written text hands the identity reader
+ *  nothing to judge. The walk follows only a `const` initializer, so a reassignable binding stops it. */
+function aliasInitializer(identifier: MorphNode): MorphNode | undefined {
+  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+  const constant = declarations.find(
+    (declaration) => Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
+  );
+  return constant === undefined || !Node.isVariableDeclaration(constant) ? undefined : constant.getInitializer();
+}
+
+function namesExport(node: MorphNode, exportedName: string, visited: Set<object>): boolean {
   if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
     const member = readMemberReference(node);
     return member.kind === "resolved" && member.value.name === exportedName;
   }
-  if (!Node.isIdentifier(node)) {
+  if (!Node.isIdentifier(node) || visited.has(node.compilerNode)) {
     return false;
   }
+  visited.add(node.compilerNode);
   if (node.getText() === exportedName) {
     return true;
   }
   const declarations = node.getSymbol()?.getDeclarations() ?? [];
-  return declarations.some((declaration) => Node.isImportSpecifier(declaration) && declaration.getName() === exportedName);
+  if (declarations.some((declaration) => Node.isImportSpecifier(declaration) && declaration.getName() === exportedName)) {
+    return true;
+  }
+  const initializer = aliasInitializer(node);
+  return initializer !== undefined && namesExport(initializer, exportedName, visited);
 }
