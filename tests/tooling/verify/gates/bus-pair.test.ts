@@ -12,7 +12,7 @@ import { gate as busBeltTotal } from "../../../../tooling/src/verify/gates/bus-b
 import { gate as busConsumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as busDefinitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
-import { gate as userBusDeferredMember } from "../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
+import { deferralsFor, gate as userBusDeferredMember } from "../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -94,18 +94,22 @@ test(
   PER_ROW_TIMEOUT_MS,
 );
 
-test("a deferral that outlives its subject REFUSES instead of passing silently", () => {
-  const result = passOf(userBusDeferredMember, {
-    // The deferred member was renamed. Every other identity still resolves, so a name-keyed exemption
-    // would sit here forever describing nothing.
-    "packages/contracts/src/user-bus/index.ts":
-      'export type UserBusEvent = { type: "connectionChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
-  });
-  expect(result.policies[0]?.owner.status).toBe("incomplete");
-  expect(result.toolErrors.map(({ phase, message }) => `${phase}: ${message}`)).toEqual([
-    "evaluate: deferred UserBusEvent member connectionsChanged is no longer declared — this deferral outlived its subject",
-  ]);
-});
+test(
+  "a deferral that outlives its subject REFUSES instead of passing silently",
+  () => {
+    const result = passOf(userBusDeferredMember, {
+      // The deferred member was renamed. Every other identity still resolves, so a name-keyed exemption
+      // would sit here forever describing nothing.
+      "packages/contracts/src/user-bus/index.ts":
+        'export type UserBusEvent = { type: "connectionChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
+    });
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.toolErrors.map(({ phase, message }) => `${phase}: ${message}`)).toEqual([
+      "evaluate: deferred UserBusEvent member connectionsChanged is no longer declared — this deferral outlived its subject",
+    ]);
+  },
+  PER_ROW_TIMEOUT_MS,
+);
 
 test(
   "the deferred member is owned by exactly one of the two policies, in both of its states",
@@ -126,6 +130,27 @@ test(
   PER_ROW_TIMEOUT_MS,
 );
 
+test("the deferral selector answers by (union, member), so one bus's row is never another's", () => {
+  // F7, and the reason the selector takes an injectable row list: the LIVE list holds exactly one row, so a
+  // reader that ignored the union half would behave identically on the real tree and no fixture could tell
+  // the two apart (measured — an unfiltered mutant left every bus spec green). With a second bus's row
+  // planted, the filter is observable in both directions: each union sees its own member and only its own.
+  const userUnion = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
+  const chatUnion = { path: "packages/contracts/src/chat/bus.ts", exportName: "ChatBusEvent" } as const;
+  const rows = [
+    { union: userUnion, member: "connectionsChanged" },
+    { union: chatUnion, member: "connectionsChanged" },
+    { union: chatUnion, member: "opened" },
+  ];
+
+  expect(deferralsFor(userUnion, rows)).toEqual(["connectionsChanged"]);
+  expect(deferralsFor(chatUnion, rows)).toEqual(["connectionsChanged", "opened"]);
+  expect(deferralsFor({ path: "packages/contracts/src/rpg/bus.ts", exportName: "RpgBusEvent" }, rows)).toEqual([]);
+  // The LIVE list, read through the same door: exactly the #1822 row, and nothing for any other bus.
+  expect(deferralsFor(userUnion)).toEqual(["connectionsChanged"]);
+  expect(deferralsFor(chatUnion)).toEqual([]);
+});
+
 test(
   "a definition fact that resolves no bus union REFUSES instead of reporting every bus healthy",
   () => {
@@ -139,17 +164,21 @@ test(
   PER_ROW_TIMEOUT_MS,
 );
 
-test("the retired BELT_EXEMPT rows are DERIVED, not ported: a sub-union is exempt only while it is one", () => {
-  const belted =
-    'export type ChatBusEvent = { type: "delta" } | { type: "typing" };\nexport const CHAT_BUS_EVENT_TYPES = { delta: true, typing: true } satisfies Record<ChatBusEvent["type"], true>;\n';
-  const derived = passOf(busDefinitionBelts, {
-    "packages/contracts/src/chat/bus.ts": `${belted}export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: "typing" }>;\n`,
-  });
-  expect(derived.authority.effectiveFindings).toEqual([]);
+test(
+  "the retired BELT_EXEMPT rows are DERIVED, not ported: a sub-union is exempt only while it is one",
+  () => {
+    const belted =
+      'export type ChatBusEvent = { type: "delta" } | { type: "typing" };\nexport const CHAT_BUS_EVENT_TYPES = { delta: true, typing: true } satisfies Record<ChatBusEvent["type"], true>;\n';
+    const derived = passOf(busDefinitionBelts, {
+      "packages/contracts/src/chat/bus.ts": `${belted}export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: "typing" }>;\n`,
+    });
+    expect(derived.authority.effectiveFindings).toEqual([]);
 
-  // The SAME NAME, no longer a subset: the row that used to license it by name would still be green.
-  const grown = passOf(busDefinitionBelts, {
-    "packages/contracts/src/chat/bus.ts": `${belted}export type DurableChatBusEvent = { type: "archived" };\n`,
-  });
-  expect(grown.authority.effectiveFindings.map(({ message }) => message?.includes("DurableChatBusEvent"))).toEqual([true]);
-});
+    // The SAME NAME, no longer a subset: the row that used to license it by name would still be green.
+    const grown = passOf(busDefinitionBelts, {
+      "packages/contracts/src/chat/bus.ts": `${belted}export type DurableChatBusEvent = { type: "archived" };\n`,
+    });
+    expect(grown.authority.effectiveFindings.map(({ message }) => message?.includes("DurableChatBusEvent"))).toEqual([true]);
+  },
+  PER_ROW_TIMEOUT_MS,
+);

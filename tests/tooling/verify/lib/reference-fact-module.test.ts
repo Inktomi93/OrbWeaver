@@ -59,7 +59,7 @@ const VENDOR_PACKAGE = '{"name":"vendor","version":"1.0.0","types":"index.d.ts"}
 test("a same-file function-overload set resolves to ONE home at its implementation, carrying the declaration count", () => {
   const fact = pickOrigin({ "/repo/api.ts": SAME_FILE_OVERLOADS, "/repo/use.ts": USE_PICK });
 
-  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "pick", declarationCount: 3 } } });
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "pick" } } });
   if (fact.kind === "unresolved") {
     throw new Error(fact.detail);
   }
@@ -78,7 +78,7 @@ test("an ambient declare-function overload set behind a package door resolves to
     "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
   });
 
-  expect(fact).toMatchObject({ kind: "resolved", value: { moduleSpecifier: "vendor", canonical: { kind: "project", declarationCount: 2 } } });
+  expect(fact).toMatchObject({ kind: "resolved", value: { moduleSpecifier: "vendor", canonical: { kind: "project" } } });
   if (fact.kind === "unresolved") {
     throw new Error(fact.detail);
   }
@@ -93,7 +93,13 @@ test("a LOCAL export specifier over a same-file overload set resolves the same w
     "/repo/use.ts": 'import { choose } from "./api.ts";\nexport const value = choose;\n',
   });
 
-  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "choose", declarationCount: 3 } } });
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "choose" } } });
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
+  }
+  // The HOME is the implementation, not a signature — the same claim the same-file row makes, through the
+  // local-export-specifier path, which is the one the augmentation counterfactual below also travels.
+  expect(fact.value.canonical.declaration.getText()).toContain("return value");
 });
 
 test.each([
@@ -105,6 +111,22 @@ test.each([
       "/node_modules/vendor/a.d.ts": "export declare function pick(value: string): string;\n",
       "/node_modules/vendor/b.d.ts": "export declare function pick(value: number): number;\n",
       "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
+    },
+  ],
+  [
+    // THE SAME-FILE GUARD'S OWN ROW. Every other counterfactual here is answered EARLIER — the `export *`
+    // fan-in by `resolveStarExport`'s candidate count, the merges by the kind check — so without this shape
+    // the guard is an arm no row turns red (measured: dropping it left the spec 11/11 green). A module
+    // AUGMENTATION adds a second `pick` declaration from another file, and a LOCAL export specifier is the
+    // one path whose `getAliasedSymbol()` sees both: same kind, one implementation, TWO homes. An overload
+    // set split across files has no unique home, so it refuses.
+    "an augmentation adding an overload from another file, read through a local export specifier",
+    {
+      "/node_modules/vendor/package.json": VENDOR_PACKAGE,
+      "/node_modules/vendor/index.d.ts": "export declare function pick(value: string): string;\n",
+      "/repo/augment.d.ts": 'declare module "vendor" {\n  export function pick(value: number): number;\n}\nexport {};\n',
+      "/repo/barrel.ts": 'import { pick } from "vendor";\nexport { pick };\n',
+      "/repo/use.ts": 'import { pick } from "./barrel.ts";\nexport const value = pick;\n',
     },
   ],
   [

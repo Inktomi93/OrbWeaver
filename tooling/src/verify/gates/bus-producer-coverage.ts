@@ -12,9 +12,10 @@
 // belted roster states exactly that, and a new bus is then covered the day its belt lands — which is the
 // property `bus-coverage-owner` existed to approximate by reading gate descriptors (`AutomationBusEvent`
 // carried a declared-never-emitted `rulesChanged` for its whole life because the belt existed and no module
-// quantified over it). The owner gate's guarantee now rides the POPULATION RECEIPT below — the belted
-// roster IS the denominator, a zero-belt roster refuses as a blind instrument, and a belted union with no
-// producer-fact record refuses at the join instead of passing.
+// quantified over it). The owner gate's guarantee now rides the POPULATION RECEIPT below — the producer
+// fact's belted roster IS the denominator (so no lookup can miss and no bus can be skipped), a zero-belt
+// roster refuses as a blind instrument, and the definition fact's independently derived belted roster must
+// AGREE with it or the run refuses.
 //
 // THE DEFERRED MEMBERS ARE NOT AN ALLOWLIST HERE. An owner-deferred member is warning debt owned by
 // `user-bus-deferred-member` (hard/warning, `workItem: 1822`) — an error policy cannot carry that owner
@@ -26,26 +27,51 @@
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
 import type { Node as MorphNode } from "ts-morph";
 import type { BusDeclarationIdentity, BusRecord } from "../contract/bus-fact.ts";
-import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
+import { recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
-import { BUS_MEMBER_DEFERRALS } from "./user-bus-deferred-member.ts";
+import { deferralsFor } from "./user-bus-deferred-member.ts";
 
 const MESSAGE =
   "declared bus member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
 
 const identityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}#${exportName}`;
 
-/** The exact `(union, member)` pairs an owner deferred, keyed so a same-named member of ANOTHER bus is not
- *  deferred with it. */
-const deferredMembers = (): ReadonlySet<string> => new Set(BUS_MEMBER_DEFERRALS.map(({ union, member }) => `${identityKey(union)}#${member}`));
+/** THE COVERAGE GUARANTEE, and what retired `bus-coverage-owner`. The two bus facts derive "which unions
+ *  are belted" from DIFFERENT populations (producers read contracts+server, definitions read
+ *  contracts+client+server) and by different routes, so their belted rosters agreeing is a checkable claim —
+ *  and a bus that appears in only one of them is a bus somebody's ratchet is not quantifying over. Measured
+ *  reachable direction: a union alias declared OUTSIDE `packages/contracts/src/` whose belt lives inside it
+ *  is belted for the producer fact and INVISIBLE to the definition fact (its alias collection is
+ *  contracts-only), which is exactly a bus this policy would judge while the definition family's belt/consumer
+ *  ratchets never see it. Either way the run REFUSES rather than reporting the rest of the tree clean.
+ *
+ *  It is checked BEFORE the completeness refusal below on purpose: the same corpus trips both, and a refusal
+ *  that cannot say WHICH invariant broke is not a receipt. The pin in `bus-fact-health.test.ts` asserts this
+ *  message, so neutering this check reds the row instead of silently falling through to the other refusal. */
+function assertRosterAgreement(producerBelted: ReadonlySet<string>, definitionBelted: ReadonlySet<string>): void {
+  const disagreement = [
+    ...[...definitionBelted]
+      .filter((key) => !producerBelted.has(key))
+      .map((key) => `${key} is belted for the definition fact and absent from the producer fact`),
+    ...[...producerBelted]
+      .filter((key) => !definitionBelted.has(key))
+      .map((key) => `${key} is belted for the producer fact and invisible to the definition fact`),
+  ];
+  if (disagreement.length > 0) {
+    throw new Error(`bus rosters disagree about belted unions: ${disagreement.join("; ")}`);
+  }
+}
 
-/** Every declared member of one bus with no proven emitter and no owner deferral, as its finding. */
-function uncoveredMembers(bus: BusRecord, deferred: ReadonlySet<string>): readonly { readonly node: MorphNode; readonly message: string }[] {
+/** Every declared member of one bus with no proven emitter and no owner deferral, as its finding. The
+ *  deferrals are read THROUGH the deferral module's own selector, per bus, so "which members are deferred"
+ *  is answered by `(union, member)` in one home rather than by a name in two. */
+function uncoveredMembers(bus: BusRecord): readonly { readonly node: MorphNode; readonly message: string }[] {
   const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+  const deferred = new Set(deferralsFor(bus.union));
   return bus.declaredMembers
-    .filter((member) => !(emitted.has(member.name) || deferred.has(`${identityKey(bus.union)}#${member.name}`)))
+    .filter((member) => !(emitted.has(member.name) || deferred.has(member.name)))
     .map((member) => ({ node: member.anchor.node, message: `${MESSAGE} Union: ${bus.union.exportName}. Member: ${member.name}` }));
 }
 
@@ -66,23 +92,19 @@ export const gate = defineGate({
       const fact = ctx.fact(busProducerFact);
       recordReadyBusFact(ctx, fact);
       const definitions = ctx.fact(busDefinitionFact);
-      const belted = definitions.definitions.filter(({ belt }) => belt !== null);
+      // THE DENOMINATOR is the producer fact's own belted roster, so every bus this policy judges is one it
+      // holds the members and emitters for — there is no lookup that can miss, and therefore no silent skip.
+      // The definition fact is the INDEPENDENT cross-check that the roster is the whole roster.
+      const belted = fact.buses.filter(({ belt }) => belt !== null);
+      const definitionBelted = definitions.definitions.filter(({ belt }) => belt !== null);
+      assertRosterAgreement(new Set(belted.map(({ union }) => identityKey(union))), new Set(definitionBelted.map(({ union }) => identityKey(union))));
       if (definitions.unresolved.length > 0 || belted.length === 0) {
         // Zero belted unions is "I could not look", never "every bus is covered".
         throw new Error(`bus definition fact is incomplete: ${belted.length} belted unions, ${definitions.unresolved.length} unresolved`);
       }
       ctx.receipt({ kind: "population", source: "bus-producer-coverage", members: belted.length, unresolved: definitions.receipt.unresolved });
-      const deferred = deferredMembers();
-      for (const definition of belted) {
-        const bus = busByUnion(fact, definition.union);
-        if (bus === undefined) {
-          // THE COVERAGE GUARANTEE, and what retired `bus-coverage-owner`: a union the definition fact
-          // calls BELTED and the producer fact has no record of is a bus this policy would silently never
-          // quantify over — the exact hole the owner gate watched for. The run REFUSES rather than
-          // reporting the rest of the tree clean.
-          throw new Error(`belted bus union is missing from the producer fact: ${identityKey(definition.union)}`);
-        }
-        for (const finding of uncoveredMembers(bus, deferred)) {
+      for (const bus of belted) {
+        for (const finding of uncoveredMembers(bus)) {
           ctx.report.node(finding.node, { message: finding.message });
         }
       }
