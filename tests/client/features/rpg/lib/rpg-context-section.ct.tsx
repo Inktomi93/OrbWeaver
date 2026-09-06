@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ariaTreeFindings } from "../../../../support/ct/accessible-names.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
 import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
@@ -281,6 +282,14 @@ const CHAT_PANEL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.getVariablePicks": { variables: [], values: {} },
   // The databank set active for THIS room — empty is honest for a room with nothing attached.
   "databank.listActiveForChat": [],
+  // The #1742 Regex section's four reads (#1788). A CASCADE row like `settings.getUserSettings` below, and
+  // the loudest one: the section's HEADING CHIP reads `chat.listEffectiveRegex` through a plain `useQuery`
+  // that sits OUTSIDE every disclosure, so it fires on any mount that reaches the "This chat" tab — and an
+  // unfed read took the tab's error arm, which cost the CHAT RAIL its `This chat` cell and reds four
+  // rail-selection pins that never mention regex. Off-and-empty (the shared support projection), because
+  // this file counts cells and measures rail geometry: a populated feed would add script rows to a band
+  // these tests take boxes in.
+  ...REGEX_READS_EMPTY,
   // This room's attached lorebooks. NOT in the #649 census the ledger carried: this row is UNBUDGETED and
   // the ratchet REDS it, measured on the UNMODIFIED source at HEAD in this lane's before-run, so it is a
   // pre-existing red rather than one this feed introduced. Empty is honest for a room with no books.
