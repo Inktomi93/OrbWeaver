@@ -4,6 +4,7 @@ import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import {
+  inspectReferenceWrites,
   readMemberReference,
   readStaticNumber,
   readStaticString,
@@ -202,6 +203,40 @@ test("member assignment, postfix/prefix update, and delete targets refuse as wri
     expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "computed" }) }),
     expect.objectContaining({ kind: "unresolved", reason: "write" }),
   ]);
+});
+
+test("canonical Object.assign mutates arg0 through direct, const, assignment, and destructuring aliases", () => {
+  const cases = [
+    "Object.assign(value, { late: 1 });",
+    'Object["assign"](value, { late: 1 });',
+    "const alias = value; Object.assign(alias, { late: 1 });",
+    "let alias; alias = value; Object.assign(alias, { late: 1 });",
+    "const [alias] = value; Object.assign(alias, { late: 1 });",
+  ];
+  for (const effect of cases) {
+    const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
+
+    expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
+      kind: "unresolved",
+      reason: "write",
+    });
+  }
+});
+
+test("shadowed Object.assign and references outside arg0 remain stable", () => {
+  const cases = [
+    "const Object = { assign: (...args: unknown[]) => args }; Object.assign(value, { late: 1 });",
+    "const run = (Object: ObjectConstructor) => Object.assign(value, { late: 1 });",
+    "Object.assign({}, value);",
+  ];
+  for (const effect of cases) {
+    const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
+
+    expect(inspectReferenceWrites(sf.getVariableDeclarationOrThrow("value").getNameNode().asKindOrThrow(SyntaxKind.Identifier))).toMatchObject({
+      kind: "resolved",
+      value: true,
+    });
+  }
 });
 
 test("a parameter shadow stays distinct from a same-spelled namespace import", () => {
