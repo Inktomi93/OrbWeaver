@@ -112,3 +112,29 @@ export function NotificationBellDestinationStory(): ReactElement {
     </CtDataProviders>
   );
 }
+
+/** THE PHONE'S TELL, PROBED AT ITS SOURCE (#1815). The You tab's badge is `notificationsChrome.useBadge()`
+ *  rendered by app-shell's `SheetBadgeCount`, and app-shell may not import this feature — so the number
+ *  reaches the tab through the registry and nothing else. This probe calls the ENTRY'S OWN hook, which is
+ *  the value that projection carries: a pin over it cannot pass while the registry's contribution is wrong.
+ *  Appended as a component (a `_ct-stories` module may export ONLY components; a probe is one). */
+function SheetBadgeProbe(): ReactElement {
+  const waiting = notificationsChrome.useBadge?.() ?? 0;
+  return <output data-testid="ct-sheet-badge">{String(waiting)}</output>;
+}
+
+/** The SHEET lens beside that probe — the exact composition the ruling is about. Mounting the sheet is what
+ *  fires its mark-all-read-on-mount, so this story is "the reader opened the You sheet"; the probe then says
+ *  whether the tab that hosts it still has anything to show. 320px, the real phone column. */
+export function NotificationsSheetBadgeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ width: 320, padding: 16 }}>
+          <SheetBadgeProbe />
+          <NotificationBell presentation="sheet" />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}

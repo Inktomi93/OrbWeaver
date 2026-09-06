@@ -59,10 +59,16 @@ export interface ChromeEntry {
    *  (contentBySection precedent), so hooks-over-a-stable-list is legal. `false` ⇒ render NOTHING (no
    *  gap) — preserves the notification bell's no-flash-then-yank rule. Omitted ⇒ always visible. */
   readonly useVisible?: () => boolean;
-  /** How many items this entry has WAITING for the user, from the entry's own one source — the count the
-   *  desktop affordance already badges (`notificationsChrome` returns `useInbox().unreadCount`, the same
-   *  read the bell makes; react-query dedupes the key, so a second reader costs no request and mints no
-   *  second derivation). `0` ⇒ nothing waiting.
+  /** How many items this entry has WAITING for the user, from the entry's own one source — the same signal
+   *  the desktop affordance already shows (`notificationsChrome` returns `useInbox().waitingCount`, the
+   *  union of unread and still-undecided, which is the predicate behind the bell's own dot; react-query
+   *  dedupes the key, so a second reader costs no request and mints no second derivation). `0` ⇒ nothing
+   *  waiting.
+   *
+   *  WAITING IS THE CONTRACT WORD, and a consumer must not narrow it back to "unread" (#1815): a sheet-hosted
+   *  entry whose lens marks everything read on mount would go dark on the first look with work still in it.
+   *  The number is SPOKEN by the You tab's description; what it PAINTS is a dot (#1798/#1815 — one mark for
+   *  notifications everywhere), so an entry returning 12 is not promising a legible "12" anywhere.
    *
    *  WHY THE REGISTRY CARRIES IT: an entry curated `mobile: "sheet"` leaves the phone's chrome for the You
    *  sheet, so on a phone its signal has nowhere to appear — the notifications inbox was reachable but a
