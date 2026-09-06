@@ -22,7 +22,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
  *  empty (no tracker lines, generic actor labels); a case that needs a roster name / tracker / hint passes
  *  its own. */
 function ctx(over: Partial<DeltaContext> = {}): DeltaContext {
-  return { rosterNames: {}, trackerDefs: [], relationshipHints: {}, ...over };
+  return { participantNames: {}, trackerDefs: [], relationshipHints: {}, ...over };
 }
 
 /** A tracker def with the axes a case cares about; everything else takes its schema default. */
@@ -248,7 +248,7 @@ test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", (
   expect(out).not.toContain(RPG_DELTA_HEADING);
 });
 
-// The SCENE OPENS block names a ROSTER actor through `ctx.rosterNames` — the ONE presence-key→name join
+// The SCENE OPENS block names a PARTICIPANT actor through `ctx.participantNames` — the ONE presence-key→name join
 // (`presenceName` → `actorLabel`). A roster actor carries NO identity by R2 design, so a join that read only
 // `identity?.name` fell back to the raw ref KEY and printed `with character:chr_…` into the model's prompt on
 // turn 1 of effectively every new game (establish-when-unset FORCES a non-empty cast, and the model lists the
@@ -266,7 +266,7 @@ test("SCENE OPENS names a ROSTER actor by her display name — never her raw ref
     ],
     presentCharacters: ["character:char_kael", "npc:mira"],
   });
-  const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+  const out = buildDeltaBlock(null, cur, ctx({ participantNames: { "character:char_kael": "Kael" } }));
   expect(out).toContain("with Kael, Mira");
   expect(out).not.toContain("char_kael");
   expect(out).not.toContain("character:");
@@ -296,7 +296,7 @@ test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the roster ma
     actorState: [], // every row gone; the presence plane still lists them
     presentCharacters: ["character:char_kael", "user:usr_1", "npc:mira"],
   });
-  const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+  const out = buildDeltaBlock(null, cur, ctx({ participantNames: { "character:char_kael": "Kael" } }));
 
   expect(out).toContain("Kael"); // the roster map is keyed by the SAME projection — it answers with no row
   expect(out).toContain("you"); // the unnamed roster ref takes the generic word
@@ -426,7 +426,7 @@ test("roster names — a character-kind actor names via the roster map, not the 
   const out = buildDeltaBlock(
     state({ actorState: [kael(12)] }),
     state({ actorState: [kael(16)] }),
-    ctx({ rosterNames: { "character:char_kael": "Kael" }, trackerDefs: [hp] }),
+    ctx({ participantNames: { "character:char_kael": "Kael" }, trackerDefs: [hp] }),
   );
   expect(out).toContain("Kael HP 12→16 (+4)"); // named, not "character HP …"
 });

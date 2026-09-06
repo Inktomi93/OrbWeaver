@@ -1,8 +1,8 @@
 // domain/rpg — FRONT DOOR: the only legal external import. transport consumes the `RpgService` (the verb
 // surface); the composition root (W1c) builds the `RpgContext` bundle (db + injected clock + id mints + the
 // staging singleton + the five injected cross-feature ops + the dice CSPRNG) and calls `createRpgService`.
-// The injected-op SHAPES (`RpgGetMembership`/`RpgSetPointer`/`RpgResolveRoster`/`RpgPostNarratorMessage`/
-// `RpgResolveStateDelivery` + `RpgRosterActor`/`RpgIdMints`) are re-exported type-only so compose wires
+// The injected-op SHAPES (`RpgGetMembership`/`RpgSetPointer`/`RpgResolveParticipants`/`RpgPostNarratorMessage`/
+// `RpgResolveStateDelivery` + `RpgParticipantActor`/`RpgIdMints`) are re-exported type-only so compose wires
 // them to chat/connection's runtime impls. Cross-boundary WIRE shapes (the views, actor/snapshot schemas) are
 // NOT re-declared here — their home is `@orb/contracts/rpg` (§7.4). The staging store + its factory come from
 // the feature-root `staging.ts` (W1a); this door re-exports the store for compose to mint the singleton.
@@ -31,14 +31,14 @@ export type {
   RpgCopyPresetToUser,
   RpgGetMembership,
   RpgIdMints,
+  RpgParticipantActor,
   RpgPopulateDelta,
   RpgPostNarratorMessage,
-  RpgPromoteToRoster,
+  RpgPromoteToCharacter,
+  RpgResolveParticipants,
   RpgResolvePresetOwned,
-  RpgResolveRoster,
   RpgResolveStateDelivery,
   RpgResolveViewerVisibility,
-  RpgRosterActor,
   RpgRunExtraction,
   RpgRunToolRound,
   RpgService,

@@ -180,7 +180,7 @@ function celRelationship(actor: RpgActorView): string {
 }
 
 /** Build the macro + CEL feed from the resolved tracker view + the delta lineage (§12). PURE — the gather resolves
- *  the view + hands in the delta context (the same `rosterNames`/`trackerDefs`/`relationshipHints` the reminder
+ *  the view + hands in the delta context (the same `participantNames`/`trackerDefs`/`relationshipHints` the reminder
  *  uses). Only lite-relevant string macros are staged (full-mode keys stay absent ⇒ ""); the CEL `rpg` tree
  *  carries the whole scene/cast/quests/delta read surface.
  *

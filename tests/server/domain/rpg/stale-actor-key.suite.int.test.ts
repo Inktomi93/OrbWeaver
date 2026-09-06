@@ -83,7 +83,7 @@ interface Seeded {
  *  flush makes one, never hand-assembled past the write boundary. */
 async function seedGameWithSnapshot(key: string): Promise<Seeded> {
   const db = await freshDb();
-  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [] }, key);
+  const { chatId, gameId, h } = await seedLiteGame(db, { participants: [] }, key);
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   const store = createRpgStagingStore();
   const turn = castId<ChatTurnId>(`chat_turn_${key}`);

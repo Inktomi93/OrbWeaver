@@ -508,9 +508,9 @@ export interface LiteReminderInput {
    *  teaching gates. Passing the slice whole keeps the knob vocabulary one-homed (never re-picked per field). */
   readonly features: RpgGameFeatures;
   /** The delta's roster-name map (actorRefKey → display name) so volatile-plane delta lines name
-   *  roster actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveRoster`;
+   *  participant actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveParticipants`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
-  readonly rosterNames: Readonly<Record<string, string>>;
+  readonly participantNames: Readonly<Record<string, string>>;
   /** P3 hidden-channel teaching gates (§3.3) — `config.features.deception`/`omniscience`. Each `true` composes its
    *  teaching block (`RPG_DECEPTION_TEACH`/`RPG_OFILTER_TEACH`) into the reminder, after the state/delta and before
    *  the license; both default false ⇒ no block (byte-identical to a pre-P3 reminder). The blocks teach the

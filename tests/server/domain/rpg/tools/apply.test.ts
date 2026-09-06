@@ -36,7 +36,7 @@ function castRow(
 
 /** The empty roster index — a target name that matches no roster member mints a `npc:<name>` (the non-roster
  *  scene-NPC path). Tests that exercise the roster resolution build a populated index instead. */
-const NO_ROSTER = buildActorRefIndex([]);
+const NO_PARTICIPANTS = buildActorRefIndex([]);
 
 function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   return {
@@ -63,7 +63,7 @@ const idSeq = <T extends string = string>(prefix: string): (() => T) => {
 };
 
 test("update_party mints a fresh npc + applies a tracker DELTA", () => {
-  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_ROSTER);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_PARTICIPANTS);
   const actor = result.actorState[0];
   // The ref key is the SLUG (R2); the model's own spelling rides the identity half as the display name.
   expect(actor?.actorRef).toEqual({ kind: "npc", npcKey: "goblin" });
@@ -83,7 +83,7 @@ test("update_party writes a tracker SET arm — a text reading and a list, keyed
         { key: "pack", items: ["rope", "torch"] },
       ],
     },
-    NO_ROSTER,
+    NO_PARTICIPANTS,
   );
   const values = result.actorState[0]?.volatile.trackerValues;
   expect(values?.["role"]).toEqual({ value: "sellsword", items: null, max: null });
@@ -92,20 +92,20 @@ test("update_party writes a tracker SET arm — a text reading and a list, keyed
 
 test("update_party: a SET arm naming neither a value nor items is a no-op, never a blanked tracker", () => {
   const base = emptyState({ actorState: [actorRow("mira", { trackerValues: { trust: { value: 62, items: null, max: null } } })] });
-  const result = applyUpdateParty(base, { targetRef: "Mira", trackerSets: [{ key: "trust" }] }, NO_ROSTER);
+  const result = applyUpdateParty(base, { targetRef: "Mira", trackerSets: [{ key: "trust" }] }, NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.trackerValues["trust"]).toEqual({ value: 62, items: null, max: null });
 });
 
 test("update_party on a ROSTER-member name mints under the roster ref, not a npc key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
-  const roster = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
-  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, roster);
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, participantIndex);
   // The write lands under the roster CHARACTER ref — the key the tracker view + reminder read.
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "character", characterId: kaelId });
 });
 
 test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what-you-never-had)", () => {
-  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_ROSTER);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS);
   // A negative reading is legal: a tracker's floor is the host's business (the def owns the ceiling), and the
   // old `max >= 1` mint belt existed only because the retired pool shape carried its own max.
   expect(result.actorState[0]?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
@@ -114,14 +114,14 @@ test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what
 test("a DELTA accumulates over an existing reading and PRESERVES the carrier's ceiling override (host-authored)", () => {
   // This carrier deliberately tops out at 34 (the host set it) — the model moves the READING only.
   const base = emptyState({ actorState: [actorRow("wizard", { trackerValues: { mana: { value: 28, items: null, max: 34 } } })] });
-  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_ROSTER);
+  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS);
   // No tool arm carries a max, and the write is a spread — a model turn can never wipe the host's ceiling.
   expect(result.actorState[0]?.volatile.trackerValues["mana"]).toEqual({ value: 25, items: null, max: 34 });
 });
 
 test("HEALTH rides the ordinary tracker-delta arm since R3 (no bespoke hp field, no refusal lane)", () => {
   const state = emptyState({ actorState: [actorRow("hero", { trackerValues: { hp: { value: 10, items: null, max: 20 } } })] });
-  const result = applyUpdateParty(state, { targetRef: "Hero", trackerDeltas: [{ key: "hp", delta: -3 }] }, NO_ROSTER);
+  const result = applyUpdateParty(state, { targetRef: "Hero", trackerDeltas: [{ key: "hp", delta: -3 }] }, NO_PARTICIPANTS);
   // The per-carrier ceiling the host set survives the model's write, exactly like any other meter.
   expect(result.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: 7, items: null, max: 20 });
 });
@@ -131,7 +131,7 @@ test("a health delta on an actor with NO hp reading starts from 0 — the ACCEPT
   // simulation) delta-from-0 on a CARRIED meter is the right trade, and the write surface is the real gate:
   // the per-actor key enum makes hp untypeable on an actor who does not carry it, so this arm is only ever
   // reached by an actor who does. The seeded def's own hint states the rule to the host.
-  const result = applyUpdateParty(emptyState(), { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] }, NO_ROSTER);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] }, NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: -1, items: null, max: null });
 });
 
@@ -140,7 +140,7 @@ test("update_inventory adds an item + applies a wallet delta on the same actor",
     emptyState(),
     { targetRef: "Hero", add: [{ name: "Sword" }], walletDeltas: [{ name: "gold", delta: 25 }] },
     idSeq("item"),
-    NO_ROSTER,
+    NO_PARTICIPANTS,
   );
   const actor = result.actorState[0];
   expect(actor?.volatile.inventory).toEqual([{ id: "item_1", name: "Sword", description: "", quantity: 1, location: "", type: "" }]);
@@ -159,7 +159,7 @@ test("update_inventory patches an existing item without re-minting it", () => {
     state,
     { targetRef: "Mira", update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }] },
     idSeq("item"),
-    NO_ROSTER,
+    NO_PARTICIPANTS,
   );
   expect(result.actorState[0]?.volatile.inventory).toEqual([
     { id: "i1", name: "small brass key", description: "hanging from a silver chain", quantity: 1, location: "around her neck", type: "key", icon: "key" },
@@ -172,7 +172,7 @@ test("update_inventory salvages an update for a new story item as an add", () =>
     state,
     { targetRef: "Mira", update: [{ name: "Phone", description: "dead phone", location: "charging on counter" }] },
     idSeq("item"),
-    NO_ROSTER,
+    NO_PARTICIPANTS,
   );
   expect(result.actorState[0]?.volatile.inventory).toEqual([
     { id: "item_1", name: "Phone", description: "dead phone", quantity: 1, location: "charging on counter", type: "" },
@@ -183,7 +183,7 @@ test("update_inventory remove decrements quantity, dropping the item at zero", (
   const state = emptyState({
     actorState: [actorRow("hero", { inventory: [{ id: "i1", name: "Potion", description: "", quantity: 3, location: "", type: "" }] })],
   });
-  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 3 }] }, idSeq("item"), NO_ROSTER);
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 3 }] }, idSeq("item"), NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.inventory).toEqual([]);
 });
 
@@ -202,7 +202,7 @@ test("update_inventory remove SPENDS a quantity across same-named stacks, it doe
       }),
     ],
   });
-  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 2 }] }, idSeq("item"), NO_ROSTER);
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 2 }] }, idSeq("item"), NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.inventory).toEqual([
     { id: "i1", name: "Potion", description: "", quantity: 1, location: "belt", type: "" },
     { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
@@ -222,7 +222,7 @@ test("update_inventory remove SPILLS into the next same-named stack when the fir
   });
   // 4 spent: the belt's 3 are consumed WHOLE and the 4th comes off the pack — the quantity is denominated in
   // ITEMS, which is the only reading that makes a duplicate-name inventory countable.
-  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 4 }] }, idSeq("item"), NO_ROSTER);
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 4 }] }, idSeq("item"), NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i2", name: "Potion", description: "", quantity: 4, location: "pack", type: "" }]);
 });
 
@@ -238,30 +238,30 @@ test('update_inventory remove with NO quantity drops every stack of that name ("
       }),
     ],
   });
-  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion" }] }, idSeq("item"), NO_ROSTER);
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion" }] }, idSeq("item"), NO_PARTICIPANTS);
   expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i3", name: "Rope", description: "", quantity: 1, location: "pack", type: "" }]);
 });
 
 test("update_scene maps timeOfDay to the representative hour + appends a beat", () => {
-  const patch = applyUpdateScene(emptyState(), { timeOfDay: "night", recentEvent: "The bell tolled." }, NO_ROSTER);
+  const patch = applyUpdateScene(emptyState(), { timeOfDay: "night", recentEvent: "The bell tolled." }, NO_PARTICIPANTS);
   expect(patch.clock).toEqual({ day: 1, hour: 21, minute: 0 });
   expect(patch.recentEvents).toEqual(["The bell tolled."]);
 });
 
 test("update_scene writes weather TOTAL — the closed type plus a label that is always answered", () => {
-  const withLabel = applyUpdateScene(emptyState(), { weather: { type: "snow", label: "torrential sleet" } }, NO_ROSTER);
+  const withLabel = applyUpdateScene(emptyState(), { weather: { type: "snow", label: "torrential sleet" } }, NO_PARTICIPANTS);
   expect(withLabel.weather).toEqual({ type: "snow", label: "torrential sleet" });
   // An omitted label writes "" rather than nothing: the plane merge RECURSES into this object, so a partial
   // write would strand the previous sky's phrasing on the new weather ("torrential sleet" over `clear`).
   const stale = emptyState({ weather: { type: "snow", label: "torrential sleet" } });
-  expect(applyUpdateScene(stale, { weather: { type: "clear" } }, NO_ROSTER).weather).toEqual({ type: "clear", label: "" });
+  expect(applyUpdateScene(stale, { weather: { type: "clear" } }, NO_PARTICIPANTS).weather).toEqual({ type: "clear", label: "" });
   // Weather omitted entirely ⇒ the plane is untouched (MA-4 omit = keep).
-  expect(applyUpdateScene(stale, { location: "the ford" }, NO_ROSTER).weather).toBeUndefined();
+  expect(applyUpdateScene(stale, { location: "the ford" }, NO_PARTICIPANTS).weather).toBeUndefined();
 });
 
 test("update_scene presentUpsert is a PATCH on the ACTOR row — an omitted field keeps the existing value", () => {
   const state = emptyState({ actorState: [castRow("elder", { name: "Elder", emoji: "🧙", mood: "calm" })], presentCharacters: ["npc:elder"] });
-  const patch = applyUpdateScene(state, { presentUpsert: [{ name: "Elder", mood: "angry" }] }, NO_ROSTER);
+  const patch = applyUpdateScene(state, { presentUpsert: [{ name: "Elder", mood: "angry" }] }, NO_PARTICIPANTS);
   const elder = patch.actorState?.[0]?.identity;
   expect(elder?.mood).toBe("angry");
   expect(elder?.emoji).toBe("🧙"); // kept
@@ -297,14 +297,14 @@ test("depart → return RETAINS everything: a presentRemove drops PRESENCE ONLY 
   });
 
   // SHE LEAVES.
-  const departed = applyUpdateScene(established, { presentRemove: ["Mira"] }, NO_ROSTER);
+  const departed = applyUpdateScene(established, { presentRemove: ["Mira"] }, NO_PARTICIPANTS);
   expect(departed.presentCharacters).toEqual([]);
   // …and her ROW comes back BYTE-IDENTICAL: a departure rewrites nothing about the person. (The old applier
   // filtered her npc row out of existence here, which is exactly what destroyed her half.)
   expect(departed.actorState).toEqual(established.actorState);
 
   // SHE COMES BACK — the same slug, so the upsert lands on the row that was waiting.
-  const returned = applyUpdateScene({ ...established, presentCharacters: [] }, { presentUpsert: [{ name: "Mira" }] }, NO_ROSTER);
+  const returned = applyUpdateScene({ ...established, presentCharacters: [] }, { presentUpsert: [{ name: "Mira" }] }, NO_PARTICIPANTS);
   expect(returned.presentCharacters).toEqual(["npc:mira"]);
   const row = returned.actorState?.[0];
   expect(row?.identity?.relationship).toEqual({ kind: "enemy", label: "" }); // the ARC survived
@@ -318,7 +318,7 @@ test("depart → return RETAINS everything: a presentRemove drops PRESENCE ONLY 
 
 test("an npc is addressed by SLUG, so a re-spelled name patches ONE actor (never a sibling identity)", () => {
   const base = emptyState({ actorState: [castRow("sister-vesna", { name: "Sister Vesna", mood: "warming" })], presentCharacters: ["npc:sister-vesna"] });
-  const patch = applyUpdateScene(base, { presentUpsert: [{ name: "sister  vesna.", mood: "guarded" }] }, NO_ROSTER);
+  const patch = applyUpdateScene(base, { presentUpsert: [{ name: "sister  vesna.", mood: "guarded" }] }, NO_PARTICIPANTS);
   expect(patch.actorState).toHaveLength(1);
   expect(patch.actorState?.[0]?.actorRef).toEqual({ kind: "npc", npcKey: "sister-vesna" });
   // The model's spelling IS the new display name (that is how a story renames), but the key never moved.
@@ -328,8 +328,8 @@ test("an npc is addressed by SLUG, so a re-spelled name patches ONE actor (never
 
 test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identity (one name home)", () => {
   const kaelId = castId<CharacterId>("character_kael");
-  const roster = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
-  const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: "Kael", mood: "grim" }] }, roster);
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: "Kael", mood: "grim" }] }, participantIndex);
   expect(patch.presentCharacters).toEqual([`character:${kaelId}`]);
   // Her name is the chat roster's and her standing prose is the sheet's — a second identity home is exactly
   // the split R2 dissolved, so the applier declines to mint one.
@@ -338,22 +338,22 @@ test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identit
 
 test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
   const state = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
-  const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] }, NO_ROSTER);
+  const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] }, NO_PARTICIPANTS);
   expect(toEnemy.actorState?.[0]?.identity?.relationship).toEqual({ kind: "enemy", label: "" });
-  const toCustom = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] }, NO_ROSTER);
+  const toCustom = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] }, NO_PARTICIPANTS);
   expect(toCustom.actorState?.[0]?.identity?.relationship).toEqual({ kind: "custom", label: "vassal" });
 });
 
 // ── P5 — the plot plane (`update_scene.plot`, the snapshot-resident act spine) ──────────────────────────
 
 test("update_scene plot: a first-ever patch births the plane (act 1, padded acts, titles applied)", () => {
-  const patch = applyUpdateScene(emptyState(), { plot: { title: "The Bone Key", actTitle: "Arrival" } }, NO_ROSTER);
+  const patch = applyUpdateScene(emptyState(), { plot: { title: "The Bone Key", actTitle: "Arrival" } }, NO_PARTICIPANTS);
   expect(patch.plot).toEqual({ act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] });
 });
 
 test("update_scene plot: an act ADVANCE pads untitled acts up to the new act and writes its title in place", () => {
   const state = emptyState({ plot: { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] } });
-  const patch = applyUpdateScene(state, { plot: { act: 3, actTitle: "The Reckoning", actSummary: "All debts come due." } }, NO_ROSTER);
+  const patch = applyUpdateScene(state, { plot: { act: 3, actTitle: "The Reckoning", actSummary: "All debts come due." } }, NO_PARTICIPANTS);
   expect(patch.plot).toEqual({
     act: 3,
     title: "The Bone Key",
@@ -378,7 +378,7 @@ test("update_scene plot: omit = keep (MA-4) — a patch naming only actSummary k
       ],
     },
   });
-  const patch = applyUpdateScene(state, { plot: { actSummary: "quiet before the storm" } }, NO_ROSTER);
+  const patch = applyUpdateScene(state, { plot: { actSummary: "quiet before the storm" } }, NO_PARTICIPANTS);
   expect(patch.plot).toEqual({
     act: 2,
     title: "T",
@@ -394,7 +394,7 @@ test("extractionToStateDelta includes the plot plane in the statePatch when the 
     emptyState(),
     { party: [], inventory: [], scene: { plot: { act: 2, actTitle: "Descent" } }, trackers: [], quests: [], journal: [] },
     { item: () => "i", quest: () => castId<RpgQuestId>("q"), objective: () => "o" },
-    NO_ROSTER,
+    NO_PARTICIPANTS,
   );
   expect(delta.statePatch["plot"]).toEqual({
     act: 2,
@@ -417,7 +417,7 @@ test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 �
     journal: [],
   };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
   const beat = delta.journal.find((e) => e.title.startsWith("Mari:"));
   expect(beat).toBeDefined();
   expect(beat?.title).toBe("Mari: friend → enemy");
@@ -429,7 +429,7 @@ test("extractionToStateDelta does NOT derive a beat when the relationship is unc
   // A scene write that changes mood but NOT relationship — no relationship beat.
   const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, trackers: [], quests: [], journal: [] };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
   expect(delta.journal.find((e) => e.title.startsWith("Mari:"))).toBeUndefined();
 });
 
@@ -437,7 +437,7 @@ test("extractionToStateDelta does NOT derive a beat when the relationship is unc
 
 test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the rest of the delta", () => {
   const userId = castId<UserId>("user_ghost");
-  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState();
   const extraction = {
     // "Aldric Vane" is the measured failure: an actor from a STALE enum, in no live scene.
@@ -451,7 +451,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
     journal: [{ type: "event" as const, content: "A stranger is named." }],
   };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, roster);
+  const delta = extractionToStateDelta(base, extraction, mints, participantIndex);
 
   const actors = delta.statePatch["actorState"] as { actorRef: { kind: string }; volatile: { status: string; inventory: unknown[] } }[];
   // NO npc:aldric-vane mint — the ghost never becomes a tracked actor the panel renders forever.
@@ -464,7 +464,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
 
 test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked npcs / scene npcs are reachable)", () => {
   const userId = castId<UserId>("user_g2");
-  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState({
     // A tracked npc answers to BOTH spellings since R2: her stable slug AND her display name (the
     // enum offers the display name, so a write coming back under it must not read as a ghost).
@@ -480,7 +480,7 @@ test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked npcs 
       quests: [],
       journal: [],
     },
-    roster,
+    participantIndex,
   );
   expect(ghosts).toEqual(["Aldric Vane", "Zzyzx"]); // deduped across both planes, in encounter order
 });
@@ -495,9 +495,9 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
     quests: [],
     journal: [],
   };
-  expect(ghostTargetRefs(base, extraction, NO_ROSTER)).toEqual([]);
+  expect(ghostTargetRefs(base, extraction, NO_PARTICIPANTS)).toEqual([]);
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
   // ONE actor came out of both arms — the party write and the scene upsert resolve through the same slug, so
   // the wound and the introduction land on the same person (they used to be two rows on two planes).
   expect(delta.statePatch["presentCharacters"]).toEqual(["npc:mari"]);
@@ -663,8 +663,8 @@ test("the player (user-kind) actor answers to the universal self-aliases (player
 
 test('a "player" targetRef on a user-roster game lands on the user ref — NOT a npc:player phantom (R2)', () => {
   const userId = castId<UserId>("user_p");
-  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
-  const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, roster);
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, participantIndex);
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "user", userId });
 });
 

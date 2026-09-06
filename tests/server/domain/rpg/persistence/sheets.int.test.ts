@@ -77,10 +77,10 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
     await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: withRow, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
 
     // The verb's projection: for each roster actor, its row's sheet OR the default.
-    const roster: readonly CharacterId[] = [withRow, withoutRow];
+    const participantCharacterIds: readonly CharacterId[] = [withRow, withoutRow];
     const rows = await listSheets(db, gameId);
     const byChar = new Map(rows.filter((r) => r.characterId !== null).map((r) => [r.characterId, r.sheet]));
-    const projected = roster.map((id) => byChar.get(id) ?? DEFAULT_SHEET);
+    const projected = participantCharacterIds.map((id) => byChar.get(id) ?? DEFAULT_SHEET);
 
     expect(projected[0]?.className).toBe("rogue");
     expect(projected[1]).toEqual(DEFAULT_SHEET);
@@ -104,11 +104,11 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
 
     // The departed actor is off the current roster; the projection keys on the roster, so it drops out —
     // but the row survives (presence gates the write, the read derives).
-    const roster: readonly CharacterId[] = [present];
+    const participantCharacterIds: readonly CharacterId[] = [present];
     const rows = await listSheets(db, gameId);
     expect(rows).toHaveLength(2); // retained
     const byChar = new Map(rows.filter((r) => r.characterId !== null).map((r) => [r.characterId, r.sheet]));
-    const projected = roster.map((id) => byChar.get(id) ?? DEFAULT_SHEET);
+    const projected = participantCharacterIds.map((id) => byChar.get(id) ?? DEFAULT_SHEET);
     expect(projected).toHaveLength(1); // not projected
     expect(projected[0]?.className).toBe("rogue");
   });

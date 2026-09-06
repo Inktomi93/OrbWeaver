@@ -22,7 +22,7 @@ import {
   FROZEN_AT,
   liteConfig,
   makeRpgService,
-  rosterCharacter,
+  participantCharacter,
   seedCharacter,
   seedChat,
   seedGame,
@@ -35,7 +35,7 @@ import {
 
 test("projects roster ∪ sheets — a roster actor with no sheet row renders the default sheet", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db, { roster: [rosterCharacter("kael", "Kael")] });
+  const { chatId, h } = await seedLiteGame(db, { participants: [participantCharacter("kael", "Kael")] });
   const game = await findGameByChat(db, chatId);
   expect(game).not.toBeUndefined();
   if (game === undefined) {
@@ -81,7 +81,7 @@ async function seedGameWithBeats(db: Db, key: string, beats: readonly string[], 
   if (game === undefined) {
     throw new Error("game not found");
   }
-  return { game, ctx: makeRpgService(db, { roster: [] }).ctx };
+  return { game, ctx: makeRpgService(db, { participants: [] }).ctx };
 }
 
 test("recentBeats is SLICED to config.features.recentBeatsKeepLast (P3 fold — the durable log stays append-only)", async () => {
@@ -133,8 +133,8 @@ async function seedGameWithTrackers(
     throw new Error("game not found");
   }
   // The roster fake carries the SAME real character id (its ref keys the volatile the projection joins).
-  const roster = [{ actorRef: { kind: "character" as const, characterId }, name: "Kael" }];
-  return { game, ctx: makeRpgService(db, { roster }).ctx };
+  const participants = [{ actorRef: { kind: "character" as const, characterId }, name: "Kael" }];
+  return { game, ctx: makeRpgService(db, { participants }).ctx };
 }
 
 /** A tracker def with the axes a case cares about; everything else takes its schema default. */
@@ -221,7 +221,7 @@ test("a scene-npc is an ORDINARY actor row in the view — identity, presence, v
   const db = await freshDb();
   const chatId = await seedChat(db, "castcond");
   const gameId = await seedGame(db, chatId, "castcond");
-  const ctx = makeRpgService(db, { roster: [] }).ctx;
+  const ctx = makeRpgService(db, { participants: [] }).ctx;
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   const written = await writeStagedSnapshot(
     db,
@@ -282,7 +282,7 @@ test("P5: the plot plane rides the tracker view from the resolved snapshot (null
   const db = await freshDb();
   const chatId = await seedChat(db, "plotv");
   const gameId = await seedGame(db, chatId, "plotv");
-  const ctx = makeRpgService(db, { roster: [] }).ctx;
+  const ctx = makeRpgService(db, { participants: [] }).ctx;
   let game = await findGameByChat(db, chatId);
   if (game === undefined) {
     throw new Error("game not found");

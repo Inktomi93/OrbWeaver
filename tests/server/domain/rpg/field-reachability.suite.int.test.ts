@@ -42,12 +42,12 @@ import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rp
 import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
-import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index.ts";
+import type { RpgParticipantActor } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta.ts";
 import { freshDb } from "../../../support/db.ts";
 import { zodLeafPaths } from "../../../support/zod-leaf-paths.ts";
 import type { RpgHarness } from "./_support.ts";
-import { expect, principal, rosterUser, seedCharacter, seedLiteGame, seedMessage, seedUser, test, turnConnection } from "./_support.ts";
+import { expect, participantUser, principal, seedCharacter, seedLiteGame, seedMessage, seedUser, test, turnConnection } from "./_support.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE INVENTORY — derived from the contracts, never hand-listed.
@@ -124,7 +124,7 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "state.recentEvents[]":
     "EXCLUDED BY CONSTRUCTION (`PLANE_DIFF_RENDERERS` header): a beat is an APPEND, not a mutation — the reminder's Recent-beats block is the whole record.",
   "state.actorState[].actorRef.kind":
-    "addressing — the per-actor renderers LABEL a line through `rosterNames`/the npc key (`actorLabel`), never by printing the ref.",
+    "addressing — the per-actor renderers LABEL a line through `participantNames`/the npc key (`actorLabel`), never by printing the ref.",
   "state.actorState[].actorRef.characterId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.userId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.npcKey": "addressing (see actorRef.kind) — it IS the cast line's label, which the reminder probe covers.",
@@ -223,7 +223,7 @@ interface Carrier {
   readonly kind: CarrierKind;
   readonly label: string;
   readonly targetRef: string;
-  readonly roster: readonly RpgRosterActor[];
+  readonly participants: readonly RpgParticipantActor[];
   readonly actorRef: RpgActorRef;
   /** An npc must be ON STAGE before a party/inventory write may name it (the R5 ghost guard). */
   readonly onStage: boolean;
@@ -239,7 +239,7 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     kind: "user",
     label: "You",
     targetRef: "You",
-    roster: [rosterUser(castId<Handle>("host"), "You")],
+    participants: [participantUser(castId<Handle>("host"), "You")],
     actorRef: { kind: "user", userId: castId<UserId>("user_host") },
     onStage: false,
   },
@@ -247,7 +247,7 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     kind: "character",
     label: "Kael",
     targetRef: "Kael",
-    roster: [{ actorRef: { kind: "character", characterId: CHARACTER_ID }, name: "Kael" }],
+    participants: [{ actorRef: { kind: "character", characterId: CHARACTER_ID }, name: "Kael" }],
     actorRef: { kind: "character", characterId: CHARACTER_ID },
     onStage: false,
   },
@@ -255,7 +255,7 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     kind: "npc",
     label: "Mari",
     targetRef: "Mari",
-    roster: [],
+    participants: [],
     actorRef: { kind: "npc", npcKey: "mari" },
     onStage: true,
   },
@@ -325,7 +325,7 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
   // `rpg_sheets` FKs both actor identities, so a `patchSheet` on either roster carrier needs the real row.
   const ownerId = await seedUser(db, castId<Handle>("host"));
   await seedCharacter(db, ownerId, "kael", { id: CHARACTER_ID });
-  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [...opts.carrier.roster] });
+  const { chatId, gameId, h } = await seedLiteGame(db, { participants: [...opts.carrier.participants] });
   await h.service.updateConfig({
     principal: HOST,
     chatId,
@@ -1191,7 +1191,7 @@ test("PIN state: the band is a panel decision — the reminder is byte-identical
 test("READ-ONLY delivery: a game whose connection can't write state still READS the whole state block", async () => {
   const db = await freshDb();
   const carrier = CARRIERS.character;
-  const { chatId, h } = await seedLiteGame(db, { roster: [...carrier.roster], trackersReadOnly: true });
+  const { chatId, h } = await seedLiteGame(db, { participants: [...carrier.participants], trackersReadOnly: true });
   await h.service.updateConfig({ principal: HOST, chatId, patch: { trackers: [MANA] } });
   // BOTH hand doors are asserted: `trackersReadOnly` is a MODEL-write verdict, so the HOST's hand must still
   // commit here — a silently-refused edit would leave the two reads below asserting an unmoved state.

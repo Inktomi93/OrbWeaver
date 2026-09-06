@@ -23,7 +23,7 @@ import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/c
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { resolveSnapshotForTurn } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, makeRpgService, principal, rosterUser, seedChat, test } from "../_support.ts";
+import { expect, makeRpgService, participantUser, principal, seedChat, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {
@@ -40,7 +40,7 @@ async function seedGame(): Promise<{
   fakes: ReturnType<typeof makeRpgService>["fakes"];
 }> {
   const chatId = await seedChat(db, "a");
-  const h = makeRpgService(db, { roster: [rosterUser(castId<Handle>("host"), "Alex")] });
+  const h = makeRpgService(db, { participants: [participantUser(castId<Handle>("host"), "Alex")] });
   h.fakes.membership.set("user_host", "host");
   await h.service.createGame({ principal: HOST, chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
@@ -149,7 +149,7 @@ test("a NAME the chat roster already carries is REFUSED as data — no card, no 
   const { chatId, game, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
   // A roster human already answers to the same name: the model's name→ref index cannot hold both.
-  fakes.roster.push(rosterUser(castId<Handle>("other"), "sister vesna"));
+  fakes.participants.push(participantUser(castId<Handle>("other"), "sister vesna"));
   const slotsBefore = fakes.narratorPosts.length;
 
   const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
@@ -196,13 +196,13 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
 
   await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).rejects.toThrow();
   expect(fakes.promoteMints).toHaveLength(1);
-  expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
+  expect(fakes.participants.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef).toEqual(VESNA);
 
   await db.run(sql.raw("DROP TRIGGER fail_promotion_rekey"));
   await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).resolves.toEqual({ ok: true, issues: [] });
   expect(fakes.promoteMints).toHaveLength(1);
-  expect(fakes.roster.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
+  expect(fakes.participants.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef.kind).toBe("character");
 });
 
