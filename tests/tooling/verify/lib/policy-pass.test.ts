@@ -453,6 +453,104 @@ test("node reports require an exact in-range token and offset pair", () => {
   expect(valid.policies[0]?.findings).toMatchObject([{ token: "a" }]);
 });
 
+test("bare node reports derive deterministic authored position tokens across syntax shapes", () => {
+  const project = projectOf({
+    "packages/client/src/a.tsx": [
+      "@Injectable()",
+      "class Example {}",
+      "if (isGroup) { doSomething(); }",
+      'export const view = <img compact src="bad" />;',
+    ].join("\n"),
+  });
+  const gate = policy("derived-node-position", {
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.Decorator, SyntaxKind.Identifier, SyntaxKind.JsxSelfClosingElement, SyntaxKind.JsxAttribute],
+          visit: (node) => {
+            if (
+              node.getKind() === SyntaxKind.Decorator ||
+              (node.getKind() === SyntaxKind.Identifier && node.getText() === "isGroup") ||
+              node.getKind() === SyntaxKind.JsxSelfClosingElement ||
+              (node.getKind() === SyntaxKind.JsxAttribute && node.getText().startsWith("compact"))
+            ) {
+              ctx.report.node(node);
+            }
+          },
+        },
+      ],
+    }),
+  });
+
+  const first = run([gate], project);
+  const second = run([gate], project);
+
+  expect(first.toolErrors).toEqual([]);
+  expect(first.policies[0]?.findings).toMatchObject([
+    { line: 1, column: 2, token: "Injectable" },
+    { line: 3, column: 5, token: "isGroup" },
+    { line: 4, column: 22, token: "img" },
+    { line: 4, column: 26, token: "compact" },
+  ]);
+  expect(second.policies[0]?.findings).toEqual(first.policies[0]?.findings);
+});
+
+test("ordinary waivers bind to a bare node report's derived position", () => {
+  const project = projectOf({
+    "packages/client/src/a.ts": "// @orb-waive derived-node-waiver(isGroup): exact derived position\nif (isGroup) { doSomething(); }\n",
+  });
+  const gate = policy("derived-node-waiver", {
+    authority: "ordinary",
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node) => {
+            if (node.getText() === "isGroup") {
+              ctx.report.node(node);
+            }
+          },
+        },
+      ],
+    }),
+  });
+
+  const result = run([gate], project);
+
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.waivedFindings).toMatchObject([{ finding: { line: 2, column: 5, token: "isGroup" } }]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test("explicit node position overrides remain exact and tokenless nodes fail loud", () => {
+  const explicitProject = projectOf({ "packages/client/src/a.ts": "export const alpha = 1;\n" });
+  const explicit = policy("explicit-node-position", {
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => ctx.report.node(node, { token: "alpha", offset: 0 }),
+        },
+      ],
+    }),
+  });
+  const explicitResult = run([explicit], explicitProject);
+  expect(explicitResult.toolErrors).toEqual([]);
+  expect(explicitResult.policies[0]?.findings).toMatchObject([{ line: 1, column: 14, token: "alpha" }]);
+
+  const whitespaceProject = projectOf({ "packages/client/src/a.tsx": "export const view = <div>   </div>;\n" });
+  const whitespace = policy("empty-node-position", {
+    create: (ctx) => ({
+      visitors: [{ kinds: [SyntaxKind.JsxText], visit: (node) => ctx.report.node(node) }],
+    }),
+  });
+  const whitespaceResult = run([whitespace], whitespaceProject);
+  expect(whitespaceResult.policies[0]?.owner.status).toBe("incomplete");
+  expect(whitespaceResult.toolErrors).toMatchObject([
+    { policyId: whitespace.id, phase: "visit", message: expect.stringMatching(/position token|authored token/i) },
+  ]);
+});
+
 test("create state is invocation-local across re-entry", () => {
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   let creates = 0;
@@ -707,6 +805,31 @@ test("plain JSON is a commentless carrier and marker-shaped strings cannot waive
   expect(result.authority.effectiveFindings).toMatchObject([{ file, token: "forbidden" }]);
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.ordinaryConsumption).toEqual([]);
+});
+
+test("Markdown scans every HTML comment on a line for ordinary waiver markers", () => {
+  const file = "packages/client/src/multiple-comments.md";
+  const source = "<!-- ordinary note --> <!-- @orb-waive markdown-comments(forbidden): second comment marker -->\nforbidden\n";
+  const gate = resourceWaiverPolicy({ id: "markdown-comments", file, line: 2, column: 1, token: "forbidden" });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.waivedFindings).toMatchObject([{ finding: { file, token: "forbidden" } }]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test.each([
+  ["a blank line", "\n"],
+  ["an intervening comment", "<!-- ordinary note -->\n"],
+])("a Markdown resource marker does not bind across %s", (_label, intervening) => {
+  const file = "packages/client/src/nonadjacent.md";
+  const source = `<!-- @orb-waive markdown-adjacency(forbidden): marker must be adjacent -->\n${intervening}forbidden\n`;
+  const gate = resourceWaiverPolicy({ id: "markdown-adjacency", file, line: 3, column: 1, token: "forbidden" });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.authority.effectiveFindings).toMatchObject([{ file, token: "forbidden" }]);
+  expect(result.authority.waivedFindings).toEqual([]);
+  expect(result.authority.authorityAlarms).toMatchObject([{ policyId: gate.id, message: expect.stringMatching(/cannot bind|stale/i) }]);
 });
 
 test("malformed and stale CSS markers alarm while the live finding remains effective", () => {

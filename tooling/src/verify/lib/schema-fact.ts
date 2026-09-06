@@ -22,6 +22,7 @@ import {
   DRIZZLE_SQLITE,
   effectiveObjectProperty,
   exactDrizzleExport,
+  guardCompositeBindings,
   operationChain,
   refuse,
   resolved,
@@ -119,6 +120,7 @@ function arrayElements(node: MorphNode, subject: string, active = new Set<object
   if (!Node.isArrayLiteralExpression(stable.value)) {
     return refuse(unresolved("unsupported", stable.value, `${subject} is not an authored array`, stable.trace.declarations));
   }
+  guardCompositeBindings(stable.value, stable.trace.declarations, subject);
   if (active.has(stable.value.compilerNode)) {
     return refuse(unresolved("cycle", stable.value, `${subject} contains an array-spread cycle`));
   }

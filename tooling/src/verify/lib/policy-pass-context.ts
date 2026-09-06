@@ -1,6 +1,7 @@
 // Builds the capability-bounded policy context and owns anchored finding/receipt collection.
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
+import { ts } from "ts-morph";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type {
   GatePolicy,
@@ -78,6 +79,23 @@ function appendDetails(base: { file: string; line: number; column: number }, det
     ...(details.subject === undefined ? {} : { subject: details.subject }),
     ...(details.operation === undefined ? {} : { operation: details.operation }),
   };
+}
+
+function derivedNodePosition(node: Node): { readonly offset: number; readonly token: string } {
+  const text = node.getText();
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, text);
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    const token = scanner.getTokenText();
+    const identityKind =
+      kind === ts.SyntaxKind.Identifier ||
+      kind === ts.SyntaxKind.PrivateIdentifier ||
+      (kind >= ts.SyntaxKind.FirstLiteralToken && kind <= ts.SyntaxKind.LastLiteralToken) ||
+      (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword);
+    if (identityKind && !/[()\r\n]/u.test(token)) {
+      return { offset: scanner.getTokenPos(), token };
+    }
+  }
+  throw new Error(`node finding cannot derive a nonempty authored position token from ${node.getKindName()}`);
 }
 
 function repoRelative(root: string, sourceFile: SourceFile): string {
@@ -192,8 +210,9 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     if ((token === undefined) !== (offset === undefined)) {
       throw new Error("node finding token and offset must be supplied together");
     }
+    let anchoredToken: string;
     if (token !== undefined && offset !== undefined) {
-      const anchoredToken = requiredText(token, "node finding token");
+      anchoredToken = requiredText(token, "node finding token");
       const text = node.getText();
       if (
         !(
@@ -206,9 +225,13 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
         throw new Error(`node finding token ${JSON.stringify(anchoredToken)} is not anchored at its declared offset`);
       }
       position += offset as number;
+    } else {
+      const derived = derivedNodePosition(node);
+      anchoredToken = derived.token;
+      position += derived.offset;
     }
     const { line, column } = node.getSourceFile().getLineAndColumnAtPos(position);
-    input.findings.push(appendDetails({ file: path, line, column }, token === undefined ? common : { ...common, token: token as string }));
+    input.findings.push(appendDetails({ file: path, line, column }, { ...common, token: anchoredToken }));
   };
   const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
     assertRepoPathIdentity(path, "finding file");

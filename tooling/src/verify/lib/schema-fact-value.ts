@@ -201,8 +201,8 @@ function bindingIdentifier(declaration: MorphNode): import("ts-morph").Identifie
   return name !== undefined && Node.isIdentifier(name) ? name : null;
 }
 
-function guardObjectBindings(object: import("ts-morph").ObjectLiteralExpression, declarations: readonly MorphNode[], subject: string): void {
-  const owner = object.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+export function guardCompositeBindings(composite: MorphNode, declarations: readonly MorphNode[], subject: string): void {
+  const owner = composite.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
   const bindings = [...declarations, ...(owner === undefined ? [] : [owner])].map(bindingIdentifier).filter((identifier) => identifier !== null);
   const invoked = new Map<object, ReadonlyMap<object, MorphNode>>();
   for (const binding of bindings) {
@@ -212,7 +212,7 @@ function guardObjectBindings(object: import("ts-morph").ObjectLiteralExpression,
     }
     const call = invokedMemberThroughAliases(binding, invoked);
     if (call !== undefined) {
-      refuse(unresolved("dynamic", call, `${subject}: an invoked member can change the authored object`));
+      refuse(unresolved("dynamic", call, `${subject}: an invoked member can change the authored composite`));
     }
   }
 }
@@ -220,7 +220,7 @@ function guardObjectBindings(object: import("ts-morph").ObjectLiteralExpression,
 function objectLiteral(node: MorphNode, subject: string): import("ts-morph").ObjectLiteralExpression {
   const terminal = resolveStableExpression(node);
   if (terminal.kind === "resolved" && Node.isObjectLiteralExpression(terminal.value)) {
-    guardObjectBindings(terminal.value, terminal.trace.declarations, subject);
+    guardCompositeBindings(terminal.value, terminal.trace.declarations, subject);
     return terminal.value;
   }
   const imported = importedObjectLiteral(node, subject);
