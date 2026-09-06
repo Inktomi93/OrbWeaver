@@ -47,6 +47,20 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // 22px control reporting 22 rather than rounding down to its box.
   var HIT_PROBE_RADII = [11, 12, 16, 22]; // half-extents probed outward: 12 → 24px (AA), 16 → 32, 22 → 44
   var HIT_PROBE_MAX = HIT_PROBE_RADII[HIT_PROBE_RADII.length - 1];
+  // THE RING IS SAMPLED ONE PIXEL INSIDE ITSELF, AND THE HALF-PIXEL IS THE WHOLE POINT (#1829, measured
+  // 2026-09-06 in the CT browser on a real @orb/ui Checkbox, both pointer arms + a real mouse click).
+  // A target of extent exactly \`2r\` centred at \`c\` occupies [c - r, c + r) — the coordinate \`c + r\` is the
+  // FIRST PIXEL OF THE NEIGHBOUR, not the last pixel of the target. Probing AT the radius therefore asks a
+  // question the target can never answer yes to, so the ladder's own top rungs were unreachable BY
+  // CONSTRUCTION: an 18px checkbox under a 44x44 coarse \`::before\` answers \`self\` on all four cardinals at
+  // +/-21.5 and answers \`[data-slot=field-label]\` at +/-22, so it published 32 and filed a \`tap-target\` P2
+  // against TAP_COARSE_WARN_PX = 44 — a finding no design change could ever clear, on eleven Backup rows
+  // (#980 F13's coarse arm, side-eye 2026-09-06). Same shape one rung down: a 28px fine pseudo can never
+  // publish 28. The real click agrees with the inset and not with the boundary: at a coarse pointer a
+  // \`page.mouse.click\` 21.5px from centre TOGGLES the checkbox and one at 22px is a no-op.
+  // A control that owns 43px still fails: its own boundary moves in with it, so the inset credits nothing
+  // it did not already own — it stops MISSING the last owned pixel.
+  var HIT_PROBE_INSET = 0.5;
   // THE PROBE FRAME (#797). Every point the widest probe needs must EXIST in the viewport, or the
   // measurement is not a measurement — see the file header. This is a question about the frame, not
   // about the control: the same control one scroll later is fully measurable, which is exactly why the
@@ -81,8 +95,21 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // CAN answer (and #807 then narrows WHICH hit may answer — see hitForwards):
   //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
   //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
-  //     positioning) has no DOM node at all, and MEASURED (2026-08-30) elementFromPoint inside one does
-  //     NOT return the originating element either — it returns the wrapper underneath.
+  //     positioning) has no DOM node at all.
+  //     THE MECHANISM HERE WAS MIS-STATED UNTIL #1829 and the correction matters, because it decides which
+  //     controls this clause is still load-bearing for. This comment used to read "MEASURED (2026-08-30)
+  //     elementFromPoint inside one does NOT return the originating element either — it returns the
+  //     wrapper underneath", as a fact about pseudo-elements. It is not one. A pseudo DOES self-report:
+  //     measured 2026-09-06 in the CT browser, an @orb/ui Checkbox's \`::before\` answers \`checkbox-root\`
+  //     on every point it covers at both pointers, and a real mouse click there toggles the control. What
+  //     the 2026-08-30 reading actually measured was \`pointer-events: none\` — its subject was a
+  //     \`data-cta\` Button, whose CTA gradient ring (packages/ui/src/styles/globals.css,
+  //     \`[data-slot=button][data-cta]::after\`) claims THE SAME \`::after\` as glyphBox's hit area and sets
+  //     \`pointer-events: none\` on it. Side by side, same mount, same size: \`intent="primary"\` answers
+  //     \`div\` (the wrapper) 11px out, \`intent="ghost"\` answers \`button\` out to 13.5px.
+  //     So the clause stays — an un-hittable pseudo is a real shape on this tree and the ancestor is the
+  //     only thing that can answer for it — but it is credit for a pseudo that does NOT take the hit, not
+  //     for pseudos in general.
   //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
   //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
   //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
@@ -227,7 +254,11 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     for (var hp = 0; hp < HIT_PROBE_RADII.length; hp += 1) {
       var r = HIT_PROBE_RADII[hp];
       if (r <= best) continue;
-      var ring = [[cx - r, cy], [cx + r, cy], [cx, cy - r], [cx, cy + r]];
+      // Inset by half a pixel: the last coordinate a \`2r\` target owns is \`c + r - 0.5\`, never \`c + r\`
+      // (HIT_PROBE_INSET above). \`best\` still records the RUNG, so the published extent is unchanged for
+      // every control that already cleared it — only the controls sitting exactly ON a rung change verdict.
+      var p = r - HIT_PROBE_INSET;
+      var ring = [[cx - p, cy], [cx + p, cy], [cx, cy - p], [cx, cy + p]];
       var missing = 0;
       var capped = false;
       for (var pi = 0; pi < ring.length; pi += 1) {

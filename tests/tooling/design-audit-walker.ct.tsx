@@ -22,6 +22,7 @@ import {
   WalkerCapsTrackingStory,
   WalkerCastRowStory,
   WalkerClippedInflowControlStory,
+  WalkerCoarseTouchFloorStory,
   WalkerDimmedContrastStory,
   WalkerDuplicateDoorStory,
   WalkerDuplicateSlotStory,
@@ -115,6 +116,39 @@ test("#1067: a 28px pseudo-carried selection control measures its real extent, a
     smallestSide(targets, "under-floor-box"),
     "a plain 22px box-carried button is genuinely under the floor — the new rung must not credit it",
   ).toBeLessThan(FINE_POINTER_FLOOR);
+});
+
+// ── #1829: the ladder's TOP rung has to be landable, not just listed ────────────────────────────────
+// #1067 put a rung under every floor. It did not make the top one reachable: the ring was sampled AT the
+// radius, and a target of extent exactly `2r` occupies `[c - r, c + r)`, so `c + r` is the neighbour's
+// first pixel. 44 is both the top rung and TAP_COARSE_WARN_PX, so every `size-touch-target` control
+// published 32 and filed a P2 no design change could clear — measured live as `P2, 11 of 11, short side
+// 32px` on the eleven Backup & Restore checkboxes at `--mobile --viewport 430x860` (side-eye 2026-09-06),
+// on a ring that answers `self` at +/-21.5px and where a real mouse click there toggles the box.
+const COARSE_WARN_FLOOR = 44;
+
+test.describe("#1829 coarse touch floor", () => {
+  // The floor is pointer-CONDITIONAL (D62): at a fine pointer the same checkbox owes 24px and its 28px
+  // pseudo clears it, so only a coarse context can see this at all.
+  test.use({ hasTouch: true });
+
+  test("a checkbox whose coarse ::before is exactly 44px is published as 44, not as the rung below it", async ({ mount, page }) => {
+    await mount(<WalkerCoarseTouchFloorStory />);
+    const targets = await tapTargets(page);
+    expect(
+      smallestSide(targets, "checkbox-root"),
+      "the coarse ::before is 44x44 and the control owns every pixel of it — a probe that cannot say 44 files a P2 forever",
+    ).toBeGreaterThanOrEqual(COARSE_WARN_FLOOR);
+  });
+
+  test("the inset is not a free rung: a box-carried 40px control is still under the coarse floor", async ({ mount, page }) => {
+    await mount(<WalkerCoarseTouchFloorStory />);
+    const targets = await tapTargets(page);
+    expect(
+      smallestSide(targets, "coarse-under-floor-box"),
+      "40px is a genuine near-miss with no pseudo to carry it — recovering a target's last owned pixel must not promote it",
+    ).toBeLessThan(COARSE_WARN_FLOOR);
+  });
 });
 
 test("two genuine neighbours stay sub-targets — the widening is per composite, never a blanket", async ({ mount, page }) => {
