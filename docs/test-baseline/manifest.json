@@ -1566,6 +1566,7 @@
     "tests/server/domain/stats/persistence/messages-economics.int.test.ts",
     "tests/server/domain/stats/persistence/rollups.int.test.ts",
     "tests/server/domain/stats/reconcile-in-flight.test.ts",
+    "tests/server/domain/stats/substrate/owner-chat-scope.int.test.ts",
     "tests/server/domain/stats/substrate/percentiles.test.ts",
     "tests/server/domain/stats/substrate/rates.test.ts",
     "tests/server/domain/stats/substrate/reconcile-owner.int.test.ts",

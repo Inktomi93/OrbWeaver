@@ -2,13 +2,16 @@
 // day×hour heatmap (daily_stats is day-grained) and per-character momentum (character_stats is cumulative),
 // both straight from canon. Bounded owner-scoped scans. Time buckets are UTC (strftime default, no
 // 'localtime'). A chat has no ownerId (D18) — "the owner's chats" is membership-derived via an owned
-// character participant.
+// character participant, and BOTH scans bind that definition from its one home
+// (`substrate/owner-chat-scope.ts`) rather than re-spelling the join, so an unclaimed husk room is invisible
+// here exactly as it is to the rollup writers (#1477).
 
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { ActivityHeatmap, CharacterMomentum, MomentumRow } from "../contract/views.ts";
+import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
 const DAYS_PER_WEEK = 7;
 const HOURS_PER_DAY = 24;
@@ -17,7 +20,9 @@ const MAX_HOUR = 23;
 const DEFAULT_MOMENTUM_LIMIT = 10;
 
 /** Messages-per-(weekday, hour) over the owner's whole history. Counts user + assistant turns, not system
- *  rows; scoped to the owner's chats (membership via an owned character participant). */
+ *  rows; scoped through the domain's ONE owner-chat definition (`substrate/owner-chat-scope`), which is
+ *  membership-derived AND husk-excluding — the heatmap used to carry its own copy of the join without the
+ *  husk arm, so a never-started room's seeded greeting counted here and in no other stats surface (#1477). */
 export async function readActivityHeatmap(db: Db, ownerId: string): Promise<ActivityHeatmap> {
   const rows = await db.all<{ dow: number; hour: number; n: number }>(sql`
     SELECT CAST(strftime('%w', m.created_at / 1000, 'unixepoch') AS INTEGER) AS dow,
@@ -25,11 +30,7 @@ export async function readActivityHeatmap(db: Db, ownerId: string): Promise<Acti
            COUNT(*) AS n
     FROM messages m
     WHERE m.role IN ('user', 'assistant')
-      AND m.chat_id IN (
-        SELECT DISTINCT cp.chat_id FROM chat_participants cp
-        JOIN characters c ON c.id = cp.character_id
-        WHERE c.owner_id = ${ownerId}
-      )
+      AND m.chat_id IN (${ownerChatIds(ownerId)})
     GROUP BY dow, hour
   `);
   const matrix: number[][] = Array.from({ length: DAYS_PER_WEEK }, () => new Array<number>(HOURS_PER_DAY).fill(0));
@@ -100,7 +101,9 @@ function momentumRows(rows: MonthCountRow[], latestMonth: string, prevMonth: str
 }
 
 /** Per-character attention shift between the two most-recent active months. Anchored to the data's latest
- *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". */
+ *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". Husk-excluded
+ *  through the same one-home owner-chat scope as the heatmap: a never-started room's seeded greeting is not
+ *  attention the user paid a character (#1477). */
 export async function readCharacterMomentum(db: Db, ownerId: string, limit = DEFAULT_MOMENTUM_LIMIT): Promise<CharacterMomentum> {
   const rows = await db.all<MonthCountRow>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,
@@ -108,6 +111,7 @@ export async function readCharacterMomentum(db: Db, ownerId: string, limit = DEF
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant'
+      AND m.chat_id IN (${ownerChatIds(ownerId)})
     GROUP BY m.character_id, month
   `);
   const empty: CharacterMomentum = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
