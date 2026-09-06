@@ -1,184 +1,191 @@
-// Gate: scrubber-home (security — the §3.6 member-strip trust boundary; ed2aafc5 "the cold-scrubber
-// leak"). The hidden-span stream scrubber (`@orb/kit/content::createHiddenSpanStreamScrubber`) is
-// STATEFUL over a slot's whole stream: a scrubber constructed anywhere but the producer stamp
-// cold-starts mid-stream, and a reader that begins — or resumes — while a `<lie …/>` open is in flight
-// sees no `<` in the tail and forwards the secret's bytes (worse, the withheld-open stall is an ORACLE
-// telling a member exactly when to reconnect). Per-subscription scrub state cannot survive replay→live
-// handoffs; the producer stamp is the ONE home. Construction (import OR call) outside the sanctioned
-// producer home `packages/server/src/domain/chat/substrate/member-visibility.ts` is RED.
+// Policy: scrubber-home (security — the §3.6 member-strip trust boundary; ed2aafc5 "the cold-scrubber
+// leak"). The hidden-span stream scrubber (`@orb/kit/content::createHiddenSpanStreamScrubber`) is STATEFUL
+// over a slot's whole stream: a scrubber constructed anywhere but the producer stamp cold-starts mid-stream,
+// and a reader that begins — or resumes — while a `<lie …/>` open is in flight sees no `<` in the tail and
+// forwards the secret's bytes (worse, the withheld-open stall is an ORACLE telling a member exactly when to
+// reconnect). Per-subscription scrub state cannot survive replay→live handoffs; the producer stamp is the
+// ONE home, and REACHING for the factory — importing it or calling it — outside that home is the breach.
 //
-// CITED EXEMPTION (inside the home, so never flagged — recorded here as the standing verdict):
-// `scrubStreamReplayForMember` (member-visibility.ts, called from chat/verbs/read.ts) still cold-starts
-// a fresh per-slot scrubber over the durable SSE token log — an unwired token log; it needs the
-// producer-stamp treatment IF ever wired (already cited on the board).
+// IDENTITY, NOT SPELLING: the legacy call arm matched the callee's TEXT against the symbol name, which the
+// module's own header called out as a declared blind spot (an aliased import hid the call arm) and which
+// false-reds any same-named local. Both arms now resolve through the shared sealed-origin reader, so an
+// alias, a namespace member, a computed-literal member and a barrel re-export are the same factory, while a
+// same-named export of another module provably is not.
 //
-// Scope: every packages/**/src file except the kit definition module itself
-// (packages/kit/src/content/index.ts) and the sanctioned home. Both arms fire per occurrence: the
-// ImportSpecifier arm catches the honest import; the CallExpression arm (matched by NAME) catches a
-// barrel re-export / local re-binding dodge. DECLARED BLIND SPOT: an aliased import
-// (`createHiddenSpanStreamScrubber as x`) hides the call arm — the import arm still catches the
-// ImportSpecifier itself, so the construction site is never silently green.
+// AUTHORITY IS reviewed-grant: the producer stamp is a recurring repository PERMISSION, one exact
+// `(subject, operation)` row in the central table, and its liveness is that row's own STALE alarm — the day
+// the stamp moves or stops constructing a scrubber, the row is consumed zero times and says so. That is the
+// legacy MODE A arm for the producer home, owned centrally.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the two sanctioned homes are SCANNED and exempted
-// by a cited row, not scoped OUT of scanRoot. This gate's exclusion shape WAS the law's named anti-pattern —
-// an excluded home follows its old path into the void on a rename while the new path is judged by nobody.
-//
-// TWO-SIDED (gate-hub #10), now on both axes: MODE A — a sanctioned home that no longer imports, calls or
-// declares the scrubber symbol is RED (the row stops being a seal and becomes a standing permission for
-// whatever moves in next); MODE B — a row resolving to no file at all is RED (the rename tripwire, shared
-// with every other scan-and-allowlist gate: lib/sanctioned-home.ts). Both self-guard on a REAL-TREE ANCHOR
-// (gate-hub #11) — the kit module that DEFINES the factory.
-import type { Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
-import { HOME_SWEEP_ANCHOR, homeFiles, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+// THE LEGACY `packages/kit/src/content/` ROW IS DELETED, NOT TRANSLATED. Under identity resolution the kit
+// module DECLARES the factory and neither imports nor calls it, so it produces no finding and the row would
+// license nothing — the legacy call arm only bit there because it matched a NAME. What that row was really
+// protecting is the DEFINITION home's liveness, which is a completeness claim rather than a permission and
+// is therefore a hard sibling policy of its own: `scrubber-factory-home`, same family.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import type { SealedHome } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";
-const KIT_CONTENT_SPECIFIER = /^@orb\/kit\/content(?:\/|$)/u;
-const PACKAGES_SRC = /\/packages\/[^/]+\/src\//u;
-/** The two sanctioned homes, keyed by path so a stale arm can name the dead one: the producer stamp (the
- *  ONE construction home) and the kit module that defines the factory. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/server/src/domain/chat/substrate/member-visibility.ts": {
-    why: "THE producer stamp — the one place a stateful per-slot scrubber may be constructed (§3.6, ed2aafc5). Ends when the stamp moves (mode B reds it) or stops constructing a scrubber (mode A reds it)",
-  },
-  "packages/kit/src/content/": {
-    why: "the kit module that DEFINES createHiddenSpanStreamScrubber — the factory's declaration site cannot be a violation of its own construction rule. Same end conditions",
-  },
-};
+const OPERATION = "hidden-span-scrubber-construction";
 
-const GATE_SELF = "tooling/src/verify/gates/scrubber-home.ts";
-/** Real-tree anchor (gate-hub #11): the kit module that DEFINES the scrubber factory. */
-const ANCHOR = "packages/kit/src/content/index.ts";
-const STALE_PREFIX =
-  "stale SANCTIONED zone — nothing it matches declares, imports or calls the hidden-span scrubber any more, so the " +
-  "zone is no longer a seal over anything: it is a standing permission for whatever moves in next " +
-  "(ratchet down). Re-point it at the real producer home or delete it: ";
-/** What the rows sanction, for the shared rename tripwire's message. */
-const HOME_NOUN = "hidden-span scrubber construction home";
+/** The factory's declaration home — the kit content module, keyed as the DIRECTORY so an internal split
+ *  cannot silently retire the arm. */
+const SCRUBBER_HOME: SealedHome = { pathInfix: "/packages/kit/src/content/", exportedNames: new Set([SCRUBBER_SYMBOL]) };
 
 const MESSAGE =
-  "hidden-span stream scrubber constructed outside its producer home — per-subscription scrub state cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5); the producer stamp is the one home: domain/chat/substrate/member-visibility.ts.";
+  "the hidden-span stream scrubber is reached outside its producer home — per-subscription scrub state " +
+  "cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5), " +
+  "and the producer stamp domain/chat/substrate/member-visibility.ts is the ONE construction home.";
+const FIX =
+  "read the already-stamped `memberText` (createMemberDeltaStamper, domain/chat/substrate/member-visibility.ts) — a read seam is a STATELESS field read; never build a scrubber of your own.";
 
-/** Arm 1: an ImportSpecifier of the scrubber factory from `@orb/kit/content`. */
-function scrubberImport(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.ImportSpecifier) || node.getName() !== SCRUBBER_SYMBOL) {
-    return false;
+/** THE CANDIDATE PREFILTER: the import specifier (whose `getName()` is the exported name even under an
+ *  alias), a member read spelled with the exported name, and a call whose callee is either. */
+function candidate(node: MorphNode): MorphNode | undefined {
+  if (Node.isImportSpecifier(node)) {
+    return node.getName() === SCRUBBER_SYMBOL ? node : undefined;
   }
-  const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-  return decl !== undefined && KIT_CONTENT_SPECIFIER.test(decl.getModuleSpecifierValue());
-}
-
-/** Arm 2: a `createHiddenSpanStreamScrubber(...)` call, matched by NAME (catches re-exports/rebinds). */
-function scrubberCall(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.CallExpression)) {
-    return false;
+  if (Node.isCallExpression(node)) {
+    const callee = node.getExpression();
+    return Node.isIdentifier(callee) && callee.getText() === SCRUBBER_SYMBOL ? callee : undefined;
   }
-  const callee = node.getExpression();
-  return callee.getText() === SCRUBBER_SYMBOL;
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return;
+  }
+  const member = readMemberReference(node);
+  return member.kind === "resolved" && member.value.name === SCRUBBER_SYMBOL ? node : undefined;
 }
 
-/** Does this file still have a stake in the scrubber — importing it, calling it, or DECLARING it? The kit
- *  zone earns its sanction by being the factory's definition home, which is neither an import nor a call. */
-function touchesScrubber(sf: SourceFile): boolean {
-  const declares =
-    sf.getFunction(SCRUBBER_SYMBOL) !== undefined ||
-    sf.getVariableDeclaration(SCRUBBER_SYMBOL) !== undefined ||
-    sf.getExportedDeclarations().has(SCRUBBER_SYMBOL);
-  return declares || sf.getDescendants().some((n) => scrubberImport(n) || scrubberCall(n));
-}
-
-export const gate: GateDescriptor = {
-  name: "scrubber-home",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) · member-visibility.ts §3.6 producer-stamp",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "scrubber-home",
+  family: "scrubber-home",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: "@packages",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "read the already-stamped `memberText` (createMemberDeltaStamper, domain/chat/substrate/member-visibility.ts) — a read seam is a STATELESS field read; never build a scrubber of your own.",
-  // SCANNED, not excluded: every packages/**/src file, the sanctioned homes included. The only exemption
-  // is a cited SANCTIONED_HOMES row, so a home that moves is RED at its new path.
-  scanRoot: (p) => PACKAGES_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
-  visit: (node, sf, ctx) => {
-    if (!(scrubberImport(node) || scrubberCall(node))) {
-      return;
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    ctx.report(node, { token: SCRUBBER_SYMBOL, offset: 0 });
-  },
-  finalize: (ctx) => {
-    // MODE B (the rename tripwire) — a row that resolves to no file at all.
-    // Anchored on the SHARED anchor, deliberately NOT on this gate's kit ANCHOR: that file lives inside a
-    // sanctioned home, so a home that died would take its own guard with it and the tripwire would sleep.
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: HOME_NOUN });
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    // MODE A — the home still exists but no longer has a stake in the scrubber, so the row seals nothing.
-    // Honest for THIS gate specifically: both rows are claims that the symbol LIVES there.
-    for (const key of Object.keys(SANCTIONED_HOMES)) {
-      const files = homeFiles(ctx, key);
-      if (files.length > 0 && !files.some((sf) => touchesScrubber(sf))) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}${key} — the sanctioned-home table lives in tooling/src/verify/gates/scrubber-home.ts`,
-        });
-      }
-    }
+  fix: FIX,
+  create: (ctx) => {
+    const reachers = new Map<string, MorphNode>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile: SourceFile) => {
+            const anchor = candidate(node);
+            if (anchor === undefined || !sealedOriginReports(readSealedOrigin(anchor, SCRUBBER_HOME), anchor)) {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            // ONE finding per carrier: the producer stamp imports the factory AND calls it twice, and a
+            // reviewed grant licenses one `(subject, operation)` — three findings would make its row
+            // OVER-BROAD and license none of them.
+            if (!reachers.has(subject)) {
+              reachers.set(subject, anchor);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const [subject, anchor] of [...reachers].toSorted(([left], [right]) => left.localeCompare(right))) {
+          ctx.report.node(anchor, { subject, operation: OPERATION, message: `${MESSAGE} Reacher: ${subject}.`, fix: FIX });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
-      at: "packages/server/src/transport/trpc/x.ts",
-      // Both arms fire: the ImportSpecifier + the CallExpression.
-      expect: { count: 2 },
-      why: "a per-subscription scrubber in transport — the exact cold-scrubber reconnect leak ed2aafc5 closed",
-    },
-    {
-      files: "declare function createHiddenSpanStreamScrubber(): unknown;\nexport const s = createHiddenSpanStreamScrubber();\n",
-      at: "packages/server/src/domain/chat/verbs/y.ts",
-      why: "the CALL arm matches by name — a barrel re-export / local re-binding dodge still flags",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export function createHiddenSpanStreamScrubber(): unknown {\n  return null;\n}\n",
-        "packages/server/src/domain/chat/substrate/member-visibility.ts": "export const stamp = null;\n",
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/transport/trpc/leak.ts":
+          'import { createHiddenSpanStreamScrubber } from "../../../../kit/src/content/index.ts";\nexport const s = createHiddenSpanStreamScrubber();\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED zone" },
-      why: "THE STALE ARM, MODE A: the anchor (the kit definition) is loaded and still owns the factory, but the producer-stamp home no longer constructs a scrubber — that zone seals nothing and ratchets down instead of standing as a blanket permission on the file",
+      expect: { count: 1, messageIncludes: "packages/server/src/transport/trpc/leak.ts" },
+      why: "the founding shape — a per-subscription scrubber in transport, the exact cold-scrubber reconnect leak ed2aafc5 closed; import and call are ONE finding at the grant's granularity",
     },
     {
+      mode: "types",
       files: {
-        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
-        [ANCHOR]: "export function createHiddenSpanStreamScrubber(): unknown {\n  return null;\n}\n",
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/verbs/aliased.ts":
+          'import { createHiddenSpanStreamScrubber as build } from "../../../../../kit/src/content/index.ts";\nexport const s = build();\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE STALE ARM, MODE B (the rename tripwire): the anchor is loaded but the producer-stamp path resolves to NO file — the home moved, and the scanRoot-exclusion shape this gate used to carry would have followed it into the void while the new path went unjudged",
+      expect: { count: 1 },
+      why: "THE LEGACY MODULE'S OWN DECLARED BLIND SPOT, closed: an ALIASED import hid the call arm from a name match. The identity is the declaration, so the alias is the same factory",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/verbs/ns.ts":
+          'import * as content from "../../../../../kit/src/content/index.ts";\nexport const s = content.createHiddenSpanStreamScrubber();\n',
+      },
+      expect: { count: 1 },
+      why: "A NAMESPACE MEMBER reaches the same factory and produces no import specifier at all",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/kit/src/index.ts": 'export { createHiddenSpanStreamScrubber } from "./content/index.ts";\n',
+        "packages/server/src/domain/chat/verbs/barrel.ts":
+          'import { createHiddenSpanStreamScrubber } from "../../../../../kit/src/index.ts";\nexport const s = createHiddenSpanStreamScrubber();\n',
+      },
+      expect: { count: 1 },
+      why: "A RE-EXPORT through the kit barrel is the same factory — the canonical declaration is still the content module, so the barrel is not a laundry",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/unreadable.ts":
+          'import { createHiddenSpanStreamScrubber } from "./missing-barrel.ts";\nexport const s = createHiddenSpanStreamScrubber();\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED at the DECLARED DOOR — a factory import that resolves to nothing is reported; a trust boundary an unreadable barrel can walk through is not one",
     },
   ],
   mustPass: [
     {
-      files: 'import { stripHiddenSpans } from "@orb/kit/content";\nexport const s = stripHiddenSpans;\n',
-      at: "packages/server/src/domain/chat/verbs/z.ts",
-      why: "the STATELESS at-commit strip from the same kit module — not the stateful scrubber, passes",
-    },
-    {
-      files: 'import { scrubStreamReplayForMember } from "../substrate/member-visibility";\nexport const s = scrubStreamReplayForMember;\n',
-      at: "packages/server/src/domain/chat/verbs/read2.ts",
-      why: "consuming the home's exported scrub SEAMS is the sanctioned path — only constructing a scrubber is the breach; with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export function createHiddenSpanStreamScrubber(): unknown {\n  return null;\n}\n",
-        "packages/server/src/domain/chat/substrate/member-visibility.ts":
-          'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\nexport function stripHiddenSpans(text: string): string {\n  return text;\n}\n",
+        "packages/server/src/domain/chat/verbs/strip.ts":
+          'import { stripHiddenSpans } from "../../../../../kit/src/content/index.ts";\nexport const s = stripHiddenSpans("x");\n',
       },
-      why: "THE ALLOWLIST ITSELF: the producer stamp is now SCANNED (it constructs a scrubber right there) and passes ONLY because a cited SANCTIONED_HOMES row covers its path — plus both rows are still earned against the real-tree anchor, so neither stale arm fires",
+      why: "the STATELESS at-commit strip from the SAME kit module — a different export, so the seal is about one factory rather than about the module",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/verbs/consume.ts":
+          "export function read(stamp: { readonly memberText: string }): string {\n  return stamp.memberText;\n}\n",
+      },
+      why: "consuming the producer home's already-stamped field is the sanctioned path — only REACHING for the factory is the breach. The kit home in the same fixture declares the factory and neither imports nor calls it, which is why its legacy row licensed nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/lib/local.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\nexport const s = createHiddenSpanStreamScrubber();\n",
+      },
+      why: "THE HOME COUNTERFACTUAL — a LOCAL function of exactly the same name is a different factory. The legacy call arm matched it by NAME and red it; deleting the home comparison turns this row red again",
     },
   ],
-};
+});

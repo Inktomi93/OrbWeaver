@@ -273,16 +273,12 @@ function writeFixtures(): void {
   // wire-schema-vocab-one-home: a second JSON-Schema keyword table outside the one scrub engine. Two
   // DISTINCT keywords clears the fence (one alone is ordinary English).
   fx("packages/server/src/__g_wirevocab.ts", 'export const drop = new Set(["minLength", "maxLength"]);\n');
-  // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
-  fx(`${D}/__g_users/persistence/x.ts`, `import { users } from "@orb/db";\nexport const x = users;\n`);
   // external-id-single-writer: a `users.externalId` column write (updateUser({ externalId })) outside the two
   // sanctioned sessions verbs (provision-identity.ts + link-external-id.ts) — the U1 second-linking-site hole.
   fx(
     `${D}/__g_extidwrite/persistence/x.ts`,
     "declare function updateUser(db: unknown, id: string, patch: unknown): Promise<void>;\nexport async function link(db: unknown, id: string, externalId: string): Promise<void> {\n  await updateUser(db, id, { externalId, updatedAt: 0 });\n}\n",
   );
-  // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
-  fx("packages/server/src/domain/__g_env.ts", `import process from "node:process";\nexport const x = process.env["FOO"];\n`);
   // assumes-single-replica: a module-scope mutable cache in a file with no ASSUMES(single-replica).
   fx("packages/server/src/domain/__g_replica.ts", "export const cache = new Map<string, number>();\n");
   // no-caller-user-id: the D19-forbidden `callerUserId` identifier (in the fixture's source, not here).
@@ -445,16 +441,8 @@ function writeFixtures(): void {
     `${D}/chat/verbs/__g_vpcr.ts`,
     'import type { ChatService } from "../contract/service";\nimport { loadCanonHistory } from "../persistence/queries";\n\nexport function createGVpcr(): ChatService["listMessages"] {\n  return (async (a: never) => await loadCanonHistory(a, a)) as never;\n}\n',
   );
-  // single-stream-transport: a `.subscription(` on a router that is neither stream.ts nor in the gate's
-  // cited `<router>.<proc>` EXEMPT fold ledger — a second always-on SSE socket per tab (spec §11).
-  fx(
-    "packages/server/src/transport/trpc/routers/__g_substream.ts",
-    "export const gSubstreamRouter = {\n  live: authedProcedure.subscription(() => source()),\n};\n",
-  );
   // firehose-import-allowlist: the unclamped all-chats firehose imported outside entry/compose (D79).
   fx("packages/server/src/transport/trpc/__g_firehose.ts", 'import { subscribeAllChatEvents } from "./index";\nexport const f = subscribeAllChatEvents;\n');
-  // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).
-  fx("packages/server/src/domain/__g_role.ts", 'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n');
   // assets-single-writer arm 1: storeBlob imported outside domain/assets (the CAS write chokepoint).
   fx(`${D}/hub/__g_asw1.ts`, 'import { storeBlob } from "../assets/persistence/queries.ts";\nexport const s = storeBlob;\n');
   // assets-single-writer arm 2: a raw insert(assets) outside domain/assets.
@@ -695,11 +683,6 @@ function writeFixtures(): void {
   );
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
   fx("packages/server/src/infra/auth/__g_userid.ts", "export function gAuth(userId: string): string {\n  return userId;\n}\n");
-  // content-part-seam: a ChatContentPart import from @orb/contracts/chat OUTSIDE the D51 seam set.
-  fx(
-    "packages/server/src/domain/__g_contentpart/x.ts",
-    'import type { ChatContentPart } from "@orb/contracts/chat";\nexport const g = (p: ChatContentPart): ChatContentPart => p;\n',
-  );
   // no-raw-egress: a bare `fetch(` in packages/server/src outside the sanctioned provider-egress zones.
   fx("packages/server/src/domain/__g_egress.ts", 'export async function gFetch(): Promise<unknown> {\n  return fetch("http://example.test");\n}\n');
   // contract-verb-presence: a __g_ domain whose contract/service.ts declares a verb on a *Service interface
@@ -737,9 +720,6 @@ function writeFixtures(): void {
   // group,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
   // node:fs, not ts-morph, so the real-tree fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_ownsnodef/lib/helper.ts", "export const g = 1;\n");
-  // bus-channel-primitive: a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own
-  // home (client-architecture-lockdown.md §13/§16 G10 — the M9 unification).
-  fx("packages/server/src/transport/__g_bce/x.ts", 'import { EventEmitter } from "node:events";\nexport const gEmitter = new EventEmitter();\n');
   // bus-definition-belts: a `*_EVENT_TYPES satisfies Record<X["type"], true>` const in @orb/contracts with
   // NEITHER a coverage-gate file naming it NOR a client-side total map in data/invalidation.ts — both belts
   // missing (client-architecture-lockdown.md §13 laws 4/5, §16 G11).
@@ -854,8 +834,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_ptrvar/components/__g_c.tsx", 'export const C = () => <div className="pointer-coarse:hidden" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
   fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
-  // no-raw-clock: an ambient clock read outside the @orb/kit/time seam (assembled).
-  fx(`${D}/__g_rawclock/x.ts`, `export const t = ${["Date", "now"].join(".")}();\n`);
   // platform-spellings (node-26 program §8): a hand-rolled `new Promise(setTimeout)` sleep — the ARM SLEEP
   // shape W4.1 burned down. A packages/** path (scanRoot is `packages/`), outside client/ui so the browser
   // carve-out does not exempt it. The other three arms (DEFERRED→withResolvers and SPREAD-SORT, both landed
@@ -871,8 +849,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_intl/lib/__g_time.ts", 'export const f = new Intl.DateTimeFormat("en-US");\n');
   // no-raw-matchmedia: a raw matchMedia call outside the sanctioned viewport-hook homes.
   fx("packages/client/src/features/__g_matchmedia/hooks/__g_h.ts", 'export const f = window.matchMedia("(prefers-reduced-motion: reduce)");\n');
-  // no-raw-random: an ambient random call in shipped source (assembled).
-  fx(`${D}/__g_rawrandom/x.ts`, `export const r = Math.${["ran", "dom"].join("")}();\n`);
   // no-raw-spacing-in-features: a raw spacing utility in a feature className.
   fx("packages/client/src/features/__g_rawspacing/components/__g_c.tsx", 'export const C = () => <div className="p-4" />;\n');
   // no-raw-typography-in-features: a raw typography utility in a feature className.
@@ -927,12 +903,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_uisize/components/__g_uisize.tsx",
     'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n',
   );
-  // scrubber-home: the stateful hidden-span stream scrubber constructed outside its producer home
-  // (domain/chat/substrate/member-visibility.ts) — the ed2aafc5 cold-scrubber reconnect-leak shape.
-  fx(
-    "packages/server/src/transport/__g_scrubhome.ts",
-    'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
-  );
   // macro-resolution-home: a client FORM component importing + calling the display pipeline's macro
   // resolver — the writable-field corruption class (the editor round-trips resolved text over the stored
   // template). Both arms fire on this one file.
@@ -960,13 +930,6 @@ function writeFixtures(): void {
     "tests/ui/primitives/__g_lifo/__g_lifo.ct.tsx",
     'import { test } from "@playwright/experimental-ct-react";\ndeclare function routeTrpc(page: unknown, routes: unknown): Promise<unknown>;\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
   );
-  // two-class-role-authority: an inline `role === "host"` in an ENFORCEMENT position (the comparison gates a
-  // `throw`) in a domain file that is neither a SANCTIONED_HOMES chokepoint nor ALLOWLISTed — the founding
-  // shape (the six rpg verbs that re-spelled their chokepoint's compare). The gate's scanRoot is
-  // `packages/server/src/domain/` ONLY, so writing the shape literally here cannot self-trip it, and the
-  // fixture leaves the real-tree anchor (chat/substrate/auth/decide.ts) untouched — its both-ways stale arms
-  // keep judging the REAL chokepoints, so this row adds a violation without faking one.
-  fx(`${D}/__g_roleauth/verbs/x.ts`, 'export function f(role: string): void {\n  if (role !== "host") {\n    throw new Error("nope");\n  }\n}\n');
   // contract-derives-not-respells (ARM B): a hand-written `*Row` interface in a domain `contract/` whose
   // prefix names a REAL drizzle table (`WorkloadScheduleRow` → the live `workloadSchedules` export in
   // packages/db/src/schema/workloads.ts) instead of deriving `typeof workloadSchedules.$inferSelect`. ARM B is
