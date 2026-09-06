@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # One ts-morph runtime for every Orb gate
@@ -179,6 +179,8 @@ The bus producer wave adds four converted legacy policies on one first-class fac
 `pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,489 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 345 symbol-proven direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 14 baseline-path expressions. After the 14 mechanical conversions and final `defineGate` provenance repair, it reports 1,447 findings: 28 legacy-field sites and 14 false wrapper findings are gone. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
 
 The emergency fold at integration commit `8c677f8c5` preserves every active task and subagent checkpoint in this branch. [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md) is the exact resume ledger for resource declarations, waiver migration, schema, bus, registry, and CSS/static-class work. Several folded commits are candid red WIP; the 1,447 figure above is the last verified pre-WIP census and must be re-derived after the resume repairs before claiming further conversion credit.
+
+The 2026-09-06 resume converted the schema-fact and registry-definition families (five and nine legacy modules; `asset-refs-fk-coverage` retired into a Drizzle-runtime static stage; two registry modules split off reviewed-grant siblings) and added the central reviewed-grant data home. At `aafe68db3` the corpus is 259 modules, 52 final and 207 legacy, and `gate:contract` reports 1,276 findings. The first composed measurement over all 52 final policies is 59.5 s wall and 5.74 GB peak RSS on 7,151 loaded sources with zero errors and zero effective findings; the exact receipts are in [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md).
 
 Work proceeds in dependency order:
 

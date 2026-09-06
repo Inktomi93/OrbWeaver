@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Gate-runtime emergency fold checkpoint
@@ -56,17 +56,35 @@ Merge `f4fd77dbf` integrates 167 local-main commits without a gate-runtime confl
 
 Commit `0caf7dac2` moves schema discovery onto first-class `drizzleSchemaFact`. Its production path receives top-level variable declarations from the dispatcher instead of calling `SourceFile#getDescendantsOfKind`; the direct eager helper remains only for focused query tests until all consumers migrate. Fourteen schema tests plus the core pass suite are green. The merged live provider owns 30 exact `packages/db/src/schema/**` files and reports ready: 97 tables, 850 columns, 162 foreign keys, 178 indexes, 72 JSON columns, 25 open JSON columns, and 1,287 total members. It measured 19.28 s fact / 25.88 s process wall / 2.69 GB RSS; no schema policies are converted yet.
 
+## Resume 2026-09-06: schema and registry families, the grant home, the composed baseline
+
+Resumed from clean `0dd6f17c6` (claude-b orchestration). The post-identity census was re-run first: `pnpm gate:contract` reported 1,373 findings across 257 modules (617 legacy-field, 338 direct-walk, 221 descriptor-wrapper, 143 module-mutation, 38 module-let, 14 baseline-ledger, 2 gate-owned-project; 2:49 wall, 959 MB RSS).
+
+Three orchestrator commits landed before any lane: `40be1ba8f` adds the central reviewed-grant data home (`lib/reviewed-grants.ts`, `REVIEWED_GRANTS` + `reviewedGrantsFor`, validated against the defineGate roster on the tree with a planted unknown-policy control); `e7ca43f6f` breaks the `contract/fact.ts` ↔ `contract/policy.ts` type-import cycle (unrecorded since `3d8abaf5b`; every scoped depcruise reported it) by moving the shared walk primitives to the leaf `contract/policy-primitives.ts`; `56b1b5adc` replaces the deprecated scanner `getTokenPos` in the pass context.
+
+Two family lanes then ran in isolated worktrees, each followed by a fresh-context verifier whose findings went back to the warm lane until CONFIRMED (owner rule, 2026-09-06):
+
+- **Schema-fact consumers** (`0593a6a6c`..`1b24db2eb`): `asset-refs-fk-coverage` is RETIRED into one Drizzle-runtime comparator, `structure:asset-refs` at the static tier (`pnpm check:asset-refs`; `compareAssetRefsCoverage` is also the server int test's one implementation) — it counts only FKs whose parent is exactly `assets.id`, keys registry rows by the column's owning table, and refuses on zero tables / no `assets` table / zero asset-FK columns; live: 97 tables, 12 asset-FK columns, 10 retaining, 2 derived. `schema-banned-shapes` split by evidence plane into the hard schema policy plus `contract-banned-shapes` (`@contracts`, fail-closed Zod reads), with the D12 import ban moved to Biome's native `noRestrictedImports` behind a hermetic real-binary pin. `db-enum-from-tuple`, `nullable-column-inequality` (guard must share a drizzle `or`/`and` ancestor with the inequality; the one live marker translated to `@orb-waive`), and `ownerid-registry` (27 classification rows kept as data) are final on `drizzleSchemaFact`. Review found and the lane closed four identity holes (any-column asset FK, cross-table registry row, computed enum identifier, co-located null guard) plus the spread-source hole and a missing module-origin counterfactual; all carry red-first controls. Family real-tree pass: 1 raw / 1 waived / 0 effective.
+- **Registry-definition consumers** (`46334246a`..`00e2bafec`): the lane first repaired `registryDefinitionFact`, which reported ZERO members for four of seven kinds on the real tree because a field-level static-value refusal (every definition's imported icon) poisoned object provenance (`resolveAuthoredComposite`, red-first control committed); promoted the tuple vocabulary to the first-class `tupleVocabularyFact`; and converted all nine assigned modules into eleven policies — `section-registry-completeness` and `config-group-completeness` each split off a reviewed-grant sibling (`route-imports-no-feature`, `config-anchor-in-registry`) whose seven exact rows live in `REVIEWED_GRANTS` and are each consumed exactly once. `ContributorRegistry` is bound to its declaring module and judged by declaration identity. Legacy replay 0 on all nine; final 0 effective on all eleven; four blindness tripwires became receipt refusals pinned through `runPolicyPass`.
+
+Fold receipts on the merged tree (`aafe68db3`): tooling TS7 clean; 190 focused tests across 21 files green; `pnpm check:asset-refs` clean; both line-coupled ledgers re-derived and fresh (manifest 2,496 specs; caught-failure population 570 sites, of which 16 are the runtime foundation's own unproven catch sites in `policy-pass.ts`, `schema-fact.ts`, `policy-conformance.ts`, `resource-{config,host,reader}.ts` — tracked debt for the `caught-failure-ownership` conversion, not silently absorbed); `lib/section-defs.ts` deleted (zero code consumers) and its three live-doc citations reworded; `gate:contract` **1,276 findings across 259 modules** (52 final, 207 legacy; the wave's sixteen modules all at 0; −97 from 1,373).
+
+**First composed baseline.** One `runPolicyPass` over ALL 52 final policies with the full roster as `knownPolicies` and the central grant table: 7,151 loaded sources; 4 providers (bus-producers 66 members / 1.5 s, drizzle-schema 1,287 / 10.6 s, registry-definitions 99 / 6.0 s, tuple-vocabularies 2,125 / 0.05 s); 52/52 owners success, nothing withheld, zero fact/tool/authority errors, zero alarms; 113 raw findings = 106 waived + 7 granted + 0 effective; 5.3 s workspace + 52.9 s pass = **59.5 s wall, 5.74 GB peak RSS**, 0 swaps, 0 major faults. The isolated family runs it replaces cost 20–105 s each, so sharing the Project, checker, walk and providers is doing its job; the remaining per-policy cost is concentrated (no-fake-disabled-id 7.9 s, nullable-column-inequality 4.3 s, message-kind 2.9 s, db-enum 2.7 s) and is the per-file prefilter lesson, not a fleet property.
+
+Runtime follow-ups recorded by the lanes and the verifiers, owned by the orchestrator: `policyReceiptFailures` refuses ANY `unresolved > 0` receipt even beside a reported finding; `factReceiptFailures` judges only receipt PRESENCE, so a provider is fail-open unless `finish()` throws or every consumer re-receipts; drizzle-orm's overloaded operators resolve as `ambiguous` in `resolveModuleMemberOrigin` (needs a shared overload-aware origin reader and a planted `node_modules/drizzle-orm` proof); `ctx.report.node` derives its token from the first identifier-or-keyword (`export`, `readonly`); an ambient `declare function f(): X` enters the section-factory population; real-tree receipts must pass the FULL final roster as `knownPolicies` (a hand-picked roster manufactures \~93 unknown-policy waiver alarms).
+
 ## Resume order
 
-1. Continue re-deriving the eleven remaining layout/size/resource candidates against the folded resource declarations; convert only complete rows.
-2. Convert `bus-definition-belts` without its hand-maintained exemption/reach/coverage-file tables, then resolve `user-bus-coverage` through a real warning work item or exact reviewed grant.
-3. Finish registry fact tests/review, then convert its closed gate set.
-4. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
-5. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
+1. Merge local `main` into the branch at this barrier (only four verify files differ), refresh the census and the composed baseline once on the merged tree.
+2. Dispatch the sanctioned-home family as reviewed-grant policies (rows into `lib/reviewed-grants.ts`) and the canonical-origin ordinary family (the \~20 simple visitors that need only the module-origin readers), 15–20 policies per lane; a verifier pass after every lane report.
+3. Convert `bus-definition-belts` and `user-bus-coverage` once the `chatsChanged` conditional publisher is modeled; remeasure the composed bus cost.
+4. Repair static-class parity before any class/style conversion; convert the remaining resource/layout rows individually.
+5. Close the runtime follow-ups above, then the mixed timing-sensitive modules, then the atomic loader/CLI/report/scaffold cutover.
 
 ## Known red state
 
-- Legacy all-corpus gate tests and graph sites still assume every module is a `GateDescriptor`; no compatibility adapter exists.
-- The four bus producer conversions are verified; `user-bus-coverage` and `bus-definition-belts` remain legacy, and composed bus performance is still open. CSS/static-class checkpoint code remains WIP.
-- Global test-baseline and documentation-catalog surfaces are stale by design and were not regenerated during the fold.
-- No full structure, broad test, performance/RSS acceptance, or final old/new differential applies to checkpoint tip `b32797507`.
+- Legacy all-corpus gate tests, `check:structure`, and the graph type program still assume every module is a `GateDescriptor`; no compatibility adapter exists. Lane floors skip them by owner directive; the orchestrator takes the census on the merged tip.
+- `user-bus-coverage` and `bus-definition-belts` remain legacy; CSS/static-class checkpoint code remains WIP.
+- The documentation catalog is stale by design and was not re-attested during the fold; both line-coupled ledgers are fresh at `aafe68db3`.
+- Sixteen unproven caught-failure sites in the runtime foundation are ledgered, not resolved.
+- No full structure, broad test, or final old/new differential applies to the current tip; the composed baseline above is a measurement, not acceptance.
