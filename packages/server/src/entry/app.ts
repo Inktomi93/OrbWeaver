@@ -41,6 +41,7 @@ import type {
   UploadAssetsPort,
 } from "./http/index.ts";
 import {
+  normalizeThrownErrors,
   registerAuthMeta,
   registerAuthRoutes,
   registerBlob,
@@ -243,6 +244,19 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     }),
   );
 
+  // ONE RULE, MOUNTED ONCE PER POST-`next()` WRITER (#1761). hono's `compose()` hands `app.onError` only an
+  // `err instanceof Error`, and it runs it at the frame that CAUGHT the throw — so every middleware OUTSIDE
+  // that frame sees `next()` resolve and gets its post-`next()` write, and everything INSIDE has unwound.
+  // A non-Error therefore has to be converted BELOW each middleware whose post-`next()` work must still
+  // happen on a failure, and this app has exactly two such writers: `securityHeaders` (the CSP + sibling
+  // headers) and `observability` (the `X-Request-Id` stamp + the request-ring record). Converting only above
+  // the outer one would ship a policied 500 that no ring entry and no correlation handle describes.
+  //
+  // The middleware is transparent to an `Error` (same instance, no re-wrap), so the inner mount simply makes
+  // the outer one a no-op for anything below it. The outer one still covers what sits BETWEEN them: the IP
+  // allowlist and the principal-resolution middleware — the auth-infrastructure fault class of #1479.
+  app.use("*", normalizeThrownErrors());
+
   const allowlist = parseAllowlist(env.IP_ALLOWLIST);
   if (allowlist.length > 0) {
     app.use("*", ipAllowlistMiddleware(allowlist));
@@ -275,6 +289,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // Mounted after auth so the request-user read at the end of this middleware sees the already-resolved
   // principal, without widening the span to include auth's own resolvePrincipal latency.
   app.use("*", observability);
+
+  // The INNER half of the pair above: a non-Error thrown by a route or the tRPC mount is converted below
+  // `observability`, so its post-`next()` stamp + ring record still run and the 500 is indistinguishable
+  // from the `Error` one. (`observabilityErrorHandler`'s observed branch DELEGATES both to that post-`next()`
+  // write — it does them itself only on the un-observed, above-the-scope branch.)
+  app.use("*", normalizeThrownErrors());
 
   // The CSRF content-type belt — the whole WHY lives on `trpcJsonOnly` above. FIRST of the two mount belts,
   // so a refused non-JSON POST is never buffered at all.
