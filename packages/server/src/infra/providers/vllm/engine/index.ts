@@ -1,3 +1,6 @@
+// The launch-ownership vocabulary is homed in the providers `contract/` (the type home) and re-exported
+// here so a consumer of the engine surface has ONE import path for the values and their shapes.
+export type { EngineGroupAdoption, EngineLaunchMarker } from "../../contract/index.ts";
 export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv.ts";
 export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv.ts";
 export type {
@@ -55,19 +58,28 @@ export { sniffMime, toDataUri } from "./image.ts";
 export type {
   EngineIdentityFile,
   EngineLaunchIdentity,
+  EngineStopOutcome,
   ObservedEngineProcess,
 } from "./process-identity.ts";
 export {
+  adoptEngineGroup,
   captureEngineLaunchIdentity,
+  ENGINE_LAUNCH_MARKER_ENV,
+  engineAdoptionText,
+  engineGroupMembers,
   engineIdentityFilePath,
+  mintEngineLaunchMarker,
   parseEngineIdentityFile,
   parseProcIdentityStat,
   readEngineIdentityFile,
+  readEngineProcessLaunchMarker,
   readObservedEngineProcess,
   serializeEngineIdentityFile,
+  signalAdoptedEngineGroup,
   signalEngineLaunchIdentity,
   signalOrphanedEngineGroup,
   signalRecordedEngineProcess,
+  stopRecordedEngineProcess,
   verifyEngineLaunchIdentity,
   writeEngineLaunchIdentities,
 } from "./process-identity.ts";
