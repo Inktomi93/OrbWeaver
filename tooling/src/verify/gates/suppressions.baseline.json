@@ -1003,6 +1003,12 @@
     "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tests/server/entry/app.test.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/useThrowOnlyError×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tests/server/entry/compose/chat.test.ts": {
     "count": 2,
     "ratified": 2,
