@@ -3,10 +3,11 @@
 // `new Date(ms)` to parse a known timestamp is fine; what is banned is asking the runtime what time it is.
 //
 // IDENTITY, NOT SPELLING: the legacy check compared the callee's TEXT to `"Date.now"` / `"Date"`, so a local
-// `Date` shadow false-red and an alias (`const clock = Date; clock.now()`), a computed-literal member
-// (`Date["now"]()`) or a destructured global walked straight past. The subject is now the ambient `Date`
-// the checker resolved from TypeScript's own lib declarations, read through the shared
-// `readAmbientInvocation` reader this policy shares with `no-raw-random`.
+// `Date` shadow false-red while an alias (`const clock = Date; clock.now()`), a computed-literal member
+// (`Date["now"]()`), a const-aliased constructor (`const D = Date; new D()`) and a DESTRUCTURED member
+// (`const { now } = Date; now()`) all walked straight past. The subject is now the ambient `Date` the
+// checker resolved from TypeScript's own lib declarations, read through the shared `readAmbientInvocation`
+// reader this policy shares with `no-raw-random`; each of those four spellings carries a `mustFlag` row.
 //
 // AUTHORITY IS reviewed-grant. The two homes that may read the ambient clock are not per-occurrence
 // mistakes: the kit time engine IS the clock seam (it reads the ambient clock exactly once so nothing else
@@ -40,9 +41,11 @@ const MESSAGE =
 const FIX = "take the injected clock (`@orb/kit/time`'s `nowMs`/`createClock`, threaded from the composition root) instead of reading the ambient clock.";
 
 /** THE CANDIDATE PREFILTER (perf): resolving an origin on every call in a 3,367-file population does not
- *  finish. A `now` MEMBER read normalizes every dotted/optional/computed spelling of `Date.now`, and a
- *  zero-argument `new` is the whole constructor arm. A call through a bare local alias
- *  (`const now = Date.now; now()`) is outside the prefilter — a declared limit with its own row. */
+ *  finish. Three arms cover every spelling that reaches the ambient clock under the name `now`: a `now`
+ *  MEMBER read (every dotted/optional/computed spelling), a BARE `now()` call (the destructured
+ *  `const { now } = Date` and the method alias `const now = Date.now`, 43 candidate sites on the live tree,
+ *  each resolving in one symbol hop), and a zero-argument `new` whose callee NAMES `Date` through the shared
+ *  prefilter, which follows an import alias and immutable const-alias hops. */
 function clockCandidate(node: MorphNode): { readonly sources: readonly AmbientSource[] } | undefined {
   if (Node.isNewExpression(node)) {
     // The constructor arm is prefiltered on the NAME as well as on the argument count — fail-closure's
@@ -56,6 +59,9 @@ function clockCandidate(node: MorphNode): { readonly sources: readonly AmbientSo
     return;
   }
   const callee = node.getExpression();
+  if (Node.isIdentifier(callee)) {
+    return callee.getText() === NOW_MEMBER ? { sources: AMBIENT_NOW } : undefined;
+  }
   if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return;
   }
@@ -138,6 +144,26 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: two ambient reads in one carrier are ONE finding, because a reviewed grant licenses one `(subject, operation)` and two matching findings make the row OVER-BROAD and license neither",
     },
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/feature/const-alias.ts": "const now = Date.now;\nexport function doThing(): number {\n  return now();\n}\n" },
+      expect: { count: 1 },
+      why: "a bare local alias of the METHOD — the BARE-CALL arm. Measured at 43 candidate `now()` sites in the whole 3,367-file population, so the arm costs one symbol hop each and closes the spelling rather than declaring it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/destructured.ts": "const { now } = Date;\nexport function doThing(): number {\n  return now();\n}\n",
+      },
+      expect: { count: 1 },
+      why: "the DESTRUCTURED global — the shared global reader resolves a binding element to its receiver's member, so `const { now } = Date` is the same clock read one binding later",
+    },
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/feature/ctor-alias.ts": "const D = Date;\nexport function doThing(): Date {\n  return new D();\n}\n" },
+      expect: { count: 1 },
+      why: "the CONST-ALIASED CONSTRUCTOR — the name prefilter follows an immutable const hop, so `new D()` is a candidate and the origin reader then proves it is the ambient `Date`",
+    },
   ],
   mustPass: [
     {
@@ -171,11 +197,6 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/feature/other-global.ts": "export function mark(): number {\n  return performance.now();\n}\n" },
       why: "another ambient global with a `now` member resolves cleanly to a DIFFERENT global, so the reader abstains — the arm keys on the `Date` identity, not on the member name",
-    },
-    {
-      mode: "types",
-      files: { "packages/server/src/domain/feature/const-alias.ts": "const now = Date.now;\nexport function doThing(): number {\n  return now();\n}\n" },
-      why: "DECLARED LIMIT — a bare local alias of the METHOD is outside the candidate prefilter, which is a `now` MEMBER read or a zero-argument `new`. Widening it to every bare `now()` call means resolving an origin on ~700 injected-clock call sites per pass; the legacy text comparison missed this shape too, so it is a written baseline rather than a regression",
     },
   ],
 });

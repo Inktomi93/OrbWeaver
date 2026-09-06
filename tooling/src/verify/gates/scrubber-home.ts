@@ -185,7 +185,19 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/lib/local.ts":
           "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\nexport const s = createHiddenSpanStreamScrubber();\n",
       },
-      why: "THE HOME COUNTERFACTUAL — a LOCAL function of exactly the same name is a different factory. The legacy call arm matched it by NAME and red it; deleting the home comparison turns this row red again",
+      why: "A LOCAL function of exactly the same name — the shape the legacy call arm matched by NAME and red. It is acquitted by the shared refusal classifier (a proven non-module declaration) BEFORE the home comparison is reached, so this row proves the classifier and not the home; the row below proves the home",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/content/index.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/lib/own-factory.ts":
+          "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",
+        "packages/server/src/domain/chat/verbs/foreign.ts":
+          'import { createHiddenSpanStreamScrubber } from "../lib/own-factory.ts";\nexport const s = createHiddenSpanStreamScrubber();\n',
+      },
+      why: "THE HOME COUNTERFACTUAL, and the row that actually exercises the comparison: a GENUINE import specifier and call of a same-named factory that resolves cleanly to a declaration OUTSIDE `kit/src/content/`. Replacing the home comparison with a name comparison turns this row RED",
     },
   ],
 });

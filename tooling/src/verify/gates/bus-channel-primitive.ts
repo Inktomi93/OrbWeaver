@@ -52,8 +52,8 @@ function constructsEventEmitter(node: MorphNode): boolean {
   }
   // THE CANDIDATE PREFILTER, and fail-closure's mandatory companion: without it every `new X()` whose class
   // the reader cannot name — `new TRPCError(…)` five times over on the live tree — is accused of being the
-  // emitter. An import ALIAS still names the export, so the prefilter loses only a re-export under a
-  // DIFFERENT name (a declared limit with its own row).
+  // emitter. It follows an import ALIAS and immutable CONST-ALIAS hops, so the only spelling it loses is a
+  // re-export under a DIFFERENT name (a declared limit with its own row).
   if (!referenceNamesExport(node.getExpression(), EMITTER_EXPORT)) {
     return false;
   }
@@ -163,6 +163,15 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "FAIL-CLOSED: a construction whose class door does not resolve is reported rather than silently admitted",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/const-alias.ts":
+          'import { EventEmitter } from "node:events";\nconst EE = EventEmitter;\nexport const bus = new EE();\n',
+      },
+      expect: { count: 1 },
+      why: "a CONST ALIAS of the imported class names the same export one binding later — the prefilter follows immutable const hops, so the identity reader still gets to judge it",
     },
   ],
   mustPass: [

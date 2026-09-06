@@ -2,10 +2,11 @@
 // same seam tests pin, never from the ambient `Math.random`.
 //
 // IDENTITY, NOT SPELLING: the legacy check compared the callee's TEXT to `"Math.random"`, which a local
-// `Math` shadow false-reds and an alias (`const rng = Math; rng.random()`), a computed-literal member
-// (`Math["random"]()`) or a destructured global walks straight past. The subject is now the ambient `Math`
-// the checker resolved from TypeScript's own lib declarations, read through the shared
-// `readAmbientInvocation` reader this policy shares with `no-raw-clock`.
+// `Math` shadow false-reds while an alias (`const rng = Math; rng.random()`), a computed-literal member
+// (`Math["random"]()`) and a DESTRUCTURED member (`const { random } = Math; random()`) all walk straight
+// past. The subject is now the ambient `Math` the checker resolved from TypeScript's own lib declarations,
+// read through the shared `readAmbientInvocation` reader this policy shares with `no-raw-clock`; each of
+// those spellings carries a `mustFlag` row.
 //
 // THE SUBJECT IS THE CALL, not a reference to the function — preserved from the legacy reader deliberately.
 // `prng: Math.random` (entry/compose, infra/providers/backends/kit/retry.ts, kit/macro) PASSES the ambient
@@ -35,14 +36,19 @@ const MESSAGE =
   "seam tests pin). (Spine-Testing.md §3, UI-Gates-and-Lessons.md §11.5)";
 const FIX = "take an injected PRNG (the seeded generator threaded from the composition root) instead of drawing from the ambient `Math.random`.";
 
-/** THE CANDIDATE PREFILTER (perf): a `random` MEMBER read normalizes every dotted/optional/computed
- *  spelling. A call through a bare local alias (`const random = Math.random; random()`) is outside it — a
- *  declared limit with its own row, and one the legacy text comparison shared. */
+/** THE CANDIDATE PREFILTER (perf): two arms cover every spelling that reaches the ambient generator under
+ *  the name `random` — a `random` MEMBER read (every dotted/optional/computed spelling) and a BARE
+ *  `random()` call (the destructured `const { random } = Math` and the method alias
+ *  `const random = Math.random`). The bare arm is one symbol hop per candidate; the whole 4,377-file
+ *  population holds a handful of them. */
 function randomCandidate(node: MorphNode): boolean {
   if (!Node.isCallExpression(node)) {
     return false;
   }
   const callee = node.getExpression();
+  if (Node.isIdentifier(callee)) {
+    return callee.getText() === RANDOM_MEMBER;
+  }
   if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return false;
   }
@@ -124,6 +130,22 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the tooling tree is IN this policy's population — unlike `no-raw-clock`, whose legacy predicate fenced tooling out because tools measure the real wall clock. The population difference between the two siblings is deliberate and this row pins it",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/const-alias.ts": "const random = Math.random;\nexport function rollDice(): number {\n  return random();\n}\n",
+      },
+      expect: { count: 1 },
+      why: "a bare local alias of the METHOD — the BARE-CALL arm, which closes the spelling rather than declaring it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/destructured.ts": "const { random } = Math;\nexport function rollDice(): number {\n  return random();\n}\n",
+      },
+      expect: { count: 1 },
+      why: "the DESTRUCTURED global — the shared global reader resolves a binding element to its receiver's member, so this is the same generator one binding later",
+    },
   ],
   mustPass: [
     {
@@ -145,13 +167,6 @@ export const gate = defineGate({
           "export function wire(make: (deps: { readonly prng: () => number }) => number): number {\n  return make({ prng: Math.random });\n}\n",
       },
       why: "DECLARED LIMIT, and the reason this policy's subject is the CALL: passing `Math.random` as an injected default is a REFERENCE, not a draw. Widening onto it would red `infra/providers/backends/kit/retry.ts` and three `kit/macro` seams at once — a burn-down with its own decision, not a conversion",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/server/src/domain/feature/const-alias.ts": "const random = Math.random;\nexport function rollDice(): number {\n  return random();\n}\n",
-      },
-      why: "DECLARED LIMIT — a bare local alias of the METHOD is outside the candidate prefilter, which is a `random` MEMBER read. The legacy text comparison missed this shape too, so it is a written baseline rather than a regression",
     },
   ],
 });

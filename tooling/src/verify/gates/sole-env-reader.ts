@@ -10,6 +10,13 @@
 // every live reader on this tree spells it (`import process from "node:process"`). Both doors resolve
 // through the shared origin readers; a member of anything else is provably not a subject.
 //
+// TWO CANDIDATE ARMS, because the bag can be reached without ever writing `process.env`: the MEMBER read in
+// any spelling, and the DESTRUCTURE SITE (`const { env } = process`, `const { env: bag } = process`), whose
+// binding element carries the property name while every later use is a bare identifier. The destructure arm
+// is prefiltered to the binding element ITSELF — one node per destructure — so it costs nothing on a tree
+// whose ~1,000 `env` identifiers are uses of the FROZEN object, each of which resolves cleanly to
+// `foundation/env` and is proven not to be a subject rather than being excused.
+//
 // THE OPERATION IS DERIVED FROM THE READ'S OWN SHAPE, uniformly, with no path knowledge inside the policy:
 // a read with a STATICALLY-READABLE KEY carries `process-env-read:<KEY>`, and a dynamic key or a read of the
 // whole bag (`envSchema.parse(process.env)`, `{ ...process.env }`) carries the bare `process-env-read`.
@@ -56,8 +63,32 @@ function readsProcessEnv(node: MorphNode): boolean {
   return classifyOriginRefusal(module.reason, node) === "unreadable";
 }
 
+/** Is this identifier the NAME of a destructuring binding element whose property is `env` — the one spelling
+ *  that reaches the bag without a member read of it (`const { env } = process`)? */
+function namesEnvBag(node: MorphNode): boolean {
+  if (Node.isIdentifier(node)) {
+    return destructuresEnv(node);
+  }
+  const member = readMemberReference(node);
+  return member.kind === "resolved" && member.value.name === ENV_MEMBER;
+}
+
+/** Is this identifier the NAME of a destructuring binding element whose property is `env`? */
+function destructuresEnv(node: MorphNode): boolean {
+  const parent = node.getParent();
+  if (parent === undefined || !Node.isBindingElement(parent) || parent.getNameNode() !== node) {
+    return false;
+  }
+  const property = parent.getPropertyNameNode() ?? parent.getNameNode();
+  if (Node.isIdentifier(property)) {
+    return property.getText() === ENV_MEMBER;
+  }
+  return (Node.isStringLiteral(property) || Node.isNoSubstitutionTemplateLiteral(property)) && property.getLiteralText() === ENV_MEMBER;
+}
+
 /** The KEY this read asks for, when the syntax names one: `process.env.FOO`, `process.env["FOO"]`. A dynamic
- *  key and a read of the whole bag name none, and share the bare operation. */
+ *  key and a read of the whole bag name none, and share the bare operation. A destructure names none either —
+ *  it takes the whole bag. */
 function readKey(node: MorphNode): string | undefined {
   const parent = node.getParent();
   if (parent === undefined || !(Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent))) {
@@ -87,11 +118,9 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.Identifier],
           visit: (node, sourceFile: SourceFile) => {
-            const member = readMemberReference(node);
-            const isEnvRead = member.kind === "resolved" && member.value.name === ENV_MEMBER;
-            if (!(isEnvRead && readsProcessEnv(node))) {
+            if (!(namesEnvBag(node) && readsProcessEnv(node))) {
               return;
             }
             const subject = ctx.relativePath(sourceFile);
@@ -161,6 +190,23 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "Read: process-env-read in" },
       why: "a DYNAMIC key names none either — it shares the bare operation rather than being dropped, so a computed read can never be silently unaccounted",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/destructured.ts": 'import process from "node:process";\nconst { env } = process;\nexport const x = env["SOME_VAR"];\n',
+      },
+      expect: { count: 1, messageIncludes: "Read: process-env-read in" },
+      why: "the DESTRUCTURE SITE — the bag reached without ever writing `process.env`, which a member-read-only visitor cannot see at all. It takes the WHOLE bag, so it names no key and shares the bare operation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/renamed-destructure.ts":
+          'import process from "node:process";\nconst { env: bag } = process;\nexport const x = bag["SOME_VAR"];\n',
+      },
+      expect: { count: 1 },
+      why: "the RENAMED destructure carries the property name on the binding element, not on the binding — the arm reads the property, so renaming the local is not an escape",
     },
   ],
   mustPass: [
