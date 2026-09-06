@@ -95,7 +95,6 @@
     "./toggle": "./src/primitives/toggle/index.ts",
     "./toggle-group": "./src/primitives/toggle-group/index.ts",
     "./tokens": "./src/tokens/index.ts",
-    "./token-contract": "./token-contract.ts",
     "./tool-call-block": "./src/primitives/tool-call-block/index.ts",
     "./tooltip": "./src/primitives/tooltip/index.ts",
     "./virtual-list": "./src/primitives/virtual-list/index.ts",

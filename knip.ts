@@ -100,7 +100,14 @@ const config: KnipConfig = {
     "packages/ui": {
       // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is
       // auto-detected as an entry via the `tokens:build` package script that runs it.
-      project: ["src/**/*.{ts,tsx}!"],
+      //
+      // The bare `*.ts` row is the PACKAGE-ROOT devtime trio (`tokens.build.ts` · `token-contract.ts` ·
+      // `tokens.near-duplicate.ts`) and it deliberately carries NO `!`: they are node-only build/verify
+      // machinery, so they belong to the DEFAULT view (where their `ajv`/`style-dictionary` devDependencies
+      // must stay accounted for) and NOT to the production view. Without the row, dropping `./token-contract`
+      // from the exports map in #1847 left `token-contract.ts` outside every project glob, and its ajv imports
+      // read as unused devDependencies of @orb/ui. `src/**` keeps the `!` — that IS the shipped surface.
+      project: ["src/**/*.{ts,tsx}!", "*.ts"],
     },
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).

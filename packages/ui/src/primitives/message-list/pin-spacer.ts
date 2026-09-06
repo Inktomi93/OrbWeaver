@@ -8,6 +8,8 @@
 /**
  * Whether a bottom spacer is still required to hold the pinned row at the viewport top: true until the
  * content below the pin fills at least one viewport. Equal heights count as filled (no spacer needed).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function pinSpacerActive(viewportHeightPx: number, contentBelowPinPx: number): boolean {
   return contentBelowPinPx < viewportHeightPx;

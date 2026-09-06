@@ -179,8 +179,14 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--radius-card",
 ] as const;
 
-/** ThemeScope-emitted colors whose SEED form stays the canonical static polarity token. Seed themes use
- * the generated light-dark() arms; only a carried custom base needs a per-surface concrete derivation. */
+/**
+ * ThemeScope-emitted colors whose SEED form stays the canonical static polarity token. Seed themes use
+ * the generated light-dark() arms; only a carried custom base needs a per-surface concrete derivation.
+ *
+ * @public The token BUILD reads it (`packages/ui/tokens.build.ts`, the `tokens:build` script) alongside
+ * `THEME_SCOPE_EMIT_VARS`, and the classification suite pins the two lists against each other. Neither
+ * reader is on the shipped runtime path, which is why the export has no production importer.
+ */
 export const THEME_SCOPE_STATIC_SEED_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5"] as const;
 
 /**

@@ -38,7 +38,11 @@ import { and, eq, exists, inArray, isNotNull, not, or, sql } from "drizzle-orm";
 import type { AssetRef } from "../contract/maintenance.ts";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
- *  ambiguous asset-FK column (over-retaining leaks a blob, under-retaining is data loss). */
+ *  ambiguous asset-FK column (over-retaining leaks a blob, under-retaining is data loss).
+ *
+ *  @public The registry IS the cross-tool contract: `asset-refs-fk-coverage` reads this array STRUCTURALLY
+ *  by name (ts-morph, no import edge), and the int test derives every `assets.id` FK from the real schema
+ *  against it. Both readers sit outside this module's import graph, which is why the export has none. */
 export const ASSET_REFS: readonly AssetRef[] = [
   { table: characters, column: characters.avatarAssetId },
   { table: personas, column: personas.avatarAssetId },

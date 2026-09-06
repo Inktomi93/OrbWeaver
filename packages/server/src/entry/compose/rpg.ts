@@ -317,7 +317,9 @@ function buildPromoteToCharacter(deps: RpgComposeDeps): RpgContext["promoteToCha
 }
 
 /** Existing-column recovery marker for one promotion. The hash obeys character provenance's SHA-256 contract;
- * the source string is operational provenance, not a user-visible card field. */
+ * the source string is operational provenance, not a user-visible card field.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): CharacterImportProvenance {
   const importedFrom = `rpg-promotion:v1:${chatId}:${sourceActorKey}`;
   return { importedFrom, importHash: sha256Hex(importedFrom) };

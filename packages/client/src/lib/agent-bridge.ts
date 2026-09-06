@@ -10,10 +10,10 @@ import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
+import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { __resetConsoleErrors, consoleErrorRing, installConsoleErrorRing } from "./console-error-ring.ts";
-import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
 import { activeAnimations, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
@@ -180,18 +180,6 @@ declare global {
   var __orb: OrbDebugHandle | undefined;
 }
 
-export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
-  if (!IS_DEV) {
-    return;
-  }
-  installAgentDebugHandleImpl(queryClient, handles);
-}
-
-/** CT-only entry to exercise the real bridge implementation through Vite's production-mode CT build. */
-export function __installAgentDebugHandleForTest(queryClient: QueryClient, handles: OrbAgentHandles): void {
-  installAgentDebugHandleImpl(queryClient, handles);
-}
-
 /** `data-panel-available` → the tri-state a reader needs: the declaration, or `null` for "the shell did
  *  not publish one". Never defaults to `true`: a missing declare that read as "available" would be the
  *  exact silent-guess this attribute exists to end.
@@ -227,7 +215,19 @@ function isRenderedElement(element: Element): boolean {
   return element.getClientRects().length > 0;
 }
 
-function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgentHandles): void {
+/**
+ * Install `globalThis.__orb`.
+ *
+ * NO ENVIRONMENT GATE HERE, and the gate this used to carry was redundant, not load-bearing (#1847): the
+ * only production caller is `agent-handles/index.ts`, which `main.tsx` reaches by DYNAMIC import inside its
+ * literal `if (import.meta.env.DEV)` block — the one the bundler constant-folds, so nothing on this graph
+ * exists in a shipped build at all (#433). A second `IS_DEV` check behind that could only ever be true, while
+ * costing the component-test bundle (built in Vite PRODUCTION mode) its way in — which is why a
+ * `__installAgentDebugHandleForTest` alias had grown beside it. One door, entered by the composition root
+ * and by the CT host alike.
+ */
+export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
+  enableAppearanceMessageRegistry();
   installAnimationLifecycleRecorder();
   installMotionObservers();
   installMotionFlaggers();
