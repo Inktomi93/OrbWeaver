@@ -42,6 +42,7 @@ import { SectionContextHost } from "../../../../packages/client/src/features/app
 import { CharacterHistoryTab } from "../../../../packages/client/src/features/character/components/character-history-tab.tsx";
 import { CharacterOverviewCard } from "../../../../packages/client/src/features/character/components/character-overview-card.tsx";
 import { CharacterRelationsTab } from "../../../../packages/client/src/features/character/components/character-relations-tab.tsx";
+import { CharacterRestoreBookAction } from "../../../../packages/client/src/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
 import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -689,6 +690,19 @@ export function CharacterRelationsTabStory(): ReactElement {
       <div style={{ padding: 16, width: 384 }}>
         <CharacterRelationsTab characterId={castId<CharacterId>("character_ctrelationstab1")} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The #1709 restore door alone — a `notify` surface for its success/failure toast, `CtDataProviders` for
+ *  `useInvalidation`. No `characterId` prop: the component is characterId-free by design (the server's own
+ *  restore verb resolves the target from the uploaded bytes' import hash), so a story needs none either. */
+export function CharacterRestoreBookActionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CharacterRestoreBookAction canRestore={true} />
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

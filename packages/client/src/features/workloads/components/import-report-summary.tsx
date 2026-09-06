@@ -2,6 +2,14 @@
 // line (imported · skipped · failed) then a per-file list (glyph + path + detail), so a bundle restore
 // shows exactly what landed, deduped, was skipped (unknown kind), or failed. Pure presentation over the
 // hook's summary — no reads, no state.
+//
+// NOTES (#1598/#1709) — the planes an import deliberately did NOT assert (today's one member: a re-upload
+// whose embedded lorebook was KEPT because the character already holds a primary book the owner may have
+// edited). Two homes, because the two import arms carry them at different granularities: the BUNDLE arm's
+// `summary.notes` is already flattened batch-wide (#1710 — no per-file list exists to hang them off); the
+// CARD arm's are per-file and ride `outcome.notes` beside the per-file detail it already renders. Neither
+// is a toast — an import that silently kept the wrong plane is exactly the "book kept" surprise this
+// pairs with (#1598's whole reason for existing).
 
 import { AlertTriangle, Check, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -20,21 +28,37 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
   return (
     <Stack gap="block" data-testid={testId("importReport")}>
       <Text className="font-semibold">{summaryCaption(summary)}</Text>
+      {summary.notes.length === 0 ? null : (
+        <Stack aria-label="Import notes" gap="field" role="list">
+          {summary.notes.map((note) => (
+            <Text key={note} voice="gloss" role="listitem">
+              {note}
+            </Text>
+          ))}
+        </Stack>
+      )}
       {summary.outcomes.length > 0 ? (
         <Stack aria-label="Imported files" gap="field" role="list">
           {summary.outcomes.map((outcome) => (
-            <Row key={outcome.path} align="center" gap="row" role="listitem">
-              <Icon
-                icon={outcome.ok ? Check : AlertTriangle}
-                size="sm"
-                className={outcome.ok ? "text-success" : "text-destructive"}
-                label={outcome.ok ? "Imported" : "Not imported"}
-              />
-              <Text className="min-w-0 flex-1 truncate font-mono">{outcome.path}</Text>
-              <Text voice="gloss" className="whitespace-nowrap">
-                {outcome.detail}
-              </Text>
-            </Row>
+            <Stack key={outcome.path} gap="field">
+              <Row align="center" gap="row" role="listitem">
+                <Icon
+                  icon={outcome.ok ? Check : AlertTriangle}
+                  size="sm"
+                  className={outcome.ok ? "text-success" : "text-destructive"}
+                  label={outcome.ok ? "Imported" : "Not imported"}
+                />
+                <Text className="min-w-0 flex-1 truncate font-mono">{outcome.path}</Text>
+                <Text voice="gloss" className="whitespace-nowrap">
+                  {outcome.detail}
+                </Text>
+              </Row>
+              {(outcome.notes ?? []).map((note) => (
+                <Text key={note} voice="gloss" className="pl-row">
+                  {note}
+                </Text>
+              ))}
+            </Stack>
           ))}
         </Stack>
       ) : null}
