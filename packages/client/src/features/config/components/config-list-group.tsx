@@ -60,13 +60,13 @@
 // box does not grow it. The band-height CT pins the number at both pointer classes.
 
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId } from "react";
+import type { BandProps } from "#components";
+import { Band } from "#components";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, ConfigSubcategory } from "#state";
 import { isCollectionGroup, isPlaceholderGroup, useConfigGroupOpen } from "#state";
 import { CONFIG_UNBUILT_MARKER } from "../lib/config-copy.ts";
@@ -258,13 +258,18 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
   // concatenates with nothing between; a `Badge` is `inline-flex`, so the computation inserts the space
   // itself. Nothing is stated here, and the placeholder CT pins the two-word name so the next edit to this
   // marker's box cannot silently weld it.
+  //
+  // A group with NO rows is a nav LEAF, so its gutter is `reserved` and it states no `aria-expanded` — the
+  // two halves are one statement (`BandProps.chevron`'s doc). Two steps rather than a nested ternary.
+  const disclosed: BandProps["chevron"] = open ? "open" : "closed";
+  const chevron: BandProps["chevron"] = hasRows ? disclosed : "reserved";
   return (
     // A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its children
     // carry the one "you are here" marker. A group with no rows IS the leaf, so it keeps `aria-current`
     // itself. Two `aria-current` rows for one location was the side-eye a11y defect. The band's click
     // ACTIVATES (and therefore opens) the group — never a bare toggle — so the active group cannot be
     // collapsed from its own band: selection and disclosure are one act.
-    <Button
+    <Band
       aria-controls={hasRows ? bodyId : undefined}
       aria-current={hasRows || !active ? undefined : "true"}
       aria-expanded={hasRows ? open : undefined}
@@ -276,53 +281,43 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
       // band keeps its content-derived name and nothing here can drift from the visible label. The UNBUILT
       // marker needs no such statement — see the measured note above the return.
       {...(modifiedMarker === undefined ? {} : { "aria-label": `${group.label} ${modifiedMarker}` })}
-      // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%` put a
-      // flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`: the button
-      // fell back to min-content and every settings band in the LIST rendered 16px tall — at BOTH pointer
-      // classes, beside 32/44px collection siblings drawn by the same component (measured 290.2 × 16.0px;
-      // Lighthouse `target-size` "safe clickable space … 20px instead of at least 24px"). The collection band
-      // keeps `flex-1` because ITS parent is a `Row` — same intent, the axis is what differs. Pinned by the
-      // dynamic band-height CT at both pointer classes.
-      //
       // THE UNBUILT ROW IS QUIETER, AND STILL A DOOR (#925 ruling 2). Greying is the SECOND half of the
       // signal — the word below is the first, because colour alone is not a status a screen reader or a
       // low-vision reader can read. `text-muted-foreground` is the house's own recessive text token, so the
       // row recedes exactly as far as every other stood-down label and no further: it keeps its box, its
       // focus ring, its tab stop and its click, because a row nobody can open is how a finished feature gets
-      // mistaken for a broken one (the #1043 class, from the other direction).
-      className={`min-w-0 w-full justify-start gap-tight px-tight${unbuilt ? " text-muted-foreground" : ""}`}
+      // mistaken for a broken one (the #1043 class, from the other direction). The CHASSIS classes that used
+      // to be spelled here — `w-full`, NOT `flex-1` (#978 F1) among them — are `Band`'s now; that fix's one
+      // home moved with the anatomy (#1723), which is what stops the next copy from missing it.
+      {...(unbuilt ? { className: "text-muted-foreground" } : {})}
+      chevron={chevron}
       data-config-group={group.id}
       data-slot="config-band"
+      icon={group.icon}
       id={bandId}
       {...(unbuilt ? { "data-config-unbuilt": "" } : {})}
-      intent="ghost"
+      label={group.label}
+      // IN WORDS, INSIDE THE BAND'S OWN NAME — a mark only the sighted reader gets is half a mark. The
+      // unbuilt phrase's ONLY remaining home is here (#1043): CONTENT's status band is gone, and a library
+      // the reader has not filled says its own `emptyText` instead. The modified mark says when something
+      // inside the group changed (#1099 Errand A). Both ride INSIDE the control, so both are part of its name.
+      marks={
+        <>
+          {unbuilt ? (
+            <Badge data-slot="config-group-unbuilt" intent="neutral" size="sm" tone="soft">
+              {CONFIG_UNBUILT_MARKER}
+            </Badge>
+          ) : null}
+          {modifiedMarker === undefined ? null : (
+            <Badge data-slot="config-group-modified" intent="neutral" size="sm" tone="soft">
+              {modifiedMarker}
+            </Badge>
+          )}
+        </>
+      }
       onClick={(): void => onSelectGroup(group)}
       {...(bandRef === undefined ? {} : { ref: bandRef })}
-      size="sm"
-      type="button"
-    >
-      <Icon {...(hasRows ? {} : { className: "invisible" })} icon={open ? ChevronDown : ChevronRight} size="sm" />
-      <Icon icon={group.icon} size="sm" />
-      <Text as="span" voice="interactiveKicker" className="truncate">
-        {group.label}
-      </Text>
-      {/* IN WORDS, INSIDE THE BAND'S OWN NAME — the same anatomy the modified marker uses below, for the same
-          reason: a mark only the sighted reader gets is half a mark. This is the surface's ONLY remaining
-          home for the phrase (#1043): CONTENT's status band is gone, and a library the reader has not filled
-          says its own `emptyText` instead. */}
-      {unbuilt ? (
-        <Badge data-slot="config-group-unbuilt" intent="neutral" size="sm" tone="soft">
-          {CONFIG_UNBUILT_MARKER}
-        </Badge>
-      ) : null}
-      {/* THE GROUP SAYS WHEN SOMETHING INSIDE IT CHANGED (#1099 Errand A). It rides INSIDE the band button,
-          so it is part of the band's accessible name. */}
-      {modifiedMarker === undefined ? null : (
-        <Badge data-slot="config-group-modified" intent="neutral" size="sm" tone="soft">
-          {modifiedMarker}
-        </Badge>
-      )}
-    </Button>
+    />
   );
 }
 

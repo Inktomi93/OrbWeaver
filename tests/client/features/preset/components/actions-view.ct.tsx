@@ -10,7 +10,7 @@
 
 import { TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { TEMPLATE_KIND_LABEL } from "../../../../../packages/client/src/features/preset/lib/template-rows.ts";
 import { ActionsForkStory, ActionsStory } from "./_actions-stories.tsx";
 
@@ -272,6 +272,63 @@ test("IA — the extract clusters mount COLLAPSED; the band is the map and one c
   await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toBeVisible();
   await band.click();
   await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toHaveCount(0);
+});
+
+// ── #1723 · THE CLUSTER BAND IS THE SAME GOVERNED BOX AS THE CONFIG BAND IT BORROWS ─────────────────
+//
+// `TemplateCluster` was written as a BORROW of the config collection-group band anatomy and then never
+// followed it: the config side landed #978 F1 (`flex-1`'s `flex-basis: 0%` lands on the BLOCK axis inside
+// a vertical `Stack` and defeats the sealed `h-control-sm`, so the band falls back to min-content) at BOTH
+// of its own bands, and the preset copy kept `flex-1` — the identical defect, in the identical parent
+// shape, invisible to the config pin because that pin sweeps `[data-slot="config-band"]` in the LIST pane.
+// The pin is DYNAMIC against the RESOLVED token, exactly like the config one: `--spacing-control-sm` is
+// pointer-CONDITIONAL (32 fine / 44 coarse) and a literal would ratify one arm and fail a correct retune.
+function controlSmPx(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-control-sm)";
+    document.body.append(probe);
+    const px = probe.getBoundingClientRect().height;
+    probe.remove();
+    return px;
+  });
+}
+
+/** Every cluster band's rendered height, addressed the way a reader reaches it — by ROLE + accessible
+ *  NAME, never by a `data-slot` this fix introduces, so the pin measures the same affordance before and
+ *  after. One entry per band in `CLUSTER_BANDS`, so a band that stopped rendering cannot vacuously pass. */
+async function clusterBandHeights(probe: Locator): Promise<readonly number[]> {
+  const boxes = await Promise.all(CLUSTER_BANDS.map((band) => probe.getByRole("button", { name: band }).boundingBox()));
+  return boxes.map((box, index) => {
+    if (box === null) {
+      throw new Error(`the "${CLUSTER_BANDS[index] ?? "?"}" band did not render a box`);
+    }
+    return Math.round(box.height);
+  });
+}
+
+test("#1723 — every cluster band is the governed control-sm box, not a min-content sliver", async ({ mount, page }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("button", { name: CLUSTER_BANDS[0] })).toBeVisible();
+
+  expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches), "the fine-pointer arm must be active").toBe(true);
+  const floor = await controlSmPx(page);
+  const heights = await clusterBandHeights(probe);
+  expect(new Set(heights), `all ${String(heights.length)} cluster bands are the resolved control-sm box (${String(floor)}px)`).toEqual(new Set([floor]));
+});
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("#1723 — every cluster band is the governed box at a COARSE pointer too", async ({ mount, page }) => {
+    const probe = await mount(<ActionsStory />);
+    await expect(probe.getByRole("button", { name: CLUSTER_BANDS[0] })).toBeVisible();
+
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches), "the coarse arm must be active").toBe(true);
+    const floor = await controlSmPx(page);
+    const heights = await clusterBandHeights(probe);
+    expect(new Set(heights), `all ${String(heights.length)} cluster bands are the resolved coarse box (${String(floor)}px)`).toEqual(new Set([floor]));
+  });
 });
 
 test("IA — the tab filter narrows every group and REVEALS matches a collapsed band would hide", async ({ mount }) => {

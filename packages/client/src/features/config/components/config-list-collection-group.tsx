@@ -20,6 +20,12 @@
 // `interactiveKicker` label. The only deltas from `SectionsBand` are that the chevron is never drawn (there
 // is nothing to unfold, so no `aria-expanded` either) and that this band carries a live census.
 //
+// AND IT IS NOW STRUCTURALLY TRUE RATHER THAN HAND-MATCHED (#1723): "same Button, same box, same gutter,
+// same label" was four sentences that a second copy could stop honouring — and one had (`TemplateCluster`
+// in `features/preset`, which called itself a borrow of this anatomy and shipped a 16px band). The chassis
+// lives in `#components`' `Band`; this file states only its two deltas, and the class strings that carry
+// #978 F1's axis fix are no longer spellable here.
+//
 // ═══ THE RULINGS THAT SURVIVE WITH A CHANGED INPUT — each recorded, none silently reversed ════════════
 //  · #925 ENTER (select-and-disclose). The band's click ENTERS the library; the DISCLOSE half is retired
 //    because there is nothing in this pane to disclose. The owner ruled WHERE the members live, so the
@@ -45,11 +51,9 @@
 // visible property, so "must match the mockups" is not at stake; if the owner wants `location`, it is a
 // two-line change at BOTH bands, never at one.
 
-import { Button } from "@orb/ui/button";
-import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactNode, RefObject } from "react";
+import { Band } from "#components";
 import type { CollectionGroupDefinition } from "#state";
 import { selectConfigGroup } from "#state";
 
@@ -83,7 +87,7 @@ export function CollectionListGroup({ group, active, bandRef }: CollectionListGr
     // reads (side-eye 2026-08-19 — a band addressable only as a descendant of its group is a path, not an
     // identity). It keeps the settings arm's `data-slot="config-group"` so one selector still finds both.
     <Stack gap="tight" data-slot="config-group" data-collection={group.id} data-config-group={group.id}>
-      <Button
+      <Band
         aria-current={active ? "true" : undefined}
         // THE NAME AND THE COUNT, UNGLUED (side-eye 2026-08-19 ARIA): the label and the count are adjacent
         // inline nodes, and the accessible-name computation concatenates them with NOTHING in between — this
@@ -92,44 +96,23 @@ export function CollectionListGroup({ group, active, bandRef }: CollectionListGr
         // (WCAG 2.5.3 Label in Name). Stated only when there IS a number, so a settling census keeps the
         // band's content-derived name rather than announcing a word that is not on screen.
         {...(count === undefined ? {} : { "aria-label": `${group.label} ${String(count)}` })}
-        // `w-full`, NOT `flex-1` (#978 F1): this band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%` puts a
-        // flex-BASIS of 0 on the BLOCK axis and defeats the size variant's sealed `h-control-sm` — the button
-        // falls back to min-content and the band renders 16px tall at BOTH pointer classes. It was `flex-1`
-        // here for a real reason that #1725 retired: this band used to sit in a `Row` beside the trailing
-        // verbs. The verbs moved to CONTENT, the Row went with them, and the axis changed — so the class
-        // follows the settings band's, which is the same statement as "the collection band IS the settings
-        // band". Pinned by the dynamic band-height CT at both pointer classes.
-        className="min-w-0 w-full justify-start gap-tight px-tight"
+        // THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED — there is nothing in this pane to unfold, so no
+        // `aria-expanded` either, and the empty gutter is what keeps this band's glyph in the same column as
+        // every settings sibling's (`Band`'s header owns the mechanism).
+        chevron="reserved"
+        // THE CENSUS RIDES THE TRAILING EDGE (DESIGN.md §3.1): the label truncates and the count must not, so
+        // the count is what claims the remainder. `undefined` draws nothing at all — the band never fabricates
+        // a `0`, and the LANDING owns the failure half (#1546).
+        {...(count === undefined ? {} : { count })}
         data-config-group={group.id}
         data-slot="config-band"
-        intent="ghost"
+        icon={group.icon}
+        label={group.label}
         {...(bandRef === undefined ? {} : { ref: bandRef })}
         // ONE ACT: enter the library. `null` for the section — a collection has none. There is no toggle arm
         // any more, which is what retires #925's disclose half; the ENTER half is this call, unchanged.
         onClick={(): void => selectConfigGroup(group.id, null)}
-        size="sm"
-        type="button"
-      >
-        {/* THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). Dropping the chevron
-            also drops its 16px box and the 4px joint, so a collection band's glyph would start 20px left of
-            every settings sibling's and the LIST's left edge would become species-dependent — a ragged column
-            that reads as a rendering bug. The spacer is the SAME `Icon` at the SAME size, merely `invisible`
-            (visibility:hidden keeps the box, drops the paint, and the glyph is already decorative), so the
-            gutter cannot drift from the chevron it stands in for the way a re-spelled width would. */}
-        <Icon className="invisible" icon={ChevronRight} size="sm" />
-        <Icon icon={group.icon} size="sm" />
-        <Text as="span" voice="interactiveKicker" className="truncate">
-          {group.label}
-        </Text>
-        {/* THE CENSUS RIDES THE TRAILING EDGE (DESIGN.md §3.1). `ms-auto` rather than a spacer: the label
-            truncates and the count must not, so the count is what claims the remainder. A settling or failed
-            read draws nothing at all — the band never fabricates a `0`, and the landing owns the failure. */}
-        {count === undefined ? null : (
-          <Text as="span" className="ms-auto" voice="datum">
-            {count}
-          </Text>
-        )}
-      </Button>
+      />
     </Stack>
   );
 }
