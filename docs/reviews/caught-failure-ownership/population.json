@@ -631,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 303,
+      "line": 336,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 301
+      "markerLine": 334
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
@@ -1996,7 +1996,7 @@
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 150,
+      "line": 165,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2004,12 +2004,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the probe failing means the db is unwell — the",
-      "markerLine": 144
+      "markerLine": 159
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 245,
+      "line": 260,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2017,12 +2017,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "classified by classifyFailedAppend (ground-truth",
-      "markerLine": 239
+      "markerLine": 254
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 287,
+      "line": 302,
       "column": 7,
       "grammar": "default",
       "position": "default:err",
@@ -2030,12 +2030,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 269
+      "markerLine": 284
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 118,
+      "line": 133,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2043,7 +2043,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 113
+      "markerLine": 128
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
@@ -2087,7 +2087,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1988,
+      "line": 1999,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
@@ -2165,7 +2165,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1214,
+      "line": 1281,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2173,12 +2173,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1208
+      "markerLine": 1275
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2510,
+      "line": 2470,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2186,12 +2186,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2504
+      "markerLine": 2464
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::promise:run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2262,
+      "line": 2261,
       "column": 14,
       "grammar": "promise",
       "position": "promise:run",
@@ -2199,7 +2199,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2258
+      "markerLine": 2257
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",
@@ -3478,7 +3478,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1848,
+      "line": 1851,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3486,12 +3486,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1847
+      "markerLine": 1850
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1844,
+      "line": 1847,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3499,7 +3499,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1843
+      "markerLine": 1846
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
@@ -3712,7 +3712,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::empty:err::1",
       "path": "packages/server/src/infra/providers/backends/openrouter/probe.ts",
-      "line": 32,
+      "line": 36,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -3720,7 +3720,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a credential-probe failure is classified into a typed CredentialHealth (auth-class → revoked, else → unreachable), reason sanitized + secret-redacted by value; propagated as a verdict, never a false green, no secret leak. Ends if the catch can return \"ok\".",
-      "markerLine": 28
+      "markerLine": 32
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/runners/chat/chat-completions.ts::empty:err::1",
@@ -5077,7 +5077,7 @@
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:err::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 128,
+      "line": 155,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -5085,12 +5085,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.",
-      "markerLine": 124
+      "markerLine": 151
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:error::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 307,
+      "line": 339,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5098,7 +5098,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.",
-      "markerLine": 304
+      "markerLine": 336
     },
     {
       "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::empty:catch::1",

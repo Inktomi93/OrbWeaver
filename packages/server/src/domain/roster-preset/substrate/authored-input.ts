@@ -63,7 +63,7 @@ export async function loadView(ctx: RosterPresetContext, ownerId: UserId, preset
   if (row === undefined) {
     throw new RosterPresetNotFoundError(presetId);
   }
-  const members = groupMemberViews(await loadMemberCardRows(ctx.db, [presetId])).get(presetId) ?? [];
+  const members = groupMemberViews(await loadMemberCardRows(ctx.db, ownerId, [presetId])).get(presetId) ?? [];
   const rules = groupCastRuleViews(await loadCastRuleRows(ctx.db, [presetId])).get(presetId) ?? [];
   return viewOf(row, members, rules);
 }

@@ -718,8 +718,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 305705,
-      "sha256": "38b34e94dfdaf89529d4b3b0ef9dd186f6892cecf7e1963265d451b78430149a",
+      "bytes": 305714,
+      "sha256": "9d8f91c81d7f0d2b3d7dc2c7a8c755ae69922a7d84e077d758564f087f7460be",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -732,14 +732,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "38b34e94dfdaf89529d4b3b0ef9dd186f6892cecf7e1963265d451b78430149a",
+        "assignedSha256": "9d8f91c81d7f0d2b3d7dc2c7a8c755ae69922a7d84e077d758564f087f7460be",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "38b34e94dfdaf89529d4b3b0ef9dd186f6892cecf7e1963265d451b78430149a",
-        "verifiedCommit": "9c25561875c8468e148c76eb3d6a9501e7c70d13",
+        "verifiedSha256": "9d8f91c81d7f0d2b3d7dc2c7a8c755ae69922a7d84e077d758564f087f7460be",
+        "verifiedCommit": "c68f32c3a1e6a793fc04aac871009b53305964b9",
         "verifiedAt": "2026-09-06",
         "evidence": [
+          "c68f32c3a (#1774 rpg half, claude-b cb-rpg-roster-codemod linearized: D108 + its (F) paragraph — the rpg roster family renamed by codemod; symbols only) — re-attested at the fold",
           "9c2556187 (#1540 cb-preview-fit, D51 arm A: the parenthetical truth-repaired — the pipeline tail lives at domain/chat/substrate/wire-history.ts, content-part-seam its enforcer) — re-attested at the fold",
           "62d59caf2908adee3a963efd9b9a83a7f2a40c3a (#906): D121(F) dated in-place truth repair — the reserved cross-game arm is libraryNpc",
           "re-attested after #1010 (three cites of the moved roster files repaired to the participants paths) at 532758261",
@@ -957,28 +958,29 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 422,
-      "bytes": 47179,
-      "sha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
+      "bytes": 47361,
+      "sha256": "a54473b4f44c032115b879cf6490c8656bc7638a8f4aad8203236091261dcaaa",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-04"
+          "updated": "2026-09-06"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
+        "assignedSha256": "a54473b4f44c032115b879cf6490c8656bc7638a8f4aad8203236091261dcaaa",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "27dad2bcda4be6ac6e7d4fa09341969488933fbfcad80a628f8d597139e250e6",
-        "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
-        "verifiedAt": "2026-09-04",
+        "verifiedSha256": "a54473b4f44c032115b879cf6490c8656bc7638a8f4aad8203236091261dcaaa",
+        "verifiedCommit": "d2dbccc37e4566b737efd38e19b1777e4e3c7987",
+        "verifiedAt": "2026-09-06",
         "evidence": [
+          "d2dbccc37 (#1812 cb-snap-diag-seam: §2.4 browser.ts row gains the test-only CDP fault-injector clause) — re-attested at the fold",
           "re-attested at 561ea5ec3 (#1292, full delta read): the tooling-tree ownership table's `snap/` row is now the sole rendered-instrument CLI (filmstrip contact sheets + motion/perf/CPU/boot/React arms); the separate `motion-audit/` and `cpu-profile/` rows are dropped and `screen-record/` is now the retired `record` compatibility door. The 4.5 27-reader grammar census names the retired `motion-audit`/`perf-meter` scripts and `screen-record` as hard-refusal redirects rather than parsers, and the deferred bench-lane row now cites Snap's `--cpu-profile` attribution in place of the retired `cpu-profile` tool.",
           "re-attested at 9301fdf41 after the unified Snap substrate implementation and full current-tree read: the law now records Snap as the sole public rendered-instrument CLI, typed run slots/artifacts, shared browser/session/environment ownership, and the retired motion/perf/record entry doors; pnpm check:structure ran all 254 gates clean at main-3229425-2026-09-04T07-04-27-858Z.",
           "re-attested at dad0162ae (#1184, claude-b lane cb-bug-button warm leg): the §2.6 tool roster gains the `bug-reports/` row — the READER for the dev bug button's gitignored captures (`pnpm bug:reports` list + show); the artifacts have no tree presence, so the script name IS their discoverability. Diff read in full at the fold by the primary orchestrator.",
@@ -14469,8 +14471,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 193,
-      "bytes": 40303,
-      "sha256": "c1269f0e5126d1f89b64ee2fbdc6e527cf2935760f9ce72e9731aa12634243d3",
+      "bytes": 42147,
+      "sha256": "7dd1012ac78633032d6ea2a80086db5a970c778be7d6ec2c5acf502a4ae695ce",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14483,14 +14485,15 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "c1269f0e5126d1f89b64ee2fbdc6e527cf2935760f9ce72e9731aa12634243d3",
+        "assignedSha256": "7dd1012ac78633032d6ea2a80086db5a970c778be7d6ec2c5acf502a4ae695ce",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c1269f0e5126d1f89b64ee2fbdc6e527cf2935760f9ce72e9731aa12634243d3",
-        "verifiedCommit": "b481e7debfd823e19f9a9e547e7212b7f9af3969",
+        "verifiedSha256": "7dd1012ac78633032d6ea2a80086db5a970c778be7d6ec2c5acf502a4ae695ce",
+        "verifiedCommit": "c68f32c3a1e6a793fc04aac871009b53305964b9",
         "verifiedAt": "2026-09-06",
         "evidence": [
+          "c68f32c3a (#1774: row 155 → LANDED FOR THE RPG DOMAIN; row 44 residue struck for the rpg family) — re-attested at the fold",
           "0c31b0905ccc0d35c8dfb87979ea12b8826301aa (#1774 map row: the rpg roster-family word ruling, DIVERGENT — word RULED) on 75d9a1176a9fffc879d05937f0d23a275bda3c9f (#1787: World-book row → landed, cross-ref fixed) — re-attested at the fold",
           "62d59caf2908adee3a963efd9b9a83a7f2a40c3a (#906): both rpg-register rows — scene extra = npc (cast:<slug> → npc:<slug> landed), reserved library arm = libraryNpc; union with #1777's GM-voice row at the fold",
           "54de51d47302fc95549db9ade5e8ec07f0904bc8 (#1777 three rows: Regex script, GM voice, World book — owner ruled World book 2026-09-06) on top of 031af3399 (#1755 'Runs <n> of <m>' regex-register row) — re-attested at the fold",
@@ -29842,6 +29845,48 @@
           }
         ],
         "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 93,
+      "bytes": 5423,
+      "sha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md",
+        "assignedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+        "verifiedCommit": "88d11f009708f33dcfaceabc2eaa5d3368f045c3",
+        "verifiedAt": "2026-09-06",
+        "evidence": ["landed by p-adjudication-1481 (c8013ed69, rebased 88d11f009) and read in full by the orchestrator at the fold"],
+        "claims": [
+          {
+            "claim": "Seven external-review claims were adjudicated against the tree: six REFUTED and one ALREADY FIXED by #1375, each with the path:line receipt re-derived on 2026-09-06 (two moved ranges re-cited; claims 6 and 7 gained receipts the issue body lacked); the record exists so the same mirror findings are not re-derived again.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1481"
+              }
+            ]
+          }
+        ],
+        "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
       },
       "receiptCurrent": true
     },

@@ -37,29 +37,29 @@ import { buildTranscript, parseChatArgs, SEED_HANDLE_PREFIX, transcriptFilename 
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
-/** Ensure M cast characters exist (reuse by handle, else create); return their ids + names in order. */
-async function ensureCast(
+/** Ensure M heavy-fixture characters exist (reuse by handle, else create); return their ids + names in order. */
+async function ensureCharacters(
   services: Services,
   owner: ReturnType<typeof principalOf>,
   ownerId: UserId,
   count: number,
 ): Promise<{ id: CharacterId; name: string }[]> {
-  const cast: { id: CharacterId; name: string }[] = [];
+  const characters: { id: CharacterId; name: string }[] = [];
   for (let i = 0; i < count; i += 1) {
     const handle = castId<CharacterHandle>(`${SEED_HANDLE_PREFIX}-${i + 1}`);
-    const name = `Cast ${i + 1}`;
+    const name = `Character ${i + 1}`;
     const existing = await services.character.findByHandle({ ownerId, handle });
     if (existing !== null) {
-      cast.push({ id: existing.characterId, name });
+      characters.push({ id: existing.characterId, name });
       continue;
     }
     const created = await services.character.create({
       principal: owner,
-      input: { handle, name, description: `Deterministic heavy-fixture cast member ${i + 1}.`, greetings: [{ text: `${name} here.` }] },
+      input: { handle, name, description: `Deterministic heavy-fixture character ${i + 1}.`, greetings: [{ text: `${name} here.` }] },
     });
-    cast.push({ id: created.id, name });
+    characters.push({ id: created.id, name });
   }
-  return cast;
+  return characters;
 }
 
 /** The import derives `chats.title` from the `<handle>/<leaf>` filename; find the row it wrote so the clean
@@ -121,11 +121,11 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
   await seedDefaultPersona({ seeder: built.personaSeeder, owner });
 
-  const cast = await ensureCast(built.services, owner, ownerId, args.characters);
-  log(`cast ready: ${cast.map((c) => `${c.name}(${c.id})`).join(", ")}`);
+  const characters = await ensureCharacters(built.services, owner, ownerId, args.characters);
+  log(`characters ready: ${characters.map((c) => `${c.name}(${c.id})`).join(", ")}`);
 
   const filename = transcriptFilename(`${SEED_HANDLE_PREFIX}-1`, args.title);
-  const transcript = buildTranscript({ title: args.title, messageCount: args.messages, characterNames: cast.map((c) => c.name) });
+  const transcript = buildTranscript({ title: args.title, messageCount: args.messages, characterNames: characters.map((c) => c.name) });
   const chatDescriptor = built.portability.find((e) => e.kind === "chat");
   if (chatDescriptor === undefined) {
     throw new Error("seed chat: no chat portability descriptor (composition changed?)");
@@ -141,7 +141,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
   log(outcome.created === true ? "imported a fresh chat" : "chat already present (idempotent skip — same bytes)");
   print(
-    `\n[seed-chat] DONE.\n  chatId: ${chatId ?? "(not found)"}\n  title:  ${args.title}\n  messages: ${args.messages}\n  cast: ${cast.map((c) => c.name).join(", ")}\n  verify: curl -s "$BASE/api/_debug/db/chat/${chatId ?? "<id>"}" -H "x-debug-token: $DEBUG_TOKEN" | jq '.messages | length'`,
+    `\n[seed-chat] DONE.\n  chatId: ${chatId ?? "(not found)"}\n  title:  ${args.title}\n  messages: ${args.messages}\n  characters: ${characters.map((c) => c.name).join(", ")}\n  verify: curl -s "$BASE/api/_debug/db/chat/${chatId ?? "<id>"}" -H "x-debug-token: $DEBUG_TOKEN" | jq '.messages | length'`,
   );
 
   await preCloseHousekeeping(db);

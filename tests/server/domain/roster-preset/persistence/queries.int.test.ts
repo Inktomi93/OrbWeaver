@@ -182,9 +182,33 @@ describe("roster-preset persistence — FK physics", () => {
     const p1 = await seedPreset(db, { id: "roster_preset_p6", ownerId: owner, name: "One", memberIds: [y, x] });
     const p2 = await seedPreset(db, { id: "roster_preset_p7", ownerId: owner, name: "Two", memberIds: [x] });
 
-    const buckets = groupMemberViews(await loadMemberCardRows(db, [p1, p2]));
+    const buckets = groupMemberViews(await loadMemberCardRows(db, owner, [p1, p2]));
     expect(buckets.get(p1)?.map((m) => m.name)).toEqual(["Yara", "Xan"]);
     expect(buckets.get(p2)?.map((m) => m.name)).toEqual(["Xan"]);
     expect(await listOwnedPresetRows(db, owner)).toHaveLength(2);
+  });
+
+  // #1480 item 6 — the OWNER PREDICATE on the card read. This is the picker's/detail's only card join, and
+  // it carried no owner axis at all: a caller-supplied presetId belonging to someone else read back that
+  // preset's whole member list, with each seated card's NAME and AVATAR HASH. Both live callers resolve
+  // their ids one hop earlier from an owner-scoped read (`listOwnedPresetRows` / `loadOwnedPresetRow`), so
+  // this is the local belt, and it belts BOTH axes — the preset (through `roster_presets.owner_id`, since
+  // the junction stamps no owner by design, D23) and the card itself (`ensureMembersOwned` makes
+  // same-owner a true invariant of every member row, so an inner join on it is fail-closed, never a
+  // feature restriction).
+  test("loadMemberCardRows is OWNER-SCOPED — a foreign preset id reads back EMPTY, the owner's own reads back the row", async () => {
+    const db = await freshDb();
+    const alice = (await seedUser(db)).id;
+    const bob = (await seedUser(db)).id;
+    const alicesChar = (await seedCharacter(db, { ownerId: alice, name: "AliceHero" })).id;
+    const alicesPreset = await seedPreset(db, { id: "roster_preset_own1", ownerId: alice, name: "Alice's party", memberIds: [alicesChar] });
+
+    // Receipt AS BOB: he names Alice's presetId directly at the persistence seam.
+    expect(await loadMemberCardRows(db, bob, [alicesPreset])).toEqual([]);
+
+    // POSITIVE ARM, AS ALICE — the same id, the owning principal: the row (and its card join) comes back.
+    const mine = await loadMemberCardRows(db, alice, [alicesPreset]);
+    expect(mine.map((row) => row.view.name)).toEqual(["AliceHero"]);
+    expect(mine[0]?.presetId).toBe(alicesPreset);
   });
 });

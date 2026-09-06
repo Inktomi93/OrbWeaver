@@ -19,11 +19,11 @@
 // `createHostPrincipalResolver` over a stubbed `users` row and the REAL `mintMaxProSub` owner gate, so they
 // fail if the binder ever re-acquires a role literal.
 
-import type { ChatApi, ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatApi, ResolvedConnection, RoutingRoleKey } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
-import type { Handle, ModelId, UserId } from "@orb/kit/ids";
+import type { Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireOwner } from "@orb/server/domain/admin";
 import type { ConnectionService } from "@orb/server/domain/connection";
@@ -31,6 +31,7 @@ import type { SessionsService, UserPrincipalFields } from "@orb/server/domain/se
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { bindRoleClientsForUser } from "@orb/server/entry/compose";
 import type { EmbedRequest, ProviderExecutor, StructuredRequest, SummarizeRequest } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/server/infra/providers";
 import { makeModelCapability, makeOpenRouterCredential, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
@@ -41,16 +42,26 @@ const OWNER = castId<UserId>("u_owner");
  *  bindings exercise the same resolution every deployment gets until an admin moves it. */
 const autoVehicle = (): StructuredOutputVehicle => "auto";
 
+/** The strike-out op for every pin that is not ABOUT the strike (#1800). Inert, not absent: the dep is
+ *  required precisely so a future binder call site cannot bind a bundle whose failing role loses no key. */
+const noStrike = (): Promise<void> => Promise.resolve();
+
 /** The binder's deps, assembled in one place: every test but the vehicle-resolution trio wants the same
  *  stub connection, the REAL row→Principal resolver, and the shipped `auto` vehicle floor. */
 function binderDeps(executor: ProviderExecutor): Parameters<typeof bindRoleClientsForUser>[0] {
-  return { connection: stubConnection(), executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle };
+  return { connection: stubConnection(), executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike };
 }
 
 /** The binder's deps over a CALLER-supplied connection — the principal-provenance pins need to watch
  *  what `resolveRole` was handed, so they bring their own recording connection. */
 function customDeps(connection: Pick<ConnectionService, "resolveRole">): Parameters<typeof bindRoleClientsForUser>[0] {
-  return { connection, executor: recordingExecutor().executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle };
+  return {
+    connection,
+    executor: recordingExecutor().executor,
+    resolvePrincipal: realResolver(),
+    structuredOutputVehicle: autoVehicle,
+    maybeRevokeOnAuthFailed: noStrike,
+  };
 }
 
 /** The rule AUTHOR: a plain `user` row that holds D18 ROOM host authority in its own chat — the subject the
@@ -203,7 +214,13 @@ test("a summarize call with responseFormat routes to the STRUCTURED role, NOT su
 test("auto resolves to the forced-tool vehicle when the resolved model has no structured-output capability", async () => {
   const { executor, structuredCalls } = recordingExecutor();
   const clients = await bindRoleClientsForUser(
-    { connection: stubConnection({ structured: false }), executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle },
+    {
+      connection: stubConnection({ structured: false }),
+      executor,
+      resolvePrincipal: realResolver(),
+      structuredOutputVehicle: autoVehicle,
+      maybeRevokeOnAuthFailed: noStrike,
+    },
     OWNER,
   );
 
@@ -222,6 +239,7 @@ test("the deployment knob overrides the capability read when it is not `auto`", 
       executor,
       resolvePrincipal: realResolver(),
       structuredOutputVehicle: (): StructuredOutputVehicle => "response-format",
+      maybeRevokeOnAuthFailed: noStrike,
     },
     OWNER,
   );
@@ -241,6 +259,7 @@ test("a per-call vehicle ask beats the deployment knob and the capability", asyn
       executor,
       resolvePrincipal: realResolver(),
       structuredOutputVehicle: (): StructuredOutputVehicle => "forced-tool",
+      maybeRevokeOnAuthFailed: noStrike,
     },
     OWNER,
   );
@@ -303,7 +322,10 @@ function settingsBackedConnection(): {
 test("a settings re-point of the embed role governs the NEXT embed call — no restart", async () => {
   const { executor, embedCalls } = recordingExecutor();
   const { connection, pin } = settingsBackedConnection();
-  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const clients = await bindRoleClientsForUser(
+    { connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike },
+    OWNER,
+  );
 
   await clients.embed("before");
   pin("embed", "repointed-embed"); // the owner moves the embed role in Settings › Connections
@@ -317,7 +339,10 @@ test("a settings re-point of the embed role governs the NEXT embed call — no r
 test("a settings re-point of the summarize role governs the NEXT summarize call — no restart", async () => {
   const { executor, summarizeCalls } = recordingExecutor();
   const { connection, pin } = settingsBackedConnection();
-  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const clients = await bindRoleClientsForUser(
+    { connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike },
+    OWNER,
+  );
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
   pin("summarize", "repointed-summarize");
@@ -329,7 +354,10 @@ test("a settings re-point of the summarize role governs the NEXT summarize call 
 test("the STRUCTURED arm of the summarize facade re-points too (it rides the summarize selection)", async () => {
   const { executor, structuredCalls } = recordingExecutor();
   const { connection, pin } = settingsBackedConnection();
-  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const clients = await bindRoleClientsForUser(
+    { connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike },
+    OWNER,
+  );
   const format = { name: "x", schema: wireSchema({ type: "object" }) };
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: format });
@@ -342,7 +370,10 @@ test("the STRUCTURED arm of the summarize facade re-points too (it rides the sum
 test("rerank and imageEmbed re-point on their next call — every derive role is hot, not just the two loud ones", async () => {
   const { executor } = recordingExecutor();
   const { connection, pin } = settingsBackedConnection();
-  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const clients = await bindRoleClientsForUser(
+    { connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike },
+    OWNER,
+  );
 
   pin("rerank", "repointed-rerank");
   pin("imageEmbed", "repointed-image-embed");
@@ -356,7 +387,10 @@ test("rerank and imageEmbed re-point on their next call — every derive role is
 test("the *Model provenance tags follow the re-point, so a vector row is stamped with the model that made it", async () => {
   const { executor } = recordingExecutor();
   const { connection, pin } = settingsBackedConnection();
-  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const clients = await bindRoleClientsForUser(
+    { connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle, maybeRevokeOnAuthFailed: noStrike },
+    OWNER,
+  );
 
   expect(clients.embedModel).toBe("model-embed"); // the bind seeds it — compose reads this synchronously
   pin("embed", "repointed-embed");
@@ -469,4 +503,268 @@ test("D135: an unknown id degrades to the fail-closed floor, never to owner", as
   await bindRoleClientsForUser(customDeps(connection), castId<UserId>("u_ghost"));
 
   expect(principals[0]?.role).toBe("user");
+});
+
+// ── SIDE-ROLE CREDENTIAL STRIKE-OUT (#1800) ───────────────────────────────────────────────────────────────
+// The second half of #1373, refused in-lane at the recall seam with a receipt and re-homed here. #1373 gave
+// the CHAT turn a post-generation strike-out; #1603 then proved the other half was a hole with a name: a
+// DERIVE role (embed/rerank/imageEmbed/summarize) resolves its OWN credential per call, so its 401 escaped
+// the turn's catch, the chat's key was deliberately NOT charged for it (`credential-strikeout.suite.int`,
+// "A SIDE-ROLE's auth failure inside the turn body strikes NOTHING"), and NOTHING revoked the key the
+// provider had actually rejected. The user was told which role to fix and the dead key was re-spent forever.
+//
+// It could not be fixed at the recall seam: `RoleClients` exposes only `*Model` getters, so the failing
+// role's `credentialId` is unreachable outside THIS binder's closure, and a fresh resolve afterwards is the
+// rotate race #1373 bans by name. The strike therefore lives where the credential is already in hand.
+//
+// WHAT THESE PIN: the failing role's OWN credential is struck (never a sibling role's, never the chat's);
+// the id is the one that call AUTHENTICATED with (never a re-resolve); the provider's own classification
+// travels verbatim (the auth conditional is NOT re-spelled here — `domain/credentials/verbs/
+// maybe-revoke-on-auth-failed.ts` is the one home of that policy, exhaustively pinned over every
+// `PROVIDER_ERROR_KINDS` member by `tests/server/domain/credentials/verbs/maybe-revoke-on-auth-failed.int`);
+// a non-provider fault classifies as nothing and strikes nothing; and the strike is a PASSENGER — it can
+// never alter, mask or delay the failure the caller is about to see.
+
+/** One recorded strike — exactly the argument object the binder handed the injected op. Derived from the
+ *  DEPS TYPE, so a shape drift on either side is a `tsc` error here rather than a stale hand-copy. */
+type StrikeCall = Parameters<Parameters<typeof bindRoleClientsForUser>[0]["maybeRevokeOnAuthFailed"]>[0];
+
+/** A distinct STORED-ROW credential per derive role: "which role's key was struck" is only an answerable
+ *  question when the four ids differ. Keyed by the ROUTING vocabulary (not `string`) so the lookup below is
+ *  a mapped read rather than an index-signature one, and a renamed role breaks here. */
+const ROLE_CREDENTIAL: Partial<Record<RoutingRoleKey, UserCredentialId>> = {
+  embed: castId<UserCredentialId>("user_credential_embed"),
+  rerank: castId<UserCredentialId>("user_credential_rerank"),
+  imageEmbed: castId<UserCredentialId>("user_credential_image_embed"),
+  summarize: castId<UserCredentialId>("user_credential_summarize"),
+};
+
+/** The CHAT turn's key (#1373 leg 3). This binder never resolves it and no derive-role failure may ever name
+ *  it — charging it for a side role's 401 is a self-inflicted lockout plus a false product statement. */
+const CHAT_CREDENTIAL = castId<UserCredentialId>("user_credential_chat");
+
+/** A DIFFERENT live row: what a post-failure RE-RESOLVE would find after the user rotates/sets-active. No
+ *  strike may name it — revoking it locks the user out of the key they just fixed. */
+const ROTATED_CREDENTIAL = castId<UserCredentialId>("user_credential_rotated");
+
+/** The capability every strike fixture resolves with (the binder reads `context.window` and
+ *  `output.structured`; a double that omits either is a false green waiting to happen). */
+const strikeCapability = (): ReturnType<typeof makeModelCapability> =>
+  makeModelCapability({ context: { window: 32_000 }, output: { maxTokens: { min: 1, max: 8192 }, structured: true } });
+
+/** A `resolveRole` whose every role answers with a KEYED credential carrying that role's own stored-row id,
+ *  read off a MUTABLE cell so a test can rotate a role's key mid-flight (the race arm below). */
+function keyedConnection(): { connection: Pick<ConnectionService, "resolveRole">; rotate: (role: RoutingRoleKey, id: UserCredentialId) => void } {
+  const rotated = new Map<RoutingRoleKey, UserCredentialId>();
+  return {
+    rotate: (role: RoutingRoleKey, id: UserCredentialId): void => {
+      rotated.set(role, id);
+    },
+    connection: {
+      resolveRole: ({ role }): Promise<ResolvedConnection> =>
+        Promise.resolve(
+          makeResolvedConnection({
+            model: castId<ModelId>(`model-${role}`),
+            credential: makeOpenRouterCredential({ credentialId: rotated.get(role) ?? ROLE_CREDENTIAL[role] ?? null }),
+            capability: strikeCapability(),
+          }),
+        ),
+    },
+  };
+}
+
+/** The recording executor with one or more role arms replaced by a rejecting one. */
+function executorRejecting(over: Partial<ProviderExecutor>): ProviderExecutor {
+  return { ...recordingExecutor().executor, ...over };
+}
+
+/** The binder's deps with a RECORDING strike op. `connection` is caller-supplied so the rotate arm can bring
+ *  its own; `strikes` is the ledger every pin below reads. */
+function strikeDeps(
+  executor: ProviderExecutor,
+  connection: Pick<ConnectionService, "resolveRole">,
+  onStrike: (params: StrikeCall) => Promise<void> = () => Promise.resolve(),
+): { deps: Parameters<typeof bindRoleClientsForUser>[0]; strikes: StrikeCall[] } {
+  const strikes: StrikeCall[] = [];
+  return {
+    strikes,
+    deps: {
+      connection,
+      executor,
+      resolvePrincipal: realResolver(),
+      structuredOutputVehicle: autoVehicle,
+      maybeRevokeOnAuthFailed: (params: StrikeCall): Promise<void> => {
+        strikes.push(params);
+        return onStrike(params);
+      },
+    },
+  };
+}
+
+/** The provider's own statement that it looked at the key and rejected it. */
+const authFailure = (message = "the upstream rejected the key (401)"): ProviderError =>
+  new ProviderError({ kind: "auth_failed", retryable: false, message, apiErrorStatus: 401 });
+
+test("#1800 an auth-class EMBED failure strikes the EMBED role's own credential", async () => {
+  const rejected = authFailure();
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(rejected) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  // The failure still reaches the caller UNCHANGED — identity, not just shape: the #1603 re-frame at the
+  // recall seam reads this exact error object.
+  await expect(clients.embed("hello")).rejects.toBe(rejected);
+
+  expect(strikes).toHaveLength(1);
+  expect(strikes[0]).toEqual({
+    ownerId: OWNER,
+    credentialId: ROLE_CREDENTIAL.embed,
+    errorKind: "auth_failed",
+    errorMessage: rejected.message,
+  });
+});
+
+test("#1800 the RERANK arm mirrors embed — the recall seam's other side-role key is chargeable too", async () => {
+  const rejected = authFailure("rerank key rejected");
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ rerank: () => Promise.reject(rejected) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.rerank("q", [{ id: "d1", text: "t" }])).rejects.toBe(rejected);
+
+  expect(strikes.at(0)).toMatchObject({ credentialId: ROLE_CREDENTIAL.rerank, errorKind: "auth_failed" });
+});
+
+test("#1800 the imageEmbed and summarize arms strike too — every role that spends a key can lose it", async () => {
+  const imageRejected = authFailure("imageEmbed key rejected");
+  const summarizeRejected = authFailure("summarize key rejected");
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(
+    executorRejecting({ imageEmbed: () => Promise.reject(imageRejected), summarize: () => Promise.reject(summarizeRejected) }),
+    connection,
+  );
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.imageEmbed({ kind: "text", input: "t" })).rejects.toBe(imageRejected);
+  await expect(clients.summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBe(summarizeRejected);
+
+  expect(strikes.map((s) => s.credentialId)).toEqual([ROLE_CREDENTIAL.imageEmbed, ROLE_CREDENTIAL.summarize]);
+});
+
+test("#1800 ONLY the failing role's credential is charged — no sibling role's key, and never the chat's", async () => {
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(authFailure()) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toThrow();
+  // …and the healthy roles keep working on the same bundle afterwards, striking nothing.
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+  await clients.rerank("q", [{ id: "d1", text: "t" }]);
+
+  const charged = strikes.map((s) => s.credentialId);
+  expect(charged).toEqual([ROLE_CREDENTIAL.embed]);
+  expect(charged).not.toContain(CHAT_CREDENTIAL);
+  expect(charged).not.toContain(ROLE_CREDENTIAL.rerank);
+  expect(charged).not.toContain(ROLE_CREDENTIAL.summarize);
+});
+
+test("#1800 THE ROTATE RACE: the struck id is the one that call AUTHENTICATED with, never a fresh resolve", async () => {
+  const { connection, rotate } = keyedConnection();
+  const { deps, strikes } = strikeDeps(
+    executorRejecting({
+      embed: () => {
+        // The user notices the failure and sets a NEW key active while this call is still in flight.
+        rotate("embed", ROTATED_CREDENTIAL);
+        return Promise.reject(authFailure());
+      },
+    }),
+    connection,
+  );
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toThrow();
+
+  expect(strikes.at(0)?.credentialId).toBe(ROLE_CREDENTIAL.embed);
+  expect(strikes.at(0)?.credentialId).not.toBe(ROTATED_CREDENTIAL);
+});
+
+test("#1800 a NON-provider fault (a bug, a DB error) strikes NOTHING — there is no classification to act on", async () => {
+  const bug = new TypeError("cannot read properties of undefined");
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(bug) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toBe(bug);
+
+  expect(strikes).toEqual([]);
+});
+
+test("#1800 a NON-auth provider failure reaches the op with its OWN kind — the policy lives in the verb, not here", async () => {
+  // A 503 or a 429 must NEVER cost a user their key (revoking on a rate limit turns a minute's wait into a
+  // lockout). That decision is NOT re-spelled at this seam: the provider's kind travels verbatim and
+  // `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts` short-circuits on it — pinned over EVERY
+  // `PROVIDER_ERROR_KINDS` member in `tests/server/domain/credentials/verbs/maybe-revoke-on-auth-failed.int`.
+  const upstreamDown = new ProviderError({ kind: "server", retryable: true, message: "upstream 503" });
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(upstreamDown) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toBe(upstreamDown);
+
+  expect(strikes.at(0)?.errorKind).toBe("server");
+  expect(strikes.at(0)?.errorKind).not.toBe("auth_failed");
+});
+
+test("#1800 a WRAPPED provider fault still classifies — the cause chain, not a single deref", async () => {
+  const rejected = authFailure();
+  const wrapped = new Error("embedding the recall query failed", { cause: rejected });
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(wrapped) }), connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toBe(wrapped);
+
+  expect(strikes.at(0)).toMatchObject({ credentialId: ROLE_CREDENTIAL.embed, errorKind: "auth_failed" });
+});
+
+test("#1800 a KEYLESS role strikes with a null id — vllm/local-light own no row to revoke", async () => {
+  const keyless: Pick<ConnectionService, "resolveRole"> = {
+    resolveRole: ({ role }): Promise<ResolvedConnection> =>
+      Promise.resolve(
+        makeResolvedConnection({ model: castId<ModelId>(`model-${role}`), credential: makeResolvedCredential("vllm"), capability: strikeCapability() }),
+      ),
+  };
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(authFailure()) }), keyless);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await expect(clients.embed("x")).rejects.toThrow();
+
+  // The null is the whole guard (the verb no-ops on it): the binder does not re-derive "is this keyless?".
+  expect(strikes.at(0)?.credentialId).toBeNull();
+});
+
+test("#1800 THE STRIKE IS A PASSENGER: a throwing revoke never replaces the failure the caller sees", async () => {
+  const rejected = authFailure();
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(executorRejecting({ embed: () => Promise.reject(rejected) }), connection, () =>
+    Promise.reject(new Error("the credentials db is down")),
+  );
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  // The caller sees the PROVIDER's failure, not the revoke's — a swap here would misreport which system broke.
+  await expect(clients.embed("x")).rejects.toBe(rejected);
+
+  expect(strikes).toHaveLength(1);
+});
+
+test("#1800 a SUCCESSFUL call strikes nothing — the strike is on the failure path only", async () => {
+  const { connection } = keyedConnection();
+  const { deps, strikes } = strikeDeps(recordingExecutor().executor, connection);
+  const clients = await bindRoleClientsForUser(deps, OWNER);
+
+  await clients.embed("x");
+  await clients.rerank("q", [{ id: "d1", text: "t" }]);
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+
+  expect(strikes).toEqual([]);
 });

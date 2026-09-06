@@ -33,7 +33,7 @@ async function seedCharacterGame(
 ): Promise<{ chatId: Awaited<ReturnType<typeof seedLiteGame>>["chatId"]; characterId: CharacterId; h: RpgHarness }> {
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
   const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
-  const seeded = await seedLiteGame(db, { roster: [{ actorRef: { kind: "character", characterId }, name: "Mara" }], ...over }, key);
+  const seeded = await seedLiteGame(db, { participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }], ...over }, key);
   return { chatId: seeded.chatId, characterId, h: seeded.h };
 }
 
@@ -62,7 +62,7 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
   const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
   const { chatId, h } = await seedLiteGame(db, {
-    roster: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
+    participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
     populateDelta: {
       statePatch: { actorState: [filledActor(characterId)], quests: [bornQuest("q_vault", "Reach the Vault of Ash")] },
       sheet: { className: "Warden of House Vane", level: 3 },
@@ -100,7 +100,7 @@ test("FILL, never overwrite: a title/level the host already wrote SURVIVES the r
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
   const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
   const { chatId, h } = await seedLiteGame(db, {
-    roster: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
+    participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
     populateDelta: { statePatch: {}, sheet: { className: "the model's title", level: 9 } },
   });
   // The host typed their own title + level first — the sheet has no lock plane, so "already written" IS the pin.

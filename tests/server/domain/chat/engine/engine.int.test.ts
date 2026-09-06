@@ -310,20 +310,42 @@ describe("createTurnEngine — happy path", () => {
     expect(types(h.events).indexOf("delta")).toBeLessThan(types(h.events).indexOf("turnCompleted"));
   });
 
-  test("a rejected delta drain rejects the turn and cannot emit terminal success", async () => {
-    const chatId = await seedChat(db, "delta-rejection");
-    const failure = new Error("durable delta append failed");
-    const rejected = Promise.reject(failure);
-    // The old engine drops this Promise. Observe it here so the RED control is a failed ownership assertion,
-    // not Vitest's process-level unhandled-rejection detector.
-    rejected.catch(() => undefined);
+  // #1521 REPLACES a pin that injected a REJECTING emitter and asserted the turn withheld its terminal. That
+  // shape has no producer: `entry/compose/services::emitChatEvent` awaits `emitChatEventChecked`, whose
+  // `chatBus.emit` is total (bus.ts FLAG[emit-is-total]) and whose fan is a synchronous `EventEmitter.emit`
+  // into `on()`-buffered subscribers (`chat-events-bus::publishChatEvent` → `bus-channel::publish`; the one
+  // callback listener try/catches its own throw). So the pin proved a behaviour no caller can reach, while
+  // the behaviour production DOES have — a durable append that is dropped, reported, and RESOLVES — had no
+  // pin at all. This is that pin, and it is deliberately uncomfortable reading: it is the engine-side face of
+  // #1454's open propagation fork.
+  test("#1521 THE REAL SHAPE: a DROPPED durable event resolves, so the turn commits and completes blind to the loss", async () => {
+    const chatId = await seedChat(db, "delta-dropped");
+    const dropped: string[] = [];
+    // The composed emitter's actual failure shape: `emitChatEventChecked` returns `false` for a dropped
+    // append and `emitChatEvent` DISCARDS it, so the engine is handed a resolved `void` either way.
     const h = harness(db, {
-      emit: (event): Promise<void> => (event.type === "delta" ? rejected : Promise.resolve()),
+      emit: (event): Promise<void> => {
+        if (event.type === "delta") {
+          dropped.push(event.type);
+          return Promise.resolve();
+        }
+        return Promise.resolve();
+      },
     });
 
-    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toThrow(failure);
-    expect(types(h.events)).not.toContain("messageCommitted");
-    expect(types(h.events)).not.toContain("turnCompleted");
+    const outcome = await h.engine.runTurn(prepOf(chatId));
+
+    // The turn is a SUCCESS by every surface it owns — the reply committed, the terminal fired…
+    expect(outcome.aborted).toBe(false);
+    expect(outcome.messages[0]?.content).toBe("Hi there");
+    expect(types(h.events)).toContain("messageCommitted");
+    expect(types(h.events)).toContain("turnCompleted");
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(1);
+    // …and the drop happened. Nothing in the engine's return, its bus emissions, or its outcome says so:
+    // the loss is reported by the BUS (a classified log line), and the engine cannot see it. Whether that
+    // should change is #1454's fork (a typed verdict every caller may ignore, or an outbox) — an owner call,
+    // deliberately not decided by a test.
+    expect(dropped).not.toHaveLength(0);
   });
 
   test("PD user-bus lane: fans `chatsChanged` ONCE for the turn, list-only (no `detail`), after the settle", async () => {

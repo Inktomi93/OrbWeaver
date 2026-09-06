@@ -58,7 +58,12 @@ async function resolveInvocationChat(spec: PluginToolSpec, exec: ToolExecutionCo
 export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginToolSpec) => PluginToolHandle {
   return (spec: PluginToolSpec): PluginToolHandle => {
     if (!TOOL_NAME_RE.test(spec.name)) {
-      throw new ToolNameCollisionError(`${spec.name} (invalid — must match the registry name charset ${TOOL_NAME_RE.source})`);
+      // #1803 BACKSTOP, not the primary wall: `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX`
+      // bound the mint's inputs so a plugin-sourced `spec.name` can never fail this test on LENGTH — a miss
+      // here means either boundary was bypassed, so the message states BOTH failure modes this regex can
+      // still catch (an over-length name, or a charset a bypassed boundary let through) rather than the
+      // single "charset" word a length miss would otherwise misname.
+      throw new ToolNameCollisionError(`${spec.name} (invalid — must match the registry name charset/length ${TOOL_NAME_RE.source})`);
     }
     // #677 — COLLISION IS PER INSTALLER, not per process. The same namespaced name legitimately exists once per
     // installing user (two people install the same plugin; the seeded examples install for everyone), so the

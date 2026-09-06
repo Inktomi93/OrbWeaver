@@ -463,6 +463,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         resolvePrincipal: resolveRoleClientPrincipal,
         // A thunk, like `structuredOutputShape` below: an admin flip governs the next structured call.
         structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
+        // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT (#1800) — a DIRECT wire, for the same reason the chat
+        // seam's twin is one (`entry/compose/chat.ts`): the binder already carries the provider's own
+        // `ProviderErrorKind` plus the credentialId that call authenticated with, which is exactly
+        // `MaybeRevokeParams`, so an adapter here could only re-derive a fact it was handed — and #1373's
+        // whole defect was an adapter whose re-derived vocabulary the verb could never match.
+        maybeRevokeOnAuthFailed: credentials.maybeRevokeOnAuthFailed,
       },
       ownerId,
     );
@@ -827,7 +833,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // stay explicit params so no call site can drop one). Absent an offer this op is never called and the
     // built conditional heal stands.
     copyPresetToUser: createCopyPresetToUser({ db, now, newPresetId: minter(ID_PREFIX.preset) }),
-    // R4 promotion's durable half — the two front doors the injected `promoteToRoster` op mints through (a
+    // R4 promotion's durable half — the two front doors the injected `promoteToCharacter` op mints through (a
     // character card + a chat roster seat, both under the room host). rpg reads neither table itself.
     character,
     chat: chatCompose.service,
@@ -1108,6 +1114,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await settings.updateUserSettingsSection({
         principal,
         input: { section: "onboarding", patch: { demoChatsPackVersion: version } },
+      });
+    },
+    // #1550's per-example evidence — WHOLE-set replace, never a merge (a slug that finally landed has to be
+    // able to leave). The seeder owns what goes in it; this pair is only the settings door.
+    readSkippedSlugs: async (principal): Promise<readonly string[]> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSkipped,
+    markSkippedSlugs: async (principal, slugs): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { demoChatsSkipped: [...slugs] } },
       });
     },
     // ── the pack-bump HEAL's doors (only-if-unset; the seeder owns that policy) ──

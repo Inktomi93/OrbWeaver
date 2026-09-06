@@ -7,6 +7,7 @@ import { warn } from "../../_shared/log.ts";
 import type { CodemodContext, CodemodResult, FileSnapshot, Plan, RunCodemodOptions } from "../contract/types.ts";
 import { renderPreview } from "./diagnostics.ts";
 import { CodemodError } from "./errors.ts";
+import { assertHeapFloor } from "./heap-floor.ts";
 import { absolutePath, repoRelative } from "./plans.ts";
 import { createCodemodProject } from "./project.ts";
 
@@ -201,6 +202,9 @@ function checkDiagnostics(opts: {
 
 export async function runCodemod(name: string, codemod: (ctx: CodemodContext) => void | Promise<void>, options: RunCodemodOptions): Promise<CodemodResult> {
   const startedAt = Date.now();
+  // Before anything expensive: a run started without the workspace heap floor cannot finish a
+  // whole-project pass, and its failure mode is a six-minute silent OOM (#1775).
+  assertHeapFloor();
   const repoRoot = resolve(options.repoRoot ?? process.cwd());
   const { argv } = options;
   const isDryRun = resolveIsDryRun(options, argv);

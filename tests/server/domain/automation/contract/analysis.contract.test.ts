@@ -7,8 +7,10 @@
 
 import type { AnalysisPayload, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import {
+  ANALYSIS_ARC_MAX,
   ANALYSIS_RETIRED_CAP,
   ANALYSIS_TWIST_CAP,
+  ANALYSIS_TWIST_MAX,
   buildAnalysisPayloadSchema,
   EMPTY_ANALYSIS_STATE,
   mergeAnalysisState,
@@ -83,6 +85,62 @@ test("mergeAnalysisState: the retired bank FIFO-ages at its cap (oldest out firs
   expect(merged.retiredTwists).toHaveLength(ANALYSIS_RETIRED_CAP);
   expect(merged.retiredTwists).not.toContain("old0"); // the oldest aged out
   expect(merged.retiredTwists.at(-1)).toBe("live");
+});
+
+// ── #1480 item 3: the stored blob is CLAMPED ON READ, never refused ─────────────────────────────────
+// The bounds the LIVE write paths already enforce (`ANALYSIS_ARC_MAX` on updatedArc/successorArc,
+// `ANALYSIS_TWIST_MAX` per twist op, `ANALYSIS_TWIST_CAP`/`ANALYSIS_RETIRED_CAP` on the banks) stopped at
+// the model payload: the parse-on-read schema accepted an unbounded arc and unbounded arrays of unbounded
+// strings, and `mergeAnalysisState` only refused to ADD past the cap — it never shrank a bank that was
+// already over it. So a hand-corrupted / restored / imported row carried its whole payload into every
+// subsequent assembled prompt AND back out through the pass write, forever.
+//
+// THE ARM IS CLAMP, NOT REFUSE (memory `parse-on-read-schemas-cannot-be-tightened.md`): this schema is
+// parsed by the READER, so a new `.max()` refusal would make already-stored rows unreadable — the whole
+// row would fall to EMPTY_ANALYSIS_STATE and RESET THE WATERMARK. The row must still parse; it just reads
+// back bounded.
+
+test("parseAnalysisState CLAMPS an oversized legacy blob — it parses (never refused) and reads back bounded", () => {
+  const oversized = {
+    arc: "a".repeat(ANALYSIS_ARC_MAX * 3),
+    twists: Array.from({ length: ANALYSIS_TWIST_CAP * 4 }, (_, i) => `${i}-${"t".repeat(ANALYSIS_TWIST_MAX * 3)}`),
+    retiredTwists: Array.from({ length: ANALYSIS_RETIRED_CAP * 3 }, (_, i) => `r${i}-${"x".repeat(ANALYSIS_TWIST_MAX * 2)}`),
+    settledThroughSeq: 77,
+  };
+  const parsed = parseAnalysisState(oversized);
+
+  // NOT refused — the watermark survives, which is the whole point of clamping rather than tightening.
+  expect(parsed.settledThroughSeq).toBe(77);
+  expect(parsed.arc).toHaveLength(ANALYSIS_ARC_MAX);
+  expect(parsed.arc).toBe(oversized.arc.slice(0, ANALYSIS_ARC_MAX));
+  expect(parsed.twists).toHaveLength(ANALYSIS_TWIST_CAP);
+  expect(parsed.retiredTwists).toHaveLength(ANALYSIS_RETIRED_CAP);
+  for (const twist of [...parsed.twists, ...parsed.retiredTwists]) {
+    expect(twist.length).toBeLessThanOrEqual(ANALYSIS_TWIST_MAX);
+  }
+  // The BANK keeps its oldest (the cap is what `applyAdds` refuses to grow past); the RETIRED bank keeps
+  // its newest (FIFO age-out, the same direction `mergeAnalysisState` ages it).
+  expect(parsed.twists[0]).toBe(oversized.twists[0]?.slice(0, ANALYSIS_TWIST_MAX));
+  expect(parsed.retiredTwists.at(-1)).toBe(oversized.retiredTwists.at(-1)?.slice(0, ANALYSIS_TWIST_MAX));
+});
+
+test("mergeAnalysisState SHRINKS an already-oversized live bank to the cap (a merge is never a way to keep it)", () => {
+  // A state built past the cap in memory — the shape a pre-clamp stored blob handed the pass, and the shape
+  // the confirm path's faithful round-trip could still hand it.
+  const oversized: AnalysisState = {
+    arc: "a".repeat(ANALYSIS_ARC_MAX * 2),
+    twists: Array.from({ length: ANALYSIS_TWIST_CAP * 3 }, (_, i) => `t${i}`),
+    retiredTwists: [],
+    settledThroughSeq: 5,
+  };
+  const merged = mergeAnalysisState(oversized, plotPayload([]));
+  expect(merged.twists).toHaveLength(ANALYSIS_TWIST_CAP);
+  expect(merged.arc).toHaveLength(ANALYSIS_ARC_MAX);
+  // …and a retire against an oversized bank still frees a slot rather than being eaten by the shrink.
+  const retired = mergeAnalysisState(oversized, plotPayload([{ op: "retire", twist: "t0" }]));
+  expect(retired.twists).toHaveLength(ANALYSIS_TWIST_CAP);
+  expect(retired.twists).not.toContain("t0");
+  expect(retired.retiredTwists).toEqual(["t0"]);
 });
 
 // ── the merge: PROPERTY sweep (a deterministic seeded generator — no library, no hidden flake) ───────

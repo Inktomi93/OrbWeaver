@@ -1374,7 +1374,10 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     // become a MODEL-VISIBLE function name. Bounding it HERE keeps the two spellings of one grammar
     // (registration and the card linkage) from admitting different names, and makes a bad name the guest's
     // own contained `tools.register` throw instead of a downstream registrar refusal that fails the whole
-    // activation.
+    // activation. #1803: `PLUGIN_TOOL_NAME_RE`'s LENGTH (not just its charset) is also load-bearing here —
+    // it is one half of the wire-mint's byte budget (`manifest.ts` `PLUGIN_TOOL_NAME_LOCAL_MAX`, the other
+    // half is the manifest's `slug` cap), so a too-long name is refused right here, at the guest's own call,
+    // rather than surfacing as a length failure at the registry two boundaries downstream.
     if (!PLUGIN_TOOL_NAME_RE.test(name)) {
       handler.dispose();
       throw new Error(`plugin host: tools.register name must match ${PLUGIN_TOOL_NAME_RE.source}`);

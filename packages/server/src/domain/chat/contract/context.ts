@@ -460,7 +460,7 @@ export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => 
 
 /** One present roster participant projected for rpg's tracker view (roster ∪ sheets, rpg-design/05 §4.3): a
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
- *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgRosterActor` (rpg declares its
+ *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgParticipantActor` (rpg declares its
  *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
 export interface RpgParticipantActor {
   readonly actorRef: RpgActorRef;
@@ -470,7 +470,7 @@ export interface RpgParticipantActor {
 
 /** The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
  *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
- *  injected-op precedent). Wired into `RpgContext.resolveRoster` at the composition root (W1c-b). */
+ *  injected-op precedent). Wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). */
 export type ResolveRpgParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** The DEEP canon-window read op (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed).

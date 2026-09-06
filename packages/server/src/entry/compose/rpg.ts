@@ -239,12 +239,12 @@ async function freePromotionHandle(deps: RpgComposeDeps, ownerId: UserId, handle
 }
 
 type PromotionMarkerMatch = Awaited<ReturnType<RpgComposeDeps["character"]["findByImportHash"]>>;
-type PromotionResult = Awaited<ReturnType<RpgContext["promoteToRoster"]>>;
+type PromotionResult = Awaited<ReturnType<RpgContext["promoteToCharacter"]>>;
 
 async function resolveOrCreatePromotionCard(
   deps: RpgComposeDeps,
   args: {
-    readonly input: Parameters<RpgContext["promoteToRoster"]>[0];
+    readonly input: Parameters<RpgContext["promoteToCharacter"]>[0];
     readonly principal: Principal;
     readonly provenance: CharacterImportProvenance;
     readonly existing: PromotionMarkerMatch;
@@ -289,12 +289,12 @@ async function resolveOrCreatePromotionCard(
   }
 }
 
-function buildPromoteToRoster(deps: RpgComposeDeps): RpgContext["promoteToRoster"] {
+function buildPromoteToCharacter(deps: RpgComposeDeps): RpgContext["promoteToCharacter"] {
   return async (input) => {
-    const { chatId, hostUserId, sourceActorKey, roster, name } = input;
+    const { chatId, hostUserId, sourceActorKey, participants, name } = input;
     const provenance = rpgPromotionProvenance(chatId, sourceActorKey);
     const existing = await deps.character.findByImportHash({ ownerId: hostUserId, importHash: provenance.importHash });
-    const sameNameCollision = roster.some(
+    const sameNameCollision = participants.some(
       (actor) =>
         actor.name.trim().toLowerCase() === name.toLowerCase() &&
         !(existing !== null && actor.actorRef.kind === "character" && actor.actorRef.characterId === existing.characterId),
@@ -1768,9 +1768,9 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // question `guard.ts` gates with.
     resolveViewerVisibility: deps.resolveViewerVisibility,
     setPointer: deps.rpgChatOps.setRpgPointer,
-    resolveRoster: deps.rpgChatOps.resolveRpgParticipants,
+    resolveParticipants: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
-    promoteToRoster: buildPromoteToRoster(deps),
+    promoteToCharacter: buildPromoteToCharacter(deps),
     // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;
     // chat owns the existing narrator batch and commits/emits. The two domains never construct each other's rows.
     postNarratorMessage: (chatId, content, buildSnapshotStatement) =>

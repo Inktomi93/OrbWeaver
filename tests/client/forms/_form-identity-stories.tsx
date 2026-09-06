@@ -7,6 +7,7 @@
 // component is exported from its feature front door, and both resolve to the SAME module instance the
 // `@orb/client/*` providers resolve to (one on-disk path ⇒ one vite module id), so context identity holds.
 
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterCreateActions } from "../../../packages/client/src/features/character/components/character-create-actions.tsx";
@@ -26,11 +27,23 @@ export function PresetRenameDialogStory(): ReactElement {
 }
 
 /** The Characters band cluster (Import ghost + New primary) — clicking New opens the create dialog whose
- *  name/description fields the crunch named. The real create mutation rides `CtDataProviders`. */
+ *  name/description fields the crunch named. The real create mutation rides `CtDataProviders`.
+ *
+ *  WRAPPED IN A `Container` (#1813) — the band's primary is a TWO-ARM container-query pair (#1697:
+ *  `CREATE_LABELLED_ARM`/`CREATE_ICON_ARM`, both `@[19rem]:hidden`-class, unnamed so either resolves
+ *  against the NEAREST ancestor that establishes containment). Production always mounts the band inside
+ *  one (`CharacterLibraryAnchor`'s `container-library` `Container`, `character-library-anchor.tsx`); a
+ *  bare story with no container ancestor gives BOTH `@container` conditions nothing to resolve against,
+ *  which the CSS containment spec treats as neither matching — so BOTH arms stayed in the accessible tree
+ *  at once (`getByRole("button", { name: "New" })` resolving two elements, #1813's whole symptom). The
+ *  fixture now mirrors the real ancestor rather than the component growing a JS width branch it was never
+ *  designed to need. */
 export function CharacterCreateBandStory(): ReactElement {
   return (
     <CtDataProviders>
-      <CharacterCreateActions />
+      <Container>
+        <CharacterCreateActions />
+      </Container>
     </CtDataProviders>
   );
 }

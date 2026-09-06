@@ -154,7 +154,7 @@ function seedState(): RpgSnapshotState {
   };
 }
 
-const ROSTER = [{ actorRef: { kind: "user", userId: PLAYER_USER } as const, name: PLAYER_NAME }];
+const PARTICIPANTS = [{ actorRef: { kind: "user", userId: PLAYER_USER } as const, name: PLAYER_NAME }];
 
 // ── refs: MIRRORS `resolveExtractionRefs` (compose/rpg.ts:355) minus the db reads ───────────────────────
 function refsFor(state: RpgSnapshotState, config: RpgGameConfig): ExtractionRefs {
@@ -288,7 +288,7 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
   const defs = config.trackers;
   const byKey = new Map(state.actorState.map((v) => [v.actorRef.kind === "user" ? `user:${v.actorRef.userId}` : `npc:${v.actorRef.kind === "npc" ? v.actorRef.npcKey : ""}`, v]));
   const present = new Set(state.presentCharacters);
-  const rosterActors: RpgActorView[] = ROSTER.map((r) => ({
+  const participantActors: RpgActorView[] = PARTICIPANTS.map((r) => ({
     actorRef: r.actorRef,
     name: r.name,
     presence: present.has(`user:${PLAYER_USER}`),
@@ -315,7 +315,7 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
         trackers: trackersForCarrier(defs, { actorKey: `npc:${npcKey}`, name, kind: "npcs", grants: [], revokes: [] }),
       };
     });
-  const actors: RpgActorView[] = [...rosterActors, ...castActors];
+  const actors: RpgActorView[] = [...participantActors, ...castActors];
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
   const ambient =
@@ -345,7 +345,7 @@ function reminderFor(cur: RpgSnapshotState, prev: RpgSnapshotState | null, confi
     prevSnapshot: prev,
     statProfile: RPG_PROFILE_FREEFORM,
     features: config.features,
-    rosterNames: { [`user:${PLAYER_USER}`]: PLAYER_NAME },
+    participantNames: { [`user:${PLAYER_USER}`]: PLAYER_NAME },
     deception: false,
     omniscience: false,
     dateMode: config.dateMode,
@@ -636,7 +636,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
   let state = seedState();
   const history: { role: string; text: string }[] = [];
   const turns: TurnRow[] = [];
-  const roster = buildActorRefIndex(ROSTER);
+  const participantIndex = buildActorRefIndex(PARTICIPANTS);
   let mint = 0;
   const mints = { item: () => `it${++mint}`, quest: () => `q${++mint}`, objective: () => `o${++mint}` } as unknown as Parameters<typeof extractionToStateDelta>[2];
 
@@ -742,7 +742,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
     const hit = (want: string): boolean => emittedRemoves.some((got) => norm(got).startsWith(norm(want)) || norm(want).startsWith(norm(got)));
     const emittedHp = (tally["update_party"] ?? []).some((a) => ((a["trackerDeltas"] as Args[] | undefined) ?? []).some((d) => d["key"] === "hp" && nNum(d["delta"]) && d["delta"] !== 0));
 
-    const delta = extractionToStateDelta(state, extraction, mints, roster);
+    const delta = extractionToStateDelta(state, extraction, mints, participantIndex);
     state = { ...state, ...(delta.statePatch as Partial<RpgSnapshotState>) };
 
     turns.push({

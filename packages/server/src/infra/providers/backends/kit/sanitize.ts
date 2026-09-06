@@ -6,6 +6,18 @@
 // (contract/errors.ts) — the error CORE never holds plaintext key material, so this is the belt that
 // scrubs an upstream-derived string before it crosses into observability or a `ProviderError.message`.
 //
+// ORDER LAW — SCRUB BEFORE YOU MANGLE (#1809; the sibling half of `#kit/secret-redaction`'s spellings
+// rule). `sanitizeApiError` MUTATES its input: it replaces every `<…>` span with a space, drops C0
+// controls, collapses whitespace and hard-caps at {@link DEFAULT_SANITIZE_MAX_LEN}. Each of those edits can
+// bite a KNOWN credential literal in half — `k<x>ey` becomes `k ey`, a key straddling char 500 loses its
+// tail — and once the literal is fragmented NEITHER its raw nor its JSON-escaped spelling matches, so the
+// by-value belt (`redactSecretsFromText`) never reaches the remainder and the fragment rides
+// `ProviderError.message` into the #1373 `securityEvent` + the credential audit row. So every caller spells
+// it `sanitizeApiError(redactSecretsFromText(x, secrets))`: the by-value belt reads INTACT text, and the
+// cap applies to already-scrubbed bytes. The reverse composition is a leak, not a style choice.
+// Safe in this order because nothing the scrub emits is mangled by this function: the redaction markers
+// (`█ ■ ◆ ● ¤ § ¶ ※`) are neither C0 controls nor markup, and `Bearer █` survives the whitespace collapse.
+//
 // NOTE (orbweaver vs neo): neo branded the RESULT `SanitizedErrorMessage` because its `ChatError.message`
 // was typed to that brand. Orbweaver's `ProviderError.message` is a plain `string` (contract/errors.ts),
 // so that brand carried no compile-time obligation here and is dropped — `sanitizeApiError` returns `string`.

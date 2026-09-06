@@ -18,10 +18,10 @@ import {
   addVariant,
   emptyState,
   expect,
+  participantCharacter,
+  participantUser,
   principal,
   questId,
-  rosterCharacter,
-  rosterUser,
   seedChat,
   seedLiteGame,
   seedMessage,
@@ -555,7 +555,7 @@ const ALARM = trackerDef({ key: "alarm", label: "Alarm", shape: "meter", write: 
  *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-npc
  *  member (the three carrier homes) plus the game-subject value. */
 async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness }> {
-  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "You"), rosterCharacter(NIKO, "Niko")] });
+  const { chatId, gameId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "You"), participantCharacter(NIKO, "Niko")] });
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [CORRUPTION, ALARM] } });
   const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
@@ -602,7 +602,7 @@ test("every FILLED tracker reaches the reminder — user + character + cast carr
 test("a LOCKED tracker still reads in the reminder (value + hint) while the write surface drops its key", async () => {
   const db = await freshDb();
   const sealed = trackerDef({ ...CORRUPTION, key: "sealed", label: "Sealed", hint: "the host owns this one", locked: true });
-  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterCharacter(NIKO, "Niko")] });
+  const { chatId, gameId, h } = await seedLiteGame(db, { participants: [participantCharacter(NIKO, "Niko")] });
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [sealed, { ...ALARM, locked: true }] } });
   const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
@@ -628,7 +628,7 @@ test("a CARRIED but unmoved tracker still reaches the reminder (the live drop: t
   const db = await freshDb();
   // The exact live shape: the tracker is defined + pinned, and NO snapshot has ever written a reading — the
   // panel drew `Corruption 0/100` on every Status card while the reminder said nothing at all.
-  const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "You"), rosterCharacter(NIKO, "Niko")] });
+  const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "You"), participantCharacter(NIKO, "Niko")] });
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [CORRUPTION] } });
   const text = await reminderText(h, chatId);
 

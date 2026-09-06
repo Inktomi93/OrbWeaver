@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AppearanceCarrierObservable } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/ct/chat-and-inbox-reads-empty.ts";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
 import { AppearanceCarrierStory } from "../features/app-shell/_ct-stories.tsx";
 import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
@@ -49,6 +50,9 @@ function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnaps
 }
 
 async function routeAppearance(page: Page, appearance: AppearanceSettings, arm: string): Promise<void> {
+  // `chat.listChats`/`notifications.list` are fed here too (#1817 — the #1797 whole-tree census): the
+  // mounted `AppShell` reads both beyond the appearance carrier this test actually measures, and left on
+  // routeTrpc's null fulfil the pipelines behind them ran INERT.
   await routeTrpc(page, {
     "persona.list": [],
     "settings.getUserSettings": {
@@ -57,6 +61,7 @@ async function routeAppearance(page: Page, appearance: AppearanceSettings, arm: 
       config: { ...DEFAULT_USER_SETTINGS, appearance },
       updatedAt: 0,
     },
+    ...CHAT_AND_INBOX_READS_EMPTY,
   });
 }
 

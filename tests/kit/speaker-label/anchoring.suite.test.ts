@@ -1,5 +1,6 @@
+import { REACTION_SEGMENT_SNIPPET_MAX } from "@orb/contracts/chat";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
-import { parseSpeakerSpans } from "@orb/kit/speaker-label";
+import { parseSpeakerSpans, resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -204,6 +205,47 @@ test("stability FRAGILITY (plain path): editing NARRATION to contain a line-star
   expect(after.length).toBe(3); // [narration, Alice, Bob] — Bob shifted from index 1 to index 2
   expect(before[1]?.speaker).toBe("Bob");
   expect(after[1]?.speaker).toBe("Alice");
+});
+
+// ══ GROUP 3b — THE #1354 GRAMMAR CHANGE, ANCHORED (#1388) ══════════════════════════════════════════
+// The fragilities above were findings about the BARE index; the reaction model answered them with a
+// fingerprint — `SegmentAnchor.snippet` + `resolveSegmentAnchor`, which validates index AND speaker AND the
+// snippet PREFIX and returns `null` (the caller degrades to whole-message) on any mismatch. #1388 asks
+// whether #1354's line-anchored `insideCodeFence` can slip past that: an INLINE (non-line-anchored) triple
+// backtick used to flip the fence state and suppress EVERY later label, so a body whose labels were
+// suppressed before now splits, and every stored index in it means something else.
+//
+// It cannot slip past. The shift is DETECTED, and these two pins are the receipt — the first that a
+// pre-#1354 anchor over exactly that shape degrades, the second (the planted control) that anchors over the
+// same body still resolve when they genuinely match, so the first is not passing vacuously.
+
+/** The #1354 shape: an inline triple backtick (mid-line, so NOT a fence) followed by line-start labels. */
+const INLINE_FENCE_BODY = "Narr ``` inline\nAlice: one\nBob: two";
+
+test("#1388 a PRE-#1354 anchor over an inline-backtick body DEGRADES — the snippet fingerprint detects the shift", () => {
+  // Under the OLD occurrence-counting grammar the inline ``` flipped the state, so both later labels were
+  // suppressed and the whole body was ONE null span. A reaction captured then stored (0, null, <head of the
+  // whole body>) — that is the anchor being re-resolved here.
+  const preChange = { index: 0, speaker: null, snippet: segmentSnippet(INLINE_FENCE_BODY, REACTION_SEGMENT_SNIPPET_MAX) };
+
+  // Today the body splits into three spans, so index 0 names only the narration line.
+  expect(speakers(parseSpeakerSpans(INLINE_FENCE_BODY, CHARACTERS))).toEqual([null, "Alice", "Bob"]);
+
+  // Index 0 still EXISTS and its speaker still matches (`null`), so index+speaker validation alone would
+  // have accepted it and silently re-targeted a reaction at a narration fragment. The snippet is what
+  // refuses: the stored head carries Alice's and Bob's lines, which span 0 no longer begins with.
+  expect(resolveSegmentAnchor(INLINE_FENCE_BODY, CHARACTERS, preChange)).toBeNull();
+});
+
+test("#1388 …PLANTED CONTROL: an anchor minted from the CURRENT parse of the SAME body still resolves", () => {
+  // Without this, the pin above would pass just as well against a `resolveSegmentAnchor` that rejected
+  // everything. Same body, same characters — an anchor captured NOW resolves to the line it named.
+  const spans = parseSpeakerSpans(INLINE_FENCE_BODY, CHARACTERS);
+  const bob = spans[2];
+  expect(bob?.speaker).toBe("Bob");
+  const current = { index: 2, speaker: "Bob", snippet: segmentSnippet(bob?.text ?? "", REACTION_SEGMENT_SNIPPET_MAX) };
+
+  expect(resolveSegmentAnchor(INLINE_FENCE_BODY, CHARACTERS, current)?.text).toBe(bob?.text);
 });
 
 // ══ GROUP 4 — INDEX-SPACE INVARIANTS the reaction schema can rely on ═══════════════════════════════

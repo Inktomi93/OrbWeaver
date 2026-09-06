@@ -166,18 +166,36 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
   }
   return (
     <>
-      <Badge intent="primary" size="sm" aria-hidden={true}>
-        {count}
-      </Badge>
+      {/* A DOT, NOT A NUMBER (#1815, owner ruling — the phone mirrors the bell). The desktop trigger dropped
+          its counted pill at #1798 ("ugly as fuck" on a 16px glyph); this is the same mark on the same
+          signal, so the app has ONE notification affordance rather than a dot in the topbar and a number on
+          the tab. What the count MEANT also widened with it (`useBadge` is `unread || actionable` now, not
+          unread) — which is a second reason the visible number had to go: "3" beside a door whose sheet
+          marks everything read on open is a figure a reader can watch change for reasons they did not cause.
+          The COUNT SURVIVES IN THE SPOKEN DESCRIPTION below; see its note for why that is not a mismatch. */}
+      <Badge intent="primary" size="dot" aria-hidden={true} />
       {/* THE SPOKEN COUNT IS BOTH AN ANNOUNCEMENT AND A DURABLE FACT (#1129). `role="status"` says it the
           moment it lands; the tab's `aria-describedby` (RailButton) points HERE, so a reader who focuses the
           door a second later — or arrives after the read settled — still hears it. Before that, `aria-label`
           overrode the button's whole subtree for name computation and this node was reachable only in the
           instant it appeared: the phone's ONLY rest-state signal for a sheet-hosted inbox was sighted-only.
           It names WHAT it counts with the ENTRY'S OWN label (the registry's string, never a feature read —
-          app-shell may not import a feature), so "3 unread" is no longer an unattributed number. */}
+          app-shell may not import a feature), so "3 waiting" is no longer an unattributed number.
+
+          THE COUNT STAYS SPOKEN WHILE THE VISIBLE MARK IS A DOT (#1815), and the asymmetry is the point
+          rather than a drift. A sighted reader resolves "there is a dot" by opening the sheet, which is one
+          tap away and shows the rows themselves; for a screen-reader user this description IS the rest-state
+          signal, and "Notifications: 3 waiting" is the difference between deciding to make that trip and
+          not. Dropping the number here to match the pixels would have been a pure a11y loss with no product
+          gain — the owner's ruling is about an ugly pill in the chrome, not about withholding the figure.
+
+          THE WORD IS "WAITING", NOT "UNREAD", and it had to move with `useBadge` (#1815): the count is
+          `unread || actionable` now, so a row that has been READ and still wants a decision is in it —
+          "unread" would have been a false sentence spoken to the one reader who cannot see the rows. It is
+          also the registry contract's own word (`ChromeEntry.useBadge`: "how many items this entry has
+          WAITING for the user"), so the projection and its declaration now say the same thing. */}
       <span className="sr-only" id={sheetBadgeId(entryId)} role="status">
-        {label}: {count} unread
+        {label}: {count} waiting
       </span>
     </>
   );

@@ -21,7 +21,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 interface AuditRuleProof {
   readonly rule: string;
@@ -45,21 +45,6 @@ async function auditStdout(scratch: string, runCli: ToolContext["runCli"], name:
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
   const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return res.stdout;
-}
-
-/** Every findings-table selector for one rule. The table is `severity rule selector message (value)`
- *  with fixed-width columns, so the selector is the third whitespace-separated field. Read from the TABLE
- *  rather than by substring: the same selectors also appear in the withheld/obscured denominators above
- *  it, where their presence says nothing about whether the rule fired. */
-function findingSelectors(stdout: string, rule: string): readonly string[] {
-  const rows: string[] = [];
-  for (const line of stdout.split("\n")) {
-    const fields = line.trim().split(/\s+/u);
-    if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
-      rows.push(fields[2]);
-    }
-  }
-  return rows;
 }
 
 // ── item 5: the skipped heading names ITSELF ─────────────────────────────────

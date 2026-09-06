@@ -1,3 +1,4 @@
+import type { ParticipantKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -73,6 +74,21 @@ describe("classifyParticipant — the non-throwing twin", () => {
     expect(classifyParticipant({ kind: "human", userId: null, characterId: null })).toBeNull();
     expect(classifyParticipant({ kind: "character", userId, characterId: null })).toBeNull();
     expect(classifyParticipant({ kind: "character", userId: null, characterId: null })).toBeNull();
+  });
+
+  // #1480 item 1 — the DEFAULT arm fails CLOSED. `kind` is DB-CHECK-constrained to PARTICIPANT_KINDS, so
+  // an unrecognized kind means a row that bypassed the constraint (a hand-written row, a restored dump, a
+  // kind added to the CHECK before this switch). The old `default:` returned the raw runtime string through
+  // a `never` binding, so the classification was TRUTHY and `parseParticipant`'s `actor === null` rejection
+  // never fired — a corrupt seat read as an actor carrying neither a userId nor a characterId.
+  test("an UNRECOGNIZED kind classifies null and parseParticipant rejects it", () => {
+    const rogue = { kind: "wraith" as ParticipantKind, userId: null, characterId: null };
+    expect(classifyParticipant(rogue)).toBeNull();
+    expect(() => parseParticipant(rogue)).toThrow();
+    // …and the shape-carrying variants are equally refused: an unrecognized kind is never an actor, however
+    // well-formed the id columns look.
+    expect(classifyParticipant({ kind: "wraith" as ParticipantKind, userId: castId<UserId>("user_a"), characterId: null })).toBeNull();
+    expect(classifyParticipant({ kind: "wraith" as ParticipantKind, userId: null, characterId: castId<CharacterId>("character_a") })).toBeNull();
   });
 
   // parseParticipant DELEGATES to classifyParticipant — one enforcement mechanism, two exports.

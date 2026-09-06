@@ -134,7 +134,11 @@ test.describe("the mobile bottom bar", () => {
     const you = rail.getByRole("button", { name: "You", exact: true });
 
     await expect(you).toBeVisible();
-    await expect(you.locator('[data-slot="badge"]')).toHaveText("3");
+    // A DOT, NOT A NUMBER (#1815) — the same mark the desktop bell wears since #1798, so notifications have
+    // ONE affordance in this app rather than a dot in the topbar and a figure on the tab. The count is not
+    // lost: it is spoken, below.
+    await expect(you.locator('[data-slot="badge"]')).toHaveText("");
+    await expect(you.locator('[data-slot="badge"]')).toHaveAttribute("data-size", "dot");
     // THE LIVE-REGION RULING SURVIVES — ITS INPUT CHANGED (#1129).
     // OLD CONDITION: "the tab's own NAME cannot carry the count (a name is a STRING the parent holds, and
     // these counts arrive through a per-entry hook), so the signal is a live region." Both halves still
@@ -149,8 +153,14 @@ test.describe("the mobile bottom bar", () => {
     // notifications-chrome.tsx — that ruling is untouched and the door stays the You sheet).
     // The spoken text also SAYS WHAT IT COUNTS, from the entry's own registry label — app-shell may not
     // import a feature, so the attribution comes through the same projection as the badge itself.
-    await expect(you.getByRole("status")).toHaveText("Fake trail widget: 3 unread");
-    await expect(you).toHaveAccessibleDescription("Fake trail widget: 3 unread");
+    // …and the FIGURE SURVIVES WHERE IT IS LOAD-BEARING (#1815). The visible mark went to a dot; this
+    // description did not, because for a screen-reader user it IS the rest-state signal and "3" is what
+    // decides whether the sheet is worth opening. The word moved from "unread" to "waiting" with
+    // `useBadge`'s own widening (`unread || actionable`) — a row that has been READ and still wants a
+    // decision is in this count, so "unread" would be a false sentence spoken to the reader who cannot see
+    // the rows. "waiting" is the registry contract's own word for this number.
+    await expect(you.getByRole("status")).toHaveText("Fake trail widget: 3 waiting");
+    await expect(you).toHaveAccessibleDescription("Fake trail widget: 3 waiting");
     // A `useVisible: false` entry contributes NOTHING: one badge on the tab, not two, and never the
     // hidden entry's 9.
     await expect(you.locator('[data-slot="badge"]')).toHaveCount(1);

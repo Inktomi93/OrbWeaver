@@ -34,6 +34,18 @@
 // owner reported as the defect, and a request-time re-read of `users.role` is also the stricter half of
 // D135 clause G (a demotion applies to the next call, not the next boot).
 //
+// #1800 — THIS FILE IS ALSO THE DERIVE ROLES' CREDENTIAL STRIKE-OUT, for the same structural reason it is
+// their hot-reload: the resolution happens here and nowhere else. #1373 gave the CHAT turn a
+// post-generation revoke on the provider's own `auth_failed`; #1603 then proved the side roles were the
+// other half of that hole — a derive role resolves its OWN credential per call, so its 401 escapes the
+// turn's catch, the chat's key is deliberately NOT charged for it (charging it would be a self-inflicted
+// lockout plus a false product statement), and nothing revoked the key the provider actually rejected. The
+// user was told which role to fix while the dead key was re-spent on every subsequent call, forever.
+// It could not be fixed at the consuming seam: `RoleClients` exposes only the `*Model` getters, so the
+// failing role's `credentialId` is unreachable outside these closures, and a fresh resolve afterwards is
+// the rotate race #1373 bans by name. The policy is NOT re-spelled here — the provider's normalized `kind`
+// travels verbatim to `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts`, its one home.
+//
 // D135 clause G — THIS FILE MINTS NO PRINCIPAL AND STAMPS NO ROLE. It used to build one inline with a
 // literal `role:"owner"` over whatever `UserId` it was handed, which was fine while the only caller was
 // boot (the real owner) and became a forged elevation the moment `entry/compose/automation-plugin.ts`'s
@@ -52,10 +64,13 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, StructuredOutputVehicle, SummarizeInput } from "@orb/contracts/role-clients";
-import type { UserId } from "@orb/kit/ids";
+import { errorMessage } from "@orb/kit/error-message";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
-import type { ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions, SummarizeRequest } from "#infra/providers";
+import { getLog } from "#foundation/observability";
+import type { ProviderErrorKind, ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions, SummarizeRequest } from "#infra/providers";
+import { ProviderError } from "#infra/providers";
 
 // Summarizer context fallback (tokens) for when a resolved connection reports window 0 (no contextLength).
 // The default summarizer runs on the vLLM GEN engine, so its floor DERIVES from the gen window's single home
@@ -75,6 +90,30 @@ export interface RoleClientsBinderDeps {
    *  tier — a thunk, never a captured value, for the same reason rpg's `structuredOutputShape` is one: an
    *  admin flip must govern the very next request with no restart. */
   readonly structuredOutputVehicle: () => StructuredOutputVehicle;
+  /** The DERIVE-ROLE credential strike-out (#1800) — the side-role half of #1373's post-generation revoke,
+   *  which only ever covered the chat turn. Declared here with EXACTLY the credentials verb's
+   *  `MaybeRevokeParams` shape so the composition root wires `credentials.maybeRevokeOnAuthFailed`
+   *  DIRECTLY: #1373's whole defect was an ADAPTER at this seam that re-derived a classification (an HTTP
+   *  status) the verb could never match, so a shape drift is now a `tsc` error instead of a silent no-op.
+   *
+   *  WHICH kind revokes is NOT decided here — `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts` is
+   *  the one home of that policy (only `auth_failed`; a 429 or a 503 must never cost a user their key) and
+   *  the provider's own normalized `kind` travels to it verbatim. `credentialId: null` is the keyless arm
+   *  (vllm/local-light/max-pro-sub own no row) and the verb no-ops on it, so this seam does not re-derive
+   *  "is this source keyed?" either.
+   *
+   *  `ownerId` IS THE TENANT SCOPE and becomes the revoke's WHERE predicate (`injected-op-caller-param`,
+   *  AGENTS §2): an injected op that names a credential id and no caller is safe only by its call sites'
+   *  discipline. The id passed is this bundle's subject — the same `UserId` every `resolveRole` below
+   *  resolved its `Principal` from (`principalFromRow` stamps `userId` from that argument), so the
+   *  credential and the scope cannot disagree without a composition-root bug; if they ever do, the verb
+   *  refuses and records it rather than writing to a stranger's row. */
+  readonly maybeRevokeOnAuthFailed: (params: {
+    readonly ownerId: UserId;
+    readonly credentialId: UserCredentialId | null;
+    readonly errorKind: ProviderErrorKind;
+    readonly errorMessage: string;
+  }) => Promise<void>;
 }
 
 /** Project the summarize CALL options' sampler/token knobs onto the infra request fields, each emitted ONLY
@@ -124,6 +163,63 @@ type DeriveRole = (typeof DERIVE_ROLES)[number];
 type RoleSnapshot = { [K in DeriveRole]: ResolvedConnection };
 
 /**
+ * The `ProviderError` behind a rejected role call, or `null` when the rejection did not come from the
+ * provider layer at all (a bug of ours, a DB fault) — in which case there is no classification to act on
+ * and NOTHING may be struck: a defect of ours must never cost a user their key.
+ *
+ * Walks the `.cause` chain rather than dereferencing once, for the reason `domain/chat/engine`'s twin
+ * states: a re-wrap layer anywhere between the backend runner and this catch would otherwise erase the
+ * whole classification and silently retire the strike. The `seen` set makes a cyclic chain terminate.
+ * It is a CLASSIFIER, not the policy — the policy has one home (the credentials verb) and this function
+ * decides only whether a provider spoke at all. Its twin is `engine.ts::providerErrorOf`, private to a
+ * domain this compose seam may not import; the day either grows a rule, both merge into `infra/providers`.
+ */
+function providerFailureOf(err: unknown): ProviderError | null {
+  let cause: unknown = err;
+  const seen = new Set<unknown>();
+  while (cause instanceof Error && !(cause instanceof ProviderError) && cause.cause !== undefined && !seen.has(cause)) {
+    seen.add(cause);
+    cause = cause.cause;
+  }
+  return cause instanceof ProviderError ? cause : null;
+}
+
+/**
+ * Hand one derive-role's PROVIDER failure to the credentials domain's strike-out (#1800). Best-effort and
+ * total: it never throws, because it runs inside a catch that is about to re-surface the call's own error
+ * and replacing that error with a revoke's would misreport which system broke.
+ *
+ * The credential named is the one THIS CALL AUTHENTICATED WITH — read off the `ResolvedConnection` the
+ * dispatch used, never a fresh `resolveRole` afterwards, which under a rotate/set-active race would revoke
+ * the replacement key the user just fixed (the race #1373 bans by name, and the reason this strike has to
+ * live inside the binder closure at all: `RoleClients` exposes only the `*Model` getters, so no caller
+ * downstream can name the failing role's credential).
+ */
+async function strikeRoleCredential(args: {
+  readonly strike: RoleClientsBinderDeps["maybeRevokeOnAuthFailed"];
+  readonly ownerId: UserId;
+  readonly role: DeriveRole;
+  readonly conn: ResolvedConnection;
+  readonly err: unknown;
+}): Promise<void> {
+  const provider = providerFailureOf(args.err);
+  if (provider === null) {
+    return;
+  }
+  try {
+    // `ProviderError.message` is contractually secret-free (infra/providers/contract/errors.ts's SECURITY
+    // note: messages are built from the source/role/backend vocabulary, never the credential), which is
+    // what makes it safe to carry into the credential audit + security-event trail.
+    await args.strike({ ownerId: args.ownerId, credentialId: args.conn.credential.credentialId, errorKind: provider.kind, errorMessage: provider.message });
+  } catch (strikeErr) {
+    getLog().warn(
+      { role: args.role, err: errorMessage(strikeErr) },
+      "compose: the derive-role credential strike-out failed (the role call's own error is unaffected)",
+    );
+  }
+}
+
+/**
  * Bind a `RoleClients` bundle for one user. Each callable resolves its role's `{credential, model}` through
  * `connection.resolveRole` AT CALL TIME, so a settings write that re-points a role governs the very next
  * call with no restart (see the header for why this is per-call rather than an invalidation hook).
@@ -158,34 +254,54 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
     return resolved;
   };
 
+  /** Run one role's provider call and, when it fails, let the credentials domain decide whether that
+   *  failure costs the key it ran under (#1800) — then rethrow the ORIGINAL error, unchanged and
+   *  un-delayed-in-identity. Every callable goes through this for the same reason every callable goes
+   *  through `live`: totality by construction, so a role added later cannot forget to be strikeable. The
+   *  rethrow is load-bearing — the recall seam's #1603 re-frame reads this exact error object. */
+  const withStrikeOut = async <T>(role: DeriveRole, conn: ResolvedConnection, call: () => Promise<T>): Promise<T> => {
+    try {
+      return await call();
+    } catch (err) {
+      await strikeRoleCredential({ strike: deps.maybeRevokeOnAuthFailed, ownerId, role, conn, err });
+      throw err;
+    }
+  };
+
   return {
     embed: async (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
       const conn = await live("embed");
-      return deps.executor.embed({
-        credential: conn.credential,
-        model: conn.model,
-        input,
-        ...(opts?.inputType !== undefined ? { inputType: opts.inputType } : {}),
-        ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
-      });
+      return withStrikeOut("embed", conn, () =>
+        deps.executor.embed({
+          credential: conn.credential,
+          model: conn.model,
+          input,
+          ...(opts?.inputType !== undefined ? { inputType: opts.inputType } : {}),
+          ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
+        }),
+      );
     },
     rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
       const conn = await live("rerank");
-      return deps.executor.rerank({
-        credential: conn.credential,
-        model: conn.model,
-        query,
-        documents,
-        ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
-      });
+      return withStrikeOut("rerank", conn, () =>
+        deps.executor.rerank({
+          credential: conn.credential,
+          model: conn.model,
+          query,
+          documents,
+          ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
+        }),
+      );
     },
     imageEmbed: async (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
       const conn = await live("imageEmbed");
-      return deps.executor.imageEmbed({
-        credential: conn.credential,
-        model: conn.model,
-        input: req,
-      });
+      return withStrikeOut("imageEmbed", conn, () =>
+        deps.executor.imageEmbed({
+          credential: conn.credential,
+          model: conn.model,
+          input: req,
+        }),
+      );
     },
     // ONE facade, TWO wire roles (owner ruling 2026-07-27 — summarize is summarization, structured is
     // schema-constrained generation). A caller passing `responseFormat` genuinely wants CONSTRAINED output →
@@ -202,12 +318,14 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
         ...summarizeSamplerFields(opts),
       };
-      return opts?.responseFormat !== undefined
-        ? deps.executor.structured({
-            ...common,
-            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), conn.capability.output.structured === true),
-          })
-        : deps.executor.summarize(common);
+      return withStrikeOut("summarize", conn, () =>
+        opts?.responseFormat !== undefined
+          ? deps.executor.structured({
+              ...common,
+              responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), conn.capability.output.structured === true),
+            })
+          : deps.executor.summarize(common),
+      );
     },
     // GETTERS, not baked values: these are the provenance/space tags the vector writers stamp rows with, and
     // they are read at REQUEST time. Reading them off the live snapshot is what keeps a row's `model` column

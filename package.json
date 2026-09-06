@@ -22,6 +22,7 @@
     "ast": "node tooling/src/ast/cli.ts",
     "bug:reports": "node tooling/src/bug-reports/cli.ts",
     "codemod": "node tooling/src/codemod/cli.ts",
+    "codemod:run": "node",
     "knip": "knip",
     "knip:prod": "knip --production --strict",
     "review:mirror": "node tooling/src/review-mirror/cli.ts",

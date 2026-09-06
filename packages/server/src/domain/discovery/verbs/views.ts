@@ -68,7 +68,10 @@ async function themeDetail(db: Db, deps: ViewsDeps, args: { ownerId: UserId; clu
   if (theme === undefined) {
     return null;
   }
-  const [timeline, members] = await Promise.all([readThemeClusterTimeline(db, theme.id), readThemeClusterMembers(db, theme.id, THEME_DETAIL_MEMBERS)]);
+  const [timeline, members] = await Promise.all([
+    readThemeClusterTimeline(db, ownerId, theme.id),
+    readThemeClusterMembers(db, ownerId, theme.id, THEME_DETAIL_MEMBERS),
+  ]);
   return { ...theme, timeline, members };
 }
 

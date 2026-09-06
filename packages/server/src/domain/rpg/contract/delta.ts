@@ -6,14 +6,14 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState, RpgTrackerDef } from "@orb/contracts/rpg";
 
 /** The pure diff's DATA CONTEXT (parity-plus §2.7, P0 fold-ins #5/§2.8) — everything a renderer needs that is
- *  NOT in the two snapshots, arriving as DATA so the registry stays PURE (no I/O). `rosterNames` maps an
+ *  NOT in the two snapshots, arriving as DATA so the registry stays PURE (no I/O). `participantNames` maps an
  *  `actorRefKey` string to a roster display name so per-actor lines name roster actors ("Kael HP 12→16", not
- *  "character HP 12→16" — the gather resolves it from `ctx.resolveRoster`). `trackerDefs` are the game's
+ *  "character HP 12→16" — the gather resolves it from `ctx.resolveParticipants`). `trackerDefs` are the game's
  *  tracker definitions, which the tracker renderers diff SHAPE-aware (a meter numerically, text/list as a
  *  transition) and gloss with the def's `hint` (R5b — the same steering argument R4b proved for the reminder:
  *  a bare number moves narration by noise, a glossed one by a full point). Both empty ⇒ no tracker lines. */
 export interface DeltaContext {
-  readonly rosterNames: Readonly<Record<string, string>>;
+  readonly participantNames: Readonly<Record<string, string>>;
   readonly trackerDefs: readonly RpgTrackerDef[];
   /** Per-custom-relationship-kind steering HINTS (M1 — `label → gloss`) so a custom relationship delta line
    *  renders `vassal (sworn to serve but resentful)`. Empty ⇒ bare labels. */

@@ -46,9 +46,9 @@ const PLAYER_SELF_ALIASES = ["player", "you", "self", "me", "the player"] as con
  *  that targets "player" when the roster name is "You" still resolves to the real ref (never a `npc:player`
  *  phantom the panel can't render). An explicit roster name always wins over an alias (aliases fill only
  *  gaps the roster didn't already claim). */
-export function buildActorRefIndex(roster: readonly { readonly actorRef: RpgActorRef; readonly name: string }[]): ActorRefIndex {
-  const index = new Map<string, RpgActorRef>(roster.map((r) => [r.name.toLowerCase(), r.actorRef]));
-  const player = roster.find((r) => r.actorRef.kind === "user");
+export function buildActorRefIndex(participants: readonly { readonly actorRef: RpgActorRef; readonly name: string }[]): ActorRefIndex {
+  const index = new Map<string, RpgActorRef>(participants.map((r) => [r.name.toLowerCase(), r.actorRef]));
+  const player = participants.find((r) => r.actorRef.kind === "user");
   if (player !== undefined) {
     for (const alias of PLAYER_SELF_ALIASES) {
       if (!index.has(alias)) {
@@ -63,8 +63,8 @@ export function buildActorRefIndex(roster: readonly { readonly actorRef: RpgActo
  *  roster (F2 — the tracker view + reminder read that key), else a `npc` ref under the name's stable SLUG.
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
  *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
-function refForTarget(targetRef: string, roster: ActorRefIndex): RpgActorRef {
-  return roster.get(targetRef.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(targetRef) };
+function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgActorRef {
+  return participantIndex.get(targetRef.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(targetRef) };
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
@@ -73,8 +73,8 @@ function refForTarget(targetRef: string, roster: ActorRefIndex): RpgActorRef {
  *     write is FIRST-CLASS and rendered;
  *  3. else a genuine non-roster scene NPC → mint a `npc:<slug>` (the additive, hand-editable actor).
  *  Returns the matched/minted actor + its index (-1 = minted, appended). */
-function resolveActor(actors: readonly RpgActorEntry[], targetRef: string, roster: ActorRefIndex): { actor: RpgActorEntry; index: number } {
-  const ref = refForTarget(targetRef, roster);
+function resolveActor(actors: readonly RpgActorEntry[], targetRef: string, participantIndex: ActorRefIndex): { actor: RpgActorEntry; index: number } {
+  const ref = refForTarget(targetRef, participantIndex);
   const wantedKey = actorRefKey(ref);
   const index = actors.findIndex((a) => actorRefKey(a.actorRef) === wantedKey);
   if (index !== -1) {
@@ -161,8 +161,8 @@ function applyTrackerWrites(
  *  disappeared with `hp`'s demotion to an ordinary meter: health now rides `trackerDeltas`, whose keys the
  *  per-actor enum already constrains to the trackers that actor CARRIES, so the illegal write is untypeable
  *  rather than refused after the fact. */
-export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs, roster: ActorRefIndex): { actorState: RpgActorEntry[] } {
-  const resolved = resolveActor(state.actorState, args.targetRef, roster);
+export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs, participantIndex: ActorRefIndex): { actorState: RpgActorEntry[] } {
+  const resolved = resolveActor(state.actorState, args.targetRef, participantIndex);
   const actor = resolved.actor.volatile;
 
   const nextTrackers =
@@ -262,9 +262,9 @@ export function applyUpdateInventory(
   state: RpgSnapshotState,
   args: UpdateInventoryArgs,
   mintItemId: () => string,
-  roster: ActorRefIndex,
+  participantIndex: ActorRefIndex,
 ): { actorState: RpgActorEntry[] } {
-  const resolved = resolveActor(state.actorState, args.targetRef, roster);
+  const resolved = resolveActor(state.actorState, args.targetRef, participantIndex);
   const actor = resolved.actor.volatile;
 
   let inventory: RpgInventoryItem[] = [...actor.inventory];
@@ -349,13 +349,13 @@ function mergeNpcIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numb
 function applyPresencePatch(
   state: RpgSnapshotState,
   args: UpdateSceneArgs,
-  roster: ActorRefIndex,
+  participantIndex: ActorRefIndex,
 ): { presentCharacters: string[]; actorState: RpgActorEntry[] } {
-  const removed = new Set((args.presentRemove ?? []).map((name) => actorRefKey(refForTarget(name, roster))));
+  const removed = new Set((args.presentRemove ?? []).map((name) => actorRefKey(refForTarget(name, participantIndex))));
   let present = state.presentCharacters.filter((key) => !removed.has(key));
   let actorState = state.actorState;
   for (const up of args.presentUpsert ?? []) {
-    const resolved = resolveActor(actorState, up.name, roster);
+    const resolved = resolveActor(actorState, up.name, participantIndex);
     const ref = resolved.actor.actorRef;
     const entry: RpgActorEntry = ref.kind === "npc" ? { ...resolved.actor, identity: mergeNpcIdentity(up, resolved.actor.identity) } : resolved.actor;
     actorState = withActor(actorState, { actor: entry, index: resolved.index });
@@ -406,7 +406,7 @@ function sceneClock(state: RpgSnapshotState, args: UpdateSceneArgs): RpgSnapshot
 /** `update_scene` → the ambient/cast/beat patch (§2.7). `timeOfDay`/`day` map onto the engine `clock` via the
  *  ONE `TIME_OF_DAY_HOURS` home; `presentUpsert` is a per-npc PATCH (merge by `key` = normalized name);
  *  `recentEvent` appends one beat. `customFields` array-of-pairs collapses to the stored record. */
-export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs, roster: ActorRefIndex): ScenePatch {
+export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs, participantIndex: ActorRefIndex): ScenePatch {
   const patch: ScenePatch = {};
   if (args.location !== undefined) {
     patch.location = args.location;
@@ -424,7 +424,7 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs,
     patch.clock = sceneClock(state, args);
   }
   if (args.presentUpsert !== undefined || args.presentRemove !== undefined) {
-    const presence = applyPresencePatch(state, args, roster);
+    const presence = applyPresencePatch(state, args, participantIndex);
     patch.presentCharacters = presence.presentCharacters;
     patch.actorState = presence.actorState;
   }
@@ -548,8 +548,8 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
  *  {@link ghostTargetRefs} adds the in-flight `presentUpsert` arm on top, and the R1 fold reports this SIZE as
  *  the diagnostic denominator on a write-nothing extraction (it is exactly the target menu the model had),
  *  which is what lets the fold log that fact without re-resolving the whole per-call ref bundle. */
-export function reachableActorRefs(base: RpgSnapshotState, roster: ActorRefIndex): Set<string> {
-  const known = new Set<string>(roster.keys()); // already lowercased by `buildActorRefIndex`
+export function reachableActorRefs(base: RpgSnapshotState, participantIndex: ActorRefIndex): Set<string> {
+  const known = new Set<string>(participantIndex.keys()); // already lowercased by `buildActorRefIndex`
   for (const actor of base.actorState) {
     if (actor.actorRef.kind === "npc") {
       // BOTH spellings answer: the stable slug (what the ref key is) AND the current DISPLAY name (what the
@@ -575,8 +575,8 @@ export function reachableActorRefs(base: RpgSnapshotState, roster: ActorRefIndex
  *  scene npcs ∪ the npcs this SAME extraction puts on stage (`scene.presentUpsert`) — that last arm keeps the
  *  legitimate introduce-and-wound beat working (the model presents a new NPC and damages her in one round),
  *  so the guard only kills names with no referent anywhere. */
-export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, roster: ActorRefIndex): string[] {
-  const known = reachableActorRefs(base, roster);
+export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, participantIndex: ActorRefIndex): string[] {
+  const known = reachableActorRefs(base, participantIndex);
   for (const up of extraction.scene?.presentUpsert ?? []) {
     known.add(up.name.toLowerCase());
   }
@@ -588,20 +588,20 @@ export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtractio
  *  {@link extractionToStateDelta} so the R5 ghost drop stays under the cognitive-complexity ceiling. Each entry
  *  reads the previous entry's write (the staging-accumulator read-through); a GHOST-targeted arg is dropped
  *  whole (errors-as-data — never a throw, never a hallucinated mint). */
-function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: ActorRefIndex): RpgSnapshotState {
-  const ghosts = new Set(ghostTargetRefs(base, extraction, roster).map((r) => r.toLowerCase()));
+function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, participantIndex: ActorRefIndex): RpgSnapshotState {
+  const ghosts = new Set(ghostTargetRefs(base, extraction, participantIndex).map((r) => r.toLowerCase()));
   let state = base;
   for (const args of extraction.party) {
     if (ghosts.has(args.targetRef.toLowerCase())) {
       continue;
     }
-    state = { ...state, ...applyUpdateParty(state, args, roster) };
+    state = { ...state, ...applyUpdateParty(state, args, participantIndex) };
   }
   for (const args of extraction.inventory) {
     if (ghosts.has(args.targetRef.toLowerCase())) {
       continue;
     }
-    state = { ...state, ...applyUpdateInventory(state, args, mints.item, roster) };
+    state = { ...state, ...applyUpdateInventory(state, args, mints.item, participantIndex) };
   }
   return state;
 }
@@ -613,17 +613,22 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).
  *  A GHOST-targeted party/inventory arg is DROPPED ({@link ghostTargetRefs}, R5 — errors-as-data: a
  *  hallucinated name never fails the turn and never mints an actor). */
-export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: ActorRefIndex): RpgStateDelta {
+export function extractionToStateDelta(
+  base: RpgSnapshotState,
+  extraction: RpgExtraction,
+  mints: ExtractionMints,
+  participantIndex: ActorRefIndex,
+): RpgStateDelta {
   let state = base;
   const overlay = (patch: Partial<RpgSnapshotState>): void => {
     state = { ...state, ...patch };
   };
 
-  state = applyActorArgs(state, extraction, mints, roster);
+  state = applyActorArgs(state, extraction, mints, participantIndex);
   if (extraction.scene !== undefined) {
     // `ScenePatch.recentEvents` is `readonly string[]`; the state plane is mutable — split it off and copy it so
     // the overlay type matches (the `update_scene` tool handler spreads the same way through the accumulator).
-    const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene, roster);
+    const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene, participantIndex);
     overlay({ ...scene, ...(recentEvents !== undefined ? { recentEvents: [...recentEvents] } : {}) });
   }
   for (const args of extraction.trackers) {

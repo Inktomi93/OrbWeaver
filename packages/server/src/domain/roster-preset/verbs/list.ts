@@ -13,7 +13,7 @@ export function createList(ctx: RosterPresetContext): RosterPresetService["list"
   return async ({ principal }: ListRosterPresetsParams) => {
     const rows = await listOwnedPresetRows(ctx.db, principal.userId);
     const presetIds = rows.map((row) => row.id);
-    const members = groupMemberViews(await loadMemberCardRows(ctx.db, presetIds));
+    const members = groupMemberViews(await loadMemberCardRows(ctx.db, principal.userId, presetIds));
     const rules = groupCastRuleViews(await loadCastRuleRows(ctx.db, presetIds));
     return rows.map((row) => summaryOf(row, members.get(row.id) ?? [], rules.get(row.id) ?? []));
   };

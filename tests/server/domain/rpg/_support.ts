@@ -33,10 +33,10 @@ import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessag
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
 import type {
   RpgContext,
+  RpgParticipantActor,
   RpgPopulateDelta,
   RpgPostNarratorMessage,
-  RpgResolveRoster,
-  RpgRosterActor,
+  RpgResolveParticipants,
   RpgRunToolRound,
   RpgStateDelta,
 } from "../../../../packages/server/src/domain/rpg/index.ts";
@@ -219,7 +219,7 @@ export interface RpgFakes {
   /** #1528 - the per-user D16 canon floor chat resolveViewerVisibility would return (absent = UNCLAMPED, the
    *  `full` default). Set it to drive a from-join member: `fakes.historyFloor.set("user_member", seq)`. */
   historyFloor: Map<string, number>;
-  roster: RpgRosterActor[];
+  participants: RpgParticipantActor[];
   trackersReadOnly: boolean;
   /** The D112 FOLD GUARD verdict `resolveStateDelivery` returns beside `trackersReadOnly`: this wire silences
    *  the model's prose when tools ride it (the local vLLM engine), so a `folded` game must not mount. */
@@ -312,7 +312,7 @@ export interface RpgFakes {
   /** R4 — force the PROMOTION's durable half to refuse (the exhausted-handle arm the compose impl produces).
    *  Set to a reason string; the fake then mints nothing. Default unset ⇒ the mint succeeds. */
   promoteRefusal?: string;
-  /** R4 — the promotion mints fired (`promoteToRoster`): the room, the HOST userId the card was minted under
+  /** R4 — the promotion mints fired (`promoteToCharacter`): the room, the HOST userId the card was minted under
    *  (the injected-op caller-gate assertion — never a re-derived owner), and the card content the verb DERIVED
    *  off the actor's identity row. A test asserts the standing guides actually reached the card. */
   readonly promoteMints: { chatId: ChatId; hostUserId: string; name: string; handle: CharacterHandle; description: string; characterId: CharacterId | null }[];
@@ -357,7 +357,7 @@ export function makeRpgService(
   over: Partial<
     Pick<
       RpgFakes,
-      | "roster"
+      | "participants"
       | "trackersReadOnly"
       | "foldGuarded"
       | "dice"
@@ -376,7 +376,7 @@ export function makeRpgService(
   const fakes: RpgFakes = {
     membership: new Map(),
     historyFloor: new Map(),
-    roster: over.roster ?? [],
+    participants: over.participants ?? [],
     trackersReadOnly: over.trackersReadOnly ?? false,
     foldGuarded: over.foldGuarded ?? false,
     dice: [...(over.dice ?? [])],
@@ -432,7 +432,7 @@ export function makeRpgService(
     await db.batch(batchMany([buildSnapshotStatement({ messageId, variantId })]));
     return { messageId, variantId };
   };
-  const resolveRoster: RpgResolveRoster = () => Promise.resolve(fakes.roster);
+  const resolveParticipants: RpgResolveParticipants = () => Promise.resolve(fakes.participants);
   let extractionMintSeq = 0;
   let itemSeq = 0;
   let questSeq = 0;
@@ -461,7 +461,7 @@ export function makeRpgService(
       input.baseState,
       extraction,
       { item: () => `item_${n}_${itemSeq++}`, quest: () => castId<RpgQuestId>(`q_${n}_${questSeq++}`), objective: () => `obj_${n}_${objectiveSeq++}` },
-      buildActorRefIndex(fakes.roster),
+      buildActorRefIndex(fakes.participants),
     );
   };
   // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that
@@ -524,12 +524,12 @@ export function makeRpgService(
       }
       return Promise.resolve();
     },
-    resolveRoster,
+    resolveParticipants,
     // R4 — the PROMOTION's durable half. The real impl mints a character card + a chat roster seat over the
     // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.roster`, because the seat
     // is not decoration: the tracker view projects a `character:` actor only when the roster carries it, so a
     // fake that skipped it would let a promotion "pass" while the panel showed nobody.
-    promoteToRoster: ({ chatId, hostUserId, sourceActorKey, roster, name, handle, description }) => {
+    promoteToCharacter: ({ chatId, hostUserId, sourceActorKey, participants, name, handle, description }) => {
       if (fakes.promoteRefusal !== undefined) {
         fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId: null });
         return Promise.resolve({ ok: false, reason: fakes.promoteRefusal });
@@ -537,7 +537,7 @@ export function makeRpgService(
       const promotionKey = `${chatId}:${sourceActorKey}`;
       const existing = fakes.promotionCharacters.get(promotionKey);
       if (
-        roster.some(
+        participants.some(
           (actor) =>
             actor.name.trim().toLowerCase() === name.toLowerCase() &&
             !(existing !== undefined && actor.actorRef.kind === "character" && actor.actorRef.characterId === existing),
@@ -549,8 +549,8 @@ export function makeRpgService(
         });
       }
       if (existing !== undefined) {
-        if (!fakes.roster.some((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === existing)) {
-          fakes.roster.push({ actorRef: { kind: "character", characterId: existing }, name });
+        if (!fakes.participants.some((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === existing)) {
+          fakes.participants.push({ actorRef: { kind: "character", characterId: existing }, name });
         }
         return Promise.resolve({ ok: true, characterId: existing });
       }
@@ -560,7 +560,7 @@ export function makeRpgService(
       const characterId = mintTypeId(ID_PREFIX.character);
       fakes.promotionCharacters.set(promotionKey, characterId);
       fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId });
-      fakes.roster.push({ actorRef: { kind: "character", characterId }, name });
+      fakes.participants.push({ actorRef: { kind: "character", characterId }, name });
       return Promise.resolve({ ok: true, characterId });
     },
     postNarratorMessage,
@@ -646,7 +646,7 @@ export async function seedLiteGame(
   over: Partial<
     Pick<
       RpgFakes,
-      | "roster"
+      | "participants"
       | "trackersReadOnly"
       | "foldGuarded"
       | "dice"
@@ -678,12 +678,12 @@ export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractio
 }
 
 /** A `character` roster actor entry for the tracker projection. */
-export function rosterCharacter(key: string, name: string): RpgRosterActor {
+export function participantCharacter(key: string, name: string): RpgParticipantActor {
   return { actorRef: { kind: "character", characterId: castId(`character_${key}`) }, name };
 }
 
 /** A `user` roster actor entry. */
-export function rosterUser(handle: Handle, name: string): RpgRosterActor {
+export function participantUser(handle: Handle, name: string): RpgParticipantActor {
   return { actorRef: { kind: "user", userId: castId<UserId>(`user_${handle}`) }, name };
 }
 

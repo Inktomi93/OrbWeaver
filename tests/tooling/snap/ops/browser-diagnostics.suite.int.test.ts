@@ -12,7 +12,6 @@ import { collectOrbConsoleDiagnostics, wirePageDiagnostics } from "@orb/tooling/
 import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema } from "@orb/tooling/_shared/browser-evidence-ring";
 import { resolveProbeMedia } from "@orb/tooling/_shared/browser-media";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import type { CDPSession } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
@@ -227,49 +226,83 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
   }
 });
 
-function rejectCommand(cdp: CDPSession, rejected: string): CDPSession {
-  return new Proxy(cdp, {
-    get(target, property) {
-      if (property === "send") {
-        return async (method: string, params?: unknown): Promise<unknown> => {
-          if (method === rejected) {
-            throw new Error(`planted ${rejected} rejection`);
-          }
-          return await Reflect.apply(target.send, target, params === undefined ? [method] : [method, params]);
-        };
-      }
-      const value: unknown = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
+// The env key `_shared/browser.ts`'s protocol-level CDP fault injector reads (#1093). Spelled here rather
+// than imported so this pin exercises the PROTOCOL the seam publishes, exactly as an operator would —
+// mirrors tests/tooling/ui-audit/ops/hover.int.test.ts's identical convention.
+const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
+
+/** Run `body` with the seam's fault injector armed for `fault`, restoring whatever the env carried
+ *  before (never assume it was unset — a sibling arm in the same run may have left it). */
+async function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T> {
+  // biome-ignore lint/style/noProcessEnv: the seam's fault gate IS process.env-shaped (`_shared/browser.ts` reads it fresh per `newContext`) — this is the seam's own knob, not app config; restored below.
+  const prior = process.env[CDP_FAULT_ENV];
+  // biome-ignore lint/style/noProcessEnv: see above — arming the fault is the mechanism.
+  process.env[CDP_FAULT_ENV] = fault;
+  try {
+    return await body();
+  } finally {
+    if (prior === undefined) {
+      // biome-ignore lint/style/noProcessEnv: see above — the restore half.
+      delete process.env[CDP_FAULT_ENV];
+    } else {
+      // biome-ignore lint/style/noProcessEnv: see above — the restore half.
+      process.env[CDP_FAULT_ENV] = prior;
+    }
+  }
 }
 
 test("controlled CDP failures stay loud: Audits degrades explicitly while Log stays live, and Log setup rejects", async () => {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
-  try {
-    const page = await context.newPage();
-    const diagnosticRing = new BoundedEvidenceRing<BrowserDiagnostic>(128);
-    const ring = diagnosticRing.values();
-    const window = { value: 0 };
-    const auditsCdp = rejectCommand(await context.newCDPSession(page), "Audits.enable");
-    await wirePageDiagnostics(page, diagnosticRing, { contextIndex: 0, pageIndex: 0, window }, { cdp: auditsCdp });
-    await page.setContent('<img src="http://127.0.0.1:1/planted-log.png">');
-    await expect.poll(() => ring.some((record) => record.origin === "browser-log")).toBe(true);
-    expect(ring.some((record) => record.origin === "instrument-limit" && record.text.includes("Audits.enable"))).toBe(true);
-    expect(ring.some((record) => record.origin === "browser-log")).toBe(true);
+  // ROUTED THROUGH THE SHARED SEAM (#1812): a local `rejectCommand` Proxy re-spelled the exact fault
+  // `_shared/browser.ts` already injects at the protocol level. `launchProbeSession` installs that
+  // injector on its context (`installCdpFaultInjector`); every `context.newCDPSession(...)` taken AFTER
+  // launch returns the same seam-faulted session `ops/hover.ts`'s CLI-level fixtures rely on — so this
+  // suite now proves the same seam via its in-process door instead of carrying a second one.
+  await withCdpFault("Audits.enable", async () => {
+    const session = await launchProbeSession({
+      headless: true,
+      viewport: { width: 640, height: 480 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [],
+    });
+    await withProbeSession(session, async () => {
+      // REUSE `session.page` rather than opening a fresh one: `launchProbeSession` already auto-wires
+      // every NEW page through the context's `page` event (`watchProbeContextPages`), which would spend
+      // one of the gated calls on that auto-wire before our own explicit `wirePageDiagnostics` runs.
+      // `session.page` was wired inside `buildProbeContext` BEFORE the fault injector installs, so it
+      // carries none of that — our explicit call below is the first (and only) gated attempt.
+      const diagnosticRing = new BoundedEvidenceRing<BrowserDiagnostic>(128);
+      const ring = diagnosticRing.values();
+      const window = { value: 0 };
+      const auditsCdp = await session.context.newCDPSession(session.page);
+      await wirePageDiagnostics(session.page, diagnosticRing, { contextIndex: 0, pageIndex: 0, window }, { cdp: auditsCdp });
+      await session.page.setContent('<img src="http://127.0.0.1:1/planted-log.png">');
+      await expect.poll(() => ring.some((record) => record.origin === "browser-log")).toBe(true);
+      expect(ring.some((record) => record.origin === "instrument-limit" && record.text.includes("Audits.enable"))).toBe(true);
+      expect(ring.some((record) => record.origin === "browser-log")).toBe(true);
+    });
+  });
 
-    const failedPage = await context.newPage();
-    const failedDiagnosticRing = new BoundedEvidenceRing<BrowserDiagnostic>(128);
-    const failedRing = failedDiagnosticRing.values();
-    const logCdp = rejectCommand(await context.newCDPSession(failedPage), "Log.enable");
-    await expect(wirePageDiagnostics(failedPage, failedDiagnosticRing, { contextIndex: 0, pageIndex: 1, window }, { cdp: logCdp })).rejects.toThrow(
-      "planted Log.enable rejection",
-    );
-    expect(failedRing).toEqual([]);
-  } finally {
-    await browser.close();
-  }
+  await withCdpFault("Log.enable", async () => {
+    const session = await launchProbeSession({
+      headless: true,
+      viewport: { width: 640, height: 480 },
+      colorScheme: null,
+      reducedMotion: false,
+      localStorage: [],
+    });
+    await withProbeSession(session, async () => {
+      // Same reuse-`session.page` reasoning as the Audits arm above.
+      const failedDiagnosticRing = new BoundedEvidenceRing<BrowserDiagnostic>(128);
+      const failedRing = failedDiagnosticRing.values();
+      const window = { value: 0 };
+      const logCdp = await session.context.newCDPSession(session.page);
+      await expect(wirePageDiagnostics(session.page, failedDiagnosticRing, { contextIndex: 0, pageIndex: 1, window }, { cdp: logCdp })).rejects.toThrow(
+        `planted CDP fault: Log.enable call #1 refused by ${CDP_FAULT_ENV}`,
+      );
+      expect(failedRing).toEqual([]);
+    });
+  });
 });
 
 test("Snap JSON and a live session export retain the lossless diagnostics ring", async ({ plantedTree, repoRoot, runCli, scratch }) => {

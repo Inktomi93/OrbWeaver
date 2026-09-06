@@ -45,11 +45,11 @@ function message(id: MessageId, characterId: CharacterId): CardSourceRow {
   return { id, content: CARD_BODY, createdAt: 1_700_000_000_000, role: "assistant" as const, authorUserId: null, characterId };
 }
 
-const ROSTER = [character(TRUSTING, false), character(STRICT, true)];
+const PARTICIPANTS = [character(TRUSTING, false), character(STRICT, true)];
 
 test("each card carries ITS OWN author's external-media verdict, not one blanket verdict for the surface", () => {
   const cards = collectArchivedCards([message(castId<MessageId>("msg_1"), TRUSTING), message(castId<MessageId>("msg_2"), STRICT)], {
-    participants: ROSTER,
+    participants: PARTICIPANTS,
     viewerUserId: VIEWER,
   });
 
@@ -67,7 +67,7 @@ test("FAIL-CLOSED: an unresolvable author (roster still loading) archives the ca
 
 test("the viewer's OWN card obeys the safe floor too — a user row names no character to opt in", () => {
   const own = { id: castId<MessageId>("msg_1"), content: CARD_BODY, createdAt: 0, role: "user" as const, authorUserId: VIEWER, characterId: null };
-  const [card] = collectArchivedCards([own], { participants: ROSTER, viewerUserId: VIEWER });
+  const [card] = collectArchivedCards([own], { participants: PARTICIPANTS, viewerUserId: VIEWER });
 
   expect(card?.allowExternalMedia).toBe(false);
 });

@@ -58,11 +58,25 @@ export function classifyParticipant(row: ParticipantRowShape): ParticipantActor 
       return row.userId !== null && row.characterId === null ? { kind: "human", userId: row.userId } : null;
     case "character":
       return row.characterId !== null && row.userId === null ? { kind: "character", characterId: row.characterId } : null;
-    default: {
-      const _exhaustive: never = row.kind;
-      return _exhaustive;
-    }
+    default:
+      return classifyUnrecognizedKind(row.kind);
   }
+}
+
+/** The `default:` arm's fail-CLOSED verdict, and the reason it is a function rather than a `never` binding
+ *  returned inline (#1480 item 1). The old spelling assigned `row.kind` to a `never`-typed local and
+ *  RETURNED that local: compile-time exhaustive, but the raw runtime string at runtime. A row whose `kind`
+ *  is neither live kind therefore classified as that STRING, which is not `null` — so
+ *  {@link parseParticipant}'s `actor === null` rejection could never fire on it, and every
+ *  `classifyParticipant(row)?.kind === "human"` reader saw a truthy actor carrying no `userId`. Reaching
+ *  this arm needs a row that bypassed the
+ *  `chat_participants_kind_check` DB CHECK (a hand-written row, a restored dump, a future kind added to the
+ *  CHECK before this switch) -- exactly the corrupt-row case this classifier exists to absorb. The `never`
+ *  parameter keeps the compile-time half intact: a reintroduced {@link ParticipantKind} member fails `tsc`
+ *  HERE until it has its own `case`. (Shape precedent: `infra/providers/backends/agent-sdk/verify.ts`'s
+ *  `assertNeverClassification` -- exhaustive at compile time, total and non-throwing at runtime.) */
+function classifyUnrecognizedKind(_kind: never): null {
+  return null;
 }
 
 /** The loud belt for a corrupt row — throws on an XOR violation or unrecognized kind. Delegates to

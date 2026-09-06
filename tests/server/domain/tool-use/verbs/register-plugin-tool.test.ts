@@ -8,12 +8,14 @@
 
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
+import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
 import { can as realCan } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { z } from "zod";
+import { TOOL_NAME_RE } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -289,6 +291,27 @@ describe("#677: the same tool name may be held once PER INSTALLER", () => {
     );
     expect(() => service.registerPluginTool(specOf())).toThrow(ToolNameCollisionError);
   });
+});
+
+// #1803 — `TOOL_NAME_RE`'s bound IS `PLUGIN_TOOL_WIRE_NAME_MAX` (`@orb/contracts/plugin`), the number the
+// manifest/membrane byte-budget boundaries are sized against. Contracts cannot import server (the cake), so
+// this exact-value pin is the tie back — if either side's cap ever moves without the other, this test is the
+// one thing that catches it before the boundaries silently stop matching the registry they were sized for.
+test("#1803: the registry's TOOL_NAME_RE bound equals the contracts wire-mint budget constant", () => {
+  const maxLen = TOOL_NAME_RE.source.match(/\{0,(\d+)\}/)?.[1];
+  expect(maxLen).toBeDefined();
+  expect(1 + Number(maxLen)).toBe(PLUGIN_TOOL_WIRE_NAME_MAX);
+});
+
+// A LENGTH failure at this registrar is now BACKSTOP-ONLY (#1803): the manifest/membrane boundaries bound
+// slug + guest-local name so a real plugin mint can never reach here over-length. This pin proves the
+// backstop still fires — and says LENGTH, never bare "collision" — for a caller that bypasses those
+// boundaries (a hand-built spec, exactly what a test does).
+test("#1803: an over-length name is refused at the registry backstop with a message naming the failure", () => {
+  const service = serviceWith();
+  const overLong = `a${"a".repeat(PLUGIN_TOOL_WIRE_NAME_MAX)}`; // one byte over TOOL_NAME_RE's cap
+  expect(() => service.registerPluginTool(specOf({ name: overLong }))).toThrow(ToolNameCollisionError);
+  expect(() => service.registerPluginTool(specOf({ name: overLong }))).toThrow(/charset\/length/);
 });
 
 test("unregister removes the tool — no ghost after deactivation", () => {

@@ -26,7 +26,7 @@
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { PLUGIN_UI_ASSET_ENTRY_RE } from "./manifest.ts";
+import { PLUGIN_TOOL_NAME_LOCAL_MAX, PLUGIN_UI_ASSET_ENTRY_RE } from "./manifest.ts";
 
 // ── Vocabulary axes (closed tuples; a member is a compile-tier fact) ─────────────────────────────────────────
 
@@ -1337,8 +1337,12 @@ export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
 /** The GUEST-LOCAL tool name a `tool-card` surface names (`host.tools.register`'s `name` — the grammar
  *  `host-v1.ts` documents for it, before the host namespaces it to `plugin_<slug'>_<name>`). A surface names
  *  the tool the way its own `main.js` registered it; the WIRE name is derived host-side and never guessed
- *  client-side (`pluginToolWireName`, `registrations.ts` — the ONE mint). */
-export const PLUGIN_TOOL_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
+ *  client-side (`pluginToolWireName`, `registrations.ts` — the ONE mint). Length capped at
+ *  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} (`manifest.ts` — the wire-mint's byte budget, #1803): this is the
+ *  SAME grammar the membrane's `tools.register` trust boundary (`infra/plugin-host/membrane.ts`) enforces
+ *  on the raw guest input, so a name too long is refused at the guest's own `tools.register` call, never
+ *  merely at the `toolName` linkage above. */
+export const PLUGIN_TOOL_NAME_RE = new RegExp(`^[a-z][a-z0-9_]{0,${PLUGIN_TOOL_NAME_LOCAL_MAX - 1}}$`);
 /** The shell label line cap (`host.ui.register`'s `title`; plugin-ui-plane §4.2). */
 export const PLUGIN_SURFACE_TITLE_MAX = 80;
 

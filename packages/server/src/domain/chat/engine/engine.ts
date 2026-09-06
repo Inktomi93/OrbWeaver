@@ -1882,6 +1882,17 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     } catch (deltaErr) {
       // If the delta append itself caused this catch, `err` already owns the failure. If generation failed
       // independently, preserve that primary error but keep the secondary durable-bus failure visible.
+      //
+      // A TYPE-SEAM BELT WITH NO REACHABLE PRODUCER TODAY, and that is recorded rather than tested (#1521):
+      // `EngineDeps.emit` is typed `Promise<void>`, so a rejection is expressible — but the composed
+      // production emitter cannot produce one. `entry/compose/services::emitChatEvent` awaits
+      // `emitChatEventChecked`, whose `chatBus.emit` is TOTAL by construction (bus.ts FLAG[emit-is-total])
+      // and whose fan is a synchronous `EventEmitter.emit` into `on()`-buffered subscribers
+      // (`transport/trpc/chat-events-bus::publishChatEvent` → `bus-channel::publish`); the one callback-style
+      // listener isolates its own throw. A dropped durable append therefore RESOLVES here — the engine is
+      // structurally blind to the loss, which is #1454's still-open propagation fork, not this belt's job.
+      // The belt stays because the SEAM's type permits what bus.ts's invariant currently forbids; a test that
+      // injected a rejecting emitter was deleted for pinning a shape no caller can reach.
       if (deltaErr !== err) {
         getLog().warn({ err: deltaErr, chatId: prep.chatId }, "chat: delta drain also failed while aborting turn");
       }

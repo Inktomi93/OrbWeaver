@@ -95,7 +95,7 @@ function perActor(
 }
 
 /** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
- *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); an `npc` actor
+ *  `ctx.participantNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); an `npc` actor
  *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
  *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
  *  roster map has no name for the key (a gone member — never a crash). */
@@ -104,17 +104,17 @@ function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   if (ref.kind === "npc") {
     return row.identity?.name ?? ref.npcKey;
   }
-  const named = ctx.rosterNames[volatileKey(row)];
+  const named = ctx.participantNames[volatileKey(row)];
   if (named !== undefined && named !== "") {
     return named;
   }
-  return ROSTER_GENERIC[ref.kind];
+  return PARTICIPANT_GENERIC[ref.kind];
 }
 
 /** The WORD a roster ref degrades to when nothing names it — one home, because two callers need it: this
  *  file's row-bearing {@link actorLabel} and the row-LESS {@link presenceName} fallback below. A second
  *  spelling would drift, and the drift is invisible: both arms only fire when a name is already missing. */
-const ROSTER_GENERIC: Readonly<Record<"character" | "user", string>> = { character: "character", user: "you" };
+const PARTICIPANT_GENERIC: Readonly<Record<"character" | "user", string>> = { character: "character", user: "you" };
 
 /** The separator {@link volatileKey} composes an actor-ref key with. */
 const REF_KEY_SEP = ":";
@@ -125,8 +125,8 @@ const REF_KEY_SEP = ":";
  *  above, and an `npc` key's tail is its AUTHORED SLUG — not an id, and exactly what {@link actorLabel} itself
  *  falls back to when an npc row carries no identity. */
 const ORPHAN_PRESENCE_LABEL: Readonly<Record<"character" | "user" | "npc", (tail: string) => string>> = {
-  character: () => ROSTER_GENERIC.character,
-  user: () => ROSTER_GENERIC.user,
+  character: () => PARTICIPANT_GENERIC.character,
+  user: () => PARTICIPANT_GENERIC.user,
   npc: (tail) => tail,
 };
 
@@ -138,7 +138,7 @@ const UNKNOWN_PRESENT_ACTOR = "someone";
  *  keyed by the SAME projection, so it answers first — a roster member listed on stage before her row exists
  *  is the common case; only then does the kind-derived word apply. */
 function orphanPresenceName(key: string, ctx: DeltaContext): string {
-  const named = ctx.rosterNames[key];
+  const named = ctx.participantNames[key];
   if (named !== undefined && named !== "") {
     return named;
   }
@@ -377,7 +377,7 @@ interface PresenceSlice {
 /** THE presence-key → display NAME resolution, and the only one. A presence entry is a bare `actorRefKey`
  *  (R2), so every surface that prints "who is on stage" has to join it back to its actor row — and the join
  *  MUST go through {@link actorLabel}, because a ROSTER actor carries no identity by design: her name lives in
- *  `ctx.rosterNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
+ *  `ctx.participantNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
  *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
  *  never model-facing"). One helper, both readers.
  *
@@ -569,7 +569,7 @@ export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotS
  *  born state carries nothing worth opening on.
  *
  *  It takes the `DeltaContext` for ONE reason and it is load-bearing: the presence plane stores ref KEYS, and a
- *  ROSTER actor's name lives in `ctx.rosterNames`, not on her row. Resolving without it printed the raw
+ *  PARTICIPANT actor's name lives in `ctx.participantNames`, not on her row. Resolving without it printed the raw
  *  `character:chr_…`/`user:usr_…` key into the model's prompt on turn 1 of effectively every new game (the
  *  establish-when-unset arm forces a non-empty cast, and the model habitually lists the roster character). */
 function buildFirstSnapshotBlock(cur: RpgSnapshotState, ctx: DeltaContext): string | null {

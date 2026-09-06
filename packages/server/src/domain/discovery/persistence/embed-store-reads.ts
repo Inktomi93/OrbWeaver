@@ -5,7 +5,18 @@
 
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, chats, digestThemeAssignments, imageEmbeddings } from "@orb/db";
+import {
+  assets,
+  characterEmbeddings,
+  characters,
+  chatDigests,
+  chatParticipants,
+  chatSegments,
+  chats,
+  digestThemeAssignments,
+  imageEmbeddings,
+  themeClusters,
+} from "@orb/db";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
@@ -502,9 +513,24 @@ export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ cha
   };
 }
 
+/** THE THEME-CLUSTER OWNER PREDICATE, shared by the two `themeDetail` reads (#1480 item 6). `theme_clusters`
+ *  carries its own `ownerId` (D23 — the row's own key dimension), so the belt is a join on the cluster
+ *  itself rather than a walk out to a chat host. Both reads take a caller-supplied `themeClusterId`:
+ *  `verbs/views::themeDetail` resolves it from an owner-scoped list one hop earlier, which is derivation,
+ *  not enforcement — the seven-seam pass (00d770fa4) ruled that class toward a predicate AT the seam.
+ *
+ *  NOT ALSO A `characters.ownerId` PREDICATE, deliberately: a digest's `scopedCharacterId` in a shared room
+ *  can legitimately be a co-member's card, so belting the card axis here would silently delete real rows
+ *  from the owner's own theme detail. The cluster is the ownership authority; the digests under it are
+ *  already the owner's own by the assignment pass's construction. */
+function ownedThemeCluster(ownerId: UserId, themeClusterId: ThemeClusterId): SQL | undefined {
+  return and(eq(themeClusters.id, digestThemeAssignments.themeClusterId), eq(themeClusters.id, themeClusterId), eq(themeClusters.ownerId, ownerId));
+}
+
 /** The characters most present in a theme cluster — each witnessing character's digest count, descending. */
 export async function readThemeClusterMembers(
   db: Db,
+  ownerId: UserId,
   themeClusterId: ThemeClusterId,
   limit: number,
 ): Promise<{ characterId: CharacterId; name: string; count: number }[]> {
@@ -515,6 +541,7 @@ export async function readThemeClusterMembers(
       count: sql<number>`count(*)`,
     })
     .from(digestThemeAssignments)
+    .innerJoin(themeClusters, ownedThemeCluster(ownerId, themeClusterId))
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
     .innerJoin(characters, eq(characters.id, chatDigests.scopedCharacterId))
     .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), eq(characters.synthetic, false)))
@@ -526,11 +553,12 @@ export async function readThemeClusterMembers(
 }
 
 /** A theme cluster's story-time timeline — assigned-digest count per `YYYY-MM` bucket, ascending. */
-export async function readThemeClusterTimeline(db: Db, themeClusterId: ThemeClusterId): Promise<{ bucket: string; count: number }[]> {
+export async function readThemeClusterTimeline(db: Db, ownerId: UserId, themeClusterId: ThemeClusterId): Promise<{ bucket: string; count: number }[]> {
   const bucket = sql<string>`strftime('%Y-%m', ${digestThemeAssignments.msgMidAt} / 1000, 'unixepoch')`;
   return await db
     .select({ bucket, count: sql<number>`count(*)` })
     .from(digestThemeAssignments)
+    .innerJoin(themeClusters, ownedThemeCluster(ownerId, themeClusterId))
     .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), isNotNull(digestThemeAssignments.msgMidAt)))
     .groupBy(bucket)
     .orderBy(asc(bucket));

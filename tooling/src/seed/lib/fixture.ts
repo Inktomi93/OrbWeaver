@@ -20,6 +20,19 @@ export const DEMO_TAG_NAME = "demo";
 export const GROUP_CAST_HANDLES = ["sabine", "calamity", "morgatha"] as const;
 export const GROUP_CAST_SIZE = GROUP_CAST_HANDLES.length;
 
+// Regex scripts (#1725 boards 04/05 + the #1742 room Regex section) — one per tier so a fresh demo db can
+// pixel-match every populated tier without a manual regen. Names carry their own tier hint so the seed log
+// and the room's Regex section read the same story.
+export const REGEX_FIND_REPLACE_SCRIPT_NAME = "Loom static cleanup";
+export const REGEX_DISPLAY_ONLY_SCRIPT_NAME = "Trim host asterisks (display only)";
+export const REGEX_PROMPT_ONLY_SCRIPT_NAME = "Redact the vault codeword (prompt only)";
+export const REGEX_DISABLED_SCRIPT_NAME = "Legacy line-break fix (disabled)";
+
+// Saved rosters (D61 B6) — one matching the demo group's seated trio, one a different pairing, so the
+// rosters library shows more than a single row.
+export const ROSTER_PRESET_MATCHING_NAME = "Refinery crew";
+export const ROSTER_PRESET_ALT_NAME = "Assistant & Sabine";
+
 // The pasted databank document — long enough to chunk into several pieces so `document_chunks` > 1.
 export const DEMO_DOCUMENT_TEXT = [
   "The Loom is the great orbital engine at the heart of the settlement, a lattice of woven light that",
