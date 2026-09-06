@@ -33,7 +33,9 @@ const POSITIVE_CAPS = [
   "ctWorkers",
   "ts7Checkers",
   "pnpmWorkspaceConcurrency",
-  "hookBiomeSlots",
+  "eslintConcurrency",
+  "hookPoolSlots",
+  "hookTs7Checkers",
   "ctRunnersHostWide",
 ] as const satisfies readonly (keyof ConcurrencyProfile)[];
 
@@ -56,7 +58,11 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   expect(shared.ctWorkers, "playwright CT workers default").toBe(2);
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
-  expect(shared.hookBiomeSlots, "the edit hook's HOST-WIDE biome pool").toBe(4);
+  // The ONE cap here that RAISES parallelism: ESLint ships `--concurrency off` (single-threaded), so this
+  // row is a speed-up we are choosing to spend, not a ceiling we are imposing.
+  expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(4);
+  expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its two file-scoped legs").toBe(4);
+  expect(shared.hookTs7Checkers, "the edit hook's whole-program TS leg fires on every edit — it takes fewer checkers than a batch run").toBe(2);
   expect(shared.ctRunnersHostWide, "concurrent CT runners allowed across the whole host").toBe(2);
   // A ceiling of 0 would mean "no ceiling" — the shared profile MUST set one, or the cpu-fence hook
   // stands down on the very box it exists for.
