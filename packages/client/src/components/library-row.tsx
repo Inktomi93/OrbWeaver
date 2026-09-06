@@ -45,8 +45,14 @@ export interface LibraryRowActions {
    *  all (no separator, no Delete item, no confirm). Minted for the built-in preset row (side-eye 2026-08-19
    *  P3): that row is packaged, so Rename and Delete are both refusals — but Duplicate is not, and
    *  withholding the whole `actions` bag to withhold two of its items left the one preset in the library the
-   *  owner could not copy. Every other consumer passes it and is unchanged. */
-  readonly onDelete?: () => void;
+   *  owner could not copy. Every other consumer passes it and is unchanged.
+   *
+   *  MAY RETURN A PROMISE (#1563b, widened #1632): this value reaches `RowActionsMenu.destructive.onConfirm`
+   *  → `ConfirmDialog.onConfirm`, which AWAITS it — the confirm holds open with its busy state, closes on
+   *  resolve, and stays open with the reason on rejection. `() => void` still ACCEPTED an async handler (a
+   *  `Promise` return is assignable to `void`), so the hold-and-retry was reached by accident rather than by
+   *  contract, and the type told a reader to reach for `mutate` where the surface pays for `mutateAsync`. */
+  readonly onDelete?: () => void | Promise<void>;
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). Meaningless without `onDelete`. */
   readonly deleteDescription?: ReactNode;
   /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a

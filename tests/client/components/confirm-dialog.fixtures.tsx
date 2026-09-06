@@ -21,6 +21,35 @@ export function ConfirmDialogControlledHarness(): ReactElement {
   );
 }
 
+/** A state-only confirm whose handler RETURNS A NON-THENABLE (#1632 item 6). `void` is erased at the type
+ *  level only, so a `(): void` handler whose body ends in an expression hands `ConfirmDialog` a value that
+ *  is neither `undefined` nor a promise — here `Set.add`, which returns the Set. The old
+ *  `settle === undefined` gate let it through to `settle.then(…)` and threw inside the click handler: the
+ *  dialog stayed open and nothing was reported. The cast is what a real call site gets for free from
+ *  TypeScript's `void` assignability; it is spelled explicitly here so the shape is visible in the fixture. */
+export function ConfirmDialogNonThenableHarness(): ReactElement {
+  const [confirmed, setConfirmed] = useState(false);
+  const seen = new Set<string>();
+  return (
+    <div>
+      <ConfirmDialog
+        confirmLabel="Apply"
+        confirmIntent="primary"
+        description="The handler returns a value that is not a promise."
+        onConfirm={
+          ((): unknown => {
+            setConfirmed(true);
+            return seen.add("clicked");
+          }) as () => void
+        }
+        title="Apply this change?"
+        trigger={<Button intent="ghost">Apply</Button>}
+      />
+      <output data-testid="confirm-nonthenable-state">{confirmed ? "applied" : "idle"}</output>
+    </div>
+  );
+}
+
 /** A confirm whose verb REJECTS the first time and succeeds the second (#1563) — the state that used to be
  *  unreachable by construction: the dialog closed on click whatever the verb did, so a destructive confirm
  *  could never be the retry surface for the mutation it fires. The promise is what the dialog waits on. */

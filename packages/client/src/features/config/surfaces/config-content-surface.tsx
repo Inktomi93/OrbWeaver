@@ -426,7 +426,12 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
               with a space and keeps every visible word in the name (§13.10 N2). */}
           <CollapsibleTrigger aria-labelledby={fold.caption === undefined ? foldLabelId : `${foldLabelId} ${foldCaptionId}`} size="control">
             <Row align="center" gap="field" className="min-w-0">
-              <Text as="span" id={foldLabelId} voice="kicker">
+              {/* `interactiveKicker`, NOT `kicker` (#1216 class, #1632 item 3): this label IS the visible
+                  name of a control, and `kicker` rides `--text-micro` (10.5px), under the 11px functional
+                  floor for interactive copy. The voice beside it keeps the tracked instrument register while
+                  taking the readable 13px label step — the "Add background" door's landed verdict, applied to
+                  the other CollapsibleTrigger of the same shape. */}
+              <Text as="span" id={foldLabelId} voice="interactiveKicker">
                 {fold.label}
               </Text>
               {fold.caption === undefined ? null : <span id={foldCaptionId}>{fold.caption()}</span>}

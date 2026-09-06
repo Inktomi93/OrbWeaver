@@ -1254,3 +1254,28 @@ test("READABLE SETTINGS — an intact blob is byte-identical to before: no state
   await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
   await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBeGreaterThan(0);
 });
+
+// ── #1216 class (#1632 item 3): the advanced FOLD's label is INTERACTIVE COPY ────────────────────────
+// The pane's `advancedFold` renders its label inside a `CollapsibleTrigger` — structurally the same door
+// #1216 measured on "Add background" and moved off `voice="kicker"` (`--text-micro`, 0.65625rem ≈ 10.5px,
+// the FOOTNOTE step) onto `interactiveKicker`, the voice minted for a kicker that is a control's own
+// visible label. The floor asserted is the 11px functional minimum for interactive copy, read off the
+// RESOLVED computed style rather than a hardcoded 13 — so the pin reds on the defect and survives a retune
+// of the step. Appearance is the only group declaring a fold today (`settings/lib/appearance-group.tsx`).
+test("#1216: the advanced fold's trigger label clears the 11px interactive floor", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  // SCOPED TO THE BUTTON, and that is the whole point of the fix: the LIST pane renders the SAME fold
+  // label as a `role="group"` NAME (`config-list-group.tsx`), which is non-interactive copy and correctly
+  // keeps `voice="kicker"`. An unscoped `getByText` is a strict-mode violation over the two, and the one it
+  // would have measured is the one this pin is not about.
+  const foldTrigger = component.locator("button").filter({ hasText: "Customize this look" });
+  await expect(foldTrigger).toHaveAttribute("aria-expanded", /true|false/);
+  const foldLabel = foldTrigger.getByText("Customize this look", { exact: true });
+  await expect(foldLabel).toBeVisible();
+  await expect
+    .poll(async (): Promise<number> => await foldLabel.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).fontSize)))
+    .toBeGreaterThanOrEqual(11);
+});

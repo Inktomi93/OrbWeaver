@@ -226,8 +226,10 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
   );
 }
 
-/** The delete affordance (a destructive kebab-free inline button → AlertDialog confirm). */
-function DeleteEntryAction({ title, onDelete }: { readonly title: string; readonly onDelete: () => void }): ReactElement {
+/** The delete affordance (a destructive kebab-free inline button → AlertDialog confirm). `onDelete` MAY
+ *  return a promise (#1563b, widened #1632): `ConfirmDialog.onConfirm` awaits it and becomes the retry
+ *  surface. `() => void` accepted an async handler anyway, so the type contradicted the behaviour. */
+function DeleteEntryAction({ title, onDelete }: { readonly title: string; readonly onDelete: () => void | Promise<void> }): ReactElement {
   return (
     <ConfirmDialog
       confirmLabel="Delete"
