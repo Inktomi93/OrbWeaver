@@ -1348,9 +1348,15 @@ test.describe("coarse pointer — the section row", () => {
 });
 
 // THE BAND'S MARK IS A BADGE (the voice budget: STATE is never a NAME voice). It was a `Text voice="kicker"`
-// — and the band's own label is `voice="interactiveKicker"`, i.e. the same micro-caps register — so a
+// — and the band's own label was `voice="interactiveKicker"`, i.e. the same micro-caps register — so a
 // modified band read as two labels of equal rank, which is verbatim the #1214-2 defect the shelf's mark was
 // moved off for. The pin is the DELTA between the two boxes on one rendered band, never a token value.
+//
+// IT NO LONGER NAMES THE LABEL BY ITS VOICE (#1839). This test addressed the band's name as
+// `[data-voice="interactiveKicker"]`, so the moment that band left the caps register for `label` the
+// locator resolved to nothing and the test timed out — a pin coupled to the value it was not about. The
+// band's name has a stable identity of its own (`data-slot="band-label"`, which `Band` stamps); the voice
+// is the subject of the #1839 arms below, and this one is about the MARK.
 test("the band's modified mark is a BADGE, not a second name of the same rank", async ({ mount, page }) => {
   await stubModified(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
@@ -1360,7 +1366,7 @@ test("the band's modified mark is a BADGE, not a second name of the same rank", 
 
   const [markBg, labelBg] = await Promise.all([
     mark.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
-    band.locator('[data-voice="interactiveKicker"]').evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
+    band.locator('[data-slot="band-label"]').evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor),
   ]);
   expect(markBg, "the mark is a box; the band's name is not").not.toBe(labelBg);
   // AND THE #1099 CLAUSE'S MECHANISM SURVIVES: the band is `h-control-sm`, a FIXED box, so a marked band is
@@ -1369,3 +1375,40 @@ test("the band's modified mark is a BADGE, not a second name of the same rank", 
   const box = await controlSmPx(page);
   await expect.poll(() => band.evaluate((el: HTMLElement) => el.getBoundingClientRect().height)).toBe(box);
 });
+
+// ── #1839 · A SHELF KICKER AND A BAND LABEL ARE TWO REGISTERS, NOT ONE STEP APART ────────────────────
+// Side-eye called F23 live for a THIRD review running (2026-08-30, 2026-09-02, 2026-09-06, verbatim each
+// time): the LIST's shelf headings measured 10.5px/600/CAPS and its group bands 13px/600/CAPS — same
+// weight, same case, 2.5px apart, the only difference between them being tracking. A shelf is a HEADING
+// OVER DOORS and a band IS a door; two roles that far apart in intent must not be that close in
+// appearance. The type scale is closed, so the fix spends no new size: the shelf keeps the caps register
+// (`voice="kicker"`) and the band leaves it (`voice="label"`), which separates them on case, weight and
+// tracking at once.
+//
+// READ AS RESOLVED COMPUTED STYLE, never as a class string, and at BOTH pane widths: the claim is about
+// what the reader sees, and a register that held at one width and not the other would be no register.
+/** A run's type register — the axes a reader actually distinguishes two roles by. */
+async function typeRegister(node: Locator): Promise<{ readonly size: string; readonly weight: string; readonly transform: string }> {
+  return await node.evaluate((el: Element) => {
+    const style = getComputedStyle(el);
+    return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform };
+  });
+}
+
+for (const width of [1440, 990] as const) {
+  test(`#1839: the shelf kicker and the band label are two registers at ${String(width)}px`, async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigHostStory width={width} />);
+    const listPane = component.locator(LIST_PANE);
+    // The shelf's own name run — the same node #1214's badge test measures against.
+    const shelfKicker = listPane.locator('[data-config-shelf="user"]').locator("p,span").first();
+    const bandLabel = listPane.locator(`[data-slot="config-band"][data-config-group="${FIRST_GROUP_ID}"] [data-slot="band-label"]`);
+    await expect(bandLabel).toBeVisible();
+
+    const shelf = await typeRegister(shelfKicker);
+    const band = await typeRegister(bandLabel);
+    expect(shelf.transform, "the SHELF is the caps register").toBe("uppercase");
+    expect(band.transform, "a band is a door, not a second shelf heading — it leaves the caps register").toBe("none");
+    expect(band.size, `the two must not be one step apart: shelf ${shelf.size}/${shelf.weight}, band ${band.size}/${band.weight}`).not.toBe(shelf.size);
+  });
+}

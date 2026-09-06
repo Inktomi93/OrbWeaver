@@ -876,7 +876,7 @@ from that one difference, and each divergence from the settings species is marke
 | What does a populated library show with no member open? | Its own LANDING: the library's glance (name · blurb · the ranked preview wall) + one host sentence about where the members are + the create verb. | New. It replaces a fall-through to the four-library welcome, which named every library except the one the reader had just opened. |
 
 The one anatomy the welcome's launcher and the CONTENT landing share is
-`features/config/components/config-library-glance.tsx` — two hosts, one wall, no second spelling.
+`features/config/components/config-pane-glance.tsx` — two hosts, one wall, no second spelling.
 
 **The seam this section left for #1169 is CLOSED (2026-09-05, #1714).** Every row above was priced against
 the tree with the species fence retired (§8.1a) and all six held on their structural reason — members vs a
@@ -957,7 +957,7 @@ open), and a phone never paints CONTENT unpushed by design. The component and it
 NOTHING-active arm is now the section's own two-line teaching frame (`data-slot="config-teaching-frame"`),
 whose copy is `CONFIG_WELCOME` in `config-copy.ts` — still shared with the phone's LIST header, which is
 untouched. What died with it: the launcher grid, the two population arms, the CD3 sibling-focal treatment
-and the settling census, plus six CTs that pinned them. What survives: `config-library-glance.tsx` (name +
+and the settling census, plus six CTs that pinned them. What survives: `config-pane-glance.tsx` (name +
 blurb), because the landing draws it at every arm.
 
 Vocabulary note (orchestrator addendum, and the reason it is worth a line): this surface was informally

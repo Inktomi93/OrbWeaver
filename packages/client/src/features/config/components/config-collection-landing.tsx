@@ -67,7 +67,7 @@ import { QueryBoundary, QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
-import { ConfigLibraryGlance } from "./config-library-glance.tsx";
+import { ConfigPaneGlance } from "./config-pane-glance.tsx";
 
 export function ConfigCollectionLanding({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
   const collection = group.body.collection;
@@ -87,7 +87,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
       <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
         {/* The library still NAMES itself while its census is broken: the reader navigated here on purpose,
             and a pane that answers a click with an error alone loses the one fact it never had to read. */}
-        <ConfigLibraryGlance group={group} level={2} />
+        <ConfigPaneGlance blurb={true} group={group} level={2} />
         <QueryErrorState label={group.label.toLowerCase()} onRetry={census.retry} />
       </Stack>
     );
@@ -130,7 +130,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
     <Stack className="min-h-0 flex-1" data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
-      <ConfigLibraryGlance group={group} level={2} />
+      <ConfigPaneGlance blurb={true} group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />
       {/* THE FACTS THE ROWS DO NOT STATE (#1209). A settling read (`undefined`) draws no facts at all — the
           same "not a verdict" discipline the count arms follow — and a library that declares none simply
