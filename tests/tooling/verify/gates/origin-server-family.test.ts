@@ -1,0 +1,22 @@
+// The canonical-origin server/contract/test-side family (#1584): fourteen legacy gates whose only missing
+// primitive was canonical symbol/member origin. Every policy's founding shape, its identity matrix (alias ·
+// namespace · re-export · destructure · computed · shadow) and its declared limits run through the SAME
+// dispatcher the real command uses.
+import { gate as discoveryNoStatsRollups } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
+import { gate as membershipEnforcer } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
+import { gate as noAwaitDbInLoop } from "../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
+import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
+import { gate as providersRunnerSeal } from "../../../../tooling/src/verify/gates/providers-runner-seal.ts";
+import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+
+const FAMILY_TIMEOUT_MS = 300_000;
+
+test(
+  "every canonical-origin policy judges declaration homes, member identity and static values rather than written names",
+  () => {
+    expect(verifyPolicyProofs([discoveryNoStatsRollups, membershipEnforcer, noAwaitDbInLoop, persistenceNoInMemoryState, providersRunnerSeal, turnIdentity])).toEqual([]);
+  },
+  FAMILY_TIMEOUT_MS,
+);
