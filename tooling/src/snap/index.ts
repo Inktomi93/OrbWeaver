@@ -109,6 +109,9 @@ export {
 // `shortSha`/`stageRowBaseUrl` are the row's DERIVED fields (#1276 stopped storing them — a serialized copy
 // of a derived value is a second home that drifts), so every consumer derives them through this door.
 export { shortSha, stageBandClaim, stageBandRefusal, stageKeeperLogPath, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
+// #1837's boot-dead latch: which stage row this run bound and whether this run BOOTED it — the one fence
+// that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule).
+export { __resetStageRunBinding, markStageBootDead, registerStageRunBinding, takeBootDeadStage } from "./lib/stage-run-binding.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
@@ -158,5 +161,8 @@ export { armStageKeeper, runStageKeeper, stageKeeperAlive } from "./ops/stage-ke
 export { readBands, setStageKeeper, stageBandRefusalFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
 // The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
 export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
+// The boot-dead arm (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a settled
+// app. Front-door members so a proof can plant a booted row and drive the SHIPPED teardown.
+export { tearDownBootDeadStage, tearDownStageRow } from "./ops/stage-teardown.ts";
 export { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "./ops/theme-stamp.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";

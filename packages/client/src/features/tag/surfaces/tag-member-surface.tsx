@@ -24,13 +24,12 @@ import { Hash, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { MemberDrillBack } from "#components";
-import { FormDialog, MemberDrillHeader } from "#components";
+import { FormDialog, MemberDrillHeader, SettingSwitchRow } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
@@ -233,16 +232,26 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
           value={tag.folderType}
         />
       </Field>
-      <Row align="center" gap="field">
-        <Switch
-          aria-label={`Hide the ${tag.name} chip on cards`}
-          checked={tag.isHiddenOnCard}
-          onCheckedChange={(next): void => patchStyle({ isHiddenOnCard: next })}
-        />
-        <Text as="span" voice="gloss">
-          Hide chip on cards — it still filters.
-        </Text>
-      </Row>
+      {/* THE ONE SWITCH ROW, FACING THE HOUSE DIRECTION (#980 F22). This was a hand-rolled
+          `<Row><Switch/><Text voice="gloss"/></Row>` — the CONTROL on the left and the sentence on the
+          right, measured 2026-09-06 at switch x=561 / label x=615: the only polarity INVERSION on the
+          surface, 40px under a `Field` whose label sits above its control, i.e. three control orientations
+          in one 720px form. `SettingSwitchRow` is the ruled row (label left, control right, `Field
+          orientation="horizontal"`) and it already had six consumers.
+          It also fixes a quieter half: the gloss was a `<Text>`, not a `<label>`, so clicking the sentence
+          did nothing while every other row in the pane is click-to-focus. Base UI's `Field` mints the
+          association from context, which is why no id is passed (see the component's own header). The
+          clause that was welded onto the label with an em dash becomes the `description` — the slot that is
+          `aria-describedby`-wired and reading-measure capped — so the label is the switch's NAME and the
+          gloss stays a gloss. The name loses the tag's own word ("Hide the {name} chip on cards" →
+          "Hide chip on cards"); the surface is that tag's editor and its drill header states the name, so
+          the row no longer repeats it. */}
+      <SettingSwitchRow
+        checked={tag.isHiddenOnCard}
+        description="It still filters."
+        label="Hide chip on cards"
+        onChange={(next): void => patchStyle({ isHiddenOnCard: next })}
+      />
     </Stack>
   );
 }

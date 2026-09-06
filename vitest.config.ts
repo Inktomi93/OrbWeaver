@@ -1,3 +1,4 @@
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { defineConfig } from "vitest/config";
 
@@ -19,6 +20,11 @@ import { defineConfig } from "vitest/config";
 // exclude note). Some fixtures are `.test.ts`, so a CONCURRENT `vitest` lane could try to collect one
 // mid-lifecycle (it's written then rm'd inside check-gates.int); ignore keeps every lane hermetic.
 const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**", "**/__g_*"];
+
+// The box profile in force (tooling/concurrency-profile.json — the ONE home for every worker cap in the
+// fleet, #1835). Read ONCE at config load: a config is a fresh process, so a caller that wants the
+// dedicated-box numbers exports `ORB_DEDICATED_BOX=1` in the shell that launches the run.
+const CONCURRENCY = readConcurrencyProfile();
 const inCI = process.env["CI"] !== undefined;
 
 // The QUIET-BOX bases every wall clock below is derived from (`budget()` stretches them by the box's
@@ -237,17 +243,23 @@ export default defineConfig({
     env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
 
     // Fork budget for the parallel lanes (inherited by every `extends:true` forked project — unit,
-    // integration, contract). Pinned to ~14 workers on this 24-core shared dev box: the integration lane
-    // is IMPORT-bound, not CPU-bound (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md §2), so workers past
-    // ~14 buy no speed while starving the dev's editor/browser. 14-of-24 is the report's measured 6.7×
-    // sweet spot and leaves headroom.
+    // integration, contract). THE VALUE COMES FROM THE ONE PROFILE (tooling/concurrency-profile.json,
+    // #1835) and is 4 on a SHARED host, 14 under `ORB_DEDICATED_BOX=1`.
+    // TRUTH REPAIR (2026-09-06): 14 sat here as the shipped default, described as "pinned to ~14 on this
+    // 24-core shared dev box". 14 is the DEDICATED-box number — reports/tooling/VITEST-INTEGRATION-SPEEDUP.md
+    // §2's measured 6.7× sweet spot on a QUIET machine, where the integration lane is IMPORT-bound rather
+    // than CPU-bound so workers past ~14 buy no speed. On the real box it is never quiet: six lanes across
+    // two accounts each took 14 forks, and 14h of Prometheus measured node_load1 at 105.8 with the
+    // co-hosted homelab starved. The standing facts already told every lane to hand-type `--maxWorkers=4`,
+    // which is the tell that the SHIPPED value was not the one the operating discipline assumed — the same
+    // defect class as the CT `workers` pin below. A CLI `--maxWorkers=N` still overrides in both directions.
     // NOTE: Vitest 4 REMOVED `poolOptions.forks.maxForks` — the cap is now the TOP-LEVEL `maxWorkers`
     // (number of forks, since pool:"forks"). `integration-serial` sets fileParallelism:false, which
     // vitest forces to maxWorkers=1 — so this cap is a no-op there (one file at a time regardless).
     // (`minWorkers` was ALSO removed in v4 — a `minWorkers: 14` sat here as dead config until the
     // 2026-08-03 installed-surface audit; workers now ramp on demand up to the cap, which is fine.)
     pool: "forks",
-    maxWorkers: 14,
+    maxWorkers: CONCURRENCY.vitestMaxWorkers,
 
     // --- rigor defaults (inherited via `extends: true`) ---
     restoreMocks: true, // spies → original impl between tests (fake-at-edges, never-mock-internals doctrine)

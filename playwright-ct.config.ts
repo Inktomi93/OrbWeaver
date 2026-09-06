@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { adoptRunSlot } from "@orb/tooling/_shared/artifact-out";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
@@ -29,6 +30,10 @@ import tailwindcss from "@tailwindcss/vite";
 // are the QUIET-BOX bases (Playwright's own numbers), so a quiet run is byte-identical to before; a
 // contended one stretches by the box's per-core contention through the ONE policy, capped at
 // ORB_BUDGET_CEILING_MS so a genuinely wedged mount still surfaces. Read ONCE at config load.
+// The box profile in force (tooling/concurrency-profile.json — the ONE home for every worker cap in the
+// fleet, #1835). Read ONCE at config load, like the wall-clock bases below.
+const CONCURRENCY = readConcurrencyProfile();
+
 const BASE_TEST_TIMEOUT_MS = 30_000;
 const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
@@ -59,10 +64,16 @@ export default defineConfig({
   // the capped run came back green in 53s. `pnpm test` composes `pnpm test:ct --retries=2` with no worker
   // flag, so the uncapped default reached `pnpm verify --push` too. Same defect class as the Stryker
   // `concurrency` default fixed in 387ff771e: the shipped value was not the one the operating discipline
-  // assumed. 4 rather than 2 because the box is otherwise quiet at the gate and 2 doubles wall-clock; a
-  // CLI `--workers=N` still overrides UPWARD for a dedicated box. The co-hosted homelab shares this
-  // machine — a 2026-08-21 uncapped run drove load-avg to 103 and errored Authentik for the owner.
-  workers: 4,
+  // assumed.
+  // TRUTH REPAIR (#1835, 2026-09-06): the paragraph above ended "4 rather than 2 because the box is
+  // otherwise quiet at the gate" — and the box is NOT otherwise quiet. Six lanes across two accounts run
+  // concurrently, node_load1 peaked at 105.8, and the standing facts still told every lane to hand-type
+  // `--workers=2`, which is that same defect one more time. The number now comes from the ONE profile
+  // (tooling/concurrency-profile.json): 2 on a SHARED host, 4 under `ORB_DEDICATED_BOX=1` — where "the box
+  // is otherwise quiet" is TRUE by construction rather than by hope. A CLI `--workers=N` still overrides.
+  // The co-hosted homelab shares this machine — a 2026-08-21 uncapped run drove load-avg to 103 and
+  // errored Authentik for the owner.
+  workers: CONCURRENCY.ctWorkers,
   timeout: budget(BASE_TEST_TIMEOUT_MS),
   expect: { timeout: budget(BASE_EXPECT_TIMEOUT_MS) },
   forbidOnly: process.env.CI !== undefined,

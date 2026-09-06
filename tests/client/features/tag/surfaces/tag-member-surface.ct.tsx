@@ -20,6 +20,7 @@ import { measureContentColumn } from "../../../../support/ct/measure-content-col
 import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { readSwitchRowOrientation } from "../../../../support/ct/settings-geometry.ts";
 import { TagMemberContentColumnStory, TagMemberStory } from "../_ct-stories.tsx";
 
 const TAP_FAIL_PX = 32;
@@ -172,8 +173,31 @@ test("the readout spends ONE line at the editor pane's real width, and the pair 
 test("the hide-on-card switch patches isHiddenOnCard", async ({ mount, page }) => {
   const trpc = await stub(page);
   const editor = await mount(<TagMemberStory />);
-  await editor.getByRole("switch", { name: "Hide the adventure chip on cards" }).click();
+  await editor.getByRole("switch", { name: "Hide chip on cards" }).click();
   await expect.poll(() => trpc.lastInput("tag.updateTag"), { intervals: [20, 50, 100] }).toEqual({ tagId: "tag_adventure", patch: { isHiddenOnCard: true } });
+});
+
+// ── #980 F22 · THE ONE INVERTED ROW ON THE SURFACE, TURNED ROUND ─────────────────────────────────────
+// RED-FIRST against the unmodified editor, which drew `<Row><Switch/><Text voice="gloss"/></Row>`:
+// measured 2026-09-06 at switch x=561 / label x=615 — the CONTROL left and the sentence right, 40px under
+// a `Field` whose label sits ABOVE its control, i.e. three control orientations in one 720px form. The
+// gloss was also a `<Text>`, not a `<label>`, so clicking the sentence did nothing.
+// The expectations are the SHARED helper's, asserted identically in `tests/client/components/
+// setting-switch-row.ct.tsx` (the reference row) and in `regex-context-body.ct.tsx` — one definition of
+// "the same orientation as an Appearance settings row", so the three surfaces cannot drift apart again.
+test("#980 F22: the hide-on-card row faces the house direction", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<TagMemberStory />);
+  // Barrier on the SETTLED editor: it hangs off a suspense read, so a geometry read taken at mount
+  // measures a pane that is not there yet.
+  await expect(page.getByRole("switch", { name: "Hide chip on cards" })).toBeVisible();
+
+  expect(await readSwitchRowOrientation(page, "Hide chip on cards")).toEqual({
+    label: "Hide chip on cards",
+    labelLeadsControl: true,
+    onOneLine: true,
+    labelIsLabel: true,
+  });
 });
 
 test("a deleted member says so instead of rendering a dead form", async ({ mount, page }) => {
@@ -188,7 +212,7 @@ test("every control clears the 32px tap-target floor", async ({ mount, page }) =
   const controls = [
     editor.getByRole("textbox", { name: "Name" }),
     editor.getByRole("button", { name: "Background" }),
-    editor.getByRole("switch", { name: "Hide the adventure chip on cards" }),
+    editor.getByRole("switch", { name: "Hide chip on cards" }),
     editor.getByRole("button", { name: "Merge into…" }),
   ];
   const boxes = await Promise.all(controls.map((control) => control.boundingBox()));

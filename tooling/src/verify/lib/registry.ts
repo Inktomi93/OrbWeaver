@@ -2,9 +2,10 @@
 // the repo, self-described: each stage declares its tier membership, how to scope it, and how to map its
 // child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
 // impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
-import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
+import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
+import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { TOOLING_TOUCHED_REASON, toolingTouched } from "./registry-preconditions.ts";
 
@@ -21,20 +22,6 @@ import { TOOLING_TOUCHED_REASON, toolingTouched } from "./registry-preconditions
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u;
-
-/** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
- *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
- *  native) — the CLI type lanes moved off tsc6 (ts-morph/typescript-eslint keep the TS6 API). */
-function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
-  const sole = tsconfigs[0];
-  if (sole === undefined) {
-    return "skip-empty";
-  }
-  if (tsconfigs.length > 1) {
-    return ["pnpm", "typecheck"];
-  }
-  return ["node", "scripts/ts7.cjs", "--noEmit", "--pretty", "false", "-p", sole];
-}
 
 /** The rows a TIER can actually run. The manual-only tail lives in ./registry-manual.ts and is
  *  concatenated below, in place — the registry ORDER is the `verify --list` order. */
@@ -59,13 +46,7 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "lint:eslint"],
     classify: eslintScheme,
-    scopedArgv: (sel) => {
-      const files = sel.eslintPaths;
-      // --no-warn-ignored: an explicit path that eslint's config IGNORES (e.g. a generated tokens file)
-      // must not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we
-      // hand it the path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
-      return files.length === 0 ? "skip-empty" : ["eslint", "--max-warnings", "0", "--no-warn-ignored", "--cache", "--cache-strategy", "content", ...files];
-    },
+    scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths),
   },
 
   // ── types stage-group (§2.4: three tsc programs, each catching a class the others miss) ──

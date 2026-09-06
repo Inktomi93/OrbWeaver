@@ -114,20 +114,20 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 
 ## Running suites without starving the box
 
-- **Scoped test invocations go through the NICED pnpm scripts, never raw npx** (raw npx bypasses the
-  nice-19 priority that protects the co-hosted homelab): node suites =
-  `pnpm test:scoped <paths> --maxWorkers=4` · CT = `pnpm ct:scoped <paths> --workers=2`. Run from your
-  worktree via `env -C`, never `cd`.
+- **Scoped invocations go through the NICED pnpm scripts, never raw npx** (npx bypasses the nice-19 floor
+  that protects the co-hosted homelab): `pnpm test:scoped <paths>` · `pnpm ct:scoped <paths>`, from your
+  worktree via `env -C`. **Pass NO `--maxWorkers`/`--workers` unless going LOWER** (#1835): the SHIPPED
+  defaults ARE the shared-host values (vitest 4, CT 2) from `tooling/concurrency-profile.json`, the ONE
+  home for every cap; `ORB_DEDICATED_BOX=1` in the SHELL is the solo-box switch (vitest 14, CT 4 — the
+  measured quiet-box numbers). Whole `check`/`verify` runs, the edit hook's legs and CT runners now hold
+  HOST-WIDE slots that QUEUE, never refuse, and `.claude/hooks/cpu-fence.sh` caps each session at
+  CPUQuota 800%. `nice` only orders OUR tasks — user.slice and system.slice both weight 100 under cgroup
+  v2, so it never reached the containers; the quota is what does.
 - **Load proof for a flake is `--repeat-each N` for CT ONLY; node suites take SEQUENTIAL passes** (2026-09-05):
   `pnpm test:scoped … --repeat-each=3` exits 2 — the preflight's `vitest list` dies on `--repeatEach`. And never
   start a SECOND `ct:scoped` in the SAME worktree for load (#1581): both share `.cache/`, the second's
   cache-clear + vite rebuild lands under the first and untouched tests read red. A different worktree, or
   repeat-each, or sequential runs — never a sibling runner in your own tree.
-- **The `--maxWorkers=4` / `--workers=2` cap applies whenever any sibling lane is live.** The box is not
-  ours alone: one lane's default 14 forks drove a 24-core box to load-avg 103 and starved the co-hosted
-  homelab, and at load-avg 170 the CT default times out every test at `mount()` on pure contention (zero
-  signal) while `--workers=2` came back green in 53s. `vitest.config`'s `maxWorkers: 14` is the
-  DEDICATED-box number.
 - **Long mutation/calibration runs are orchestrator-scheduled** — never start one without an explicit
   green light naming the concurrency.
 - **Lanes NEVER busy-wait on a long run** (every sleep-loop poll re-bills cache reads on the lane's ENTIRE

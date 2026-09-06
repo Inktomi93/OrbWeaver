@@ -14,6 +14,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { readSwitchRowOrientation } from "../../../../support/ct/settings-geometry.ts";
 import { RegexContextStory } from "../_ct-stories.tsx";
 
 const SCRIPT_ID = "regex_script_000000000000000a";
@@ -88,7 +89,30 @@ test("an unattached script shows all three rosters at zero, never a blank pane",
   await expect(page.getByRole("heading", { name: "Attached by characters · 0" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Attached by rooms · 0" })).toBeVisible();
   // The global switch is still the pane's own scope — the rosters sit BESIDE it, they do not replace it.
-  await expect(page.getByRole("switch", { name: "strip ooc runs in every chat" })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Runs in every chat" })).toBeVisible();
+});
+
+// ── #980 F22 · THE FOURTH HAND-ROLL, ROUTED THROUGH THE SHARED ROW ───────────────────────────────────
+// This row was a bare `<Row justify="between">` with a sibling gloss paragraph — the same orientation
+// `SettingSwitchRow` ships, drawn a different way, which is mechanism drift and is how two rows end up
+// disagreeing later. The expectations are the SHARED helper's, identical to the reference reading in
+// `tests/client/components/setting-switch-row.ct.tsx` and to `tag-member-surface.ct.tsx`'s: one definition
+// of the house orientation across all three surfaces.
+// `labelIsLabel` is the half the conversion actually bought here — the old label was a `<Text>`, so
+// clicking the words did nothing while every settings row in the app toggles on a label click.
+test("#980 F22: the global-scope row is the shared settings row, not a hand-rolled one", async ({ mount, page }) => {
+  await routeTrpc(page, { "regex.listScripts": () => [SCRIPT], "regex.listGlobal": () => [], "regex.listScriptUsage": () => EMPTY_USAGE });
+  await mount(<RegexContextStory />);
+  // Barrier on the SETTLED row: the pane hangs off two suspense reads, so a geometry read taken at mount
+  // measures a pane that is not there yet.
+  await expect(page.getByRole("switch", { name: "Runs in every chat" })).toBeVisible();
+
+  expect(await readSwitchRowOrientation(page, "Runs in every chat")).toEqual({
+    label: "Runs in every chat",
+    labelLeadsControl: true,
+    onOneLine: true,
+    labelIsLabel: true,
+  });
 });
 
 test("a same-task repeat admits one global-scope write, and rejection releases retry", async ({ mount, page }) => {
@@ -101,7 +125,7 @@ test("a same-task repeat admits one global-scope write, and rejection releases r
   });
   await mount(<RegexContextStory />);
 
-  const scope = page.getByRole("switch", { name: "strip ooc runs in every chat" });
+  const scope = page.getByRole("switch", { name: "Runs in every chat" });
   await scope.evaluate((element) => {
     (element as HTMLElement).click();
     (element as HTMLElement).click();

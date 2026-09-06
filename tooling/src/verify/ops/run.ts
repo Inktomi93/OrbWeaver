@@ -29,6 +29,8 @@
 // EXIT CONTRACT (§3.3): 0 clean · 1 violations · 2 tool error · 3 misuse. Run exit = max severity over
 // stages. A whole-only stage the scope can't run is DEFERRED with a printed notice, unless --strict-scope
 // makes it a refusal.
+//
+// A WHOLE RUN QUEUES HOST-WIDE (#1835) — `../lib/whole-run-queue.ts` owns that decision and its why.
 import { renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -46,6 +48,7 @@ import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, 
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
+import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
@@ -411,30 +414,36 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     printList();
     return EXIT.clean;
   }
-  const slot = openRunSlot(root, INSTRUMENT);
-  announceRacing(slot);
-  const report = await runTier(root, slot, parsed);
-  writeReport(slot, report);
-  // The `latest` pointers, published together at the END: `reports/verify.json` and the `reports/verify/`
-  // per-stage log directory the constitution names. Until this line both still resolve to the previous
-  // COMPLETE run — which is the whole point of publishing at completion only.
-  publishRunSlot(root, slot, [
-    { alias: REPORT_NAME, target: REPORT_NAME },
-    { alias: INSTRUMENT, target: STAGES_SEGMENT },
-  ]);
+  // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
+  const queue = await enterWholeRunQueue(root, parsed);
+  try {
+    const slot = openRunSlot(root, INSTRUMENT);
+    announceRacing(slot);
+    const report = await runTier(root, slot, parsed);
+    writeReport(slot, report);
+    // The `latest` pointers, published together at the END: `reports/verify.json` and the `reports/verify/`
+    // per-stage log directory the constitution names. Until this line both still resolve to the previous
+    // COMPLETE run — which is the whole point of publishing at completion only.
+    publishRunSlot(root, slot, [
+      { alias: REPORT_NAME, target: REPORT_NAME },
+      { alias: INSTRUMENT, target: STAGES_SEGMENT },
+    ]);
 
-  // #411: retain, then compare against the previous run AT THE SAME TIER. The advisory prints BEFORE the
-  // summary block so the truncation-robust tail (the verdict + the artifact pointer) stays last.
-  const entry = historyEntry(root, report);
-  const previous = previousAtTier(readHistory(root), report.tier, entry.runId);
-  appendHistory(root, entry);
-  for (const line of slowdownLines(previous, slowdowns(previous, entry))) {
-    process.stdout.write(`${line}\n`);
-  }
+    // #411: retain, then compare against the previous run AT THE SAME TIER. The advisory prints BEFORE the
+    // summary block so the truncation-robust tail (the verdict + the artifact pointer) stays last.
+    const entry = historyEntry(root, report);
+    const previous = previousAtTier(readHistory(root), report.tier, entry.runId);
+    appendHistory(root, entry);
+    for (const line of slowdownLines(previous, slowdowns(previous, entry))) {
+      process.stdout.write(`${line}\n`);
+    }
 
-  printSummary(report);
-  if (parsed.json) {
-    process.stdout.write(`${JSON.stringify(report)}\n`);
+    printSummary(report);
+    if (parsed.json) {
+      process.stdout.write(`${JSON.stringify(report)}\n`);
+    }
+    return report.exitCode;
+  } finally {
+    queue?.release();
   }
-  return report.exitCode;
 }

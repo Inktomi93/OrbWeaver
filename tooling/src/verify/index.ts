@@ -36,6 +36,7 @@ export type { GateContractCode, GateContractFinding, GateContractReport } from "
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
+export type { HostSlotHolder, HostSlotLease, HostSlotPool } from "./contract/host-slots.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
