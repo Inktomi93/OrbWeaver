@@ -302,7 +302,17 @@ export const gate = defineGate({
         },
       ],
       visitFile: (sourceFile): void => {
-        if (sourceFile.getExportSymbols().some((symbol) => symbol.getName() === REGISTRY_DECL)) {
+        // DECLARES, not merely re-exports: the state barrel forwards `registerDurableLocalStore` too, and a
+        // barrel is not the registry — ARM C's subject is the file whose file-private `RegisteredStore` makes
+        // it the whole reachable surface.
+        const declares = sourceFile.getExportSymbols().some((symbol) => {
+          if (symbol.getName() !== REGISTRY_DECL) {
+            return false;
+          }
+          const declarations = (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
+          return declarations.length > 0 && declarations.every((declaration) => declaration.getSourceFile().compilerNode === sourceFile.compilerNode);
+        });
+        if (declares) {
           registries.push(sourceFile);
         }
       },

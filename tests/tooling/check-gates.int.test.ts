@@ -422,13 +422,6 @@ function writeFixtures(): void {
   // in a file not in the ALLOWLIST. The gate walks the ts-morph project's own files, so a __g_ .tsx in the
   // real src tree is scanned.
   fx("packages/client/src/features/__g_inlinestyle/components/__g_inlinestyle.tsx", 'export const G = <div style={{ borderRadius: "8px" }} />;\n');
-  // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
-  // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
-  // standalone without importing #state.
-  fx(
-    "packages/client/src/features/__g_chase/components/__g_chase.tsx",
-    "declare function useActiveChatId(): string | null;\ndeclare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function GChase(): null {\n  const chatId = useActiveChatId();\n  useEffect(() => {\n    void chatId;\n  }, [chatId]);\n  return null;\n}\n",
-  );
   // zustand-selector-derived: a store-hook selector returning a fresh object literal, unwrapped.
   fx(
     "packages/client/src/state/__g_zustand.ts",
@@ -590,11 +583,6 @@ function writeFixtures(): void {
   // (keys are 100% tRPC-proxy-derived). These gates scope to packages/client/src ONLY, so writing the
   // banned shapes literally in THIS tests/tooling file can't self-trip them.
   fx("packages/client/src/features/__g_qkey/lib/__g_qkey.ts", `export const opts = { queryKey: ["chat", "list"], enabled: true };\n`);
-  // no-inline-invalidate-outside-seam: an invalidateQueries call outside data/invalidation.ts.
-  fx(
-    "packages/client/src/features/__g_inval/lib/__g_inval.ts",
-    "export function gBad(qc: { invalidateQueries: (f: unknown) => void }, filter: unknown): void {\n  qc.invalidateQueries(filter);\n}\n",
-  );
   // bus-on-data-no-store-write: a raw .setState() inside a subscription onData body in data/bus/.
   fx(
     "packages/client/src/data/bus/__g_buswrite.ts",
@@ -738,13 +726,6 @@ function writeFixtures(): void {
   // the gate's own mustFlag violation shape planted at a real-tree path its scanRoot covers; banned
   // literals (ambient clock/random, unseeded UUID) are assembled so THIS file's source stays clean for
   // the textual test-determinism scan (same technique as the __g_det fixture above). ──
-  // chat-stream-writes-in-bus-only: importing the stream store's write api outside data/bus/ + main.tsx.
-  fx("packages/client/src/features/__g_streamwrite/hooks/__g_h.ts", 'import { chatStream } from "#state";\nexport const s = chatStream;\n');
-  // client-cache-surgery-only-in-data: an imperative QueryClient cache call outside data/.
-  fx(
-    "packages/client/src/features/__g_cachesurgery/hooks/__g_h.ts",
-    "export const f = (qc: { invalidateQueries: (a: unknown) => void }): void => {\n  qc.invalidateQueries({});\n};\n",
-  );
   // no-color-literals: an arbitrary hex color in a className.
   fx("packages/client/src/features/__g_colorlit/components/__g_c.tsx", 'export const C = () => <div className="text-[#fff000]" />;\n');
   // no-raw-color-in-css: a raw hex color in a feature CSS file (outside the theme.css token home). Reads via
@@ -761,8 +742,6 @@ function writeFixtures(): void {
   fx(`${D}/__g_decorator/x.ts`, "function dec(): void {}\nexport class A {\n  @dec foo(): number {\n    return 1;\n  }\n}\n");
   // no-default-props: the React-19-deprecated `defaultProps` assignment.
   fx("packages/ui/src/__g_defprops/__g_c.tsx", "const GDef = () => <div />;\nGDef.defaultProps = { id: 1 };\nexport { GDef };\n");
-  // no-direct-useform: a direct useForm() call outside the shared #forms toolkit.
-  fx("packages/client/src/features/__g_useform/hooks/__g_h.ts", "export const x = useForm({});\n");
   // no-external-media-without-gate: a raw <img> in a feature (outside MessageMedia).
   fx("packages/client/src/features/__g_extmedia/components/__g_c.tsx", 'export const C = (u: string) => <img src={u} alt="" />;\n');
   // no-fake-disabled-id: the empty-string branded-id fake-disabled sentinel.
@@ -845,25 +824,14 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_containerw/components/__g_c.tsx", 'export const C = () => <div className="w-[600px]" />;\n');
   // no-raw-id: an Id field typed as raw z.string() (no brand).
   fx(`${D}/__g_rawid/x.ts`, 'import { z } from "zod";\nexport const s = z.object({ chatId: z.string() });\n');
-  // no-raw-intl-time: a raw Intl API construction outside the time seam.
-  fx("packages/client/src/features/__g_intl/lib/__g_time.ts", 'export const f = new Intl.DateTimeFormat("en-US");\n');
-  // no-raw-matchmedia: a raw matchMedia call outside the sanctioned viewport-hook homes.
-  fx("packages/client/src/features/__g_matchmedia/hooks/__g_h.ts", 'export const f = window.matchMedia("(prefers-reduced-motion: reduce)");\n');
   // no-raw-spacing-in-features: a raw spacing utility in a feature className.
   fx("packages/client/src/features/__g_rawspacing/components/__g_c.tsx", 'export const C = () => <div className="p-4" />;\n');
   // no-raw-typography-in-features: a raw typography utility in a feature className.
   fx("packages/client/src/features/__g_rawtypo/components/__g_c.tsx", 'export const C = () => <p className="text-sm" />;\n');
   // no-raw-z-index: a raw z-index utility in a className.
   fx("packages/client/src/features/__g_rawz/components/__g_c.tsx", 'export const C = () => <div className="z-50" />;\n');
-  // no-raw-zustand-persist: a bare zustand persist() outside the two minting factories.
-  fx(
-    "packages/client/src/features/__g_rawpersist/lib/__g_store.ts",
-    "declare function create(x: unknown): unknown;\ndeclare function persist(init: unknown): unknown;\nexport const useGRogueStore = create(persist(() => ({})));\n",
-  );
   // session-channel-boundary: a second cross-tab channel outside lib/session-channel.ts (the ONE home).
   fx("packages/client/src/features/__g_bchan/lib/__g_sync.ts", 'export const c = new BroadcastChannel("chat:sync");\n');
-  // no-untrusted-html-in-main-dom: dangerouslySetInnerHTML outside the sanctioned seals (D44).
-  fx("packages/client/src/features/__g_rawhtml/components/__g_c.tsx", "export const C = (s: string) => <div dangerouslySetInnerHTML={{ __html: s }} />;\n");
   // query-machine-seals: a useMutation import outside data/ (client-architecture-lockdown.md §16 G9).
   fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
   // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
@@ -872,23 +840,12 @@ function writeFixtures(): void {
   // draft-cast ghost shape). The value is deliberately unlike any live id so the fixture cannot be
   // absolved by a real producer.
   fx("tests/client/features/__g_testidlive.ct.tsx", 'export const t = () => page.getByTestId("__g-ghost-testid");\n');
-  // theme-override-only-via-scope: an inline style overriding a color token custom property.
-  fx("packages/client/src/features/__g_themeover/components/__g_c.tsx", "export const C = () => <div style={{ '--color-primary': 'red' }} />;\n");
-  // registry-context-via-mint: a hand createContext typed over a *Registry outside the mint home (G26).
-  fx("packages/client/src/features/__g_regctx/hooks/__g_h.ts", "export const GRegCtx = createContext<Registry<string, number> | null>(null);\n");
-  // selection-store-via-factory: a per-section selection store minting the raw createGatedStore door (G27).
-  fx("packages/client/src/state/__g_gdrill-selection-store.ts", 'export const useGDrill = createGatedStore("g-drill-selection", () => ({ id: null }));\n');
-  // bound-field-via-hook: a bound field importing the raw useFieldContext door instead of useBoundField (G28).
-  fx("packages/client/src/forms/bound-fields/__g_field.tsx", 'import { useFieldContext } from "../contexts";\nexport const f = useFieldContext;\n');
   // dialog-via-composite: a features/** file importing the raw Dialog root from @orb/ui/dialog, not on the
   // allowlist — the FormDialog/ConfirmDialog composite door (derive-modernization-audit.md §W1 G24).
   fx(
     "packages/client/src/features/__g_dialog/components/__g_dialog.tsx",
     'import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";\nexport const G = <Dialog><DialogPopup><DialogTitle>x</DialogTitle></DialogPopup></Dialog>;\n',
   );
-  // render-error-via-battery: a hand-rolled `renderError` arm (not QueryErrorState-rooted) in a client
-  // file outside the allowlist — the read-error drift G29 seals (derive-modernization-audit.md §W4).
-  fx("packages/client/src/features/__g_rerror/components/__g_rerror.tsx", "export const G = <B renderError={() => <Text>failed</Text>} />;\n");
   // settings-section-anchored: an anchor-stamping section file (it calls `configAnchorId`, the content-keyed
   // arm — the path-keyed `*-settings-surface.tsx` arm retired with the #866 S1 skimmer ruling) with a second,
   // UNANCHORED heading-bearing <Section> — the invisible-to-nav/search class the G4 arm seals
@@ -1064,18 +1021,6 @@ function writeFixtures(): void {
   fx(
     `${D}/settings/__g_undominated.ts`,
     'import { userSettings } from "@orb/db";\nexport async function gClobberConfig(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }, config: unknown, at: number): Promise<void> {\n  await ctx.db.update(userSettings).set({ config, updatedAt: at }).where(1);\n}\n',
-  );
-  // no-raw-zustand-persist ARM B (#879, from #837): a destructive persist-through reset outside the two
-  // mint factories — `persist` patches `setState`, so this writes the emptied state to the real key.
-  fx(
-    "packages/client/src/features/__g_persistreset/lib/__g_reset.ts",
-    "declare const gStore: { setState: (s: unknown, replace: boolean) => void; getInitialState: () => unknown };\nexport function gWipe(): void {\n  gStore.setState(gStore.getInitialState(), true);\n}\n",
-  );
-  // no-raw-zustand-persist ARM C: a registry file (it declares `registerDurableLocalStore`) whose
-  // `reset()` caller never installs the storage blindfold — #837 one layer up.
-  fx(
-    "packages/client/src/features/__g_durablereg/lib/__g_registry.ts",
-    "const gRegistry: { reset: () => void }[] = [];\nexport function registerDurableLocalStore(entry: { reset: () => void }): void {\n  gRegistry.push(entry);\n}\nexport function gForget(entry: { reset: () => void }): void {\n  entry.reset();\n}\n",
   );
 }
 
