@@ -94,6 +94,75 @@ test("a missing or ambiguous registry home refuses with an unresolved receipt â€
   expect(ambiguous.authority.effectiveFindings).toEqual([]);
 });
 
+const PROVIDER_HOME = "packages/server/src/infra/providers/contract/resolve.ts";
+const PROVIDER_EMIT = "packages/server/src/infra/providers/resolve-chat.ts";
+const CHAT_HOME = "packages/contracts/src/chat/bus.ts";
+const CHAT_EMIT = "packages/server/src/domain/chat/x.ts";
+const PROVIDER_TUPLE = 'export const WARNING_CODES = ["provider_ok"] as const;\n';
+const PROVIDER_PUSH = 'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n';
+const CHAT_TUPLE = 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n';
+const CHAT_PUSH = 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n';
+
+function warningPassOf(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  return runPolicyPass({
+    knownPolicies: [warningCodeCoverage],
+    policies: [warningCodeCoverage],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+}
+
+test.each([
+  [
+    "declared outside its home",
+    {
+      [PROVIDER_HOME]: PROVIDER_TUPLE,
+      [PROVIDER_EMIT]: PROVIDER_PUSH,
+      "packages/contracts/src/chat/relocated.ts": CHAT_TUPLE,
+      [CHAT_EMIT]: CHAT_PUSH,
+    },
+  ],
+  ["absent", { [PROVIDER_HOME]: PROVIDER_TUPLE, [PROVIDER_EMIT]: PROVIDER_PUSH, [CHAT_HOME]: "export const OTHER = 1;\n", [CHAT_EMIT]: CHAT_PUSH }],
+  [
+    "empty",
+    {
+      [PROVIDER_HOME]: PROVIDER_TUPLE,
+      [PROVIDER_EMIT]: PROVIDER_PUSH,
+      [CHAT_HOME]: "export const CHAT_WARNING_CODES = [] as const;\n",
+      [CHAT_EMIT]: CHAT_PUSH,
+    },
+  ],
+] as const)("a warning vocabulary %s withholds the coverage verdict instead of passing", (_label, files) => {
+  const result = warningPassOf(files);
+
+  // The channel is BOUND to its declaring module, so a same-named tuple elsewhere is a different
+  // vocabulary and is never adopted; absent and empty are the same blindness. In all three the emit corpus
+  // is intact and the provider channel is healthy â€” only the chat denominator collapses, and a policy
+  // cannot render a clean coverage verdict over a vocabulary it could not read.
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toMatchObject([{ policyId: "warning-code-coverage", phase: "receipt", message: expect.stringContaining("CHAT_WARNING_CODES") }]);
+  expect(result.authority.withheldPolicyIds).toEqual(["warning-code-coverage"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("a warning vocabulary at its own home is read, so the withholding above is the rebinding and not the fixture", () => {
+  const result = warningPassOf({ [PROVIDER_HOME]: PROVIDER_TUPLE, [PROVIDER_EMIT]: PROVIDER_PUSH, [CHAT_HOME]: CHAT_TUPLE, [CHAT_EMIT]: CHAT_PUSH });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.policies[0]?.receipts).toEqual([
+    { kind: "population", source: "CHAT_WARNING_CODES", members: 1, unresolved: 0 },
+    { kind: "population", source: "WARNING_CODES", members: 1, unresolved: 0 },
+  ]);
+});
+
 test("a zone vocabulary that stops resolving withholds the chrome verdict instead of passing", () => {
   const project = new Project({ useInMemoryFileSystem: true });
   project.createSourceFile(`${ROOT}/packages/client/src/state/section-registry.ts`, 'export const RAIL_ZONES = ["rail.nav"] as const;\n');

@@ -82,13 +82,31 @@ is STALE and a row matching more than one finding is OVER-BROAD and licenses not
 One real-tree pass over the whole converted family (`getWorkspace({types:true})`, `runPolicyPass` with
 `reviewedGrantsFor(policies)`), beside a legacy replay of the same nine descriptors through `lib/pass.ts`:
 
-- legacy replay: 7,133 files, nine gates, **0 findings each**, zero tool errors;
-- final pass: 11 policies, **0 effective findings**, zero fact/tool/authority errors, nothing withheld,
-  **zero authority alarms** — the seven grant rows are each consumed exactly once;
+- legacy replay: nine gates, **0 findings each**, zero tool errors;
+- final pass: 11 policies, **0 effective findings**, zero fact/tool errors, nothing withheld, and **zero
+  grant or authority-coordination alarms** — the seven grant rows are each consumed exactly once;
 - population deltas: every policy's semantic subject is a classified raw-scan reduction of the legacy
-  7,133-file physical corpus to the package(s) it actually reads (`@client` 1,302 files; message-kind
+  physical corpus to the package(s) it actually reads (`@client` 1,302 files; message-kind
   `@contracts+@server+@client` 2,887; warning-code `@server+@contracts` 1,585). No semantic member is lost:
   every declared denominator equals or exceeds its legacy count.
+
+**Corpus counts differ by METHOD, not by drift** — three loaders walk three different globs, so a single
+number would be wrong for two of them. At the moment each was measured: the legacy harness
+(`projectCtx` → `getWorkspace({root})`, `harnessGlobs`) loaded **7,133** files for the pre-conversion
+replay and **7,139** after this lane's own new modules and specs landed; `pnpm ast importers` scanned
+**7,138** files for the `section-defs.ts` census; the final policy pass
+(`getWorkspace({root, types: true})`, `searchGlobs` — which additionally admits package-root entrypoints,
+`.mts` sources and the Playwright CT harness) loaded **7,146**. Any freshly-taken number moves with the
+tree; what must not move is which loader a claim cites.
+
+**A partial `knownPolicies` roster manufactures waiver alarms — judge the run by the right fields.** A
+pre-cutover real-tree pass hands `runPolicyPass` only the policies under test, so every inline
+`@orb-waive` marker on the tree that names one of the other \~250 policies reconciles as
+`ordinary-waiver … targets unknown policy` (the fresh-context verification counted 93 with this family's
+eleven-policy roster; a single-policy roster produces its own smaller set). These are an artifact of the
+roster, not a defect, and they say nothing about the policies under test. Read
+`effectiveFindings`, `withheldPolicyIds`, `factErrors`, `toolErrors` and the GRANT alarms; never a bare
+alarm count or a `verdict.errors` total.
 
 Denominator changes worth naming, all verified to produce no new finding on the real tree:
 
@@ -110,9 +128,21 @@ Denominator changes worth naming, all verified to produce no new finding on the 
 | tooling type program (`ts7.cjs -p tooling/tsconfig.json`) | green, zero errors |
 | scoped biome + eslint on every touched file | green |
 | real-tree family pass + legacy replay | see receipts above |
+| test baseline (`pnpm check:ledgers-fresh`) | `fresh docs/test-baseline/manifest.json (2493 derived)` |
 
 The root graph program stays red at the known legacy/final harness sites until cutover and is the
 integration owner's check, as is `pnpm gate:contract`.
+
+The test baseline was regenerated in this isolated worktree through its single writer
+(`cli.ts baseline test-baseline-manifest`) after the two `deletions` rows were authored by hand, which is
+the ledger's own documented motion. Two of the 34 added `testFiles` are this lane's; the other 32 are
+gate-runtime specs the program branch had added without a regen, and folding them in is what makes the
+ledger fresh rather than an act of this lane. `check:ledgers-fresh`'s OTHER half —
+`docs/reviews/caught-failure-ownership/population.json` — is stale by 21 rows, and every one of them names
+a file this lane never touched (`lib/policy-pass.ts`, `lib/schema-fact.ts`, `ops/policy-conformance.ts`,
+`ops/resource-*.ts`, `entry/compose/automation-plugin.ts`). Sixteen are NEW `unproven` caught-failure
+sites in the program branch's own foundation, which need ownership rows rather than a silent regen, so
+that half is left to the integration owner.
 
 ## What this lane changed outside its nine modules
 
@@ -138,18 +168,30 @@ integration owner's check, as is `pnpm gate:contract`.
   resolves to no declaration; both are `mustPass` rows.
 - `warning-code-coverage` keys the infra-to-chat mapper by name in ONE place. A rename empties that reader
   and REDs every code it owns — a loud false accusation, never a false clean.
+- `config-anchor-in-registry`'s grant identity is FILE-scoped BY CONSTRUCTION, and that is a deliberate
+  difference from its sibling. The policy dedupes stamps by path (one finding per stamping FILE, anchored
+  on its first canonical `configAnchorId(…)` call), so a licensed reader cannot trip the over-broad alarm
+  by adding a second anchor call — its grant licenses the file's reader ROLE, which is the thing under
+  review. `route-imports-no-feature` is the opposite on purpose: its identity is per-(route, front door),
+  so a sanctioned composition route that acquires a NEW feature import produces a NEW unlicensed finding.
+  Read as a pair, that is the right split — "this file reads anchors" is one durable permission, while
+  "this route composes THAT feature" is one permission per feature.
 - `tooling/src/verify/lib/section-defs.ts` now has ZERO code consumers (`pnpm ast importers`: 0 matches
-  over 7,138 scanned files; a literal scan finds only one comment in `tests/tooling/check-gates.int.test.ts`).
-  It is NOT deleted here: `GATE-AUTHORING.md` and `Core-Enforcement-Active-Gates.md` both cite it in prose,
-  and the second is owned by the integration lane, so deleting the file alone would leave a dangling
-  reference. The deletion is a two-line fold: remove the file, reword those two citations.
+  over 7,138 scanned files; a literal scan finds no import anywhere). It is NOT deleted here, because it
+  is cited by SEVEN surfaces this lane does not own — deleting the file alone leaves dangling references.
+  The full list for the fold: `tooling/src/verify/gates/GATE-AUTHORING.md:416`,
+  `docs/architecture/core/Core-Enforcement-Active-Gates.md:157`,
+  `docs/design/pane-standardization-design.md:332`,
+  `docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md:110`,
+  `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:157` and `:162`,
+  `docs/catalog/catalog.json:537` with its `docs/catalog/receipts/` twin, and the one prose comment at
+  `tests/tooling/check-gates.int.test.ts:1179`.
 
 ## Resume order
 
-1. Fold the two new module ids into `Core-Enforcement-Active-Gates.md` and the test-baseline manifest
-   (`tests/tooling/verify/gates/registry-family.test.ts` added; `section-factory-contribution-bundle.test.ts`
-   and `tests/tooling/warning-code-coverage.residual.test.ts` retired).
-2. Delete `lib/section-defs.ts` together with its two prose citations.
+1. Fold the two new module ids into `Core-Enforcement-Active-Gates.md`. The test-baseline manifest is
+   already current in this lane's tree; the caught-failure census half is not, and is not this lane's.
+2. Delete `lib/section-defs.ts` together with the seven citations listed under Known limits.
 3. Re-run `pnpm gate:contract` on the merged tip; this family's nine modules should leave the legacy-field
    and private-walk counts entirely.
 4. `lib/ast-read.ts` and `lib/tuple-read.ts` still have 38 legacy gate consumers and stay until those
