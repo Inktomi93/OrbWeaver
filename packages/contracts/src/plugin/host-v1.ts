@@ -34,7 +34,7 @@ export interface PluginMessageView {
   readonly role: MessageRole;
   // @view-server-only: the PluginHostV1 membrane is the GUEST's surface — its reader is the plugin sandbox (infra/plugin-host), never packages/client. Ends if a host UI surface starts rendering guest message projections.
   readonly authorDisplayName: string;
-  // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   readonly characterId: string | null;
   readonly seq: number;
   readonly content: string;
@@ -134,7 +134,7 @@ export const PLUGIN_SEARCH_RESULTS_MAX = 20;
  *  score. Chunk internals (chunkId/idx/contentHash) are withheld — a guest wants the text + provenance, not the
  *  index plumbing. */
 export interface PluginSearchHit {
-  // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-resolved document id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // @orb-waive brand-in-name-position(documentId): the plugin SANDBOX wire DTO — a host-resolved document id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   readonly documentId: string;
   readonly documentName: string;
   readonly content: string;
@@ -267,7 +267,7 @@ export interface PluginHostV1 {
      *  absent id is the leak-free `null` — indistinguishable, no existence oracle for another owner's CAS. An
      *  owned asset over {@link PLUGIN_ASSET_READ_MAX_BYTES} returns its metadata with `dataBase64: null` (never a
      *  truncated read). capability: assets.read */
-    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     read: (assetId: string) => Promise<PluginAssetView | null>;
   };
 
@@ -330,7 +330,7 @@ export interface PluginHostV1 {
     /** capability: imagery.generate — SPEND class, same ceilings as generate_image. Args = the SAME
      *  GenerateImageActionArgs shape the action arm imports — one vocabulary across
      *  rule, tool, and plugin. */
-    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     generatePicture: (chat: ChatHandle, p: GenerateImageActionArgs) => Promise<{ assetId: string }>;
   };
 
@@ -377,7 +377,7 @@ export interface PluginHostV1 {
      *  host-side exactly as `llm.quiet`'s is — a guest supplies only the document and can name no other owner,
      *  so a cross-owner write is not expressible. Deduped by content hash host-side (a re-ingest of the same
      *  text is idempotent). Returns the new (or deduped) document id — the guest's OWN new content. */
-    // @foreign-id-ok(documentId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(documentId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingest: (doc: { name: string; text: string }) => Promise<{ documentId: string }>;
   };
 
@@ -394,7 +394,7 @@ export interface PluginHostV1 {
      *  structured JSON anyway); the host serializes + validates it through `parseCardJson`, so a malformed
      *  card is a typed refusal of the CALL, never a partial write. Returns the new character id + whether it
      *  was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
-    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingest: (card: Record<string, unknown>) => Promise<{ characterId: string; created: boolean }>;
     /** Ingest a character from a PNG ASSET the guest already has in the INSTALLER's OWN CAS (plugin-remote-image
      *  #798 — the "Add to your library WITH its art" arm). The guest names an `assetId` (e.g. one
@@ -411,8 +411,8 @@ export interface PluginHostV1 {
      *  characters to your library" agreed to this whether the card arrives as JSON or as a fetched PNG. Returns
      *  the new character id + whether it was freshly created (`false` = a byte-identical re-ingest, importHash
      *  dedup). */
-    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the host read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-    // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the host read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     ingestAsset: (assetId: string) => Promise<{ characterId: string; created: boolean }>;
     /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148 — the ST
      *  `writeExtensionField` parity arm). capability: `character.card_state`.
@@ -432,14 +432,14 @@ export interface PluginHostV1 {
      *  `create`/`update`. NO chat scope, NO host authority — the `storage.kv` posture: a write to the installer's
      *  OWN character is the installer's own reach, not room state, so gating it on `canWrite` would claim a
      *  protection it does not need. */
-    // @foreign-id-ok(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     setCardData: (characterId: string, data: Record<string, unknown>) => Promise<void>;
     /** Read back this plugin's OWN per-card state (`data.extensions.plugin_<slug>`) from one of the INSTALLER's
      *  OWN characters. capability: `character.card_state`. Same host-stamped-slug + owner-scope walls as
      *  {@link setCardData}: a foreign/absent character rejects leak-free, and a plugin reads only its own key —
      *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
      *  written none on that (owned) character. */
-    // @foreign-id-ok(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(characterId): the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
     getCardData: (characterId: string) => Promise<Record<string, unknown> | null>;
   };
 
@@ -495,7 +495,7 @@ export interface PluginHostV1 {
        *  events already use — a named field bag is arity-stable: adding an env field never changes the call
        *  shape). `input.draft` is the working text; `input.env` = `{chatId, vars}` for a sync read inside the
        *  250 ms transform deadline (no host round-trip needed). Return the transformed draft. */
-      // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      // @orb-waive brand-in-name-position(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
       apply: (input: { draft: string; env: { chatId: string; vars: Record<string, string> } }) => Promise<PromptTransformOutcome>;
     }) => void;
     /** Register a DISPLAY transform (plugin-ui-plane §5.5/§5.29, seam 14) — the ST message-formatting-hook
@@ -514,8 +514,8 @@ export interface PluginHostV1 {
      *  and never a blocked message. */
     registerDisplay: (def: {
       name: string;
-      // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      // @foreign-id-ok(messageId): same DTO, same reason — the row id crosses INTO the guest as inert text it may key off, and nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
+      // @orb-waive brand-in-name-position(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      // @orb-waive brand-in-name-position(messageId): same DTO, same reason — the row id crosses INTO the guest as inert text it may key off, and nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
       apply: (input: { text: string; env: { chatId: string; messageId: string } }) => Promise<string>;
     }) => void;
   };
@@ -569,7 +569,7 @@ export interface PluginHostV1 {
      *  is no assetId to return), never a silent empty asset. The CAS write is owner-scoped by construction (the
      *  bridge closes the installer over it — a guest names no owner), the `character.ingest`/`assets.read`
      *  ceiling: the installer's own storage, no paid credential. */
-    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     fetchAsset: (url: string) => Promise<{ assetId: string }>;
   };
 

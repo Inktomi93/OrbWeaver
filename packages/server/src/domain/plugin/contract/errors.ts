@@ -53,7 +53,7 @@ export class PluginBundleFetchError extends DomainOperationError {
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
 // above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
 export class PluginNoSourceUrlError extends DomainOperationError {
-  // @foreign-id-ok(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+  // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
   constructor(pluginId: string) {
     super(
       "plugin_no_source_url",
@@ -73,7 +73,7 @@ export class PluginNoSourceUrlError extends DomainOperationError {
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see `ManifestInvalidError`
 // above (same host-side lifecycle taxonomy, a CALLER sees it, never the guest-observable membrane error).
 export class PluginNotShowcaseError extends DomainOperationError {
-  // @foreign-id-ok(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+  // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
   constructor(pluginId: string) {
     super(
       "plugin_not_showcase",
@@ -148,7 +148,7 @@ export class PluginCrashedError extends DomainUnavailableError {}
 // @nearpair-ok: near-matches `@orb/contracts/plugin::PluginCapabilityError` by design — see
 // `ManifestInvalidError` above (same host-side taxonomy, expected kinship).
 export class PluginNotFoundError extends DomainNotFoundError {
-  // @foreign-id-ok(pluginId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+  // @orb-waive brand-in-name-position(pluginId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   constructor(pluginId: string) {
     super("plugin", pluginId);
   }

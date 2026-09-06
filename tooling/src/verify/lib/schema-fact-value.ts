@@ -9,6 +9,7 @@ import type {
   UnresolvedReferenceFact,
 } from "../contract/reference-fact.ts";
 import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "../contract/schema-fact.ts";
+import { canonicalIdBrand } from "./id-brand.ts";
 import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableOrigin } from "./reference-fact-call.ts";
 import { invokedMemberThroughAliases } from "./reference-fact-writes.ts";
@@ -339,19 +340,7 @@ function columnTypeOverride(operations: ReadonlyMap<string, readonly CallExpress
     return refuse(unresolved("ambiguous", call, "Drizzle column must carry at most one $type<T>() operation with exactly one type argument"));
   }
   const type = options.checker().getTypeAtLocation(node);
-  const brand = type
-    .getProperties()
-    .find((property) =>
-      property
-        .getDeclarations()
-        .some(
-          (declaration) =>
-            Node.isPropertySignature(declaration) &&
-            declaration.getNameNode().getText() === "[brand]" &&
-            declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith("/packages/kit/src/ids/index.ts"),
-        ),
-    );
-  const idBrand = brand === undefined ? null : options.checker().getTypeOfSymbolAtLocation(brand, node).getText(node);
+  const idBrand = canonicalIdBrand(type, node, options.checker());
   return { node, type, display: type.getText(node), idBrand };
 }
 
