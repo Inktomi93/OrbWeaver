@@ -1,13 +1,11 @@
 // The final Orb policy descriptor and the capability-bounded context created once per invocation.
-import type { Node, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import type { GateFact, GateFactValue } from "./fact.ts";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
+import type { GatePolicyAnalysis, GatePolicyReceipt, GatePolicyVisitor } from "./policy-primitives.ts";
 import type { PopulationExpr } from "./population.ts";
 import type { GateResourceRequest } from "./resource-declaration.ts";
 import type { ResourceHost } from "./resource-host.ts";
-
-export const GATE_POLICY_ANALYSES = ["syntax", "types", "resource"] as const;
-export type GatePolicyAnalysis = (typeof GATE_POLICY_ANALYSES)[number];
 
 export const GATE_POLICY_EXECUTIONS = ["selected-files", "entire-population"] as const;
 export type GatePolicyExecution = (typeof GATE_POLICY_EXECUTIONS)[number];
@@ -46,10 +44,6 @@ export interface GatePolicyFileFindingDetails extends GatePolicyFindingDetails {
   readonly token?: string;
 }
 
-export type GatePolicyReceipt =
-  | { readonly kind: "population"; readonly source: string; readonly members: number; readonly unresolved?: number }
-  | { readonly kind: "resource"; readonly source: string; readonly resources: number; readonly unresolved?: number };
-
 export interface GatePolicyReportSink {
   /** Node-derived coordinates; the node must belong to the effective source population. */
   readonly node: (node: Node, details?: GatePolicyNodeFindingDetails) => void;
@@ -69,11 +63,6 @@ export interface GatePolicyContext {
   readonly fact: <Fact extends GateFact>(provider: Fact) => GateFactValue<Fact>;
   readonly report: GatePolicyReportSink;
   readonly receipt: (receipt: GatePolicyReceipt) => void;
-}
-
-export interface GatePolicyVisitor {
-  readonly kinds: readonly SyntaxKind[];
-  readonly visit: (node: Node, sourceFile: SourceFile) => void;
 }
 
 export interface GatePolicyHooks {

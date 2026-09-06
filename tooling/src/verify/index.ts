@@ -37,8 +37,8 @@ export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
-export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof, GatePolicyReceipt } from "./contract/policy.ts";
-export { defineGate, GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
+export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
+export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
 export type {
   GateFactOwnerResult,
   GateFactPhase,
@@ -68,6 +68,8 @@ export type {
   PolicySelector,
 } from "./contract/policy-plan.ts";
 export { POLICY_RUN_TIERS } from "./contract/policy-plan.ts";
+export type { GatePolicyReceipt } from "./contract/policy-primitives.ts";
+export { GATE_POLICY_ANALYSES } from "./contract/policy-primitives.ts";
 export type { PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./contract/policy-scope.ts";
 export { POLICY_SCOPE_KINDS, POLICY_SEMANTIC_PATH_STATUSES } from "./contract/policy-scope.ts";
 export type { GateResourceRequest } from "./contract/resource-declaration.ts";

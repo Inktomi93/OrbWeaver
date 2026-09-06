@@ -2,8 +2,9 @@
 // the CLI composition root supplies the reviewed scope manifest and ResourceHost-derived path manifests.
 import type { Project } from "ts-morph";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
-import type { GatePolicyAnalysis, GatePolicyExecution } from "./policy.ts";
+import type { GatePolicyExecution } from "./policy.ts";
 import type { PolicyOwnerPlanMode, PolicyPassInput, PolicyPassResult, PolicyPopulationReceipt } from "./policy-pass.ts";
+import type { GatePolicyAnalysis } from "./policy-primitives.ts";
 import type { PolicyProgramMembership, PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./policy-scope.ts";
 import type { PopulationExpr } from "./population.ts";
 import type { GateResourceRequest } from "./resource-declaration.ts";

@@ -1,7 +1,8 @@
 import { Project } from "ts-morph";
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
-import type { GatePolicyContext, GatePolicyReceipt } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { GatePolicyReceipt } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { bindPolicyResources } from "../../../../tooling/src/verify/lib/resource-policy.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
