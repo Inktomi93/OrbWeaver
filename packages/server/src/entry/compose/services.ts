@@ -463,6 +463,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         resolvePrincipal: resolveRoleClientPrincipal,
         // A thunk, like `structuredOutputShape` below: an admin flip governs the next structured call.
         structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
+        // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT (#1800) — a DIRECT wire, for the same reason the chat
+        // seam's twin is one (`entry/compose/chat.ts`): the binder already carries the provider's own
+        // `ProviderErrorKind` plus the credentialId that call authenticated with, which is exactly
+        // `MaybeRevokeParams`, so an adapter here could only re-derive a fact it was handed — and #1373's
+        // whole defect was an adapter whose re-derived vocabulary the verb could never match.
+        maybeRevokeOnAuthFailed: credentials.maybeRevokeOnAuthFailed,
       },
       ownerId,
     );
