@@ -1,5 +1,6 @@
 // Closed Drizzle schema facts. Missing, empty, and unresolved are verdicts, never `undefined`.
 import type { CallExpression, Node, SourceFile, TypeChecker, VariableDeclaration } from "ts-morph";
+import type { GatePolicyContext } from "./policy.ts";
 import type { ReferenceFact } from "./reference-fact.ts";
 
 export const SCHEMA_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
@@ -21,6 +22,16 @@ export interface SchemaFactReceipt {
 export type SchemaFact<T> =
   | { readonly status: "ready"; readonly value: T; readonly receipt: SchemaFactReceipt }
   | { readonly status: "missing" | "empty" | "unresolved"; readonly reason: string; readonly receipt: SchemaFactReceipt };
+
+export type ReadySchemaFact<T> = Extract<SchemaFact<T>, { readonly status: "ready" }>;
+
+/** Consumer-side proof that the shared schema denominator was complete before a policy judged it. */
+export function recordReadySchemaFact<T>(context: GatePolicyContext, fact: SchemaFact<T>): asserts fact is ReadySchemaFact<T> {
+  if (fact.status !== "ready") {
+    throw new Error(`drizzle schema fact ${fact.status}: ${fact.reason}`);
+  }
+  context.receipt({ kind: "population", source: fact.receipt.source, members: fact.receipt.members });
+}
 
 export interface SchemaTableIdentity {
   readonly sourcePath: string;
