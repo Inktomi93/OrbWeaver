@@ -7,6 +7,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { healLegacyBackgroundPins } from "../../../../../packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts";
@@ -109,6 +110,7 @@ test("an unreadable row is skipped, not healed — it is #471's refusal to fix, 
     userId: u,
     // A negative schemaVersion + no per-field .catch on the top-level shape degrades the WHOLE parse.
     schemaVersion: 9,
+    // FABRICATION-OK: a deliberately UNREADABLE blob — this arm proves the heal SKIPS a row the read seam cannot parse
     config: { schemaVersion: -5 } as unknown as typeof DEFAULT_USER_SETTINGS,
     updatedAt: AT,
   });
@@ -118,7 +120,7 @@ test("an unreadable row is skipped, not healed — it is #471's refusal to fix, 
   expect(row.config).toEqual({ schemaVersion: -5 });
 });
 
-async function readRow(db: Db, userId: string): Promise<typeof userSettings.$inferSelect> {
+async function readRow(db: Db, userId: UserId): Promise<typeof userSettings.$inferSelect> {
   const [row] = await db
     .select()
     .from(userSettings)
