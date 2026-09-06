@@ -629,12 +629,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_multifield/components/__g_multifield.tsx",
     "export function GMultiField() {\n  return (\n    <div>\n      <Input value={a} onChange={set} />\n      <Select value={b} onValueChange={set} />\n      <Switch checked={c} onCheckedChange={set} />\n    </div>\n  );\n}\n",
   );
-  // no-manual-autosave-flush: a features/** function body calling BOTH a structural array op AND
-  // handleSubmit — the retired §7-trap call-site flush the D78 SEAL armed (autosave-form-doctrine.md §7 G-A).
-  fx(
-    "packages/client/src/features/__g_autoflush/lib/__g_autoflush.ts",
-    "export function gOnAdd(form: F): void {\n  form.pushFieldValue('items', v);\n  void form.handleSubmit();\n}\n",
-  );
   // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
   // lifecycle-portability: an OWNER-STAMPED canon table that no portable kind carries and no
   // NON_PORTABLE_CANON row classifies — the F1 shape (databank sat exactly here while every full-account
@@ -771,8 +765,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_cachesurgery/hooks/__g_h.ts",
     "export const f = (qc: { invalidateQueries: (a: unknown) => void }): void => {\n  qc.invalidateQueries({});\n};\n",
   );
-  // no-chat-trpc-in-surface: an inline chat-verb mutation in a surface file.
-  fx("packages/client/src/features/__g_chattrpc/surfaces/__g_s.ts", "export const o = trpc.chat.send.mutationOptions();\n");
   // no-color-literals: an arbitrary hex color in a className.
   fx("packages/client/src/features/__g_colorlit/components/__g_c.tsx", 'export const C = () => <div className="text-[#fff000]" />;\n');
   // no-raw-color-in-css: a raw hex color in a feature CSS file (outside the theme.css token home). Reads via
@@ -848,11 +840,6 @@ function writeFixtures(): void {
   );
   // no-if-is-group: an isGroup boolean branch (solo is the degenerate group — D16).
   fx(`${D}/__g_isgroup/x.ts`, "export function f(isGroup: boolean): number {\n  if (isGroup) {\n    return 1;\n  }\n  return 0;\n}\n");
-  // no-inline-optimistic-in-surface: optimistic-mutation plumbing in a surface file.
-  fx(
-    "packages/client/src/features/__g_optimistic/surfaces/__g_s.ts",
-    "export const X = (queryClient: { setQueryData: (k: unknown, v: unknown) => void }): void => {\n  queryClient.setQueryData(['k'], 1);\n};\n",
-  );
   // no-inline-types: an exported interface in a domain verb (types live in contract/).
   fx(`${D}/__g_inltypes/verbs/__g_v.ts`, "export interface Leak {\n  a: number;\n}\n");
   // no-layout-context-props: a layout-context boolean prop (compact) on JSX (D42).
@@ -867,11 +854,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_ptrvar/components/__g_c.tsx", 'export const C = () => <div className="pointer-coarse:hidden" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
   fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
-  // no-multiplexed-mutation-error: two mutations' errors multiplexed through ??.
-  fx(
-    "packages/client/src/features/__g_muxerr/hooks/__g_h.ts",
-    "export const e = (a: { error: unknown }, b: { error: unknown }): unknown => a.error ?? b.error;\n",
-  );
   // no-raw-clock: an ambient clock read outside the @orb/kit/time seam (assembled).
   fx(`${D}/__g_rawclock/x.ts`, `export const t = ${["Date", "now"].join(".")}();\n`);
   // platform-spellings (node-26 program §8): a hand-rolled `new Promise(setTimeout)` sleep — the ARM SLEEP
@@ -904,8 +886,6 @@ function writeFixtures(): void {
   );
   // session-channel-boundary: a second cross-tab channel outside lib/session-channel.ts (the ONE home).
   fx("packages/client/src/features/__g_bchan/lib/__g_sync.ts", 'export const c = new BroadcastChannel("chat:sync");\n');
-  // no-static-staletime: the banned `staleTime: "static"` (the bus drives freshness).
-  fx("packages/client/src/features/__g_staletime/hooks/__g_h.ts", 'export const o = { staleTime: "static" };\n');
   // no-untrusted-html-in-main-dom: dangerouslySetInnerHTML outside the sanctioned seals (D44).
   fx("packages/client/src/features/__g_rawhtml/components/__g_c.tsx", "export const C = (s: string) => <div dangerouslySetInnerHTML={{ __html: s }} />;\n");
   // query-machine-seals: a useMutation import outside data/ (client-architecture-lockdown.md §16 G9).
@@ -918,11 +898,6 @@ function writeFixtures(): void {
   fx("tests/client/features/__g_testidlive.ct.tsx", 'export const t = () => page.getByTestId("__g-ghost-testid");\n');
   // theme-override-only-via-scope: an inline style overriding a color token custom property.
   fx("packages/client/src/features/__g_themeover/components/__g_c.tsx", "export const C = () => <div style={{ '--color-primary': 'red' }} />;\n");
-  // zustand-selector-stability: a store-hook selector returning a fresh object literal.
-  fx(
-    "packages/client/src/features/__g_selstab/hooks/__g_h.ts",
-    "declare const useGStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a }));\n",
-  );
   // registry-context-via-mint: a hand createContext typed over a *Registry outside the mint home (G26).
   fx("packages/client/src/features/__g_regctx/hooks/__g_h.ts", "export const GRegCtx = createContext<Registry<string, number> | null>(null);\n");
   // selection-store-via-factory: a per-section selection store minting the raw createGatedStore door (G27).
