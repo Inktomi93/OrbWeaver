@@ -132,6 +132,7 @@ test("unknown keys and schema-healed values refuse instead of pretending the req
 // shape a CLI turns into an ARG ERROR, so the throwing `.parse` was one un-guarded caller away from
 // putting a raw ZodError out of a probe's mouth. `safeParse` makes that structurally impossible.
 test("the exported validator RETURNS its refusal for a non-object, rather than throwing a ZodError", () => {
+  // FABRICATION-OK: a deliberate invalid-input probe — the NON-object is the thing under test (the exported validator must return its refusal, not throw)
   const notAnObject = 7 as unknown as Parameters<typeof validateAppearancePatch>[0];
 
   expect(() => validateAppearancePatch(notAnObject, "--appearance")).not.toThrow();

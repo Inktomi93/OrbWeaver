@@ -14,6 +14,7 @@ import { buildHeapRetainerReceipt } from "../../../../tooling/src/snap/lib/heap-
 import type { HeapDevToolsParser, HeapParsedRetainers } from "../../../../tooling/src/snap/lib/heap-devtools.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
+// FABRICATION-OK: minimal snapshot identity double; heapLimit reads only label/cap — the retainer-cap arithmetic is under test, not the identity shape
 const IDENTITY = {
   label: "before",
   rawPath: "/tmp/before.heapsnapshot",
@@ -27,6 +28,7 @@ const IDENTITY = {
   parser: { package: "chrome-devtools-mcp", version: "1.8.0", engine: "HeapSnapshotManager" },
 } as unknown as HeapSnapshotIdentity;
 
+// FABRICATION-OK: minimal snapshot receipt double for the same reason as IDENTITY above
 const SNAPSHOT = { v: 1, kind: "snapshot", identity: IDENTITY } as unknown as HeapSnapshotReceipt;
 
 function edge(index: number): HeapParsedRetainers["outgoing"][number] {
@@ -47,6 +49,7 @@ function parserReturning(outgoing: number, outgoingTotal: number): HeapDevToolsP
     outgoingTotal,
     pathLimits: { depth: false, nodes: false, siblings: false },
   };
+  // FABRICATION-OK: minimal HeapDevToolsParser double; the analysis reads exactly retainers() — the parsed-retainer shape is the real one
   return { retainers: async (): Promise<HeapParsedRetainers> => await Promise.resolve(parsed) } as unknown as HeapDevToolsParser;
 }
 
