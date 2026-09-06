@@ -1996,7 +1996,7 @@
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 150,
+      "line": 165,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2004,12 +2004,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the probe failing means the db is unwell — the",
-      "markerLine": 144
+      "markerLine": 159
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 245,
+      "line": 260,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2017,12 +2017,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "classified by classifyFailedAppend (ground-truth",
-      "markerLine": 239
+      "markerLine": 254
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 287,
+      "line": 302,
       "column": 7,
       "grammar": "default",
       "position": "default:err",
@@ -2030,12 +2030,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 269
+      "markerLine": 284
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 118,
+      "line": 133,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2043,7 +2043,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 113
+      "markerLine": 128
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
@@ -2087,7 +2087,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1988,
+      "line": 1999,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
@@ -2165,7 +2165,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1214,
+      "line": 1281,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2173,12 +2173,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1208
+      "markerLine": 1275
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2510,
+      "line": 2470,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2186,12 +2186,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2504
+      "markerLine": 2464
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::promise:run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2262,
+      "line": 2261,
       "column": 14,
       "grammar": "promise",
       "position": "promise:run",
@@ -2199,7 +2199,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2258
+      "markerLine": 2257
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",
