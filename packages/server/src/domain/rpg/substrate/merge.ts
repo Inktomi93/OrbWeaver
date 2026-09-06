@@ -35,7 +35,7 @@
 //   • a base element with ANY lock at/under its element path survives a tool REMOVAL (re-inserted);
 //   • a plane may be ADDITIVE (`omissionRemoves: false` — `actorState` alone), where an element the patch
 //     never names survives unconditionally: nothing removes an actor by omission, and both the hand door
-//     (locks off, roster-only client view) and the tool appliers author less than the whole array;
+//     (locks off, participant-only client view) and the tool appliers author less than the whole array;
 //   • a correlated pair with neither DEEP-MERGES per field (the same `mergeAt` walk, path-prefixed
 //     `<field>.<id>`), so a SUB-FIELD lock (`actorState.user:u1.status`, `actorState.user:u1.pools.Mana`)
 //     bites on exactly that value while unlocked sibling fields take the patch — the per-field pin (#10);

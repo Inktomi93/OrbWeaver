@@ -1,5 +1,5 @@
 // The VEILED ledger (the deception `<lie>`/`<ofilter>` host surface):
-// Status hosts the standing-secrets ledger because secrets are game-state ABOUT the roster (the same lens
+// Status hosts the standing-secrets ledger because secrets are game-state ABOUT the participants (the same lens
 // this tab already is). All crown-gold so "host-only" reads without a label. LIVE off `rpg.revealHidden`
 // (the P3 read — host-gated server-side, leak-free NOT_FOUND for a member): the `standingLies` inventory
 // (most-recent lie per character/truth across the visible transcript) → claim/truth/origin rows; the
@@ -8,7 +8,7 @@
 //
 // Its own QueryBoundary: a host game with no hidden content shows NOTHING (the honest empty plane — the
 // ledger returns null on zero lies), and a failed reveal read surfaces the sealed battery
-// (`QueryErrorState` + Retry) contained to this section, never breaking the roster above it.
+// (`QueryErrorState` + Retry) contained to this section, never breaking the participants above it.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
@@ -58,14 +58,14 @@ export interface RpgVeiledSectionProps {
 }
 
 /** The host-only Veiled ledger — its own boundary so a failed reveal read is contained (it never breaks
- *  the roster above it). A read error surfaces the sealed battery (`QueryErrorState` with a real Retry) —
+ *  the participants above it). A read error surfaces the sealed battery (`QueryErrorState` with a real Retry) —
  *  this is game-state the host asked for, so an honest "couldn't load" beats a silent disappearance. Only
  *  rendered for a host (the caller gates on `isHost`; the verb is a second, server-side host gate). */
 export function RpgVeiledSection({ chatId }: RpgVeiledSectionProps): ReactElement {
   return (
     // RESERVED (#1098) — the purest case in the sweep, and the `rpg-hud-band` precedent: with
     // `fallback={null}` this section is literally ABSENT while the reveal read is in flight, so the
-    // roster above it and everything below shift by the ledger's whole height when it lands. The
+    // participants above it and everything below shift by the ledger's whole height when it lands. The
     // remembered box holds that space open; nothing is painted into it, which is the point.
     <QueryBoundary
       fallback={null}

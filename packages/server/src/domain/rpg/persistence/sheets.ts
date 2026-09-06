@@ -1,12 +1,12 @@
 // domain/rpg/persistence/sheets — the per-actor IDENTITY sheet store (rpg-design/05 §4.3). NO membership
 // shadow (the no-party-system ruling made schema: `rpg_sheets` replaces legacy `rpg_party`). A sheet is
 // keyed by durable actor identity (characterId XOR userId), created on FIRST WRITE. This slot owns the READ
-// (raw rows + a by-actor lookup) and the row-on-first-write UPSERT; the roster ∪ rows PROJECTION is composed
-// in the verb layer (W1b) against the injected roster — persistence never reads the chat roster (that's the
+// (raw rows + a by-actor lookup) and the row-on-first-write UPSERT; the participants ∪ rows PROJECTION is composed
+// in the verb layer (W1b) against the injected participants — persistence never reads the chat's participants (that's the
 // auth chokepoint's op). `sheet` is parse-on-read through the contract schema.
 //
 // The row is subordinate to its actor's identity (CASCADE on character/user hard-delete). A sheet whose
-// actor merely LEFT the roster is retained-not-projected — persistence keeps the row; the verb's projection
+// actor merely LEFT the participants is retained-not-projected — persistence keeps the row; the verb's projection
 // drops it from the view (presence gates the write, the read derives).
 
 import type { RpgSheet } from "@orb/contracts/rpg";
@@ -29,7 +29,7 @@ function parseSheetRow(row: RpgSheetRow): RpgSheetRow {
   return { ...row, sheet: parsed.data };
 }
 
-/** All sheet rows for a game (parsed) — the verb layer projects these against the roster (roster ∪ rows). */
+/** All sheet rows for a game (parsed) — the verb layer projects these against the participants (participants ∪ rows). */
 export async function listSheets(db: Db, gameId: RpgGameId): Promise<readonly RpgSheetRow[]> {
   const rows = await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId));
   return rows.map(parseSheetRow);

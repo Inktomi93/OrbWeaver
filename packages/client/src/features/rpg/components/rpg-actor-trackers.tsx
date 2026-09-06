@@ -1,4 +1,4 @@
-// The PER-ACTOR volatile blocks — the rows Status's roster card and the character TAKEOVER both render
+// The PER-ACTOR volatile blocks — the rows Status's participant card and the character TAKEOVER both render
 // (the tracked-field unification §3 IA repair: Status is the only list of people, and expanding an entry IS
 // the sheet, so the two surfaces are two zoom levels of ONE anatomy, never two implementations). Meter rows,
 // text/list readings, the status line, and the condition chips live here; both consumers pass the same
@@ -16,7 +16,7 @@
 //
 // WHOSE SHEET IS THIS? (#1383) — every block here takes an optional `subject` (the carrier's name) and
 // runs its control names through the tracker kit's ONE qualification grammar (`trackerFieldName` /
-// `trackerActionName`). The Status ROSTER passes it: four cards on one region published 4x "Add
+// `trackerActionName`). The Status PARTICIPANT LIST passes it: four cards on one region published 4x "Add
 // condition", 4x "Status line", 3x "HP value" with no group boundary, so a screen-reader user editing a
 // sheet could not tell whose sheet it was. The character TAKEOVER does not pass it — one carrier fills
 // the whole panel, and a prefix on every control there would be noise.
@@ -107,7 +107,7 @@ function ActorTrackerMeter({
   // A DEPARTURE, NOT A PRESENCE (side-eye 2026-08-06 P3). The anti-drift rule says a stored `value.max`
   // equal to the def's default is cleared at WRITE time, so this read treated "an override exists" as "it
   // differs" — and every actor a story wrote a max onto without changing it printed `HP ceiling 20 —
-  // default: 20` under its bar, once per meter per actor, which is a whole roster of lines saying nothing.
+  // default: 20` under its bar, once per meter per actor, which is a whole list of lines saying nothing.
   // The write-side rule is the invariant; this is the READ refusing to depend on it. A value equal to the
   // default IS the default, however it got stored.
   const override = value.max ?? null;

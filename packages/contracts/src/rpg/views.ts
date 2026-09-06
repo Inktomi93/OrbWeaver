@@ -78,7 +78,7 @@ export interface RpgGameView {
   };
 }
 
-/** An actor row in the tracker view — the ONE actor shape, for EVERY actor (R2): roster ∪ sheets ∪ every
+/** An actor row in the tracker view — the ONE actor shape, for EVERY actor (R2): participants ∪ sheets ∪ every
  *  tracked `npc` actor, on stage or off. A participant without a sheet row renders the DEFAULT sheet;
  *  `volatile` is null until a snapshot carries this actor's state.
  *
@@ -86,7 +86,7 @@ export interface RpgGameView {
  *  Those existed because the NPC was not an actor in the view model, and the split was load-bearing for two
  *  measured defect classes: an npc's model-written hp/status/conditions/inventory/wallet rendered in NO
  *  client surface (`castVolatile` had zero consumers), and carrier CLASSES partitioned ROWS rather than PEOPLE,
- *  so a roster character standing in the scene was taught an `npcs`-classed tracker the write surface never
+ *  so a participant character standing in the scene was taught an `npcs`-classed tracker the write surface never
  *  offered her. Both are unrepresentable now: one row per person, and `carrierKind` derives from
  *  `actorRef.kind`. */
 export interface RpgActorView {
@@ -96,8 +96,8 @@ export interface RpgActorView {
   /** Does this actor stand in the scene RIGHT NOW (the presence plane)? An offstage actor keeps every other
    *  field on this row — that IS the R2 retention guarantee, and the panel's "Known characters" disclosure. */
   readonly presence: boolean;
-  /** The npc's own identity half (name/emoji/mood/relationship/guides); `null` for a roster actor,
-   *  whose identity is the chat roster's and whose standing prose is the sheet's. */
+  /** The npc's own identity half (name/emoji/mood/relationship/guides); `null` for a participant actor,
+   *  whose identity is chat's and whose standing prose is the sheet's. */
   readonly identity: RpgActorIdentity | null;
   readonly sheet: {
     readonly className: string;
@@ -156,14 +156,14 @@ export interface RpgTrackerView {
     readonly clock: RpgClockTime | null;
     readonly weather: RpgWeather | null;
   } | null;
-  /** EVERY actor — roster ∪ tracked npcs, present and offstage — in ONE shape (R2). */
+  /** EVERY actor — participants ∪ tracked npcs, present and offstage — in ONE shape (R2). */
   readonly actors: readonly RpgActorView[];
   /** The presence echo: the `actorRefKey`s standing in the scene, in presence order. A THIN derivation of
    *  `actors[].presence`, carried so a consumer that only needs "who is on stage" (the scene card order, the
    *  CEL feed) does not re-filter — never a second identity home. */
   readonly cast: readonly string[];
   /** The whole game's tracker DEFS (`config.trackers`) — the ONE def home, surfaced once so every consumer
-   *  (roster rows, scene npc rows, the band, the editor) reads the same list instead of four shapes. */
+   *  (participant rows, scene npc rows, the band, the editor) reads the same list instead of four shapes. */
   readonly trackerDefs: readonly RpgTrackerDef[];
   /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];

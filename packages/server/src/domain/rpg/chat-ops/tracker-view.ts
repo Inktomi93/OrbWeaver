@@ -1,7 +1,7 @@
 // domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (rpg-design/05 §4.8). Resolves the
 // CURRENT snapshot — or, for a REGEN turn, the state as of before the regenerated slot (VER-1b, the one
-// `regenSlotMessageId` arm) — (or the synthesized default for a turnless game) and projects roster ∪ sheets (§4.3) against
-// the injected roster into the `RpgTrackerView` the CP client renders AND the gather's steering reminder reads.
+// `regenSlotMessageId` arm) — (or the synthesized default for a turnless game) and projects participants ∪ sheets (§4.3) against
+// the injected participants into the `RpgTrackerView` the CP client renders AND the gather's steering reminder reads.
 // PRINCIPAL-FREE: the member gate lives in the `getTrackerView` VERB (`resolveMember`); the GATHER is internal
 // to a turn chat already gated, so it consumes this projection directly (the `getMembership`/gather-is-gated
 // precedent). Every plane reads the SAME resolved-current snapshot, so a swipe re-resolves the whole panel
@@ -49,7 +49,7 @@ export function keepLastBeats(beats: readonly string[], keepLast: number): reado
   return keepLast <= 0 ? [] : beats.slice(-keepLast);
 }
 
-/** The default sheet a roster actor with no row renders (§4.3 — a missing row = the default sheet). */
+/** The default sheet a participant actor with no row renders (§4.3 — a missing row = the default sheet). */
 function defaultSheet(): RpgSheet {
   return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
@@ -68,8 +68,8 @@ function sheetRef(row: { characterId: CharacterId | null; userId: UserId | null 
 /** THE carrier record for ANY actor (R2) — the ONE derivation of "what class is this person, and what are
  *  their exceptions". `kind` comes off `actorRef.kind`, so the classes partition PEOPLE, not rows. That is the
  *  §1.4 read/write drift fix and it is structural: the view used to classify by which PLANE a row sat on, so a
- *  roster character standing in the scene was BOTH a `party` carrier (to the write surface, which deduped by
- *  name, roster first) and an `npcs` one (to the reminder and Scene tab, which walked the npc rows). A
+ *  participant character standing in the scene was BOTH a `party` carrier (to the write surface, which deduped by
+ *  name, participants first) and an `npcs` one (to the reminder and Scene tab, which walked the npc rows). A
  *  `trust(appliesTo:"npcs")` def was therefore taught on her line and offered on nobody's — the exact
  *  reminder-is-knowledge / tools-are-permissions drift the file header calls impossible. An npc carries
  *  no sheet, so its exceptions are empty (a one-off NPC field homes on the def's explicit `appliesTo` list —
@@ -89,7 +89,7 @@ function trackerEntries(defs: readonly RpgTrackerDef[], values: RpgActorVolatile
   return defs.map((def) => ({ def, value: values?.[def.key] ?? null }));
 }
 
-/** Project ONE actor onto the tracker view (R2 — roster and cast through the same function): its sheet (row or
+/** Project ONE actor onto the tracker view (R2 — participants and cast through the same function): its sheet (row or
  *  default), its identity half (cast only), whether it stands in the scene, its volatile state (from the
  *  resolved snapshot's `actorState`, keyed by `actorRefKey`, or null), and the trackers it carries. */
 function actorView(args: {
@@ -182,8 +182,8 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
   }
   const present = new Set(state.presentCharacters);
 
-  // EVERY actor, ONE shape (R2): the chat roster first (in roster order — the Party is the stable spine), then
-  // every TRACKED NPC actor the roster does not already cover, present or offstage. The offstage half is the
+  // EVERY actor, ONE shape (R2): the chat's participants first (in participant order — the Party is the stable spine), then
+  // every TRACKED NPC actor the participants do not already cover, present or offstage. The offstage half is the
   // whole point: those rows existed before and were projected NOWHERE, so a departed NPC's retained state was
   // invisible to the host and unreachable by any gesture.
   const participantActors = participants.map((r) => {

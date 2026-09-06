@@ -101,7 +101,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
 
   test("a per-actor SUB-FIELD lock (actorState.<key>.status) pins that value while sibling fields take the patch", () => {
     // The #10 per-field pin: the whole-array tool overlay correlates actors by `actorRefKey`; the locked
-    // `status` survives while the SAME actor's trackers take the tool's write — never a whole-roster pin.
+    // `status` survives while the SAME actor's trackers take the tool's write — never a whole-participant pin.
     const base = { actorState: [actorWithWallet("mari", 10, 5)] };
     const patchRow = actorWithWallet("mari", 10, 2);
     const patched = { ...patchRow, volatile: { ...patchRow.volatile, status: "tool-set" } };

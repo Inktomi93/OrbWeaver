@@ -31,7 +31,7 @@ describe("assertHostRole — the kernel decides, rpg words the refusal", () => {
 
   test("a kernel fault that is NOT a deny propagates — a catch-all here would turn a broken kernel into a grant", () => {
     const brokenKernel = ((): void => {
-      throw new TypeError("the roster shape changed under the kernel");
+      throw new TypeError("the participants shape changed under the kernel");
     }) as Can;
 
     expect(() => assertHostRole(brokenKernel, MEMBER, "member", REASON)).toThrow(TypeError);

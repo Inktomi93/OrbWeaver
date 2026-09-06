@@ -1,11 +1,11 @@
 // CT: the rpg CP-4 LITE takeover (features/rpg — the `rpgContextTabs` contributions rendered through the REAL
 // chats SectionContextHost via the contributor seam, over the stubbed network). Drives the production path:
-// `chat.getChat` supplies the roster + the rpg POINTER (the takeover APPLICABILITY gate, §4.1); `rpg.getGame`
+// `chat.getChat` supplies the participants + the rpg POINTER (the takeover APPLICABILITY gate, §4.1); `rpg.getGame`
 // carries the mode/read-only trim; `rpg.getTrackerView` feeds every tab. Asserts the four things the W3b brief
 // pins: (1) the 4 game tabs render (in the "Game" strip) when `chat.rpg !== null`, with the meta strip below;
 // (2) a tab body renders real tracker data; (3) an editable block fires its mutation (the mutation COUNT, per
 // [assert-the-mutation-fired] — not the UI reaction); (4) the read-only pill shows + disables edits when
-// `trackersReadOnly`. The roster/view stubs return only what the panel reads (a partial shape, the chats-
+// `trackersReadOnly`. The participants/view stubs return only what the panel reads (a partial shape, the chats-
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
@@ -32,7 +32,7 @@ const NONEMPTY_ID = /.+/u;
 
 /** The Vitality meter's two editable cells — the reading and this carrier's ceiling. `subject`-qualified
  *  names are the `MeterRow` rule (two npc cards must not both offer a button called "Vitality value"), so
- *  the roster row's pair carries the actor's name and the takeover's does not; this matches both. */
+ *  the participant row's pair carries the actor's name and the takeover's does not; this matches both. */
 const VITALITY_CELLS = /^(Mara )?Vitality (value|max)$/;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
@@ -87,7 +87,7 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
   };
 }
 
-/** The two tracker defs the stubbed roster actor carries (meters, party-class, band-PINNED). */
+/** The two tracker defs the stubbed participant actor carries (meters, party-class, band-PINNED). */
 const VITALITY = {
   key: "vitality",
   label: "Vitality",
@@ -105,7 +105,7 @@ const VITALITY = {
 } satisfies RpgTrackerDef;
 const RESOLVE = { ...VITALITY, key: "resolve", label: "Resolve", max: 10, sort: 1 } satisfies RpgTrackerDef;
 
-// A `rpg.getTrackerView` stub — one roster actor with trackers + a condition, ambient + orbs, cast, a goal, beats.
+// A `rpg.getTrackerView` stub — one participant actor with trackers + a condition, ambient + orbs, cast, a goal, beats.
 function trackerView(trackersReadOnly: boolean): unknown {
   return {
     ambient: {
@@ -419,7 +419,7 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
 
   // The redesign's top strip (panel-redesign §4) as the tracked-field unification §3 left it: 5 live game
   // tabs — Quests + Journal are LIVE lite tabs (the owner correction), and SHEET IS GONE (the sheet is a
-  // STATE of Status now: expanding a roster entry IS the sheet).
+  // STATE of Status now: expanding a participant entry IS the sheet).
   const gameStrip = component.getByRole("toolbar", { name: "Game state" });
   await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("button", { name: label })).toBeVisible()));
   await expect(gameStrip.getByRole("button", { name: "Sheet" })).toHaveCount(0);
@@ -563,7 +563,7 @@ test("the GM console BAND toggle fires updateConfig (host) — the mutation COUN
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
-test("a tab body renders real tracker data (Status: roster row + pool meters + condition + orbs)", async ({ mount, page }) => {
+test("a tab body renders real tracker data (Status: participant row + pool meters + condition + orbs)", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -578,7 +578,7 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   // The freshness indicator rides the same band — the getGame stub defaults `cheap` with no live turn,
   // so the last successfully recorded state is surfaced in real panel geometry.
   await expect(component.getByText("Last recorded beat")).toBeVisible();
-  // The roster row: name + className + the pool MeterRow value text + the condition chip.
+  // The participant row: name + className + the pool MeterRow value text + the condition chip.
   await expect(component.getByText("Mara")).toBeVisible();
   await expect(component.getByText("Warden")).toBeVisible();
   await expect(component.getByText("poisoned")).toBeVisible();
@@ -614,7 +614,7 @@ function twoCharacterTrackerView(): unknown {
   return { ...base, actors: [...actors, bryn] };
 }
 
-test("#1383 Status: every character block is a NAMED GROUP and no control name collides across the roster", async ({ mount, page }) => {
+test("#1383 Status: every character block is a NAMED GROUP and no control name collides across the participants", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: twoCharacterTrackerView() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
@@ -654,7 +654,7 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
 });
 
 /** Two characters carrying the SAME display name. Legal by construction — #1366 keys distinct SPELLINGS
- *  distinctly, so identical spellings remain a thing a roster can hold — and the shape #1531 measured: the
+ *  distinctly, so identical spellings remain a thing the participants can hold — and the shape #1531 measured: the
  *  whole #1383 repair is built on `actor.name`, so an identical name collapses BOTH halves at once. */
 function sameNameTrackerView(): unknown {
   const base = trackerView(false) as Record<string, unknown>;
@@ -666,10 +666,10 @@ function sameNameTrackerView(): unknown {
 
 // #1531 — the #1383 repair's own blind spot. Two entries named "Mara" published two groups with ONE
 // accessible name and a byte-identical control set under each, which is exactly the state #1383 exists to
-// prevent, reached by a legal roster instead of by a missing feature. The qualifier is roster POSITION
+// prevent, reached by legal participants instead of by a missing feature. The qualifier is participant POSITION
 // because it is the one disambiguator a reader can hear (an actor key read aloud is not) and it tells them
 // there is more than one. The UNCONTENDED case is fenced by the #1383 test above, which asserts the bare
-// `group "Mara"` for a distinct-name roster — qualifying unconditionally reds it.
+// `group "Mara"` for distinct-name participants — qualifying unconditionally reds it.
 test("#1531 Status: two SAME-NAMED characters still resolve to distinct group and control names", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: sameNameTrackerView() });
   const component = await mount(<RpgTakeoverStory />);
@@ -704,7 +704,7 @@ test("#1531 Status: two SAME-NAMED characters still resolve to distinct group an
 
   // THE FLOOR — the house tree probe over Playwright's own accessible-name computation.
   const findings = ariaTreeFindings(await tab.ariaSnapshot());
-  expect(findings, "a same-named roster must still carry no nameless or ambiguous control").toEqual([]);
+  expect(findings, "same-named participants must still carry no nameless or ambiguous control").toEqual([]);
 });
 
 test("#1383 Status: a meter's fields carry the label, so the loose `HP` / `/` text nodes leave the a11y tree", async ({ mount, page }) => {
@@ -739,7 +739,7 @@ test("an editable pool value fires the patchActor mutation (host, writable) — 
   await vitality.blur();
 
   // Assert the MUTATION fired (the count), not the UI reaction (the save-catch could hide a throw). The
-  // per-actor plane is op-shaped (R1), so the roster's tracker edit rides `patchActor`, never `editSnapshot`.
+  // per-actor plane is op-shaped (R1), so a participant's tracker edit rides `patchActor`, never `editSnapshot`.
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(0);
 });
@@ -874,7 +874,7 @@ const SERA_VOLATILE = {
 const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npcs", max: 10, sort: 0, pinned: false };
 
 // The plane-loss defect, killed STRUCTURALLY (R1). The Scene npcs edit used to build a whole-`actorState`
-// IMAGE from the ROSTER half of the view only, so a `npc:` target was never "found" and an EMPTY volatile got
+// IMAGE from the PARTICIPANT half of the view only, so a `npc:` target was never "found" and an EMPTY volatile got
 // minted — authoring `hp: null`, `inventory: []`, `wallet: []`, `status: ""` over the NPC's real row (AUTHORED
 // values the server's additive policy cannot save: it preserves rows a write OMITS, never fields it NAMES).
 // The op door cannot express that mistake: the wire payload carries the ONE datum the human touched and names
@@ -899,7 +899,7 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
   await trust.blur();
 
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // The call addresses HER, by ref — no image, no roster half, nothing to be partial about.
+  // The call addresses HER, by ref — no image, no participant half, nothing to be partial about.
   await expect
     .poll(
       async () =>
@@ -972,14 +972,14 @@ test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the O
   expect(trpc.lastInput("rpg.dismissActor")).toMatchObject({ targetRef: { kind: "npc", npcKey: "vesna" } });
 });
 
-// ── R4: PROMOTION — the recurring stranger earns a roster card ────────────────────────────────────────────
+// ── R4: PROMOTION — the recurring stranger earns a character card ────────────────────────────────────────────
 // The other durable per-actor gesture, and Dismiss's opposite: dismissal forgets the person, promotion keeps
 // her forever. It lives beside Dismiss in the SAME disclosure because both are library acts on a known
 // character, not moves in the NOW window the on-stage cards are.
 //
 // The confirm is not ceremony — it is where the panel says out loud what does NOT carry. The volatile plane
 // (trackers, pack, purse, conditions, status), the scene presence and the hand pins all follow her across the
-// re-key; her MOOD and her RELATIONSHIP stance do not, because a roster member has no home for them (R2: a
+// re-key; her MOOD and her RELATIONSHIP stance do not, because a participant has no home for them (R2: a
 // stance is an npc's datum). A host who learns that after the fact learns it as a bug.
 test("R4: an offstage npc can be PROMOTED to the room's characters — two-step, named by whose it is, and honest about the stance", async ({ mount, page }) => {
   const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
@@ -1602,7 +1602,7 @@ function d20Game(): unknown {
   };
 }
 
-/** A roster whose one actor carries everything Sheet-the-tab used to show — title, level, wallet, attribute
+/** A participant list whose one actor carries everything Sheet-the-tab used to show — title, level, wallet, attribute
  *  values — plus a packed item (the RV-5 surface). */
 function richTracker(): unknown {
   return {
@@ -1611,8 +1611,8 @@ function richTracker(): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
-        // A ROSTER actor: `presence` is the presence plane's business, and she carries NO `identity` half —
-        // her name is the chat roster's and her standing prose is the sheet's (R2). A stub that mirrors the
+        // A PARTICIPANT actor: `presence` is the presence plane's business, and she carries NO `identity` half —
+        // her name is chat's and her standing prose is the sheet's (R2). A stub that mirrors the
         // wire is the discipline; a stale one is a dead shape the next CT copies.
         presence: false,
         identity: null,
@@ -1709,16 +1709,16 @@ test("R2: the purse's carried note is coherent with the party-total exclusion �
   await expect(purseLine).not.toContainText("30");
 });
 
-test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
+test("Status: expanding a participant entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
-  // The roster is the list of people; the name IS the door (a named button, not a mystery row).
+  // The participant list is the list of people; the name IS the door (a named button, not a mystery row).
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
   await component.getByRole("button", { name: "Open Mara" }).click();
 
-  // The takeover REPLACES the roster (one place at a time — not an accordion under the row).
+  // The takeover REPLACES the participant list (one place at a time — not an accordion under the row).
   const detail = component.locator('[data-slot="rpg-character-detail"]');
   await expect(detail).toBeVisible();
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toHaveCount(0);
@@ -1735,7 +1735,7 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
   await expect(detail).toContainText("Vitality");
   await expect(detail.getByText("poisoned")).toBeVisible();
 
-  // The breadcrumb is the way back — and it lands on the roster, not on a blank panel.
+  // The breadcrumb is the way back — and it lands on the participant list, not on a blank panel.
   await detail.getByRole("button", { name: "Back to the characters" }).click();
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
   await expect(component.locator('[data-slot="rpg-character-detail"]')).toHaveCount(0);
@@ -2614,7 +2614,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   await expect(ground).toBeVisible();
   await expect.poll(() => ground.evaluate((el) => getComputedStyle(el).backgroundImage), { intervals: [20, 50, 100] }).toContain("linear-gradient");
 
-  // TALL body (Status: roster + orbs + the veiled ledger) — the viewport shrinks and scrolls, and the rail
+  // TALL body (Status: participants + orbs + the veiled ledger) — the viewport shrinks and scrolls, and the rail
   // has NOT moved: the two states differ by no layout jump at all.
   await component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" }).click();
   await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Status" })).toHaveAttribute("aria-current", "true");
@@ -3047,7 +3047,7 @@ test("#102: every rail caption sits at the READABLE step, and still fits at the 
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverDockedStory />);
   await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(2);
-  // Barrier on the SETTLED rails (both rails' cells resolved) before measuring — the admin rail's roster
+  // Barrier on the SETTLED rails (both rails' cells resolved) before measuring — the admin rail's participant
   // cell arrives with its own query. The count is a FLOOR, not an identity: the six game cells plus the
   // admin set this stub produces. What the test is about is that NONE of them is under the floor.
   const game = component.getByRole("toolbar", { name: "Game state" });
@@ -3451,7 +3451,7 @@ test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption 
 
 // ── SIDE-EYE 08-01: THE PANEL STOPS INVENTING READINGS ────────────────────────────────────────────────
 
-/** The same roster actor with NO tracker readings written — the state a fresh game is in before the story
+/** The same participant actor with NO tracker readings written — the state a fresh game is in before the story
  *  has touched anyone's pools (the defs exist; the values do not). */
 function unwrittenTrackerView(): unknown {
   const base = trackerView(false) as { readonly actors: readonly Record<string, unknown>[] };
@@ -4336,7 +4336,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
 
   const detail = component.locator('[data-slot="rpg-character-detail"]');
   await expect(detail).toBeVisible();
-  // The takeover renders (a member reads the roster) — but the host-only grants editor is absent, not disabled.
+  // The takeover renders (a member reads the participants) — but the host-only grants editor is absent, not disabled.
   await expect(detail.locator('[data-slot="rpg-tracker-grants"]')).toHaveCount(0);
 });
 
@@ -4350,7 +4350,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
 // the only instrument that states either fact (`support/ct/touch-floor.ts` says why at length).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The default roster with ONE meter on its actor (Vitality) instead of two — see the hit-tree test below
+/** The default participant list with ONE meter on its actor (Vitality) instead of two — see the hit-tree test below
  *  for why the second meter makes that test unfalsifiable. Everything else is `trackerView(false)` verbatim. */
 function singleMeterTrackerView(): unknown {
   const base = trackerView(false) as Record<string, unknown>;
@@ -4390,10 +4390,10 @@ test.describe("coarse touch floor — the meter row's value and its ceiling", ()
     // a neighbouring one. That is the law being enforced, and it is the thing that changed.
     //
     // AND THE FIXTURE CARRIES ONE METER, NOT TWO, WHICH IS THE WHOLE REASON THIS PIN BITES. With the default
-    // two-meter roster the NEIGHBOURING meter's own pseudo covers the rail's band before the rail can be
+    // two-meter participant list the NEIGHBOURING meter's own pseudo covers the rail's band before the rail can be
     // sampled, so the occluder is unreachable and the pin passes on the broken source (measured, twice — a
     // 5-point sweep AND a full per-pixel sweep). One meter leaves the rail as the only thing under the value,
-    // which is the live 430px geometry the defect was found in. The roster is otherwise untouched.
+    // which is the live 430px geometry the defect was found in. The participant list is otherwise untouched.
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await stubTakeover(page, { tracker: singleMeterTrackerView() });
     const component = await mount(<RpgTakeoverStory />);

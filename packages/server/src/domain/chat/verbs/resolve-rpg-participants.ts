@@ -54,7 +54,7 @@ export function createResolveRpgParticipants(ctx: ChatContext): ResolveRpgPartic
   return async (chatId) => {
     const participants = await loadParticipants(ctx.db, chatId);
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19). A hostless
-    // roster (a racing delete) resolves no character seats; humans still resolve.
+    // room (a racing delete) resolves no character seats; humans still resolve.
     const hostUserId = hostUserIdOf(participants);
     const resolved = await Promise.all(participants.map((row) => resolveSeat(ctx, row, hostUserId)));
     return resolved.filter((a): a is RpgParticipantActor => a !== null);

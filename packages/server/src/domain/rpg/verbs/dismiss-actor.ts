@@ -35,7 +35,7 @@ export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissAc
     const written = await writeHandState(ctx, game, (head) => {
       const actorState = head.state.actorState.filter((a) => actorRefKey(a.actorRef) !== targetKey);
       // The presence half — since R2 the presence plane is a flat list of actor-ref KEYS, so dropping an
-      // actor's presence is the same one-key filter for every kind (roster refs included). It used to need a
+      // actor's presence is the same one-key filter for every kind (participant refs included). It used to need a
       // per-kind join because identity and presence were fused on the npc row.
       const presentCharacters = head.state.presentCharacters.filter((key) => key !== targetKey);
       if (actorState.length === head.state.actorState.length && presentCharacters.length === head.state.presentCharacters.length) {
@@ -49,7 +49,7 @@ export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissAc
       return { ok: false, reason: written.reason };
     }
 
-    // A dismissal is a snapshot write: the whole panel re-resolves (§4.9) — the roster, the scene npcs, and
+    // A dismissal is a snapshot write: the whole panel re-resolves (§4.9) — the participants, the scene npcs, and
     // every projection that read the departed row.
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId: written.snapshotId });
     return { ok: true };
