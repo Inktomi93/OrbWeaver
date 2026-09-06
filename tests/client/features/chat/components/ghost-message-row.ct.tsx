@@ -482,3 +482,28 @@ test("reduced motion: the full streamed text lands immediately, with no pacing l
 
   await expect(component.getByText(longChunk)).toBeVisible();
 });
+
+// ── #1745 (side-eye 2026-09-05): THE `@max-md` AVATAR STEP IS PART OF #1728 ARM B'S PARITY ─────────────
+// `ghost-message-row.tsx` gained the row's `@container` with arm B, but its row-body className never
+// carried the settled row's `@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6` pair (the
+// phone-width chip shrink `message-row.tsx`'s own header documents: 32px avatar-md/8px gap desktop, 24px
+// `size-6`/6px `gap-field` phone). A live turn at a phone-width column therefore streamed through the
+// whole reply at the DESKTOP chip size and only stepped down the instant it settled — a visible one-frame
+// reflow on every reply, mounted here at the story's 360px width (well under the `@max-md` 448px/28rem
+// step) so the container query is live.
+const AVATAR_ROOT = '[data-slot="avatar-root"]';
+const ROW_BODY_SEL = '[data-slot="message-row-body"]';
+
+test("#1745 the ghost's avatar steps down to the phone size at a narrow width, matching the settled row", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={["Hello there."]} speakerName="Marguerite" />);
+  await driveScript(component, 1);
+
+  const avatar = component.locator(AVATAR_ROOT).first();
+  await expect(avatar).toBeVisible();
+  await expect.poll(async () => avatar.evaluate((el) => el.getBoundingClientRect().width)).toBe(24);
+  const gapPx = await component
+    .locator(ROW_BODY_SEL)
+    .first()
+    .evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).columnGap));
+  expect(gapPx).toBe(6);
+});
