@@ -124,9 +124,11 @@ test("patchActor: the target rides the DERIVED actor union and an EMPTY op list 
   // A call that names no op is a write that means nothing — refused here rather than committing a no-op
   // snapshot (which on a committed head would mint a blank state-anchor slot for an unchanged state).
   expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" }, ops: [] }).success).toBe(false);
-  expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcId: "x" }, ops: [{ op: "setStatus", status: "" }] }).success).toBe(
-    false,
-  );
+  // The reserved, unbuilt cross-game library arm (#906) — unrepresentable until `rpg_npcs` lands.
+  expect(
+    rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "libraryNpc", libraryNpcId: "x" }, ops: [{ op: "setStatus", status: "" }] })
+      .success,
+  ).toBe(false);
 });
 
 test("dismissActor: chatId + the derived actor ref, nothing else", () => {

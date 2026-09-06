@@ -29,7 +29,9 @@ test("actor ref parses all three lite arms (character/user/cast)", () => {
   expect(rpgActorRefSchema.safeParse({ kind: "character", characterId }).success).toBe(true);
   expect(rpgActorRefSchema.safeParse({ kind: "user", userId }).success).toBe(true);
   expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: "goblin-scout" }).success).toBe(true);
-  expect(rpgActorRefSchema.safeParse({ kind: "npc", npcId: "x" }).success).toBe(false);
+  // The RESERVED, unbuilt cross-game library arm (#906 renamed it off the bare `npc`, which the scene extra
+  // now spends): it is not in the union until `rpg_npcs` lands, and this pin is what says so.
+  expect(rpgActorRefSchema.safeParse({ kind: "libraryNpc", libraryNpcId: "x" }).success).toBe(false);
 });
 
 test("actorRefKey projects a stable distinct key per arm", () => {

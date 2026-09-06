@@ -226,7 +226,8 @@ test("ActorRefInput mirrors RpgActorRef ARM BY ARM (a union's `keyof` only sees 
   pin<Complete>(keys<Extract<ActorRefInput, { kind: "user" }>, Extract<RpgActorRef, { kind: "user" }>>());
   pin<Complete>(keys<Extract<ActorRefInput, { kind: "cast" }>, Extract<RpgActorRef, { kind: "cast" }>>());
   // Every contract arm is representable by the mirror input (the branded ids widen to `string`), and the arm
-  // vocabulary itself is pinned — a NEW ref arm (full's `{kind:"npc"}`) fails here, not in a live spec.
+  // vocabulary itself is pinned — a NEW ref arm (full's reserved `{kind:"libraryNpc"}`) fails here, not in a
+  // live spec.
   expectTypeOf<RpgActorRef>().toExtend<ActorRefInput>();
   expectTypeOf<ActorRefInput["kind"]>().toEqualTypeOf<RpgActorRef["kind"]>();
 });
