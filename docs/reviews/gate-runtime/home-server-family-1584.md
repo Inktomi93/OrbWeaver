@@ -145,13 +145,14 @@ as `knownPolicies`** (a hand-picked roster manufactures \~100 unknown-policy wai
 selected, and `reviewedGrantsFor(policies)`:
 
 ```
-knownPolicies=89 selected=11 loadedSources=7209
-workspaceMs=7444 passMs=21232 wallMs=28676
+knownPolicies=89 selected=11 loadedSources=7212
+workspaceMs=4328 passMs=14852 wallMs=19180
 factErrors=0 toolErrors=0 authorityToolErrors=0 alarms=0 withheld=[]
 raw=40 waived=0 granted=40 effective=0
 ```
 
-`/usr/bin/time -v`: **29.75 s wall, 3,833,236 KiB peak RSS**, 0 swaps, 0 major page faults. **All 40 grant
+`/usr/bin/time -v`: **20.30 s wall, 4,019,828 KiB peak RSS**, 0 swaps, 0 major page faults (an earlier
+identical-verdict run on a busier box measured 29.75 s / 3,833,236 KiB, so read the wall as a range). **All 40 grant
 rows consumed EXACTLY once** — no stale row, no over-broad row. Per-policy cost is concentrated where the
 population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s over 3,367,
 `no-raw-clock` 0.6 s, `sole-env-reader` 0.6 s over 1,488; the other seven total under 1 s combined.
