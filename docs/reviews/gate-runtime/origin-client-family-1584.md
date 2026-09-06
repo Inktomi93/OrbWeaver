@@ -1,0 +1,214 @@
+---
+kind: review
+status: active
+updated: 2026-09-06
+---
+
+# Canonical-origin client family (#1584)
+
+Twelve client-side policies whose only missing primitive was canonical symbol/member origin. Parent program:
+[#1584](https://github.com/Inktomi93/orbweaver/issues/1584); branch `codex/gate-tsmorph-standardization`, lane
+base `519242add`. Every one of the twelve asserted its subject's identity by comparing TEXT — an export name,
+a method name, a property name, a `use*Store` regex, a `trpc` root spelling — and every one carried the two
+failure modes that follow: an alias, namespace, re-export, computed or const-chained spelling walked past it,
+and a same-named local or third-party lookalike red as the real thing.
+
+## Disposition
+
+| Policy | Authority | Family | Execution | Identity now resolved through |
+| - | - | - | - | - |
+| `no-forward-ref` | ordinary | `react-origin` | selected-files | module origin: React's `forwardRef` export |
+| `no-use-context` | ordinary | `react-origin` | selected-files | module origin: React's `useContext` export |
+| `no-context-provider` | ordinary | `react-origin` | selected-files | the `Provider` property symbol's declaration home (React's `Context`) |
+| `no-context-returntype` | ordinary | singleton | selected-files | ambient-global origin: TypeScript's `ReturnType` utility |
+| `fetch-fn-in-features` | ordinary | singleton | selected-files | ambient-global origin: the `fetch` wire primitive |
+| `no-manual-token-estimate` | ordinary | singleton | selected-files | the ambient `length` member plus `readStaticNumber` on the divisor |
+| `no-inline-optimistic-in-surface` | ordinary | `tanstack-query-origin` | selected-files | `cancelQueries`/`setQueryData` declared by `@tanstack/query-core` |
+| `no-static-staletime` | ordinary | `tanstack-query-origin` | selected-files | the CONTEXTUAL `staleTime` property + `readStaticString` on the value |
+| `no-multiplexed-mutation-error` | ordinary | `tanstack-query-origin` | **entire-population** | `error` declared by `EntityMutationResult` or query-core |
+| `no-chat-trpc-in-surface` | ordinary | `trpc-proxy-origin` | selected-files | `mutationOptions` + the `TRPCOptionsProxy` chain root, both from `@trpc/tanstack-react-query` |
+| `zustand-selector-stability` | ordinary | singleton | **entire-population** | the callee's `GatedStoreHook` / `UseBoundStore` type home |
+| `no-manual-autosave-flush` | ordinary | singleton | selected-files | the form members declared by `@tanstack/form-core`'s `FormApi` |
+
+All twelve are `ordinary` per the manifest and none needed a reviewed grant. **No `REVIEWED_GRANTS` rows were
+added.** The one policy with a sanctioned HOME — `no-manual-token-estimate`'s estimator — keeps that home as
+a semantic condition (any file EXPORTING `estimateTokens`) rather than a grant row, because the legacy header
+recorded that choice deliberately: "excluded structurally by the symbol it exports — never by a file-path
+pin (path-keyed gates die on rename)". A grant row keyed on a subject path would reintroduce exactly the
+fragility the exported-symbol test avoids. Recorded here as a fork for the owner rather than taken silently.
+
+### `execution` re-derived away from the manifest
+
+The manifest classified all twelve `selected-files`. Two were re-derived to `entire-population` from source:
+their identity ANCHOR is a project file (`packages/client/src/data/create-entity-mutation.ts`,
+`packages/client/src/state/create-gated-store.ts`), so a narrowed selection that does not carry the anchor
+cannot render a verdict. `entire-population` DEFERS them loudly on such a selection; `selected-files` would
+have passed every occurrence in the selection silently. The whole-project run is unaffected.
+
+## Shared readers added
+
+Three new `lib/` readers, each a pure function over delivered nodes — no walk, no Project, no cache beyond an
+invocation-local per-file index.
+
+- **`lib/type-member-origin.ts`** (+ `contract/type-member-origin.ts`): `resolveTypeMemberOrigin`,
+  `resolveContextualMemberOrigin`, `resolveTypeIdentityOrigin`, and the `declaredByPackage` /
+  `declaredByFile` / `declaredByAnyPackage` home matchers. This is the half `reference-fact.ts` cannot supply:
+  every one of these policies has a receiver produced at runtime (`useTRPC()`, `useQueryClient()`, a store
+  hook, a form api, a mutation result), which the value walk correctly refuses as a dynamic terminal. The
+  identity available is the DECLARATION of the property symbol the checker resolved, and a package directory
+  (`/node_modules/@tanstack/query-core/`) survives version bumps, pnpm's virtual store and the package's
+  internal `dist/`/`build/` layout where a pinned file path does not.
+- **`lib/origin-verdict.ts`**: the three-answer classifier. A shared reader's refusal conflates "provably a
+  different binding" (a local function, parameter, method, property) with "could not be read" (an import door
+  with no resolvable target). Only the second is a fail-closed finding; conflating them is how a text-keyed
+  gate acquires permanent exemption markers or a silent green. `write`/`cycle`/`ambiguous` are unreadable
+  unconditionally — `let fetch = globalThis.fetch` binds a local declaration AND still holds the banned identity.
+- **`lib/react-origin.ts`**: the canonical React export matcher (per-file alias index + origin resolution)
+  and `reactExportVisitors`, the two-door visitor pair `no-forward-ref` and `no-use-context` share so their
+  arm coverage cannot drift.
+
+Proof substrate: `gates/_proof/react.ts` and `gates/_proof/client-vendors.ts` create REAL resolvable package
+doors in the in-memory proof workspace (`node_modules/@types/react/index.d.ts`, `@tanstack/query-core`,
+`@tanstack/react-query`, `@tanstack/form-core`, `@trpc/tanstack-react-query`) plus a LOOKALIKE package
+exporting every one of the same names. The lookalike is the counterfactual half of every identity claim.
+
+## Proofs
+
+109 policy proofs, plus 2 blindness-tripwire pins and 10 focused reader controls — all green
+(`tests/tooling/verify/gates/origin-client-family.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
+
+| Policy | mustFlag | mustPass | total |
+| - | -: | -: | -: |
+| `fetch-fn-in-features` | 4 | 6 | 10 |
+| `no-chat-trpc-in-surface` | 4 | 4 | 8 |
+| `no-context-provider` | 4 | 4 | 8 |
+| `no-context-returntype` | 2 | 5 | 7 |
+| `no-forward-ref` | 6 | 4 | 10 |
+| `no-inline-optimistic-in-surface` | 3 | 3 | 6 |
+| `no-manual-autosave-flush` | 4 | 6 | 10 |
+| `no-manual-token-estimate` | 5 | 7 | 12 |
+| `no-multiplexed-mutation-error` | 4 | 4 | 8 |
+| `no-static-staletime` | 5 | 5 | 10 |
+| `no-use-context` | 7 | 4 | 11 |
+| `zustand-selector-stability` | 4 | 5 | 9 |
+
+Every policy carries the identity matrix its subject can take: an import alias, a namespace member, a
+computed-literal member, a re-export door, a const chain across modules, a local shadow, a parameter shadow,
+a same-named project interface, and the same names from a DIFFERENT package. Fail-closed rows (`#944`) are
+written where an unreadable identity must still be reported.
+
+## Same-fixture old/new agreement
+
+Every frozen legacy descriptor was replayed over the exact file map of every new proof
+(`scratch/cb-origin-client/replay.ts`, receipts in `/tmp/cb-origin-client-replay.txt`). Every delta is
+deliberate and falls into two classes.
+
+**Legacy 0 → new ≥1 (a spelling escape the text check could not see), 17 rows:**
+
+| Policy | Escape the legacy check missed |
+| - | - |
+| `fetch-fn-in-features` | `globalThis.fetch`, `globalThis["fetch"]`, a const alias of the global |
+| `no-chat-trpc-in-surface` | the proxy bound under any name but `trpc`; the fully computed-literal chain |
+| `no-forward-ref` | a namespace member, a computed-literal member, and the CALL half of an aliased import |
+| `no-use-context` | the same three |
+| `no-inline-optimistic-in-surface` | the computed-literal method spelling |
+| `no-manual-autosave-flush` | the computed-literal spelling of both calls |
+| `no-manual-token-estimate` | an imported ratio, and a const chain to the ratio |
+| `no-multiplexed-mutation-error` | the computed-literal spelling of both operands |
+| `no-static-staletime` | a const alias of `"static"`, and the same alias one module away |
+| `zustand-selector-stability` | a store hook not matching `/^use[A-Z].*Store$/`, and an `as`-wrapped literal |
+
+**Legacy ≥1 → new 0 (a lookalike the text check red), 16 rows:** a local `forwardRef`/`useContext` helper; a
+context.ts declaring its OWN `ReturnType`; a project type named `ReturnType`; a parameter named `fetch`; an
+imported `fetch` polyfill; Base UI's namespace `.Provider`; another package's `createContext`/`forwardRef`/
+`useContext`; a project interface with a `setQueryData`/`pushFieldValue`/`handleSubmit`/`length`/`error`
+member; a local `useUserStore` helper; mixed operands where only one side is a mutation result; and the
+estimator home reached through a re-export.
+
+## Population equality
+
+Legacy `scanRoot` admitted sets vs the declared populations, over the same 7,181-file harness corpus
+(`scratch/cb-origin-client/population.ts`, receipts in `/tmp/cb-origin-client-population.txt`):
+
+- **Exact, zero delta (7):** `fetch-fn-in-features` (1,000), `no-chat-trpc-in-surface` (66),
+  `no-context-returntype` (32), `no-inline-optimistic-in-surface` (66), `no-manual-autosave-flush` (1,000),
+  `no-manual-token-estimate` (3,220), `no-multiplexed-mutation-error` (1,311).
+- **One classified delta (5):** `no-context-provider`, `no-forward-ref`, `no-use-context` (7,181 → 7,180) and
+  `no-static-staletime`, `zustand-selector-stability` (5,186 → 5,185) each drop exactly
+  `packages/showcase-plugins/src/index.ts`. Those five had no `scanRoot` at all (admit-all over the loaded
+  corpus); `@authored` names the six cake packages plus `tooling/src`, `tests/` and `scripts/`, and excludes
+  `showcase-plugins` by design. This is the same classified delta the schema-fact lane recorded for
+  `@packages`. No path is admitted that the legacy predicate rejected.
+
+## Real-tree differential
+
+Legacy descriptors over the current tree (`scratch/cb-origin-client/legacy-tree.ts`): **3 findings**, all
+`no-context-provider`, all Base UI namespace components —
+`packages/ui/src/primitives/{drawer/drawer,toast/toast,tooltip/tooltip}.tsx`. Those three were previously
+SUPPRESSED by three permanent legacy ignore markers, so the legacy EFFECTIVE count was 0.
+
+Final policies over the current tree, one pass over the whole family
+(`scratch/cb-origin-client/real-pass.ts`, `knownPolicies` = all 64 `defineGate` modules on the tree,
+`reviewedGrants: reviewedGrantsFor(policies)`):
+
+```
+knownPolicies=64 selected=12 loadedSources=7196
+workspaceMs=4219 passMs=18574 wallMs=22793
+factErrors=0 toolErrors=0 authorityToolErrors=0 alarms=0
+withheld=[]
+raw=0 waived=0 granted=0 effective=0
+```
+
+`/usr/bin/time -v`: 24.03 s wall, 5,554,516 KB peak RSS, 0 swaps, 0 major page faults, 1,416,899 minor faults.
+All 12 owners `success/complete`. Per-policy cost is concentrated in `no-manual-autosave-flush` (5.0 s),
+`zustand-selector-stability` (1.6 s) and `no-multiplexed-mutation-error` (1.2 s); the other nine total under
+2 s combined. Both home receipts are healthy: `EntityMutationResult` members 1 unresolved 0, `GatedStoreHook`
+members 1 unresolved 0.
+
+**Classification of the −3 delta:** all three are legacy FALSE POSITIVES. Base UI's `Drawer.Provider`,
+`Tooltip.Provider` and `Toast.Provider` are namespace COMPONENTS, and their `Provider` property is declared by
+Base UI, not by React's `Context`. Three standing markers whose stated reason is "the gate is asking the wrong
+question" are a detector defect, not an exemption vocabulary, so the markers are **DELETED with the
+conversion, not translated** into the central occurrence-waiver grammar: a translated marker would consume nothing and become an
+`ordinary-waiver` alarm. The Base UI shape is committed as a `no-context-provider` mustPass row.
+
+**Waiver consumption:** zero live legacy ignore markers name any of the twelve policies after the three
+deletions. The search's positive control, in the same invocation over `packages`, `tests`, `tooling` and
+`scripts`: 770 markers across 407 files, so the zero is a measurement rather than an unreachable path.
+Nothing to translate; `reviewedGrantConsumption` is empty and there are no authority alarms.
+
+## Planted positive control
+
+A real-tree zero is only evidence if the same run bites a plant. Nine virtual files were added to the loaded
+typed workspace — plants against the REAL `@types/react`, `@tanstack/react-query`, `@tanstack/form-core`,
+`zustand`, the app's own `data/trpc.ts`, `data/create-entity-mutation.ts` and `state/create-gated-store.ts`
+(`scratch/cb-origin-client/planted-control.ts`). Result: **13 findings across all 12 policies, every verdict
+clean (not the fail-closed "unreadable" message), zero stray findings elsewhere in the corpus.**
+
+Two plant iterations were themselves informative and are recorded so a future lane does not repeat them: a
+plant naming a router verb that does not exist (`trpc.chat.createChat`) and a plant importing a type the
+package does not export (`AnyFormApi`) both produce the fail-closed unreadable message, which reads exactly
+like a policy defect. A plant must use a spelling the real tree already type-checks.
+
+## Declared limits, written as mustPass rows
+
+- `no-context-returntype`: reflection reached through ANOTHER module's alias (`type Reflected<F> = ReturnType<F>`
+  elsewhere) is not reported — the `ReturnType` is authored outside this population.
+- `fetch-fn-in-features`: a const alias of the global read TEXTUALLY ABOVE its own declaration is not indexed
+  in time; the alias set is filled in document order and closing it would need a second whole-file pass.
+- `no-static-staletime`: a SPREAD source (`const BASE = { staleTime: "static" }; useQuery({ ...BASE })`) is
+  checked against nothing at its own site and has no contextual owner.
+- `react-origin`'s import door: a re-export shim that RENAMES (`export { forwardRef as fr }`, then
+  `import { fr }`) is not a candidate at its door; the call site still resolves it.
+
+## Known limits and runtime follow-ups (not worked around)
+
+- **`resolveModuleMemberOrigin` refuses an OVERLOADED export as `ambiguous`.** React's `useState` has two
+  declarations, so the reader cannot name it. This is the same class the checkpoint already recorded for
+  drizzle-orm's overloaded operators, and it needs the same shared overload-aware origin reader. React's
+  `forwardRef` and `useContext` are single-declaration today and resolve cleanly (proven by the planted
+  control against the real `@types/react`); if React adds an overload, both policies flip to the LOUD
+  unreadable finding rather than to a silent pass.
+- The `#data` / `#forms` package-internal import aliases DO resolve in the `getWorkspace({types:true})`
+  program, so a surface importing `useTRPC` from `#data` is judged with the precise verdict, not the
+  fail-closed one (verified by the planted control).
