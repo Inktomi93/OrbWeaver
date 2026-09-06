@@ -1,270 +1,447 @@
-// Gate: no-raw-zustand-persist (UI-Gates-and-Lessons.md §11.5) — the persistence footguns (partialize,
-// version + total migrate, key uniqueness) are baked into the two store factories; a bare `persist(` is a
-// store that re-grows them.
+// Policy: no-raw-zustand-persist (UI-Gates-and-Lessons.md §11.5) — three arms of ONE law: the persistence
+// footguns are baked into the two store factories and nothing else may spell them.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the factories are SCANNED and their `persist(`
-// calls exempted by cited rows, not scoped out of scanRoot — an exclusion un-scans the WHOLE file, so a
-// second unrelated footgun inside a factory was invisible.
+//   A — a bare `persist(` outside the factories re-grows partialize / version+total-migrate / key uniqueness.
+//   B — `setState(store.getInitialState(), true)` on a persist-minted store is NOT an in-memory drop (#879,
+//       from #837): zustand's `persist` patches `setState` to write through, so the reset OVERWRITES the
+//       durable blob with defaults and the next `rehydrate()` reads the emptied one back. That made every
+//       `orb:*` blob app-wide inert on every boot. It is legal only inside the two mint factories, whose
+//       `reset` closures the durable-local registry drives through `resetWithoutPersisting`.
+//   C — the seam that makes B total: inside the durable-local REGISTRY, a registered store's `reset()` may
+//       only be called from a function that installs the storage blindfold (`persist.setOptions({storage})`).
+//       A third caller elsewhere in that file drops a store WITHOUT the blindfold, which is #837 one layer up.
 //
-// TWO-SIDED (gate-hub #10) at the STRONG grain, because the table names FILES that make a CLAIM ("this file
-// is a persist factory"): a row is RED when its file has left the project (mode B) OR when the file no
-// longer calls `persist(` (mode A — the row claims a factory that is not one, and the fix text points at a
-// factory that has moved). Both arms are this gate's own, with tailored messages, so the shared
-// lib/sanctioned-home.ts sweep is deliberately NOT stacked on top of them. They self-guard on a REAL-TREE
-// ANCHOR (gate-hub #11): the state barrel these factories are exported from.
+// AUTHORITY IS reviewed-grant. The two factories are recurring repository PERMISSIONS for arms A and B, as
+// exact `(subject, operation)` rows in `lib/reviewed-grants.ts`. That single table also replaces the
+// module's own two-sided staleness sweep: a factory that MOVED and a factory that stopped calling `persist(`
+// are the same thing to central reconciliation — zero consumption, STALE — and the sweep's third arm (the
+// §4.6 blindness tripwire for arm C) becomes a RECEIPT REFUSAL, which is what a policy that cannot find its
+// subject owes.
 //
-// ARM B — THE DESTRUCTIVE-RESET HOME (#879, from #837). `setState(store.getInitialState(), true)` on a
-// persist-MINTED store is not an in-memory drop: zustand's `persist` PATCHES `setState` to write the new
-// state through to whatever key the store currently holds, so the reset OVERWRITES a real blob with
-// defaults — and `rehydrate()` then reads the emptied blob back. That made every `orb:*` blob app-wide
-// inert on every boot (#837). The reset is legal ONLY inside the two mint factories, whose `reset` closures
-// the durable-local registry drives through `resetWithoutPersisting` (which blindfolds the store's storage
-// for the duration). SAME sanctioned homes as ARM A, deliberately ONE table: the claim "these two files are
-// the persist factories" has one home, and a second gate would carry a second copy of it that rots apart.
-//
-// ARM C — the seam that makes ARM B total. Inside the durable-local REGISTRY file (found by the file that
-// declares `registerDurableLocalStore`, with a §4.6 tripwire when that name resolves to nothing), a
-// registered store's `reset()` may only be called from a function that installs the blindfold
-// (`persist.setOptions({ storage })`). The registry entry type is file-private, so that file is the whole
-// reachable surface — a third caller elsewhere in it would drop a store WITHOUT the blindfold, which is
-// #837 verbatim one layer up.
-import type { SourceFile, CallExpression as TsCall } from "ts-morph";
+// IDENTITY, NOT SPELLING, on every arm. `persist` was `getExpression().getText() === "persist"`, so a local
+// helper of that name red and an aliased import walked past; `setState`/`getInitialState` were method NAMES
+// on any receiver; `reset`/`setOptions` were method names inside a file found by `getFunction(...)`. The
+// subjects are now zustand's own declarations, the registry's own `RegisteredStore.reset`, and the registry's
+// own `setOptions` — and the registry file is still located by the DECLARATION it exports, never by a path
+// constant, which is the legacy module's own recorded ruling.
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
-import { sanctionedHome } from "../lib/sanctioned-home.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyPackageMemberOrigin, readPackageExportOrigin } from "../lib/project-home-origin.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { declaredByFile, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { storeLookalikeProof, zustandProof } from "./_proof/zustand.ts";
 
-const SCOPE_REGEX = /\/packages\/client\/src\//u;
-const STATE_DIR = "packages/client/src/state/";
+const ZUSTAND = "zustand";
 const PERSIST = "persist";
-/** The persist FACTORIES — the only sanctioned `persist(` call sites. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  [`${STATE_DIR}create-entity-draft-store.ts`]: {
-    why: "the draft-store factory bakes the footguns in (partialize / version+total-migrate / key uniqueness) — the `persist(` call it wraps IS the seal. Ends when it stops calling persist (mode A) or leaves the project (mode B)",
-  },
-  [`${STATE_DIR}create-persisted-store.ts`]: {
-    why: "the general persisted-store factory, same seal one shape over. Same two end conditions",
-  },
-};
-const TEST_REGEX = /\.test\.tsx?$/u;
-
-const GATE_SELF = "tooling/src/verify/gates/no-raw-zustand-persist.ts";
-/** Real-tree anchor (gate-hub #11): the state barrel the factories are exported from. */
-const ANCHOR = `${STATE_DIR}index.ts`;
-const STALE_GONE = "stale SANCTIONED_HOMES row — the persist factory is no longer in the project (ratchet down): ";
-const STALE_UNUSED =
-  "stale SANCTIONED_HOMES row — this file calls no `persist(` any more, so it is not a persist factory and " +
-  "the fix text points at a factory that has moved (ratchet down): ";
-
-const MESSAGE =
-  "raw zustand persist() outside the draft-store factory — persistence footguns (partialize / version+total-migrate / key uniqueness) are baked into createEntityDraftStore; use it (or extend it), never a bare persist. ARM B (#879, from #837): and `setState(store.getInitialState(), true)` on a persist-minted store is legal ONLY in those same two factories — `persist` patches `setState` to write through, so the reset OVERWRITES the durable blob with defaults and the next rehydrate reads the emptied one back. Go through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first. ARM C: inside the durable-local registry file, a registered store's `reset()` may only be called from the function that installs that blindfold. See UI-Gates-and-Lessons.md §11.5.";
-
-/** ARM B: the two calls that spell a persist-through destructive reset. */
 const SET_STATE = "setState";
 const GET_INITIAL_STATE = "getInitialState";
-/** ARM C: the registry file is found by the function it declares, never by a path constant (§3). */
-const REGISTRY_DECL = "registerDurableLocalStore";
 const RESET = "reset";
-/** The blindfold install — `persist.setOptions({ storage: … })`. A `reset()` caller that never touches it
- *  is dropping a store's projection straight through to durable storage. */
 const SET_OPTIONS = "setOptions";
+/** The registry is found by the function it DECLARES, never by a path constant — the legacy module's own
+ *  ruling, kept: a path pin dies on a rename while an exported declaration is the thing being fenced. */
+const REGISTRY_DECL = "registerDurableLocalStore";
+const PERSIST_NAMES: ReadonlySet<string> = new Set([PERSIST]);
 
-/** ARM C's subject, for every example that loads the ANCHOR but is not about ARM C: without it the §4.6
- *  tripwire would fire in rows that prove something else entirely. */
-const REGISTRY_STUB = "export function registerDurableLocalStore(entry) {\n  registry.push(entry);\n}\n";
+const OPERATIONS = {
+  persistMint: "zustand-persist-mint",
+  destructiveReset: "destructive-store-reset",
+  unblindfoldedReset: "unblindfolded-registered-reset",
+} as const;
 
-const REGISTRY_BLIND =
-  `blindness tripwire (GATE-AUTHORING.md §4.6): the client tree is loaded but NO file declares \`${REGISTRY_DECL}\`, ` +
-  "so ARM C — a registered store's `reset()` may only run behind the storage blindfold — judged nothing at " +
-  "all and this gate's ✓ for it is a placebo. Re-point the derivation at the durable-local registry's " +
-  "current spelling: tooling/src/verify/gates/no-raw-zustand-persist.ts";
+const MESSAGE =
+  "raw zustand persistence outside its sealed homes — the footguns (partialize / version+total-migrate / key " +
+  "uniqueness) are baked into `createEntityDraftStore` / `createPersistedStore`; a destructive " +
+  "`setState(store.getInitialState(), true)` on a persist-minted store writes the emptied state THROUGH to " +
+  "durable storage (#879, from #837), so it belongs to those same factories; and inside the durable-local " +
+  "registry a registered store's `reset()` may only run behind the storage blindfold. See " +
+  "UI-Gates-and-Lessons.md §11.5.";
+const UNREADABLE =
+  "this expression is spelled like zustand's persistence api but the shared readers cannot place its binding, so whether it is the middleware CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+const FIX =
+  "use createEntityDraftStore / createPersistedStore instead of a bare persist(); drop a store through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first.";
 
-/** ARM B: `<anything>.setState(<anything>.getInitialState(), true)` — the destructive persist-through reset.
- *  `true` is zustand's REPLACE flag; without it the call is an ordinary merge and not this defect. */
-function isDestructiveReset(call: TsCall): boolean {
-  const callee = call.getExpression();
-  if (!Node.isPropertyAccessExpression(callee) || callee.getName() !== SET_STATE) {
-    return false;
+interface Ranged {
+  readonly start: number;
+  readonly end: number;
+  readonly file: object;
+}
+
+function ranged(node: MorphNode): Ranged {
+  return { start: node.getStart(), end: node.getEnd(), file: node.getSourceFile().compilerNode };
+}
+
+function contains(outer: Ranged, inner: Ranged): boolean {
+  return outer.file === inner.file && outer.start <= inner.start && inner.end <= outer.end;
+}
+
+/** The member name a callee reads, across dotted and computed-literal spellings. */
+function memberName(callee: MorphNode): string | null {
+  let name: string | null = null;
+  if (Node.isPropertyAccessExpression(callee)) {
+    name = callee.getName();
+  }
+  if (Node.isElementAccessExpression(callee)) {
+    const argument = callee.getArgumentExpression();
+    const literal = argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument));
+    name = literal ? argument.getLiteralText() : null;
+  }
+  return name;
+}
+
+/** ARM B's shape: `<store>.setState(<store>.getInitialState(), true)`. `true` is zustand's REPLACE flag —
+ *  without it the call is an ordinary merge and not this defect. */
+function destructiveResetArgument(call: MorphNode): MorphNode | null {
+  if (!Node.isCallExpression(call)) {
+    return null;
   }
   const [first, second] = call.getArguments();
-  const inner = first?.asKind(SyntaxKind.CallExpression)?.getExpression();
-  return second?.getKind() === SyntaxKind.TrueKeyword && inner !== undefined && Node.isPropertyAccessExpression(inner) && inner.getName() === GET_INITIAL_STATE;
+  if (second?.getKind() !== SyntaxKind.TrueKeyword || first === undefined || !Node.isCallExpression(first)) {
+    return null;
+  }
+  const inner = first.getExpression();
+  return memberName(inner) === GET_INITIAL_STATE ? inner : null;
 }
 
-/** ARM C: does the function enclosing this call install the storage blindfold? A `reset()` reached from
- *  anywhere else in the registry file writes the emptied projection through to durable storage (#837). */
-function behindTheBlindfold(call: TsCall): boolean {
-  for (const a of call.getAncestors()) {
-    const body =
-      Node.isFunctionDeclaration(a) || Node.isMethodDeclaration(a) || Node.isFunctionExpression(a) || Node.isArrowFunction(a) ? a.getBody() : undefined;
-    if (body === undefined) {
-      continue;
+/** The enclosing function body of a call, for ARM C's blindfold question. Ancestors only — a policy owns no
+ *  descendant traversal, so the `setOptions` calls that answer it come from the shared walk instead. */
+function enclosingBody(call: MorphNode): MorphNode | null {
+  let body: MorphNode | null = null;
+  for (const ancestor of call.getAncestors()) {
+    const callable =
+      Node.isFunctionDeclaration(ancestor) || Node.isMethodDeclaration(ancestor) || Node.isFunctionExpression(ancestor) || Node.isArrowFunction(ancestor);
+    if (body === null && callable) {
+      body = ancestor.getBody() ?? null;
     }
-    return body
-      .getDescendantsOfKind(SyntaxKind.CallExpression)
-      .some(
-        (c) =>
-          Node.isPropertyAccessExpression(c.getExpression()) && c.getExpression().asKindOrThrow(SyntaxKind.PropertyAccessExpression).getName() === SET_OPTIONS,
-      );
   }
-  return false;
+  return body;
 }
 
-/** Whether ARM C's subject — the durable-local registry — was seen this pass (the §4.6 tripwire's input). */
-let registryFileSeen = false;
-/** Per-FILE memo for "is this the registry file" — the walk asks once per CallExpression, and
- *  `getFunction` re-scans the file's statements on every call. Pass-scoped by construction (§12: the memo
- *  is a single file, never a Project-keyed map). */
-let memoFile: SourceFile | undefined;
-let memoIsRegistry = false;
-
-function isRegistryFile(sf: SourceFile): boolean {
-  if (memoFile !== sf) {
-    memoFile = sf;
-    memoIsRegistry = sf.getFunction(REGISTRY_DECL) !== undefined;
-  }
-  return memoIsRegistry;
+interface Found {
+  readonly node: MorphNode;
+  readonly subject: string;
+  readonly operation: string;
+  readonly token: string;
+  readonly unreadable: boolean;
 }
 
-export const gate: GateDescriptor = {
-  name: "no-raw-zustand-persist",
-  docRow: "UI-Gates-and-Lessons.md §11.5",
-  status: "active",
-  scopeSafety: "incremental-safe",
+/** ARM A: is this callee zustand's `persist` middleware? The reported TOKEN is the spelling at the site —
+ *  an aliased import is anchored on the alias, because that is the text a position engine finds there. */
+function persistCandidate(callee: MorphNode, subject: string, spelling: string): Found | null {
+  const { verdict } = readPackageExportOrigin(callee, [ZUSTAND], PERSIST_NAMES);
+  return verdict === "other" ? null : { node: callee, subject, operation: OPERATIONS.persistMint, token: spelling, unreadable: verdict === "unreadable" };
+}
+
+/** ARM B: is this the destructive persist-through reset on a zustand store api? */
+function destructiveCandidate(call: MorphNode, callee: MorphNode, subject: string): Found | null {
+  const inner = destructiveResetArgument(call);
+  if (inner === null) {
+    return null;
+  }
+  const verdict = classifyPackageMemberOrigin(callee, [ZUSTAND]);
+  return verdict === "other"
+    ? null
+    : { node: inner, subject, operation: OPERATIONS.destructiveReset, token: GET_INITIAL_STATE, unreadable: verdict === "unreadable" };
+}
+
+interface CallSite {
+  readonly subject: string;
+  readonly source: SourceFile;
+}
+
+interface CallSinks {
+  readonly push: (found: Found | null) => void;
+  readonly blindfolds: Ranged[];
+  readonly resets: ResetSite[];
+  /** Local names this file bound the `persist` middleware to at an import specifier — the alias half of the
+   *  candidate prefilter, since an ImportSpecifier's `getName()` is the EXPORT name even when aliased. */
+  readonly persistAliases: ReadonlySet<string>;
+}
+
+/** One call, routed to whichever arm its callee name could belong to. The name filter is the CANDIDATE
+ *  PREFILTER — resolving an origin for every call in the client tree does not finish — and every arm still
+ *  proves identity before it reports. */
+function visitCall(call: MorphNode, site: CallSite, sinks: CallSinks): void {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const callee = call.getExpression();
+  const name = memberName(callee) ?? (Node.isIdentifier(callee) ? callee.getText() : null);
+  if (name !== null && (name === PERSIST || sinks.persistAliases.has(name))) {
+    sinks.push(persistCandidate(callee, site.subject, name));
+    return;
+  }
+  if (name === SET_STATE) {
+    sinks.push(destructiveCandidate(call, callee, site.subject));
+    return;
+  }
+  if (name === SET_OPTIONS) {
+    sinks.blindfolds.push(ranged(call));
+    return;
+  }
+  if (name === RESET) {
+    const body = enclosingBody(call);
+    sinks.resets.push({ node: callee, subject: site.subject, body: body === null ? null : ranged(body), source: site.source });
+  }
+}
+
+interface ResetSite {
+  readonly node: MorphNode;
+  readonly subject: string;
+  readonly body: Ranged | null;
+  readonly source: SourceFile;
+}
+
+/** ARM C: a registered store's `reset()` inside the registry, not behind the storage blindfold. The
+ *  registered identity is the `reset` member DECLARED BY the registry file itself — its `RegisteredStore`
+ *  is file-private, which is exactly what makes that file the whole reachable surface. */
+function unblindfoldedReset(reset: ResetSite, registryFiles: ReadonlySet<object>, blindfolds: readonly Ranged[]): Found | null {
+  if (!registryFiles.has(reset.source.compilerNode)) {
+    return null;
+  }
+  const origin = resolveTypeMemberOrigin(reset.node);
+  if (!(origin.kind === "resolved" && declaredByFile(origin.value.declarations, reset.source))) {
+    return null;
+  }
+  const body = reset.body;
+  if (body !== null && blindfolds.some((installed) => contains(body, installed))) {
+    return null;
+  }
+  return { node: reset.node, subject: reset.subject, operation: OPERATIONS.unblindfoldedReset, token: RESET, unreadable: false };
+}
+
+const REGISTRY_PROOF = {
+  "packages/client/src/state/durable-local.ts": [
+    "interface RegisteredStore {",
+    "  readonly api: { readonly persist?: { readonly setOptions: (options: unknown) => void } };",
+    "  readonly reset: () => void;",
+    "}",
+    "const registry: RegisteredStore[] = [];",
+    "export function registerDurableLocalStore(entry: RegisteredStore): void {",
+    "  registry.push(entry);",
+    "}",
+    "function resetWithoutPersisting(entry: RegisteredStore): void {",
+    "  entry.api.persist?.setOptions({});",
+    "  entry.reset();",
+    "}",
+    "export function resetAll(): void {",
+    "  for (const entry of registry) {",
+    "    resetWithoutPersisting(entry);",
+    "  }",
+    "}",
+    "",
+  ].join("\n"),
+};
+
+export const gate = defineGate({
+  id: "no-raw-zustand-persist",
+  family: "no-raw-zustand-persist",
+  authority: "reviewed-grant",
+  severity: "error",
+  // The legacy predicate was client sources minus `*.test.tsx?`; the factory homes are grants now, so
+  // nothing is subtracted for them.
+  population: { in: ["@client"], notNamed: ["*.test.ts", "*.test.tsx"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "Use createEntityDraftStore or createPersistedStore instead of bare persist().",
-  scanRoot: (p) => {
-    const path = `/${p}`;
-    return SCOPE_REGEX.test(path) && !TEST_REGEX.test(path);
-  },
-  kinds: [SyntaxKind.CallExpression],
-  begin: () => {
-    registryFileSeen = false;
-  },
-  visit: (node, sf, ctx) => {
-    if (!Node.isCallExpression(node)) {
-      return;
-    }
-    // ARM C first: the registry file is a SANCTIONED HOME for ARM A/B (it is not, today — but the check
-    // order must not depend on that), and its own rule is about `reset()`, not about the factory table.
-    if (isRegistryFile(sf)) {
-      registryFileSeen = true;
-      const callee = node.getExpression();
-      if (Node.isPropertyAccessExpression(callee) && callee.getName() === RESET && !behindTheBlindfold(node)) {
-        ctx.report(node, { token: `${RESET}(`, offset: 0 });
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    const resets: { readonly node: MorphNode; readonly subject: string; readonly body: Ranged | null; readonly source: SourceFile }[] = [];
+    const blindfolds: Ranged[] = [];
+    const registries: SourceFile[] = [];
+    const persistAliasesBySource = new Map<string, Set<string>>();
+    const persistAliasesOf = (sourceFile: SourceFile): Set<string> => {
+      const path = sourceFile.getFilePath();
+      let names = persistAliasesBySource.get(path);
+      if (names === undefined) {
+        names = new Set<string>();
+        persistAliasesBySource.set(path, names);
       }
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    if (node.getExpression().getText() === PERSIST) {
-      ctx.report(node, { token: `${PERSIST}(`, offset: 0 });
-    }
-    if (isDestructiveReset(node)) {
-      ctx.report(node, { token: `${GET_INITIAL_STATE}(`, offset: node.getText().indexOf(`${GET_INITIAL_STATE}(`) });
-    }
-  },
-  // A whole-tree claim about the TABLE, read off the shared project (never off what the walk visited).
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    if (!registryFileSeen) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: REGISTRY_BLIND });
-    }
-    for (const rel of Object.keys(SANCTIONED_HOMES)) {
-      const sf = ctx.project.getSourceFile(`${ctx.root}/${rel}`);
-      if (sf === undefined) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_GONE}"${rel}" — delete the row in tooling/src/verify/gates/no-raw-zustand-persist.ts`,
-        });
-        continue;
+      return names;
+    };
+
+    const push = (found: Found | null): void => {
+      if (found === null) {
+        return;
       }
-      const persists = sf.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => c.getExpression().getText() === PERSIST);
-      if (!persists) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_UNUSED}"${rel}" — delete the row in tooling/src/verify/gates/no-raw-zustand-persist.ts`,
-        });
-      }
-    }
+      candidates.push({
+        node: found.node,
+        subject: found.subject,
+        operation: found.operation,
+        unreadable: found.unreadable,
+        token: found.token,
+        offset: Math.max(found.node.getText().lastIndexOf(found.token), 0),
+      });
+    };
+
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier],
+          visit: (node, sourceFile): void => {
+            if (Node.isImportSpecifier(node) && node.getName() === PERSIST) {
+              persistAliasesOf(sourceFile).add(node.getAliasNode()?.getText() ?? PERSIST);
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile): void => {
+            if (Node.isCallExpression(node)) {
+              visitCall(
+                node,
+                { subject: ctx.relativePath(sourceFile), source: sourceFile },
+                { push, blindfolds, resets, persistAliases: persistAliasesOf(sourceFile) },
+              );
+            }
+          },
+        },
+      ],
+      visitFile: (sourceFile): void => {
+        if (sourceFile.getExportSymbols().some((symbol) => symbol.getName() === REGISTRY_DECL)) {
+          registries.push(sourceFile);
+        }
+      },
+      evaluate: (): void => {
+        // ZERO members is a REFUSAL, and it is the legacy §4.6 blindness tripwire in its final form: no file
+        // declares the durable-local registry any more, so ARM C judged nothing and a green here would be a
+        // placebo.
+        ctx.receipt({ kind: "population", source: REGISTRY_DECL, members: registries.length, unresolved: 0 });
+        const registryFiles = new Set(registries.map((file) => file.compilerNode));
+        for (const reset of resets) {
+          push(unblindfoldedReset(reset, registryFiles, blindfolds));
+        }
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const useStore = create(persist(() => ({})));",
-      at: "packages/client/src/feature/store.ts",
-      why: "bare persist call in client",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const state = {};\n",
-        [`${STATE_DIR}create-persisted-store.ts`]: "export const useStore = create(persist(() => ({})));\n",
-        [`${STATE_DIR}create-entity-draft-store.ts`]: "export const useDrafts = create(() => ({}));\n",
-        [`${STATE_DIR}durable-local.ts`]: REGISTRY_STUB,
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/store.ts":
+          'import { create } from "zustand";\nimport { persist } from "zustand/middleware";\nexport const useStore = create(persist(() => ({})));\n',
       },
-      expect: { count: 1, messageIncludes: "calls no `persist(` any more" },
-      why: "THE STALE ARM: the anchor is loaded; one factory still persists and keeps its row, the other has stopped — that row is un-scanning a file for nothing and ratchets down",
+      expect: { count: 1, token: PERSIST },
+      why: "ARM A, the founding shape — a bare persist() outside the two factories",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const state = {};\n",
-        [`${STATE_DIR}create-persisted-store.ts`]: "export const useStore = create(persist(() => ({})));\n",
-        [`${STATE_DIR}durable-local.ts`]: REGISTRY_STUB,
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/state/create-persisted-store.ts":
+          'import { create } from "zustand";\nimport { persist } from "zustand/middleware";\nexport const useStore = create(persist(() => ({})));\n',
       },
-      expect: { count: 1, messageIncludes: "no longer in the project" },
-      why: "the other staleness: a row whose factory file is gone entirely — path rot ratchets down too",
+      expect: { count: 1 },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the factory's own persist call reds like any other and is licensed by an exact grant row — and a row that stops matching (the factory moved, or stopped persisting) is STALE, which is both legacy staleness modes in one mechanism",
     },
     {
-      files: "export function wipe() {\n  useSectionStore.setState(useSectionStore.getInitialState(), true);\n}\n",
-      at: "packages/client/src/features/x/reset.ts",
-      expect: { count: 1, token: "getInitialState(" },
-      why: "THE #837 RED (ARM B): a destructive persist-through reset outside the two mint factories. `persist` patches `setState`, so this writes the emptied state to the store's real key and the next rehydrate reads it back — every `orb:*` blob inert on every boot",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const state = {};\n",
-        [`${STATE_DIR}create-persisted-store.ts`]: "export const useStore = create(persist(() => ({})));\n",
-        [`${STATE_DIR}create-entity-draft-store.ts`]: "export const useDrafts = create(persist(() => ({})));\n",
-        [`${STATE_DIR}durable-local.ts`]:
-          "export function registerDurableLocalStore(entry) {\n  registry.push(entry);\n}\nfunction resetWithoutPersisting(entry) {\n  entry.api.persist.setOptions({ storage: BLIND });\n  entry.reset();\n}\nexport function forget(entry) {\n  entry.reset();\n}\n",
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/reset.ts":
+          'import { create } from "zustand";\nconst store = create<{ a: number }>(() => ({ a: 1 }));\nexport function wipe(): void {\n  store.setState(store.getInitialState(), true);\n}\n',
       },
-      expect: { count: 1, token: "reset(" },
-      why: "ARM C: a SECOND caller of a registered store's `reset()` inside the registry file, outside the function that installs the storage blindfold — it drops the projection straight through to durable storage, which is #837 one layer up. The blindfolded caller in the same file passes, so the arm is not just counting `reset()` calls",
+      expect: { count: 1, token: GET_INITIAL_STATE },
+      why: "ARM B, THE #837 RED: a destructive persist-through reset outside the mint factories — `persist` patches `setState`, so this writes the emptied state to the store's real key",
     },
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const state = {};\n",
-        [`${STATE_DIR}create-persisted-store.ts`]: "export const useStore = create(persist(() => ({})));\n",
-        [`${STATE_DIR}create-entity-draft-store.ts`]: "export const useDrafts = create(persist(() => ({})));\n",
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/aliased.ts":
+          'import { create } from "zustand";\nimport { persist as durable } from "zustand/middleware";\nexport const useStore = create(durable(() => ({})));\n',
       },
-      expect: { count: 1, messageIncludes: "blindness tripwire" },
-      why: "THE §4.6 TRIPWIRE: the anchor and both factories are loaded but NO file declares `registerDurableLocalStore`, so ARM C judged nothing — a rename must RED here, never report ✓ over a rule that stopped having a subject",
+      expect: { count: 1 },
+      why: 'THE ALIAS RED on arm A: the middleware under another local name is the same middleware, and the legacy `getText() === "persist"` check was offered `durable`',
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        "packages/client/src/state/durable-local.ts": [
+          "interface RegisteredStore {",
+          "  readonly api: { readonly persist?: { readonly setOptions: (options: unknown) => void } };",
+          "  readonly reset: () => void;",
+          "}",
+          "const registry: RegisteredStore[] = [];",
+          "export function registerDurableLocalStore(entry: RegisteredStore): void {",
+          "  registry.push(entry);",
+          "}",
+          "function resetWithoutPersisting(entry: RegisteredStore): void {",
+          "  entry.api.persist?.setOptions({});",
+          "  entry.reset();",
+          "}",
+          "export function forget(entry: RegisteredStore): void {",
+          "  entry.reset();",
+          "}",
+          "",
+        ].join("\n"),
+      },
+      expect: { count: 1, token: RESET },
+      why: "ARM C: a SECOND caller of a registered store's `reset()` inside the registry, outside the function that installs the storage blindfold — #837 one layer up. The blindfolded caller in the same file passes, so the arm is not merely counting `reset()` calls",
     },
   ],
   mustPass: [
     {
-      files: "export const useStore = create(persist(() => ({})));",
-      at: "packages/client/src/state/create-persisted-store.ts",
-      why: "THE ALLOWLIST ITSELF: the factory is now SCANNED, and its `persist(` passes only because a cited SANCTIONED_HOMES row covers the file",
-    },
-    {
-      files: "export const useStore = create(persist(() => ({})));",
-      at: "packages/client/src/feature/store.test.ts",
-      why: "allowlisted test file — and with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const state = {};\n",
-        [`${STATE_DIR}create-persisted-store.ts`]: "export const useStore = create(persist(() => ({})));\n",
-        [`${STATE_DIR}create-entity-draft-store.ts`]: "export const useDrafts = create(persist(() => ({})));\n",
-        [`${STATE_DIR}durable-local.ts`]: REGISTRY_STUB,
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/store.ts":
+          'import { createPersistedStore } from "../../state/create-persisted-store.ts";\nexport const useStore = createPersistedStore("x");\n',
+        "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string): unknown;\n",
       },
-      why: "both rows STILL EARNED, judged against the real-tree anchor: each named file really is a persist factory, so neither arm fires",
+      why: "the fix: a feature store minted through the factory spells no vendor persistence at all",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/local.ts": "function persist<T>(value: T): T {\n  return value;\n}\nexport const wrapped = persist({ a: 1 });\n",
+      },
+      why: "A LOCAL FUNCTION named `persist` is a proven different identity — the legacy TEXT check red exactly this",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...storeLookalikeProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/vendor.ts":
+          'import { create, persist } from "store-lookalike";\nexport const useStore = create(persist(() => ({})));\n',
+      },
+      why: "SAME NAMES, WRONG PACKAGE: another store library's `persist` and store api are not zustand's, and only the declaring package can say so",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/merge.ts":
+          'import { create } from "zustand";\nconst store = create<{ a: number }>(() => ({ a: 1 }));\nexport function soft(): void {\n  store.setState(store.getInitialState());\n}\n',
+      },
+      why: "ARM B's NARROWING: without zustand's REPLACE flag the call is an ordinary merge, not a destructive persist-through reset",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/other-reset.ts":
+          "interface Thing {\n  readonly reset: () => void;\n}\nexport function drop(thing: Thing): void {\n  thing.reset();\n}\n",
+      },
+      why: "ARM C's SCOPE: a `reset()` on some other object OUTSIDE the registry file is not the registered-store drop — the arm's subject is the registry's own `RegisteredStore.reset`, in the registry's own file",
     },
   ],
-};
+});
