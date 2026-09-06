@@ -123,6 +123,9 @@ export type { SnapFlagDescriptor } from "./ops/flag-grammar.ts";
 export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.ts";
 export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
+// cli.ts's carved-out internal-flag dispatch (`--session-daemon` / `--stage-keeper`) — cli.ts consumes
+// this through the front door like every other command it dispatches (Core-Tooling-Law.md §4.2/§4.3/§9.8).
+export { runInternalEntry } from "./ops/internal-entry.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isFileOriginNoise, isFileOriginRequest, isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
