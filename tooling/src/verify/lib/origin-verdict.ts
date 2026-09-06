@@ -14,6 +14,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
+import { readMemberReference } from "./reference-fact.ts";
 
 /** Refusals that mean "no ONE authored source exists", whatever the leaf symbol says. A written binding, a
  *  resolution cycle and a multiply-declared symbol are unknowable by construction: `let fetch = globalThis.fetch`
@@ -48,4 +49,30 @@ export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: M
     return "unreadable";
   }
   return bindsProvenNonModuleDeclaration(node) ? "other" : "unreadable";
+}
+
+/** Does this reference NAME `exportedName` — as a bare identifier, through an import specifier whose
+ *  ORIGINAL exported name is it (so an alias still names it), or as a member read in any spelling?
+ *
+ *  THE MANDATORY COMPANION OF FAIL-CLOSURE, and the reason it is homed beside the classifier. Fail-closed
+ *  reporting is correct for a CANDIDATE whose identity cannot be read; applied to every node of a kind in a
+ *  population it converts each unreadable node into an accusation. Measured on the live tree during the
+ *  #1584 sanctioned-home conversion: an unprefiltered `NewExpression` arm accused `new TRPCError(…)` of
+ *  being node's `EventEmitter` (five sites) and `new AsyncLocalStorage(…)`, `new Hono(…)`,
+ *  `new CardNotDistillableError(…)` of being the ambient clock (fourteen sites), because each refuses as
+ *  `ambiguous`/`missing` and a bare classifier calls that unreadable. Prefilter on the name, resolve the
+ *  identity, and fail closed only inside the candidate set. */
+export function referenceNamesExport(node: MorphNode, exportedName: string): boolean {
+  if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
+    const member = readMemberReference(node);
+    return member.kind === "resolved" && member.value.name === exportedName;
+  }
+  if (!Node.isIdentifier(node)) {
+    return false;
+  }
+  if (node.getText() === exportedName) {
+    return true;
+  }
+  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  return declarations.some((declaration) => Node.isImportSpecifier(declaration) && declaration.getName() === exportedName);
 }
