@@ -243,8 +243,15 @@
  * code was written (same page, synthetic box, 220ms each): a `left` transition scores 0.0567 over 14
  * entries; a `translate` transition scores 0 over 0 entries; instant-layout + counter-translate scores 0
  * over 0. Prototyped on the live shell: 0.2166 → 0.0205 (collapse), 0.2987 → 0.0205 (dock), rail nav
- * 0.3067 → 0.0000. The 0.0205 residue is the content gutter RE-CENTRING inside a column whose width also
- * changed — a width change no transform can cancel, one frame, well inside the 0.1 budget.
+ * 0.3067 → 0.0000. **RE-OPENED AND CLOSED (#1646, 2026-09-05):** the 0.0205 residue WAS attributed to
+ * "the content gutter RE-CENTRING inside a column whose width also changed — a width change no transform
+ * can cancel" as an accepted cost. The measured mechanism is narrower than that: `[data-slot=message-row]`
+ * is a FIXED-width box (`--width-shell-content`, capped by `dvw`, not by the resizing track) centred by its
+ * own auto margins inside `.shell-main` — its width does NOT change, only its CENTRING POSITION does, by
+ * exactly HALF of `.shell-main`'s own resize (a fixed-width child centred by margin auto moves `Δ/2` for a
+ * `Δ` change in its parent's width — measured 154px against a 307px track, 154 = 307/2). That IS a transform
+ * a counter CAN cancel, and the third counter block below does — the residue that remains after it is
+ * strictly the reading column's own reflow (a real width change inside the row), not the row's placement.
  *
  * THE CO-MOTION RULING IS PRESERVED, ON A NEW AXIS. The rule this replaces was pinned by
  * app-shell.ct.tsx's "co-motion parity" test: the track and the panel slide are ONE visual event and
@@ -305,10 +312,11 @@
  * FLIP working — while `.shell-topbar-trail` x went 1043 → 1350 → 1227 → 1151 → 1106 → … → 1043. The
  * ⌘K chip and the whole toggle cluster left the 1280px viewport entirely for the first painted frame of
  * every list dock/undock and swept back in from the right edge over the next ~150ms, ending exactly where
- * they started. (The same run is the receipt for the third alignment class: the transcript's centred
- * reading column moves by HALF the track, so the FLIP kicks it 154px the wrong way first — that residue
- * is the "content gutter RE-CENTRING … a width change no transform can cancel" the block above already
- * records and accepts, and its carrier is `[data-slot=message-row]`'s own auto margins, not shell CSS.)
+ * they started. (The same run is the receipt for the third alignment class, CLOSED below rather than
+ * accepted: the transcript row's own `[data-slot=message-row]` box is centred by its own auto margins, not
+ * shell CSS — but its DELTA, exactly HALF the track, is a shell-owned fact this file already computes for
+ * every other alignment class, so a THIRD counter block reads it off the same `--list-track-docked` var and
+ * cancels it the same way the end-pinned trail's does, at half the magnitude.)
  *
  * WHY A SECOND ANIMATION AND NOT AN EXEMPTION FROM THE FIRST: the counter must be the EXACT inverse, in
  * lockstep, or the trail shears against the chrome around it. Same `--shell-motion`/`--shell-ease`
@@ -330,6 +338,44 @@
 }
 .shell-grid[data-list-flip="out"] .shell-topbar-trail {
   animation: shell-list-push-out-counter var(--shell-motion) var(--shell-ease);
+}
+
+/* ── THE THIRD ALIGNMENT CLASS — A CENTRED CHILD'S HONEST DELTA IS HALF THE TRACK (#1646, 2026-09-05,
+ * cb-list-collapse-motion) ─────────────────────────────────────────────────────────────────────────────
+ * `.shell-main` has two edges and the block above cancels two of the three shapes a child can take against
+ * them: START-aligned (the counter above IS the fix — zero extra work) and END-pinned (the topbar trail's
+ * own full-magnitude inverse, immediately above). The third shape is CENTRED: `[data-slot=message-row]`
+ * carries `.orb-chat-track`, a FIXED-width box (`--width-shell-content`, resolved against the viewport's
+ * `dvw`, never against the resizing track) held centred inside `.shell-main` by its own `margin-inline`
+ * auto pair. A fixed-width box centred by auto margins in a parent that resizes by `Δ` moves by `Δ/2` —
+ * this is arithmetic, not a chat-feature fact, which is why the counter lives here and not in
+ * `chat-track.ts` (CSS six-homes: shell.css already reaches `[data-slot=…]` selectors for cross-feature
+ * shell interactions, e.g. the `data-has-bg-image` rule above). MEASURED (#1316's own receipt, restated):
+ * 154px against a 307px track, 154 = 307/2 exactly.
+ *
+ * HALF-MAGNITUDE, SAME DIRECTION AS THE END-PINNED COUNTER: `[data-slot=message-row]`'s delta is *between*
+ * the two edges the other counters answer, so its correction is the topbar trail's own inverse, halved —
+ * `calc(var(--list-track-docked) / 2)`, token-backed (`css-length-tokens` sees no new literal). Applies to
+ * EVERY chatStyle's row, not only the centred skins (`flat`/`hush`/`document`): every row carries
+ * `.orb-chat-track` at the article level regardless of its `columnPlacement` (`message-row-variants.ts`'s
+ * `bubbleOuter`/`flatOuter`/…), so every row is centred by this exact mechanism and needs this exact
+ * counter — the gutterCentred/anchored axis (#1728) is a DIFFERENT, INNER question (where the reading
+ * column sits inside its own row) that this outer counter does not touch. */
+@keyframes shell-list-push-in-row-counter {
+  from {
+    translate: calc(var(--list-track-docked) / 2) 0;
+  }
+}
+@keyframes shell-list-push-out-row-counter {
+  from {
+    translate: calc(-1 * var(--list-track-docked) / 2) 0;
+  }
+}
+.shell-grid[data-list-flip="in"] [data-slot="message-row"] {
+  animation: shell-list-push-in-row-counter var(--shell-motion) var(--shell-ease);
+}
+.shell-grid[data-list-flip="out"] [data-slot="message-row"] {
+  animation: shell-list-push-out-row-counter var(--shell-motion) var(--shell-ease);
 }
 
 /* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
@@ -367,6 +413,16 @@
 }
 .shell-grid[data-list-settle="out"] .shell-topbar-trail {
   translate: calc(-1 * var(--list-track-docked)) 0;
+}
+/* …and the CENTRED counter (#1646) rides the settle for the same reason: the held frame is the FLIP's
+ * `from` corner, so it holds every row's centred track at half the docked distance outside its resting
+ * position too — a one-painted-frame sideways jump of the whole transcript for exactly the users who asked
+ * for less motion. Static, no duration, released by the same attribute drop. */
+.shell-grid[data-list-settle="in"] [data-slot="message-row"] {
+  translate: calc(var(--list-track-docked) / 2) 0;
+}
+.shell-grid[data-list-settle="out"] [data-slot="message-row"] {
+  translate: calc(-1 * var(--list-track-docked) / 2) 0;
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -1080,13 +1136,17 @@
    * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here. */
   .shell-grid[data-list-flip] .shell-main,
   .shell-grid[data-list-flip] .shell-topbar-trail,
+  .shell-grid[data-list-flip] [data-slot="message-row"],
   .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"] {
     animation: none;
   }
   /* …and the reduced-motion SETTLE (#262) is cancelled here for the same reason and by the same argument:
-   * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved. */
+   * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved.
+   * The CENTRED counter (#1646) joins the other two here for the identical reason — a phone's transcript
+   * rows do not move when the list panel toggles (it is `position: fixed` over CONTENT, not a track). */
   .shell-grid[data-list-settle] .shell-main,
-  .shell-grid[data-list-settle] .shell-topbar-trail {
+  .shell-grid[data-list-settle] .shell-topbar-trail,
+  .shell-grid[data-list-settle] [data-slot="message-row"] {
     translate: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer
