@@ -292,10 +292,16 @@ const ROWS: Row[] = [
   // The second row has an extension-less pathspec — proof the ban does not lean on the extension list.
   ["deny", "git-destructive", "git -C .claude/worktrees/lane-x checkout --ours packages/client/src/features/refinery/hooks/use-count-up.ts"],
   ["deny", "git-destructive", "git checkout --theirs some/pathless-extension-file"],
+  // `checkout-index -f` is `git checkout <path>` under a fourth spelling (a lane destroyed its own uncommitted
+  // regex-section.tsx with it, 2026-09-06); the force/all arms are the ban, the plain form only creates.
+  ["deny", "git-destructive", "git checkout-index -f -- packages/client/src/features/chat/components/regex-section.tsx"],
+  ["deny", "git-destructive", "git -C /abs/wt checkout-index --force -- tests/ui/x.ct.tsx"],
+  ["deny", "git-destructive", "git checkout-index -af"],
   // read-only forms PASS — a deny here would be a lie about destruction
   ["pass", null, "git stash list 2>/dev/null"],
   ["pass", null, "git restore --staged docs/retro-workboard.md"],
   ["pass", null, "git checkout -b feature/x"],
+  ["pass", null, "git checkout-index -- some/new-file.ts"],
   ["pass", null, "git checkout main"],
   // ...and they keep passing WITH a global option — the widening must not eat the read-only arms,
   // the branch-switch arm, or any non-destructive subcommand whose ARGUMENTS mention a banned word.
