@@ -162,11 +162,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **A watched-src save — and therefore any merge — RESPAWNS the server and WIPES the in-memory wire/RPG
   flight recorders**, so a merge never lands under a live drive that depends on them, and an instrument
   change never lands mid-drive without messaging the driving lane.
-- **The self-heal law has an ERA limit:** a LONG-LIVED vite that absorbed a multi-merge era can serve a
-  CORRUPT module graph (proven live — a boot-dead page error inside a registry whose source proved
-  consistent; a clean restart fixed it, zero code changes). Tells: a registry/composition page error the
-  source refutes, plus a vite pid (`ps -o lstart`) older than the merge train. After a merge train, check
-  the pid's age before taking rendered receipts; a receipt off a pre-train vite is void.
+- **The "long-lived vite serves a corrupt module graph" premise is RETIRED (owner, 2026-09-06: "vite has HMR, we
+  fixed the stale issue").** `:5173` rendered receipts are valid after a merge train WITHOUT a vite pid-age check;
+  do not bounce vite because the train moved. The 2026-08 incident stays in memory as history only. The
+  self-heal law above therefore has no era limit; the manual-restart triggers are the list above, nothing more.
 - **NEVER execute `scripts/dev/engines.ts` — or any engine launcher, `--help` included — to "verify" it
   while the live stack runs.** There is no dry-run and no help guard: the invocation spawns real vLLM
   against the live ports and its pidfile reconciler reaps every engine process it does not own. A

@@ -3287,6 +3287,39 @@
         }
       ],
       "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-06-config-grammar-980-rederive.md",
+      "assignedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "verifiedCommit": "51126c8bccaa6b71bbf3fef1c15585892312caea",
+      "verifiedAt": "2026-09-06",
+      "evidence": [
+        "claude-b lane cb-config-sideeye 2026-09-06 (bridge 502), nine snap runs at 9c6464f86/ae53c7f2c/301547c24, read in full by the orchestrator before receipting"
+      ],
+      "claims": [
+        {
+          "claim": "Against today's Config surface, F10/E3 and F12 of #980 are closed (5023241e2 + aad98e225; config-welcome.tsx deleted at 6b00c37fd), F13 (Backup checkbox split, 906–937px) and F22 (tag-member switch control-left) are live with rendered receipts, and the #1725 redesign left every config-band unpainted in its aria-current state (#1823) with an 84–86% library-row ink void at 990px (#1824).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#980"
+            },
+            {
+              "kind": "issue",
+              "target": "#1823"
+            },
+            {
+              "kind": "issue",
+              "target": "#1824"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
     }
   ]
 }

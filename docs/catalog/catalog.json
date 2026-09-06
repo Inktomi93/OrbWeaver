@@ -1718,9 +1718,9 @@
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 449,
-      "bytes": 58952,
-      "sha256": "a60555ab7cb9cfabb60003c11febd4871ed7a68bc1dab7ab4eec3357f2477854",
+      "lines": 468,
+      "bytes": 65416,
+      "sha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1733,14 +1733,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "a60555ab7cb9cfabb60003c11febd4871ed7a68bc1dab7ab4eec3357f2477854",
+        "assignedSha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "a60555ab7cb9cfabb60003c11febd4871ed7a68bc1dab7ab4eec3357f2477854",
-        "verifiedCommit": "b51080bbddc05ca06df8e25e74ed8069f9b49bb2",
+        "verifiedSha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
+        "verifiedCommit": "aab83d0a20bfc3da3417afbc0d8c38c744ffcd8e",
         "verifiedAt": "2026-09-06",
         "evidence": [
+          "aab83d0a2 (#1794 cb-shell-stacking §3 + §4.1a; #1795 cb-vt-floats §4a/§6.1 — the stacking scope and the content-float lifetime contract) — re-attested at the fold",
           "b51080bbd (#1801 cb-shell-law-line: the rail line no longer names the retired Theme modal trigger as rail.end; modal triggers derive by placement, none rail.end today) — re-attested at the fold",
           "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -2145,9 +2146,9 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 539,
-      "bytes": 36604,
-      "sha256": "acec84532a069d77563bace54c83fabeaf817e778dd94e0e4e2fde64ef5b77a3",
+      "lines": 542,
+      "bytes": 36948,
+      "sha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2160,14 +2161,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "acec84532a069d77563bace54c83fabeaf817e778dd94e0e4e2fde64ef5b77a3",
+        "assignedSha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "acec84532a069d77563bace54c83fabeaf817e778dd94e0e4e2fde64ef5b77a3",
-        "verifiedCommit": "ebaab6f0a41eadfbd00434ad1649b94015e3535f",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
+        "verifiedCommit": "aab83d0a20bfc3da3417afbc0d8c38c744ffcd8e",
+        "verifiedAt": "2026-09-06",
         "evidence": [
+          "aab83d0a2 (#1795 cb-vt-floats: CONTENT-only View Transition contract — only captured content loses painting/hit-testing) — re-attested at the fold",
           "re-attested after #1647 (§4.1.2: the bounded input-dispatch layout-frame exemption's home) at ebaab6f0a",
           "re-attested at 561ea5ec3 (#1292, full delta read): three `motion-audit` command references retire to their Snap replacements - the #1069 allowance note's \"pnpm motion-audit's (pull) half\" becomes \"the former motion CLI's pull half\"; the LoAF-pairing paragraph's \"motion-audit pairs those\" becomes \"pnpm snap --motion [selector] pairs those\"; the CDP-suspend paragraph's \"motion-audit asks the dev bridge\" becomes \"Snap's motion arm asks the dev bridge\". No other text moved.",
           "re-attested at 9301fdf41 after motion/perf became typed Snap arms: full guide and delta reconciled with the one shared motion allowance, reduced-motion environment contract, selective CDP trace arm, rate-withholding posture, and retired standalone motion-audit entry path.",
@@ -31838,6 +31840,58 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-06-config-grammar-980-rederive.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 297,
+      "bytes": 30503,
+      "sha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-06-config-grammar-980-rederive.md",
+        "assignedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+        "verifiedCommit": "51126c8bccaa6b71bbf3fef1c15585892312caea",
+        "verifiedAt": "2026-09-06",
+        "evidence": [
+          "claude-b lane cb-config-sideeye 2026-09-06 (bridge 502), nine snap runs at 9c6464f86/ae53c7f2c/301547c24, read in full by the orchestrator before receipting"
+        ],
+        "claims": [
+          {
+            "claim": "Against today's Config surface, F10/E3 and F12 of #980 are closed (5023241e2 + aad98e225; config-welcome.tsx deleted at 6b00c37fd), F13 (Backup checkbox split, 906–937px) and F22 (tag-member switch control-left) are live with rendered receipts, and the #1725 redesign left every config-band unpainted in its aria-current state (#1823) with an 84–86% library-row ink void at 990px (#1824).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#980"
+              },
+              {
+                "kind": "issue",
+                "target": "#1823"
+              },
+              {
+                "kind": "issue",
+                "target": "#1824"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
       },
       "receiptCurrent": true
     },
