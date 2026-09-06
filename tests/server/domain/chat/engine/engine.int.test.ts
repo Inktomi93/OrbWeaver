@@ -1546,8 +1546,13 @@ const HOOK_WARN_TIMEOUT = 2000;
 const EXPR_HOOK_WARN = "expressions: post-turn classify failed (reply already committed)";
 const RPG_ABORT_HOOK_WARN = "rpg: turn-abort staging clear failed (the turn is still aborted)";
 
-/** Every `getLog().warn` MESSAGE the spy saw (the second positional — the first is the fields object). */
-function warnMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
+/** Every `getLog().warn` MESSAGE the spy saw (the second positional — the first is the fields object). Typed
+ *  off the LOGGER's own overload set rather than a bare `vi.spyOn` return, whose `calls` is untyped. */
+interface WarnSpy {
+  readonly mock: { readonly calls: readonly unknown[][] };
+}
+
+function warnMessages(spy: WarnSpy): string[] {
   return spy.mock.calls.flatMap((call) => (typeof call[1] === "string" ? [call[1]] : []));
 }
 
