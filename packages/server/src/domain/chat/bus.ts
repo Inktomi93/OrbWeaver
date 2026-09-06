@@ -141,9 +141,9 @@ const LIVE_APPEND_ATTEMPTS = 2;
  *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
  *  is too unwell to say. */
 async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the probe failing means the db is unwell — fall
-  // through to "we cannot prove it landed", which is the LOUD arm the caller already reports with the
-  // original `err`. Ends if this probe grows its own retry (then it owns reporting its own failure).
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the probe failing means the db is unwell — the
+  // `null` falls through to "we cannot prove it landed", which is the LOUD arm the CALLER reports with the
+  // original `err` (never silent). Ends if this probe grows its own retry (then it owns its own failure).
   try {
     const row = await loadChatEventById(db, id);
     return row !== undefined && JSON.stringify(row.payload) === JSON.stringify(event) ? row.seq : null;
