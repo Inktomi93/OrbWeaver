@@ -59,10 +59,7 @@ export function exactDrizzleExport(
 ): ReferenceFact<{ readonly moduleSpecifier: string; readonly exportedName: string }> {
   const origin = resolveCallableOrigin(call);
   if (origin.kind === "unresolved") {
-    const overloaded = origin.reason === "ambiguous" ? overloadedDrizzleDoor(call, origin) : null;
-    return overloaded === null || (exportedName !== undefined && overloaded.exportedName !== exportedName)
-      ? origin
-      : resolved(overloaded, call, origin.trace.declarations);
+    return origin;
   }
   const target = origin.value.target;
   if (target.kind !== "module") {
@@ -101,32 +98,6 @@ function resolvedDrizzleTarget(
     return unresolved("missing", call, `${call.getExpression().getText()} is not Drizzle ${exportedName ?? "SQLite"}`, declarations);
   }
   return resolved({ moduleSpecifier, exportedName: name }, call, declarations);
-}
-
-function overloadedDrizzleDoor(
-  call: CallExpression,
-  fact: UnresolvedReferenceFact,
-): { readonly moduleSpecifier: string; readonly exportedName: string } | null {
-  for (const declaration of fact.trace.declarations) {
-    const door = overloadedDoorDeclaration(call, declaration);
-    if (door !== null) {
-      return door;
-    }
-  }
-  return null;
-}
-
-function overloadedDoorDeclaration(call: CallExpression, declaration: MorphNode): { readonly moduleSpecifier: string; readonly exportedName: string } | null {
-  if (Node.isImportSpecifier(declaration) && declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue() === DRIZZLE_SQLITE) {
-    return { moduleSpecifier: DRIZZLE_SQLITE, exportedName: declaration.getName() };
-  }
-  if (Node.isExportSpecifier(declaration) && declaration.getFirstAncestorByKind(SyntaxKind.ExportDeclaration)?.getModuleSpecifierValue() === DRIZZLE_SQLITE) {
-    return { moduleSpecifier: DRIZZLE_SQLITE, exportedName: declaration.getName() };
-  }
-  const imported =
-    Node.isNamespaceImport(declaration) && declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue() === DRIZZLE_SQLITE;
-  const member = imported ? readMemberReference(call.getExpression()) : null;
-  return member?.kind === "resolved" ? { moduleSpecifier: DRIZZLE_SQLITE, exportedName: member.value.name } : null;
 }
 
 export function terminalCall(node: MorphNode): ReferenceFact<CallExpression> {

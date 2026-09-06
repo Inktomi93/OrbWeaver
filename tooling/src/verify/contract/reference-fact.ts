@@ -50,6 +50,11 @@ export interface ModuleMemberOrigin {
         readonly sourceFile: SourceFile;
         readonly exportedName: string;
         readonly declaration: Node;
+        /** How many declarations the resolved export symbol carries. `1` for an ordinary export; `>1` for an
+         *  OVERLOAD SET (signatures plus at most one implementation, all in `sourceFile`), whose identity home
+         *  is still unique — the count is carried so a consumer that must distinguish them can, without the
+         *  reader having to refuse a callable whose home it can prove. */
+        readonly declarationCount: number;
       }
     | {
         /** A checker-unresolved package door proves spelling, not that the package exports the member. */
