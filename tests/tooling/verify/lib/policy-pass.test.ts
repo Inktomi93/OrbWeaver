@@ -132,22 +132,24 @@ test("selected policies must be exact loaded descriptor identities before any ho
   expect(events).toEqual([]);
 });
 
-test("two policies share one physical descendant walk and receive deterministic findings", () => {
+test("the pass walks the raw compiler tree (never the wrapped forEachDescendant) and two policies receive deterministic findings", () => {
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   const sf = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/a.ts`);
-  const original = sf.forEachDescendant.bind(sf);
-  let walks = 0;
+  // `collectByKinds` walks `sf.compilerNode` with `ts.forEachChild` and wraps only subscribed kinds; the
+  // wrapped `forEachDescendant` (which wraps EVERY node — the largest slice of the 2026-09-06 composed-pass
+  // profile) must never be reached from the pass. The one-physical-walk-per-file guarantee itself is
+  // `collectByKinds`'s own construction (one root traversal per file) and is pinned at its unit level.
+  let wrappedWalks = 0;
   Object.defineProperty(sf, "forEachDescendant", {
     configurable: true,
-    value: (visitor: Parameters<SourceFile["forEachDescendant"]>[0]) => {
-      walks += 1;
-      return original(visitor);
+    value: () => {
+      wrappedWalks += 1;
     },
   });
 
   const result = run([nodeReportingPolicy("policy-b"), nodeReportingPolicy("policy-a")], project);
 
-  expect(walks).toBe(1);
+  expect(wrappedWalks).toBe(0);
   expect(result.policies.map(({ id }) => id)).toEqual(["policy-a", "policy-b"]);
   expect(result.authority.effectiveFindings.map(({ policyId }) => policyId)).toEqual(["policy-a", "policy-b"]);
 });

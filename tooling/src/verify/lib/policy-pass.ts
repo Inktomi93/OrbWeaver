@@ -40,6 +40,7 @@ import {
   normalizePathSet,
 } from "./policy-validation.ts";
 import { resolvePopulation } from "./population-resolver.ts";
+import { beginReferencePass, endReferencePass } from "./reference-fact.ts";
 import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
 interface MutableTiming {
@@ -806,10 +807,16 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   };
   createFactRuns({ runs: factRuns, input, resources, checker: sharedChecker, control: factControl });
   createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors, factValues });
-  walkRuns({ runs, factRuns, sourceFiles, errors: toolErrors, factControl });
-  finishFactRuns(factRuns, factControl);
-  withholdFactDependents(runs, toolErrors, factValues);
-  evaluateRuns(runs, toolErrors);
+  // The shared readers' per-file write caches live for exactly this pass (walk + evaluate both query them).
+  beginReferencePass();
+  try {
+    walkRuns({ runs, factRuns, sourceFiles, errors: toolErrors, factControl });
+    finishFactRuns(factRuns, factControl);
+    withholdFactDependents(runs, toolErrors, factValues);
+    evaluateRuns(runs, toolErrors);
+  } finally {
+    endReferencePass();
+  }
   const facts = factRuns.map(factResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const authority = coordinateGateAuthority({
