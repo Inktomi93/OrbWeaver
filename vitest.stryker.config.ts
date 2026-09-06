@@ -45,6 +45,13 @@ export const DROPPED_LANES = new Map([
       "not a structural mutation-coverage signal.",
   ],
   [
+    "tooling-serial",
+    "the instrument battery's CONTENTION half (vitest.config.ts's SERIAL_INT_TOOLING, #1842) — both reasons " +
+      "at once: tree-writers on fixed real-tree paths that Stryker's `concurrency: 6` worker PROCESSES " +
+      "would collide on, AND tests/tooling/** meta-tests that fail by construction against a " +
+      "mutant-instrumented sandbox copy.",
+  ],
+  [
     "tooling",
     "the instrument battery (tests/tooling/**, #1523) — same reason `TOOLING_GLOB` excludes it from every " +
       "KEPT lane below: it runs the real tooling over the SOURCE tree, which fails by construction against " +

@@ -32,30 +32,28 @@ const inCI = process.env["CI"] !== undefined;
 // suite may read: a file that needs longer says so with its own `vi.setConfig(scaledBudget(...))`.
 const BASE_TEST_TIMEOUT_MS = 5000;
 const BASE_HOOK_TIMEOUT_MS = 10_000;
-// integration-serial: whole-tree scanners + heavy full-`createServices` composition files.
+// integration-serial + tooling-serial: whole-tree scanners + heavy full-`createServices` composition files.
 const BASE_SERIAL_TIMEOUT_MS = 30_000;
 // live-drive: a BACKSTOP above any unscaled per-file cost here, so a file that FORGOT its own scaled
 // budget fails loudly and early rather than silently inheriting a wrong one.
 const BASE_LIVE_DRIVE_TIMEOUT_MS = 120_000;
 
-// SERIAL_INT — the `.int.test.ts` files that CANNOT run in the parallel `integration` lane, routed by
-// EXPLICIT PATH (not a filename suffix — a `*.serial.int.test.ts` rename trips the test-layout /
-// test-presence structure gates, which only recognize `.int.test.ts`). The `integration` project globs
-// all `.int.test.ts` and EXCLUDES this set; `integration-serial` globs EXACTLY this set — so a file
-// runs in one lane or the other, never both, never neither. Two reasons a file is here:
+// SERIAL_INT_TOOLING — the `tests/tooling/**` half of the serial set: instrument self-tests that CANNOT run
+// in the parallel `tooling` lane, routed by EXPLICIT PATH (not a filename suffix — a `*.serial.int.test.ts`
+// rename trips the test-layout / test-presence structure gates, which only recognize `.int.test.ts`). The
+// `tooling-serial` project globs EXACTLY this set and every other project subtracts it, so a file runs in
+// one lane or none. #1842 MOVED these out of `integration-serial`: while they sat in a PRODUCT lane,
+// `verify --push` kept paying for them through `tests:node` no matter what the diff touched — the exact
+// cost #1523 split off, leaking back through the contention lanes. Two reasons a file is here:
 //   1. TREE-WRITERS — tooling self-tests that write fixtures into / shell whole-tree tools against the
-//      REAL package tree at fixed paths (they clobber each other in parallel), PLUS lifecycle (binds a
-//      fixed port 18788 + a fixed db file — assumes serial).
-//   2. WHOLE-TREE SCANNERS / heavy full-`createServices` composition files that flaked (5s-timeout, NOT
-//      wrong value; pass in isolation) under fork contention. Serial + the lane's 30s testTimeout fixes
-//      them. This does NOT weaken chat.int's D53 ReDoS tripwire — the guard fires in ~50ms and an
-//      UNWIRED watchdog hangs for MINUTES, so 30s still trips red on a regression (~400× margin).
-// TO ADD a new serial test: append its path here (keep the name `.int.test.ts`). Put a file here if it
-// writes into the real tree at a fixed path, binds a fixed port/file, scans the whole tree, or is a
-// heavy full-composition file that times out under parallel contention. Everything else is assumed
-// `:memory:`-isolated + light enough for the parallel lane (proven 0-fail at 14 workers, report §3).
-const SERIAL_INT = [
-  // 1. tree-writers + fixed-port boot
+//      REAL package tree at fixed paths (they clobber each other in parallel).
+//   2. WHOLE-TREE SCANNERS that flaked (5s-timeout, NOT wrong value; pass in isolation) under fork
+//      contention. Serial + the lane's 30s testTimeout fixes them.
+// TO ADD one: append its path here (keep the name `.int.test.ts`) if it writes into the real tree at a
+// fixed path, binds a fixed port/file, or scans the whole tree. Everything else stays in the parallel
+// `tooling` lane.
+const SERIAL_INT_TOOLING = [
+  // 1. tree-writers
   "tests/tooling/check-gates.int.test.ts",
   // Plants `__g_` fixtures at fixed real-tree paths AND reaps every `__g_*` on teardown — the same
   // sentinel space check-gates.int owns, so the two MUST never run concurrently.
@@ -67,8 +65,7 @@ const SERIAL_INT = [
   "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
   // #949 compiler parity: whole UI/client source graph → #961 provenance → Oxide → Tailwind compile.
   "tests/tooling/css-merge-parity.int.test.ts",
-  "tests/server/entry/lifecycle.int.test.ts",
-  // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
+  // 2. whole-tree scanners (flaked on the parallel 5s timeout under fork contention)
   "tests/tooling/gate-conformance.int.test.ts",
   // #751 — loads the WHOLE gate corpus and runs it over the WHOLE workspace, because `gate-ignore-inventory`
   // reaches a verdict on a marker only when a sibling gate was offered it in the SAME pass. Cold ts-morph
@@ -93,6 +90,31 @@ const SERIAL_INT = [
   // serial was the right SCHEDULE for it but the wrong lane: its problem is a measured RATE, not scan
   // weight, and no timeout in this lane can make a dropped-frame percentage honest.)
   "tests/tooling/verify/gates/test-presence.int.test.ts",
+  // The run-completeness planted controls (#410): every case SPAWNS the real `verify structure` CLI over a
+  // planted root and its abnormal arms are TIMING-SHAPED — the SIGKILL control gives the child 4s to boot
+  // node, load the CLI and write its in-flight stub, then kills it. Under parallel fork contention the
+  // child does not always reach the stub write inside that window, and the read of
+  // `<root>/reports/check-structure.json` throws ENOENT — a contention flake, NOT a wrong verdict (passes
+  // 6/6 isolated, 2026-08-22). Serial removes the contention; the roots themselves are mkdtemp-isolated
+  // (tests/support/tool-fixtures.ts `plantedTree`), so this is class 2, not a shared-state tree-writer.
+  "tests/tooling/verify/ops/structure.int.test.ts",
+];
+
+// SERIAL_INT_PRODUCT — the PRODUCT half of the serial set (`tests/server/**`, `tests/support/**`): the
+// `.int.test.ts` files that cannot run in the parallel `integration` lane. The `integration` project globs
+// all `.int.test.ts` and EXCLUDES this set; `integration-serial` globs EXACTLY this set — so a file runs in
+// one lane or the other, never both, never neither. Two reasons a file is here:
+//   1. FIXED-RESOURCE BOOT — lifecycle binds a fixed port 18788 + a fixed db file, so it assumes serial.
+//   2. Heavy full-`createServices` composition files that flaked (5s-timeout, NOT wrong value; pass in
+//      isolation) under fork contention. Serial + the lane's 30s testTimeout fixes them. This does NOT
+//      weaken chat.int's D53 ReDoS tripwire — the guard fires in ~50ms and an UNWIRED watchdog hangs for
+//      MINUTES, so 30s still trips red on a regression (~400× margin).
+// TO ADD a new serial test: append its path here (keep the name `.int.test.ts`). Put a file here if it
+// binds a fixed port/file or is a heavy full-composition file that times out under parallel contention.
+// Everything else is assumed `:memory:`-isolated + light enough for the parallel lane (proven 0-fail at 14
+// workers, report §3).
+const SERIAL_INT_PRODUCT = [
+  "tests/server/entry/lifecycle.int.test.ts",
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
@@ -123,20 +145,14 @@ const SERIAL_INT = [
   // cold whole-server-graph import + compose (measured 5.2s in the parallel lane — the same 5s-timeout flake
   // class as databank.int/persona-multihuman above).
   "tests/server/entry/compose/automation-plugin.int.test.ts",
-  // The run-completeness planted controls (#410): every case SPAWNS the real `verify structure` CLI over a
-  // planted root and its abnormal arms are TIMING-SHAPED — the SIGKILL control gives the child 4s to boot
-  // node, load the CLI and write its in-flight stub, then kills it. Under parallel fork contention the
-  // child does not always reach the stub write inside that window, and the read of
-  // `<root>/reports/check-structure.json` throws ENOENT — a contention flake, NOT a wrong verdict (passes
-  // 6/6 isolated, 2026-08-22). Serial removes the contention; the roots themselves are mkdtemp-isolated
-  // (tests/support/tool-fixtures.ts `plantedTree`), so this is class 2, not a shared-state tree-writer.
-  "tests/tooling/verify/ops/structure.int.test.ts",
 ];
 
 // LIVE_DRIVE — the `.int.test.ts` files that DRIVE A REAL BROWSER and whose verdict depends on a quantity
-// the box's contention perturbs. Same routing mechanism as SERIAL_INT (explicit paths, `.int.test.ts`
-// names kept so the structure gates still recognize them); the `integration` and `integration-serial`
-// projects both EXCLUDE this set, and `live-drive` globs exactly it, so a file is in one lane or none.
+// the box's contention perturbs. Same routing mechanism as the two SERIAL_INT halves (explicit paths,
+// `.int.test.ts` names kept so the structure gates still recognize them); `integration`,
+// `integration-serial`, `tooling-serial` and `tooling` all EXCLUDE this set and `live-drive` globs exactly
+// it, so a file is in one lane or none. Every member is a `tests/tooling/**` file, which is why the lane
+// rides `pnpm test:tooling` since #1842 rather than the product `pnpm test`.
 //
 // WHY A LANE OF ITS OWN (issue #1040, owner: "withhold, don't red"): these are the only suites in the node
 // battery whose PASS is a MEASUREMENT rather than a structural fact, and a measurement taken on a box
@@ -160,10 +176,10 @@ const SERIAL_INT = [
 // `--cpu-throttle` frame-stretch differential — takes the withhold in place instead of dragging its
 // eighteen structural siblings into a serial lane.)
 // TOOLING — the instrument battery's own glob (#1523). One entry, spelled once: the `tooling` project
-// INCLUDES it and the two product lanes SUBTRACT it, so the partition is a single source of truth rather
-// than two lists that drift. `.int.test.ts` files are matched by this glob too (they end in `.test.ts`),
-// which is deliberate — the split is by SUBJECT (our instruments) rather than by suffix, because the cost
-// this row exists to move is the browser-driving int suites.
+// INCLUDES it and the two product lanes (`unit`, `integration`) SUBTRACT it, so the partition is a single
+// source of truth rather than two lists that drift. `.int.test.ts` files are matched by this glob too
+// (they end in `.test.ts`), which is deliberate — the split is by SUBJECT (our instruments) rather than by
+// suffix, because the cost this row exists to move is the browser-driving int suites.
 const TOOLING = ["tests/tooling/**/*.test.ts"];
 
 const LIVE_DRIVE = [
@@ -303,24 +319,43 @@ export default defineConfig({
         // fileParallelism, capped at maxWorkers:14). Every file here is `:memory:`-isolated
         // (freshDb-per-test, tests/support/db.ts) so there is ZERO cross-file state; `pool:'forks'`
         // (inherited) keeps process isolation for the native binding. Measured 6.7× vs serial, 0 failures
-        // across 346 domain files (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md). EXCLUDES `SERIAL_INT`
-        // and `LIVE_DRIVE` (see the consts above) — those run in `integration-serial` and `live-drive`.
+        // across 346 domain files (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md). EXCLUDES both serial
+        // halves and `LIVE_DRIVE` (see the consts above) — those run in `integration-serial`,
+        // `tooling-serial` and `live-drive`.
         // Do NOT switch `pool` to threads and do NOT set `isolate:false`.
         extends: true,
         test: {
           name: "integration",
           include: ["tests/**/*.int.test.ts"],
-          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE, ...TOOLING],
+          exclude: [...IGNORE, ...SERIAL_INT_PRODUCT, ...SERIAL_INT_TOOLING, ...LIVE_DRIVE, ...TOOLING],
         },
       },
       {
-        // integration-serial: exactly the `SERIAL_INT` files (see the const above for the WHY + how to add
-        // one). fileParallelism:false runs them ONE AT A TIME; testTimeout:30s covers their scan/import
-        // weight on a contended box (chat.int's D53 ReDoS tripwire keeps a ~400× regression margin).
+        // integration-serial: exactly the `SERIAL_INT_PRODUCT` files (see the const above for the WHY +
+        // how to add one). fileParallelism:false runs them ONE AT A TIME; testTimeout:30s covers their
+        // scan/import weight on a contended box (chat.int's D53 ReDoS tripwire keeps a ~400× margin).
+        // PRODUCT ONLY since #1842 — the instrument half is `tooling-serial` below, off the push bar.
         extends: true,
         test: {
           name: "integration-serial",
-          include: SERIAL_INT,
+          include: SERIAL_INT_PRODUCT,
+          exclude: [...IGNORE, ...LIVE_DRIVE],
+          fileParallelism: false,
+          testTimeout: budget(BASE_SERIAL_TIMEOUT_MS),
+        },
+      },
+      {
+        // tooling-serial: exactly the `SERIAL_INT_TOOLING` files — `integration-serial`'s instrument twin,
+        // same contention semantics (fileParallelism:false, the 30s serial budget) and a DIFFERENT TIER.
+        // #1842 (owner: "take tooling out of the verify push and into full"): these ten files are the
+        // heaviest suites in the repo, and while they rode a PRODUCT project every `verify --push` paid
+        // for them through `tests:node` — #1523's split moved the parallel instrument battery to
+        // `tests:tooling` and left this tail behind. `pnpm test:tooling` runs this project after the
+        // parallel `tooling` shard; `pnpm test` no longer names it at all.
+        extends: true,
+        test: {
+          name: "tooling-serial",
+          include: SERIAL_INT_TOOLING,
           exclude: [...IGNORE, ...LIVE_DRIVE],
           fileParallelism: false,
           testTimeout: budget(BASE_SERIAL_TIMEOUT_MS),
@@ -329,9 +364,13 @@ export default defineConfig({
       {
         // live-drive: exactly the `LIVE_DRIVE` files (see the const above for the WHY + how to add one) —
         // the real-browser suites whose verdict is a MEASUREMENT. fileParallelism:false is half the point:
-        // these files must not contend with each other, and `pnpm test` lists this project LAST so the
-        // shard runs on the quietest box the battery can offer (scripts/vitest-supervised.mjs runs one
-        // `vitest run --project <x>` per project, SEQUENTIALLY, in argv order).
+        // these files must not contend with each other, and `pnpm test:tooling` lists this project LAST so
+        // the shard runs on the quietest box the battery can offer (scripts/vitest-supervised.mjs runs one
+        // `vitest run --project <x>` per project, SEQUENTIALLY, in argv order). It moved off `pnpm test`
+        // onto `pnpm test:tooling` with #1842: every member is a `tests/tooling/**` file, so this whole
+        // project is instrument recertification and belongs on the `tests:tooling` stage's tier, not the
+        // push bar. It is NOT folded into `tooling-serial` — the 120s backstop below and the 30s serial
+        // budget are different promises about different failure modes.
         //
         // testTimeout here is a BACKSTOP, not the operative budget: every file in this lane sets its own
         // `vi.setConfig` from `scaledBudget(...)` (tests/tooling/_load-budget.ts), because a fixed ceiling
@@ -356,14 +395,15 @@ export default defineConfig({
         // diff that never touched an instrument; the `tests:tooling` stage row (verify/lib/registry.ts)
         // owns WHEN it runs, and this project owns WHAT it is.
         //
-        // SERIAL_INT and LIVE_DRIVE keep their tooling members: those lists exist for contention
-        // semantics (one at a time / the quiet last shard), which this lane does not provide and must not
-        // silently drop. A file is in one lane or none — the `tests-execution-membership` gate proves it.
+        // The instrument battery's CONTENTION tail is `tooling-serial` + `live-drive`, not this lane:
+        // those lists exist for one-at-a-time / quiet-last-shard semantics this lane does not provide.
+        // Since #1842 all three ride `pnpm test:tooling`, so the split is complete by TIER as well as by
+        // subject. A file is in one lane or none — the `tests-execution-membership` gate proves it.
         extends: true,
         test: {
           name: "tooling",
           include: TOOLING,
-          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE],
+          exclude: [...IGNORE, ...SERIAL_INT_TOOLING, ...LIVE_DRIVE],
         },
       },
       {
