@@ -376,17 +376,22 @@ test("#1824: the usage census reads on the row's SUBTITLE line, under the name i
   // The board's anatomy, asserted as GEOMETRY rather than as a slot name: the census sits below the title
   // and starts at the same left edge, which is what makes it read as the name's own count at any pane
   // width. On the pre-#1824 source it sat on the title's line, ~850px to the right of it.
-  const geometry = await row.evaluate((el: Element) => {
-    const title = el.querySelector<HTMLElement>('[data-slot="list-row-title"]');
-    const subtitle = el.querySelector<HTMLElement>('[data-slot="list-row-subtitle"]');
-    if (title === null || subtitle === null) {
-      throw new Error("the row is missing its title or its subtitle");
-    }
-    const t = title.getBoundingClientRect();
-    const s = subtitle.getBoundingClientRect();
-    return { text: subtitle.textContent ?? "", below: s.top >= t.bottom - 1, leftDelta: Math.abs(s.left - t.left) };
-  });
-  expect(geometry.text).toBe("7 uses");
-  expect(geometry.below, "the census is on its own line, under the name").toBe(true);
-  expect(geometry.leftDelta, "the census starts at the name's left edge").toBeLessThanOrEqual(1);
+  // ONE poll returning a VERDICT OBJECT (the `ct-no-oneshot-live-read-assert` idiom): the reads are live
+  // layout, so the assertion retries until the row has painted; the failure output still names which claim
+  // broke and at what pixels.
+  await expect
+    .poll(() =>
+      row.evaluate((el: Element) => {
+        const title = el.querySelector<HTMLElement>('[data-slot="list-row-title"]');
+        const subtitle = el.querySelector<HTMLElement>('[data-slot="list-row-subtitle"]');
+        if (title === null || subtitle === null) {
+          throw new Error("the row is missing its title or its subtitle");
+        }
+        const t = title.getBoundingClientRect();
+        const s = subtitle.getBoundingClientRect();
+        const leftDelta = Math.abs(s.left - t.left);
+        return { text: subtitle.textContent ?? "", below: s.top >= t.bottom - 1, leftAligned: leftDelta <= 1, leftDelta };
+      }),
+    )
+    .toMatchObject({ text: "7 uses", below: true, leftAligned: true });
 });
