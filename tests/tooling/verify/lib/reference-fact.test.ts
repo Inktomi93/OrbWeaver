@@ -205,13 +205,16 @@ test("member assignment, postfix/prefix update, and delete targets refuse as wri
   ]);
 });
 
-test("canonical Object.assign mutates arg0 through direct, const, assignment, and destructuring aliases", () => {
+test("canonical Object.assign mutates arg0 through direct and exact alias shapes", () => {
   const cases = [
     "Object.assign(value, { late: 1 });",
     'Object["assign"](value, { late: 1 });',
     "const alias = value; Object.assign(alias, { late: 1 });",
     "let alias; alias = value; Object.assign(alias, { late: 1 });",
-    "const [alias] = value; Object.assign(alias, { late: 1 });",
+    "const [alias] = [value]; Object.assign(alias, { late: 1 });",
+    "const { value: alias } = { value }; Object.assign(alias, { late: 1 });",
+    "let alias; [alias] = [value]; Object.assign(alias, { late: 1 });",
+    "let alias; ({ value: alias } = { value }); Object.assign(alias, { late: 1 });",
   ];
   for (const effect of cases) {
     const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
@@ -228,6 +231,7 @@ test("shadowed Object.assign and references outside arg0 remain stable", () => {
     "const Object = { assign: (...args: unknown[]) => args }; Object.assign(value, { late: 1 });",
     "const run = (Object: ObjectConstructor) => Object.assign(value, { late: 1 });",
     "Object.assign({}, value);",
+    "const [alias] = [other, value]; Object.assign(alias, { late: 1 });",
   ];
   for (const effect of cases) {
     const sf = sourceOf(`const value = { initial: 1 }; ${effect}\nexport const result = value;`);
