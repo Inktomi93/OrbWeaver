@@ -15,7 +15,7 @@
 
 import { characterSnapshots, characters } from "@orb/db";
 import type { SQL } from "drizzle-orm";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, exists, sql } from "drizzle-orm";
 import type {
   CharacterRefineryOpsContext,
   DeleteSnapshotOp,
@@ -100,13 +100,22 @@ export function createStampRefinerySignals(ctx: CharacterRefineryOpsContext): St
   };
 }
 
-/** Build the snapshot-retraction op (#1551) — a single scoped delete, `characterId` in the WHERE (the
- *  injected-op-caller-gate: an op that dropped the scope would let one owner's refused apply retract a
- *  DIFFERENT character's row if the ids ever collided, which TypeID collision-freedom makes practically
- *  impossible but the WHERE still states for free). A zero-row delete (already gone, raced by something
- *  else) is a silent no-op — there is nothing left to retract either way. */
+/** Build the snapshot-retraction op (#1551, owner-scoped per train-78's `injected-op-caller-param`
+ *  finding) — a single scoped delete: `characterId` in the WHERE (an op that dropped it would let one
+ *  owner's refused apply retract a DIFFERENT character's row if the ids ever collided, which TypeID
+ *  collision-freedom makes practically impossible but the WHERE still states for free), PLUS an `owns`
+ *  EXISTS subquery over `characters` (the `ownedBackgroundExists` shape in `persistence/card.ts`) —
+ *  `character_snapshots` carries no `ownerId` column of its own, so ownership can only be re-asserted
+ *  through the join. A foreign owner's retraction deletes nothing (a silent no-op, same as a
+ *  zero-row/already-gone delete). */
 export function createDeleteSnapshot(ctx: CharacterRefineryOpsContext): DeleteSnapshotOp {
-  return async ({ snapshotId, characterId }) => {
-    await ctx.db.delete(characterSnapshots).where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)));
+  return async ({ ownerId, snapshotId, characterId }) => {
+    const owns = exists(
+      ctx.db
+        .select({ one: sql`1` })
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId))),
+    );
+    await ctx.db.delete(characterSnapshots).where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId), owns));
   };
 }

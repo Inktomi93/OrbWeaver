@@ -107,7 +107,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
       // expects. Any OTHER error rides through unretracted — the header's other belts (12, background
       // unavailability) leave the card row untouched, so there is nothing to undo.
       if (err instanceof DomainOperationError && err.code === CHARACTER_STALE_BASIS_OP_CODE) {
-        await ctx.deleteSnapshot({ snapshotId: snapshot.id, characterId: session.characterId });
+        await ctx.deleteSnapshot({ ownerId, snapshotId: snapshot.id, characterId: session.characterId });
       }
       throw err;
     }
