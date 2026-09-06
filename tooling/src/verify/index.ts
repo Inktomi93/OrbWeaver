@@ -32,6 +32,7 @@ export type {
 } from "./contract/gate.ts";
 export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
+export type { HostSlotHolder, HostSlotLease, HostSlotPool } from "./contract/host-slots.ts";
 export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
 export type { BootChunkVerdict, ConformanceFailure, LedgerFreshness, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";

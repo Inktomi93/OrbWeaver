@@ -4,10 +4,12 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import type { StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
+import type { Parsed, StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
   asViolations,
@@ -21,7 +23,8 @@ import {
   resolveSelection,
   stagesForTier,
 } from "../../../../tooling/src/verify/index.ts";
-import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
+import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
+import { enterWholeRunQueue, nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -501,8 +504,12 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived. #473
   // closed the same hole over the REST of the test tree; this pin is what stops either half regressing.
   const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
+  // The argv head is `node scripts/eslint.cjs`, not the bare bin (#1835): that shim is the ONE place
+  // ESLint's `--concurrency` comes from, and the whole-scope row reaches it through `pnpm lint:eslint`.
+  // Pinned here so a "simplification" back to the bin cannot silently leave the scoped lane single-threaded.
   expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
-    "eslint",
+    "node",
+    "scripts/eslint.cjs",
     "--max-warnings",
     "0",
     "--no-warn-ignored",
@@ -835,4 +842,64 @@ test("spawnNicedTranscript: a bin that does not exist is a TOOL error (status nu
   expect(cap.code).toBeNull();
   expect(asViolations(cap.code)).toBe(2);
   expect(cap.transcript).toContain("spawn failed");
+});
+
+// ── THE HOST-WIDE WHOLE-RUN QUEUE (#1835) ──────────────────────────────────────────────────────────────
+// Two whole batteries on one box is never faster than one after the other, so `runVerify` takes a
+// host-wide slot before its first stage. Pinned at the DOOR (`enterWholeRunQueue`) rather than by running
+// a battery: the pool's own mechanics are tests/tooling/verify/lib/host-slots.test.ts, and what only this
+// file can answer is WHICH RUNS QUEUE. The planted holder lives in a scratch runtime dir — never the real
+// /run/user/<uid> pool, where it would block an operator's live `pnpm check`.
+
+function parsedOrThrow(argv: readonly string[]): Parsed {
+  const parsedArgv = parse(argv);
+  if ("error" in parsedArgv) {
+    throw new Error(`argv ${argv.join(" ")} did not parse: ${parsedArgv.error}`);
+  }
+  return parsedArgv;
+}
+
+function scratchQueueEnv(): NodeJS.ProcessEnv {
+  return { [HOST_POOL_ROOT_ENV]: mkdtempSync(join(tmpdir(), "orb-verify-queue-")) };
+}
+
+test("a WHOLE verify run takes the host-wide queue slot; a SCOPED run does not (the inner loop must never wait)", async () => {
+  const env = scratchQueueEnv();
+  const whole = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 30_001, alive: (pid) => pid === 30_001 });
+  expect(whole?.slot, "a whole run holds the single host slot").toBe(1);
+  const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed"]), { env, pid: 30_002, alive: () => true });
+  expect(scoped, "a scoped run is exempt — it is the fast inner loop a lane runs beside a live battery").toBeNull();
+  whole?.release();
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("a second whole run QUEUES behind a live holder and says whose pid it is behind — it is never refused", async () => {
+  const env = scratchQueueEnv();
+  const held = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--push"]), { env, pid: 31_001, alive: (pid) => pid === 31_001 });
+  expect(held?.slot).toBe(1);
+
+  const queuedBehind: number[] = [];
+  let clockMs = 5_000_000;
+  const second = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), {
+    env,
+    pid: 31_002,
+    alive: (pid) => pid === 31_001 || pid === 31_002,
+    now: () => new Date(clockMs),
+    // The wait is BUDGET-SCALED off a 45-minute base, so a real ceiling would take 45 wall-clock minutes to
+    // reach; the injected clock jumps a day per poll and lands on the degrade arm in one iteration.
+    sleep: (ms) => {
+      clockMs += ms + 86_400_000;
+      return Promise.resolve();
+    },
+    onQueued: (holder) => queuedBehind.push(holder.pid),
+    onNotice: () => undefined,
+  });
+  expect(queuedBehind, "the waiter announces the run it is behind").toStrictEqual([31_001]);
+  expect(second?.slot, "past the ceiling it PROCEEDS unslotted — a refused verify breaks a merge train").toBeNull();
+
+  held?.release();
+  const third = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 31_003, alive: (pid) => pid === 31_003 });
+  expect(third?.slot, "once the holder releases, the slot is free again").toBe(1);
+  third?.release();
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
