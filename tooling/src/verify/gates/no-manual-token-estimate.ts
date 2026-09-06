@@ -105,7 +105,14 @@ export const gate = defineGate({
           if (verdict === "other") {
             return;
           }
-          ctx.report.node(node, { ...(verdict === "unreadable" ? { message: UNREADABLE } : {}) });
+          // Anchored on `.length`, not on the receiver's own name: a waiver position must name the thing
+          // being judged, and `ctx.report.node` would otherwise derive the token from whatever identifier
+          // the expression happens to open with (`text`, `parts`, `buf`).
+          ctx.report.node(node, {
+            ...(verdict === "unreadable" ? { message: UNREADABLE } : {}),
+            token: LENGTH,
+            offset: Math.max(node.getText().indexOf(LENGTH), 0),
+          });
         },
       },
     ],

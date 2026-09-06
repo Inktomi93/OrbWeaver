@@ -28,6 +28,11 @@ import { LOOKALIKE_HOME, vendorLookalikeProof } from "./_proof/client-vendors.ts
 const STORE_HOOK_HOME = "packages/client/src/state/create-gated-store.ts";
 const STORE_HOOK_TYPE = "GatedStoreHook";
 const ZUSTAND = "zustand";
+/** zustand's OWN bound-hook type, for a store minted outside the two factories. The package alone is not
+ *  the identity: `persist`, `devtools` and `subscribeWithSelector` are zustand-declared too, and every one
+ *  of them takes an initializer that returns a fresh object — the real tree produced exactly that false
+ *  positive (`persist((): S => ({ drafts: {} }), …)`) before this name was required. */
+const ZUSTAND_HOOK_TYPE = "UseBoundStore";
 
 const MESSAGE =
   "zustand selector returns a fresh object/array literal — under v5's Object.is this re-renders forever (useSyncExternalStore loop). Select a stored ref, use a frozen module-constant default, or wrap in useShallow. See UI-Lib-Zustand.md C-1/B-2.";
@@ -40,7 +45,7 @@ function isStoreHook(callee: MorphNode, home: SourceFile): boolean {
   if (identity.value.name === STORE_HOOK_TYPE && declaredByFile(identity.value.declarations, home)) {
     return true;
   }
-  return declaredByPackage(identity.value.declarations, ZUSTAND);
+  return identity.value.name === ZUSTAND_HOOK_TYPE && declaredByPackage(identity.value.declarations, ZUSTAND);
 }
 
 /** Does this arrow selector return a FRESHLY BUILT object/array? Parenthesis, `as` and `satisfies` wrappers
@@ -195,6 +200,17 @@ export const gate = defineGate({
           'import type { Options } from "vendor-lookalike";\ndeclare function useThemeStore<U>(selector: (state: Options) => U): U;\nexport const A = (): unknown => useThemeStore((s) => ({ a: s.staleTime }));\n',
       },
       why: `a hook typed by an unrelated package (${LOOKALIKE_HOME}) is not a zustand store; only the two declared homes admit`,
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zustand/middleware/index.d.ts":
+          "export declare function persist<T>(initializer: () => T, options: { name: string }): () => T;\nexport declare function devtools<T>(initializer: () => T, options: { name: string }): () => T;\n",
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/client/src/state/create-entity-draft-store.ts":
+          'import { persist } from "zustand/middleware";\nexport const store = persist((): { drafts: Record<string, string> } => ({ drafts: {} }), { name: "drafts" });\n',
+      },
+      why: "THE REAL-TREE FALSE POSITIVE THIS ROW WAS MINTED FROM: `persist((): S => ({ drafts: {} }), …)` in create-entity-draft-store.ts is a zustand MIDDLEWARE whose initializer legitimately returns a fresh object once at creation, not a selector that runs every render. Admitting anything zustand-declared would red it, so the hook TYPE name is part of the identity and not the package alone",
     },
   ],
 });
