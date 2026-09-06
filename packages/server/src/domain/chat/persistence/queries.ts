@@ -37,7 +37,7 @@ import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
 import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/kit";
 import { HIDDEN_TAGS } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
@@ -920,6 +920,15 @@ export async function loadStreamBounds(db: Db, chatId: ChatId): Promise<StreamEv
 export async function loadChatEventReplay(db: Db, chatId: ChatId, afterSeq?: number): Promise<ChatEventLogRow[]> {
   const where = afterSeq === undefined ? eq(chatEvents.chatId, chatId) : and(eq(chatEvents.chatId, chatId), gt(chatEvents.seq, afterSeq));
   return await db.select({ seq: chatEvents.seq, payload: chatEvents.payload }).from(chatEvents).where(where).orderBy(asc(chatEvents.seq));
+}
+
+/** The durable log row minted under ONE event id — its cursor plus the payload AS STORED, or undefined when
+ *  no row carries that id. The GROUND-TRUTH read behind the bus's terminal-drop classification (#1544): after
+ *  a same-id retry fails, only the stored payload can say whether OUR append is the one that committed (id
+ *  existence alone cannot — the row under that id may belong to a different event). */
+export async function loadChatEventById(db: Db, id: ChatEventId): Promise<ChatEventLogRow | undefined> {
+  const rows = await db.select({ seq: chatEvents.seq, payload: chatEvents.payload }).from(chatEvents).where(eq(chatEvents.id, id));
+  return rows.at(0);
 }
 
 /** The durable chat-bus log's cursor bounds — min/max `seq` (null/null when empty); `maxSeq` is the
