@@ -283,13 +283,6 @@ function writeFixtures(): void {
     "packages/contracts/src/__g_dcite/index.ts",
     `// per ${["D", "998"].join("")} — a dangling D-citation, no anchor, above the ceiling.\nexport const gDcite = 1;\n`,
   );
-  // nullable-column-inequality: `ne()` on a column the REAL drizzle schema declares nullable
-  // (`characters.avatar_asset_id` has no `.notNull()`), with nothing guarding the NULLs. The gate derives
-  // nullability from packages/db/src/schema/** on every run, so the fixture rides the real map.
-  fx(
-    "packages/server/src/__g_nullcmp.ts",
-    'import { characters } from "@orb/db";\nimport { ne } from "drizzle-orm";\nexport const p = ne(characters.avatarAssetId, "a");\n',
-  );
   // no-nul-bytes-in-source: a RAW NUL byte in a source file. Assembled via fromCharCode so the byte is
   // never present in THIS file's own source — the gate scans tests/ too, and a literal NUL here would make
   // the suite's own file a permanent violation (and diff as `Bin`).
@@ -680,15 +673,12 @@ function writeFixtures(): void {
     "export function gOnAdd(form: F): void {\n  form.pushFieldValue('items', v);\n  void form.handleSubmit();\n}\n",
   );
   // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
-  // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_CLASSIFICATIONS.
-  fx(
-    "packages/db/src/schema/__g_ownerid.ts",
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gOwnerid = sqliteTable("__g_ownerid", { ownerId: text("owner_id").references(() => gOwnerid.ownerId) });\n',
-  );
   // lifecycle-portability: an OWNER-STAMPED canon table that no portable kind carries and no
   // NON_PORTABLE_CANON row classifies — the F1 shape (databank sat exactly here while every full-account
-  // backup silently dropped it). Its own fixture rather than riding `__g_ownerid`'s: the two gates ask
-  // different questions of the same column, and a shared fixture hides it when one of them dies.
+  // backup silently dropped it). Its own fixture on purpose: an ownerId-bearing fixture answers two
+  // different questions, and a shared one hides whichever gate dies first — which is exactly what
+  // happened to the reference this comment used to name (`__g_ownerid`, retired with ownerid-registry's
+  // conversion to a final policy the legacy loader cannot run).
   fx(
     "packages/db/src/schema/__g_lifecycle.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gLifecycle = sqliteTable("__g_lifecycle", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
@@ -745,11 +735,6 @@ function writeFixtures(): void {
   fx(
     "packages/db/src/schema/__g_softref.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gSoftref = sqliteTable("__g_softref", { fooId: text("foo_id") });\n',
-  );
-  // db-enum-from-tuple: a drizzle enum column configured with an INLINE array literal (not a tuple ref).
-  fx(
-    "packages/db/src/schema/__g_dbenum.ts",
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gEnum = sqliteTable("__g_dbenum", { kind: text("kind", { enum: ["a", "b"] }) });\n',
   );
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
   fx("packages/server/src/infra/auth/__g_userid.ts", "export function gAuth(userId: string): string {\n  return userId;\n}\n");

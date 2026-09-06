@@ -466,9 +466,24 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
         "packages/server/src/domain/x/persistence/reads.ts":
-          'function ne(a: string, b: string): boolean {\n  return a !== b;\n}\nexport const p = ne("x", "y");\n',
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          "function ne(a: unknown, b: string): boolean {\n  return a !== b;\n}\n" +
+          'export const p = ne(characters.avatarAssetId, "a");\n',
       },
-      why: "DECLARED LIMIT / no-false-positive: a same-named LOCAL `ne` is not drizzle SQL. The shared module-origin reader is what keeps a name-keyed match honest",
+      why: "DECLARED LIMIT / no-false-positive: a same-named LOCAL `ne` is not drizzle SQL. THE COLUMN ARGUMENT IS THE POINT — with string literals this row was acquitted upstream by column resolution and isolated nothing. It now isolates the FIRST half of the origin claim (a local declaration is no module member at all); the SECOND half — and that module is drizzle — needs a genuine foreign export, which is the row below",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey(), avatarAssetId: text("avatar_asset_id") });\n',
+        "packages/server/src/domain/x/persistence/predicates.ts": "export function ne(a: unknown, b: string): boolean {\n  return a !== b;\n}\n",
+        "packages/server/src/domain/x/persistence/reads.ts":
+          'import { characters } from "../../../../../db/src/schema/x";\n' +
+          'import { ne } from "./predicates";\n' +
+          'export const p = ne(characters.avatarAssetId, "a");\n',
+      },
+      why: "THE MODULE-ORIGIN COUNTERFACTUAL: `ne` here is a GENUINE module export that resolves cleanly — same name, same shape, same nullable column, everything the detector keys on except the one thing that matters, its module. Only `moduleSpecifier.startsWith(\"drizzle-orm\")` acquits it, so deleting that comparison turns this row red; without it the whole 'only drizzle counts' claim had no control",
     },
     {
       mode: "types",
