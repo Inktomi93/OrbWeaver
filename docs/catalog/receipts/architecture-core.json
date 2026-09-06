@@ -1210,9 +1210,10 @@
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "9bed19ed8d0f587b56a5fc7f18d3b14bc6728af83ee149025ffb4af97f13ee05",
-      "verifiedCommit": "6395e6a03209319f72a5cc779dcc0790134ae9d0",
+      "verifiedCommit": "c13baf612a264212dde38a72e72a23709363a754",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "#1848 (cb-runner-budget): tests:node split into vitest + browser:ct with a profile-derived budget (stageBudgets), run-marker sweep, stage cap in the profile; re-attested at the merge sha after the lane's pre-rebase sha was orphaned",
         "re-attested at 6395e6a03 (#1848, full delta read): §3.7's `tests:node` row is the vitest half only (`pnpm test:node`), `browser:ct` is a push/full stage again with a profile-DERIVED hang ceiling, the push tier row and the pre-push bullet name both halves, and the new §3.7b states the stageBudgets derivation with its 2026-09-06 measurement. No other text moved.",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
         "re-attested at 561ea5ec3 (#1292, full delta read): the RENDERED instruments (#1164) paragraph narrows to `snap` and `design-audit` as the surviving rendered browser instruments; `record`/`motion-audit`/`perf-meter` are now loud compatibility redirects into Snap that open no browser. No other text moved.",
