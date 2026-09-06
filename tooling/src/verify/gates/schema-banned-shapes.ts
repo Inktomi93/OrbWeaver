@@ -1,382 +1,220 @@
-// Gate: schema-banned-shapes — ONE registry-driven gate over the ledger's explicitly-REJECTED schema +
-// contract shapes. Each row (below, each carrying its own D-cite) is a (location, forbidden shape,
-// D-cite) the ledger killed by name; a reintroduction (an amnesiac agent re-porting a neo pattern) is
-// RED with the cite. The registry is the extensible-forever table shape — a new "we decided NOT to have
-// X" ruling adds one row.
-// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
-// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
-// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
-// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
-// column's DECLARING file and the scan line prints the resolved table/column population.
-import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { InterfaceDeclaration, Node, Project, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+// The SCHEMA partition of the ledger's rejected shapes (D18/D25/D26/D27/D28/D36/D58), judged on the shared
+// Drizzle fact: tables by SQL name, columns by the identity the authored schema object declares. The fact
+// owns builder/alias/import/spread resolution, so an imported columns object or a shorthand member is the
+// same obligation as an inline property. The contract partition is `contract-banned-shapes`; the D12 import
+// ban is biome's native `noRestrictedImports`. Rows + the message: ../lib/ledger-banned-shapes.ts.
+// HARD by design: a ledger verdict's only escape is contesting the D-cite, never a site comment.
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { SchemaBannedShape } from "../lib/ledger-banned-shapes.ts";
+import { bannedMessage, SCHEMA_BANNED_SHAPES } from "../lib/ledger-banned-shapes.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 
-const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
-const TABLE_FN = "sqliteTable";
+const MESSAGE =
+  "a ledger-REJECTED schema shape has been reintroduced — the ledger killed this table/column by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).";
+const FIX = "remove the banned column (or the whole table) — the ledger row names the correct home for the concern.";
 
-interface ColumnBan {
-  readonly kind: "column";
-  table: string;
-  column: string;
-  cite: string;
-}
-interface ColumnPatternBan {
-  readonly kind: "column-pattern";
-  table: string;
-  pattern: RegExp;
-  label: string;
-  cite: string;
-}
-interface TableBan {
-  readonly kind: "table";
-  table: string;
-  cite: string;
-}
-interface InterfaceFieldBan {
-  readonly kind: "interface-field";
-  typeName: string;
-  field: string;
-  cite: string;
-}
-interface SchemaFieldBan {
-  readonly kind: "schema-field";
-  schemaVar: string;
-  field: string;
-  cite: string;
-}
-interface ImportBan {
-  readonly kind: "import";
-  specifier: string;
-  cite: string;
-}
-type BannedShape = ColumnBan | ColumnPatternBan | TableBan | InterfaceFieldBan | SchemaFieldBan | ImportBan;
-
-const MESSAGE_ECONOMICS: readonly string[] = [
-  "content",
-  "reasoning",
-  "model",
-  "provider",
-  "costUsd",
-  "promptSnapshot",
-  "rawRequest",
-  "rawResponse",
-  "tokensIn",
-  "tokensOut",
-  "contextWindow",
-  "maxOutputTokens",
-  "ttftMs",
-];
-
-export const BANNED_SHAPES: readonly BannedShape[] = [
-  { kind: "column", table: "chats", column: "ownerId", cite: "D18 (chats are membership-scoped)" },
-  {
-    kind: "column",
-    table: "chats",
-    column: "memoryEnabled",
-    cite: "D36 (memory on/off is a global setting, not per-chat)",
-  },
-  {
-    kind: "column",
-    table: "chats",
-    column: "sessionId",
-    cite: "D25 (agent-sdk cache → sdk-session.ts)",
-  },
-  {
-    kind: "column",
-    table: "chats",
-    column: "sessionDirty",
-    cite: "D25 (agent-sdk cache → sdk-session.ts)",
-  },
-  {
-    kind: "column-pattern",
-    table: "chats",
-    pattern: /presetId/iu,
-    label: "a *presetId* column",
-    cite: "D58 (never bind a preset to a chat; the owning feature carries the association)",
-  },
-  {
-    kind: "column",
-    table: "messages",
-    column: "parentId",
-    cite: "D27 (ONE branch axis: chat forks, not a message DAG)",
-  },
-  ...MESSAGE_ECONOMICS.map(
-    (column): ColumnBan => ({
-      kind: "column",
-      table: "messages",
-      column,
-      cite: "D26 (messages is a pure slot; content/economics live only on message_variants)",
-    }),
-  ),
-  { kind: "table", table: "character_versions", cite: "D28 (the card is a flat characters row)" },
-  {
-    kind: "column",
-    table: "characters",
-    column: "currentVersionId",
-    cite: "D28 (no character_versions, no currentVersionId/circular FK)",
-  },
-  {
-    kind: "schema-field",
-    schemaVar: "appSettingsSchema",
-    field: "guidedActions",
-    cite: "D33 (a neo phantom; guided actions live only on the preset)",
-  },
-  {
-    kind: "interface-field",
-    typeName: "Principal",
-    field: "kind",
-    cite: "D60 (Principal gains NO kind field; agents are structurally Principal-less)",
-  },
-  {
-    kind: "import",
-    specifier: "@orb/contracts/sessions",
-    cite: "D12 (the contract namespace is `session` singular; there is no `sessions`)",
-  },
-];
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+/** Does this column match a column / column-pattern row? The subject is the PROPERTY name, which is the
+ *  identity a reintroduction re-spells; the fact already resolved it through shorthand, spread, alias and
+ *  imported-columns-object shapes. */
+function columnHit(shape: Exclude<SchemaBannedShape, { readonly kind: "table" }>, column: SchemaColumn): boolean {
+  return shape.kind === "column" ? column.identity.propertyName === shape.column : shape.pattern.test(column.identity.propertyName);
 }
 
-function bannedMessage(shape: string, cite: string): string {
-  return `${shape} is a ledger-REJECTED schema/contract shape (${cite}) — a reintroduction is banned. See tooling/src/verify/gates/schema-banned-shapes.ts and Core-Laws-and-Precedents.md.`;
+function columnLabel(shape: Exclude<SchemaBannedShape, { readonly kind: "table" }>): string {
+  return shape.kind === "column" ? `\`${shape.table}.${shape.column}\`` : shape.label;
 }
 
-interface Table {
-  sqlName: string;
-  colsObj: Node;
+interface BannedShapeFinding {
+  readonly node: SchemaTable["declaration"] | SchemaColumn["declaration"];
+  readonly token: string;
+  readonly message: string;
 }
 
-/** Every `sqliteTable("name", { … })` in one schema file (sql name + columns object). */
-function tablesIn(sf: SourceFile): Table[] {
-  const out: Table[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    if (!(callee.isKind(SyntaxKind.Identifier) && callee.getText() === TABLE_FN)) {
-      continue;
-    }
-    const [nameArg, colsArg] = call.getArguments();
-    if (nameArg !== undefined && nameArg.isKind(SyntaxKind.StringLiteral) && colsArg !== undefined) {
-      out.push({ sqlName: nameArg.getLiteralText(), colsObj: colsArg });
-    }
-  }
-  return out;
-}
-
-function columnKeys(colsObj: Node): string[] {
-  return columnProperties(colsObj).map((column) => column.name);
-}
-
-function tableBanViolation(found: Table[], rel: string, shape: TableBan): Violation[] {
-  if (!found.some((t) => t.sqlName === shape.table)) {
-    return [];
-  }
-  return [{ file: rel, line: 1, message: bannedMessage(`the \`${shape.table}\` table`, shape.cite) }];
-}
-
-function columnBanViolations(found: Table[], rel: string, shape: ColumnBan | ColumnPatternBan): Violation[] {
-  const table = found.find((t) => t.sqlName === shape.table);
-  if (table === undefined) {
-    return [];
-  }
-  const keys = columnKeys(table.colsObj);
-  const hits = shape.kind === "column" ? keys.filter((k) => k === shape.column) : keys.filter((k) => shape.pattern.test(k));
-  const label = shape.kind === "column" ? `\`${shape.table}.${shape.column}\`` : shape.label;
-  return hits.map(() => ({ file: rel, line: 1, message: bannedMessage(label, shape.cite) }));
-}
-
-/** Schema-file rules (column / column-pattern / table bans), evaluated over one file's tables. */
-function schemaViolations(sf: SourceFile, rel: string): Violation[] {
-  const found = tablesIn(sf);
-  const out: Violation[] = [];
-  for (const shape of BANNED_SHAPES) {
+/** Every rejected shape this table reintroduces, one finding per OCCURRENCE (two banned columns on one
+ *  table are two findings, never one summary row). */
+function tableFindings(table: SchemaTable): readonly BannedShapeFinding[] {
+  return SCHEMA_BANNED_SHAPES.filter((shape) => shape.table === table.sqlName).flatMap((shape) => {
     if (shape.kind === "table") {
-      out.push(...tableBanViolation(found, rel, shape));
-    } else if (shape.kind === "column" || shape.kind === "column-pattern") {
-      out.push(...columnBanViolations(found, rel, shape));
+      return [{ node: table.declaration, token: table.identity.declarationName, message: bannedMessage(`the \`${shape.table}\` table`, shape.cite) }];
     }
-  }
-  return out;
+    return table.columns
+      .filter((column) => columnHit(shape, column))
+      .map((column) => ({ node: column.declaration, token: column.identity.propertyName, message: bannedMessage(columnLabel(shape), shape.cite) }));
+  });
 }
 
-/** Contract-side rules: interface-field (Principal.kind), schema-field (appSettingsSchema.guidedActions). */
-function contractDeclViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const shape of BANNED_SHAPES) {
-    if (shape.kind === "interface-field") {
-      const iface: InterfaceDeclaration | undefined = sf.getInterface(shape.typeName);
-      if (iface?.getProperty(shape.field)) {
-        // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
-        out.push({
-          file: rel,
-          line: iface.getProperty(shape.field)?.getStartLineNumber() ?? 1,
-          message: bannedMessage(`\`${shape.typeName}.${shape.field}\``, shape.cite),
-        });
+export const gate = defineGate({
+  id: "schema-banned-shapes",
+  family: "drizzle-schema",
+  authority: "hard",
+  severity: "error",
+  population: DRIZZLE_SCHEMA_POPULATION,
+  analysis: "types",
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    evaluate: () => {
+      const fact = ctx.fact(drizzleSchemaFact).schema();
+      recordReadySchemaFact(ctx, fact);
+      for (const table of fact.value.tables) {
+        for (const finding of tableFindings(table)) {
+          // The token is the DECLARED identity, which is not always at offset 0 of the declaration text (a
+          // computed-key member spells it inside a string literal), so the offset is located rather than
+          // assumed; an identity the authored text does not carry verbatim falls back to the runtime's own
+          // derived anchor instead of throwing.
+          const offset = finding.node.getText().indexOf(finding.token);
+          if (offset < 0) {
+            ctx.report.node(finding.node, { message: finding.message });
+          } else {
+            ctx.report.node(finding.node, { token: finding.token, offset, message: finding.message });
+          }
+        }
       }
-    }
-    if (shape.kind === "schema-field") {
-      out.push(...schemaFieldViolations(sf, rel, shape));
-    }
-  }
-  return out;
-}
-
-function schemaFieldViolations(sf: SourceFile, rel: string, shape: SchemaFieldBan): Violation[] {
-  const decl = sf.getVariableDeclaration(shape.schemaVar);
-  if (decl === undefined) {
-    return [];
-  }
-  const obj = decl.getFirstDescendantByKind(SyntaxKind.ObjectLiteralExpression);
-  const prop = obj?.getProperty(shape.field);
-  if (prop === undefined) {
-    return [];
-  }
-  return [
-    // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
-    {
-      file: rel,
-      line: prop.getStartLineNumber(),
-      message: bannedMessage(`\`${shape.schemaVar}.${shape.field}\``, shape.cite),
     },
-  ];
-}
-
-/** Import-ban rules (the `@orb/contracts/sessions` namespace), over any source file. */
-function importViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const shape of BANNED_SHAPES) {
-    if (shape.kind !== "import") {
-      continue;
-    }
-    for (const decl of sf.getImportDeclarations()) {
-      const spec = decl.getModuleSpecifierValue();
-      if (spec === shape.specifier || spec.startsWith(`${shape.specifier}/`)) {
-        // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
-        out.push({
-          file: rel,
-          line: decl.getStartLineNumber(),
-          message: bannedMessage(`an import of \`${shape.specifier}\``, shape.cite),
-        });
-      }
-    }
-  }
-  return out;
-}
-
-/** The whole-tree ban scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanBannedShapes(root: string, project: Project): Violation[] {
-  const violations: Violation[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    const rel = relPath(root, path);
-    if (SCHEMA_DIR.test(path)) {
-      violations.push(...schemaViolations(sf, rel));
-    }
-    violations.push(...contractDeclViolations(sf, rel));
-    violations.push(...importViolations(sf, rel));
-  }
-  return violations;
-}
-
-// A static ban registry (BANNED_SHAPES) checked per file — column/table bans in schema files,
-// interface-field / schema-field bans on contracts, an import ban anywhere. Not a ratchet (the registry
-// is a fixed forbidden list, no stale arm). Each finding names its banned shape.
-export const gate: GateDescriptor = {
-  name: "schema-banned-shapes",
-  docRow: "Core-Path-Registry ledger (D12/D18/D25/D26/D27/D28/D33/D36/D58/D60)",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a ledger-REJECTED schema/contract shape has been reintroduced — the ledger killed this shape by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).",
-  fix: "remove the banned column/field/import (or the whole table) — the ledger row names the correct home for the concern.",
-  run: (ctx) => {
-    ctx.scan(schemaScan(ctx.project));
-    for (const v of scanBannedShapes(ctx.root, ctx.project)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
-  },
+  }),
   mustFlag: [
     {
-      files: 'const activePresetId = text("active_preset_id");\nexport const t = sqliteTable("chats", { activePresetId });\n',
-      at: "packages/db/src/schema/chat.ts",
-      expect: { count: 1, messageIncludes: "D58" },
-      why: "THE #1035 SHORTHAND RED: a ledger-REJECTED column reintroduced as a shorthand member — the column ban must read the resolved key, not the written member kind",
-    },
-    {
+      mode: "types",
       files: {
-        "packages/db/src/schema/x-columns.ts": 'export const chatColumns = { activePresetId: text("active_preset_id") };\n',
-        "packages/db/src/schema/x.ts": 'import { chatColumns } from "./x-columns";\nexport const t = sqliteTable("chats", chatColumns);\n',
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const activePresetId = text("active_preset_id");\n' +
+          'export const chats = sqliteTable("chats", { activePresetId });\n',
       },
-      expect: { count: 1, messageIncludes: "D58" },
-      why: "THE #945 IMPORTED-COLUMNS RED: a ledger-REJECTED column reintroduced behind an imported columns object — the table-name ban still fired, but the COLUMN ban (the one carrying the D-cite for this shape) read zero columns and passed",
+      expect: { count: 1, token: "activePresetId", messageIncludes: "D58" },
+      why: "THE #1035 SHORTHAND RED: a ledger-REJECTED column reintroduced as a shorthand member — the ban reads the RESOLVED column identity, never the written member kind",
     },
     {
-      files: 'export const chats = sqliteTable("chats", { ownerId: text("owner_id") });\n',
-      at: "packages/db/src/schema/chat.ts",
-      expect: { messageIncludes: "D18" },
-      why: "chats.ownerId — the ledger DROPPED it (D18, chats are membership-scoped)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x-columns.ts":
+          'import { text } from "drizzle-orm/sqlite-core";\nexport const chatColumns = { activePresetId: text("active_preset_id") };\n',
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable } from "drizzle-orm/sqlite-core";\nimport { chatColumns } from "./x-columns";\nexport const t = sqliteTable("chats", chatColumns);\n',
+      },
+      expect: { count: 1, token: "activePresetId", messageIncludes: "D58" },
+      why: "THE #945 IMPORTED-COLUMNS RED: the column ban (the arm carrying the D-cite for this shape) used to read ZERO columns behind an imported columns object and pass",
     },
     {
-      files: 'export const t = sqliteTable("messages", { content: text("content") });\n',
-      at: "packages/db/src/schema/message.ts",
-      expect: { messageIncludes: "D26" },
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import * as core from "drizzle-orm/sqlite-core";\nexport const chats = core.sqliteTable("chats", { ownerId: core.text("owner_id") });\n',
+      },
+      expect: { count: 1, token: "ownerId", messageIncludes: "D18" },
+      why: "chats.ownerId — the ledger DROPPED it (D18, chats are membership-scoped); the namespace-qualified builder is the same shape, not a different one",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/message.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("messages", { content: text("content") });\n',
+      },
+      expect: { count: 1, token: "content", messageIncludes: "D26" },
       why: "a messages economics column (content) — messages is a pure slot (D26)",
     },
     {
-      files: 'export const t = sqliteTable("chats", { activePresetId: text("active_preset_id") });\n',
-      at: "packages/db/src/schema/chat.ts",
-      expect: { messageIncludes: "D58" },
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("chats", { activePresetId: text("active_preset_id") });\n',
+      },
+      expect: { count: 1, token: "activePresetId", messageIncludes: "D58" },
       why: "a chats.*presetId* column-pattern — never bind a preset to a chat (D58)",
     },
     {
-      files: 'export const t = sqliteTable("character_versions", { id: text("id") });\n',
-      at: "packages/db/src/schema/character.ts",
-      expect: { messageIncludes: "D28" },
-      why: "a character_versions table — the card is a flat characters row (D28)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { ["memoryEnabled"]: text("memory_enabled") });\n',
+      },
+      expect: { count: 1, token: "memoryEnabled", messageIncludes: "D36" },
+      why: "a COMPUTED-KEY column member is the same declared identity — a dot-only reader would answer 'not my subject' (the #1506 respelling class)",
     },
     {
-      files: "export interface Principal {\n  userId: string;\n  kind: string;\n}\n",
-      at: "packages/contracts/src/identity/index.ts",
-      expect: { messageIncludes: "D60" },
-      why: "a `kind` field on Principal — agents are structurally Principal-less (D60)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characterVersions = sqliteTable("character_versions", { id: text("id").primaryKey() });\n',
+      },
+      expect: { count: 1, token: "characterVersions", messageIncludes: "D28" },
+      why: "a character_versions table — the card is a flat characters row (D28); the finding anchors on the table declaration rather than the legacy line-1 stub",
     },
     {
-      files: "export const appSettingsSchema = z.object({\n  guidedActions: z.array(z.string()),\n});\n",
-      at: "packages/contracts/src/settings/index.ts",
-      expect: { messageIncludes: "D33" },
-      why: "appSettingsSchema.guidedActions — a neo phantom; guided actions live only on the preset (D33)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const chats = sqliteTable("chats", { id: text("id").primaryKey(), ownerId: text("owner_id"), sessionId: text("session_id") });\n',
+      },
+      expect: { count: 2 },
+      why: "two banned columns on one table are TWO findings — a per-occurrence verdict, not one summary row",
     },
     {
-      files: 'import { X } from "@orb/contracts/sessions";\nexport const y = 1;\n',
-      at: "packages/server/src/x.ts",
-      expect: { messageIncludes: "D12" },
-      why: "an @orb/contracts/sessions import — the namespace is `session` singular (D12)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const rooms = sqliteTable("chats", { ownerId: text("owner_id") });\n',
+      },
+      expect: { count: 1, token: "ownerId", messageIncludes: "D18" },
+      why: "DIFFERENT DECLARATION NAME, SAME TABLE: the binding is `rooms` but the SQL table is `chats`, which is what D18 ruled on — renaming the JS const must not launder the ban",
     },
   ],
   mustPass: [
     {
-      files: 'const title = text("title");\nexport const chats = sqliteTable("chats", { title });\n',
-      at: "packages/db/src/schema/chat.ts",
-      why: "the SHORTHAND's green twin: an ordinary column as a shorthand member is not a banned shape",
-    },
-    {
-      files: 'export const chats = sqliteTable("chats", { title: text("title") });\n',
-      at: "packages/db/src/schema/chat.ts",
-      why: "a chats table with only a non-banned column — no rejected shape, passes",
-    },
-    {
-      // born-compliant across every arm: chats/messages slots, a kind-less Principal, singular session.
+      mode: "types",
       files: {
         "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst title = text("title");\nexport const chats = sqliteTable("chats", { title });\n',
+      },
+      why: "the SHORTHAND's green twin: an ordinary column as a shorthand member is not a banned shape — resolving the member kind widens the obligation set, never the accusation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
           'export const c = sqliteTable("chats", { id: text("id"), hostUserId: text("host_user_id") });\n' +
           'export const m = sqliteTable("messages", { id: text("id"), role: text("role") });\n',
-        "packages/contracts/src/identity/index.ts": "export interface Principal {\n  userId: string;\n  role: string;\n}\n",
-        "packages/server/src/x.ts": 'import { X } from "@orb/contracts/session";\nexport const y = 1;\n',
       },
-      why: "born-compliant shapes across every arm (slots, kind-less Principal, singular session import) — passes",
+      why: "born-compliant chats/messages slots — no rejected shape, passes",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/other.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const rooms = sqliteTable("rooms", { ownerId: text("owner_id"), activePresetId: text("active_preset_id") });\n',
+      },
+      why: "DECLARED LIMIT / no-false-positive: the bans are TABLE-SCOPED by SQL name — an `ownerId` or a `*presetId` on a table the ledger never ruled on is ordinary schema (`ownerid-registry` owns the ownership question)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("rooms", { ownerId: text("owner_id") });\n',
+      },
+      why: "the counterfactual's green twin: a binding spelled `chats` creating the SQL table `rooms` is NOT the ruled table — together with the mustFlag above this pins the verdict to the SQL name in both directions",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/message.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const variants = sqliteTable("message_variants", { content: text("content"), model: text("model"), costUsd: text("cost_usd") });\n',
+      },
+      why: "the D26 economics columns on `message_variants` are their CORRECT home — the ban names the slot table, and this row is the written baseline of that boundary",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { presetLabel: text("preset_label") });\n',
+      },
+      why: "DECLARED LIMIT: the D58 pattern is `presetId`, not the word `preset` — a label column naming a preset is not a per-chat preset BINDING",
     },
   ],
-};
+});

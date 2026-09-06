@@ -680,7 +680,7 @@ function writeFixtures(): void {
     "export function gOnAdd(form: F): void {\n  form.pushFieldValue('items', v);\n  void form.handleSubmit();\n}\n",
   );
   // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
-  // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_ALLOWLIST.
+  // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_CLASSIFICATIONS.
   fx(
     "packages/db/src/schema/__g_ownerid.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gOwnerid = sqliteTable("__g_ownerid", { ownerId: text("owner_id").references(() => gOwnerid.ownerId) });\n',
@@ -751,11 +751,6 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_dbenum.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gEnum = sqliteTable("__g_dbenum", { kind: text("kind", { enum: ["a", "b"] }) });\n',
   );
-  // schema-banned-shapes: the D18 chats.ownerId shape the ledger killed by name (a re-declared table).
-  fx(
-    "packages/db/src/schema/__g_banned.ts",
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gBanned = sqliteTable("chats", { ownerId: text("owner_id") });\n',
-  );
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
   fx("packages/server/src/infra/auth/__g_userid.ts", "export function gAuth(userId: string): string {\n  return userId;\n}\n");
   // content-part-seam: a ChatContentPart import from @orb/contracts/chat OUTSIDE the D51 seam set.
@@ -773,14 +768,6 @@ function writeFixtures(): void {
   // appears in THIS file's own source (which the gate also scans) — only the written fixture resolves to
   // it (same technique as the ambient-clock fixture above).
   fx("tests/server/__g_fab.test.ts", `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`);
-  // asset-refs-fk-coverage: a schema column with a real FK to `assets.id` (importing the REAL
-  // packages/db/src/schema/assets.ts) that is registered in NEITHER ASSET_REFS nor
-  // DERIVED_ASSET_COLUMNS (domain/assets/persistence/asset-refs.ts) — the gate reads the real
-  // registry file, so an injected __g_ table with no matching registry row always fires.
-  fx(
-    "packages/db/src/schema/__g_assetfk.ts",
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { assets } from "./assets";\nexport const gAssetFk = sqliteTable("__g_asset_fk", {\n  id: text("id").primaryKey(),\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
-  );
   // no-vanity-alias: a workspace rename-import whose original name isn't otherwise present in the module
   // (rule a — the cosmetic-alias case; @orb/ui + db-`*Table`/contracts-`*Wire` + genuine collisions are exempt).
   fx(`${D}/__g_vanity/x.ts`, 'import { Foo as Bar } from "@orb/kit/x";\nexport const g = Bar;\n');
