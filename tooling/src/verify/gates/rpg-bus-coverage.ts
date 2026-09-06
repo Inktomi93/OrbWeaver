@@ -17,6 +17,7 @@ export const gate = defineGate({
   population: { in: ["@authored"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  resources: [],
   message: MESSAGE,
   fix: "wire the canonical injected EmitRpgEvent operation for the member.",
   create: (ctx) => {

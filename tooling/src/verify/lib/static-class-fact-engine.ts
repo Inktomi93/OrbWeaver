@@ -201,9 +201,8 @@ function evalKnown(raw: MorphNode, state: EvalState): Evaluation | undefined {
   if (Node.isArrayLiteralExpression(raw)) {
     return merge(...raw.getElements().map((element) => evaluate(Node.isSpreadElement(element) ? element.getExpression() : element, state)));
   }
-  if (Node.isPropertyAccessExpression(raw) || Node.isElementAccessExpression(raw)) {
-    return evalMember(raw, state);
-  }
+  const member = Node.isPropertyAccessExpression(raw) || Node.isElementAccessExpression(raw) ? evalMember(raw, state) : undefined;
+  return member;
 }
 
 function evalTerminal(raw: MorphNode, state: EvalState): Evaluation {

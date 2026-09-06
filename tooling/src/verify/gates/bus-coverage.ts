@@ -17,6 +17,7 @@ export const gate = defineGate({
   population: { in: ["@authored"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  resources: [],
   message: MESSAGE,
   fix: "wire the canonical server emit site for the ChatBusEvent member.",
   create: (ctx) => {

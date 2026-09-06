@@ -16,6 +16,7 @@ export const gate = defineGate({
   population: { in: ["@authored"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  resources: [],
   message: MESSAGE,
   fix: "restore the missing canonical declaration or rewrite the dynamic/ambiguous shape through the supported typed bus seams.",
   create: (ctx) => {

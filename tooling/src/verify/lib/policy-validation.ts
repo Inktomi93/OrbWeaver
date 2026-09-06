@@ -9,6 +9,7 @@ import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contrac
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { GATE_RESOURCE_REQUEST_KINDS } from "../contract/resource-declaration.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
+import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertPopulationExpr } from "./population-resolver.ts";
 
 const POLICY_KEYS = new Set([
@@ -147,7 +148,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
       invalid(`${label}.files content must be a string`);
     }
   }
-  if (proof["mode"] !== "resource" && entries.some(([path]) => !TS_SOURCE_RE.test(path))) {
+  if (proof["mode"] !== "resource" && entries.some(([path]) => !isPolicySourceCandidate(path))) {
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   if (proof["expect"] !== undefined) {
