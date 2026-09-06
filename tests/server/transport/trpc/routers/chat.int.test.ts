@@ -12,8 +12,8 @@ import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { loadParticipants } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
+import { createParticipants } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support.ts";
@@ -45,7 +45,7 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     const chatId: ChatId = await seedChat(db, "room");
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), {
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db) }), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit: () => Promise.resolve(),
     });
@@ -56,12 +56,12 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
 
     await caller(hostCtx).chat.addCharacterToChat({ chatId, characterId });
     // Present roster (leftSeq IS NULL) carries the seat.
-    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
+    expect((await loadParticipants(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
 
     await caller(hostCtx).chat.removeCharacterFromChat({ chatId, characterId });
 
     // Gone from the present read-model; the row survives leftSeq-stamped (reversible via a re-add).
-    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(false);
+    expect((await loadParticipants(db, chatId)).some((p) => p.characterId === characterId)).toBe(false);
     const [row] = await db
       .select()
       .from(chatParticipants)
@@ -77,7 +77,7 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
 
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(db) }), {
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db) }), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit: () => Promise.resolve(),
     });
@@ -95,7 +95,7 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     await expect(caller(memberCtx).chat.removeCharacterFromChat({ chatId, characterId })).rejects.toThrow();
 
     // The refusal was total: the seat is still present and unstamped.
-    expect((await loadRoster(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
+    expect((await loadParticipants(db, chatId)).some((p) => p.characterId === characterId)).toBe(true);
     const [row] = await db
       .select()
       .from(chatParticipants)

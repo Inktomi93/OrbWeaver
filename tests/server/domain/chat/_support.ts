@@ -260,7 +260,7 @@ export async function seedMessage(
  *  closes over the current test's db. */
 export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
   return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
-    // SEAT ORDER, like production's `loadRoster` (joinSeq, then id) — not insertion order. `ChatSummary`'s
+    // SEAT ORDER, like production's `loadParticipants` (joinSeq, then id) — not insertion order. `ChatSummary`'s
     // `participantPortraits` is rendered IN SEAT ORDER (#192), so a double that answered in insertion order
     // would let a real ordering regression pass.
     const rows = await db

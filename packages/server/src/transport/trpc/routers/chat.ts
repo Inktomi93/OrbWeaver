@@ -240,7 +240,7 @@ const forkChatSchema = z.object({
 
 // The CONTEXT-panel cluster (task #28 — the chat right-region: room-overrides · preview-request ·
 // manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`/
-// `getRoomOverridesForChat` (verbs/roster.ts), `previewAssembly` (verbs/read.ts), and
+// `getRoomOverridesForChat` (verbs/participants.ts), `previewAssembly` (verbs/read.ts), and
 // `setChatInjection`/`listChatInjections`/`deleteChatInjection` (verbs/chat-lifecycle.ts) were ALL
 // already fully implemented — host/member gated via substrate/auth/matrix.ts, DB-backed where relevant,
 // bus-emitting — but none had ever been exposed on this router (swept via grep before this addition, no
@@ -424,7 +424,7 @@ const setChatAnchorPersonaSchema = z.object({
 // The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
 // per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
 // `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
-// were ALL already fully implemented in domain/chat (verbs/roster.ts + verbs/turn.ts) — host-gated via
+// were ALL already fully implemented in domain/chat (verbs/participants.ts + verbs/turn.ts) — host-gated via
 // substrate/auth/matrix.ts, DB-backed (chatParticipants columns), bus-emitting — but none had ever been
 // exposed on this router (the same MISSING-API shape the #28 CONTEXT-panel cluster + the guided-generations
 // cluster were in; swept via grep before this addition, no call site referenced any of the three). Thin
@@ -460,7 +460,7 @@ const setSeatKnobsSchema = z.object({
   patch: seatKnobsSchema,
 });
 
-// Group config (verbs/roster.ts `setGroupConfig`/`getGroupConfigForChat`) — the same domain-ahead-of-
+// Group config (verbs/participants.ts `setGroupConfig`/`getGroupConfigForChat`) — the same domain-ahead-of-
 // transport MISSING-API shape as the clusters above (host-gated write / member read, INSIDE the verb).
 // The wire input is the contracts `groupConfigSchema` (the lenient `GroupConfigInput` the verb parses →
 // a fully-defaulted `GroupConfig`); the router only adds `chatId`. The chat's CONTEXT-panel group editor

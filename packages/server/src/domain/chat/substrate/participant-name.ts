@@ -1,5 +1,5 @@
 // The ONE participant display-name rule (R10/F3 + owner ruling: no raw id ever renders) shared by the roster
-// READ (`service.loadParticipantViews`) and the seat-verb returns (`verbs/roster.ts`). A ULID is not a name —
+// READ (`service.loadParticipantViews`) and the seat-verb returns (`verbs/participants.ts`). A ULID is not a name —
 // every LIVE kind resolves to a human-legible terminal:
 //   • character seat → the live card name, else the removed-character label (card deleted mid-read);
 //   • human seat     → publics displayName, else its handle, else the removed-member label (publics gone).

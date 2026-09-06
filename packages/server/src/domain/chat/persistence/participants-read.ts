@@ -1,6 +1,9 @@
-// domain/chat/persistence/roster — the roster READ + the initial-membership row BUILDER (un-exiled from
-// neo's `_shared/group-character-rows`). QUERIES ONLY: `loadRoster`
-// reads the present (or full) `chat_participants` set; `buildInitialRosterRows` is a PURE row builder (no I/O —
+// domain/chat/persistence/participants-read — the participants READ + the initial-membership row BUILDER
+// (un-exiled from neo's `_shared/group-character-rows`). The `-read` half of the name is load-bearing: the
+// WRITE half of `chat_participants` is the sibling `participant.ts` (the kind-shape parser + the
+// membership-lifecycle writes), and the two were named one letter apart before #1010 split them by verb.
+// QUERIES ONLY: `loadParticipants`
+// reads the present (or full) `chat_participants` set; `buildInitialParticipantRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
 // `users` join here — the `no-direct-users-read` chokepoint); this returns the raw rows.
 
@@ -79,7 +82,7 @@ type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
  *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */
-export async function loadRoster(db: Db, chatId: ChatId, includePast = false): Promise<(typeof chatParticipants.$inferSelect)[]> {
+export async function loadParticipants(db: Db, chatId: ChatId, includePast = false): Promise<(typeof chatParticipants.$inferSelect)[]> {
   const base = db.select().from(chatParticipants).$dynamic();
   const scoped = includePast
     ? base.where(eq(chatParticipants.chatId, chatId))
@@ -139,7 +142,7 @@ export async function characterEverSeatedInChat(db: Db, characterId: CharacterId
  * share `joinSeq` (0 for a born-here chat) + the caller's clock (`now`) — the ids are caller-minted (the verb
  * owns id minting; determinism). PURE — returns the rows; the verb writes them.
  */
-export function buildInitialRosterRows(params: {
+export function buildInitialParticipantRows(params: {
   readonly chatId: ChatId;
   readonly joinSeq: number;
   readonly now: number;

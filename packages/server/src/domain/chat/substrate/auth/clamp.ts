@@ -25,7 +25,7 @@
 // THE HOST BIT IS COMPOSED, NEVER RE-SPELLED. Both clamps take `role` as an INPUT
 // to a policy VALUE — the POLICY-RESOLUTION class, which is neither ENFORCEMENT (nothing throws here; that is
 // `auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, spine invariant #6) nor a roster
-// LOOKUP (`substrate/roster-host.ts::hostUserIdOf`, role -> identity, D19). It is the DATA-PROJECTION class's
+// LOOKUP (`substrate/participants-host.ts::hostUserIdOf`, role -> identity, D19). It is the DATA-PROJECTION class's
 // third shape, so it reads that class's one home: `substrate/member-visibility.ts::viewerHoldsHost`. Composing
 // it rather than re-spelling `role === "host"` is what makes "one spelling of the host bit per class" literally
 // true — a widening of what `host` means reaches the D16 floor and the D22 card level through the same edit.

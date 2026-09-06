@@ -47,7 +47,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { createParticipants } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "../../../../../packages/server/src/domain/regex/index.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
@@ -124,7 +124,10 @@ function minters(): {
 /** A chat context wired with the REAL copy factories. `copyAsset` is the identity-ish stub (the picture
  *  re-own is the assets domain's — its own contract; here it simply reports "no avatar"), so these tests
  *  assert the card/book/digest planes without an assets service. */
-function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {}, notes: NotificationEvent[] = []): Parameters<typeof createRoster>[0] {
+function copyContext(
+  overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {},
+  notes: NotificationEvent[] = [],
+): Parameters<typeof createParticipants>[0] {
   const mint = minters();
   return makeChatContext(db, {
     getCard: ownedCard(),
@@ -162,7 +165,7 @@ async function seedTransferRoom(): Promise<{ host: UserId; member: UserId; chatI
 describe("no offer — the built D64 behavior stays byte-identical", () => {
   test("a nomination with no offer copies nothing and drops the outgoing host's seat exactly as before", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -178,7 +181,7 @@ describe("no offer — the built D64 behavior stays byte-identical", () => {
 
   test("an offer of NOTHING (both flags false) is the same path — an explicit decline copies nothing", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -216,7 +219,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
       emitted.push(event);
       return true;
     };
-    const roster = createRoster(copyContext({ rpg }), { claimChat: (): Promise<void> => Promise.resolve(), emit: resumableEmit });
+    const roster = createParticipants(copyContext({ rpg }), { claimChat: (): Promise<void> => Promise.resolve(), emit: resumableEmit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     emitted.length = 0;
@@ -243,7 +246,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
 
   test("the seated card is COPIED to the nominee, the seat re-points IN PLACE, and the original is untouched", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -276,7 +279,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
     const otherChatId = await seedChat(db, "b");
     await seedMessage(db, chatId, 1, { characterId: aria });
     await seedMessage(db, otherChatId, 1, { characterId: aria });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -311,7 +314,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
       });
       await db.insert(chatDigestSpeakers).values({ digestId: id, characterId: aria });
     }
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -334,7 +337,7 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreign = await seedCharacter(db, stranger, "foreign");
     await seedParticipant(db, { chatId, key: "cf", characterId: foreign, role: "member" });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -362,7 +365,7 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
     const { host, member, chatId } = await seedTransferRoom();
     const bella = await seedCharacter(db, member, "bella");
     await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -378,7 +381,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
   test("a re-accept after the mints landed re-uses the SAME copies (zero duplicates)", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const ctx = copyContext();
-    const roster = createRoster(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     // Simulate the crash window: the LIBRARY half ran and the swap did not. The nomination is intact, so the
     // accept is simply re-tried — which is the whole point of running the mints first.
@@ -407,7 +410,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
   test("a DECLINE after a partial mint leaves the strays as ordinary library rows and the room untouched", async () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const ctx = copyContext();
-    const roster = createRoster(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
 
@@ -429,7 +432,7 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "Aria's lore", description: null, createdAt: 1 });
     await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_1"), worldBookId: bookId, title: "t", content: "the secret", createdAt: 1 });
     await db.insert(characterBooks).values({ characterId: aria, worldBookId: bookId, role: "primary", createdAt: 1 });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -459,7 +462,7 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "Room lore", description: null, createdAt: 1 });
     await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_r"), worldBookId: bookId, title: "t", content: "room truth", createdAt: 1 });
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -494,7 +497,7 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: "Room lore", description: null, createdAt: 1 });
     await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_r"), worldBookId: bookId, title: "t", content: "room truth", createdAt: 1 });
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -533,7 +536,7 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(worldEntries).values({ id: castId<WorldEntryId>("world_entry_s"), worldBookId: bookId, title: "t", content: "one truth", createdAt: 1 });
     await db.insert(characterBooks).values({ characterId: aria, worldBookId: bookId, role: "primary", createdAt: 1 });
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -584,7 +587,7 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
   test("the departed host's chat script is re-pointed at a copy the NOMINEE owns, position preserved", async () => {
     const { host, member, chatId } = await seedTransferRoom();
     const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret", position: 3 });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -611,7 +614,7 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
     const { host, member, chatId } = await seedTransferRoom();
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreign = await seedChatScript(chatId, stranger, { id: "regex_script_foreign", name: "Not theirs", find: "x" });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -626,7 +629,7 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
   test("NO OFFER copies no script — the junction and its owner are byte-identical to today", async () => {
     const { host, member, chatId } = await seedTransferRoom();
     const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
-    const roster = createRoster(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -664,7 +667,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
       handoffWouldCopyGmPreset: (): Promise<boolean> => Promise.resolve(true),
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(copyContext({ rpg }, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext({ rpg }, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: true } });
 
@@ -683,7 +686,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     const { host, member, chatId } = await seedTransferRoom();
     await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
 
@@ -700,7 +703,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     await seedChatScript(chatId, stranger, { id: "regex_script_foreign", name: "Not theirs", find: "x" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
 

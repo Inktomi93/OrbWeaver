@@ -43,6 +43,7 @@ import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadChatInjections,
   loadChatRow,
@@ -51,7 +52,6 @@ import {
   loadVariableDeltas,
   loadVariantsByMessageIds,
 } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
 import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
@@ -383,9 +383,9 @@ function pushForkStatsDeltas(
 async function resolveOwnedCharacterSeats(
   ctx: ChatContext,
   forkerUserId: UserId,
-  roster: readonly (typeof chatParticipants.$inferSelect)[],
+  sourceParticipants: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<CharacterSeatRow[]> {
-  const characterSeats = roster.flatMap((p) => {
+  const characterSeats = sourceParticipants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ ...p, characterId: actor.characterId }] : [];
   });
@@ -557,11 +557,11 @@ function assertForkAllowed(args: {
   readonly can: ChatContext["can"];
   readonly principal: Principal;
   readonly role: (typeof chatParticipants.$inferSelect)["role"];
-  readonly roster: readonly (typeof chatParticipants.$inferSelect)[];
+  readonly sourceParticipants: readonly (typeof chatParticipants.$inferSelect)[];
   readonly chatId: ChatId;
 }): void {
-  const { can, principal, role, roster, chatId } = args;
-  const presentHumanCount = roster.filter((r) => classifyParticipant(r)?.kind === "human").length;
+  const { can, principal, role, sourceParticipants, chatId } = args;
+  const presentHumanCount = sourceParticipants.filter((r) => classifyParticipant(r)?.kind === "human").length;
   if (!permitsHost(can, principal, role) && presentHumanCount > 1) {
     throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: only the host may fork a multi-human room`);
   }
@@ -595,15 +595,15 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // `loadVariableDeltas` is the ACTIVITY plane (seq-stamped variable ops, zero canon bytes — see the
     // `chat-viewer-plane-canon-reads` gate header), read UNFLOORED on purpose: the floored fork's baseline is a
     // fold of the whole chain, and folding is what strips the pre-floor history down to present state.
-    const [variables, slots, injections, roster, chainDeltas] = await Promise.all([
+    const [variables, slots, injections, sourceParticipants, chainDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
       loadMessageSlots(ctx.db, chatId, throughSeq, historyFloorSeq),
       loadChatInjections(ctx.db, chatId),
-      loadRoster(ctx.db, chatId),
+      loadParticipants(ctx.db, chatId),
       loadVariableDeltas(ctx.db, chatId),
     ]);
 
-    assertForkAllowed({ can: ctx.can, principal, role: membership.role, roster, chatId });
+    assertForkAllowed({ can: ctx.can, principal, role: membership.role, sourceParticipants, chatId });
 
     // §3.6 member-strip across the fork boundary (now DEFENSE-IN-DEPTH — the gate above closes the multi-human
     // member→host laundering case; the solo arm has no other human to launder to). The forker's SOURCE-room
@@ -621,7 +621,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const forkStandaloneDeltas = buildForkStandaloneDeltas({ chain: chainDeltas, historyFloorSeq, throughSeq });
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
-    const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, roster);
+    const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, sourceParticipants);
     const forkAnchorPersonaId = await resolveForkAnchorPersonaId(ctx, principal.userId, source.anchorPersonaId);
     const variants = await loadVariantsByMessageIds(
       ctx.db,
@@ -647,7 +647,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       ...forkStandaloneDeltas,
     ]);
 
-    const forker = roster.find((r) => r.userId === principal.userId);
+    const forker = sourceParticipants.find((r) => r.userId === principal.userId);
     const participantRows: (typeof chatParticipants.$inferInsert)[] = [
       {
         id: ctx.newParticipantId(),

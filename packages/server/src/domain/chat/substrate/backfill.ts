@@ -41,9 +41,9 @@ import { collectSegments, storeSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
-import { loadRoster } from "../persistence/roster.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
-import { hostUserIdOf } from "./roster-host.ts";
+import { hostUserIdOf } from "./participants-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */
@@ -78,13 +78,13 @@ async function loadCharacterIdsAndHost(
   hostUserId: UserId | null;
   macroNames: RowMacroNameContext;
 }> {
-  const roster = await loadRoster(ctx.db, chatId);
-  const characterIds = roster.flatMap((r) => {
+  const participants = await loadParticipants(ctx.db, chatId);
+  const characterIds = participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  const hostUserId = hostUserIdOf(roster);
-  const macroNames: RowMacroNameContext = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { participants: roster }));
+  const hostUserId = hostUserIdOf(participants);
+  const macroNames: RowMacroNameContext = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { participants }));
   return { characterIds, hostUserId, macroNames };
 }
 
@@ -518,9 +518,9 @@ export async function backfillGroupCharacters(
     if (args.signal.aborted) {
       break;
     }
-    const roster = await loadRoster(ctx.db, chatId);
-    const characterIds = roster.filter((r) => classifyParticipant(r)?.kind === "character");
-    const hostUserId = hostUserIdOf(roster);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const characterIds = participants.filter((r) => classifyParticipant(r)?.kind === "character");
+    const hostUserId = hostUserIdOf(participants);
     if (characterIds.length <= 1 || hostUserId === null) {
       continue; // solo/empty rooms need no group character; a hostless room has no funding owner
     }

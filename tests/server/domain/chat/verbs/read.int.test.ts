@@ -41,10 +41,10 @@ import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/s
 import { insertInvite, redeemInviteAtomic } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
-import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
-// The D16 policy SETTER (verbs/roster.ts) — imported here so the round-trip tests below drive the real
+// The D16 policy SETTER (verbs/participants.ts) — imported here so the round-trip tests below drive the real
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
-import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { createParticipants, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
+import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
@@ -177,7 +177,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     await seedParticipant(db, { chatId, key: "rxr3_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "rxr3_c", characterId: character });
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
-    const roster = createRoster(ctx, { emit: (): Promise<void> => Promise.resolve(), claimChat: (): Promise<void> => Promise.resolve() });
+    const roster = createParticipants(ctx, { emit: (): Promise<void> => Promise.resolve(), claimChat: (): Promise<void> => Promise.resolve() });
     await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
 
     const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
@@ -927,7 +927,7 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("room", me);
     const personaId = await seedPersona(db, me, "worn");
     // `persona.setActivePersona` ultimately writes this same column (`setParticipantActivePersona`,
-    // verbs/roster.ts) — seeding it directly proves getChat's VIEW reads what that write produces.
+    // verbs/participants.ts) — seeding it directly proves getChat's VIEW reads what that write produces.
     await db
       .update(chatParticipants)
       .set({ activePersonaId: personaId })
@@ -1164,7 +1164,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
 
-    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
+    const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "from-join" });
 
     const after = await listMessages({ principal: principal(joiner), chatId });
@@ -1183,7 +1183,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
 
-    const roster = createRoster(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
+    const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "full" });
 
     expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
@@ -1930,7 +1930,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, personaId: oldPersona, content: "an old line" });
     const ctx = makeChatContext(db);
     const emit = async (): Promise<void> => undefined;
-    // "Playing as Nate" — the REAL write `persona.setActivePersona` delegates to (verbs/roster.ts).
+    // "Playing as Nate" — the REAL write `persona.setActivePersona` delegates to (verbs/participants.ts).
     await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
     const life = createChatLifecycle(ctx, {
       claimChat: (): Promise<void> => Promise.resolve(),

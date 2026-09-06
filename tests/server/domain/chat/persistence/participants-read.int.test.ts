@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { buildInitialRosterRows, loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
+import { buildInitialParticipantRows, loadParticipants } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support.ts";
@@ -17,7 +17,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-describe("loadRoster", () => {
+describe("loadParticipants", () => {
   test("default = PRESENT members only (leftSeq IS NULL), in join order", async () => {
     const chatId = await seedChat(db, "r1");
     const host = await seedUser(db, castId<Handle>("host"));
@@ -34,7 +34,7 @@ describe("loadRoster", () => {
       leftSeq: 9,
     });
 
-    const present = await loadRoster(db, chatId);
+    const present = await loadParticipants(db, chatId);
     expect(present.map((p) => p.id)).toEqual([castId<ChatParticipantId>("chat_participant_h"), castId<ChatParticipantId>("chat_participant_m")]);
   });
 
@@ -52,15 +52,15 @@ describe("loadRoster", () => {
       leftSeq: 4,
     });
 
-    expect((await loadRoster(db, chatId, true)).length).toBe(2);
-    expect((await loadRoster(db, chatId)).length).toBe(1);
+    expect((await loadParticipants(db, chatId, true)).length).toBe(2);
+    expect((await loadParticipants(db, chatId)).length).toBe(1);
   });
 });
 
-describe("buildInitialRosterRows (pure)", () => {
+describe("buildInitialParticipantRows (pure)", () => {
   test("host is role='host' human; characters are server-forced role='member'; host first; shared joinSeq", () => {
     const chatId = castId<ChatId>("chat_init");
-    const rows = buildInitialRosterRows({
+    const rows = buildInitialParticipantRows({
       chatId,
       joinSeq: 0,
       now: FROZEN_AT,

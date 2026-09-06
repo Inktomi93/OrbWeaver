@@ -6,7 +6,7 @@
 
 import type { ChatContext } from "../context.ts";
 import type { GetMembership } from "../contract/context.ts";
-import { loadPresentRole } from "../persistence/roster.ts";
+import { loadPresentRole } from "../persistence/participants-read.ts";
 
 export function createGetMembership(ctx: ChatContext): GetMembership {
   return async (chatId, userId) => {

@@ -1,5 +1,10 @@
-// The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
-// display name + avatar hash. STANDALONE + principal-free (rpg gated the game read; the `getMembership`/
+// domain/chat/verbs/resolve-rpg-participants — the participants-resolution op (rpg-design/05 §4.3): resolve a
+// chat's PRESENT participants into rpg actor refs + display name + avatar hash.
+//
+// NAME ASYMMETRY, deliberate (#1010): this side ships `RpgParticipantActor`/`ResolveRpgParticipants` while the
+// rpg domain still declares its own structural twin as `RpgRosterActor`/`RpgResolveRoster`. #1010 renamed the
+// SERVER CHAT DOMAIN only; the rpg family's word (and `promoteToRoster`'s) needs its own vocabulary-map row
+// before it can move, so the twins are spelled apart until that row lands rather than half-renamed here. STANDALONE + principal-free (rpg gated the game read; the `getMembership`/
 // `setRpgPointer`/`postNarratorMessage` injected-op precedent). Homed in chat because the name/avatar joins are
 // chat/character's — rpg stays table-blind. A CHARACTER seat resolves its card under the chat HOST's ownership
 // (the `getCard` ownerId); a HUMAN seat resolves its publics. A seat that resolves to neither ref (a gone card,
@@ -9,17 +14,17 @@ import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
-import type { ResolveRpgRoster, RpgRosterActor } from "../contract/context.ts";
+import type { ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
-import { loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 
-type RosterRow = typeof chatParticipants.$inferSelect;
+type ParticipantRow = typeof chatParticipants.$inferSelect;
 
 /** Resolve ONE present seat to an rpg actor (or `null` = not an addressable actor — a gone card, a headless
  *  seat, a hostless room's character). `hostUserId` owns the character-card read (D18/D19). */
-async function resolveSeat(ctx: ChatContext, row: RosterRow, hostUserId: UserId | null): Promise<RpgRosterActor | null> {
-  const withAvatar = (ref: RpgActorRef, name: string, avatar: string | null): RpgRosterActor => ({
+async function resolveSeat(ctx: ChatContext, row: ParticipantRow, hostUserId: UserId | null): Promise<RpgParticipantActor | null> {
+  const withAvatar = (ref: RpgActorRef, name: string, avatar: string | null): RpgParticipantActor => ({
     actorRef: ref,
     name,
     ...(avatar !== null ? { avatar } : {}),
@@ -44,13 +49,13 @@ async function resolveSeat(ctx: ChatContext, row: RosterRow, hostUserId: UserId 
   return null;
 }
 
-export function createResolveRpgRoster(ctx: ChatContext): ResolveRpgRoster {
+export function createResolveRpgParticipants(ctx: ChatContext): ResolveRpgParticipants {
   return async (chatId) => {
-    const roster = await loadRoster(ctx.db, chatId);
+    const participants = await loadParticipants(ctx.db, chatId);
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19). A hostless
     // roster (a racing delete) resolves no character seats; humans still resolve.
-    const hostUserId = hostUserIdOf(roster);
-    const resolved = await Promise.all(roster.map((row) => resolveSeat(ctx, row, hostUserId)));
-    return resolved.filter((a): a is RpgRosterActor => a !== null);
+    const hostUserId = hostUserIdOf(participants);
+    const resolved = await Promise.all(participants.map((row) => resolveSeat(ctx, row, hostUserId)));
+    return resolved.filter((a): a is RpgParticipantActor => a !== null);
   };
 }

@@ -63,7 +63,7 @@ async function resolveCharacterRooms(db: Db, characterId: CharacterId): Promise<
  *   • a present human seat whose `activePersonaId` is this persona (their member-visible displayName + avatar
  *     ARE this persona's, `entry/compose/chat.ts::resolveUserPublics`) — `chat_participants_active_persona_idx`;
  *   • the chat's ANCHOR persona, which resolves `{{user}}` for the room's assembly even while its owner is
- *     offline and holds no seat (`domain/chat/substrate/roster-humans.ts`) — `chats_anchor_persona_idx`.
+ *     offline and holds no seat (`domain/chat/substrate/participants-humans.ts`) — `chats_anchor_persona_idx`.
  *  Deduped by the caller. */
 async function resolvePersonaRooms(db: Db, personaId: PersonaId): Promise<ChatId[]> {
   const [seated, anchored] = await Promise.all([

@@ -1,9 +1,9 @@
-// The roster/group-config/room-override/membership-lifecycle mutation verbs. Each verb is a factory
-// createX(ctx, emit): gates via the membership chokepoint, mutates via persistence, then emits the
-// room-public bus event (+ a notifications op where the design reaches a non-member). Group-ness is data:
-// no if(isGroup) — solo is a roster-of-1, byte-identical.
+// domain/chat/verbs/participants — the participants/group-config/room-override/membership-lifecycle mutation
+// verbs. Each verb is a factory createX(ctx, emit): gates via the membership chokepoint, mutates via
+// persistence, then emits the room-public bus event (+ a notifications op where the design reaches a
+// non-member). Group-ness is data: no if(isGroup) — solo is a room of one seat, byte-identical.
 //
-// The ChatBusEvent union has no dedicated roster/membership member, so every roster/group/override/
+// The ChatBusEvent union has no dedicated participants/membership member, so every seat/group/override/
 // membership mutation emits the chatUpdated catch-all (a "refetch the chat detail" signal).
 //
 // Host handoff is a two-party flow: the pending nomination is persisted on chats.pendingHostUserId, carried
@@ -80,13 +80,13 @@ import {
   repointCharacterSeatStatement,
   setPendingHostStatement,
 } from "../persistence/participant.ts";
+import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
-import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
 import { canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
@@ -94,7 +94,7 @@ import { canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
 type EmitChatEvent = (event: DurableChatBusEvent, claimStatement?: BatchStmt) => Promise<unknown>;
 
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
-interface RosterDeps {
+interface ParticipantDeps {
   readonly emit: EmitChatEvent;
   /** The husk→real transition (R0 SS4.2). Every MUTATING roster/config verb here claims the room
    *  BEFORE it writes -- tuning a room is 'doing something with it' (F4(a)), so it stops being an
@@ -106,7 +106,7 @@ interface RosterDeps {
 }
 
 /** The roster slice of `ChatService` this grouped file owns. */
-type RosterVerbs = Pick<
+type ParticipantVerbs = Pick<
   ChatService,
   | "addCharacterToChat"
   | "removeCharacterFromChat"
@@ -167,7 +167,7 @@ async function commitMetadataUpdate<K extends keyof ChatMetadata>(args: {
 }
 
 /** The roster/group/override/membership-lifecycle verb bundle the composition root spreads into the full service. */
-export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
+export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): ParticipantVerbs {
   const { emit, claimChat } = deps;
   return {
     setGroupConfig: createSetGroupConfig(ctx, emit, claimChat),
@@ -714,9 +714,9 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     if (card === null) {
       throw new DomainNotFoundError("character", characterId);
     }
-    // Present-seat floor: return the live seat instead of minting a duplicate row. `loadRoster` is present-only
+    // Present-seat floor: return the live seat instead of minting a duplicate row. `loadParticipants` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.
-    const existing = (await loadRoster(ctx.db, chatId)).find((p) => {
+    const existing = (await loadParticipants(ctx.db, chatId)).find((p) => {
       const actor = classifyParticipant(p);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
@@ -809,7 +809,7 @@ function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, cl
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     // Present-only roster (`leftSeq IS NULL`); an already-left / never-present character has no seat → no-op.
-    const seat = (await loadRoster(ctx.db, chatId)).find((p) => {
+    const seat = (await loadParticipants(ctx.db, chatId)).find((p) => {
       const actor = classifyParticipant(p);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
@@ -879,7 +879,7 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
   return async ({ principal, chatId, participantId, patch }: SetSeatKnobsParams) => {
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    const seat = (await loadRoster(ctx.db, chatId)).find((p) => p.id === participantId);
+    const seat = (await loadParticipants(ctx.db, chatId)).find((p) => p.id === participantId);
     if (seat === undefined || !isAiDriven(seat.kind)) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${participantId} is not a present AI seat`);
     }
@@ -910,7 +910,7 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
 function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] {
   return async ({ principal, chatId, userId }: KickParticipantParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    const target = (await loadRoster(ctx.db, chatId)).find((p) => p.userId === userId);
+    const target = (await loadParticipants(ctx.db, chatId)).find((p) => p.userId === userId);
     if (target === undefined) {
       return;
     }
@@ -947,7 +947,7 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
 function createSetMemberHistoryVisibility(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMemberHistoryVisibility"] {
   return async ({ principal, chatId, userId, visibility }: SetMemberHistoryVisibilityParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    const target = (await loadRoster(ctx.db, chatId)).find((p) => {
+    const target = (await loadParticipants(ctx.db, chatId)).find((p) => {
       const actor = classifyParticipant(p);
       return actor?.kind === "human" && actor.userId === userId;
     });
@@ -996,9 +996,9 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
 async function resolveDroppedCharacterSeatIds(
   ctx: ChatContext,
   newOwnerUserId: UserId,
-  roster: readonly (typeof chatParticipants.$inferSelect)[],
+  participants: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<ChatParticipantId[]> {
-  const characterSeats = roster.flatMap((p) => {
+  const characterSeats = participants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ id: p.id, characterId: actor.characterId }] : [];
   });
@@ -1012,8 +1012,8 @@ async function resolveDroppedCharacterSeatIds(
 function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["nominateHostHandoff"] {
   return async ({ principal, chatId, userId, offer }: NominateHostHandoffParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    const roster = await loadRoster(ctx.db, chatId);
-    const nominee = roster.find((p) => p.userId === userId);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const nominee = participants.find((p) => p.userId === userId);
     if (nominee === undefined || nominee.role === "host") {
       throw new ChatNotFoundError(chatId);
     }
@@ -1027,14 +1027,14 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
     // THE NOMINATION DISCLOSES WHAT IT GIVES (#1762). The nominee decides from one inbox row, and accepting
     // lands characters, lore, the GM voice and this room's EXECUTABLE regex scripts in THEIR library — so the
     // counts ride the notification and their client confirms against them. Resolved from the copy's own
-    // planners (`previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`) over the roster already loaded
+    // planners (`previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`) over the participants already loaded
     // above; the departing host is the principal, who `requireHost` has just proven holds the room.
     const disclosure = await previewHandoffCopyPlan(ctx, {
       chatId,
       oldHostUserId: principal.userId,
       nomineeUserId: userId,
       offer: parsedOffer,
-      roster,
+      participants,
     });
     await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId, offer: disclosure }, statements);
     await emit({ type: "chatUpdated", chatId });
@@ -1137,13 +1137,13 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
     }
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
-    const roster = await loadRoster(ctx.db, chatId);
-    const oldHostUserId = hostUserIdOf(roster);
-    const plan = await resolveHandoffCopyPlan(ctx, { chatId, oldHostUserId, nomineeUserId: principal.userId, offer, roster });
+    const participants = await loadParticipants(ctx.db, chatId);
+    const oldHostUserId = hostUserIdOf(participants);
+    const plan = await resolveHandoffCopyPlan(ctx, { chatId, oldHostUserId, nomineeUserId: principal.userId, offer, participants });
     const repointed = new Set(plan.seats.map((s) => s.participantId));
     // The D64 drop, minus whatever the offer just rescued: a seat now pointing at the nominee's own copy
     // resolves under them and must NOT also be stamped as left.
-    const droppedSeatIds = (await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster)).filter((id) => !repointed.has(id));
+    const droppedSeatIds = (await resolveDroppedCharacterSeatIds(ctx, principal.userId, participants)).filter((id) => !repointed.has(id));
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const clearAnchorPersona = !(await anchorSurvivesHandoff(ctx, principal.userId, chat.anchorPersonaId));
     const acceptedAt = ctx.now();

@@ -43,7 +43,7 @@ import type {
   RequestTurnOp,
   ResolveCanonWindow,
   ResolveRpgCardCorpus,
-  ResolveRpgRoster,
+  ResolveRpgParticipants,
   SetRpgPointer,
   TurnMessage,
   TurnRequest,
@@ -65,7 +65,7 @@ import {
   createReactAsCharacter,
   createResolveCanonWindow,
   createResolveRpgCardCorpus,
-  createResolveRpgRoster,
+  createResolveRpgParticipants,
   createSetRpgPointer,
   getGroupConfig,
   getRoomOverrides,
@@ -566,7 +566,7 @@ export interface ChatComposeResult {
     /** The opaque pointer write — `createGame` calls it once. */
     readonly setRpgPointer: SetRpgPointer;
     /** The roster projection — the tracker view's roster ∪ sheets source. */
-    readonly resolveRpgRoster: ResolveRpgRoster;
+    readonly resolveRpgParticipants: ResolveRpgParticipants;
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
@@ -641,7 +641,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
         principal: await resolveHostPrincipal(frame.runAsUserId),
         triggeredBy: frame.triggeredBy,
         chatId: frame.chatId,
-        roster: frame.roster,
+        roster: frame.participants,
         turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
       }),
@@ -655,7 +655,7 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
           principal: await resolveHostPrincipal(frame.runAsUserId),
           triggeredBy: frame.triggeredBy,
           chatId: frame.chatId,
-          roster: frame.roster,
+          roster: frame.participants,
           turnId: frame.turnId,
           ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
         },
@@ -1682,7 +1682,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: createClaimChat(chatCtx) }),
       getPendingUserText: createGetPendingUserText(chatCtx),
       setRpgPointer: createSetRpgPointer(chatCtx),
-      resolveRpgRoster: createResolveRpgRoster(chatCtx),
+      resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),

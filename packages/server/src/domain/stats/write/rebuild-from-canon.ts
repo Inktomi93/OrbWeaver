@@ -336,7 +336,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
 // off `startChat` onto the claim chokepoint, `domain/chat/verbs/claim-chat.ts`, and its seeded greetings are
 // replayed there too). If this rebuild kept counting husks, the two writers would disagree the moment any
 // husk existed and the drift gate would red — a correct fix on one side of a two-writer contract is a defect.
-// The same arm is on the live firstness probe (`domain/chat/persistence/roster.ts`).
+// The same arm is on the live firstness probe (`domain/chat/persistence/participants-read.ts`).
 //
 // An agent-authored assistant row (characterId NULL) folds to the host owner + skips character_stats.
 // FLAG[PD-17]: a character-less agent-only room is un-constructable in v1, so that case is deferred, not

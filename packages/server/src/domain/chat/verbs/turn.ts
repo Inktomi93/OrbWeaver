@@ -77,6 +77,7 @@ import {
 } from "../persistence/canon-write.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
   loadChatRow,
@@ -87,12 +88,11 @@ import {
   loadSlotTarget,
   loadStoredUserMacroValues,
 } from "../persistence/queries.ts";
-import { loadPresentRole, loadRoster } from "../persistence/roster.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -234,12 +234,12 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under
  *  the host's ownership. */
 async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
-  const roster = await loadRoster(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(roster);
+  const participants = await loadParticipants(ctx.db, chatId);
+  const hostUserId = hostUserIdOf(participants);
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
-  const aiRows = roster.filter((r) => isAiDriven(r.kind));
+  const aiRows = participants.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [{ ...r, characterId: actor.characterId }] : [];
@@ -249,11 +249,11 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   // An offline human's persona drops from the present-seated-characters set for this round, since presence gates
   // which persona-book world-info joins the pool (a server-derived signal, never client-asserted). Derived
   // through the ONE substrate lens (#1401) — the preview's own copy of this rule had drifted unfiltered.
-  const personaIds = await onlinePersonaIdsOf(ctx, roster);
+  const personaIds = await onlinePersonaIdsOf(ctx, participants);
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
   // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
   // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
+  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },
@@ -1131,7 +1131,7 @@ async function freezeGreetingVolatiles(
   });
   if (stmts.length > 0) {
     const chatId = priorCanon[0]?.chatId;
-    const hostUserId = chatId === undefined ? null : hostUserIdOf(await loadRoster(ctx.db, chatId));
+    const hostUserId = chatId === undefined ? null : hostUserIdOf(await loadParticipants(ctx.db, chatId));
     if (hostUserId !== null) {
       ctx.bumpStatsCanonVersion(stmts, ctx.db, hostUserId);
     }
@@ -2380,7 +2380,7 @@ async function restoreContinue(
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
   const statements = [setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)];
-  const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+  const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
   if (hostUserId !== null) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
   }
@@ -2533,7 +2533,7 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
 }
 
 /** Notify the frozen `triggeredBy` member that their host-offline deferred reply was PERMANENTLY dropped
- *  (Part III §5) — mirrors the kick/handoff durable-inbox precedent (verbs/roster.ts). Best-effort: a
+ *  (Part III §5) — mirrors the kick/handoff durable-inbox precedent (verbs/participants.ts). Best-effort: a
  *  cascade-gone recipient/chat can FK-fail the insert, which is logged, not fatal (the drain still consumed
  *  the row). No co-statements — the claim already deleted the row. */
 async function notifyDeferredTurnDropped(

@@ -37,9 +37,9 @@ async function resolveOfferedSeats(
   ctx: ChatContext,
   oldHostUserId: UserId,
   newOwnerUserId: UserId,
-  roster: readonly (typeof chatParticipants.$inferSelect)[],
+  participants: readonly (typeof chatParticipants.$inferSelect)[],
 ): Promise<OfferedSeat[]> {
-  const seats = roster.flatMap((p) => {
+  const seats = participants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ participantId: p.id, characterId: actor.characterId }] : [];
   });
@@ -143,10 +143,10 @@ export async function previewHandoffCopyPlan(
     readonly oldHostUserId: UserId;
     readonly nomineeUserId: UserId;
     readonly offer: HandoffOffer;
-    readonly roster: readonly (typeof chatParticipants.$inferSelect)[];
+    readonly participants: readonly (typeof chatParticipants.$inferSelect)[];
   },
 ): Promise<HandoffOfferContents> {
-  const { chatId, oldHostUserId, nomineeUserId, offer, roster } = params;
+  const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;
   if (oldHostUserId === nomineeUserId) {
     return NO_HANDOFF_OFFER_CONTENTS;
   }
@@ -154,7 +154,7 @@ export async function previewHandoffCopyPlan(
   if (!offer.copyCharacters) {
     return { ...NO_HANDOFF_OFFER_CONTENTS, gmPreset };
   }
-  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, roster);
+  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, participants);
   const [worldBooks, regexScripts] = await Promise.all([
     ctx.countHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, characterIds: seats.map((seat) => seat.characterId) }),
     ctx.countHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId }),
@@ -176,13 +176,13 @@ export async function resolveHandoffCopyPlan(
     readonly oldHostUserId: UserId | null;
     readonly nomineeUserId: UserId;
     readonly offer: HandoffOffer;
-    readonly roster: readonly (typeof chatParticipants.$inferSelect)[];
+    readonly participants: readonly (typeof chatParticipants.$inferSelect)[];
   },
 ): Promise<HandoffCopyPlan> {
-  const { chatId, oldHostUserId, nomineeUserId, offer, roster } = params;
+  const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;
   if (!offer.copyCharacters || oldHostUserId === null || oldHostUserId === nomineeUserId) {
     return EMPTY_COPY_PLAN;
   }
-  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, roster);
+  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, participants);
   return executeHandoffCopy(ctx, { chatId, oldHostUserId, nomineeUserId }, seats);
 }
