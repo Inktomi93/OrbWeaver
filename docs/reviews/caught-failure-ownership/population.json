@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 559,
-    "enforced": 554,
+    "sites": 560,
+    "enforced": 555,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 554,
+      "deliberate-absorb": 555,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 153,
+      "default": 154,
       "empty": 264
     }
   },
@@ -5909,7 +5909,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 242,
+      "line": 265,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5917,12 +5917,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 237
+      "markerLine": 260
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 283,
+      "line": 306,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5930,12 +5930,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 276
+      "markerLine": 299
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 257,
+      "line": 280,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5943,12 +5943,12 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 248
+      "markerLine": 271
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 41,
+      "line": 42,
       "column": 23,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5956,12 +5956,12 @@
       "snippet": "const count = await page.evaluate(\"window.__orb ? window.__orb.queries().length : null\").catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle.",
-      "markerLine": 40
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 279,
+      "line": 302,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5969,12 +5969,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 278
+      "markerLine": 301
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 48,
+      "line": 49,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5982,12 +5982,12 @@
       "snippet": "const attached = await flag",
       "verdict": "deliberate-absorb",
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.",
-      "markerLine": 47
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 271,
+      "line": 294,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5995,12 +5995,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 270
+      "markerLine": 293
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 409,
+      "line": 432,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -6008,7 +6008,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 407
+      "markerLine": 430
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
@@ -6568,6 +6568,19 @@
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.",
       "markerLine": 213
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-teardown.ts::default:catch::1",
+      "path": "tooling/src/snap/ops/stage-teardown.ts",
+      "line": 109,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says \"No stack log was found to preserve\" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.",
+      "markerLine": 105
     },
     {
       "siteId": "tooling/src/snap/ops/watch.ts::promise:screenshot::1",

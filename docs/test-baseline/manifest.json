@@ -2203,6 +2203,7 @@
     "tests/tooling/snap/ops/session-har.suite.int.test.ts",
     "tests/tooling/snap/ops/session-heartbeat.test.ts",
     "tests/tooling/snap/ops/session-matrix.suite.int.test.ts",
+    "tests/tooling/snap/ops/stage-boot-dead.suite.int.test.ts",
     "tests/tooling/snap/ops/stage-death-control.suite.int.test.ts",
     "tests/tooling/snap/ops/stage-keeper.int.test.ts",
     "tests/tooling/snap/ops/stage-marker.int.test.ts",

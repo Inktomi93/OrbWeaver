@@ -82,3 +82,76 @@ test("a non-stage origin that never mounts still refuses on the first navigation
     await server.close();
   }
 });
+
+// @instrument-proof: #1837 — scoping #1142's warm-up to the `absent` arm left uncovered the arm a cold stage
+// ACTUALLY produces. The client's readiness signal has its OWN hard 20s ceiling that stamps
+// `data-app-ready="degraded"` one-shot (packages/client/src/lib/app-ready-signal.ts), well inside snap's 60s
+// STAGE_READY budget — so a cold stage never reaches `absent`, it reaches `degraded`, and every isolated boot
+// at d5adb9103 refused on a QUIET box (load 3.8/24): 1375 HAR entries, ~1370 of them vite source-module
+// transforms over 28.7s, ONE api call (`/api/auth/me`, 19ms, 200), zero page errors. The same stage re-run
+// warm came back `nav=OK` in 8s — a fresh document gets a fresh one-shot signal, which is the whole retry.
+const DEGRADED_DOCUMENT = '<!doctype html><html lang="en" data-app-ready="degraded"><body><main>mid-hydration</main></body></html>';
+
+/** The cold-stage shape the CLIENT actually produces: the first document's app hits its own readiness
+ *  ceiling and stamps `degraded`; the next one, against a now-warm module graph, settles. */
+async function degradedThenWarmServer(
+  warmAfter: number,
+): Promise<{ readonly base: string; readonly documents: () => number; readonly close: () => Promise<void> }> {
+  let documents = 0;
+  const server = createServer((_request, response) => {
+    documents += 1;
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(documents > warmAfter ? WARM_DOCUMENT : DEGRADED_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as AddressInfo;
+  return {
+    base: `http://127.0.0.1:${String(address.port)}`,
+    documents: (): number => documents,
+    close: async (): Promise<void> => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
+    },
+  };
+}
+
+test("an --isolated run pays the warm-up navigation for a DEGRADED first readiness too", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await degradedThenWarmServer(1);
+  try {
+    const navError = await driveOnce(["/", "--isolated"], server.base);
+
+    expect(navError, "the stage's second, warm navigation settled, so this run has a verdict").toBeNull();
+    expect(server.documents(), "the warm-up navigation is inside the run, exactly as for the `absent` arm").toBe(2);
+  } finally {
+    await server.close();
+  }
+});
+
+// @instrument-absence-proof: the retry is ONE, and a stage that still cannot settle refuses LOUDLY. A third
+// navigation would be the same under-instruction #1142 was minted to kill, one hop further out.
+test("a stage whose warm navigation is still degraded refuses after exactly one retry", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await degradedThenWarmServer(Number.MAX_SAFE_INTEGER);
+  try {
+    const navError = await driveOnce(["/", "--isolated"], server.base);
+
+    expect(navError, "a stage that never settles is a finding, stated as one").toContain("data-app-ready came up DEGRADED");
+    expect(navError, "and the refusal must not send the reader back for a re-run the code already paid").not.toContain("re-run against the now-warm stage");
+    expect(server.documents(), "one warm-up, never two").toBe(2);
+  } finally {
+    await server.close();
+  }
+});
+
+// @instrument-absence-proof: the widened retry stays STAGE-scoped. A degraded dev stack is a real app finding
+// on the first pass — retrying there would turn a finding into a slower finding.
+test("a non-stage origin that comes up degraded still refuses on the first navigation", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await degradedThenWarmServer(Number.MAX_SAFE_INTEGER);
+  try {
+    const navError = await driveOnce(["/"], server.base);
+
+    expect(navError, "a degraded dev stack is the app's finding to answer").toContain("data-app-ready came up DEGRADED");
+    expect(server.documents(), "no retry outside a stage").toBe(1);
+  } finally {
+    await server.close();
+  }
+});

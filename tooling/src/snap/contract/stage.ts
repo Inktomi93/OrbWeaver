@@ -87,13 +87,18 @@ export interface StageKeeper {
   readonly armedAt: string;
 }
 
-/** WHICH ARM ended a stage — the four teardown paths, named so `--stage-status` can answer "what happened
+/** WHICH ARM ended a stage — the five teardown paths, named so `--stage-status` can answer "what happened
  *  to band 3?" after the row is gone:
- *   • `timer`   — the stage's own idle keeper (#1163 arm b);
- *   • `acquire` — lazy reap-on-acquire: the next lane that needed a band took the strand (arm a);
- *   • `sweep`   — `--stage-sweep`, the deliberate reaper;
- *   • `down`    — `--stage-down`, an operator tearing down a stage they are finished with. */
-const STAGE_REAP_ARMS = ["timer", "acquire", "sweep", "down"] as const;
+ *   • `timer`     — the stage's own idle keeper (#1163 arm b);
+ *   • `acquire`   — lazy reap-on-acquire: the next lane that needed a band took the strand (arm a);
+ *   • `sweep`     — `--stage-sweep`, the deliberate reaper;
+ *   • `down`      — `--stage-down`, an operator tearing down a stage they are finished with;
+ *   • `boot-dead` — the run that BOOTED this stage never got a settled app out of it, warm-up navigation
+ *     included (#1837). Distinct from `timer` on purpose: this stage was never warm, so it would otherwise
+ *     hold its band, port pair and process group for the full TTL and hand the same dead app to every
+ *     reuse. Never fires for a stage a run merely reused — that is #324's rule and `lib/stage-run-binding.ts`
+ *     is where it is enforced. */
+const STAGE_REAP_ARMS = ["timer", "acquire", "sweep", "down", "boot-dead"] as const;
 export type StageReapArm = (typeof STAGE_REAP_ARMS)[number];
 
 /** One row of `<main>/.cache/snap-stage/reaps.json` — a bounded ring of the most recent teardowns. A reaped

@@ -80,6 +80,7 @@ import {
   stagePaths,
   stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
+import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
 import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef } from "./stage-git.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
@@ -278,13 +279,27 @@ function bootOntoBand(input: {
  *  instead of a git ref — see the module header. */
 export function ensureStage(opts: EnsureStageOpts): StageRow {
   const root = repoRoot();
+  const home = markerRoot(root);
+  const resolved = resolveStageRow(root, opts);
   // ARM (b) (#1163): every path below yields a LIVE row, and every live row gets the band's own idle
   // timer — armed here, at the ONE exit, so no future arm can forget it. Idempotent: a warm reuse whose
   // keeper is still running spawns nothing (ops/stage-keeper.ts).
-  return armStageKeeper(markerRoot(root), resolveStageRow(root, opts));
+  const row = armStageKeeper(home, resolved.row);
+  // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
+  // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
+  registerStageRunBinding({ row, home, booted: resolved.booted });
+  return row;
 }
 
-function resolveStageRow(root: string, opts: EnsureStageOpts): StageRow {
+/** The row plus the one provenance bit `ensureStage` publishes: did THIS call build the stage from nothing
+ *  (a boot, or a rebuild onto our own band), or did it reuse one that was already serving — ours warm, or a
+ *  sibling checkout's at the same sha? Only the first is ever a teardown candidate. */
+interface ResolvedStage {
+  readonly row: StageRow;
+  readonly booted: boolean;
+}
+
+function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   const dirty = opts.dirty ?? false;
   const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
   const home = markerRoot(root);
@@ -314,17 +329,17 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): StageRow {
     );
     // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
     touchRow(home, allocation.band, nowIso);
-    return { ...allocation.row, lastUsedAt: nowIso };
+    return { row: { ...allocation.row, lastUsedAt: nowIso }, booted: false };
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
     if (stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy }) === "reuse") {
-      return reuseWarmStage({ root, home }, allocation.row, dirty, nowIso);
+      return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
     print(`[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${opts.fresh ? "--fresh" : "unhealthy or stale"})`);
     dropStage(root, home, allocation.row);
     writeRow(home, claimRow({ band: allocation.band, checkout: root, targetSha, dir, nowIso }));
-    return bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh });
+    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh }), booted: true };
   }
   if (allocation.kind === "reap") {
     // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
@@ -341,7 +356,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): StageRow {
     // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
     recordStageReap(home, allocation.row, "acquire", nowMs);
   }
-  return bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh });
+  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh }), booted: true };
 }
 
 /** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare
