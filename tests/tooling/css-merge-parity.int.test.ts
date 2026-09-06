@@ -8,7 +8,7 @@ import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
 import type { Project, SourceFile } from "ts-morph";
 // Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847).
-import { assertTokenContract } from "../../packages/ui/token-contract.ts";
+import { assertTokenContract } from "@orb/ui/token-contract";
 import { getWorkspace } from "../../tooling/src/_shared/ts-workspace.ts";
 import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
