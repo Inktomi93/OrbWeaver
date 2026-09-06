@@ -304,7 +304,7 @@ test("#1823: the exemption matches the CURRENT band only — an unselected band 
     const matched = [...document.querySelectorAll<HTMLElement>(selector)];
     const answer = {
       // The band that IS the location: exempt.
-      current: matched.filter((el) => el.dataset.configGroup === "tags").length,
+      current: matched.filter((el) => el.dataset["configGroup"] === "tags").length,
       // Planted negative 1 — the rule's real target.
       plantedCard: matched.includes(planted),
       // Planted negative 2 — a real band that is NOT selected (the state half of the predicate).

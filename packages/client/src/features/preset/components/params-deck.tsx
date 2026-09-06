@@ -64,7 +64,6 @@ import { CapabilityGate } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 
-
 type AppForm = AppFormInstance<PromptConfig>;
 
 export interface ParamsDeckProps {
