@@ -8,20 +8,20 @@ import type { ReviewedGateGrant, SelectedGatePolicy } from "../contract/gate-aut
 /** Sorted by `policyId`, then `id`; `id` is `<policyId>:<short-kebab-subject>` so a row is greppable by its policy. */
 export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
-    id: "config-anchor-in-registry:config-content-surface",
-    policyId: "config-anchor-in-registry",
-    subject: "packages/client/src/features/config/surfaces/config-content-surface.tsx",
-    operation: "config-anchor-stamp",
-    why: "the config CONTENT host READS anchors rather than painting one: it derives the active group's anchor prefix to drive the scroll spy. It owns no config row and must not be registered as one (config-revamp-design.md §6.8.3).",
-    endsWhen: "the spy's prefix is supplied by the registry itself instead of recomputed at the host.",
-  },
-  {
     id: "config-anchor-in-registry:config-jump",
     policyId: "config-anchor-in-registry",
     subject: "packages/client/src/features/config/lib/config-jump.ts",
     operation: "config-anchor-stamp",
     why: "the config JUMP resolves an anchor id to scroll to it — the READER half of §6.8.3's contract, which is the reason anchors are derived from the registry rather than authored twice.",
     endsWhen: "jump targets are resolved from registry rows directly instead of by re-deriving the anchor id.",
+  },
+  {
+    id: "config-anchor-in-registry:config-scroll-spy",
+    policyId: "config-anchor-in-registry",
+    subject: "packages/client/src/features/config/hooks/use-config-scroll-spy.ts",
+    operation: "config-anchor-stamp",
+    why: "the config content pane's scroll-spy hook READS anchors rather than painting one: it derives the active group's anchor prefix to drive the spy (the WHEN half split out of `surfaces/config-content-surface.tsx` on main, #1632 train 81; the grant moved with the reader, which is exactly the liveness this row is keyed on). It owns no config row and must not be registered as one (config-revamp-design.md §6.8.3).",
+    endsWhen: "the spy's prefix is supplied by the registry itself instead of recomputed at the reader.",
   },
   {
     id: "route-imports-no-feature:app-root-app-shell",
