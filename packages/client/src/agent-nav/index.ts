@@ -19,8 +19,9 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
+import type { ContributorRegistry } from "#lib";
 import { deriveChatTitle } from "#lib";
-import type { ConfigGroupId, ModalSlotId, PublishedContextTab, SectionId } from "#state";
+import type { ConfigGroupId, ConfigSectionContribution, ModalSlotId, PublishedContextTab, SectionId } from "#state";
 import {
   activeChatId,
   CONFIG_GROUP_IDS,
@@ -42,6 +43,55 @@ import {
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
 import { markAgentNavigation } from "../lib/motion-stats.ts";
 import { resolvePanelRequest } from "./panel-request.ts";
+import { resolveConfigTarget } from "./resolve-config-target.ts";
+
+// Re-exported for `tests/client/agent-nav/resolve-config-target.test.ts` — the export map's `"./*":
+// "./src/*/index.ts"` (client package.json) means `resolve-config-target.ts` has no subpath a test can
+// reach directly, and this pure function is the unit that earns its own coverage apart from the bridge's
+// dispatch-through-the-store proof below.
+export { resolveConfigTarget } from "./resolve-config-target.ts";
+
+/** What `buildAgentNav` needs to validate a `sub`/`setting` address (#1638) — the config-section registry
+ *  the compose door assembles, which the composition tier's OWN modules may not import
+ *  (`client-compose-door-only` reserves `compose/` for main.tsx/routes/router.tsx/a compose/ sibling; this
+ *  file is neither). So the registry rides down as a LAZY thunk instead: `main.tsx` dynamic-`import()`s
+ *  `compose/config-sections.ts` (never a static import — that would drag the whole feature graph the
+ *  registry reaches into whichever chunk imports it, the #433 boot-eval-split defect this bridge's OWN
+ *  `agent-handles/index.ts` exists to avoid) and hands the resolved registry down through
+ *  `installAgentHandles` → here. `null` = not loaded yet (a real race at cold boot: this module's chunk can
+ *  resolve before or after `compose/config-sections.ts`'s), which `openConfig` refuses loudly rather than
+ *  validating vacuously — the same posture `contextTab`'s #656 fix took for its own empty-vocabulary race,
+ *  except this one needs no bounded wait: the registry is a plain module-scope object, never populated by a
+ *  mount effect, so once the thunk returns non-null it is final for the tab's lifetime. Optional so every
+ *  existing call site (every unit test, `agent-nav/panel-request.ct.tsx`'s story) keeps validating `sub`/
+ *  `setting` structurally-only, exactly as before #1638. */
+type ResolveConfigSections = () => ContributorRegistry<ConfigSectionContribution> | null;
+
+/** #1638's registry-backed half of `openConfig`'s validation, split out so the arm itself stays under the
+ *  complexity ceiling. `null` = the address is fine to dispatch; otherwise the refusal to return verbatim. */
+function validateConfigSubAddress(
+  group: ConfigGroupId,
+  sub: string,
+  setting: string | undefined,
+  resolveConfigSections: ResolveConfigSections | undefined,
+): NavResult | null {
+  // No thunk injected at all (every pre-#1638 call site — a unit test, a story) ⇒ validate structurally
+  // only, byte-identical to the pre-#1638 behavior. Distinct from "injected but not yet loaded" below,
+  // which DOES refuse: an omitted thunk is a caller who never asked for this validation, a `null` return
+  // from a REAL thunk is the boot-time race this whole arm exists to refuse loudly instead of vacuously.
+  if (resolveConfigSections === undefined) {
+    return null;
+  }
+  const registry = resolveConfigSections();
+  if (registry === null) {
+    return {
+      ok: false,
+      reason: `config sections not loaded yet — retry openConfig("${group}", "${sub}"${setting === undefined ? "" : `, "${setting}"`}) in a moment`,
+    };
+  }
+  const resolved = resolveConfigTarget(group, sub, setting, registry);
+  return resolved.ok ? null : resolved;
+}
 
 const OK: NavResult = { ok: true };
 // One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
@@ -303,8 +353,9 @@ async function resolveContextTab(name: string): Promise<NavResult> {
 
 /** Build the `__orb.nav` handle. Called from the composition root under IS_DEV; `trpc` + `queryClient`
  *  are the same singletons the app renders through, so `openChat`'s title resolution reads the very
- *  cache the chat list populates. */
-export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandle {
+ *  cache the chat list populates. `resolveConfigSections` is the #1638 injection arm (see
+ *  {@link ResolveConfigSections}) — optional so every pre-#1638 call site is unaffected. */
+export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfigSections?: ResolveConfigSections): OrbNavHandle {
   return {
     capabilities(): OrbNavCapabilities {
       const contextTabs = [...getAvailableContextTabIds()];
@@ -350,11 +401,20 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // composition tier's bridge may not import (`client-compose-door-only`, and #433 keeps that graph out
       // of the boot chunk). What IS decidable without it is the address's SHAPE — a leaf is addressed
       // through its section (`ConfigSettingRef.sub` is required for exactly this reason), so a leaf handed
-      // over without one names nothing and is refused instead of landing one level up. Validating that a
-      // sub/setting NAMES a real section/leaf is #1638 — it needs the registry injected down to here, and
-      // the injection arm is a door decision, not this arm's.
+      // over without one names nothing and is refused instead of landing one level up.
       if (setting !== undefined && sub === undefined) {
         return { ok: false, reason: `setting "${setting}" needs its section — call openConfig("${group}", <sub>, "${setting}")` };
+      }
+      // #1638 — validating that `sub`/`setting` NAME a real section/leaf, over the registry injected at
+      // install time (see `ResolveConfigSections`'s doc). `sub === undefined` needs no lookup — a
+      // group-only address works identically whether or not the registry has finished loading — the
+      // common case during the cold-boot race. A `sub` handed over BEFORE the registry loads refuses
+      // loudly naming the race, never silently landing on the section like the pre-#1638 code did.
+      if (sub !== undefined) {
+        const refusal = validateConfigSubAddress(group, sub, setting, resolveConfigSections);
+        if (refusal !== null) {
+          return refusal;
+        }
       }
       markAgentNavigation();
       // The EXACT deep link a feature fires ("configure memory" from a chat surface lands ON the memory

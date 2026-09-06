@@ -26,6 +26,8 @@ import { cssMergeTrace } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient } from "@trpc/client";
 import type { Trpc } from "#data";
+import type { ContributorRegistry } from "#lib";
+import type { ConfigSectionContribution } from "#state";
 import { activeChatId, activeDurableLocalUserId } from "#state";
 import { buildAgentNav } from "../agent-nav/index.ts";
 import { buildAgentPlugin } from "../agent-plugin/index.ts";
@@ -34,11 +36,20 @@ import { buildAgentSeed } from "../agent-seed/index.ts";
 import { installAgentDebugHandle } from "../lib/agent-bridge.ts";
 
 /** Build the four `__orb` implementations and install the dev introspection handle. Dev-only by
- *  construction: main.tsx reaches this module through an `import.meta.env.DEV` dynamic import. */
-export function installAgentHandles(queryClient: QueryClient, trpcClient: TRPCClient<AppRouter>, trpcProxy: Trpc): void {
+ *  construction: main.tsx reaches this module through an `import.meta.env.DEV` dynamic import.
+ *  `resolveConfigSections` is #1638's injected thunk (`agent-nav/index.ts`'s `ResolveConfigSections`) —
+ *  main.tsx builds it over a SEPARATE dynamic `import()` of `compose/config-sections.ts` (this module may
+ *  not import `compose/` itself, `client-compose-door-only`) and hands it straight through; `undefined`
+ *  here is only the pre-#1638 test/story call shape, never a real boot path. */
+export function installAgentHandles(
+  queryClient: QueryClient,
+  trpcClient: TRPCClient<AppRouter>,
+  trpcProxy: Trpc,
+  resolveConfigSections?: () => ContributorRegistry<ConfigSectionContribution> | null,
+): void {
   cssMergeTrace.enable();
   installAgentDebugHandle(queryClient, {
-    nav: buildAgentNav(trpcProxy, queryClient),
+    nav: buildAgentNav(trpcProxy, queryClient, resolveConfigSections),
     seed: buildAgentSeed(trpcClient),
     rpg: buildAgentRpg(trpcClient, activeChatId),
     pluginLog: buildAgentPlugin(trpcClient),
