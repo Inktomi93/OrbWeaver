@@ -198,5 +198,12 @@ export const gate = defineGate({
       files: { "packages/server/src/domain/feature/other-global.ts": "export function mark(): number {\n  return performance.now();\n}\n" },
       why: "another ambient global with a `now` member resolves cleanly to a DIFFERENT global, so the reader abstains — the arm keys on the `Date` identity, not on the member name",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/mutable-ctor-alias.ts": "let D = Date;\nD = Date;\nexport function doThing(): Date {\n  return new D();\n}\n",
+      },
+      why: "DECLARED LIMIT on the shared name prefilter: it follows an IMMUTABLE const hop and stops at a reassignable one, because a binding that can be written is not one identity and following it would claim an origin the reader cannot prove. Bounded in practice by biome's `useConst`, which reds a `let` that is never reassigned; the termination behaviour of the hop itself (a mutual or self alias cycle ends through the visited set) is pinned in tests/tooling/verify/lib/origin-verdict.test.ts",
+    },
   ],
 });
