@@ -62,8 +62,12 @@ import { clearCollectionSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpe
 import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
 import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
-/** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
-const ESTIMATED_ROW_PX = 36;
+/** One row's height guess for the windowed arm: swatch + name, with the usage census on the SUBTITLE line
+ *  beneath it (#1824). It was 36 — a ONE-LINE guess — while the row was drawing the census on the title
+ *  line; the two-line row is the regex library's shape and takes its measured number. A guess that is 16px
+ *  short is not cosmetic in a virtualizer: the estimate decides where a scroll-to-end LANDS before the
+ *  measured heights come back, and the tag CT's own scroll-cue pin went red on the stale 36. */
+const ESTIMATED_ROW_PX = 52;
 
 export function TagCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
   const trpc = useTRPC();
@@ -236,13 +240,22 @@ function TagCollectionRow({
           {...(tag.color === null ? {} : { style: { backgroundColor: tag.color } })}
         />
       }
-      markers={
-        <Text as="span" voice="datum">
-          {usageTotalLabel(tag.usage.total)}
-        </Text>
-      }
       onSelect={onSelect}
       selected={selected}
+      // THE CENSUS IS THE SUBTITLE, NOT A TITLE-LINE MARKER (#1824). It rode `markers` — the title line's
+      // TRAILING slot — which was invisible in a 307px LIST column and became the defect the moment #1725
+      // moved these rows into a 990px CONTENT pane: the name's ink ended at x=86 and its own count started
+      // at x=934, an 848px hole, measured 84–86% of every row (side-eye 2026-09-06, run main-1942558, and
+      // 68/81/88% in this file's own width matrix on the pre-fix source). Board 02 and DESIGN.md §3.3 both
+      // draw it under the name ("on 12 things"), and every sibling collection row — regex's scent,
+      // world-info's `bookScent`, a roster's members, databank, preset — already speaks that anatomy; the
+      // tag row was the only one with no subtitle at all.
+      //
+      // `markers` is for rest-visible STATUS (Active / Global / a built-in lock) — a variable-width badge
+      // that earns the title line. A CENSUS is not a status: it is the thing the name is counted by, and a
+      // figure parked several hundred px from the name it counts stops reading as that name's count. Both
+      // slots ride the row's `aria-describedby`, so the spoken description is unchanged ("7 uses").
+      subtitle={usageTotalLabel(tag.usage.total)}
       title={tag.name}
     />
   );
