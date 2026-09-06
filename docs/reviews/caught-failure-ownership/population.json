@@ -7105,7 +7105,7 @@
     {
       "siteId": "tooling/src/verify/lib/host-slots.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/host-slots.ts",
-      "line": 191,
+      "line": 195,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7113,7 +7113,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
-      "markerLine": 187
+      "markerLine": 191
     },
     {
       "siteId": "tooling/src/verify/lib/pass.ts::empty:err::1",

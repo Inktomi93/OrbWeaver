@@ -101,6 +101,19 @@ test("a full pool ANNOUNCES its holder, WAITS, and past the ceiling proceeds UNS
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
 
+test("a LIVE holder is a holder even when its pid is OURS — the cap never double-issues a slot", async () => {
+  // RED-FIRST, found live (2026-09-06): the first cut exempted `holder.pid === pid` so a recycled pid
+  // could be stolen, and driving the CT cap in ONE process handed slot 1 out a THIRD time while both
+  // slots were held — the cap silently double-issuing, which is the whole thing it exists to prevent.
+  const env = scratchRuntime();
+  const clock = fakeClock();
+  const mine = await acquireHostSlot(poolOf(1), { env, pid: 4321, alive: aliveOnly(4321) });
+  expect(mine.slot).toBe(1);
+  const again = await acquireHostSlot(poolOf(1, 5000), { env, pid: 4321, alive: aliveOnly(4321), now: clock.now, sleep: clock.sleep });
+  expect(again.slot, "a second ask from the same live pid must not be handed the slot it already holds").toBeNull();
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
 test("a DEAD holder's slot is stolen, out loud — a killed run must never wedge the box", async () => {
   const env = scratchRuntime();
   const dir = hostPoolDir(poolOf(1), env);

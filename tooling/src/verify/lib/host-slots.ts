@@ -90,9 +90,14 @@ function defaultAlive(pid: number): boolean {
   }
 }
 
+/** The poll timer is deliberately NOT `unref()`d. An unref'd timer does not hold the event loop open, so a
+ *  process whose ONLY pending work is this wait EXITS — measured 2026-09-06 driving the real verify door:
+ *  node printed "Detected unsettled top-level await" and the queued run ended with exit 0 having run
+ *  NOTHING. A verify that reports clean without running is the lying-tool shape this repo fixes on sight,
+ *  so waiting keeps the process alive, exactly like the work it is waiting to do. */
 function defaultSleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms).unref();
+    setTimeout(resolve, ms);
   });
 }
 
@@ -136,7 +141,7 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
 
   let steals = 0;
   for (;;) {
-    const swept = takeAnySlot({ dir, slots: pool.slots, body, pid, alive }, deps.onNotice);
+    const swept = takeAnySlot({ dir, slots: pool.slots, body, alive }, deps.onNotice);
     if (typeof swept === "number") {
       return lease(slotPath(dir, swept), swept, pid, now().getTime() - startedMs);
     }
@@ -168,7 +173,6 @@ interface SweepInput {
   readonly dir: string;
   readonly slots: number;
   readonly body: string;
-  readonly pid: number;
   readonly alive: (pid: number) => boolean;
 }
 
@@ -190,7 +194,12 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
       return slot;
     } catch {
       const holder = readHolder(path);
-      if (holder !== null && holder.pid !== input.pid && input.alive(holder.pid)) {
+      // A LIVE holder is a holder, even if its pid is OURS. The first cut exempted `holder.pid === pid` so
+      // a recycled pid could be stolen, and that made the cap silently double-issue: driven live, one
+      // process holding both CT slots was handed slot 1 a THIRD time, because it read its own record as
+      // debris. Every real caller is its own process, so the exemption bought nothing and cost the
+      // invariant. A genuinely recycled pid now degrades loudly through the ceiling instead of stealing.
+      if (holder !== null && input.alive(holder.pid)) {
         continue;
       }
       const who = holder === null ? "an unreadable record" : `pid ${String(holder.pid)} (no such process)`;
