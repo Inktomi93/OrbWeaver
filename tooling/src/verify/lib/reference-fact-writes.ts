@@ -109,6 +109,43 @@ function unwrapTarget(raw: MorphNode): MorphNode {
   return node;
 }
 
+function isTypeScriptLibraryDeclaration(node: MorphNode): boolean {
+  const path = node.getSourceFile().getFilePath().replaceAll("\\", "/");
+  return node.getSourceFile().isDeclarationFile() && path.includes("/node_modules/typescript/lib/lib.");
+}
+
+function staticMemberName(node: MorphNode): string | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return node.getName();
+  }
+  if (!Node.isElementAccessExpression(node)) {
+    return;
+  }
+  const argument = node.getArgumentExpression();
+  return argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : undefined;
+}
+
+function objectAssignTarget(call: import("ts-morph").CallExpression): MorphNode | undefined {
+  const callee = unwrapTarget(call.getExpression());
+  if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)) || staticMemberName(callee) !== "assign") {
+    return;
+  }
+  const receiver = unwrapTarget(callee.getExpression());
+  const receiverSymbol = receiver.getSymbol();
+  const memberSymbol = callee.getSymbol() ?? receiver.getType().getProperty("assign");
+  const receiverDeclarations = receiverSymbol?.getDeclarations() ?? [];
+  const memberDeclarations = memberSymbol?.getDeclarations() ?? [];
+  const canonicalReceiver =
+    receiverSymbol?.getName() === "Object" && receiverDeclarations.length > 0 && receiverDeclarations.every(isTypeScriptLibraryDeclaration);
+  const canonicalMember =
+    memberDeclarations.length > 0 &&
+    memberDeclarations.every(
+      (declaration) =>
+        isTypeScriptLibraryDeclaration(declaration) && declaration.getFirstAncestorByKind(SyntaxKind.InterfaceDeclaration)?.getName() === "ObjectConstructor",
+    );
+  return canonicalReceiver && canonicalMember ? call.getArguments()[0] : undefined;
+}
+
 function connect(edges: Map<object, Set<object>>, left: object, right: object): void {
   (edges.get(left) ?? edges.set(left, new Set()).get(left))?.add(right);
   (edges.get(right) ?? edges.set(right, new Set()).get(right))?.add(left);
@@ -207,6 +244,17 @@ function addMemberWriteSymbols(identifier: Identifier, written: Set<object>, mut
   }
 }
 
+function addCallArgumentMutation(target: MorphNode, written: Set<object>, mutated: Set<object>): void {
+  const root = rootIdentifier(target);
+  const symbol = root === undefined ? undefined : lexicalReferenceSymbol(root);
+  if (root === undefined || symbol === undefined) {
+    return;
+  }
+  written.add(symbol.compilerSymbol);
+  mutated.add(symbol.compilerSymbol);
+  addMemberWriteSymbols(root, written, mutated);
+}
+
 function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>; readonly mutated: Set<object>; readonly reassigned: Set<object> } {
   const written = new Set<object>();
   const mutated = new Set<object>();
@@ -223,6 +271,12 @@ function collectWrites(sourceFile: SourceFile): { readonly written: Set<object>;
       addMemberWriteSymbols(identifier, written, mutated);
     } else {
       reassigned.add(symbol.compilerSymbol);
+    }
+  }
+  for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const target = objectAssignTarget(call);
+    if (target !== undefined) {
+      addCallArgumentMutation(target, written, mutated);
     }
   }
   return { written, mutated, reassigned };

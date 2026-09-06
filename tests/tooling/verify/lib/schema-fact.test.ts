@@ -239,6 +239,11 @@ test("written, cyclic, dynamic, and computed column populations refuse instead o
       reason: /mutated|assigned|write/u,
     },
     {
+      source:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nObject.assign(columns, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+      reason: /mutated|assigned|write/u,
+    },
+    {
       source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nconst a = { ...b };\nconst b = { ...a };\nexport const t = sqliteTable("t", a);',
       reason: /cycle/u,
     },
@@ -256,6 +261,26 @@ test("written, cyclic, dynamic, and computed column populations refuse instead o
     const fact = query.schema();
     expect(unresolvedReason(fact)).toMatch(row.reason);
     expect(fact.receipt.status).toBe("unresolved");
+  }
+});
+
+test("shadowed Object.assign and schema populations outside arg0 remain ready", () => {
+  const cases = [
+    `import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const Object = { assign: (...args: unknown[]) => args };
+Object.assign(columns, { late: text("late") });
+export const t = sqliteTable("t", columns);`,
+    `import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+Object.assign({}, columns);
+export const t = sqliteTable("t", columns);`,
+  ];
+  for (const source of cases) {
+    const fact = queryOf({ "packages/db/src/schema/x.ts": source }).query.schema();
+
+    expect(ready(fact).tables[0]?.columns.map((column) => column.identity.propertyName)).toEqual(["id"]);
+    expect(fact.receipt).toMatchObject({ status: "ready", tables: 1, columns: 1 });
   }
 });
 
