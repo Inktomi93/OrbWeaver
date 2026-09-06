@@ -147,6 +147,9 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
       {view.tiers.map((tier) => (
         <RegexTierGroup
           chatId={chatId}
+          // #1755 — the room's whole run length: the SET each row's rank is a position in. The host's read
+          // is the only one that carries it, which is why the member's arm below passes null.
+          effectiveCount={view.effective.length}
           isHost={true}
           key={tier.scope}
           labels={labels}
@@ -170,6 +173,10 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
       <Text voice="gloss">The host’s regex applies to this room. Only the host can change it.</Text>
       <RegexTierGroup
         chatId={chatId}
+        // NULL, not 0: a member's read carries no run order at all (every `runsAt` is null for the reason
+        // `memberChatTier` states), so there is no set for a rank to be a position in — and a `0` would be
+        // a count claiming the room runs nothing.
+        effectiveCount={null}
         isHost={false}
         labels={new Map<RegexTierKey, string>()}
         ownedScriptIds={new Set<RegexScriptId>()}
