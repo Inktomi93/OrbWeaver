@@ -69,7 +69,7 @@ function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boo
  *  for this domain). The COMPARISON is the kernel's (`can`, injected); what lives here is the refusal.
  *  `reason` is the refusal SENTENCE, because that is the only thing the six verbs that used to re-spell
  *  `role !== "host"` inline actually needed: `patchActor` says "…to hand-edit an actor", `promoteActor` says
- *  "…to promote an actor to the roster". Taking the sentence as an argument collapses seven comparisons to one
+ *  "…to promote an actor to the room's characters". Taking the sentence as an argument collapses seven comparisons to one
  *  with byte-identical refusals (pinned: tests/server/domain/rpg/authority.suite.int.test.ts — the suite that
  *  passed UNMODIFIED across the kernel reroute, which is what proves the reroute is behavior-free).
  *

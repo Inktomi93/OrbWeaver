@@ -1,5 +1,12 @@
 // Distorted/stretched + broken images, and buried rasters. Pure; thresholds cited. Provenance:
 // lib/collect.ts header.
+//
+// WHAT `distorted-image` ACTUALLY JUDGES, stated narrowly (#1808). It judges the `<img>` census, whose
+// `objectFit` is the element's real computed keyword. The BACKGROUND-IMAGE half of the same sample array
+// arrives stamped `"fill"` by `ops/walker/census-text.ts` as a placeholder, so a background raster under
+// the default `background-size: auto` is judged as if it stretched — a live false-positive class this
+// file cannot close, because the sample carries no background sizing mode to read. The limit is stated
+// in that census's header and owed there, not guessed at here.
 import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { BrokenImageInput, ImageDistortionInput } from "../contract/samples.ts";
 import type { BuriedRasterInput } from "../contract/samples-media.ts";
@@ -12,29 +19,75 @@ const DISTORTION_SEVERE_PCT = 15;
 
 const PCT_MULTIPLIER = 100;
 
-const NON_STRETCHING_OBJECT_FITS = new Set(["cover", "contain"]);
+/** THE `object-fit` KEYWORD SPACE, closed (CSS Images 3 §5.5). A value outside it is not a mode this
+ *  rule can reason about — it is a measurement that did not arrive, and the walker's own
+ *  `getComputedStyle(img).objectFit || "fill"` fallback (ops/walker/census-text.ts) is exactly how an
+ *  empty read used to enter here wearing the ONE keyword that convicts. */
+const OBJECT_FIT_KEYWORDS = new Set(["fill", "contain", "cover", "none", "scale-down"]);
 
-/** `distorted-image`'s disposition. The census is every rendered image, so the two declines that are not
- *  the aspect question itself are closed exclusions: an image with no natural or rendered extent has no
- *  aspect to compare and is `broken-image`'s subject, and `object-fit: cover|contain` crops or letterboxes
- *  BY DESIGN — a measured fact that proves this rule inapplicable rather than a missing judgment. The
- *  deviation threshold stays a judged pass. */
+/** Crops or letterboxes: the box/source aspect mismatch is the mode DOING ITS JOB. */
+const CROPPING_OBJECT_FITS = new Set(["cover", "contain"]);
+
+/** SCALES NOTHING INDEPENDENTLY, so it cannot squish (#1808, from #1504 claim 3). `none` paints the
+ *  raster at its natural size and `scale-down` picks the smaller of `none`/`contain` — measured: a 3:1
+ *  source in a 1:1 box under `object-fit: none` emitted `P1 66.7% aspect deviation` describing a crop.
+ *  A SEPARATE reason from the cropping pair on purpose: "the mode letterboxes" and "the mode never
+ *  scales" are different measured facts, and one printed count each is what keeps a widening of either
+ *  set visible. Only `fill` stretches, which is what `contract/samples.ts` always claimed. */
+const NON_SCALING_OBJECT_FITS = new Set(["none", "scale-down"]);
+
+/** Every extent this rule divides by. `<= 0` is a RANGE test and NaN fails every comparison, so a
+ *  non-finite extent used to sail through it and print `NaN% aspect deviation` as a P2 finding. */
+function extentsAreReadable(input: ImageDistortionInput): boolean {
+  return (
+    Number.isFinite(input.naturalWidth) && Number.isFinite(input.naturalHeight) && Number.isFinite(input.renderedWidth) && Number.isFinite(input.renderedHeight)
+  );
+}
+
+/** `distorted-image`'s disposition, and the ONE place its input is bounded. The census is every rendered
+ *  image, so the declines that are not the aspect question itself are closed exclusions: an image with no
+ *  natural or rendered extent has no aspect to compare and is `broken-image`'s subject; `cover`/`contain`
+ *  crop or letterbox by design; `none`/`scale-down` scale nothing at all. The deviation threshold stays a
+ *  judged pass.
+ *
+ *  THE TWO REFUSALS ARE `withheld`, NOT `excluded` (#1808). An unreadable extent and an unrecognised
+ *  `object-fit` are not measured facts proving the rule inapplicable — they are the measurement MISSING,
+ *  which the population contract (contract/findings.ts) makes NO VERDICT. Silently skipping either was
+ *  the alternative, and a silent skip is indistinguishable from a clean image. */
 export function classifyImageDistortion(input: ImageDistortionInput): CandidateDisposition {
+  if (!extentsAreReadable(input)) {
+    return { kind: "withheld", reason: "unreadableExtent" };
+  }
+  if (!OBJECT_FIT_KEYWORDS.has(input.objectFit)) {
+    return { kind: "withheld", reason: "unreadableObjectFit" };
+  }
   if (input.naturalWidth <= 0 || input.naturalHeight <= 0 || input.renderedWidth <= 0 || input.renderedHeight <= 0) {
     return { kind: "excluded", reason: "noComparableExtent" };
   }
-  if (NON_STRETCHING_OBJECT_FITS.has(input.objectFit)) {
+  if (CROPPING_OBJECT_FITS.has(input.objectFit)) {
     return { kind: "excluded", reason: "objectFitCropsOrLetterboxes" };
+  }
+  if (NON_SCALING_OBJECT_FITS.has(input.objectFit)) {
+    return { kind: "excluded", reason: "objectFitDoesNotScale" };
   }
   return { kind: "judged", finding: checkImageDistortion(input) };
 }
 
+/** The judged verdict alone. It answers `null` for every input the classifier above declines — the LOUD
+ *  refusal is the classifier's, because only a disposition can reach the population row; a bare check
+ *  cannot say "I could not read this" in its return type and must not guess instead. */
 export function checkImageDistortion(input: ImageDistortionInput): Finding | null {
   const { naturalWidth, naturalHeight, renderedWidth, renderedHeight, selector, objectFit } = input;
+  if (!extentsAreReadable(input)) {
+    return null;
+  }
+  if (!OBJECT_FIT_KEYWORDS.has(objectFit)) {
+    return null;
+  }
   if (naturalWidth <= 0 || naturalHeight <= 0 || renderedWidth <= 0 || renderedHeight <= 0) {
     return null;
   }
-  if (NON_STRETCHING_OBJECT_FITS.has(objectFit)) {
+  if (CROPPING_OBJECT_FITS.has(objectFit) || NON_SCALING_OBJECT_FITS.has(objectFit)) {
     return null;
   }
   const naturalRatio = naturalWidth / naturalHeight;

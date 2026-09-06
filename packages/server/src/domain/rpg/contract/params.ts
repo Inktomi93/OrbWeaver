@@ -109,9 +109,9 @@ export interface StagedPatch {
 // of the three additionally cross OUT of the domain (`domain/rpg/index.ts` re-exports them for
 // `entry/compose/rpg.ts`), which is precisely the case the one-home rule exists for.
 
-/** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
- *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
- *  apply from the resolved roster (`tools/apply.ts::buildActorRefIndex`). A tool write on a roster member
+/** A name→actor-ref index over the participants (character/user members by their gather-surfaced display name,
+ *  lowercased), so a model `targetRef` NAME resolves to the participant's canonical ref key. Built once per
+ *  apply from the resolved participants (`tools/apply.ts::buildActorRefIndex`). A tool write on a participant
  *  then lands under `character:<id>`/`user:<id>` — the SAME key `buildTrackerView` + the steering reminder
  *  read, never an orphan `npc:<name>` the panel can't render. */
 export type ActorRefIndex = ReadonlyMap<string, RpgActorRef>;
@@ -286,9 +286,9 @@ export interface DismissActorParams {
   readonly targetRef: RpgActorRef;
 }
 
-/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC earns a durable roster card + a chat seat,
+/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC earns a durable character card + a chat seat,
  *  and her actor row is RE-KEYED `npc:<slug>` → `character:<id>` in the same gesture. `targetRef` is the CAST
- *  arm only — promoting a roster actor is meaningless, so the type cannot express it. */
+ *  arm only — promoting a participant actor is meaningless, so the type cannot express it. */
 export interface PromoteActorParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
@@ -414,7 +414,7 @@ export interface ResyncFromStoryParams {
 
 /** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling). Chat- +
  *  actor-scoped; the verb resolves the HOST floor (`resolveHost`) so a member can never trigger the
- *  host-principal model call, then resolves the card corpus under the room host. `actorRef` names WHICH roster
+ *  host-principal model call, then resolves the card corpus under the room host. `actorRef` names WHICH participant
  *  character the round fills — a `user`/`npc` ref carries no card and is refused (the honest applicability
  *  arm the client's disabled button mirrors). No corpus arg: the card + opening are server-resolved, so a
  *  caller can never feed the round its own prose. */
@@ -507,7 +507,7 @@ export interface LiteReminderInput {
    *  `immersiveHtmlInteractive` (the card teaching + its M3 ask variant), and the other
    *  teaching gates. Passing the slice whole keeps the knob vocabulary one-homed (never re-picked per field). */
   readonly features: RpgGameFeatures;
-  /** The delta's roster-name map (actorRefKey → display name) so volatile-plane delta lines name
+  /** The delta's participant-name map (actorRefKey → display name) so volatile-plane delta lines name
    *  participant actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveParticipants`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
   readonly participantNames: Readonly<Record<string, string>>;

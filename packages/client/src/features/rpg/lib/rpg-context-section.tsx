@@ -4,7 +4,7 @@
 // Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
 // PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 5 live + 1 locked).
 // **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding
-// a roster entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
+// a participant entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
 // migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
 // (plane-shaped, not character-card-shaped). rpg NEVER imports chat: `main.tsx` (the door) calls `makeRpgContextTabs({ trpc, queryClient })`
 // and assembles the result into `createContributorRegistry("chat-context", …)`, which flows to chat's
@@ -87,7 +87,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       icon: HeartPulse,
       strip: "game",
       when: isGameChat,
-      // A game chat lands on Status (the game-state centerpiece) — not the roster's Members, the
+      // A game chat lands on Status (the game-state centerpiece) — not Members, the
       // declared-order first. A stored prior selection still wins.
       defaultTab: isGameChat,
       body: gameTab("Status", (state) => <RpgStatusTab state={state} />),

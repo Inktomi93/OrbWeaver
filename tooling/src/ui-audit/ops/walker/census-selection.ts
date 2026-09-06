@@ -39,6 +39,19 @@
 // in the denominator), never withheld. A genuinely nested INDEPENDENT control keeps its own aria state and
 // keeps its own cohort; a genuinely one-sided cohort of real carriers is still withheld (#987 :208 intact).
 //
+// THE COMPARISON REFERENCE IS NOT AN INDEX (#1808, from #1504 claim 2) — the third correction of the
+// same shape, one layer down again. #1059 fixed WHICH carriers are one cohort and #1150 fixed WHICH of
+// them own the choice; this fixes which of them the delta is measured AGAINST. It was
+// `group.unselected[0]`, i.e. document order, with no check that the unselected members paint alike
+// before one speaks for all of them — so a cohort holding one atypical sibling reported the wrong channel
+// set in EITHER direction (a sibling wearing the selected treatment erased the idiom; a sibling that is a
+// different authored variant invented channels), and the output said nothing about it. Measured on a
+// planted three-cohort surface: ring, fill and bar-left all read "none" and the census printed
+// `candidates=3 judged=3 affected=0` over three live idioms. The base is now the cohort's MAJORITY rest
+// paint, and where no majority exists (a cohort of variants — #984's own invariant-paint control is that
+// shape) the smallest delta over the distinct rest paints, tagged `carried(heterogeneousRest=N)`. Both
+// are order-free; the in-segment comment beside `SELECT_BASELINE_MAJORITY` carries the reasoning.
+//
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
@@ -175,6 +188,87 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     return channels.length === 0 ? "none" : channels.sort().join("+");
   }
 
+  // THE REFERENCE IS NEVER \`unselected[0]\` (#1808, from #1504 claim 2). One arbitrary member — the first
+  // in DOCUMENT ORDER — used to be the sole base for every selected member of its cohort, so the verdict
+  // was a function of authoring order in both directions: an unselected sibling that happens to carry the
+  // selected treatment (a held/hovered cell) ERASED the whole idiom, and a sibling that is a different
+  // authored VARIANT invented channels the selection never changed. Measured on a planted three-cohort
+  // surface: ring, fill and bar-left all read "none" and the census printed
+  // \`candidates=3 judged=3 affected=0\` over three live idioms.
+  //
+  // Two rules, in order, and both are order-free:
+  //   1. THE MAJORITY REST PAINT, when one exists — the paint at least SELECT_BASELINE_MAJORITY of the
+  //      unselected members agree on IS what "unselected looks like here", and a minority anomaly can no
+  //      longer speak for the cohort. Same modal-with-a-floor shape resolve.ts uses for a surround.
+  //   2. Otherwise THE SMALLEST DELTA over the cohort's distinct rest paints. A cohort whose unselected
+  //      members legitimately paint differently is a cohort of VARIANTS (#984's own invariant-paint
+  //      control is exactly that shape: three instances, three base treatments, one authored home), and a
+  //      variant difference can only ADD channels on top of the selection delta — so the minimum over the
+  //      rest classes is the closest thing to "what selection alone changed", never an invented channel.
+  //      Ties break on the signature string, so no two runs can disagree.
+  // The fallback is TAGGED, not silent: \`carried(heterogeneousRest=N)\` says how many cohorts were judged
+  // against the minimum rather than against an agreed rest paint (a TAG over candidates, the #1172
+  // precedent — outside the settlement arithmetic, because every one of them is still judged exactly
+  // once). Withholding here instead would put every variant cohort on the tree at NO VERDICT, which is
+  // the cry-wolf half of the honesty rule, not the honest half.
+  var SELECT_BASELINE_MAJORITY = 0.6;
+
+  // Exactly the channels selectionDeltaSignature reads — a difference the signature cannot see is not a
+  // difference about the base.
+  function restPaintKey(el) {
+    var s = getComputedStyle(el);
+    var key = s.outlineWidth + "|" + s.outlineStyle + "|" + s.outlineColor + "|" + s.boxShadow + "|" + s.backgroundColor + "|" + s.textDecorationLine;
+    var keySides = ["Top", "Right", "Bottom", "Left"];
+    for (var keyIndex = 0; keyIndex < keySides.length; keyIndex += 1) {
+      var keySide = keySides[keyIndex];
+      key += "|" + s["border" + keySide + "Width"] + " " + s["border" + keySide + "Style"] + " " + s["border" + keySide + "Color"];
+    }
+    return key;
+  }
+
+  // One representative per distinct rest paint, each with the count that paints it.
+  function restPaintClasses(unselected) {
+    var byKey = new Map();
+    var classes = [];
+    for (var restIndex = 0; restIndex < unselected.length; restIndex += 1) {
+      var restKey = restPaintKey(unselected[restIndex]);
+      var known = byKey.get(restKey);
+      if (known === undefined) {
+        known = { el: unselected[restIndex], count: 0 };
+        byKey.set(restKey, known);
+        classes.push(known);
+      }
+      known.count += 1;
+    }
+    return classes;
+  }
+
+  function majorityRestClass(classes, total) {
+    var best = null;
+    for (var classIndex = 0; classIndex < classes.length; classIndex += 1) {
+      if (best === null || classes[classIndex].count > best.count) best = classes[classIndex];
+    }
+    if (best === null) return null;
+    return best.count >= total * SELECT_BASELINE_MAJORITY ? best : null;
+  }
+
+  function channelCount(signature) {
+    return signature === "none" ? 0 : signature.split("+").length;
+  }
+
+  // The fewest channels selection changes against ANY of the cohort's rest paints; ties resolve on the
+  // string so the answer never depends on class order.
+  function smallestDeltaSignature(selectedEl, classes) {
+    var bestSignature = null;
+    for (var deltaIndex = 0; deltaIndex < classes.length; deltaIndex += 1) {
+      var candidateSignature = selectionDeltaSignature(selectedEl, classes[deltaIndex].el);
+      if (bestSignature === null) bestSignature = candidateSignature;
+      else if (channelCount(candidateSignature) < channelCount(bestSignature)) bestSignature = candidateSignature;
+      else if (channelCount(candidateSignature) === channelCount(bestSignature) && candidateSignature < bestSignature) bestSignature = candidateSignature;
+    }
+    return bestSignature === null ? "none" : bestSignature;
+  }
+
   var selectionGroups = new Map();
   for (var selectionIndex = 0; selectionIndex < allEls.length; selectionIndex += 1) {
     var choice = allEls[selectionIndex];
@@ -217,10 +311,13 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
       return;
     }
     relationalAccounting["selection-idiom"].judged += 1;
-    var baseEl = group.unselected[0];
+    var restClasses = restPaintClasses(group.unselected);
+    var majorityRest = majorityRestClass(restClasses, group.unselected.length);
+    if (majorityRest === null) carryRelational(relationalAccounting["selection-idiom"], "heterogeneousRest");
     for (var selectedIndex = 0; selectedIndex < group.selected.length; selectedIndex += 1) {
       var selectedEl = group.selected[selectedIndex];
-      var signature = selectionDeltaSignature(selectedEl, baseEl);
+      var signature =
+        majorityRest === null ? smallestDeltaSignature(selectedEl, restClasses) : selectionDeltaSignature(selectedEl, majorityRest.el);
       if (signature === "none") continue;
       selectionTotal += 1;
       selectionKinds.add(group.kind);

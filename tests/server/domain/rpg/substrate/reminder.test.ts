@@ -39,13 +39,13 @@ function sheet(over: Partial<RpgActorView["sheet"]> = {}): RpgActorView["sheet"]
   return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...over };
 }
 
-/** ONE actor row in the view — R2's single shape for a roster member AND a scene NPC. */
+/** ONE actor row in the view — R2's single shape for a participant AND a scene NPC. */
 function actor(over: Partial<RpgActorView> & Pick<RpgActorView, "actorRef" | "name">): RpgActorView {
   return { presence: false, identity: null, sheet: sheet(), volatile: null, trackers: [], ...over };
 }
 
 /** A NPC actor with its identity half + the trackers it carries. `presence` defaults ON (the on-stage case);
- *  the offstage roster's own test flips it. The tracker ENTRIES are split into the def list the row carries and
+ *  the offstage list's own test flips it. The tracker ENTRIES are split into the def list the row carries and
  *  the readings on its volatile half — one row, exactly as the view builds it. */
 function castActor(
   npcKey: string,
@@ -336,8 +336,8 @@ test("the cast line renders relationship + the member's TRACKERS shape-aware", (
 });
 
 // The cast VOLATILE gap: `update_party`/`update_inventory` write hp, status, conditions, inventory and wallet
-// onto an npc's `npc:<key>` volatile row exactly as they do a roster member's, but the reminder rendered
-// that plane for roster actors ONLY — so an NPC the tool round had just poisoned, wounded or paid was
+// onto an npc's `npc:<key>` volatile row exactly as they do a participant's, but the reminder rendered
+// that plane for participant actors ONLY — so an NPC the tool round had just poisoned, wounded or paid was
 // model-INVISIBLE, and the model could neither play it nor retire it. (Pre-F4 the constraint enums leaked the
 // condition names in by accident; that channel is correctly gone.) ONE builder now serves both surfaces.
 test("an npc's WHOLE volatile plane rides its line in the same grammar a party line uses", () => {
@@ -574,10 +574,10 @@ test("a neutral relationship is silent in the cast line (no steering signal)", (
   expect(out).not.toContain("neutral");
 });
 
-// R2 — the OFFSTAGE roster. Retention without visibility steers nothing: before the reshape a departed NPC's
+// R2 — the OFFSTAGE list. Retention without visibility steers nothing: before the reshape a departed NPC's
 // identity was DESTROYED outright, so the model had no way to bring her back consistently and no line saying
 // she existed. She is retained now, and this block is how the turn hears about her.
-test("a tracked npc who is NOT on stage rides the terse `Known, offstage` roster", () => {
+test("a tracked npc who is NOT on stage rides the terse `Known, offstage` list", () => {
   const trust = def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" });
   const onStage = castActor("bran", { name: "Bran" });
   const gone = {

@@ -62,22 +62,42 @@ export function FieldWrappedStory(): ReactElement {
 }
 
 /**
- * The side-eye F-3 shape: a `<Field>`-labelled editor GHOSTING a 60-word factory default. This is the
- * exact composition that announced its whole template as the field's own accessible name (twice) while
- * `role="combobox"` was unconditional — the accname algorithm's combobox arm falls through to the value.
+ * The side-eye F-3 shape: a `<Field>`-labelled editor whose STORED VALUE is a 60-word template. This is
+ * the exact composition that announced its whole template as the field's own accessible name (twice)
+ * while `role="combobox"` was unconditional — the accname algorithm's combobox arm falls through to the
+ * VALUE, not a placeholder (#1645: the ghost lives in `value` here, not `placeholder`, precisely because
+ * a placeholder can never be reached by that fallback — only a non-empty value can).
  */
 export function GhostDefaultStory(): ReactElement {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(
+    "[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]",
+  );
   return (
     <Field label="Template">
-      <MacroTextarea
-        onChange={setValue}
-        placeholder="[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]"
-        rows={4}
-        suggestions={MACROS}
-        value={value}
-      />
+      <MacroTextarea onChange={setValue} rows={4} suggestions={MACROS} value={value} />
     </Field>
+  );
+}
+
+/**
+ * The Field-LESS real-consumer shape (#1645): `template-drill-in.tsx`'s `ProseTemplateBody` and
+ * `section-body.tsx`'s `TemplatedMarkerBody` both mount `<MacroTextarea>` bare — no `<Field>` — passing
+ * `aria-label` directly and ghosting a long factory default via `placeholder` while `value` stays empty.
+ * With no Field to supply `aria-labelledby`, the CONTROL's own `aria-label` prop is the ONLY accessible-name
+ * source; this story exists to let a CT pin that source directly, where a Field-wrapped mount's
+ * `aria-labelledby` could never expose a control-level regression.
+ */
+export function FieldlessGhostStory(): ReactElement {
+  const [value, setValue] = useState("");
+  return (
+    <MacroTextarea
+      aria-label="Template"
+      onChange={setValue}
+      placeholder="[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]"
+      rows={4}
+      suggestions={MACROS}
+      value={value}
+    />
   );
 }
 

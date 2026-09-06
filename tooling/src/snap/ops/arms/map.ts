@@ -120,7 +120,10 @@ function mapOutput(enabled: boolean, outcomes: readonly CaptureOutcome[]): { rea
   if (!enabled) {
     return { count: "no", domFallbacks: "no" };
   }
-  const entries = outcomes.find((outcome) => outcome.mapResult !== null)?.mapResult ?? [];
+  // AGGREGATED over every page, exactly as `facts()` below already does. Reading the FIRST outcome with a
+  // map made a multi-page run print one page's counts as the run's counts (#1509) — the RESULT pair and
+  // the emitted fact then disagreed about the same run.
+  const entries = outcomes.flatMap((outcome) => outcome.mapResult ?? []);
   return { count: String(entries.length), domFallbacks: String(entries.filter((entry) => entry.source === "dom").length) };
 }
 

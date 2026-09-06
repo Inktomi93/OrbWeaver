@@ -20,6 +20,15 @@ const GIT_FAILURE_DETAIL_MAX_CHARS = 400;
 
 interface GitRead {
   readonly ok: boolean;
+  /** RAW stdout. `snapDirtyIdentity` HASHES this, because a digest that claims to identify a working tree
+   *  must hash what git PRINTED. #1509 item 7 reported the trimmed digest as a live collision (two dirty
+   *  trees differing only by trailing whitespace at the end of the diff); measured, it is NOT — the diff's
+   *  own `index <old>..<new>` line carries the new blob hash mid-output, out of a trailing trim's reach, so
+   *  every content difference survived anyway. The raw hash is still the correct dependency: the identity
+   *  should not rest on a header line this tool does not control. Trim at the callers that read a single
+   *  token (sha/ref), never here. Fenced by tests/tooling/snap/lib/run-bundle-files.int.test.ts. */
+  readonly raw: string;
+  /** `raw`, trimmed — for the identity fields that are one whitespace-free token. */
   readonly value: string;
   readonly detail: string;
   readonly status: number | null;
@@ -32,9 +41,10 @@ interface GitFailure {
 
 function git(root: string, args: readonly string[]): GitRead {
   const result = runNicedSync("git", args, { cwd: root, maxBuffer: GIT_OUTPUT_MAX_BYTES });
-  const value = result.stdout.trim();
+  const raw = result.stdout;
+  const value = raw.trim();
   const detail = (result.stderr.trim() || value || `git exited ${String(result.status)}`).slice(0, GIT_FAILURE_DETAIL_MAX_CHARS);
-  return { ok: result.status === 0, value, detail, status: result.status };
+  return { ok: result.status === 0, raw, value, detail, status: result.status };
 }
 
 export function snapGitIdentity(root: string): Pick<SnapRunIndex["identity"], "sha" | "ref"> & { readonly failures: readonly GitFailure[] } {
@@ -68,11 +78,12 @@ export function snapDirtyIdentity(root: string): SnapRunIndex["identity"]["dirty
   if (failures.length > 0) {
     return { state: "unknown", digest: null, failures };
   }
-  const untracked = untrackedRead.value
+  const untracked = untrackedRead.raw
     .split("\0")
     .filter((path) => path !== "")
     .sort();
-  const hash = createHash("sha256").update(status.value).update("\0").update(trackedDelta.value);
+  // RAW on both sides: the digest is a claim about the working tree's exact bytes.
+  const hash = createHash("sha256").update(status.raw).update("\0").update(trackedDelta.raw);
   for (const path of untracked) {
     hash.update("\0").update(path).update("\0");
     // @orb-gate-ignore caught-failure-ownership(empty:error): unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.

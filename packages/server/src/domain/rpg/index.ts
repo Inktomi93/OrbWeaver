@@ -57,7 +57,7 @@ export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // composition root — the tracker-readonly + runExtraction ops it wires close over it.
 export { findGameByChat } from "./persistence/games.ts";
 export { createExportRpgGame, createImportRpgGame } from "./persistence/portability-write.ts";
-// R6 — the per-actor write-surface assembly (compose) resolves each roster actor's SHEET exceptions
+// R6 — the per-actor write-surface assembly (compose) resolves each participant actor's SHEET exceptions
 // (`trackerGrants`/`trackerRevokes`) to decide which trackers that actor may be offered.
 export { listSheets } from "./persistence/sheets.ts";
 export { createRpgService } from "./service.ts";

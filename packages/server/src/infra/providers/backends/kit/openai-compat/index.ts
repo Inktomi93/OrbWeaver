@@ -14,6 +14,7 @@ export {
   redactHeaders,
   redactSecretsFromText,
   secretHeaderValues,
+  secretScrubOverhang,
 } from "./body.ts";
 export type { MapTurnContext, StreamDelta, StreamReduceOptions } from "./stream.ts";
 export {

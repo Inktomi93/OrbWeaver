@@ -174,7 +174,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   //
   // `.min(1)` IS THE ZERO RULE AT THE TYPE: an aggregate that says "0 waiting" is unrepresentable, which is
   // how "when the last ask is answered the row is RETRACTED, never rewritten to zero" stops being prose
-  // (the producer's `retract` path — `domain/notifications/verbs/retract.ts`).
+  // (the producer's `retract` path — `domain/notifications/verbs/standing.ts`).
   z.object({
     type: z.literal("plugins-awaiting-consent"),
     recipientUserId: recipientUserIdSchema,

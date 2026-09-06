@@ -249,6 +249,10 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
       try {
         await settle(page, STEP_SETTLE_MS);
         const fileAction = await runStep(page, step);
+        // The retry owes the SAME post-run settle as the normal path (#1509): returning straight from
+        // here let the next tape action observe pre-settle DOM, so one churn blip silently changed what
+        // every following step measured.
+        await settle(page, STEP_SETTLE_MS);
         return { failures: 0, fileAction, failure: null };
       } catch (retryErr) {
         print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${errorMessage(retryErr)}`);

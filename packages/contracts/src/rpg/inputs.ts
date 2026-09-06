@@ -191,9 +191,9 @@ export const rpgDismissActorInputSchema = z.object({
   targetRef: rpgActorRefSchema,
 });
 
-/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC the story kept coming back to EARNS a roster
- *  card. It is `dismissActor`'s opposite — dismissal forgets the person, promotion keeps her forever — and the
- *  only rpg verb whose write reaches outside the game (it mints a durable character card + a chat roster seat
+/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC the story kept coming back to EARNS a
+ *  character card. It is `dismissActor`'s opposite — dismissal forgets the person, promotion keeps her forever — and the
+ *  only rpg verb whose write reaches outside the game (it mints a durable character card + a chat participant seat
  *  through ONE injected op, then re-keys the actor row `npc:<slug>` → `character:<id>` on the snapshot plane).
  *
  *  The payload is the TARGET AND NOTHING ELSE. The card's name and handle are the SERVER's derivation off the
@@ -203,7 +203,7 @@ export const rpgDismissActorInputSchema = z.object({
  *  actor is not a refusal, it is meaningless, so the wire cannot express it.
  *
  *  Refusals are DATA (`HandDoorResult`): an untracked target, an actor with no identity row, and — the ruled
- *  collision — a chat roster that already carries that NAME. */
+ *  collision — a chat that already has a participant carrying that NAME. */
 export const rpgPromoteActorInputSchema = z.object({
   chatId: chatIdField,
   targetRef: rpgNpcRefSchema,

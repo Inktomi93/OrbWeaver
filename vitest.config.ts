@@ -141,8 +141,9 @@ const SERIAL_INT = [
 // and it TRANSFERS TO TIMEOUTS ONLY: load stretches a wall clock roughly linearly, and does nothing of the
 // sort to a percentage. So (a): this project is the QUIET SLOT half (fileParallelism:false, and the
 // supervisor runs it as the LAST shard, after every other project has drained), and
-// `withholdMeasurement` in tests/tooling/_load-budget.ts is the HONESTY half — a measured-rate arm on a
-// contended box skips with a reason instead of voting.
+// `labelRateLoad` in tests/tooling/_load-budget.ts is the HONESTY half — a measured-rate arm on a
+// contended box is LABELLED `load-suspect` (#1616: load never WITHHOLDS; `withheld` is reserved for
+// "no number exists at all"), so the vote carries its own caveat instead of being skipped.
 //
 // TO ADD one: it belongs here iff it drives a real browser/stack AND its verdict turns on a measured rate,
 // a measured duration, or a wall-clock run budget that can kill the drive. A browser suite whose arms are

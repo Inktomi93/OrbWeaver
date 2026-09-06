@@ -39,7 +39,7 @@ import { isReconcileBeat } from "./reconcile-cadence.ts";
 import { buildTrackerView } from "./tracker-view.ts";
 
 /** Build the folded turn's TERMINAL tools, or `null` on ANY failure (R1 — narrative inviolability on the BUILD
- *  half). The mount is the one piece of the fold that runs PRE-commit: it reads the db (the roster + the game
+ *  half). The mount is the one piece of the fold that runs PRE-commit: it reads the db (the participants + the game
  *  row `resolveExtractionRefs` needs), so a transient fault here would otherwise take down the character turn
  *  itself — a state-tracking convenience killing the reply is exactly the inversion the delivery model forbids.
  *  On a throw the turn assembles byte-identically to a tool-less one and the flush sees the `null` terminal
@@ -112,7 +112,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   const { cur, prev } = await resolveTurnSnapshotPair(ctx.db, { id: game.id, chatId }, regenSlotMessageId);
   const curSnapshot: RpgSnapshotState = cur !== undefined ? snapshotRowToState(cur) : defaultSnapshotState();
   const prevSnapshot: RpgSnapshotState | null = prev !== undefined ? snapshotRowToState(prev) : null;
-  // The delta's roster-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name roster
+  // The delta's participant-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name participant
   // actors ("Kael HP 12→16", not "character HP 12→16"). Resolved HERE (the gather has `ctx.resolveParticipants` reach —
   // the same source `buildTrackerView` reads) and handed to the PURE delta as data (no I/O in the registry).
   const participants = await ctx.resolveParticipants(chatId);
@@ -137,7 +137,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   //
   // ERRORS-AS-DATA, AND THIS HALF IS THE DANGEROUS ONE: unlike the flush (which runs post-commit, where the
   // worst case is a lost state write), the mount runs PRE-commit inside turn assembly — a throw here kills the
-  // character turn before any narrative exists. It reads the db (roster + game row), so it CAN throw. Swallow
+  // character turn before any narrative exists. It reads the db (participants + game row), so it CAN throw. Swallow
   // it to a no-mount + a loud log: the turn then assembles byte-identically to a tool-less one, the engine hands
   // the flush a `null` channel, and the fallback post-commit round captures the state one beat later. The
   // narrative is never at risk; the degrade is visible.

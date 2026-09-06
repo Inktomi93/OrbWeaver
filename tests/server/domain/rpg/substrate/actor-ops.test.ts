@@ -150,15 +150,15 @@ test("#78: an add-then-drop batch releases the pin it just stamped (the verb app
 
 // ── R2: the identity half ─────────────────────────────────────────────────────────────────────────────────
 
-test("an npc is BORN with an identity (slug-named); a roster actor is born without one", () => {
+test("an npc is BORN with an identity (slug-named); a participant actor is born without one", () => {
   // An npc IS an identity-bearing person by construction — born without one, the very first
-  // `presentUpsert`/`setIdentityText` would have nothing to write onto. A roster member's name is the chat
-  // roster's and her standing prose is the sheet's, which is what makes the refusal below meaningful.
+  // `presentUpsert`/`setIdentityText` would have nothing to write onto. A participant's name is chat's
+  // and her standing prose is the sheet's, which is what makes the refusal below meaningful.
   expect(emptyActorEntry(MIRA).identity).toEqual({ name: "mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } });
   expect(emptyActorEntry({ kind: "user", userId: USER_ID }).identity).toBeUndefined();
 });
 
-test("an identity op on a ROSTER actor REFUSES as data (one name home per person, never two)", () => {
+test("an identity op on a PARTICIPANT actor REFUSES as data (one name home per person, never two)", () => {
   const out = apply(emptyActorEntry({ kind: "user", userId: USER_ID }), [{ op: "setIdentityText", field: "mood", text: "wary" }]);
   expect(out.ok).toBe(false);
   expect(!out.ok && out.reason).toContain("carries no identity of its own");

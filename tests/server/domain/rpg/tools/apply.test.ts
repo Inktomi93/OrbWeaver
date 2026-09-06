@@ -34,8 +34,8 @@ function castRow(
   return { ...actorRow(npcKey, over), identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity } };
 }
 
-/** The empty roster index — a target name that matches no roster member mints a `npc:<name>` (the non-roster
- *  scene-NPC path). Tests that exercise the roster resolution build a populated index instead. */
+/** The empty participant index — a target name that matches no participant mints a `npc:<name>` (the non-participant
+ *  scene-NPC path). Tests that exercise the participant resolution build a populated index instead. */
 const NO_PARTICIPANTS = buildActorRefIndex([]);
 
 function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
@@ -96,11 +96,11 @@ test("update_party: a SET arm naming neither a value nor items is a no-op, never
   expect(result.actorState[0]?.volatile.trackerValues["trust"]).toEqual({ value: 62, items: null, max: null });
 });
 
-test("update_party on a ROSTER-member name mints under the roster ref, not a npc key (F2)", () => {
+test("update_party on a PARTICIPANT name mints under the participant ref, not a npc key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, participantIndex);
-  // The write lands under the roster CHARACTER ref — the key the tracker view + reminder read.
+  // The write lands under the participant CHARACTER ref — the key the tracker view + reminder read.
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "character", characterId: kaelId });
 });
 
@@ -326,12 +326,12 @@ test("an npc is addressed by SLUG, so a re-spelled name patches ONE actor (never
   expect(patch.presentCharacters).toEqual(["npc:sister-vesna"]);
 });
 
-test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identity (one name home)", () => {
+test("a presentUpsert naming a PARTICIPANT adds PRESENCE and writes no identity (one name home)", () => {
   const kaelId = castId<CharacterId>("character_kael");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
   const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: "Kael", mood: "grim" }] }, participantIndex);
   expect(patch.presentCharacters).toEqual([`character:${kaelId}`]);
-  // Her name is the chat roster's and her standing prose is the sheet's — a second identity home is exactly
+  // Her name is chat's and her standing prose is the sheet's — a second identity home is exactly
   // the split R2 dissolved, so the applier declines to mint one.
   expect(patch.actorState?.[0]?.identity).toBeUndefined();
 });
@@ -462,7 +462,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   expect(delta.journal).toHaveLength(1); // and the turn is otherwise untouched (errors-as-data, never a throw)
 });
 
-test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked npcs / scene npcs are reachable)", () => {
+test("ghostTargetRefs names ONLY the unreachable targets (participants / tracked npcs / scene npcs are reachable)", () => {
   const userId = castId<UserId>("user_g2");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState({
@@ -655,23 +655,23 @@ test("EXT-4b: the heal does NOT resurrect the custom label — a healed entry is
 test("the player (user-kind) actor answers to the universal self-aliases (player/you/self/me)", () => {
   const userId = castId<UserId>("user_nate");
   const idx = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "Nate" }]);
-  // The roster name AND each self-alias resolve to the SAME user ref — never a phantom npc:player.
+  // The participant name AND each self-alias resolve to the SAME user ref — never a phantom npc:player.
   for (const key of ["nate", "player", "you", "self", "me", "the player"]) {
     expect(idx.get(key)).toEqual({ kind: "user", userId });
   }
 });
 
-test('a "player" targetRef on a user-roster game lands on the user ref — NOT a npc:player phantom (R2)', () => {
+test('a "player" targetRef on a user-participant game lands on the user ref — NOT a npc:player phantom (R2)', () => {
   const userId = castId<UserId>("user_p");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, participantIndex);
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "user", userId });
 });
 
-test("an explicit roster name that collides with an alias WINS (aliases fill only gaps)", () => {
+test("an explicit participant name that collides with an alias WINS (aliases fill only gaps)", () => {
   const userId = castId<UserId>("user_pl");
   const charId = castId<CharacterId>("character_you_npc");
-  // A character literally named "You" — the roster mapping for "you" must stay the character, not the alias.
+  // A character literally named "You" — the participant mapping for "you" must stay the character, not the alias.
   const idx = buildActorRefIndex([
     { actorRef: { kind: "character", characterId: charId }, name: "You" },
     { actorRef: { kind: "user", userId }, name: "Player One" },
@@ -680,7 +680,7 @@ test("an explicit roster name that collides with an alias WINS (aliases fill onl
   expect(idx.get("player")).toEqual({ kind: "user", userId }); // alias fills the remaining gap
 });
 
-test("no user-kind actor in the roster → no self-alias entries (a character-only game mints nothing phantom)", () => {
+test("no user-kind actor in the participants → no self-alias entries (a character-only game mints nothing phantom)", () => {
   const charId = castId<CharacterId>("character_only");
   const idx = buildActorRefIndex([{ actorRef: { kind: "character", characterId: charId }, name: "Kael" }]);
   expect(idx.get("player")).toBeUndefined();

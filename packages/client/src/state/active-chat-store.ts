@@ -17,13 +17,12 @@
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { readComposerDraft } from "./composer-draft-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { openModal, setActiveSection, setOpenOverlayPanel } from "./shell-store.ts";
+import { openModal, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
@@ -137,9 +136,10 @@ export function clearNewChatIntent(): void {
 /** Make an existing chat active. Keyed by the chat id, so re-selecting the same chat is idempotent and
  *  switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
-  // The three user-driven CONTENT pane swaps (create, select-a-chat, return-to-landing) hand-drive the
-  // crossfade since the router's VT never fires at a constant route.
-  withViewTransition(() => {
+  // The three user-driven CONTENT pane swaps (create, select-a-chat, return-to-landing) go through the
+  // shell's ONE content-swap door: the router's VT never fires at a constant route, and a room change must
+  // not leave a float ABOUT THE OLD ROOM's content painted over the new one (#1795).
+  withContentSwap(() => {
     const createdChatId = releaseCreatedChat(chatId);
     useActiveChatStore.setState({ handle: committedChat(chatId), newChatIntent: undefined, createdChatId }, true, "activeChat/select");
   });
@@ -148,7 +148,7 @@ export function selectChat(chatId: ChatId): void {
 /** Enter a room this device just CREATED (`chat.startChat` resolved). Identical to `selectChat` except that
  *  the room is remembered as the husk-reap candidate until it is left (§4.6). */
 export function enterCreatedChat(chatId: ChatId): void {
-  withViewTransition(() => {
+  withContentSwap(() => {
     releaseCreatedChat(chatId);
     useActiveChatStore.setState({ handle: committedChat(chatId), newChatIntent: undefined, createdChatId: chatId }, true, "activeChat/enterCreated");
   });
@@ -156,7 +156,7 @@ export function enterCreatedChat(chatId: ChatId): void {
 
 /** Return to the at-rest landing state. */
 export function goToLanding(): void {
-  withViewTransition(() => {
+  withContentSwap(() => {
     const createdChatId = releaseCreatedChat(null);
     useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId }, true, "activeChat/goToLanding");
   });

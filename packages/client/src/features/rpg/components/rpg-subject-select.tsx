@@ -1,6 +1,6 @@
 // The SUBJECT selector (owner ruling 2026-07-28, superseding the pill row): the member-scope switch IS
 // the identity line — the current subject's NAME is the trigger, clicking it opens the dropdown of
-// roster members (You / companions). No separate pill shelf. One primitive for every member-scoped tab
+// participants (You / companions). No separate pill shelf. One primitive for every member-scoped tab
 // (Sheet, Inventory — one scope-selector semantics). The trigger is styled to read as the
 // identity line's name (display-at-rest voice) while staying a fully accessible combobox (the caller's
 // `ariaLabel` names it — "Whose sheet"/"Whose pack" — so agents/SRs can find, open, and pick).
@@ -19,7 +19,7 @@ export interface RpgSubjectSelectProps {
   readonly ariaLabel: string;
 }
 
-/** The name-as-trigger subject dropdown. Callers render it only on a multi-member roster (a single
+/** The name-as-trigger subject dropdown. Callers render it only when there is more than one participant (a single
  *  subject is a plain name — nothing to switch). */
 export function RpgSubjectSelect({ actors, value, onChange, ariaLabel }: RpgSubjectSelectProps): ReactElement {
   return (

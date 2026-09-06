@@ -240,12 +240,14 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     warnSpy.mockRestore();
   });
 
-  test("an append that COMMITS and then reports failure is never duplicated by the retry (#1537)", async () => {
+  test("an append that COMMITS and then reports failure is never duplicated by the retry, and its live fan is RECOVERED (#1537, #1821)", async () => {
     const chatId = await seedChat(db, "retry-dup");
     // The dangerous half of a retry: the row LANDED and the driver/transport died on the way back. Because
     // the whole retry re-uses ONE event id, the second attempt trips the `chat_events` PK instead of writing
     // a second row under a fresh id — the durable log keeps exactly one copy, and durable-first replay
-    // therefore delivers the event exactly once.
+    // therefore delivers the event exactly once. #1821: `committedRowSeq` PROVES that standing row's seq, so
+    // `emit` now publishes it on the live fan too — the SAME emission the ordinary success path returns —
+    // retiring the earlier "we cannot prove what seq landed" premise that skipped the fan on this branch.
     const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
@@ -254,11 +256,13 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
     const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
     expect(rows.map((r) => r.type)).toEqual(["delta"]);
-    // The live fan is skipped, but the ROW stands — the recoverable half.
-    expect(emitted).toBeNull();
-    expect(bus.readRing(chatId)).toEqual([]);
-    // Still exactly one ERROR (a stranded live subscriber is not a warning); #1544 changed only WHICH claim
-    // it makes — the branch-apart pins below own the two messages.
+    // The live fan carries the PROVEN seq — the same shape the REGRESSION GUARD test asserts for the
+    // ordinary success path — and the ring is fanned exactly like it.
+    const stored = { ...deltaEvent(chatId), memberText: null };
+    expect(emitted).toEqual({ seq: 1, event: stored });
+    expect(bus.readRing(chatId)).toEqual([{ seq: 1, event: stored }]);
+    // Still exactly one ERROR (a driver that lies about a commit is a genuine fault worth flagging even when
+    // fully recovered); #1544 changed WHICH claim it makes, #1821 changes whether the fan is skipped.
     expect(errorSpy).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
     warnSpy.mockRestore();
@@ -273,20 +277,21 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
   // reason the second pin below matters: a bare id-existence probe would call it "committed" when the row
   // under that id belongs to a DIFFERENT event.
   const liveFanLostMsg =
-    "chat bus: DURABLE APPEND reported failure AFTER committing on a live chat — only the LIVE FAN was lost; the row and its replay slot stand (a reconnect delivers it exactly once)";
+    "chat bus: DURABLE APPEND reported failure AFTER committing on a live chat — recovered from ground truth: the row, its replay slot, and the live fan all stand";
   const replayGapMsg = "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing";
 
-  test("#1544 the AFTER-COMMIT retry is reported as a lost live fan, naming the seq that stands", async () => {
+  test("#1544 the AFTER-COMMIT retry is reported as recovered, naming the seq that was fanned (#1821)", async () => {
     const chatId = await seedChat(db, "drop-msg-committed");
     const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
 
-    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+    // #1821: no longer null — the proven seq is now published on the live fan.
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toMatchObject({ seq: 1 });
 
     const reported = errorSpy.mock.calls.find((call) => call[1] === liveFanLostMsg);
     expect(reported).toBeDefined();
-    // The seq the reconnect will deliver — the whole point of saying the slot stands.
+    // The seq that was ALSO just fanned — the log line and the return value agree.
     expect(reported?.[0]).toMatchObject({ chatId, type: "delta", seq: 1 });
     // The false claim is GONE from this branch (still ERROR, just no longer backwards).
     expect(errorSpy.mock.calls.map((call) => call[1])).not.toContain(replayGapMsg);

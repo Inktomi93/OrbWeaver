@@ -25,6 +25,7 @@ import {
   HEAP_COMPARISON_CLASS_CAP,
   HEAP_DETACHED_NODE_CAP,
   HEAP_NATIVE_CONTEXT_CAP,
+  HEAP_OUTGOING_EDGE_CAP,
   HEAP_PARSER_PACKAGE,
   HEAP_PARSER_PROBLEM_CAP,
   HEAP_PARSER_VERSION,
@@ -353,7 +354,10 @@ export async function buildHeapRetainerReceipt(
   const parsed = await parser.retainers(snapshot.identity.rawPath, selector);
   const outgoingShown = parsed.outgoing.length;
   const limits = [
-    heapLimit("heap-retainer-outgoing", parsed.outgoingTotal, outgoingShown, outgoingShown),
+    // The cap argument is the POLICY, never the observation: passing `outgoingShown` made the receipt
+    // report its own truncation limit as whatever it happened to keep, so a reader could not tell a
+    // 3-edge object from a 3-edge TRUNCATION (#1509).
+    heapLimit("heap-retainer-outgoing", parsed.outgoingTotal, outgoingShown, HEAP_OUTGOING_EDGE_CAP),
     {
       source: "heap-retaining-paths",
       complete: !(parsed.pathLimits.depth || parsed.pathLimits.nodes || parsed.pathLimits.siblings),

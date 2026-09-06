@@ -65,6 +65,15 @@ function withheldSubjectsOf(census: RelationalCensusAccountingInput | undefined)
   return census?.withheldSubjects === undefined ? {} : { withheldSubjects: { ...census.withheldSubjects } };
 }
 
+/** The walker's route TAG (#1172), spelled ONCE for the same reason as the fragment above — and this is
+ *  the half that comment predicted and did not fix (#1808). It reached `partitionedFindings` alone, so a
+ *  tag raised by a rung-2a or rung-3 census (`selection-idiom`'s `heterogeneousRest`, measured) was
+ *  dropped between the walker and the printed row: the census counted a route and no reader could see it,
+ *  which is the invisible-cohort failure `carried` exists to prevent. Node adds no route of its own. */
+function carriedOf(census: RelationalCensusAccountingInput | undefined): Pick<RulePopulationAccounting, "carried"> {
+  return census?.carried === undefined ? {} : { carried: { ...census.carried } };
+}
+
 export function cappedRelationalFindings<T>(
   rule: keyof typeof RELATIONAL_REPRESENTATIVE_CAPS,
   items: readonly T[],
@@ -93,6 +102,7 @@ export function cappedRelationalFindings<T>(
       withheld,
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
+      ...carriedOf(census),
       ...withheldSubjectsOf(census),
     }),
   };
@@ -124,6 +134,7 @@ export function accountedFindings<T>(
       withheld: { ...(census?.withheld ?? {}) },
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
+      ...carriedOf(census),
       ...withheldSubjectsOf(census),
     }),
   };
@@ -243,8 +254,7 @@ export function decisionPopulationFindings<T extends { readonly selector: string
       withheld,
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
-      // The walker's route tag travels to the printed row unchanged (#1172) — Node adds no route of its own.
-      ...(census?.carried === undefined ? {} : { carried: { ...census.carried } }),
+      ...carriedOf(census),
       ...withheldSubjectsOf(census),
     }),
   };

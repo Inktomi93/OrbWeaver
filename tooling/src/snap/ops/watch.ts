@@ -8,11 +8,13 @@ import type { Args, WatchTick } from "../contract/types.ts";
 import { PNG_EXT_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { captureEvals } from "./arms/eval.ts";
 import { SHOT_BASE } from "./arms/shot.ts";
+import { watchIntervalMs } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export async function runWatchSeries(page: Page, opts: Args, out: string): Promise<WatchTick[]> {
   const ticks: WatchTick[] = [];
+  const intervalMs = watchIntervalMs(opts);
   const page0Evals = opts.eval.filter((e) => e.page === 0).map((e) => e.expr);
   const start = Date.now();
   let elapsed = 0;
@@ -26,7 +28,7 @@ export async function runWatchSeries(page: Page, opts: Args, out: string): Promi
     if (elapsed >= opts.watchMs) {
       break;
     }
-    await settle(page, opts.watchEveryMs);
+    await settle(page, intervalMs);
     elapsed = Date.now() - start;
   }
   return ticks;

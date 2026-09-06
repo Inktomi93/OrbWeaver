@@ -93,11 +93,11 @@
     "why": "`size=\"label\" tone=\"muted\"` is one of the density burn-down's explicitly named label+muted judgment sites (new-chat-picker-surface) — a real tone decision, not a vocabulary gap.",
     "cite": ["packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx#L186", "docs/architecture/core/UI-Density-Law.md#§2.3"]
   },
-  "packages/client/src/features/notifications/components/notification-bell.tsx": {
+  "packages/client/src/features/notifications/components/notification-inbox-row.tsx": {
     "count": 2,
     "ratified": 2,
     "why": "the notification row's `weight` is a CONDITIONAL expression (`item.readAt === null ? \"medium\" : undefined`) keyed on unread state — a closed voice cannot express a per-instance conditional weight, so this is call-site logic, not a taste choice a voice would replace.",
-    "cite": ["packages/client/src/features/notifications/components/notification-bell.tsx#L234"]
+    "cite": ["packages/client/src/features/notifications/components/notification-inbox-row.tsx#L171"]
   },
   "packages/client/src/features/persona/components/persona-account-foot.tsx": {
     "count": 3,

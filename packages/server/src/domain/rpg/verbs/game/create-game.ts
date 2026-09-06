@@ -23,7 +23,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     if (params.mode === "full") {
       throw new RpgModeUnbuiltError();
     }
-    // Host authority through the roster — but a game does not exist yet, so gate on membership directly (the
+    // Host authority through the participants — but a game does not exist yet, so gate on membership directly (the
     // create precedes the game row). The refusals mirror `guard.ts`'s leak-free collapse: a NON-MEMBER learns
     // nothing (the same `DomainNotFound` a no-game chat gives — a foreigner must not discover the chat exists,
     // the cross-tenant trust boundary), while a present non-host member is FORBIDDEN (they legitimately know the

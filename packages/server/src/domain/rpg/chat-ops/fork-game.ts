@@ -208,8 +208,8 @@ interface CloneCtx {
 }
 
 /** rpg_sheets — copy ALL rows (owner ratified: a fork copies all sheets). EVERY column is COPIED: a sheet is
- *  per-actor IDENTITY data and `getTrackerView` (member-gated) projects each roster actor's whole sheet —
- *  className, attributes, flavor, level, grants, revokes. A sheet whose actor is NOT on the roster is projected
+ *  per-actor IDENTITY data and `getTrackerView` (member-gated) projects each participant actor's whole sheet —
+ *  className, attributes, flavor, level, grants, revokes. A sheet whose actor is NOT a participant is projected
  *  nowhere, in the source AND in the fork, so it stays invisible-but-preserved either side of the copy (a
  *  re-invite finds it waiting). Only the keys move: fresh id, the fork's gameId; actor identity (characterId
  *  XOR userId) carries, and the timestamps stamp the copy. */

@@ -57,7 +57,9 @@ interface BiomeDiagnostic {
 }
 
 interface BiomeReport {
-  readonly summary: { readonly diagnosticsNotPrinted?: number };
+  /** `changed + unchanged` is biome's PROCESSED-FILE count — the same number the text reporters print as
+   *  `Checked N files` (#1245). Zero over a non-empty file list means biome applied no config at all. */
+  readonly summary: { readonly diagnosticsNotPrinted?: number; readonly changed?: number; readonly unchanged?: number };
   readonly diagnostics: readonly BiomeDiagnostic[];
 }
 
@@ -222,10 +224,34 @@ function firedPairs(report: BiomeReport): ReadonlySet<string> {
   return fired;
 }
 
+/** THE ZERO-MEASUREMENT REFUSAL (#1245). A biome run that processed NO files produces an empty diagnostic
+ *  list — which is byte-identical to "every rule-off grant is dead" and would red the gate over the whole
+ *  config. It is exactly what a config biome could not parse looks like (a JSONC comment before an element
+ *  of an array does it, with no diagnostic at any level), and the probe config is written by THIS module,
+ *  so a shape bug here is a live cause, not a hypothetical. Asked only when there are no diagnostics at
+ *  all: a single diagnostic proves files were processed, and the hand-built report fixtures that carry one
+ *  stay judgeable without restating biome's whole summary. */
+function refuseEmptyMeasurement(grants: readonly RuleGrant[], report: BiomeReport): void {
+  const expected = new Set(grants.flatMap((grant) => grant.files)).size;
+  if (expected === 0 || report.diagnostics.length > 0) {
+    return;
+  }
+  const processed = (report.summary.changed ?? 0) + (report.summary.unchanged ?? 0);
+  if (processed === 0) {
+    throw new Error(
+      `biome-grant-liveness rule arm: biome processed 0 of ${String(expected)} probe files — the probe config was not applied (a config biome cannot parse reads EXACTLY like this, silently). Every grant would read DEAD, so this run is NOT a verdict.`,
+    );
+  }
+}
+
 /** The pure half: which grants did the stripped run leave unfired? Split out so the truncation and
  *  broken-config refusals are pinnable without spawning biome. */
 export function judgeReport(grants: readonly RuleGrant[], stdout: string): { readonly dead: readonly RuleGrant[]; readonly deadFilePairs: number } {
-  const fired = firedPairs(parseReport(stdout));
+  const report = parseReport(stdout);
+  // ORDER: truncation and non-lint diagnostics are diagnosed by `firedPairs` FIRST — each names a more
+  // specific cause than "0 files processed", and a truncated report can also be an empty one.
+  const fired = firedPairs(report);
+  refuseEmptyMeasurement(grants, report);
   const dead: RuleGrant[] = [];
   let deadFilePairs = 0;
   for (const grant of grants) {

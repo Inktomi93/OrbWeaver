@@ -89,8 +89,8 @@ async function effectiveState(ctx: RpgContext, game: RpgGameRow, turnId: ChatTur
   return ctx.staging.ensure(turnId, base);
 }
 
-/** The name→roster-ref index for the actor-targeting tools (F2): resolve the chat's roster once and index it by
- *  name, so `update_party`/`update_inventory` land a party-member write under its roster key — the SAME key the
+/** The name→participant-ref index for the actor-targeting tools (F2): resolve the chat's participants once and index it by
+ *  name, so `update_party`/`update_inventory` land a party-member write under its participant key — the SAME key the
  *  tracker view + reminder read (never an orphan `npc:<name>`). */
 async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<ActorRefIndex> {
   return buildActorRefIndex(await ctx.resolveParticipants(game.chatId));

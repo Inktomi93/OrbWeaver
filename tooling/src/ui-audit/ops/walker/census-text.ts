@@ -1,4 +1,13 @@
 // ui-audit in-page walker — segment: the text/contrast/typography TreeWalker census + the image census (img + non-cover background-image).
+//
+// STATED LIMIT ON THE BACKGROUND-IMAGE ARM (#1807 docs pass, 2026-09-06). That arm drops
+// `background-size: cover|contain` and then stamps every survivor `objectFit: "fill"` as "a neutral
+// placeholder". It is not neutral: `fill` is the ONE keyword `lib/checks-media.ts` treats as stretching,
+// so a raster under the DEFAULT `background-size: auto` — which paints at natural size and cannot squish,
+// exactly like `object-fit: none` — is judged for aspect deviation against its element's box. The
+// `<img>` half of the census reads the real computed keyword and is unaffected. Closing this owes the
+// SAMPLE the real background sizing mode (a walker change plus a contract field), not another keyword
+// guess Node-side; filed rather than papered over.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see

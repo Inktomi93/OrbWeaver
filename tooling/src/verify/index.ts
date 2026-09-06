@@ -87,7 +87,7 @@ export type {
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
-export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, VerifyReport } from "./contract/stage.ts";
+export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
 export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
 export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
@@ -109,6 +109,7 @@ export {
   truncatedParts,
   UI_SRC,
 } from "./lib/baseui-read.ts";
+export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
@@ -162,7 +163,7 @@ export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";
 export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
-export { noticesIn, runVerify } from "./ops/run.ts";
+export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run.ts";
 export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";

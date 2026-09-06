@@ -6,7 +6,7 @@
 //
 // AN ACTOR'S KEY IS ADDRESSED FROM THREE PLACES, AND MISSING ONE IS A GHOST — the same three couplings
 // `dismissActor` owns, which is why the review called promotion and dismissal "the same op family":
-//   • the `actorState` ROW — re-keyed IN PLACE (position preserved: the roster/npc projections and the band's
+//   • the `actorState` ROW — re-keyed IN PLACE (position preserved: the participant/npc projections and the band's
 //     first-actor-with-state derivation read this array in order, so re-appending would silently reorder the
 //     panel);
 //   • the scene PRESENCE entry — re-keyed if present, left absent if not (presence is a flat `actorRefKey`
@@ -18,11 +18,11 @@
 //     element is gone; promotion MOVES them because its element is the same person.
 //
 // THE IDENTITY HALF IS DROPPED, DELIBERATELY (R2 law, not an oversight): `identity` is present for `cast`
-// actors and absent for roster ones — a roster member's name is the chat roster's and her standing prose is the
+// actors and absent for participant ones — a participant's name is chat's and her standing prose is the
 // sheet's, and `applyActorOps`' identity arms REFUSE on a row that carries none. A re-keyed row that kept its
 // identity would be a second name home beside the card AND dead data: `applyPresencePatch` writes identity only
 // for `npc` refs, so the story could never update it again. The caller carries its DURABLE content onto the
-// minted card first (`rpgPromotedCardDescription`); what is left (`mood`, `relationship`) has no roster home.
+// minted card first (`rpgPromotedCardDescription`); what is left (`mood`, `relationship`) has no participant home.
 
 import type { RpgActorRef, RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey, rpgActorLockBase } from "@orb/contracts/rpg";
@@ -63,7 +63,7 @@ function rebaseLocks(head: HandStateHead, from: RpgActorRef, to: RpgActorRef): H
  *  The re-keyed row is minted through {@link emptyActorEntry} for its `actorRef` and then carries the old row's
  *  VOLATILE half verbatim — so the trackers, conditions, pack, purse and status the story spent the whole
  *  acquaintance writing arrive intact under the new identity, and the identity half is dropped by construction
- *  (a roster ref's empty row has none) rather than by a field delete a later shape change could miss. */
+ *  (a participant ref's empty row has none) rather than by a field delete a later shape change could miss. */
 export function rekeyActor(head: HandStateHead, from: RpgActorRef, to: RpgActorRef): RekeyActorResult {
   const fromKey = actorRefKey(from);
   const toKey = actorRefKey(to);

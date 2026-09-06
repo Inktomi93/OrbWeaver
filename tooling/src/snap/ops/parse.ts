@@ -13,7 +13,6 @@ import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armArgDefaults } from "./arms/registry.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
-import { MS_PER_SECOND } from "./flags-support.ts";
 import { validatePageTargets } from "./parse-page-targets.ts";
 import { scanArgv } from "./parse-scan.ts";
 
@@ -270,7 +269,7 @@ export function parseSnapArgs(argv: string[], options: { readonly inheritedSessi
     fixtureBase: null,
     file: null,
     watchMs: 0,
-    watchEveryMs: MS_PER_SECOND,
+    watchEveryMs: 0,
     out: null,
     viewport: DEFAULT_VIEWPORT,
     viewportExplicit: false,

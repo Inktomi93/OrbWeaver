@@ -8,7 +8,7 @@
 // tools int suite only asserts `staging.peek()` (the accumulator), never a durable flush + a `getTrackerView`
 // read-back (the gap that let two write↔read bugs ship). F1 — a negative pool delta on a fresh pool must NOT
 // mint `max <= 0` (the contract belt `pools[].max >= 1`), and a contract-INVALID assembled state is DROPPED at
-// the write boundary (canon uncorrupted). F2 — a party-member write (addressed by NAME) lands under the roster
+// the write boundary (canon uncorrupted). F2 — a party-member write (addressed by NAME) lands under the participant
 // ref key, not an orphan `npc:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
@@ -484,9 +484,9 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   expect(h.fakes.barrierTimeouts).toEqual([]);
 });
 
-test("F2: update_party on a ROSTER character surfaces under the roster key in getTrackerView", async () => {
+test("F2: update_party on a PARTICIPANT character surfaces under the participant key in getTrackerView", async () => {
   const db = await freshDb();
-  // A roster character "Kael" — the gather reminder + tracker view key volatile by the roster ref. The id is a
+  // A participant character "Kael" — the gather reminder + tracker view key volatile by the participant ref. The id is a
   // REAL TypeID (the contract `characterId` belt validates it at flush; a malformed fake id would be refused).
   const kael: RpgParticipantActor = { actorRef: { kind: "character", characterId: mintTypeId(ID_PREFIX.character) }, name: "Kael" };
   const { chatId, h } = await seedLiteGame(db, { participants: [kael] });
@@ -498,14 +498,14 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
 
   const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
-  // The write SURFACES under the roster character's key — not an orphan npc:Kael the panel never reads.
+  // The write SURFACES under the participant character's key — not an orphan npc:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
   expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null, max: null });
   // And there is NO orphan npc:Kael entry.
   expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "Kael")).toBe(false);
 });
 
-test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster key", async () => {
+test("F2: update_inventory on a PARTICIPANT user surfaces its wallet under the participant key", async () => {
   const db = await freshDb();
   const player: RpgParticipantActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "Player" };
   const { chatId, h } = await seedLiteGame(db, { participants: [player] });

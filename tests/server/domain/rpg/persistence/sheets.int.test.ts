@@ -1,6 +1,6 @@
-// persistence/sheets — the per-actor identity store backing the roster ∪ rows projection (rpg-design/05
+// persistence/sheets — the per-actor identity store backing the participants ∪ rows projection (rpg-design/05
 // §4.3). .int: real FK. NO membership shadow — a sheet is keyed by durable actor identity, created on FIRST
-// WRITE. The projection itself (roster ∪ rows, default-for-missing, retained-not-projected) is composed in
+// WRITE. The projection itself (participants ∪ rows, default-for-missing, retained-not-projected) is composed in
 // W1b's verb; this suite proves the persistence PRIMITIVES that make it possible, and demonstrates the
 // derivation inline so the semantics are pinned.
 
@@ -67,8 +67,8 @@ describe("row-on-first-write", () => {
   });
 });
 
-describe("the roster ∪ rows projection (derivation pinned inline)", () => {
-  test("a roster actor WITHOUT a row projects the DEFAULT sheet; one WITH a row projects its data", async () => {
+describe("the participants ∪ rows projection (derivation pinned inline)", () => {
+  test("a participant actor WITHOUT a row projects the DEFAULT sheet; one WITH a row projects its data", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const owner = await seedUser(db, castId<Handle>("owner"));
@@ -76,7 +76,7 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
     const withoutRow = await seedChar(owner, "bram");
     await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: withRow, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
 
-    // The verb's projection: for each roster actor, its row's sheet OR the default.
+    // The verb's projection: for each participant actor, its row's sheet OR the default.
     const participantCharacterIds: readonly CharacterId[] = [withRow, withoutRow];
     const rows = await listSheets(db, gameId);
     const byChar = new Map(rows.filter((r) => r.characterId !== null).map((r) => [r.characterId, r.sheet]));
@@ -86,7 +86,7 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
     expect(projected[1]).toEqual(DEFAULT_SHEET);
   });
 
-  test("a departed actor's row is RETAINED in persistence but NOT projected (off the roster)", async () => {
+  test("a departed actor's row is RETAINED in persistence but NOT projected (off the participants)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const owner = await seedUser(db, castId<Handle>("owner"));
@@ -102,7 +102,7 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
       now: FROZEN_AT,
     });
 
-    // The departed actor is off the current roster; the projection keys on the roster, so it drops out —
+    // The departed actor is off the current participants; the projection keys on the participants, so it drops out —
     // but the row survives (presence gates the write, the read derives).
     const participantCharacterIds: readonly CharacterId[] = [present];
     const rows = await listSheets(db, gameId);

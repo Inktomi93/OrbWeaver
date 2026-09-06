@@ -300,7 +300,7 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
   // (lockdown §12 direct read). APPLICABILITY: only fetched/offered when the game crafts cards at all.
   const cardsEnabled = state.game.publicConfig.immersiveHtml;
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  // The roster the per-card render policy resolves against (cache-first — the takeover already read it);
+  // The participants the per-card render policy resolves against (cache-first — the takeover already read it);
   // a card renders under its ORIGIN ROW's verdict here exactly as it does in the transcript.
   const chatQuery = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
   // Three arms, derived in this order on purpose: a FAILURE outranks an in-flight sibling (a retry is the

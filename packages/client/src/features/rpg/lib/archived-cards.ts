@@ -24,7 +24,7 @@ export interface ArchivedCard {
   /** The ORIGIN ROW's resolved external-media verdict (`lib/render-trust`, the ONE trust authority the
    *  transcript's inline render uses). Carried per card because it is a per-AUTHOR fact: the archive shows
    *  cards from every speaker, so one blanket verdict for the surface would either over-block or — worse —
-   *  paint an image the transcript blocked one panel away. Absent roster ⇒ false (fail closed). */
+   *  paint an image the transcript blocked one panel away. Absent participants ⇒ false (fail closed). */
   readonly allowExternalMedia: boolean;
   /** The AUTHORING participant — the card-frame doorway POLICY SELECTOR the routed frame is minted with.
    *  Carried per card for the same per-AUTHOR reason `allowExternalMedia` is: the archive shows every
@@ -44,7 +44,7 @@ interface ArchivedCardSource {
   readonly characterId: CharacterId | null;
 }
 
-/** The roster + viewer the per-row policy resolves against — the same `chat.getChat` read the takeover
+/** The participants + viewer the per-row policy resolves against — the same `chat.getChat` read the takeover
  *  already holds. `participants` absent (still loading) resolves every card to the safe floor. */
 interface ArchivedCardViewer {
   readonly participants: readonly ParticipantView[] | undefined;
@@ -56,7 +56,7 @@ const CARD_LABEL = "Immersive card";
 /** Collect the card spans from the transcript's messages, TRANSCRIPT ORDER (oldest first — callers own
  *  their sort). The lenient arm is ON to match the game reading surface. */
 export function collectArchivedCards(messages: readonly ArchivedCardSource[], viewer: ArchivedCardViewer): readonly ArchivedCard[] {
-  // The by-character index the trust resolver reads. Built here rather than imported from chat's roster
+  // The by-character index the trust resolver reads. Built here rather than imported from chat's participants
   // helper — a cross-feature RUNTIME import is banned, and this is a lookup, not a second copy of the rule.
   const byCharacter = new Map<CharacterId, ParticipantView>();
   for (const participant of viewer.participants ?? []) {

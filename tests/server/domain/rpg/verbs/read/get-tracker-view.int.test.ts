@@ -1,6 +1,6 @@
 // verbs/read/get-tracker-view — getTrackerView (rpg-design/05 §4.8, §6.2). Pins the turnless-game DEFAULT-STATE
-// synthesis (no born snapshot — the orchestrator ruling), the roster ∪ sheets projection (missing row = default
-// sheet; a non-roster sheet not projected), and the no-drift invariant (synthesized default == persisted-empty
+// synthesis (no born snapshot — the orchestrator ruling), the participants ∪ sheets projection (missing row = default
+// sheet; a non-participant sheet not projected), and the no-drift invariant (synthesized default == persisted-empty
 // clone-forward).
 
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
@@ -17,7 +17,7 @@ beforeEach(async () => {
 });
 
 describe("getTrackerView — the turnless-game default-state synthesis (no born snapshot)", () => {
-  test("a game with NO snapshot rows renders the synthesized default: null ambient, empty planes, roster projected", async () => {
+  test("a game with NO snapshot rows renders the synthesized default: null ambient, empty planes, participants projected", async () => {
     await seedUser(db, castId<Handle>("host"));
     const participants = [participantUser(castId<Handle>("host"), "The Host"), participantCharacter("gorak", "Gorak")];
     const { chatId, h } = await seedLiteGame(db, { participants });
@@ -27,15 +27,15 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
     expect(view.ambient).toBeNull();
     expect(view.quests).toEqual([]);
     expect(view.recentBeats).toEqual([]);
-    // Roster ∪ sheets: both roster actors projected, each with the DEFAULT sheet (no rows written yet).
+    // Participants ∪ sheets: both participant actors projected, each with the DEFAULT sheet (no rows written yet).
     expect(view.actors.map((a) => a.name).sort()).toEqual(["Gorak", "The Host"]);
     expect(view.actors.every((a) => a.volatile === null)).toBe(true);
     expect(view.actors.every((a) => a.sheet.className === "")).toBe(true);
   });
 
-  test("a written sheet is projected onto its roster actor; a non-roster sheet is NOT projected", async () => {
+  test("a written sheet is projected onto its participant actor; a non-participant sheet is NOT projected", async () => {
     const hostId = await seedUser(db, castId<Handle>("host"));
-    const participants = [participantUser(castId<Handle>("host"), "The Host")]; // only the host is in the roster
+    const participants = [participantUser(castId<Handle>("host"), "The Host")]; // only the host is a participant
     const { chatId, h } = await seedLiteGame(db, { participants });
     // Re-seed the game with the d20 profile (seedLiteGame defaults to freeform) — patch a sheet referencing it.
     await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: RPG_PROFILE_D20 } });
@@ -47,7 +47,7 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
     });
 
     const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
-    expect(view.actors).toHaveLength(1); // only the roster actor is projected
+    expect(view.actors).toHaveLength(1); // only the participant actor is projected
     expect(view.actors[0]?.sheet.className).toBe("Wizard");
     expect(view.actors[0]?.sheet.attributes["str"]).toBe(8);
   });

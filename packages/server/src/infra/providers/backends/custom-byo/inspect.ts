@@ -10,6 +10,13 @@
 // echoing endpoint (httpbin / a debug proxy / a misconfigured BYO server) otherwise reflects the plaintext
 // `Authorization: Bearer <key>` straight into the rendered dialog.
 //
+// …AND THE CUT COMES LAST (#1820). The preview's length limit is a MUTATION of the text, so it obeys the
+// same order law as `sanitizeApiError` (backends/kit/sanitize.ts) — with one difference that makes it
+// worse: truncating at the READ is not merely out of order, it is UNREACHABLE by any later belt, because
+// the tail of a straddling credential was never pulled off the socket at all. The reader therefore
+// over-reads by the longest literal the scrub will search for (`secretScrubOverhang`), the scrub runs on
+// that whole buffer, and the slice to `BODY_PREVIEW_LIMIT` happens after it.
+//
 // SECURITY INVARIANT (credential-exfil via redirect): the probe is HOST-PINNED — `redirect: "manual"`, so a
 // `3xx` from the configured endpoint is surfaced verbatim (its status becomes the diagnostic) and is NEVER
 // followed. Node's default `redirect:"follow"` re-sends the `Authorization: Bearer <key>` header to whatever
@@ -23,7 +30,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, customOpenAiSecretLiterals, redactHeaders, redactSecretsFromText, sanitizeApiError } from "../kit/index.ts";
+import { applyIncludeExclude, customOpenAiSecretLiterals, redactHeaders, redactSecretsFromText, sanitizeApiError, secretScrubOverhang } from "../kit/index.ts";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -32,34 +39,42 @@ const JSON_CONTENT_TYPE = "application/json";
 const CHAT_COMPLETIONS_PATH = "/chat/completions";
 const TRAILING_SLASH_RE = /\/$/;
 
-async function readBodyPreview(res: Response): Promise<string> {
+/**
+ * Read at most `BODY_PREVIEW_LIMIT + overhang` characters of the response and cancel the rest.
+ *
+ * THE OVERHANG IS THE SECURITY PART (#1820). This used to stop dead at {@link BODY_PREVIEW_LIMIT}, and the
+ * scrub ran on what was left — so an echoing endpoint that positions the reflected key ACROSS the cut left
+ * a key PREFIX standing in the displayed preview: half a literal matches neither of its spellings, and the
+ * other half was never read, so no later belt could ever reach it. The caller over-reads by the longest
+ * literal the scrub will search for ({@link secretScrubOverhang}), scrubs the whole buffer, and only then
+ * slices to the limit — the "scrub before you mangle" law, one hop upstream of `sanitizeApiError`.
+ *
+ * IT COUNTS AND CUTS IN ONE UNIT: UTF-16 code units, the unit both the scrub's `String.includes` and the
+ * caller's final `slice` work in. The old loop bounded the read in BYTES and sliced in code units, which
+ * reopens exactly this hole whenever the body carries multi-byte content ahead of the credential (the byte
+ * budget then lands mid-key while the string is still short of the character limit). Whole chunks are
+ * appended rather than byte-sliced: a `subarray` cut mid-UTF-8-sequence just moves bytes into the decoder's
+ * hold-back anyway, and the surplus is dropped by the return slice.
+ */
+async function readBodyPreview(res: Response, overhang: number): Promise<string> {
   if (res.body === null) {
     return "";
   }
+  const budget = BODY_PREVIEW_LIMIT + overhang;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let out = "";
-  let bytesRead = 0;
   try {
-    while (bytesRead < BODY_PREVIEW_LIMIT) {
-      const { done, value } = await reader.read();
-      if (done) {
-        out += decoder.decode();
-        break;
-      }
-      const remaining = BODY_PREVIEW_LIMIT - bytesRead;
-      const kept = value.subarray(0, remaining);
-      bytesRead += kept.byteLength;
-      out += decoder.decode(kept, { stream: true });
-      if (value.byteLength > remaining) {
-        await reader.cancel();
-        break;
-      }
+    let ended = false;
+    while (!ended && out.length < budget) {
+      const chunk = await reader.read();
+      ended = chunk.done;
+      out += chunk.done ? decoder.decode() : decoder.decode(chunk.value, { stream: true });
     }
-    if (bytesRead >= BODY_PREVIEW_LIMIT) {
+    if (!ended) {
       await reader.cancel();
     }
-    return out.slice(0, BODY_PREVIEW_LIMIT);
+    return out.slice(0, budget);
   } finally {
     reader.releaseLock();
   }
@@ -118,10 +133,12 @@ export async function inspectCustomByoEndpoint(args: {
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     // @orb-gate-ignore caught-failure-ownership(promise:readBodyPreview): a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.
-    const text = await readBodyPreview(res).catch((): string => "");
+    const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => "");
     // Scrub secrets BEFORE display-eligibility: an echoing endpoint reflects the plaintext key back in the
     // body. The known literals we hold (the apiKey + any secret-valued custom header) are the primary belt.
-    const bodyPreview = redactSecretsFromText(text, secrets);
+    // OVER-READ, SCRUB, THEN CUT (#1820) — the truncation is the LAST step, so a key the endpoint placed
+    // across `BODY_PREVIEW_LIMIT` is whole when the belt looks for it instead of surviving as a prefix.
+    const bodyPreview = redactSecretsFromText(text, secrets).slice(0, BODY_PREVIEW_LIMIT);
     return {
       ok: res.ok,
       request,

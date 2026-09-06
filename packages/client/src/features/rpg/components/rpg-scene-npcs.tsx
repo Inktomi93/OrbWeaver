@@ -55,8 +55,8 @@ export interface SceneNpcEdit {
   readonly onEditTracker: (targetRef: RpgActorRef, def: RpgTrackerDef, next: string | number) => void;
   /** Drop this actor from the game entirely — state, presence and locks (`rpg.dismissActor`). */
   readonly onDismiss: (targetRef: RpgActorRef) => void;
-  /** PROMOTE this known character to the roster (`rpg.promoteActor`, R4) — mint her a character card + a seat
-   *  in the room and re-key her tracked row onto that identity. Takes the CAST arm only: promoting a roster
+  /** PROMOTE this known character to a character (`rpg.promoteActor`, R4) — mint her a character card + a seat
+   *  in the room and re-key her tracked row onto that identity. Takes the CAST arm only: promoting a participant
    *  actor is meaningless, and the wire cannot express it either. */
   readonly onPromote: (targetRef: RpgNpcRef) => void;
 }
@@ -234,7 +234,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
       <Row gap="field" align="center" justify="end">
         {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
-            home on a roster member (a stance is an npc's datum), so they end here. A host who discovers
+            home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
         <Text as="span" voice="gloss">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
@@ -250,7 +250,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
   }
   return (
     <Row gap="field" align="center" justify="end">
-      {/* PERMISSION-shaped ABSENCE, not a disabled control: a roster actor has nothing to promote (she already
+      {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (
         <Button

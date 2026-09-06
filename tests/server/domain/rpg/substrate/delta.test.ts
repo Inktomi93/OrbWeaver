@@ -18,8 +18,8 @@ import {
 } from "../../../../../packages/server/src/domain/rpg/substrate/delta.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-/** The pure diff's data context (roster names + the game's tracker DEFS + relationship hints). The default is
- *  empty (no tracker lines, generic actor labels); a case that needs a roster name / tracker / hint passes
+/** The pure diff's data context (participant names + the game's tracker DEFS + relationship hints). The default is
+ *  empty (no tracker lines, generic actor labels); a case that needs a participant name / tracker / hint passes
  *  its own. */
 function ctx(over: Partial<DeltaContext> = {}): DeltaContext {
   return { participantNames: {}, trackerDefs: [], relationshipHints: {}, ...over };
@@ -249,12 +249,12 @@ test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", (
 });
 
 // The SCENE OPENS block names a PARTICIPANT actor through `ctx.participantNames` — the ONE presence-key→name join
-// (`presenceName` → `actorLabel`). A roster actor carries NO identity by R2 design, so a join that read only
+// (`presenceName` → `actorLabel`). A PARTICIPANT actor carries NO identity by R2 design, so a join that read only
 // `identity?.name` fell back to the raw ref KEY and printed `with character:chr_…` into the model's prompt on
 // turn 1 of effectively every new game (establish-when-unset FORCES a non-empty cast, and the model lists the
-// roster character). A branded TypeID is never model-facing — the projection-clean law, and an id in the
+// participant character). A branded TypeID is never model-facing — the projection-clean law, and an id in the
 // prompt invites the model to echo ids as names.
-test("SCENE OPENS names a ROSTER actor by her display name — never her raw ref key (the projection-clean law)", () => {
+test("SCENE OPENS names a PARTICIPANT actor by her display name — never her raw ref key (the projection-clean law)", () => {
   const cur = state({
     location: "The Ford",
     actorState: [
@@ -272,7 +272,7 @@ test("SCENE OPENS names a ROSTER actor by her display name — never her raw ref
   expect(out).not.toContain("character:");
 });
 
-test("SCENE OPENS falls back to the GENERIC label when the roster map has no name — still never a raw id", () => {
+test("SCENE OPENS falls back to the GENERIC label when the participant map has no name — still never a raw id", () => {
   // A gone member (or a caller that supplies no binding): `actorLabel`'s own fallback wins, and it is a WORD.
   const cur = state({
     location: "The Ford",
@@ -289,8 +289,8 @@ test("SCENE OPENS falls back to the GENERIC label when the roster map has no nam
 // The row-LESS arm (#1468 item 6). The two tests above cover a presence key whose ACTOR ROW is present; the
 // hole was the key whose row is GONE — a rekey that lost it, a hand edit that dropped an actor still listed on
 // stage, a stale key surviving a restore. `presenceName` returned the key itself there, so the same two
-// model-facing surfaces the roster join was fixed for got `character:chr_…` after all.
-test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the roster map answers, else a WORD", () => {
+// model-facing surfaces the participant join was fixed for got `character:chr_…` after all.
+test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the participant map answers, else a WORD", () => {
   const cur = state({
     location: "The Ford",
     actorState: [], // every row gone; the presence plane still lists them
@@ -298,8 +298,8 @@ test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the roster ma
   });
   const out = buildDeltaBlock(null, cur, ctx({ participantNames: { "character:char_kael": "Kael" } }));
 
-  expect(out).toContain("Kael"); // the roster map is keyed by the SAME projection — it answers with no row
-  expect(out).toContain("you"); // the unnamed roster ref takes the generic word
+  expect(out).toContain("Kael"); // the participant map is keyed by the SAME projection — it answers with no row
+  expect(out).toContain("you"); // the unnamed participant ref takes the generic word
   expect(out).toContain("mira"); // an npc key's tail is its authored slug, not an id
   expect(out).not.toContain("char_kael");
   expect(out).not.toContain("usr_1");
@@ -359,7 +359,7 @@ test("the registry is OPEN — a new PlaneDiffRenderer contributes without a mon
   expect(tag.run(state({ location: "a" }), state({ location: "b" }), ctx())).toEqual(["custom: a → b"]);
 });
 
-// ── P1 additions: relationship / cast-fields / widgets set-delta / calendar-agnostic ambient / roster names ──
+// ── P1 additions: relationship / cast-fields / widgets set-delta / calendar-agnostic ambient / participant names ──
 
 test("relationship — a per-npc stance transition (feature 1, the steering loop signal)", () => {
   const prev = state({ actorState: [member("mari", "Mari", { relationship: { kind: "friend", label: "" } })] });
@@ -417,7 +417,7 @@ test("ambient — a long rest fires all three time arms together (date + day + t
   expect(out).toContain("time → morning");
 });
 
-test("roster names — a character-kind actor names via the roster map, not the generic label (fold-in #5)", () => {
+test("participant names — a character-kind actor names via the participant map, not the generic label (fold-in #5)", () => {
   const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20 });
   const kael = (value: number): RpgSnapshotState["actorState"][number] => ({
     actorRef: { kind: "character", characterId: "char_kael" as never },
