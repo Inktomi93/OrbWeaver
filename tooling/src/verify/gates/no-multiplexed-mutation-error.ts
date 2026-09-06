@@ -68,12 +68,10 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
-        let home: SourceFile | undefined;
-        try {
-          home = ctx.sourceFile(ENTITY_MUTATION_HOME);
-        } catch {
-          home = undefined;
-        }
+        // Located by scanning the effective population rather than through `ctx.sourceFile`, which THROWS on
+        // an absent path: a missing home is a receipt refusal this policy authors, not an exception it
+        // swallows, and a swallowed one would be an unproven caught-failure site besides.
+        const home = ctx.files.find((file) => ctx.relativePath(file) === ENTITY_MUTATION_HOME);
         const declared = home?.getExportSymbols().filter((symbol) => symbol.getName() === ENTITY_MUTATION_TYPE) ?? [];
         // ZERO members is a REFUSAL, not a clean pass: the app's mutation-result shape moved or was renamed,
         // and half this policy's identity claim silently retired with it.

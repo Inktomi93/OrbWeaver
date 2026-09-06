@@ -84,12 +84,10 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
-        let home: SourceFile | undefined;
-        try {
-          home = ctx.sourceFile(STORE_HOOK_HOME);
-        } catch {
-          home = undefined;
-        }
+        // Located by scanning the effective population rather than through `ctx.sourceFile`, which THROWS on
+        // an absent path: a missing home is a receipt refusal this policy authors, not an exception it
+        // swallows, and a swallowed one would be an unproven caught-failure site besides.
+        const home = ctx.files.find((file) => ctx.relativePath(file) === STORE_HOOK_HOME);
         const declared = home?.getExportSymbols().filter((symbol) => symbol.getName() === STORE_HOOK_TYPE) ?? [];
         // ZERO members is a REFUSAL: the store-hook type moved or was renamed, and the policy's whole
         // subject would silently retire with it.
