@@ -16,7 +16,7 @@
 // error here until it declares its coverage — never a forgotten set.
 //
 // THE TWO NEIGHBOURS THIS IS NOT — and why this paragraph is no longer the enforcer (D137(F), #903).
-//   • NOT the pin layer: `resolvePersonasForRoster` (D122) answers "who is {{user}} NOW"; this producer
+//   • NOT the pin layer: `resolvePersonasForParticipants` (D122) answers "who is {{user}} NOW"; this producer
 //     answers "what is id X called/shown as". Two layers, two questions — still a prose boundary, because
 //     the two shapes never meet in one assignment.
 //   • NOT the D60 DRIVE axis — `AssembleContext.characters`/`speakerRefs` (`assembly/context.ts`), the

@@ -178,11 +178,11 @@ describe("setActivePersona", () => {
     ).rejects.toThrow("not_author_or_host");
   });
 
-  // ── REAL chat-wire (the two ops the composition root binds to chat's own gate + roster write) ──
+  // ── REAL chat-wire (the two ops the composition root binds to chat's own gate + participant write) ──
   test("REAL wire, happy: the self-host caller's persona lands on chat_participants.activePersonaId", async () => {
     const db = await freshDb();
     const events: ChatBusEvent[] = [];
-    // Bind the REAL chat fns exactly as compose does: the guard over {db, can}; the roster write over db + emit.
+    // Bind the REAL chat fns exactly as compose does: the guard over {db, can}; the participant write over db + emit.
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
       setChatActivePersona: (cid, target, pid) =>
@@ -216,7 +216,7 @@ describe("setActivePersona", () => {
     // The write actually landed on the participant row (not a stubbed resolve).
     const [row] = await db.select({ activePersonaId: chatParticipants.activePersonaId }).from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
     expect(row?.activePersonaId).toBe(created.id);
-    // The real roster write emits personaSwitched (from null → the new persona).
+    // The real participant write emits personaSwitched (from null → the new persona).
     expect(events).toEqual([{ type: "personaSwitched", chatId, from: null, to: created.id }]);
   });
 
@@ -250,7 +250,7 @@ describe("setActivePersona", () => {
         personaId: created.id,
       }),
     ).rejects.toThrow();
-    // The write never ran — the real gate refused before the roster op.
+    // The write never ran — the real gate refused before the participant write.
     expect(wrote).toBe(false);
   });
 });

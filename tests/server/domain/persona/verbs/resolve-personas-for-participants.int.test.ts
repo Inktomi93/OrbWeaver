@@ -1,4 +1,4 @@
-// op: resolvePersonasForRoster — the PRINCIPAL-LESS room-plane read (the multi-human resolution widening).
+// op: resolvePersonasForParticipants — the PRINCIPAL-LESS room-plane read (the multi-human resolution widening).
 // Load-bearing: the ONLY gate is `allowedOwnerIds` (the room's PRESENT humans), it lives in the WHERE, and a
 // persona outside it is ABSENT rather than refused — the same no-existence-oracle answer `get` gives, so the
 // widening can never become an unscoped persona read. The REFUSAL arms are the point of this file: an op that
@@ -6,7 +6,7 @@
 
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService, createResolvePersonasForRoster } from "@orb/server/domain/persona";
+import { createPersonaService, createResolvePersonasForParticipants } from "@orb/server/domain/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -14,7 +14,7 @@ import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** A room of two humans, each with one persona. Returns the op under test plus the ids. */
 async function seedTwoOwners(): Promise<{
-  readonly resolve: ReturnType<typeof createResolvePersonasForRoster>;
+  readonly resolve: ReturnType<typeof createResolvePersonasForParticipants>;
   readonly alice: UserId;
   readonly bob: UserId;
   readonly alicePersona: PersonaId;
@@ -27,10 +27,10 @@ async function seedTwoOwners(): Promise<{
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const alicePersona = (await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } })).id;
   const bobPersona = (await svc.create({ principal: principal(bob), input: { name: "Mara", description: "a smith" } })).id;
-  return { resolve: createResolvePersonasForRoster(harness.ctx), alice, bob, alicePersona, bobPersona };
+  return { resolve: createResolvePersonasForParticipants(harness.ctx), alice, bob, alicePersona, bobPersona };
 }
 
-describe("resolvePersonasForRoster", () => {
+describe("resolvePersonasForParticipants", () => {
   test("resolves every requested persona whose OWNER is in the consent set — across owners, in one read", async () => {
     const { resolve, alice, bob, alicePersona, bobPersona } = await seedTwoOwners();
 

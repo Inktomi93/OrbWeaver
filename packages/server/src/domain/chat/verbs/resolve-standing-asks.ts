@@ -1,6 +1,6 @@
 // op: resolveStandingAsks — which of a notifications page's CHAT-OWNED decisions are still open (#1799).
 // A STANDALONE compose-built factory over `Db`, NOT a `ChatService` verb and never tRPC: it takes no
-// Principal (the `resolvePersonasForRoster` / `postNarratorMessage` Principal-less precedent) because its
+// Principal (the `resolvePersonasForParticipants` / `postNarratorMessage` Principal-less precedent) because its
 // one caller is the notifications domain's read model, which already knows whose inbox it is holding and
 // passes that user id as the scope. Nothing here is reachable from a router.
 //

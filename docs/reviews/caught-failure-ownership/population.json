@@ -3023,7 +3023,7 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1048,
+      "line": 1057,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3031,7 +3031,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the",
-      "markerLine": 1043
+      "markerLine": 1052
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::1",
@@ -3049,7 +3049,7 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::2",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1276,
+      "line": 1285,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3057,7 +3057,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a",
-      "markerLine": 1260
+      "markerLine": 1269
     },
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",

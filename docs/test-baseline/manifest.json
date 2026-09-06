@@ -1274,7 +1274,7 @@
     "tests/server/domain/persona/verbs/import.int.test.ts",
     "tests/server/domain/persona/verbs/list.int.test.ts",
     "tests/server/domain/persona/verbs/remove.int.test.ts",
-    "tests/server/domain/persona/verbs/resolve-personas-for-roster.int.test.ts",
+    "tests/server/domain/persona/verbs/resolve-personas-for-participants.int.test.ts",
     "tests/server/domain/persona/verbs/set-active.int.test.ts",
     "tests/server/domain/persona/verbs/update.int.test.ts",
     "tests/server/domain/plugin/activation/activate.int.test.ts",
