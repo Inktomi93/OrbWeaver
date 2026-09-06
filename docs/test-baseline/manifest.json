@@ -2280,6 +2280,7 @@
     "tests/tooling/verify/gates/no-blanket-suppression.int.test.ts",
     "tests/tooling/verify/gates/no-raw-color-in-css.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
+    "tests/tooling/verify/gates/origin-server-family.test.ts",
     "tests/tooling/verify/gates/over-art-plate-arm.int.test.ts",
     "tests/tooling/verify/gates/owner-scoped-reads.test.ts",
     "tests/tooling/verify/gates/owner-scoped-upserts.test.ts",
