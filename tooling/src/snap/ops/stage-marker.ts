@@ -301,11 +301,41 @@ function lockHolderPid(path: string): number | null {
   }
 }
 
+/** Monotonic per-process tie-breaker so two releases of the same lock PATH inside one process (e.g.
+ *  successive test cases sharing a pid) never rename to the same `.releasing-*` name. */
+let releaseSeq = 0;
+
+/** Physically release a lock directory: RENAME it off its live name first, then remove the renamed copy.
+ *  The rename is the atomic step (#1732) — a concurrent `mkdirSync(path)` either lands on the fresh
+ *  (post-rename) name outright, or still sees the live directory and fails EEXIST; it can never observe
+ *  a half-removed directory. Before this, `rmSync(path, { recursive: true, force: true })` ran directly
+ *  against the LIVE name: its internal readdir→unlink→rmdir sequence is not atomic against a concurrent
+ *  write into that same still-live path, and a waiter that recreated `pid` in that window (a false-stale
+ *  break, or the "give up waiting" takeover below) made the rmdir see a non-empty directory and throw
+ *  ENOTEMPTY out of the holder's own release.
+ *  `onRenamed` is a TEST SEAM ONLY, firing after the rename and before the removal so a suite can plant
+ *  that exact race deterministically instead of chasing real OS-level timing — no production caller
+ *  passes it. */
+export function releaseLockDir(path: string, onRenamed?: () => void): void {
+  releaseSeq += 1;
+  const releasing = `${path}.releasing-${process.pid}-${releaseSeq}`;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the rename target is already gone — someone
+  // else's break or release beat us to it — which means there is nothing left for THIS caller to remove.
+  // Ends if this ever stops being a "someone else already finished the job" race.
+  try {
+    renameSync(path, releasing);
+  } catch {
+    return;
+  }
+  onRenamed?.();
+  rmSync(releasing, { recursive: true, force: true });
+}
+
 function breakStaleLock(path: string, startedMs: number): void {
   const pid = lockHolderPid(path);
   const dead = pid === null || !pidAlive(pid);
   if (dead || Date.now() - startedMs > LOCK_STALE_MS) {
-    rmSync(path, { recursive: true, force: true });
+    releaseLockDir(path);
   }
 }
 
@@ -337,7 +367,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     }
     breakStaleLock(path, Date.now());
     if (Date.now() > deadline) {
-      rmSync(path, { recursive: true, force: true });
+      releaseLockDir(path);
       mkdirSync(path, { recursive: true });
       writeFileSync(join(path, "pid"), `${process.pid}\n`);
       break;
@@ -349,7 +379,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     return fn();
   } finally {
     LOCK_DEPTH.delete(home);
-    rmSync(path, { recursive: true, force: true });
+    releaseLockDir(path);
   }
 }
 
