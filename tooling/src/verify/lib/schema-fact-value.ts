@@ -325,6 +325,36 @@ function jsonColumn(root: CallExpression, operations: ReadonlyMap<string, readon
   return { mode: "json", shape: jsonShape(typeNode, options) };
 }
 
+function columnTypeOverride(operations: ReadonlyMap<string, readonly CallExpression[]>, options: SchemaQueryOptions): SchemaColumn["typeOverride"] {
+  const calls = operations.get("$type") ?? [];
+  if (calls.length === 0) {
+    return null;
+  }
+  const call = calls[0];
+  if (call === undefined) {
+    return null;
+  }
+  const node = call.getTypeArguments()[0];
+  if (node === undefined || calls.length !== 1 || call.getTypeArguments().length !== 1) {
+    return refuse(unresolved("ambiguous", call, "Drizzle column must carry at most one $type<T>() operation with exactly one type argument"));
+  }
+  const type = options.checker().getTypeAtLocation(node);
+  const brand = type
+    .getProperties()
+    .find((property) =>
+      property
+        .getDeclarations()
+        .some(
+          (declaration) =>
+            Node.isPropertySignature(declaration) &&
+            declaration.getNameNode().getText() === "[brand]" &&
+            declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith("/packages/kit/src/ids/index.ts"),
+        ),
+    );
+  const idBrand = brand === undefined ? null : options.checker().getTypeOfSymbolAtLocation(brand, node).getText(node);
+  return { node, type, display: type.getText(node), idBrand };
+}
+
 function columnDraft(
   entry: { readonly name: string; readonly node: MorphNode; readonly value: MorphNode },
   table: SchemaTableIdentity,
@@ -346,6 +376,7 @@ function columnDraft(
     expression: entry.value,
     sqlName: staticString(sqlArg, `schema column ${identity.key} SQL name`),
     builder: { ...builder.value, call: chain.root },
+    typeOverride: columnTypeOverride(chain.operations, options),
     primaryKey: chain.operations.has("primaryKey"),
     unique: chain.operations.has("unique"),
     notNull: chain.operations.has("notNull"),
