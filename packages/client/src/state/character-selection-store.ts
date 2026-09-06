@@ -5,18 +5,20 @@
 // not persisted — a hard reload landing back on the welcome state is fine).
 
 import type { CharacterId } from "@orb/kit/ids";
-import { withViewTransition } from "#lib";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
+import { withContentSwap } from "./shell-store.ts";
 
 // The facet id is a card-content-local string (not a `@orb/kit/ids` entity id).
 const characterSelection = createDrillSelectionStore<CharacterId, string>("character-selection", { secondary: true });
 
 // The selection swaps CONTENT (the welcome state ⇄ her editor), which is a section-internal structural
-// transition: it rides the hand-rolled View Transition seam, the ONE legal wrapper (the router's VT cannot
-// fire on a reducer change at a constant URL). The state→lib import is the landed pattern
-// (`active-chat-store.ts`); the drill FACTORY stays untouched, so every other section keeps today's
-// behavior. `prefers-reduced-motion` removes the transition inside the wrapper.
+// transition: it rides the shell's ONE content-swap door (`withContentSwap`), which carries BOTH halves of
+// a swap — the hand-rolled View Transition (the router's VT cannot fire on a reducer change at a constant
+// URL) and the #1795 float lifetime, since a CONTENT-scoped float is about the card being left and goes
+// with it. Calling `withViewTransition` from here directly would take only the first half. The drill
+// FACTORY stays untouched, so every other section keeps today's behavior; `prefers-reduced-motion` removes
+// the transition inside the wrapper.
 //
 // THE SELECTION HAS ONE FOCUS CLAIMANT AGAIN (#501). It used to have two — the LIST pane swapped to her
 // chats at the same moment the CONTENT editor mounted, so which one took focus had to be a DECISION carried
@@ -27,11 +29,11 @@ const characterSelection = createDrillSelectionStore<CharacterId, string>("chara
 /** Select a character (a library-row/face click, a create, a deep link, an agent nav) — CONTENT swaps to
  *  her detail card and a stale facet is cleared. */
 export const selectCharacter = (characterId: CharacterId): void => {
-  withViewTransition(() => characterSelection.select(characterId));
+  withContentSwap(() => characterSelection.select(characterId));
 };
 /** Clear the selection (back to the Characters welcome state). Clears the facet too. */
 export const clearCharacterSelection = (): void => {
-  withViewTransition(() => characterSelection.clear());
+  withContentSwap(() => characterSelection.clear());
 };
 /** Drill into a card-content facet — reveals the CONTENT drill-in + CONTEXT Field inspector. */
 export const selectCharacterFacet = characterSelection.selectSecondary;

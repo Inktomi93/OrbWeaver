@@ -62,6 +62,7 @@ import {
   onGameModeStopped,
   openConfigGroup,
   openConfigTo,
+  openImageDetail,
   openModal,
   openNewChatPicker,
   publishContextTabIds,
@@ -198,13 +199,15 @@ import {
   useTagPruneConfirmOpen,
   useTagSortMode,
   useVisibleConfigSettings,
+  withContentSwap,
 } from "@orb/client/state";
-import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
 // Deep, not the app-shell barrel: `NoticeBand` is the store's only in-app writer and the probe drives the
 // REAL component, so publishing and releasing are exercised exactly as the shell does them.
+import { ModalHost } from "../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { NoticeBand } from "../../../packages/client/src/features/app-shell/components/notice-band.tsx";
 import { notify } from "../../../packages/client/src/lib/notify.ts";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
@@ -421,6 +424,10 @@ const PROBE_MIGRATED_CHAT = castId<ChatId>("chat_01m02xhnwkeh7s32mxccy1x17f");
 const PROBE_CREATED_CHAT = castId<ChatId>("chat_probe_created");
 const PROBE_LIST_CHAT = castId<ChatId>("chat_probe_list");
 const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
+const PROBE_IMAGE_ASSET = castId<AssetId>("asset_probe_image");
+// A 1x1 transparent GIF — the lightbox renders a real <img>, and the row is about the float's LIFETIME,
+// so the bytes are inlined rather than fetched.
+const PROBE_IMAGE_URL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /** ActiveChatStoreProbe — renders the active-chat store's read hooks as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser).
@@ -1575,6 +1582,88 @@ export function ConfigFocusProbe(): ReactElement {
       >
         reset focus
       </button>
+    </div>
+  );
+}
+
+/** THE CONTENT-SWAP FLOAT LIFETIME (#1795) — the shell's real ModalHost over the real modal registry, plus
+ *  the two content-swap doors a person actually crosses with a float open (a rail section change and a room
+ *  change). The CONTENT-only View Transition captures `.shell-content` alone, and every modal portals to a
+ *  root that is a SIBLING of the shell grid — so a float is neither captured nor hidden by a swap, and the
+ *  lifetime rule is a product rule this probe pins rather than something the browser does for us.
+ *
+ *  Both arms mount together because they are ONE rule with two answers: the imagery lightbox is a
+ *  CONTENT-scoped float (its subject is an image inside the room being left), and the ingest ceremony is a
+ *  GLOBAL one (reachable from home, the databank band and its empty state — its meaning does not depend on
+ *  which section you stand in). The observable is the rendered dialog's accessible name, not the store's
+ *  `openModal` field: what the row is about is whether a person is still looking at it. */
+export function ContentSwapFloatProbe(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <ContentSwapFloatBody />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ContentSwapFloatBody(): ReactElement {
+  const open = useOpenModal();
+  const section = useActiveSection();
+  return (
+    <div>
+      <output>{`section=${section} modal=${open ?? "none"}`}</output>
+      {/* The real opener, not `openModal("imageDetail")`: the subject channel is what makes this float
+          content-scoped, so the probe uses the same action a message image click calls. */}
+      <button
+        type="button"
+        onClick={(): void =>
+          openImageDetail({
+            assetId: PROBE_IMAGE_ASSET,
+            chatId: PROBE_SELECT_CHAT,
+            url: PROBE_IMAGE_URL,
+            alt: "A room image",
+          })
+        }
+      >
+        view the room image
+      </button>
+      <button type="button" onClick={(): void => openModal("addDocument")}>
+        add a document
+      </button>
+      {/* THE SWAP DOORS CARRY TESTIDS, NOT JUST NAMES, because an open house modal makes this whole
+          background `inert` + `aria-hidden`: with a dialog up there is no POINTER route to a section
+          change at all, so a swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav`
+          bridge, an async mutation completion, a slash/plugin runner, or the session-recovery ladder's
+          resume. The CT drives these the same way those callers do: a dispatched click, not a user press. */}
+      <button data-testid="ct-go-corpus" type="button" onClick={(): void => setActiveSection("corpus")}>
+        go corpus
+      </button>
+      <button data-testid="ct-go-chats" type="button" onClick={(): void => setActiveSection("chats")}>
+        go chats
+      </button>
+      <button data-testid="ct-open-room" type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
+        open another room
+      </button>
+      {/* A launcher that navigates and THEN opens a content-scoped float for where it is going — an
+          ordinary intent, and the ordering trap: `withViewTransition` defers its callback to a later task,
+          so a naive dismissal read inside that callback would swallow this modal one tick after it opened. */}
+      <button
+        data-testid="ct-navigate-then-open"
+        type="button"
+        onClick={(): void => {
+          setActiveSection("corpus");
+          openImageDetail({ assetId: PROBE_IMAGE_ASSET, chatId: PROBE_SELECT_CHAT, url: PROBE_IMAGE_URL, alt: "A room image" });
+        }}
+      >
+        go corpus and open the lightbox
+      </button>
+      {/* The door itself, with an EMPTY update — the dismissal is `withContentSwap`'s OWN contribution, not
+          something a caller's write does, so one arm drives it with nothing else happening. */}
+      <button data-testid="ct-bare-swap" type="button" onClick={(): void => withContentSwap(() => undefined)}>
+        swap content with no other write
+      </button>
+      <ModalHost onClose={closeModal} openModal={open ?? null} />
     </div>
   );
 }

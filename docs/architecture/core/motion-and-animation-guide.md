@@ -366,7 +366,10 @@ structurally impossible.
 View-transitions on rail-section + chat nav (`withViewTransition` +
 `document.startViewTransition`, gated on `prefers-reduced-motion` once in
 `packages/client/src/lib/view-transition.ts`; router `defaultViewTransition: true`) — native
-browser API, not a hand-rolled crossfade.
+browser API, not a hand-rolled crossfade. The capture is CONTENT-ONLY, so the swap animates nothing
+about a float: an open dialog/popover keeps painting over the new content, and which floats may do that
+is the declared lifetime rule in UI-Arch §4a (`MODAL_CONTENT_LIFETIME` + `withContentSwap`, #1795) —
+a motion question with a state answer, never a second `view-transition-name`.
 
 #### 4.1.1 Sealed Select entrance audit input (#374)
 

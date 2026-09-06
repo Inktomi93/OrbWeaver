@@ -1424,7 +1424,7 @@
     {
       "siteId": "packages/client/src/lib/view-transition.ts::promise:settled::1",
       "path": "packages/client/src/lib/view-transition.ts",
-      "line": 109,
+      "line": 119,
       "column": 5,
       "grammar": "promise",
       "position": "promise:settled",
@@ -1432,7 +1432,7 @@
       "snippet": "settled?.catch((error: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.",
-      "markerLine": 108
+      "markerLine": 118
     },
     {
       "siteId": "packages/client/src/main.tsx::promise:mutate::1",

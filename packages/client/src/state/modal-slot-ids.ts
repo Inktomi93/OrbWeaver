@@ -58,3 +58,50 @@ export const MODAL_SLOT_IDS = [
   "savedRosters",
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
+
+/** Whether a modal slot's MEANING survives the CONTENT pane being swapped underneath it (UI-Arch §4a,
+ *  #1795). `"global"` = reachable from, and about, anywhere — it stays open across a swap. `"content"` =
+ *  its subject is the very content being left, so the swap dismisses it. */
+export type ModalContentLifetime = "global" | "content";
+
+/**
+ * THE CONTENT-SWAP LIFETIME OF EVERY MODAL SLOT — the shell's answer to "may this float outlive the
+ * content it was opened against?" (UI-Arch §4a; the mechanism is `withContentSwap` in `shell-store.ts`).
+ *
+ * WHY IT LIVES WITH THE VOCABULARY AND NOT ON `ModalDefinition`. The registry's posture is that a modal
+ * SELF-DECLARES (its title, trigger, presentation), and lifetime looks like one more of those axes — but
+ * the DECIDER is a navigation action in this tier (`setActiveSection`, `selectChat`, `selectCharacter`),
+ * which holds only the open slot ID: the assembled registry is a React context read at the door, and a
+ * store action fires outside any render. A def-side field would therefore have to be re-published into
+ * `#state` at mount to be readable at the moment of the swap — a second home for one fact. The closed
+ * vocabulary is the one place both readers already share, and `Record<ModalSlotId, …>` makes the
+ * declaration MANDATORY: a new slot id fails `tsc` here until it says which kind of float it is
+ * (the §5.5 mapped-Record dispatch discipline — the enforcer is compile-time, not a gate).
+ *
+ * THE RULE BEHIND THE ROWS. A slot is `"content"` when its SUBJECT is a thing inside the content being
+ * left — the three imagery modals carry an `ImageSubject`/`ImagineSeed` pinned to one room's asset, so
+ * after a swap the reader is looking at a lightbox for a room they are no longer in. Everything else is
+ * `"global"`: a ceremony reachable from several sections (`newChat`, `addDocument`, `savedRosters`), the
+ * navigator itself (`command`), the account sheet (`you`), a plugin round-trip's outcome that can be
+ * raised from a settings row as easily as from a chat (`pluginDialog`, `pluginCommandArgs` — both also
+ * hold user-entered state a navigation must not discard, and both pin their own scope), and `reauth`,
+ * which must survive EVERY swap by construction: the recovery ladder navigates (`selectChat` on resume)
+ * while its own prompt is up, and dismissing it would strand the ladder's promise.
+ */
+export const MODAL_CONTENT_LIFETIME: Record<ModalSlotId, ModalContentLifetime> = {
+  command: "global",
+  newChat: "global",
+  you: "global",
+  addDocument: "global",
+  reauth: "global",
+  // THE PRICE OF THIS ROW, stated where the choice is (owner-confirmed 2026-09-06): `imagine` also holds a
+  // TYPED PROMPT, so a programmatic navigation away discards what the person was writing. It is `"content"`
+  // anyway because the seed pins a chatId and the composer generates INTO that room — a preview-before-spend
+  // surface for a room you have left is the worse of the two wrongs. Flipping it is a one-word edit here.
+  imagine: "content",
+  imageDetail: "content",
+  imageEdit: "content",
+  pluginDialog: "global",
+  pluginCommandArgs: "global",
+  savedRosters: "global",
+};
