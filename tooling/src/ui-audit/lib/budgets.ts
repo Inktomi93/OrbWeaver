@@ -22,7 +22,7 @@ export const CENSUS_SETTLE_POLL_MS = 250;
 /** The MINIMUM observation window, paid on every run. It is a floor rather than "stop at the first two
  *  equal readings" because a shell is PERFECTLY STABLE while its reads are in flight — the quiet before
  *  the content is exactly the state being hunted, so stopping at the first quiet reads the lie as proof.
- *  Measured against the fixture in tests/tooling/ui-audit/cli.int.test.ts: a 400ms two-equal-readings rule
+ *  Measured against the fixture in tests/tooling/ui-audit/index.int.test.ts: a 400ms two-equal-readings rule
  *  called a page settled at ~900ms that filled at 1500ms. NOT load-scaled: this is a floor the run always
  *  pays, not a ceiling — a settle is not a budget (#1232 §7.1). */
 export const CENSUS_OBSERVE_MIN_MS = 2000;

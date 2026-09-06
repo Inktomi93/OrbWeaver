@@ -112,7 +112,7 @@ one candidate index space, one verify, one join contract (contract/samples-hover
 
   All four directions are pinned in `tests/tooling/ui-audit/ops/hover-walker.int.test.ts`. Bare-attribute-first descendant
   pairs whose subject cannot be located at rest → `unresolvableStateSubject`. `noHoverPaint` keeps
-  its key (pinned by tests/tooling/ui-audit/cli.int.test.ts) and its claim becomes TRUE: excluded
+  its key (pinned by tests/tooling/ui-audit/index.int.test.ts) and its claim becomes TRUE: excluded
   only when NEITHER mechanism paints the text and the scan was whole
   (`sheetsUnreadable===0 && unparseableSelectors===0`, the existing `paintProven` gate).
 
@@ -185,7 +185,7 @@ mid-animation attributes whose presence accompanies a structural change or a tra
   `lib/checks-decor.ts` verdict logic, `lib/checks-structure.ts` (extended img samples ride the
   existing shape), core.ts (its now-partially-superseded regexes are inert page vars).
 - Tests: NEW `tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts` (mirror path); existing
-  pins that must keep passing: `tests/tooling/ui-audit/cli.int.test.ts` (hover section incl.
+  pins that must keep passing: `tests/tooling/ui-audit/index.int.test.ts` (hover section incl.
   `excluded["noHoverPaint"]`), `tests/tooling/ui-audit/ops/walker/census-glow.int.test.ts`,
   `tests/tooling/ui-audit/index.test.ts` (untouched).
 

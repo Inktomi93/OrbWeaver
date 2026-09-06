@@ -2230,7 +2230,7 @@
     "tests/tooling/testd-lane-program-coverage.int.test.ts",
     "tests/tooling/token-contract.test.ts",
     "tests/tooling/tool-guard.int.test.ts",
-    "tests/tooling/ui-audit/cli.int.test.ts",
+    "tests/tooling/ui-audit/index.int.test.ts",
     "tests/tooling/ui-audit/index.test.ts",
     "tests/tooling/ui-audit/lib/checks-color.int.test.ts",
     "tests/tooling/ui-audit/lib/checks-grid.test.ts",
