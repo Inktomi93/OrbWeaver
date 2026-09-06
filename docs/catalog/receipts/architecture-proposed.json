@@ -403,14 +403,15 @@
     },
     {
       "path": "docs/architecture/proposed/agent-principal-design/README.md",
-      "assignedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
+      "assignedSha256": "b4131324217530b211c8732fc8ec16b9e39eb85e7a6333560b307fc2c02502a1",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
-      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "b4131324217530b211c8732fc8ec16b9e39eb85e7a6333560b307fc2c02502a1",
+      "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after #1010 (one cite of a moved roster file repaired) at 532758261",
         "docs/architecture/proposed/agent-principal-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"

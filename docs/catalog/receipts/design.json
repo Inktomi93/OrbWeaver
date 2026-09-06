@@ -1850,14 +1850,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "293902764747368e3f5ae024366a72fc476580ce6195e184bf553fa3da568699",
+      "assignedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "293902764747368e3f5ae024366a72fc476580ce6195e184bf553fa3da568699",
-      "verifiedCommit": "d5cee6b276b49cb1456b16abe4761f87b4ac4949",
+      "verifiedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
+      "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after #1010 (row 44: roster → participants landed for the server chat domain, residue enumerated) at 532758261",
         "re-attested after the #1716/#1771 fold (b2e5ba01e: the unreadable-state register rows) at d5cee6b27",
         "re-attested after the #1754 fold (cb-regex-label: the regex register's per-tier label rows) at 5cc98a324",
         "re-attested after the #1739 fold (cb-regex-handoff): the regex register's previous-host row — mark = no switch, detach offered (the #1742 rationale half-retired by the room-gated detach) at 5e491d1ee",
@@ -1906,7 +1907,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/server/src/domain/chat/persistence/roster.ts:1"
+              "target": "packages/server/src/domain/chat/persistence/participants-read.ts:1"
             }
           ]
         }

@@ -718,8 +718,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 305227,
-      "sha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
+      "bytes": 305245,
+      "sha256": "4fb3bcc72c855ce109dd7d35b2739f2dc84ff0f8f7310536ab22a5aa08ea775b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -732,14 +732,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
+        "assignedSha256": "4fb3bcc72c855ce109dd7d35b2739f2dc84ff0f8f7310536ab22a5aa08ea775b",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "4332bf12d47a081fe9c289ca27863b3acdc90e07087bb0a6f679a7d5c9b8425a",
-        "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+        "verifiedSha256": "4fb3bcc72c855ce109dd7d35b2739f2dc84ff0f8f7310536ab22a5aa08ea775b",
+        "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1010 (three cites of the moved roster files repaired to the participants paths) at 532758261",
           "re-attested after #1706 (D71 clause (1) truth-repair: loadSeedThemes' light-arm seed extra for light-dark outputRole tokens, tokens.build.ts:437-462) at e9ad555ac",
           "re-attested at b0e62f3bd by the orchestrator after reading the #1737 edit in full (p-castmember-migration): the F4 amendment's enumeration carries the prose-slot id rename chat.group.castMember → chat.group.characterHeading (a stamp-carrying boot data migration re-keys every host's stored override; the 2026-08-30 v2 warning about a silent id edit survives with its input changed); no other row changed.",
           "re-attested at 5fdea267b by the orchestrator after reading D160 in full (p-showcase-package, #1692): default content ships as a workspace package the server DECLARES and resolves by node resolution — the first is @orb/showcase-plugins (packages/showcase-plugins/: nine bundles, the authoring guide, the published host-v1.d.ts; enforcers = the pnpm workspace dependency (physics) + dep-cruiser); header roll to D160, next free D161+; the retired seed directory is named in prose, not as a live path.",
@@ -1191,8 +1192,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 25332,
-      "sha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
+      "bytes": 25362,
+      "sha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1205,14 +1206,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-        "assignedSha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
+        "assignedSha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
-        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
+        "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
+        "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1010 (three cites of the moved roster files repaired) at 532758261",
           "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
           "invariant #9 re-derived: the tRPC CSRF gate keys on via==='cookie' only (packages/server/src/transport/trpc/trpc.ts:141), legitimate ONLY because of the load-bearing content-type belt at the mount (entry/app.ts trpcJsonOnly — refuses any /api/trpc/* POST not selecting tRPC's JSON handler); the four CORS-simple byte-ingest registrars gate via!=='header' (upload.ts:88 for /api/assets/upload+/api/databank/upload+/api/import, import-tree.ts:101, import-chat.ts:142, import.ts /api/import/bundle)",
           "ENFORCER verified live: tests/server/entry/app.test.ts — 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
@@ -5295,8 +5297,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 107,
-      "bytes": 10127,
-      "sha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
+      "bytes": 10133,
+      "sha256": "b4131324217530b211c8732fc8ec16b9e39eb85e7a6333560b307fc2c02502a1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -5309,14 +5311,15 @@
       },
       "receipt": {
         "path": "docs/architecture/proposed/agent-principal-design/README.md",
-        "assignedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
+        "assignedSha256": "b4131324217530b211c8732fc8ec16b9e39eb85e7a6333560b307fc2c02502a1",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
-        "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "b4131324217530b211c8732fc8ec16b9e39eb85e7a6333560b307fc2c02502a1",
+        "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
+        "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1010 (one cite of a moved roster file repaired) at 532758261",
           "docs/architecture/proposed/agent-principal-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
@@ -14455,8 +14458,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 188,
-      "bytes": 28316,
-      "sha256": "293902764747368e3f5ae024366a72fc476580ce6195e184bf553fa3da568699",
+      "bytes": 29514,
+      "sha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14469,14 +14472,15 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "293902764747368e3f5ae024366a72fc476580ce6195e184bf553fa3da568699",
+        "assignedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "293902764747368e3f5ae024366a72fc476580ce6195e184bf553fa3da568699",
-        "verifiedCommit": "d5cee6b276b49cb1456b16abe4761f87b4ac4949",
+        "verifiedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
+        "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "re-attested after #1010 (row 44: roster → participants landed for the server chat domain, residue enumerated) at 532758261",
           "re-attested after the #1716/#1771 fold (b2e5ba01e: the unreadable-state register rows) at d5cee6b27",
           "re-attested after the #1754 fold (cb-regex-label: the regex register's per-tier label rows) at 5cc98a324",
           "re-attested after the #1739 fold (cb-regex-handoff): the regex register's previous-host row — mark = no switch, detach offered (the #1742 rationale half-retired by the room-gated detach) at 5e491d1ee",
@@ -14525,7 +14529,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/server/src/domain/chat/persistence/roster.ts:1"
+                "target": "packages/server/src/domain/chat/persistence/participants-read.ts:1"
               }
             ]
           }
