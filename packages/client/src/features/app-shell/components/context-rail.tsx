@@ -42,6 +42,8 @@ import { useRef, useSyncExternalStore } from "react";
 import { CONTEXT_CELL_FLOOR_AT_COARSE, CONTEXT_RAIL_WRAP, CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
+import type { RailOverflow } from "../lib/context-rail-overflow.ts";
+import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
 
 /** THE CELL'S ARIA STRIP (#112) — spread onto the cell to DELETE the two attributes the tabs primitive
  *  emits for a tab it no longer is: Base UI merges external props last, and the element under it is a real
@@ -158,16 +160,6 @@ const RAIL_FADE_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
   receded: "from-sidebar",
 };
 
-/** Which edges of a horizontally scrolling track are hiding content right now. `scrollLeft` is signed in a
- *  RTL writing mode, so the START test is on its magnitude. */
-function trackOverflow(track: HTMLElement): { readonly start: boolean; readonly end: boolean } {
-  const travelled = Math.abs(track.scrollLeft);
-  const total = track.scrollWidth - track.clientWidth;
-  return { start: travelled > OVERFLOW_EPSILON_PX, end: total - travelled > OVERFLOW_EPSILON_PX };
-}
-
-const NO_OVERFLOW: { readonly start: boolean; readonly end: boolean } = { start: false, end: false };
-
 /** The track's measured overflow, as an external-store subscription (ResizeObserver + scroll are the
  *  store; layout is the state's real owner, so `useSyncExternalStore` is the honest shape — the eslint
  *  no-external-store-subscription remedy, replacing the setState-in-effect this shipped as). The snapshot
@@ -177,7 +169,7 @@ const NO_OVERFLOW: { readonly start: boolean; readonly end: boolean } = { start:
  *  palette's focus restore and flaked `app-shell.ct.tsx`). `cellCount` keys the subscribe so a new tab
  *  set re-subscribes and re-measures; every other input arrives through the observer, which is why
  *  nothing else is enumerated. */
-function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount: number): { readonly start: boolean; readonly end: boolean } {
+function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount: number): RailOverflow {
   const cache = useRef(NO_OVERFLOW);
   // The Compiler memoizes both closures keyed on what they read (no-manual-memo, D54 full-compile):
   // `subscribe` reads `cellCount`, so a new tab set mints a new subscribe and uSES re-subscribes + re-measures.
@@ -195,7 +187,7 @@ function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount:
       track.removeEventListener("scroll", onStoreChange);
     };
   };
-  const getSnapshot = (): { readonly start: boolean; readonly end: boolean } => {
+  const getSnapshot = (): RailOverflow => {
     const track = trackRef.current;
     const next = track === null ? NO_OVERFLOW : trackOverflow(track);
     const previous = cache.current;
@@ -204,12 +196,8 @@ function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount:
     }
     return cache.current;
   };
-  return useSyncExternalStore(subscribe, getSnapshot, (): { readonly start: boolean; readonly end: boolean } => NO_OVERFLOW);
+  return useSyncExternalStore(subscribe, getSnapshot, (): RailOverflow => NO_OVERFLOW);
 }
-
-/** Sub-pixel track widths are routine (a fractional container width divided into `1fr` tracks), so the fit
- *  test needs a tolerance or every rail claims to overflow by 0.4px. */
-const OVERFLOW_EPSILON_PX = 1;
 
 export interface ContextRailProps {
   readonly ariaLabel: string;
@@ -448,11 +436,7 @@ function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot
       </Badge>
     );
   }
-  // The boolean form is the same primitive with no content — a shell-tier surface never paints a raw
-  // element, so the dot is a childless `Badge`, not a styled `<span>`. It rode `size="sm"` plus a
-  // call-site `size-1.5 rounded-full p-0` for as long as Badge had no dot to give (the one live
-  // `ui-size-via-variant` ALLOWLIST survivor); `size="dot"` is that shape as a VARIANT (#1798/#1799), so
-  // the seal is intact here and the allowlist row is gone. Same rendered 6px circle — `size-field` is the
-  // belt step `size-1.5` was spelling by hand.
+  // The childless dot is Badge's `size="dot"` arm (#1798/#1799) — the ALLOWLIST-conversion receipt (why
+  // this call site, why 6px) is at that arm's own header, `@orb/ui/badge/variants.ts`, one home.
   return dot ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute end-field top-field" /> : null;
 }

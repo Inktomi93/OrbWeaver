@@ -629,9 +629,9 @@
       "markerLine": 91
     },
     {
-      "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
-      "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 349,
+      "siteId": "packages/client/src/features/notifications/components/notification-inbox-row.tsx::promise:work::1",
+      "path": "packages/client/src/features/notifications/components/notification-inbox-row.tsx",
+      "line": 94,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 347
+      "markerLine": 92
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
