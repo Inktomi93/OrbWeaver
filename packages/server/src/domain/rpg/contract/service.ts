@@ -332,7 +332,7 @@ interface RpgPromoteToRosterInput {
   readonly roster: readonly RpgRosterActor[];
   /** The NPC's display name → the card's `name` (and the roster name every model `targetRef` resolves by). */
   readonly name: string;
-  /** The desired per-owner card handle (the cast slug); the impl uniquifies against the owner's library. */
+  /** The desired per-owner card handle (the npc slug); the impl uniquifies against the owner's library. */
   readonly handle: CharacterHandle;
   /** The standing guides rendered as card prose (`rpgPromotedCardDescription`) — `""` when the story wrote
    *  none, which mints an empty description rather than an invented biography. */
@@ -866,7 +866,7 @@ export interface RpgService {
    *  releases every lock at/below its path. Errors-as-data when the game carries no such actor. */
   readonly dismissActor: (params: DismissActorParams) => Promise<HandDoorResult>;
   /** Host. THE promotion doorway (R4) — `dismissActor`'s opposite: a scene NPC the story kept bringing back
-   *  earns a durable character CARD + a chat roster seat, and her actor row is RE-KEYED `cast:<slug>` →
+   *  earns a durable character CARD + a chat roster seat, and her actor row is RE-KEYED `npc:<slug>` →
    *  `character:<id>` so her trackers, pack, purse, conditions, status, scene presence and hand PINS all follow
    *  her under the new identity. Her identity HALF does not survive the re-key (a roster actor carries none):
    *  its durable content — the display name and the standing guides — is carried onto the card in the same

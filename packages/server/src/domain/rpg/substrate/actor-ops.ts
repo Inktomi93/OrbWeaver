@@ -23,8 +23,8 @@ import { RPG_TRACKER_VALUE_EMPTY, rpgActorIdentityLockBase, rpgActorVolatileLock
 import type { ApplyActorOpsResult } from "../contract/results.ts";
 
 /** The empty ACTOR ROW a first write on an actor with no state row seeds — zero volatile state, plus (for a
- *  `cast` ref only) a born IDENTITY whose display name falls back to the slug until something authors a real
- *  one. A cast actor IS an identity-bearing person by construction: born without one, the very first
+ *  `npc` ref only) a born IDENTITY whose display name falls back to the slug until something authors a real
+ *  one. An npc IS an identity-bearing person by construction: born without one, the very first
  *  `presentUpsert`/`setIdentityText` would have nothing to write onto. A roster actor is born WITHOUT an
  *  identity and stays that way — her name is the chat roster's, her standing prose the sheet's — which is what
  *  makes the identity ops' refusal arm meaningful rather than a shape accident.
@@ -33,10 +33,10 @@ import type { ApplyActorOpsResult } from "../contract/results.ts";
  *  a model-minted row can never be born different shapes. */
 export function emptyActorEntry(actorRef: RpgActorRef): RpgActorEntry {
   const volatile: RpgActorVolatile = { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
-  if (actorRef.kind !== "cast") {
+  if (actorRef.kind !== "npc") {
     return { actorRef, volatile };
   }
-  return { actorRef, identity: { name: actorRef.castKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }, volatile };
+  return { actorRef, identity: { name: actorRef.npcKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }, volatile };
 }
 
 /** The IDENTITY-half op arms (R2) — the ones that write `entry.identity` rather than `entry.volatile`, and

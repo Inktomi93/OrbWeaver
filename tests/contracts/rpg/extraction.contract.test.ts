@@ -59,7 +59,7 @@ function tracker(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "lab
 
 /** A carrier (an actor the write surface may target), with no sheet exceptions unless given. */
 function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
-  return { actorKey: `${kind === "npcs" ? "cast" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+  return { actorKey: `${kind === "npcs" ? "npc" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
 }
 
 test("the extraction schema projects to JSON Schema without throwing (the output_config.format class)", () => {
@@ -727,7 +727,7 @@ test("EXT-4c: BOTH objective gestures are TAUGHT — the teaching and the tool d
 });
 
 test("MOOD IS A SHORT READ: the cast-mood steer rides both the teaching and update_scene's description", () => {
-  // Owner report: models write whole sentences into `mood`, which janks the cast row. Taught in PROSE ONLY —
+  // Owner report: models write whole sentences into `mood`, which janks the npc row. Taught in PROSE ONLY —
   // a schema maxLength would make the whole call unemittable on a non-enforcing wire and cost the beat.
   const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
   expect(teaching).toContain("MOOD IS A SHORT READ");

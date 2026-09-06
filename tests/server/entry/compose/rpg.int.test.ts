@@ -191,17 +191,17 @@ async function provePlantedPromotionRecovery(args: {
   const { chatId, hostId } = await seedHostGameChat(db, key);
   const principal = hostPrincipal(hostId);
   await services.rpg.createGame({ principal, chatId, mode: "lite" });
-  await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["cast:vesna"] } });
+  await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["npc:vesna"] } });
   await services.rpg.patchActor({
     principal,
     chatId,
-    targetRef: { kind: "cast", castKey: "vesna" },
+    targetRef: { kind: "npc", npcKey: "vesna" },
     ops: [{ op: "setIdentityText", field: "name", text: "Sister Vesna" }],
   });
 
   // Plant the exact production result after the card step. The second arm additionally plants the seat step;
   // neither calls the RPG verb until the interrupted durable prefix exists in the fresh database.
-  const provenance = rpgPromotionProvenance(chatId, "cast:vesna");
+  const provenance = rpgPromotionProvenance(chatId, "npc:vesna");
   const card = await services.character.create({
     principal,
     input: { handle: castId("sister-vesna"), name: "Sister Vesna", description: "" },
@@ -211,7 +211,7 @@ async function provePlantedPromotionRecovery(args: {
     await services.chat.addCharacterToChat({ principal, chatId, characterId: card.id });
   }
 
-  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "cast", castKey: "vesna" } })).resolves.toEqual({ ok: true, issues: [] });
+  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "npc", npcKey: "vesna" } })).resolves.toEqual({ ok: true, issues: [] });
 
   const markedCards = await db
     .select({ id: characters.id })
@@ -228,7 +228,7 @@ async function provePlantedPromotionRecovery(args: {
     markedCards: markedCards.length,
     liveSeats: seats.length,
     characterActors: view.actors.filter((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === card.id).length,
-    castActors: view.actors.filter((actor) => actor.actorRef.kind === "cast" && actor.actorRef.castKey === "vesna").length,
+    castActors: view.actors.filter((actor) => actor.actorRef.kind === "npc" && actor.actorRef.npcKey === "vesna").length,
   };
 }
 
@@ -527,7 +527,7 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     ...defaultSnapshotState(),
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "mira" },
+        actorRef: { kind: "npc", npcKey: "mira" },
         identity: { name: "Mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
         volatile: {
           trackerValues: {},
@@ -1168,8 +1168,8 @@ test("§1.6 (plane registry): the extraction system prompt teaches the newly-cov
  *  enum offers each actor's DISPLAY name, so `presentRemove` can name an NPC and party/inventory can reach a
  *  cast actor whether or not she is standing in the scene. */
 function baseWithCast(): RpgSnapshotState {
-  const castRow = (castKey: string, name: string): RpgSnapshotState["actorState"][number] => ({
-    actorRef: { kind: "cast", castKey },
+  const castRow = (npcKey: string, name: string): RpgSnapshotState["actorState"][number] => ({
+    actorRef: { kind: "npc", npcKey },
     identity: { name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
     volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
   });
@@ -1178,7 +1178,7 @@ function baseWithCast(): RpgSnapshotState {
     calendarDate: null,
     location: "the tavern",
     weather: null,
-    presentCharacters: ["cast:bartender"],
+    presentCharacters: ["npc:bartender"],
     recentEvents: [],
     actorState: [castRow("bartender", "Bartender"), castRow("goblin", "Goblin")],
     trackerValues: {},
@@ -1368,7 +1368,7 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+  expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
 test("F3: the host is resolved by ROLE, not join order (post-handoff: first-joined human is a member)", async ({ app, db }) => {
@@ -1941,7 +1941,7 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+  expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

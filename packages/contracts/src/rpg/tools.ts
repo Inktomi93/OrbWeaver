@@ -13,7 +13,7 @@
 //
 // COUNT: 7 lite tools (`RPG_LITE_TOOL_NAMES`). Full SIBLINGS its tools (`skill_check`, `request_check`,
 // `advance_time`, `tick_clock`, `upsert_npc`, encounter/loot/map…) — same registry, additive
-// registrations, zero renames (§C). Widening `update_party.targetRef` to reach cast actors is documented
+// registrations, zero renames (§C). Widening `update_party.targetRef` to reach npcs is documented
 // in the def's model-facing description; the name stays (renaming re-litigates for zero capability).
 //
 // The core names (`update_party`/`update_inventory`/`update_scene`/`roll_dice`) are D86/CP vocabulary the
@@ -46,7 +46,7 @@ export type RpgToolName = (typeof RPG_LITE_TOOL_NAMES)[number];
 export const ROLL_DICE_TOOL_NAME = "roll_dice" satisfies RpgToolName;
 
 // ── shared arg fragments ──────────────────────────────────────────────────────────────────────────────
-// A model-facing actor reference: a NAME the server alias-resolves to a character/user/cast actor (never
+// A model-facing actor reference: a NAME the server alias-resolves to a character/user/npc (never
 // a branded id — projection-clean). The wallet/inventory-on-every-actor ruling means this reaches cast too.
 const targetRefField = z.string().min(1);
 
@@ -57,7 +57,7 @@ const targetRefField = z.string().min(1);
 // `constrainExtractionSchema`), so a model can never be handed Mana on an actor with no Mana.
 //
 // These replace `update_party.poolDeltas` (name-addressed, meters only), `presentUpsert[].customFields`
-// (an opaque STRING record on the cast row) and `set_widget_value` (label-addressed, game-scoped) — three
+// (an opaque STRING record on the npc row) and `set_widget_value` (label-addressed, game-scoped) — three
 // wire vocabularies for one concept, gone.
 
 /** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
@@ -94,7 +94,7 @@ const weatherUpsertSchema = z.object({
   label: rpgWeatherLabelSchema.optional(),
 });
 
-/** `update_party` — tracker writes, conditions, status on any party-side actor OR cast key.
+/** `update_party` — tracker writes, conditions, status on any party-side actor OR npc key.
  *
  *  `hpDelta` IS GONE (R3): health is an ordinary `meter` tracker now, so damage/healing rides `trackerDeltas`
  *  with `key:"hp"` under the SAME per-actor key enum every other tracker uses. That is a STRONGER gate than the

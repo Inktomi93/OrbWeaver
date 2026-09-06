@@ -591,12 +591,12 @@ interface ResolvedRefs {
  *     literally named "Player" therefore OWNS the `player` ref — stickler F10 — and the human is addressed by
  *     their own display name, kept below);
  *   • every roster member's display name (incl. a "Player"-named char and the user's persona name);
- *   • every tracked CAST actor's display name (`baseState.actorState` cast entries — R2 folded the old separate
- *     `presentCharacters[].key` walk into this one, because the scene cast and the tracked cast are the same
+ *   • every tracked NPC actor's display name (`baseState.actorState` npc entries — R2 folded the old separate
+ *     `presentCharacters[].key` walk into this one, because the scene npcs and the tracked npcs are the same
  *     rows now) — so `scene.presentRemove` can name an NPC the model previously upserted, and
- *     party/inventory/wallet reach a first-class cast actor whether or not she is on stage (stickler F4, D108).
+ *     party/inventory/wallet reach a first-class npc whether or not she is on stage (stickler F4, D108).
  *  Deduped case-insensitively. A model can then only target a REAL, resolvable ref under an enforcing backend,
- *  and the cast-actor reach is representable in BOTH constrained modes. */
+ *  and the npc-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
   const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgParticipants(chatId), findGameByChat(deps.db, chatId)]);
   const config = game?.config ?? rpgGameConfigSchema.parse({});
@@ -639,13 +639,13 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
     // every roster display name is valid (persona-name + the F10 "Player"-named char)
     add(carrierFor(r.actorRef, r.name));
   }
-  // The tracked CAST actors — on stage or off (F4: party/inventory/wallet reach a tracked NPC either way).
-  // ONE walk since R2, because the scene cast and the tracked cast are the SAME rows now: the presence plane
+  // The tracked NPC actors — on stage or off (F4: party/inventory/wallet reach a tracked NPC either way).
+  // ONE walk since R2, because the scene npcs and the tracked npcs are the SAME rows now: the presence plane
   // holds only ref keys, so there is no second name namespace to add and no way for a carrier to be classed
   // twice. The enum offers the DISPLAY name (what the model wrote and will write back), never the slug key.
   for (const actor of baseState.actorState) {
-    if (actor.actorRef.kind === "cast") {
-      add(carrierFor(actor.actorRef, actor.identity?.name ?? actor.actorRef.castKey));
+    if (actor.actorRef.kind === "npc") {
+      add(carrierFor(actor.actorRef, actor.identity?.name ?? actor.actorRef.npcKey));
     }
   }
   const actorRefs = carriers.map((c) => c.name);
@@ -656,7 +656,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (constrainExtractionSchema) ONLY while the current scene
   // lacks them — a fresh game establishes the scene from the first beat, an ongoing scene keeps the optional
   // omit=keep patch. `location` defaults to "" (unset), `clock` is null until a timeOfDay lands, and an empty
-  // `presentCharacters` means the cast hasn't been put on stage yet (force a non-empty presentUpsert).
+  // `presentCharacters` means no npc has been put on stage yet (force a non-empty presentUpsert).
   //
   // RECONCILE (crunchy-cluster §1.3): on a reconcile beat / a resync, force EVERY scene field REQUIRED
   // UNCONDITIONALLY (not just the unset ones) — the establish-when-unset lever becomes the standing anti-drift
@@ -757,7 +757,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       return empty;
     }
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
-    // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + tracker keys)
+    // semantic `player` token + roster/persona names + existing scene npcs + npc-actor keys + tracker keys)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
     // prompt (the fallback arm for a non-enforcing model). `reconcile` (§1.3 cadence) forces establish-
     // EVERYTHING + the reconcile prompt line so a drifted panel self-heals this beat.

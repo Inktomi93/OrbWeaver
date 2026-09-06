@@ -113,7 +113,7 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   const isHost = chat.viewerIsHost === true;
   return {
     chatId,
-    // The cast half is filtered inline rather than through chat's own `filterCharacters`: rpg imports
+    // The npc half is filtered inline rather than through chat's own `filterCharacters`: rpg imports
     // NOTHING from `features/chat` (this hook's own self-containment rule), and the predicate is one line
     // over a `contracts` shape. The DERIVATION is the shared one (`deriveChatTitle`), which is the part
     // that must not fork.

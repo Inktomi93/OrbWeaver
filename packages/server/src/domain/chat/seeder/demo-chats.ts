@@ -442,7 +442,7 @@ const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
     },
     {
       seat: {
-        kind: "cast",
+        kind: "npc",
         slug: "corvain",
       },
       present: true,

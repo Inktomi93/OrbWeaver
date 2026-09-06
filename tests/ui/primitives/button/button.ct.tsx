@@ -253,7 +253,7 @@ const PARITY_SITES: readonly {
     glyph: true,
     inert: ["fontWeight"],
   },
-  { site: "cast-card-slots relationship pill (zero padding)", old: "!h-auto min-h-0 rounded-full !p-0 font-normal", next: "rounded-full" },
+  { site: "npc-card-slots relationship pill (zero padding)", old: "!h-auto min-h-0 rounded-full !p-0 font-normal", next: "rounded-full" },
   {
     site: "rpg-pack-rows tile (px-row/py-field via TILE_CLASS)",
     old: "!h-auto justify-start whitespace-normal font-normal relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card !px-row !py-field text-left",

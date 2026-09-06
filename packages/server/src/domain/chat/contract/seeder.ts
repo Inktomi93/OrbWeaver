@@ -71,8 +71,8 @@ export type DemoChatActorSeat =
   /** A seated card, by the manifest handle it was resolved from. */
   | { readonly kind: "handle"; readonly handle: CharacterHandle }
   /** A scene-only NPC the transcript introduced — minted by the first hand op on it (`patchActor` mints an
-   *  absent target). The slug MUST already be canonical (`rpgCastSlug`), which the wire enforces. */
-  | { readonly kind: "cast"; readonly slug: string };
+   *  absent target). The slug MUST already be canonical (`rpgNpcSlug`), which the wire enforces. */
+  | { readonly kind: "npc"; readonly slug: string };
 
 /** One actor's authored opening: its sheet (`patchSheet`), its volatile ops (`patchActor`), and whether it
  *  stands in the closing scene (the presence plane). */

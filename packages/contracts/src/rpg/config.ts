@@ -31,7 +31,7 @@ export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
  *  column).
  *  `relationshipHints` maps a custom relationship `label` → a steering gloss (a bare custom label steers as
  *  precisely as the five built-ins when the host glosses it; the hint is a property of the VOCAB, one home, not
- *  duplicated per cast row).
+ *  duplicated per npc row).
  *
  *  The hidden-channel knobs (§3.3/§3.6): `deception` teaches `<lie …/>`, `omniscience` teaches `<ofilter …/>` —
  *  both default OFF (opt-in mechanics). EITHER on = the game is DECEPTION-ACTIVE, which (a) composes the teaching

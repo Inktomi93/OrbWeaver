@@ -16,7 +16,7 @@ import {
   rpgActorOpSchema,
   rpgActorRefSchema,
   rpgActorVolatileSchema,
-  rpgCastSlug,
+  rpgNpcSlug,
   rpgPromotedCardDescription,
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
@@ -28,7 +28,7 @@ test("actor ref parses all three lite arms (character/user/cast)", () => {
   const userId = newId<UserId>();
   expect(rpgActorRefSchema.safeParse({ kind: "character", characterId }).success).toBe(true);
   expect(rpgActorRefSchema.safeParse({ kind: "user", userId }).success).toBe(true);
-  expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: "goblin-scout" }).success).toBe(true);
+  expect(rpgActorRefSchema.safeParse({ kind: "npc", npcKey: "goblin-scout" }).success).toBe(true);
   // The RESERVED, unbuilt cross-game library arm (#906 renamed it off the bare `npc`, which the scene extra
   // now spends): it is not in the union until `rpg_npcs` lands, and this pin is what says so.
   expect(rpgActorRefSchema.safeParse({ kind: "libraryNpc", libraryNpcId: "x" }).success).toBe(false);
@@ -37,25 +37,25 @@ test("actor ref parses all three lite arms (character/user/cast)", () => {
 test("actorRefKey projects a stable distinct key per arm", () => {
   const characterId = mintTypeId(ID_PREFIX.character);
   expect(actorRefKey({ kind: "character", characterId })).toBe(`character:${characterId}`);
-  expect(actorRefKey({ kind: "cast", castKey: "goblin" })).toBe("cast:goblin");
+  expect(actorRefKey({ kind: "npc", npcKey: "goblin" })).toBe("npc:goblin");
 });
 
 // ── the cast SLUG (R2 — the doc's "normalized-name key" claim made true) ──────────────────────────────────
 
-test("rpgCastSlug folds every spelling of one name onto ONE key (the sibling-identity class)", () => {
+test("rpgNpcSlug folds every spelling of one name onto ONE key (the sibling-identity class)", () => {
   // The exact class the verbatim key allowed: case, spacing and punctuation variance minted separate actors
   // on any non-enforcing wire, each with its own state, each unreachable from the other's spelling.
-  const canonical = rpgCastSlug("Sister Vesna");
+  const canonical = rpgNpcSlug("Sister Vesna");
   expect(canonical).toBe("sister-vesna");
-  expect(rpgCastSlug("sister  vesna")).toBe(canonical);
-  expect(rpgCastSlug("  Sister Vesna.  ")).toBe(canonical);
-  expect(rpgCastSlug("SISTER-VESNA")).toBe(canonical);
+  expect(rpgNpcSlug("sister  vesna")).toBe(canonical);
+  expect(rpgNpcSlug("  Sister Vesna.  ")).toBe(canonical);
+  expect(rpgNpcSlug("SISTER-VESNA")).toBe(canonical);
 });
 
 test("a name with no slug-able character still yields a legal key (a ref key is min(1))", () => {
   // A refused write on an emoji-only name would be a worse answer than one stable bucket a host can rename.
-  expect(rpgCastSlug("🔥🔥").length).toBeGreaterThan(0);
-  expect(rpgCastSlug("   ").length).toBeGreaterThan(0);
+  expect(rpgNpcSlug("🔥🔥").length).toBeGreaterThan(0);
+  expect(rpgNpcSlug("   ").length).toBeGreaterThan(0);
 });
 
 // #1366 — the kept set was `[a-z0-9]`, so every name written in a script without ASCII letters folded to the
@@ -63,55 +63,55 @@ test("a name with no slug-able character still yields a legal key (a ref key is 
 // ONE row and the second silently overwrote the first's identity, trackers, inventory and wallet.
 test("distinct NON-ASCII names produce DISTINCT actor keys (the silent-merge class)", () => {
   const names = ["李明", "田中太郎", "محمد", "Мария", "Μαρία"];
-  const keys = names.map((name) => rpgCastSlug(name));
+  const keys = names.map((name) => rpgNpcSlug(name));
   expect(new Set(keys).size).toBe(names.length);
   expect(keys).not.toContain("unnamed");
   // Case folding still applies where the script HAS case — this narrows the kept set, it does not stop folding.
-  expect(rpgCastSlug("МАРИЯ")).toBe(rpgCastSlug("Мария"));
-  expect(rpgCastSlug("  李明！ ")).toBe(rpgCastSlug("李明"));
+  expect(rpgNpcSlug("МАРИЯ")).toBe(rpgNpcSlug("Мария"));
+  expect(rpgNpcSlug("  李明！ ")).toBe(rpgNpcSlug("李明"));
 });
 
 test("two spellings of one accented name are ONE key (NFC), and symbol-only names do not share a bucket", () => {
-  expect(rpgCastSlug("cafe\u0301")).toBe(rpgCastSlug("café"));
+  expect(rpgNpcSlug("cafe\u0301")).toBe(rpgNpcSlug("café"));
   // The `unnamed` bucket was itself a merge: every emoji-only name landed in it together.
-  expect(rpgCastSlug("\u{1f409}")).not.toBe(rpgCastSlug("\u{1f525}"));
-  expect(rpgCastSlug("   ")).toBe("unnamed");
+  expect(rpgNpcSlug("\u{1f409}")).not.toBe(rpgNpcSlug("\u{1f525}"));
+  expect(rpgNpcSlug("   ")).toBe("unnamed");
 });
 
 // #1530 — the fallback bucket was REACHABLE from a legitimate name: the fold turns "Unnamed 1f409" into
 // exactly the key the emoji fallback minted, so the two merged onto one actor row. The marker the fallback
 // joins with is outside the kept class, so no fold can emit it.
 test("the symbol-only fallback key cannot be reached by folding a real name", () => {
-  expect(rpgCastSlug("\u{1f409}")).not.toBe(rpgCastSlug("Unnamed 1f409"));
-  expect(rpgCastSlug("Unnamed 1f409")).toBe("unnamed-1f409");
-  expect(rpgCastSlug("\u{1f409}")).toBe("unnamed+1f409");
+  expect(rpgNpcSlug("\u{1f409}")).not.toBe(rpgNpcSlug("Unnamed 1f409"));
+  expect(rpgNpcSlug("Unnamed 1f409")).toBe("unnamed-1f409");
+  expect(rpgNpcSlug("\u{1f409}")).toBe("unnamed+1f409");
   // A real name carrying the marker still FOLDS it away — the marker only survives on a minted fallback.
-  expect(rpgCastSlug("Ann+Bob")).toBe("ann-bob");
+  expect(rpgNpcSlug("Ann+Bob")).toBe("ann-bob");
   // …and a minted fallback stays its own slug, which is what the wire refine requires of it.
   for (const symbolic of ["\u{1f409}", "\u{1f409}\u{1f525}", "!!!"]) {
-    const key = rpgCastSlug(symbolic);
-    expect(rpgCastSlug(key)).toBe(key);
-    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: key }).success, `"${key}" must round-trip the wire`).toBe(true);
+    const key = rpgNpcSlug(symbolic);
+    expect(rpgNpcSlug(key)).toBe(key);
+    expect(rpgActorRefSchema.safeParse({ kind: "npc", npcKey: key }).success, `"${key}" must round-trip the wire`).toBe(true);
   }
 });
 
 test("the slug is IDEMPOTENT — which is what lets the wire use it as its own canonicality predicate", () => {
   for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "already-slugged", "李明", "Мария", "cafe\u0301"]) {
-    expect(rpgCastSlug(rpgCastSlug(name))).toBe(rpgCastSlug(name));
+    expect(rpgNpcSlug(rpgNpcSlug(name))).toBe(rpgNpcSlug(name));
   }
 });
 
-test("a NON-CANONICAL cast key is unrepresentable at the wire (prevent-at-schema, not refuse-downstream)", () => {
-  // The hole this closes: a raw API caller `patchActor`-ing with `castKey: "Sister Vesna"` minted a SIBLING
-  // row beside the model's `cast:sister-vesna` — a duplicate person in the panel, unreachable by every model
+test("a NON-CANONICAL npc key is unrepresentable at the wire (prevent-at-schema, not refuse-downstream)", () => {
+  // The hole this closes: a raw API caller `patchActor`-ing with `npcKey: "Sister Vesna"` minted a SIBLING
+  // row beside the model's `npc:sister-vesna` — a duplicate person in the panel, unreachable by every model
   // write (the appliers all resolve names through the slug), removable only by `dismissActor` with the same
   // raw key. The house pattern is prevent-at-schema (the R6 enum precedent, the stamped-id write boundary).
   for (const bad of ["Sister Vesna", "Mari", "sister vesna", "sister-vesna-", " mari"]) {
-    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: bad }).success, `"${bad}" must be refused`).toBe(false);
+    expect(rpgActorRefSchema.safeParse({ kind: "npc", npcKey: bad }).success, `"${bad}" must be refused`).toBe(false);
   }
   // …and every key the SLUG itself mints round-trips (the two are the same rule, so they cannot drift).
   for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "李明", "محمد", "cafe\u0301"]) {
-    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: rpgCastSlug(name) }).success).toBe(true);
+    expect(rpgActorRefSchema.safeParse({ kind: "npc", npcKey: rpgNpcSlug(name) }).success).toBe(true);
   }
   // The roster arms are untouched — their keys are branded ids, not slugs.
   expect(rpgActorRefSchema.safeParse({ kind: "character", characterId: mintTypeId(ID_PREFIX.character) }).success).toBe(true);
@@ -156,7 +156,7 @@ test("clampActorCardName never uses a second literal for the bound — it is CAR
 // ── the actor ENTRY: two halves, one lifecycle ────────────────────────────────────────────────────────────
 
 test("an entry parses with only its ref — the volatile half is born WHOLE (no partial rows)", () => {
-  const parsed = rpgActorEntrySchema.parse({ actorRef: { kind: "cast", castKey: "npc" } });
+  const parsed = rpgActorEntrySchema.parse({ actorRef: { kind: "npc", npcKey: "npc" } });
   expect(parsed.identity).toBeUndefined();
   expect(parsed.volatile).toEqual({ trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" });
 });
@@ -211,7 +211,7 @@ test("every op arm parses, and an unknown op is REJECTED at the wire (the union 
   for (const op of ops) {
     expect(rpgActorOpSchema.safeParse(op).success).toBe(true);
   }
-  expect(rpgActorOpSchema.safeParse({ op: "setActorRef", actorRef: { kind: "cast", castKey: "x" } }).success).toBe(false);
+  expect(rpgActorOpSchema.safeParse({ op: "setActorRef", actorRef: { kind: "npc", npcKey: "x" } }).success).toBe(false);
   // `setHp` died with the demotion — health is written by `setTracker` like every other meter.
   expect(rpgActorOpSchema.safeParse({ op: "setHp", hp: { value: 9, max: 12 } }).success).toBe(false);
   // An identity TEXT op may only name a real identity field (never `relationship`, which has its own arm).
@@ -257,7 +257,7 @@ test("the card carry is the STANDING guides, labelled and in field order — nev
   expect(description).toBe(
     "Appearance: Ash-grey habit, a burn scar down one wrist.\nOutfit: Travelling cloak, boots caked in river mud.\nInner life: She is counting the exits.",
   );
-  // `mood` is a per-beat observation and `relationship` is ruled a CAST actor's datum — neither is a card fact,
+  // `mood` is a per-beat observation and `relationship` is ruled a NPC actor's datum — neither is a card fact,
   // and a card that asserted them would freeze a moment as a permanent trait.
   expect(description).not.toContain("guarded");
   expect(description).not.toContain("ally");

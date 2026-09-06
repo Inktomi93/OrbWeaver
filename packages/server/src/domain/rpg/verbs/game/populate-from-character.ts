@@ -15,7 +15,7 @@
 // can never trigger the host-principal call — the principal-laundering hole). The caller IS the host, so
 // `params.principal.userId` funds the call; never a params-supplied id.
 //
-// APPLICABILITY: only a `character` actor has a card. A `user`/`cast` ref is REFUSED (`rpg_actor_has_no_card`),
+// APPLICABILITY: only a `character` actor has a card. A `user`/`npc` ref is REFUSED (`rpg_actor_has_no_card`),
 // as is a character whose card no longer resolves under the room host — the client's disabled button mirrors
 // this, and the verb is the authority.
 //

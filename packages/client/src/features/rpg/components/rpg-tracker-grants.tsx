@@ -7,7 +7,7 @@
 // were stored + gated + optimistically merged, with no way for a host to author them.
 //
 // HOST-ONLY, NON-CAST: grants are the host's call (PERMISSION-omit at the parent — a member never sees a
-// control that would refuse), and a `cast` NPC has no sheet at all (its applicability rides the def's `npcs`
+// control that would refuse), and an `npc` actor has no sheet at all (its applicability rides the def's `npcs`
 // class / explicit `appliesTo` list, not a per-actor exception), so the parent gates this to roster actors.
 //
 // The control is a tri-state per def — By class / Granted / Revoked — which maps 1:1 onto the stored exception

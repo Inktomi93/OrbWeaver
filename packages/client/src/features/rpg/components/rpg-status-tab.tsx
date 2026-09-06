@@ -1,7 +1,7 @@
 // The STATUS tab ("Status" + the tracked-field unification IA repair):
 // **the ONLY list of people**, and expanding an entry IS the sheet. Two states, one tab:
 //   • the CHARACTERS — portrait-led instrument cards (D44 portrait · name · relationship badge ON the name line,
-//     rendered ONLY when the character also stands in the scene cast — never a phantom
+//     rendered ONLY when the character also stands in the scene npcs — never a phantom
 //     "neutral") with the quick edits that belong on a glanceable row: the volatile `status` line, the
 //     tracker meters (value AND max click-to-edit), the lit condition chips;
 //   • the CHARACTER TAKEOVER (`RpgCharacterDetail`) — the whole character, breadcrumb back to the list.
@@ -53,14 +53,14 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // The open character (the takeover) — null = the list. Keyed by the stable actor selector key.
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  // THE CHARACTERS, and only the characters (R2). `tracker.actors` now carries every actor the game tracks, cast NPCs
+  // THE CHARACTERS, and only the characters (R2). `tracker.actors` now carries every actor the game tracks, npcs
   // included — one shape, so the filter is a partition, not a projection. Cast actors home on the SCENE tab
   // (on stage) and in its Known-characters disclosure (offstage); duplicating them here would give one person
   // two edit homes, which is the dual-homing rule this IA exists to obey.
-  const characters = tracker.actors.filter((a) => a.actorRef.kind !== "cast");
+  const characters = tracker.actors.filter((a) => a.actorRef.kind !== "npc");
   // The a11y subject per character — the display name, qualified by roster position ONLY where two entries
   // carry the same name (#1531). Derived over the FILTERED list, because the collision that matters is the
-  // one a reader actually hears in this tab: a cast actor with the same name lives on Scene and is never in
+  // one a reader actually hears in this tab: an npc with the same name lives on Scene and is never in
   // this tree, so qualifying against it would rename a character for a rival nobody here can reach.
   const subjects = actorSubjects(characters);
 
@@ -193,9 +193,9 @@ interface RpgStatusCardProps {
  *  control name duplicated across them. The card is handed a `subject` that `actorSubjects` has already
  *  qualified where — and only where — it collides.
  *
- *  There is no relationship badge here (R2). It joined a seated character to a scene-cast row by
+ *  There is no relationship badge here (R2). It joined a seated character to a scene-npc row by
  *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
- *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a seated
+ *  nobody. A stance is a NPC actor's datum (it lives on `identity`, and the Scene card is its home); a seated
  *  member's relationship to the player is the story's, not a tracked plane's. */
 function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
