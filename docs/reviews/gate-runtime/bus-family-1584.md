@@ -39,10 +39,10 @@ The legacy harness physically loaded all 7,048 current authored TS/TSX files for
 
 The four converted policies have 15 final proof rows. The final conformance runtime passes all 15, and an off-tree legacy replay over the same fixture maps agrees on every flag/pass arm. Added controls cover local same-typed functions, unrelated receivers, automation compose-only wiring, arbitrary typed yield relays, wrong-channel yields, literal chat synthesis, optional injected callbacks, and conditional bus-arm types. The separate health policy adds two passing missing/nonempty fact controls.
 
-The current typed workspace differential after `3d8abaf5b` is:
+The current typed workspace differential after merging local `main` at `f4fd77dbf` is:
 
-- full loaded project: 7,049 TS/TSX files after the provider contract was added;
-- effective population per final bus policy: 1,570 files;
+- full loaded project: 7,128 TS/TSX files;
+- effective provider/policy population: 1,585 contracts/server files;
 - shared fact: 66 declared members, zero unresolved identities;
 - legacy findings for the four producer policies: 0/0/0/0;
 - final findings for the four producer policies: 0/0/0/0;
@@ -57,10 +57,11 @@ Performance was measured with `/usr/bin/time -v` under the workspace-provided `N
 | shared broad fact after correctness repair | 17.45 s policy | 33.91 s | 5.13 GB | clean |
 | final narrowed shared producer fact | 13.27 s policy; 15.64 s pass | 22.32 s | 3.01 GB | clean |
 | first-class `busProducerFact` | 10.78 s fact; 12.78 s pass | 19.43 s | 3.02 GB | clean |
+| provider after local-main merge | 17.23 s fact; 19.30 s pass | 35.31 s | 3.22 GB | clean |
 
 A proposed argument-first prefilter was discarded after it remained live beyond 3:51: resolving static/reference expressions for every call argument cost more than checking callee provenance. The retained optimization derives candidate injected door names from callable declarations, admits direct authored `{type: ...}` arguments, validates every candidate semantically, and makes `.publish` prove the canonical bus-channel origin.
 
-The provider run is still about twice the legacy process wall in isolation. The final runtime shares its typed Project, checker, physical source walk, and providers with the rest of the gate fleet; the atomic cutover performance/RSS battery must measure that composed command before acceptance. No compatibility adapter or second workspace loader was added.
+The provider remains slower than legacy in isolation, and the merged-tree run shows material timing variance under the larger corpus/current host load. The final runtime shares its typed Project, checker, physical source walk, and providers with the rest of the gate fleet; the atomic cutover performance/RSS battery must measure repeated composed commands before acceptance. No compatibility adapter or second workspace loader was added.
 
 A no-grant generic-producer probe remains blocked: it correctly finds the intentional `UserBusEvent.connectionsChanged` debt but also misses the live `chatsChanged` relay through a conditional local event, `publishUserEvent`, and `defineBusChannel.publish`. The four policy modules are therefore not consolidated yet; typed callable-declaration/call-edge indexing must prove that relay before any retirement.
 
