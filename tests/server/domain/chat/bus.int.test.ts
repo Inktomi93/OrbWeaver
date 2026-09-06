@@ -229,10 +229,60 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
     const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
     expect(rows.map((r) => r.type)).toEqual(["delta"]);
-    // The live fan is skipped (we cannot prove what seq landed), but the ROW stands — the recoverable half.
+    // The live fan is skipped, but the ROW stands — the recoverable half.
     expect(emitted).toBeNull();
     expect(bus.readRing(chatId)).toEqual([]);
+    // Still exactly one ERROR (a stranded live subscriber is not a warning); #1544 changed only WHICH claim
+    // it makes — the branch-apart pins below own the two messages.
     expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  // ── #1544: the terminal drop is reported BY BRANCH, because the two branches are opposite facts ────────
+  // #1537 made the whole retry re-use ONE event id, which created a second way to reach the terminal drop:
+  // the first attempt COMMITTED and the same-id retry tripped the PK. There the row — and therefore its
+  // replay slot — STANDS, and only the live fan was lost, so "its replay slot is permanently missing" was
+  // exactly backwards. The branch is decided on GROUND TRUTH (does the row under our id hold OUR event),
+  // never on the driver's error code — the same rule the header states for `classifyFailedAppend`, and the
+  // reason the second pin below matters: a bare id-existence probe would call it "committed" when the row
+  // under that id belongs to a DIFFERENT event.
+  const liveFanLostMsg =
+    "chat bus: DURABLE APPEND reported failure AFTER committing on a live chat — only the LIVE FAN was lost; the row and its replay slot stand (a reconnect delivers it exactly once)";
+  const replayGapMsg = "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing";
+
+  test("#1544 the AFTER-COMMIT retry is reported as a lost live fan, naming the seq that stands", async () => {
+    const chatId = await seedChat(db, "drop-msg-committed");
+    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+
+    const reported = errorSpy.mock.calls.find((call) => call[1] === liveFanLostMsg);
+    expect(reported).toBeDefined();
+    // The seq the reconnect will deliver — the whole point of saying the slot stands.
+    expect(reported?.[0]).toMatchObject({ chatId, type: "delta", seq: 1 });
+    // The false claim is GONE from this branch (still ERROR, just no longer backwards).
+    expect(errorSpy.mock.calls.map((call) => call[1])).not.toContain(replayGapMsg);
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  test("#1544 a genuinely LOST event still reports a permanent replay gap (the row under that id is someone else's)", async () => {
+    const chatId = await seedChat(db, "drop-msg-lost");
+    // A constant event id: the `chatUpdated` below takes the id first, so the delta's own append can never
+    // land — a row EXISTS under that id and it is NOT this event. Ground truth, not id-existence.
+    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => castId<ChatEventId>("chat_event_1544_fixed") });
+    await bus.emit({ type: "chatUpdated", chatId });
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+
+    await expect(bus.emit(deltaEvent(chatId))).resolves.toBeNull();
+
+    expect(errorSpy.mock.calls.map((call) => call[1])).toContain(replayGapMsg);
+    expect(errorSpy.mock.calls.map((call) => call[1])).not.toContain(liveFanLostMsg);
+    expect(warnSpy.mock.calls.map((call) => call[1])).not.toContain(liveFanLostMsg);
     errorSpy.mockRestore();
     warnSpy.mockRestore();
   });

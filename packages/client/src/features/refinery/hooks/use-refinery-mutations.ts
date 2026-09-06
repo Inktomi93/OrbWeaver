@@ -35,6 +35,7 @@
 // need, the preset cap under it, the knob) — so the toast keys on the structured wire field and quotes the
 // server's own sentence for them; "try again" stays the honest copy for the codeless arm alone.
 
+import { CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -80,6 +81,23 @@ const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([REFINERY_STAGE_NOT_
  */
 function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
   return (error): string => (QUOTED_REFUSAL_REASONS.has(refineryFailureReason(error)) ? (refineryFailureMessage(error) ?? fallback) : fallback);
+}
+
+/** The client-owned copy for `CHARACTER_STALE_BASIS` (#1551) — belt 14's refusal (`apply-fields.ts`)
+ *  surfaces through the INJECTED `character.update`, so the reason arrives on this same tRPC error shape
+ *  but is a CHARACTER code, not one of refinery's own three. `character-refusal-notice.ts` (in
+ *  `features/character/lib`) owns the canonical wording for every `character.*` refusal, but a feature may
+ *  not import another feature at runtime (`client-features-no-cross`) — so this is refinery's OWN copy of
+ *  the same sentence, never the server's raw one, kept beside its sibling reasons rather than echoed. */
+const CHARACTER_STALE_BASIS_TOAST_COPY = "This character changed elsewhere while the apply was being prepared. Reload it and try again.";
+
+/** `codedRefusalAwareToast`'s twin for the ONE non-refinery coded refusal `applyFields` can surface
+ *  (belt 14's `CHARACTER_STALE_BASIS`, thrown by the injected `character.update`): named copy, never the
+ *  server's raw sentence (character's own message is written for the character editor, not this surface),
+ *  falling through to refinery's own coded-refusal handling for everything else. */
+function applyFieldsErrorToast(fallback: string): (error: unknown) => string {
+  const refineryAware = codedRefusalAwareToast(fallback);
+  return (error): string => (refineryFailureReason(error) === CHARACTER_STALE_BASIS_OP_CODE ? CHARACTER_STALE_BASIS_TOAST_COPY : refineryAware(error));
 }
 
 // ── session lifecycle ───────────────────────────────────────────────────────────────────────────────
@@ -166,7 +184,7 @@ export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refi
   // refusal below is the whole outcome.
   busDriven: true,
   refusal: applyRefusal,
-  errorToast: codedRefusalAwareToast("Couldn't apply that rewrite."),
+  errorToast: applyFieldsErrorToast("Couldn't apply that rewrite."),
 });
 
 type ApplyAsCopyResult = inferOutput<Trpc["refinery"]["applyAsCopy"]>;

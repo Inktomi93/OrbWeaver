@@ -129,7 +129,7 @@ function toChatInput(args: {
     // Deliberately FALSE: an example is not the user's own conversation, and must not drag the seeded pack
     // into their memory index on first boot (PD-78's backfill enqueue gates on this).
     isRealConversation: false,
-    roster: seats.slice(1).map((s) => s.characterId),
+    characterIds: seats.slice(1).map((s) => s.characterId),
     ...(demo.metadata === undefined ? {} : { metadata: demo.metadata }),
     messages: spoken.map((m) => toMessageInput(m, seatsByName, m.sendDate ?? createdAt)),
   };

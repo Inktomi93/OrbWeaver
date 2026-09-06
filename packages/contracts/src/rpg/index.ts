@@ -38,9 +38,9 @@ export type {
   RpgActorOpField,
   RpgActorRef,
   RpgActorVolatile,
-  RpgCastGuideField,
-  RpgCastRef,
   RpgInventoryItem,
+  RpgNpcGuideField,
+  RpgNpcRef,
   RpgRelationship,
 } from "./actor.ts";
 export {
@@ -48,15 +48,15 @@ export {
   clampActorCardName,
   RPG_ACTOR_IDENTITY_TEXT_FIELDS,
   RPG_ACTOR_OP_FIELDS,
-  RPG_CAST_GUIDE_FIELDS,
+  RPG_NPC_GUIDE_FIELDS,
   rpgActorEntrySchema,
   rpgActorIdentitySchema,
   rpgActorOpSchema,
   rpgActorRefSchema,
   rpgActorVolatileSchema,
-  rpgCastRefSchema,
-  rpgCastSlug,
   rpgInventoryItemSchema,
+  rpgNpcRefSchema,
+  rpgNpcSlug,
   rpgPromotedCardDescription,
   rpgRelationshipSchema,
 } from "./actor.ts";
@@ -331,4 +331,4 @@ export type {
   RpgTrackerView,
   RpgTurnToolCallsView,
 } from "./views.ts";
-export { RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";
+export { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";

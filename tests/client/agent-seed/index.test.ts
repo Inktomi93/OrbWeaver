@@ -98,8 +98,8 @@ function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
   client.rpg.patchSheet.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "patchSheet"));
   client.rpg.editSnapshot.mutate = vi.fn(({ chatId }: { readonly chatId: ChatId }) => apply(chatId, "editSnapshot", { ok: true }));
   client.rpg.patchActor.mutate = vi.fn(
-    ({ chatId, targetRef }: { readonly chatId: ChatId; readonly targetRef: { readonly kind: string; readonly castKey?: string } }) =>
-      apply(chatId, `patchActor:${targetRef.kind === "cast" ? targetRef.castKey : targetRef.kind}`, { ok: true }),
+    ({ chatId, targetRef }: { readonly chatId: ChatId; readonly targetRef: { readonly kind: string; readonly npcKey?: string } }) =>
+      apply(chatId, `patchActor:${targetRef.kind === "npc" ? targetRef.npcKey : targetRef.kind}`, { ok: true }),
   );
   client.rpg.upsertQuest.mutate = vi.fn(({ chatId, name }: { readonly chatId: ChatId; readonly name: string }) => apply(chatId, `upsertQuest:${name}`));
   client.rpg.addJournalEntry.mutate = vi.fn(({ chatId, title }: { readonly chatId: ChatId; readonly title: string }) =>
@@ -163,8 +163,8 @@ test("game() fires editSnapshot for the scene half + patchActor for player and b
   const targets = client.rpg.patchActor.mutate.mock.calls.map((c: readonly [{ readonly targetRef: unknown }]) => c[0].targetRef);
   expect(targets).toEqual([
     { kind: "user", userId: USER_ID },
-    { kind: "cast", castKey: "mira" },
-    { kind: "cast", castKey: "corvin" },
+    { kind: "npc", npcKey: "mira" },
+    { kind: "npc", npcKey: "corvin" },
   ]);
 });
 

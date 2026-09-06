@@ -12,7 +12,7 @@
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { clampActorCardName, rpgCastSlug } from "@orb/contracts/rpg";
+import { clampActorCardName, rpgNpcSlug } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -30,7 +30,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const VESNA = { kind: "cast", castKey: "vesna" } as const;
+const VESNA = { kind: "npc", npcKey: "vesna" } as const;
 const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
@@ -53,7 +53,7 @@ async function seedGame(): Promise<{
 /** Put Vesna on stage with an identity the story wrote and tracked state the host hand-pinned — the shape a
  *  real promotion candidate has after an acquaintance. */
 async function seedVesna(service: ReturnType<typeof makeRpgService>["service"], chatId: ChatId): Promise<void> {
-  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: ["cast:vesna"] } });
+  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: ["npc:vesna"] } });
   await service.patchActor({
     principal: HOST,
     chatId,
@@ -78,8 +78,8 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   await seedVesna(service, chatId);
   const before = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   // The pins the host stamped under her CAST key — the half a naive re-key drops.
-  expect(before?.fieldLocks?.["actorState.cast:vesna.volatile.status"]).toBe(true);
-  expect(before?.fieldLocks?.["actorState.cast:vesna.volatile.trackerValues.trust"]).toBe(true);
+  expect(before?.fieldLocks?.["actorState.npc:vesna.volatile.status"]).toBe(true);
+  expect(before?.fieldLocks?.["actorState.npc:vesna.volatile.trackerValues.trust"]).toBe(true);
 
   expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toStrictEqual({ ok: true, issues: [] });
 
@@ -108,10 +108,10 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   // The pins are RE-BASED, not released: the host froze those fields, and promotion is not consent to unfreeze.
   expect(after?.fieldLocks?.[`actorState.${promotedKey}.volatile.status`]).toBe(true);
   expect(after?.fieldLocks?.[`actorState.${promotedKey}.volatile.trackerValues.trust`]).toBe(true);
-  expect(after?.fieldLocks?.["actorState.cast:vesna.volatile.status"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.npc:vesna.volatile.status"]).toBeUndefined();
   // The identity pins go with the identity half — a pin on a field that no longer exists is a trap with no
   // Release affordance attached to anything.
-  expect(after?.fieldLocks?.["actorState.cast:vesna.identity.mood"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.npc:vesna.identity.mood"]).toBeUndefined();
 
   // The panel re-resolves (§4.9) and the mint fired UNDER THE HOST with the card content the verb derived.
   expect(fakes.busEvents.at(-1)).toMatchObject({ type: "snapshotPatched", chatId });
@@ -128,7 +128,7 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(description).not.toContain("guarded");
 });
 
-test("the promoted actor is projected as a ROSTER member carrying her state — not as a cast NPC, and not twice", async () => {
+test("the promoted actor is projected as a ROSTER member carrying her state — not as an npc, and not twice", async () => {
   const { chatId, service } = await seedGame();
   await seedVesna(service, chatId);
   await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
@@ -141,8 +141,8 @@ test("the promoted actor is projected as a ROSTER member carrying her state — 
   expect(vesna[0]?.identity).toBeNull();
   expect(vesna[0]?.presence).toBe(true);
   expect(vesna[0]?.volatile?.status).toBe("limping");
-  // And she is no longer a cast actor at all — the Scene tab's cast list is `kind === "cast"`.
-  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+  // And she is no longer an npc at all — the Scene tab's npc list is `kind === "npc"`.
+  expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
 test("a NAME the chat roster already carries is REFUSED as data — no card, no seat, no write", async () => {
@@ -160,7 +160,7 @@ test("a NAME the chat roster already carries is REFUSED as data — no card, no 
   expect(fakes.promoteMints).toHaveLength(0);
   expect(fakes.narratorPosts).toHaveLength(slotsBefore);
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(after?.actorState?.map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["vesna"]);
+  expect(after?.actorState?.map((a) => (a.actorRef.kind === "npc" ? a.actorRef.npcKey : ""))).toEqual(["vesna"]);
 });
 
 test("promoting an actor the game does not track is ERRORS-AS-DATA — the mint never runs", async () => {
@@ -168,7 +168,7 @@ test("promoting an actor the game does not track is ERRORS-AS-DATA — the mint 
 
   const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
   expect(refused.ok).toBe(false);
-  expect(refused.ok === false && refused.reason).toContain("cast:vesna");
+  expect(refused.ok === false && refused.reason).toContain("npc:vesna");
   expect(fakes.promoteMints).toHaveLength(0);
 });
 
@@ -184,7 +184,7 @@ test("a durable-half refusal (an exhausted card handle) leaves the actor exactly
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(after?.actorState?.[0]?.actorRef).toEqual(VESNA);
   expect(after?.actorState?.[0]?.identity?.name).toBe("Sister Vesna");
-  expect(after?.presentCharacters).toEqual(["cast:vesna"]);
+  expect(after?.presentCharacters).toEqual(["npc:vesna"]);
 });
 
 test("#723 retry after the card and seat land reuses them, then completes the actor re-key", async () => {
@@ -207,21 +207,21 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
 });
 
 // ── #1386: the card HANDLE is the character namespace's, so it is minted by that namespace's engine ──────
-// `rpgCastSlug` is the ACTOR-KEY engine (never merge two people: NFC-preserving, marks kept, never
+// `rpgNpcSlug` is the ACTOR-KEY engine (never merge two people: NFC-preserving, marks kept, never
 // truncated). A character handle answers to different law — the per-owner `characters_owner_handle_unique`
 // index and the 200-char wire cap — and `slugifyHandle` is its one home. Minting the handle with the actor
 // engine let a model-authored NPC name (`rpgActorIdentitySchema.name` has NO max) produce a handle the
 // character namespace's own create schema refuses.
 
-/** Put a cast actor on stage under her canonical key with the display name the story wrote. */
+/** Put an npc on stage under her canonical key with the display name the story wrote. */
 async function seedCastActor(service: ReturnType<typeof makeRpgService>["service"], chatId: ChatId, names: readonly string[]): Promise<readonly string[]> {
-  const keys = names.map((name) => rpgCastSlug(name));
-  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: keys.map((key) => `cast:${key}`) } });
+  const keys = names.map((name) => rpgNpcSlug(name));
+  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: keys.map((key) => `npc:${key}`) } });
   for (const [index, key] of keys.entries()) {
     await service.patchActor({
       principal: HOST,
       chatId,
-      targetRef: { kind: "cast", castKey: key },
+      targetRef: { kind: "npc", npcKey: key },
       ops: [{ op: "setIdentityText", field: "name", text: names[index] ?? "" }],
     });
   }
@@ -236,13 +236,13 @@ test("#1386 the promoted handle is `slugifyHandle`'s, and it fits the character 
   // refuses at 200.
   const long = `Sœur ${"あ".repeat(300)}`;
   const [key] = await seedCastActor(service, chatId, [long]);
-  await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+  await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
 
   const handle = fakes.promoteMints[0]?.handle ?? "";
   expect(handle).toBe(slugifyHandle(long));
   expect(createCharacterSchema.shape.handle.safeParse(handle).success).toBe(true);
   // The two engines genuinely disagree here — the pin would be vacuous if they did not.
-  expect(handle).not.toBe(rpgCastSlug(long));
+  expect(handle).not.toBe(rpgNpcSlug(long));
 });
 
 test("#1386 two NPCs named in different scripts promote to two DISTINCT handles under one owner", async () => {
@@ -255,7 +255,7 @@ test("#1386 two NPCs named in different scripts promote to two DISTINCT handles 
   const names = ["李明", "Мария", "محمد"];
   const keys = await seedCastActor(service, chatId, names);
   for (const key of keys) {
-    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key } })).toStrictEqual({ ok: true, issues: [] });
+    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key } })).toStrictEqual({ ok: true, issues: [] });
   }
   const handles = fakes.promoteMints.map((mint) => mint.handle);
   expect(handles).toHaveLength(names.length);
@@ -275,7 +275,7 @@ test("#1449 a 300-char NPC name promotes: the card name is clamped and the trunc
   const long = `Sœur ${"あ".repeat(300)}`;
   const [key] = await seedCastActor(service, chatId, [long]);
 
-  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
 
   // The clamped value the mint actually received — the SAME pure clamp the contract test pins, so the two
   // can never disagree about what "clamped" means.
@@ -294,7 +294,7 @@ test("#1449 a 300-char NPC name promotes: the card name is clamped and the trunc
 test("#1449 a short NPC name promotes cleanly: no truncation, no issue", async () => {
   const { chatId, service, fakes } = await seedGame();
   const [key] = await seedCastActor(service, chatId, ["Sister Vesna"]);
-  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: key ?? "" } });
+  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
   expect(result).toStrictEqual({ ok: true, issues: [] });
   expect(fakes.promoteMints[0]?.name).toBe("Sister Vesna");
 });

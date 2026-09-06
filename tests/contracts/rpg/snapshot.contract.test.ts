@@ -64,7 +64,7 @@ test("the GAME-subject tracker values live on the snapshot, keyed by tracker key
 });
 
 test("presentCharacters is a pure PRESENCE plane — actor-ref KEYS, nothing else (R2)", () => {
-  // It used to carry the cast NPC's whole identity row, which is why departure destroyed her name, mood,
+  // It used to carry the npc's whole identity row, which is why departure destroyed her name, mood,
   // relationship and standing guides while her tracked state survived invisibly on `actorState`. Identity
   // now rides the actor row; this plane answers exactly one question — who stands in the scene.
   const state = rpgSnapshotStateSchema.parse({
@@ -72,9 +72,9 @@ test("presentCharacters is a pure PRESENCE plane — actor-ref KEYS, nothing els
     calendarDate: null,
     weather: null,
     fieldLocks: null,
-    presentCharacters: ["cast:the-elder", "user:u_1"],
+    presentCharacters: ["npc:the-elder", "user:u_1"],
   });
-  expect(state.presentCharacters).toEqual(["cast:the-elder", "user:u_1"]);
+  expect(state.presentCharacters).toEqual(["npc:the-elder", "user:u_1"]);
   // A roster ref is a legal presence entry (a character on stage), and an object row is not a key.
   expect(
     rpgSnapshotStateSchema.safeParse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, presentCharacters: [{ key: "x" }] }).success,
@@ -124,10 +124,10 @@ test("the hand-patch planes are the state planes MINUS the op-shaped ones (deriv
 
 test("the actor lock bases are the ONE grammar the server stamp and the panel pin both read", () => {
   const userId = newId<UserId>();
-  expect(rpgActorLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira");
+  expect(rpgActorLockBase({ kind: "npc", npcKey: "mira" })).toBe("actorState.npc:mira");
   expect(rpgActorLockBase({ kind: "user", userId })).toBe(`actorState.user:${userId}`);
   // R2 — the half segments are REAL path segments, not naming: the merge walks the stored JSON, so a path
   // that skipped `volatile`/`identity` would pin nothing at all.
-  expect(rpgActorVolatileLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira.volatile");
-  expect(rpgActorIdentityLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira.identity");
+  expect(rpgActorVolatileLockBase({ kind: "npc", npcKey: "mira" })).toBe("actorState.npc:mira.volatile");
+  expect(rpgActorIdentityLockBase({ kind: "npc", npcKey: "mira" })).toBe("actorState.npc:mira.identity");
 });

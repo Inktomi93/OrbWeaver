@@ -33,7 +33,8 @@ export type PluginInvokeArgs = string | ((chatHandle: string | null) => string);
 
 /** A tool the guest registered via `host.tools.register` — collected at activation. `parameters` is the
  *  guest-supplied raw JSON Schema (lifted host-side at registration); `name` is the guest-local name the
- *  host namespaces to `plugin_<slug'>_<name>` before registering into the ONE tool-use registry. */
+ *  host namespaces to `plugin_<slug'>_<name>` before registering into the ONE tool-use registry
+ *  ({@link pluginToolWireName} — `slug'` doubles the slug's hyphens, and that is load-bearing). */
 export interface PluginToolRegistration {
   readonly name: string;
   readonly description: string;
@@ -42,7 +43,8 @@ export interface PluginToolRegistration {
 }
 
 /** THE ONE MINT of a plugin tool's MODEL-VISIBLE wire name, `plugin_<slug'>_<name>` (`slug'` = the install
- *  slug with `-` → `_`, because the OpenAI/MCP function-name charset has no hyphen).
+ *  slug with `-` → `__`, because the OpenAI/MCP function-name charset has no hyphen; the DOUBLING is what
+ *  makes the mint injective — the proof is on {@link pluginToolWireName} below).
  *
  *  WHY IT IS A FUNCTION AND NOT A TEMPLATE LITERAL AT THE REGISTRAR (U3): two call sites now need the same
  *  answer — `entry/compose` mints it when it registers the guest's tool, and `plugin.listSurfaces` derives it
@@ -56,17 +58,42 @@ export interface PluginToolRegistration {
  *  it matches on and the prefix this mint emits are the same string by construction. */
 export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
 
-/** NOT INJECTIVE, and the wall is elsewhere — say so here rather than let a reader assume it: a slug's `-`
- *  and a tool name's `_` are indistinguishable once flattened, so `("foo-bar", "baz")` and
- *  `("foo", "bar_baz")` both spell `plugin_foo_bar_baz` with both halves independently valid
- *  (`SLUG_RE`, `PLUGIN_TOOL_NAME_RE`). A colliding pair is refused LOUDLY at registration — per installer, by
- *  `domain/tool-use`'s `registerPluginTool` (`ToolNameCollisionError`, activation-fatal for the second
- *  plugin), never silently overwritten — so the collision costs an install, not a mis-routed call. Making the
- *  flattening injective instead would RENAME the tools of every already-installed hyphen-slug plugin and
- *  orphan the `ToolCallRecord.name` on every persisted tool card, so it is a migration decision, not a local
- *  fix. */
+/** INJECTIVE, and the proof lives here because the whole app depends on it (#1391, owner ruling 2026-09-05).
+ *
+ *  IT USED NOT TO BE. The transliteration was `-` → `_`, so a slug's hyphen and a tool name's underscore were
+ *  indistinguishable once flattened: `("foo-bar","baz")` and `("foo","bar_baz")` both spelled
+ *  `plugin_foo_bar_baz` with both halves independently valid (`SLUG_RE`, `PLUGIN_TOOL_NAME_RE`). The wall was
+ *  `domain/tool-use`'s per-installer uniqueness refusal, so the collision was loud rather than silent — but it
+ *  cost the second plugin its whole activation, and two legitimately named plugins could not coexist. The
+ *  owner ruled for the injective form plus a migration of the persisted spellings, over keeping the refusal.
+ *
+ *  THE PROOF. `SLUG_RE` is `^[a-z0-9][a-z0-9-]{1,63}$` and `PLUGIN_TOOL_NAME_RE` is `^[a-z][a-z0-9_]{0,40}$`,
+ *  so: a slug contains NO `_` and never begins with `-`; a name never begins with `_`. Doubling each hyphen
+ *  gives a flattened slug in which every maximal `_` run has EVEN length (exactly 2 per hyphen) and which
+ *  never begins with `_`. The single `_` separator therefore lands at the end of a run of length `2k+1`
+ *  (`k` = the slug's trailing hyphens) — ODD — and every run before it is even.
+ *
+ *  DECODE RULE (the constructive half — strip {@link PLUGIN_TOOL_NAME_PREFIX}, scan maximal `_` runs left to
+ *  right, take the FIRST odd-length run; its LAST byte is the separator; everything before it is the
+ *  flattened slug, `__` → `-`, and everything after it is the name). Decode is total on the image, so the
+ *  mint is injective. It is stated rather than shipped: nothing in the app decodes a wire name — the client
+ *  consumes the server's projected `toolWireName` and the #1391 data migration keys off the installed
+ *  plugins' own slugs — so a production decoder would be an unused second home for the rule. The rule is
+ *  PINNED as an executable decoder in `tests/contracts/plugin/ui.contract.test.ts`, which is what keeps this
+ *  proof falsifiable.
+ *
+ *  LENGTH IS A SEPARATE, PRE-EXISTING WALL, not a regression of this change: `domain/tool-use`'s
+ *  `TOOL_NAME_RE` caps a registry name at 64 bytes, which `plugin_` + a 64-byte slug + `_` + a 41-byte name
+ *  already exceeded under the old flattening (113). Doubling raises the worst case, and a hyphen-dense slug
+ *  that busts the cap is refused LOUDLY at `registerPluginTool` (`ToolNameCollisionError`, activation-fatal
+ *  for that plugin) exactly as before — never truncated, never silently mis-routed.
+ *
+ *  THE COLLISION REFUSAL AT `registerPluginTool` SURVIVES this change and is still reachable: one plugin
+ *  registering the same tool twice, a second copy of the same slug on one shelf, a name a first-party tool
+ *  already holds, and the length case above. What it no longer has to catch is two DIFFERENT slugs flattening
+ *  alike — that arm is now unreachable by construction, and the property pin above is what proves it. */
 export function pluginToolWireName(slug: string, name: string): string {
-  return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "_")}_${name}`;
+  return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "__")}_${name}`;
 }
 
 /** THE ONE MINT of a plugin's PER-CARD state key inside a character card's `data.extensions` object —
@@ -77,7 +104,8 @@ export function pluginToolWireName(slug: string, name: string): string {
  *  promised (a portable, ST-`writeExtensionField`-shaped per-card blob that survives import↔export), and both
  *  the persistence write op and any reader must derive the exact same key or silently target the wrong field.
  *
- *  UNLIKE `pluginToolWireName` it does NOT `-`→`_` the slug: a card extensions object key is a JSON string with
+ *  UNLIKE `pluginToolWireName` it does NOT transliterate the slug's hyphens at all: a card extensions object
+ *  key is a JSON string with
  *  no charset restriction (the OpenAI/MCP function-name charset that forces the tool-name substitution does not
  *  apply), so D148's `plugin_<slug>` uses the RAW slug verbatim. That is unambiguous because a slug can never
  *  contain `_` (`SLUG_RE` is `[a-z0-9][a-z0-9-]{1,63}`), so the ONE `_` in the key is always the separator — and
@@ -108,7 +136,9 @@ export interface PluginDisplayTransformRegistration {
 
 /** A macro the guest registered via `host.macros.register` — collected at activation (plugin-ui-plane §5.15).
  *  `name` is the HOST-NAMESPACED spelling (`plugin_<slug'>_<name>`, assigned domain-side from the re-validated
- *  manifest slug — never guest-supplied), so a plugin macro can shadow neither a builtin nor another plugin's.
+ *  manifest slug — never guest-supplied, and minted through {@link pluginToolWireName} so the tool plane and
+ *  the macro plane can never spell one namespace two ways), so a plugin macro can shadow neither a builtin
+ *  nor another plugin's.
  *  `handler` is re-entered ONCE PER TURN by the assembly pre-pass, and its (neutralized) answer is registered
  *  as that turn's value for the macro — plugin macros are DATA into the ONE kit engine, never a second one. */
 export interface PluginMacroRegistration {

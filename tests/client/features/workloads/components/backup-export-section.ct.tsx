@@ -152,3 +152,39 @@ test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails
   expect(socket.attachedChannels()).toEqual(["workloads:workload_ct_import"]);
   expect(socket.connects()).toBe(1);
 });
+
+// #1598/#1709/#1710 — the flattened per-file `notes` a finished `import-bundle` workload carries (a plane a
+// file's import deliberately did not assert, e.g. an embedded lorebook KEPT because the character already
+// held a primary book). The count summary above ("12 imported · 1 skipped") is silent on WHICH plane was
+// kept; the notes are the only place that says so.
+test("import: a bundle workload's flattened notes render beside the count summary", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES });
+  await page.route("**/api/import/bundle", async (route) => {
+    await route.fulfill({
+      status: 202,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ workloadId: "workload_ct_import_notes" }),
+    });
+  });
+  await routeImportWorkloadSocket(page, [
+    {
+      type: "succeeded",
+      workloadId: castId<WorkloadId>("workload_ct_import_notes"),
+      kind: "import-bundle",
+      at: 1_750_000_002_000,
+      result: { imported: 1, skipped: 0, failed: 0, notes: ["book kept: primary already exists"] },
+    },
+  ]);
+
+  await mount(<BackupSettingsStory />);
+  await page.getByTestId("backup-import-dropzone").setInputFiles({
+    name: "backup.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("PK"),
+  });
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+
+  await expect(page.getByTestId("import-report")).toBeVisible();
+  await expect(page.getByText("1 imported")).toBeVisible();
+  await expect(page.getByText("book kept: primary already exists")).toBeVisible();
+});

@@ -93,8 +93,8 @@ function actorIds(ref: RpgActorRef): { characterId: CharacterId | null; userId: 
   if (ref.kind === "user") {
     return { characterId: null, userId: ref.userId };
   }
-  // `cast` actors have no identity sheet (they are scene-only NPCs — their state is the volatile plane).
-  throw new DomainOperationError("rpg_cast_has_no_sheet", "a cast actor has no identity sheet");
+  // `npc` actors have no identity sheet (they are scene-only NPCs — their state is the volatile plane).
+  throw new DomainOperationError("rpg_cast_has_no_sheet", "an npc has no identity sheet");
 }
 
 /** Merge the MA-4 patch onto the current sheet (omit = keep). `level` uses key-presence (`"level" in patch`),

@@ -110,7 +110,7 @@ export interface TrackerChipProps {
   readonly label: string;
   readonly value: string;
   /** WHOSE reading this is, for the editable value's accessible name (side-eye 08-01): a Scene tab with two
-   *  cast cards offered two buttons both called "Trust value" and two called "Role value", so a
+   *  npc cards offered two buttons both called "Trust value" and two called "Role value", so a
    *  name-navigating reader could not tell Sera's trust from Mara's. Absent ⇒ the bare label (a chip with no
    *  subject, e.g. a game-level reading). */
   readonly subject?: string;
@@ -146,9 +146,9 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 4. CAST CARD — extracted to ./cast-card-slots.tsx beside its three header slots (the component-size cap;
-//    the ambient-strip precedent). The card and the slots it composes are ONE unit: CastRelationship,
-//    CastMood and CastGuides have no other consumer, and the card is nothing but their arrangement.
+// 4. NPC CARD — extracted to ./npc-card-slots.tsx beside its three header slots (the component-size cap;
+//    the ambient-strip precedent). The card and the slots it composes are ONE unit: NpcRelationship,
+//    NpcMood and NpcGuides have no other consumer, and the card is nothing but their arrangement.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

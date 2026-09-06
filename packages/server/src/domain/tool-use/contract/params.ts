@@ -48,7 +48,7 @@ export interface ToolExecutionContext {
   readonly turnId: ChatTurnId | null;
   /** The caller's loaded membership, fed to can() for `scope:"chat"` ceilings. `null` when `chatId` is
    *  null — a chat-scoped tool executing then is an errors-as-data denial, never a crash. */
-  readonly roster: ChatMembership | null;
+  readonly membership: ChatMembership | null;
   /** Cross-role cancellation, threaded from the turn; honoring it is the handler's job. */
   readonly signal?: AbortSignal | undefined;
 }
@@ -101,9 +101,9 @@ export interface PluginToolSpec {
    *  and only the composition root may reach chat's roster — it binds chat's `loadPresentRole` over the db and
    *  the installer's own userId, the SAME op the transform registrar and the event fan-out already use.
    *
-   *  Why an op and not `can()`: `can(installer, action, {kind:"chat", roster})` is a pure verdict over the
-   *  roster HANDED IN, and the only roster at invocation time is the TURN CALLER's
-   *  (`ToolExecutionContext.roster`) — so the read arm could never deny (`decideChat("read")` returns
+   *  Why an op and not `can()`: `can(installer, action, {kind:"chat", membership})` is a pure verdict over the
+   *  membership HANDED IN, and the only membership at invocation time is the TURN CALLER's
+   *  (`ToolExecutionContext.membership`) — so the read arm could never deny (`decideChat("read")` returns
    *  unconditionally) and the host arm answered "is the CALLER host", handing an installer `canWrite:true`
    *  inside a room they are not in. A ceiling over the wrong principal is not a ceiling. */
   readonly resolveInstallerRole: (chatId: ChatId) => Promise<ParticipantRole | null>;

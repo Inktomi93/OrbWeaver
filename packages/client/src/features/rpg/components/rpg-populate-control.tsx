@@ -7,7 +7,7 @@
 // fill-don't-overwrite rule is stated because it is what makes a second click safe.
 //
 // The two REFUSALS the server owns are mirrored as DISABLED-WITH-A-REASON, never a hidden control (the
-// APPLICABILITY class): a `user`/`cast` actor has no card to read, and a connection with no structured writer
+// APPLICABILITY class): a `user`/`npc` actor has no card to read, and a connection with no structured writer
 // could only no-op. Host-only is the separate PERMISSION-omit — the takeover renders this at all only for the
 // host, mirroring `populateFromCharacter`'s own `resolveHost` gate.
 //

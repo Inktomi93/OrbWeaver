@@ -27,6 +27,25 @@ test('a topbar.trail widget curated `mobile:"sheet"` projects into the sheet, in
   await expect(sheet.getByTestId("trail-sheet-lens")).toHaveText("trail:sheet");
 });
 
+// ── THE SHEET PROJECTS BY BEHAVIOR KIND, NEVER BY ID (#1789) ─────────────────────────────────────────
+// The ⌘K palette's sheet row used to come from the sheet's OWN `useModalRegistry()` lookup for the one
+// `topbar.trail`-placed modal — a hardcoded row beside a blind projection, which is how the same modal
+// could be listed twice or not at all. It is now the same `topbar.trail` entry the desktop trail renders,
+// curated `mobile: "sheet"`, and the sheet's rule is stated in terms of KIND: a ROW-shaped overflow entry
+// (modal/section) joins the row group; a WIDGET renders its own `body("sheet")` lens in the block below.
+// RED on 43ae0481a: the lookup and the projection both fired, so "Jump to…" resolved to TWO rows.
+test("a topbar.trail MODAL curated for the sheet is ONE row, and it joins the row group", async ({ mount }) => {
+  const sheet = await mount(<YouSheetProjectionStory />);
+  const group = sheet.getByRole("group", { name: "Account and settings" });
+
+  await expect(sheet.getByText("Jump to…", { exact: true })).toHaveCount(1);
+  await expect(group.getByText("Jump to…", { exact: true })).toBeVisible();
+  // …and the WIDGET half of the same rule: its lens is a panel, so it keeps its own block outside the row
+  // group. One filter, two presentations — the kinds are what decides, never the entry's id.
+  await expect(sheet.getByTestId("trail-sheet-lens")).toBeVisible();
+  await expect(group.getByTestId("trail-sheet-lens")).toHaveCount(0);
+});
+
 // ── THE OTHER HALF OF THE BAR'S SWAP (#484) ──────────────────────────────────────────────────────────
 // The current section takes a bar slot while you stand in it, so it leaves this list — and the tab it
 // displaced arrives here. One derivation feeds both surfaces (`mobileBarCuration`) precisely so that

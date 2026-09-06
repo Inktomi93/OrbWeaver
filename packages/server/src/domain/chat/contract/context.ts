@@ -104,12 +104,17 @@ export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>
 export type ChatToolSet = unknown;
 
 /** The identity frame the loop hands `executeToolCalls`. Deliberately no `Principal` — the engine is
- *  principal-blind. `roster` is null until a chat-scoped registrant exists. */
+ *  principal-blind. `membership` is null until a chat-scoped registrant exists.
+ *
+ *  `membership` was `roster` before #1010 and `participants` between #1010 and #1772: #1010's local
+ *  `roster → participants` pass reached this PropertySignature and took vocabulary-map row 44's LIST word
+ *  for a row-45 single-`{role}` value. Row 44's own residue list already said this field's word is
+ *  `membership`; #1772 landed it. */
 export interface ChatToolExecFrame {
   readonly runAsUserId: UserId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
-  readonly participants: ChatMembership | null;
+  readonly membership: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
    *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
   readonly turnId: ChatTurnId;
@@ -698,6 +703,12 @@ export interface RpgTurnContext {
    *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are
    *  NOT on the committed variant's `toolCalls` — they exist only here. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
+  /** The terminal tool NAMES a registry tool already owned, so the whole channel was withheld this turn
+   *  (#1617) — empty on every ordinary turn, and the ONLY thing that distinguishes the two ways
+   *  `terminalToolCalls` arrives `null`. Without it the consumer reads a withheld-for-collision channel as
+   *  "this wire cannot carry terminal tools", which is false and sends an operator to look at the model.
+   *  Names, not a flag: the fix is per-declaration and belongs to whichever contributor re-spelled one. */
+  readonly terminalToolsCollided: readonly string[];
   /** WHO ran this turn (`prep.triggeredBy`, D19) — the OWNER the rpg state round's cancellation is scoped to.
    *  Threaded because {@link ChatRpgOps.cancelStateRounds} mirrors `activeTurns.abort`'s owner-only semantics
    *  (the rollback-theft defense): without an owner on the round, a member's Stop would cancel ANOTHER member's

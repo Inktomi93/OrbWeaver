@@ -78,6 +78,12 @@ function ArgInput({
   if (spec.type === "enum") {
     return (
       <Field description={spec.describe} label={argLabel(spec)}>
+        {/* The `aria-label` STAYS, for a DIFFERENT reason than the Switch above (#1632 item 1, refusing a
+            sweep that read this as the Input arm's twin): it is dead on the TRIGGER — the Field's
+            `aria-labelledby` outranks it, measured in `tests/client/a11y/field-control-name.suite.ct.tsx` —
+            but `select.tsx`'s hidden-input effect sources that input's ONLY name from this attribute and
+            falls back to the literal "Hidden select value". Dropping it trades a real name for a generic one
+            on an element axe scans. The primitive's header states the rule; this site cites it. */}
         <Select
           aria-label={spec.name}
           items={(spec.enumValues ?? []).map((option) => ({ label: option, value: option }))}

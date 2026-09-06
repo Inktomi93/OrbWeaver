@@ -143,6 +143,25 @@ async function resolveRegexScriptRooms(db: Db, scriptId: RegexScriptId): Promise
   return rows.map((row) => row.chatId);
 }
 
+/** The same junction read for a LIST of scripts, keeping WHICH script reached each room. Both regex delete
+ *  verbs take an id list, and `bulkRemoveScripts` learns only AFTER its one owner-scoped statement which of
+ *  those ids were really its own — so the capture must snapshot per script and the thunk filter by the
+ *  confirmed set, or a foreign id in the list would fan a stranger's room. One round trip, not N. */
+async function resolveRegexScriptsRooms(db: Db, scriptIds: readonly RegexScriptId[]): Promise<Map<RegexScriptId, ChatId[]>> {
+  const byScript = new Map<RegexScriptId, ChatId[]>();
+  if (scriptIds.length === 0) {
+    return byScript;
+  }
+  const rows = await db
+    .select({ chatId: chatRegexScripts.chatId, scriptId: chatRegexScripts.regexScriptId })
+    .from(chatRegexScripts)
+    .where(inArray(chatRegexScripts.regexScriptId, [...scriptIds]));
+  for (const row of rows) {
+    byScript.set(row.scriptId, [...(byScript.get(row.scriptId) ?? []), row.chatId]);
+  }
+  return byScript;
+}
+
 /** THE DECLARATIVE REACH TABLE. `satisfies` is the belt: a new `RoomEntityKind` fails tsc here until it says
  *  which rooms read it. Not exported — the fan below is the only consumer, and the table is the engine's own
  *  dispatch, not a shape anyone else re-derives. */
@@ -181,6 +200,12 @@ function fanTo(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void, entity: Roo
 export interface DeleteReachCapture {
   readonly persona: (personaId: PersonaId) => Promise<() => void>;
   readonly "world-info": (bookId: WorldBookId) => Promise<() => void>;
+  /** REGEX (#1746) — plural, and its thunk takes the CONFIRMED-deleted subset. Both regex delete verbs work
+   *  over an id LIST, and `bulkRemoveScripts` deliberately never pre-reads for ownership (one owner-scoped
+   *  DELETE … RETURNING is the whole verb), so the ids the caller NAMED are not the ids that were deleted.
+   *  Snapshotting per script and fanning only the confirmed set is what keeps a foreign id in a bulk list
+   *  from nudging a stranger's room. */
+  readonly regex: (scriptIds: readonly RegexScriptId[]) => Promise<(deleted: readonly RegexScriptId[]) => void>;
 }
 
 /** Resolve one kind's rooms and return the fan thunk, ERROR-ISOLATED like the domain-event subscriber
@@ -207,6 +232,31 @@ export function createDeleteReachCapture(db: Db, emitRoomEvent: (event: LiveOnly
   return {
     persona: (personaId) => captureRooms(() => resolvePersonaRooms(db, personaId), "persona", emitRoomEvent),
     "world-info": (bookId) => captureRooms(() => resolveWorldInfoRooms(db, bookId), "world-info", emitRoomEvent),
+    regex: (scriptIds) => captureRegexScriptRooms(db, scriptIds, emitRoomEvent),
+  };
+}
+
+/** The regex arm of the capture above. Same error-isolation contract (a reach-query failure degrades to
+ *  fanning nothing and NEVER rejects, so the delete that follows can never be faulted by the freshness
+ *  lookup), and the same live-only fan — the difference is only the plural id and the confirmed-set filter.
+ *  ONE `roomEntityChanged` per reached ROOM, not per deleted script: the payload is id-free by design
+ *  (contracts §3.3), so a second event for the same room carries no new information and buys a second
+ *  refetch of the read the first one already invalidated. */
+async function captureRegexScriptRooms(
+  db: Db,
+  scriptIds: readonly RegexScriptId[],
+  emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+): Promise<(deleted: readonly RegexScriptId[]) => void> {
+  const byScript = await resolveRegexScriptsRooms(db, scriptIds).catch((err: unknown): Map<RegexScriptId, ChatId[]> => {
+    getLog().warn({ err, entity: "regex" }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
+    return new Map();
+  });
+  return (deleted): void => {
+    fanTo(
+      emitRoomEvent,
+      "regex",
+      deleted.flatMap((scriptId) => byScript.get(scriptId) ?? []),
+    );
   };
 }
 
@@ -216,8 +266,11 @@ export function createDeleteReachCapture(db: Db, emitRoomEvent: (event: LiveOnly
 //   • the ROOM's own junction moved (`attachToChat` / `detachFromChat` / the chat arm of `applyScopeOrder`) —
 //     the verb already holds the `chatId`, so there is nothing to resolve; a reach lookup would be a query
 //     that re-derives its own argument.
-//   • a LIBRARY ROW moved (`updateScript`, `bulkSetScriptsEnabled` — the section's row switch, which is
-//     off-EVERYWHERE by design) — the rooms are `ROOM_REACH.regex`'s answer.
+//   • a LIBRARY ROW moved (`updateScript`, `bulkSetScriptsEnabled`, `bulkSetScriptsPlacement` — the section's
+//     row switch is off-EVERYWHERE by design, and a placement change moves what the row's tier RUNS) — the
+//     rooms are `ROOM_REACH.regex`'s answer, resolved AFTER the write because the rows survive it.
+//   • a LIBRARY ROW was DELETED (`removeScript`, `bulkRemoveScripts`, #1746) — `chat_regex_scripts` CASCADEs
+//     with the row, so a post-write reach is ∅ ALWAYS. That is the delete-capture shape above, not this one.
 // Both are injected into `RegexContext` as flat ops (the `captureRoomReachForDelete` posture: the DOMAIN
 // declares the op it needs, the composition root owns the fan and the SQL). Before them, all three chat-arm
 // verbs emitted a `regexChanged` USER event only, so a host's attach repainted the host and left every other

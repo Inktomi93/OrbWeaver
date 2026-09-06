@@ -6,7 +6,7 @@
 import { ConfirmDialog } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ConfirmDialogControlledHarness, ConfirmDialogRejectingHarness } from "./confirm-dialog.fixtures.tsx";
+import { ConfirmDialogControlledHarness, ConfirmDialogNonThenableHarness, ConfirmDialogRejectingHarness } from "./confirm-dialog.fixtures.tsx";
 
 test("uncontrolled: renders the given trigger, opens on click, confirms and closes", async ({ mount, page }) => {
   let confirmed = 0;
@@ -140,4 +140,28 @@ test("Cancel still abandons a failed confirm, and reopening starts clean (#1563)
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByRole("alertdialog").locator('[data-slot="confirm-dialog-failure"]')).toHaveCount(0);
+});
+
+// A `(): void` HANDLER MAY STILL RETURN A VALUE (#1632 item 6). `void` erases the return TYPE, never the
+// runtime value, so TypeScript assigns `() => number` to `() => void` without a murmur — and the composite's
+// old `settle === undefined` gate then handed that value to `settle.then(…)`. The throw lands INSIDE the
+// click handler, so the reader gets the worst arm of all: a confirm that neither closes nor says anything,
+// with its own retry button doing the same nothing. The guard asks the only honest question at a seam that
+// takes `void` from callers it cannot see the bodies of — "can I await this" — so a non-thenable takes the
+// done-on-click arm, exactly like `undefined`.
+//
+// RED-FIRST RECEIPT: run against the unmodified `confirm-dialog.tsx`, this test fails at the final
+// `toBeHidden` (the dialog is still up, the state DID flip since the handler ran before the throw).
+test("a state-only confirm whose handler returns a NON-THENABLE still closes (#1632)", async ({ mount, page }) => {
+  const component = await mount(<ConfirmDialogNonThenableHarness />);
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Apply" }).click();
+
+  // The act ran on click, which is what a state-only confirm means…
+  await expect(component.getByTestId("confirm-nonthenable-state")).toHaveText("applied");
+  // …and nothing was left in flight, so the dialog is DONE — no failure line, no held-open confirm.
+  await expect(page.getByRole("alertdialog")).toBeHidden();
 });

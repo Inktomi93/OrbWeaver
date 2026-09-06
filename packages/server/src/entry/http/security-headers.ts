@@ -222,9 +222,11 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
  * ERROR PATHS, measured rather than reasoned (security review 2026-09-05, #1594 / #1615): a handler that
  * throws an `Error` is caught by hono's `compose()` at THAT handler's own dispatch frame, which runs
  * `app.onError` there and assigns `context.res` — so this middleware's `await next()` resolves normally and
- * the post-`next()` write below DOES reach the 500 (fully policied). The only un-policied error path is a
- * NON-`Error` throw: `compose()`'s `err instanceof Error && onError` predicate fails, the value is rethrown
- * past every middleware, and the adapter's own 500 goes out bare.
+ * the post-`next()` write below DOES reach the 500 (fully policied). The NON-`Error` throw that used to
+ * escape it (`compose()`'s `err instanceof Error && onError` predicate fails, the value is rethrown past
+ * every middleware, the adapter's own 500 goes out bare) is closed by {@link normalizeThrownErrors}, which
+ * `entry/app.ts` mounts immediately INSIDE this middleware. There is no remaining un-policied error path
+ * below that mount.
  */
 export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler {
   // Both arms are built ONCE at wiring time; the per-request work is the boolean read + a dispatch.
@@ -241,6 +243,50 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
       // `hono/secure-headers` awaits its `next` and then `.set()`s onto `c.res`, so handing it a spent
       // chain writes the app headers onto the already-produced response without re-running anything.
       await appPolicy()(c, RESPONSE_ALREADY_PRODUCED);
+    }
+  };
+}
+
+/** The normalised message. It names the closed `typeof` vocabulary and NEVER the value — the value itself
+ *  is untyped and may be anything, so it rides as `cause` (diagnostics) and never as text we assemble. */
+const NON_ERROR_THROWN = "a non-Error value was thrown; normalised so app.onError can police the response: typeof ";
+
+/**
+ * MAKE EVERY FAILURE REACH THE POLICY WRITER (#1761). hono's `compose()` routes a throw to `app.onError`
+ * only when `err instanceof Error` (`node_modules/hono/dist/compose.js`); any other thrown value is
+ * rethrown out of every dispatch frame, out of `app.fetch`, and answered by the ADAPTER — a 500 with no
+ * CSP, no `X-Frame-Options`, no `nosniff`, no `X-Request-Id`, and no entry in the observability ring
+ * (the #1479 class, for the non-`Error` half). This middleware converts such a value into an `Error` so
+ * the normal error path runs.
+ *
+ * THE MOUNT POSITION IS THE FIX, not the conversion. `compose()` catches at the frame that throws, and the
+ * `onError` result is assigned there — so every middleware OUTSIDE that frame sees `await next()` resolve
+ * and gets to run its post-`next()` write, while everything INSIDE has already unwound. Converting here
+ * means `onError` runs at THIS frame, which {@link securityHeaders} still encloses: its header write lands
+ * on the 500. Mounted the other way round — normalising ABOVE the header middleware — `onError` would run
+ * at a frame the writer no longer encloses and the bare 500 would ship exactly as before.
+ *
+ * So it is mounted ONCE PER POST-`next()` WRITER, and `entry/app.ts` (which owns the order) states the pair:
+ * immediately inside `securityHeaders`, and again immediately inside `observability` — otherwise the 500
+ * this makes possible would carry the headers but no `X-Request-Id` and no request-ring entry.
+ *
+ * AN `Error` PASSES THROUGH UNTOUCHED (same instance, not re-wrapped): `app.onError`'s classifiers and the
+ * observability handler read the thrown error's identity, so a blanket wrap would change every existing
+ * error path. This only ever converts what would otherwise have escaped unhandled.
+ *
+ * DISCLOSURE: the response is unchanged — the fixed 500 text `app.onError` already returns, with no echo of
+ * the thrown value. The value reaches only the same host-gated sinks an `Error`'s own message already does
+ * (the pino line + the trace's exception event), as `cause`.
+ */
+export function normalizeThrownErrors(): MiddlewareHandler {
+  return async (_c, next) => {
+    try {
+      await next();
+    } catch (thrown) {
+      if (thrown instanceof Error) {
+        throw thrown;
+      }
+      throw new Error(`${NON_ERROR_THROWN}${typeof thrown}`, { cause: thrown });
     }
   };
 }

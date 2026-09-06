@@ -7,13 +7,14 @@
 // field and never the message. The message is deliberately included in the fixtures AND deliberately never
 // asserted — a mapper that matched on prose would pass these tests and break on the first server reword.
 
-import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE } from "@orb/contracts/character";
+import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { describe } from "vitest";
 // Deep import the PURE lib module (NOT the feature barrel): a barrel import drags browser TSX into the
 // dom-less root `typecheck:graph` program (the `character-list-view.test.ts` precedent).
 import {
   CHARACTER_HANDLE_CONFLICT_COPY,
   CHARACTER_HANDLE_RESERVED_COPY,
+  CHARACTER_STALE_BASIS_COPY,
   characterMutationToast,
   characterRefusalCopy,
 } from "../../../../../packages/client/src/features/character/lib/character-refusal-notice.ts";
@@ -40,6 +41,12 @@ describe("characterMutationToast", () => {
   test("the reserved synthetic-group namespace gets its own reason", () => {
     const error = refusal(CHARACTER_HANDLE_RESERVED_OP_CODE, 'handle "__group__x" is reserved for synthetic group characters');
     expect(characterMutationToast(error, CREATE_FALLBACK)).toBe(CHARACTER_HANDLE_RESERVED_COPY);
+  });
+
+  test("#1551: CHARACTER_STALE_BASIS gets its own client-owned copy, never the server's raw sentence", () => {
+    const error = refusal(CHARACTER_STALE_BASIS_OP_CODE, "This character changed while the edit was being prepared — reload it and apply the change again.");
+    expect(characterMutationToast(error, CREATE_FALLBACK)).toBe(CHARACTER_STALE_BASIS_COPY);
+    expect(characterMutationToast(error, CREATE_FALLBACK)).not.toBe(CREATE_FALLBACK);
   });
 
   test("a genuine fault still toasts the caller's verb-specific fallback — nothing is swallowed or relabelled", () => {

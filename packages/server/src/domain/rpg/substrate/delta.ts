@@ -72,7 +72,7 @@ function volatileKey(row: ActorState[number]): string {
   if (ref.kind === "user") {
     return `user:${ref.userId}`;
   }
-  return `cast:${ref.castKey}`;
+  return `npc:${ref.npcKey}`;
 }
 
 /** A per-actor renderer's shared body: correlate prev↔cur volatile rows by actor key, name each actor, and let
@@ -95,20 +95,55 @@ function perActor(
 }
 
 /** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
- *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); a `cast` NPC
+ *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); an `npc` actor
  *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
  *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
  *  roster map has no name for the key (a gone member — never a crash). */
 function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   const ref = row.actorRef;
-  if (ref.kind === "cast") {
-    return row.identity?.name ?? ref.castKey;
+  if (ref.kind === "npc") {
+    return row.identity?.name ?? ref.npcKey;
   }
   const named = ctx.rosterNames[volatileKey(row)];
   if (named !== undefined && named !== "") {
     return named;
   }
-  return ref.kind === "character" ? "character" : "you";
+  return ROSTER_GENERIC[ref.kind];
+}
+
+/** The WORD a roster ref degrades to when nothing names it — one home, because two callers need it: this
+ *  file's row-bearing {@link actorLabel} and the row-LESS {@link presenceName} fallback below. A second
+ *  spelling would drift, and the drift is invisible: both arms only fire when a name is already missing. */
+const ROSTER_GENERIC: Readonly<Record<"character" | "user", string>> = { character: "character", user: "you" };
+
+/** The separator {@link volatileKey} composes an actor-ref key with. */
+const REF_KEY_SEP = ":";
+
+/** The label an actor-ref KEY degrades to when NO actor row answers it — keyed by the ref KIND, as a mapped
+ *  Record over the same three kinds `volatileKey` composes (§5.5: a fourth kind fails `tsc` here rather than
+ *  silently degrading to a raw key). Every value is a WORD: the two id-bearing kinds take the shared generic
+ *  above, and an `npc` key's tail is its AUTHORED SLUG — not an id, and exactly what {@link actorLabel} itself
+ *  falls back to when an npc row carries no identity. */
+const ORPHAN_PRESENCE_LABEL: Readonly<Record<"character" | "user" | "npc", (tail: string) => string>> = {
+  character: () => ROSTER_GENERIC.character,
+  user: () => ROSTER_GENERIC.user,
+  npc: (tail) => tail,
+};
+
+/** A presence key nothing at all can name (a corrupt/unknown kind) — the degrade's degrade. Still a word:
+ *  this string is MODEL-FACING, and the one thing it may never be is an id. */
+const UNKNOWN_PRESENT_ACTOR = "someone";
+
+/** The row-LESS arm of {@link presenceName}: name a presence key whose actor row is gone. The roster map is
+ *  keyed by the SAME projection, so it answers first — a roster member listed on stage before her row exists
+ *  is the common case; only then does the kind-derived word apply. */
+function orphanPresenceName(key: string, ctx: DeltaContext): string {
+  const named = ctx.rosterNames[key];
+  if (named !== undefined && named !== "") {
+    return named;
+  }
+  const entry = Object.entries(ORPHAN_PRESENCE_LABEL).find(([kind]) => key.startsWith(`${kind}${REF_KEY_SEP}`));
+  return entry === undefined ? UNKNOWN_PRESENT_ACTOR : entry[1](key.slice(entry[0].length + REF_KEY_SEP.length));
 }
 
 // There is NO `hp` renderer (R3): health is an ordinary `meter` tracker, so its delta line is emitted by
@@ -344,10 +379,16 @@ interface PresenceSlice {
  *  MUST go through {@link actorLabel}, because a ROSTER actor carries no identity by design: her name lives in
  *  `ctx.rosterNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
  *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
- *  never model-facing"). One helper, both readers. */
+ *  never model-facing"). One helper, both readers.
+ *
+ *  THE ROW-LESS ARM CLOSES THE SAME HOLE ONE STEP FURTHER OUT (#1468 item 6). This used to return the KEY
+ *  when no actor row matched — so a presence entry whose row had gone (a rekey that lost it, a hand edit that
+ *  dropped an actor still listed on stage, a stale key surviving a restore) printed `character:chr_…` /
+ *  `user:usr_…` into exactly the two model-facing surfaces the roster join was fixed for. The row's absence is
+ *  a reason to name the actor less precisely, never a licence to emit an id. */
 function presenceName(key: string, actors: ActorState, ctx: DeltaContext): string {
   const row = actors.find((a) => volatileKey(a) === key);
-  return row === undefined ? key : actorLabel(row, ctx);
+  return row === undefined ? orphanPresenceName(key, ctx) : actorLabel(row, ctx);
 }
 
 /** Present cast — joined / left the scene (`+Zandik enters`, `-Mari leaves`), matched by actor-ref key. (A
@@ -404,7 +445,7 @@ function relationshipDisplay(rel: NonNullable<ActorState[number]["identity"]>["r
   return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
 }
 
-/** Relationship (feature 1, §2.1) — a per-cast stance TRANSITION (`Mari: friend → wary`), matched by the
+/** Relationship (feature 1, §2.1) — a per-npc stance TRANSITION (`Mari: friend → wary`), matched by the
  *  ACTOR's ref key. Since R2 the stance rides the actor row, so it survives departure: a returning NPC's turn
  *  is a real transition line instead of the silent reset-from-blank the destroyed presence row produced. This
  *  line IS the steering loop's closed signal (the delta block's referent for "let the change land"). A

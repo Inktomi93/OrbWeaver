@@ -182,7 +182,7 @@ describe("importGroupChats", () => {
     const call = written.calls[0];
     // ST's FIRST member is the room's primary; the rest are the extra roster seats, in ST's own order.
     expect(call?.characterId).toBe(ARIA);
-    expect(call?.chats[0]?.roster).toEqual([BRAM]);
+    expect(call?.chats[0]?.characterIds).toEqual([BRAM]);
     // Aria resolves by `original_avatar` (the FILENAME — the identity key); Bram's line carries none so the
     // roster-scoped display name resolves it; the user slot is never character-attributed; and an off-roster
     // speaker carries NO characterId, which the write op's own contract reads as "the run's primary".
@@ -212,7 +212,7 @@ describe("importGroupChats", () => {
     expect(result.skippedMembers).toEqual([
       { group: "Group: Aria + Bram", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
     ]);
-    expect(written.calls[0]?.chats[0]?.roster).toEqual([]);
+    expect(written.calls[0]?.chats[0]?.characterIds).toEqual([]);
   });
 
   test("a group whose members ALL fail to resolve is skipped with a reason and writes nothing", async () => {
@@ -315,7 +315,7 @@ describe("importGroupChats", () => {
     const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Bram.png"] })]));
 
     // The cast is unchanged — Bram keeps his seat (the recorded ruling)…
-    expect(written.calls[0]?.chats[0]?.roster).toEqual([BRAM]);
+    expect(written.calls[0]?.chats[0]?.characterIds).toEqual([BRAM]);
     // …and the write op is handed the mute for exactly that seat (the knob the room is born with).
     expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: BRAM, disabled: true }]);
     expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Bram.png" }]);

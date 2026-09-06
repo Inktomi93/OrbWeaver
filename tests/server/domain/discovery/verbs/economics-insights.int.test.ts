@@ -10,7 +10,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedCharacterParticipant, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
@@ -63,6 +63,8 @@ describe("forgottenGems", () => {
       name: "Invested",
     });
     const light = await seedCharacter(db, { id: "character_lite", ownerId: owner, name: "Light" });
+    await seedCharacterParticipant(db, chat, invested);
+    await seedCharacterParticipant(db, chat, light);
 
     // Invested: 2 assistant turns, tokensOut 30 + 40 = 70.
     await seedMessage(db, {
@@ -103,6 +105,7 @@ describe("forgottenGems", () => {
     const owner = await seedUser(db, "user_estimated");
     const chat = await seedChat(db, "chat_estimated");
     const character = await seedCharacter(db, { id: "character_estimated", ownerId: owner, name: "Estimated" });
+    await seedCharacterParticipant(db, chat, character);
     await seedMessage(db, {
       id: "m_estimated",
       chatId: chat,
@@ -138,6 +141,9 @@ describe("modelRouting", () => {
     const lover = await seedCharacter(db, { id: "character_love", ownerId: owner, name: "Lover" });
     // A character with NO distilled genre — its turns can't be attributed, so they're skipped.
     const unlabelled = await seedCharacter(db, { id: "character_x", ownerId: owner, name: "X" });
+    await seedCharacterParticipant(db, chat, hero);
+    await seedCharacterParticipant(db, chat, lover);
+    await seedCharacterParticipant(db, chat, unlabelled);
     await seedGenre(db, hero, "adventure");
     await seedGenre(db, lover, "romance");
 

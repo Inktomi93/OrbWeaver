@@ -25,6 +25,7 @@ import { parseExampleBlocks } from "../lib/example-messages.ts";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
 import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
 import { CharacterRegexScriptsField } from "./character-regex-scripts-field.tsx";
+import { CharacterRestoreBookAction } from "./character-restore-book-action.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -250,6 +251,10 @@ function ProvenanceFacet({ form, readOnly }: { readonly form: CardForm; readonly
         </FieldLayout>
       </Section>
       <CharacterProvenanceSection {...readOnly} />
+      {/* #1709 — the #1598 restore door has no home until now. Gated on `importedFrom`: a hand-authored
+          card has no card file to restore an embedded book FROM, and `CharacterProvenanceSection` above
+          already hides the whole Provenance section on that same condition. */}
+      <CharacterRestoreBookAction canRestore={readOnly.importedFrom !== null} />
     </Stack>
   );
 }

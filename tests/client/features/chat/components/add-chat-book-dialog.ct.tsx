@@ -1,4 +1,4 @@
-// CT: the host-only lorebook picker owns its attach until the durable mutation settles. A held response
+// CT: the host-only world book picker owns its attach until the durable mutation settles. A held response
 // makes pending stable; same-tick repeat dispatch proves the handler guard, and a held rejection proves
 // the dialog remains visible with a retry path instead of closing on an uncommitted intent.
 
@@ -56,7 +56,7 @@ test("a rejected attach stays visible and retryable, then closes after the retry
   await rejected.requested;
   rejected.release(trpcError());
 
-  await expect(page.getByRole("alert")).toContainText("Couldn't attach the lorebook to this chat.");
+  await expect(page.getByRole("alert")).toContainText("Couldn't attach the world book to this chat.");
   await expect(attach).toBeEnabled();
   await expect(dialog.getByTestId("book-picker-closes")).toHaveText("0");
 

@@ -28,7 +28,13 @@ import type { ReactElement } from "react";
  *  editor header and the list row both take). It decides which promise the second clause makes. */
 export function BuiltInCopyOnWriteNotice({ active }: { readonly active: boolean }): ReactElement {
   return (
-    <Text data-slot="preset-built-in-notice" prose={true} role="note" voice="gloss">
+    // `prose` states the LENGTH (step + leading) and deliberately carries no width — the measure is the
+    // paragraph's own, and `@orb/ui`'s text variants say to pair the two. Unpaired it ran the editor's whole
+    // content column: `design-audit` filed a P3 `line-length` here at 97 characters (60 CSS ch) against the
+    // 80-character ceiling, on the same Params arm as #1770's row-voids. `--reading-measure-prose` is the
+    // TEACHING/BODY measure (#1145) and resolves in this element's own font, which is why it sits here and
+    // not on a wrapper.
+    <Text className="max-w-(--reading-measure-prose)" data-slot="preset-built-in-notice" prose={true} role="note" voice="gloss">
       This is the built-in default, and editing it never changes it. Your first edit saves your own copy of it
       {active ? ", and that copy becomes your active preset." : ", and the editor follows you to the copy."}
     </Text>

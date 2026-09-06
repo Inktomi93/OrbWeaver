@@ -21,7 +21,10 @@ export interface ThemeRowMenuProps {
   readonly onEdit: () => void;
   readonly onDuplicate: () => void;
   readonly onExport: () => void;
-  readonly onDelete: () => void;
+  /** MAY return a promise (#1563b, widened #1632): it reaches `RowActionsMenu.destructive.onConfirm` →
+   *  `ConfirmDialog.onConfirm`, which awaits it — the confirm holds open busy and stays open with the reason
+   *  on rejection. `() => void` accepted an async handler anyway, so the type said the opposite. */
+  readonly onDelete: () => void | Promise<void>;
 }
 
 /** A theme's ⋯ — Apply · (Edit in builder) · Duplicate · Export · (Delete, confirm-gated). */

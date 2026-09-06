@@ -39,7 +39,7 @@ const VIEWER_SETTINGS_ROUTE: Readonly<Record<string, unknown>> = {
 const RUN_NOW_ITEM = /Run now/u;
 const LAST_RAN_LINE = /^Last ran /u;
 /** The defect this row killed: a TEXT BOX asking for a lorebook id. Any textbox named for the lorebook knob. */
-const LOREBOOK_TEXTBOX = /Lorebook/u;
+const LOREBOOK_TEXTBOX = /World book/u;
 /** WCAG 2.5.5's coarse-pointer target floor — asserted on the RESOLVED token before it is trusted, so a
  *  fine-pointer run (where the token answers 28) cannot read as a pass. */
 const WCAG_TOUCH_FLOOR_PX = 44;
@@ -96,7 +96,7 @@ const PACING_PRESET = {
   spends: true,
   knobs: [
     { key: "everyN", kind: "number", label: "Every N beats", default: 8, min: 2, max: 200 },
-    { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", maxLength: 600 },
+    { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", minLength: 1, maxLength: 600 },
   ],
 };
 
@@ -107,14 +107,14 @@ const PACING_PRESET = {
 const LORE_PRESET = {
   id: "autoAddLore",
   title: "Auto-add lore entries",
-  summary: "Every so often, offer to write what has happened into one of this room's lorebooks.",
+  summary: "Every so often, offer to write what has happened into one of this room's world books.",
   ruleCount: 1,
   confirmFirst: true,
   // #655: its only arm writes a lore entry — free. The contrast that proves the spend line is DERIVED from
   // the preset's arms rather than pasted onto every row.
   spends: false,
   knobs: [
-    { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
+    { key: "bookId", kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to write into — one of this room's own." },
     { key: "everyN", kind: "number", label: "Every N messages", default: 10, min: 2, max: 200 },
   ],
 };
@@ -140,13 +140,34 @@ const CLOCK_PRESET = {
       optionLabels: { narrate: "Narrate it in the room", notify: "Notify me" },
       default: "narrate",
     },
-    { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, maxLength: 600 },
+    { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, minLength: 1, maxLength: 600 },
   ],
 };
 
 /** Named because the #640 end-to-end drives the picker BY this name — an index read into `ROOM_BOOKS` is
  *  `possibly undefined` under the tests program's `noUncheckedIndexedAccess`, while biome's type service
  *  disagrees and calls the guarding optional chain useless, so neither `?.` nor `[0]` is spellable there. */
+// PRE-EXISTING RED, FED HERE (found 2026-09-05 by cb-injections-idiom, reproduced against a clean
+// ca853697c with all three files at HEAD): the Regex section (#1742) landed in the "This chat" tab with two
+// new reads, and the tab-mounting tests in THIS file were never swept — both `#616` and `#640` timed out
+// waiting for the host band that never rendered, and the #629 unfed-read census flagged both procs. The
+// section is closed by default here, so the disabled-and-empty projection is all these mounts need: they
+// are about the AUTOMATION graft, and a regex claim belongs to `regex-section.ct.tsx`.
+const EMPTY_REGEX_READS = {
+  "chat.listEffectiveRegex": () => ({
+    enabled: false,
+    tiers: [
+      { scope: "global", allowed: true, rows: [] },
+      { scope: "preset", allowed: true, rows: [] },
+      { scope: "chat", allowed: true, rows: [] },
+    ],
+    effective: [],
+  }),
+  "regex.listForChat": () => [],
+  "regex.listScripts": () => [],
+  "regex.listRoomDisplayScripts": () => [],
+} as const;
+
 const ATTACHABLE_BOOK_NAME = "Ashfall Canon";
 
 // The two books this room has attached — what `worldInfo.listForChat` answers, and therefore exactly the
@@ -182,8 +203,30 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
   });
 }
 
-/** Open one rule's overflow menu — where Run-now (it spends) and Delete (irreversible) live. */
+/** One rule's own collapse trigger (#886). Located through the trigger STAMP filtered by the rule's visible
+ *  name rather than by an accessible name: the trigger's name COMPUTES from its content (summary + gloss +
+ *  state line), so it is not a stable string, and the fire-log disclosure nested inside the panel never
+ *  carries the rule's name in its visible text. `.first()` is the row's own trigger in DOM order. */
+function ruleDisclosure(page: Page, name: string): Locator {
+  return page.locator('[data-slot="collapsible-trigger"]').filter({ hasText: name }).first();
+}
+
+/** Open one rule's row (#886 — Test, the overflow menu, the B4 switch and the fire-log door all moved behind
+ *  the disclosure; only the name/gloss/state summary and the enable switch stay on the closed face).
+ *  IDEMPOTENT: a plain click on an already-open row would close it, and two tests below open two rows in
+ *  sequence with an Escape between them. */
+async function openRule(page: Page, name: string): Promise<void> {
+  const trigger = ruleDisclosure(page, name);
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+    await trigger.click();
+  }
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
+
+/** Open one rule's overflow menu — where Run-now (it spends) and Delete (irreversible) live. Behind the
+ *  row's own disclosure since #886, so the row is opened first. */
 async function openRuleMenu(page: Page, name: string): Promise<void> {
+  await openRule(page, name);
   await page.getByRole("button", { name: `More actions for ${name}` }).click();
 }
 
@@ -209,6 +252,7 @@ const OFFER_LABEL = "Offer to run it when rate-capped";
 test("B4 — a SPEND rule shows the rate-capped OFFER switch, named so the visible label is speakable", async ({ mount, page }) => {
   await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);
+  await openRule(page, "Illustrate the scene");
 
   // The visible label is on the row itself, in the host's words — not "suggestOnRefusal", not "F4".
   await expect(page.getByText(OFFER_LABEL, { exact: true })).toBeVisible();
@@ -223,6 +267,7 @@ test("B4 — flipping the offer off sends setRuleSuggestOnRefusal with the ruleI
   const trpc = await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
   await page.getByRole("switch", { name: `${OFFER_LABEL} — Illustrate the scene` }).click();
 
   await expect.poll(() => trpc.count("automation.setRuleSuggestOnRefusal")).toBe(1);
@@ -239,6 +284,9 @@ test("B4 — a FREE rule shows no offer switch at all: it can never raise the in
   await mount(<RulesSectionStory chatId={CHAT} />);
 
   await expect(page.getByText("Count the beats", { exact: true })).toBeVisible(); // the row rendered…
+  // OPENED, because since #886 the switch would be behind the disclosure — asserting its absence on a
+  // closed row would pass for the wrong reason on every rule, spending or not.
+  await openRule(page, "Count the beats");
   await expect(page.getByText(OFFER_LABEL, { exact: true })).toHaveCount(0); // …without the switch.
 });
 
@@ -270,6 +318,8 @@ test("the existing Test loading state owns only its rule row while the dry run i
   const trpc = await stub(page, { rules: [RULE, FREE_RULE], testRule: held });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
+  await openRule(page, "Count the beats");
   const first = page.getByRole("button", { name: "Test Illustrate the scene" });
   const sibling = page.getByRole("button", { name: "Test Count the beats" });
   await first.click();
@@ -286,6 +336,7 @@ test("Test runs the dry-run — testRule fires and the predicate verdict + arm p
   const trpc = await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
   await page.getByRole("button", { name: "Test Illustrate the scene" }).click();
 
   await expect.poll(() => trpc.count("automation.testRule")).toBe(1);
@@ -327,7 +378,7 @@ test("the picker mints a rule from a rule preset — createRuleFromPreset fires 
 // The row's whole defect: `bookId` was a TEXT field with an empty default, so minting the stated
 // natural-first card required knowing a lorebook TypeID by heart. These four pin the replacement.
 
-test("#630: the lorebook knob is a PICKER over this chat's books — minting needs no typed id", async ({ mount, page }) => {
+test("#630: the world book knob is a PICKER over this chat's books — minting needs no typed id", async ({ mount, page }) => {
   const trpc = await stub(page, { rules: [], presets: [LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
@@ -339,10 +390,10 @@ test("#630: the lorebook knob is a PICKER over this chat's books — minting nee
   await expect(page.getByRole("textbox", { name: LOREBOOK_TEXTBOX })).toHaveCount(0);
 
   // P1-4 still holds: the form does NOT open accusing before the host has touched anything.
-  await expect(page.getByText("Choose a lorebook.")).toHaveCount(0);
+  await expect(page.getByText("Choose a world book.")).toHaveCount(0);
 
   // The chooser lists THIS ROOM's attached books, by name, and the read was scoped to this chat.
-  const chooser = page.getByRole("combobox", { name: "Lorebook" });
+  const chooser = page.getByRole("combobox", { name: "World book" });
   await expect(chooser).toBeVisible();
   await expect.poll(() => trpc.lastInput("worldInfo.listForChat")).toMatchObject({ chatId: CHAT });
   await chooser.click();
@@ -360,18 +411,18 @@ test("#630: the lorebook knob is a PICKER over this chat's books — minting nee
     .toMatchObject({ presetId: "autoAddLore", knobs: { bookId: "worldbook_ct_lore_0001", everyN: 10 } });
 });
 
-test("#630: an unchosen lorebook blocks the mint and says so in PICKING words, not typing ones", async ({ mount, page }) => {
+test("#630: an unchosen world book blocks the mint and says so in PICKING words, not typing ones", async ({ mount, page }) => {
   const trpc = await stub(page, { rules: [], presets: [LORE_PRESET] });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toBeVisible();
 
   // Pressing Add says what is missing and mints NOTHING. "Fill in" would be a small lie over a chooser.
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
-  await expect(page.getByText("Choose a lorebook.")).toBeVisible();
+  await expect(page.getByText("Choose a world book to add this rule.")).toBeVisible();
+  await expect(page.getByText("Choose a world book.")).toBeVisible();
   // Settled snapshot: the two barriers above are the RENDERED result of this very click, so the press is
   // provably processed; the recorder only grows on a request that would already have been sent.
   await expect.poll(async () => trpc.count("automation.createRuleFromPreset")).toBe(0);
@@ -384,13 +435,13 @@ test("#630: a room with NO attached books says so — an empty dropdown would be
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
 
-  await expect(page.getByText("This room has no lorebooks attached yet, so there is nothing for this rule to write into.")).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toHaveCount(0);
+  await expect(page.getByText("This room has no world books attached yet, so there is nothing for this rule to write into.")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toHaveCount(0);
   // #640: …and it now POINTS somewhere. The copy deliberately prescribed nothing while no client affordance
-  // attached a book to a chat; the "This chat" tab's Lorebooks section is that affordance, and it is the SAME
+  // attached a book to a chat; the "This chat" tab's World books section is that affordance, and it is the SAME
   // attachment `substrate/validate.ts` gates this mint on — so the sentence names the one place that makes
   // this card completable instead of leaving the host at a dead end.
-  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
+  await expect(page.getByText("Attach one under World books", { exact: false })).toBeVisible();
 });
 
 test("#630: the typed mint refusal stays reachable — a listed book that stopped qualifying is SAID", async ({ mount, page }) => {
@@ -405,7 +456,7 @@ test("#630: the typed mint refusal stays reachable — a listed book that stoppe
 
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await page.getByRole("combobox", { name: "Lorebook" }).click();
+  await page.getByRole("combobox", { name: "World book" }).click();
   await page.getByRole("option", { name: "Ashfall Canon", exact: true }).click();
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
 
@@ -431,6 +482,7 @@ test("the fire log shows a rule's recent fire", async ({ mount, page }) => {
   });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
   await page.getByRole("button", { name: "Recent activity for Illustrate the scene" }).click();
   await expect(page.getByText("Fired")).toBeVisible();
 });
@@ -497,6 +549,7 @@ test("#621 P1-1/P1-2: Test and the overflow trigger no longer compute the same c
   // Measured live pre-fix: Test / Run now / Delete were all `intent="ghost" size="sm"` and computed the
   // IDENTICAL `oklch(0.74 0.008 65)`. The free primary action now carries the secondary skin (foreground
   // ink + an edge); the overflow trigger stays ghost.
+  await openRule(page, "Illustrate the scene");
   const testAction = page.getByRole("button", { name: "Test Illustrate the scene" });
   const more = page.getByRole("button", { name: "More actions for Illustrate the scene" });
   const colourOf = (locator: typeof more): Promise<string> => locator.evaluate((el) => getComputedStyle(el).color);
@@ -557,6 +610,7 @@ test("#621 P1-5: the fire log renders `detail` — the answer the Run-now toast 
   });
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
   await page.getByRole("button", { name: "Recent activity for Illustrate the scene" }).click();
   await expect(page.getByText("Couldn't generate an image (step 1): no image connection is configured")).toBeVisible();
   // "Rate-capped" without the number is a label, not an answer.
@@ -570,6 +624,7 @@ test("#621 ARIA: the Test verdict is announced and carries its meaning as a WORD
   await stub(page);
   await mount(<RulesSectionStory chatId={CHAT} />);
 
+  await openRule(page, "Illustrate the scene");
   await page.getByRole("button", { name: "Test Illustrate the scene" }).click();
   const status = page.getByRole("status", { name: "Test result for Illustrate the scene" });
   await expect(status).toBeVisible();
@@ -613,12 +668,13 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
     "databank.listActiveForChat": () => [],
-    // #640: the tab now carries a Lorebooks section too, and its read must be fed or that boundary
+    // #640: the tab now carries a World books section too, and its read must be fed or that boundary
     // error-arms silently inside this composition.
     "worldInfo.listForChat": () => ROOM_BOOKS,
     "automation.listRules": () => [RULE],
     "automation.listFires": () => [],
     "automation.listRulePresets": () => [PACING_PRESET],
+    ...EMPTY_REGEX_READS,
   });
 
   const component = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
@@ -649,6 +705,7 @@ test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a pr
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "databank.listActiveForChat": () => [],
     "worldInfo.listForChat": () => ROOM_BOOKS,
+    ...EMPTY_REGEX_READS,
   });
 
   const component = await mount(<RulesInThisChatTabStory chatId={CHAT} isHost={false} />);
@@ -668,7 +725,7 @@ test("#616: a MEMBER's tab has no Rules section (host-only by MOUNT, not by a pr
 // so the remount below stands in for that tick — a fresh QueryClient per `mount()` (ct-data-providers.tsx).
 // The claim it proves is the one that matters and could not be checked before: the write the rack sends is
 // the write that makes the picker offer the book. The bus leg is the persona-lorebook wire, already pinned.
-test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto-add-lore card can be completed", async ({ mount, page }) => {
+test("#640 END-TO-END: a room with no books → attach in World books → the auto-add-lore card can be completed", async ({ mount, page }) => {
   // The room's attachment list, MUTABLE — the stub answers what the server would after the write lands.
   const attached: unknown[] = [];
   const trpc = await routeTrpc(page, {
@@ -684,6 +741,7 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
     "automation.listRulePresets": () => [LORE_PRESET],
     "worldInfo.listForChat": () => [...attached],
     "worldInfo.listBooks": () => ROOM_BOOKS,
+    ...EMPTY_REGEX_READS,
     "worldInfo.attachToChat": () => {
       attached.push({ id: "worldbook_ct_lore_0001", name: ATTACHABLE_BOOK_NAME, description: null, createdAt: 2, role: null });
       return null;
@@ -691,32 +749,32 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   });
 
   const before = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
-  // #830 — both halves of this walk live behind disclosures now (Lorebooks is a closed rack, Rules a closed
+  // #830 — both halves of this walk live behind disclosures now (World books is a closed rack, Rules a closed
   // graft inside the closed host band). `openContextSections` is idempotent, so the same line is correct
   // after the remount below, where the posture is already remembered.
-  await openContextSections(before, "Lorebooks", HOST_BAND, "Rules");
+  await openContextSections(before, "World books", HOST_BAND, "Rules");
 
   // ① The dead end, as reported: no books, so the card says so — and now names the way out.
   await before.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
-  await expect(page.getByText("Attach one under Lorebooks", { exact: false })).toBeVisible();
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toBeVisible();
+  await expect(page.getByText("Attach one under World books", { exact: false })).toBeVisible();
   await page.keyboard.press("Escape");
 
   // ② The way out, taken — in the same pane the sentence points at.
-  await before.getByRole("button", { name: "Attach a lorebook" }).click();
+  await before.getByRole("button", { name: "Attach a world book" }).click();
   await page.getByRole("button", { name: `Attach ${ATTACHABLE_BOOK_NAME} to this chat` }).click();
   await expect.poll(() => trpc.lastInput("worldInfo.attachToChat"), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT });
   await before.unmount();
 
   // ③ The room now carries the book — and the card that was uncompletable can be completed.
   const after = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
-  await openContextSections(after, "Lorebooks", HOST_BAND, "Rules");
+  await openContextSections(after, "World books", HOST_BAND, "Rules");
   await expect(after.getByText(ATTACHABLE_BOOK_NAME, { exact: true }).first()).toBeVisible();
   await after.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toHaveCount(0);
-  const chooser = page.getByRole("combobox", { name: "Lorebook" });
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toHaveCount(0);
+  const chooser = page.getByRole("combobox", { name: "World book" });
   await expect(chooser).toBeVisible();
   await chooser.click();
   await expect(page.getByRole("option", { name: ATTACHABLE_BOOK_NAME, exact: true })).toBeVisible();
@@ -813,18 +871,18 @@ test("#655: a prompt knob is a TEXTAREA showing the whole prompt, and a choice o
   await expect(page.getByRole("option", { name: "notify", exact: true })).toHaveCount(0);
 });
 
-test("#655: with no lorebook attached, the blocking line names the DOOR, not an impossible choice", async ({ mount, page }) => {
+test("#655: with no world book attached, the blocking line names the DOOR, not an impossible choice", async ({ mount, page }) => {
   await stub(page, { rules: [], presets: [LORE_PRESET], books: [] });
   await mount(<RulesSectionStory chatId={CHAT} />);
   const popup = await openPicker(page);
   await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
-  await expect(page.getByText("This room has no lorebooks attached yet", { exact: false })).toBeVisible();
+  await expect(page.getByText("This room has no world books attached yet", { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   // The line above Add used to say "Choose a lorebook to add this rule." — directly contradicting the field
   // three lines up, in the position a host reads LAST, and naming an action this surface cannot perform.
-  await expect(page.getByText("Attach a lorebook under Lorebooks, higher up this tab", { exact: false })).toBeVisible();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toHaveCount(0);
+  await expect(page.getByText("Attach a world book under World books, higher up this tab", { exact: false })).toBeVisible();
+  await expect(page.getByText("Choose a world book to add this rule.")).toHaveCount(0);
 });
 
 test("#655: with a book attached, the blocking line still asks for the CHOICE (the fix did not swallow the old arm)", async ({ mount, page }) => {
@@ -832,11 +890,11 @@ test("#655: with a book attached, the blocking line still asks for the CHOICE (t
   await mount(<RulesSectionStory chatId={CHAT} />);
   const popup = await openPicker(page);
   await popup.getByRole("button", { name: "Auto-add lore entries" }).click();
-  await expect(page.getByRole("combobox", { name: "Lorebook" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "World book" })).toBeVisible();
 
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await expect(page.getByText("Choose a lorebook to add this rule.")).toBeVisible();
-  await expect(page.getByText("Attach a lorebook under Lorebooks", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Choose a world book to add this rule.")).toBeVisible();
+  await expect(page.getByText("Attach a world book under World books", { exact: false })).toHaveCount(0);
 });
 
 // The reported two-step defect had two halves. This pins the heading half: the popover speaks with ONE
@@ -960,6 +1018,7 @@ test.describe("#655: coarse pointer — the fire-log door meets the touch floor"
 
     const floor = await touchFloorPx(page);
     expect(floor).toBeGreaterThanOrEqual(WCAG_TOUCH_FLOOR_PX);
+    await openRule(page, "Illustrate the scene");
     const disclosure = page.getByRole("button", { name: "Recent activity for Illustrate the scene" });
     await expect(disclosure).toBeVisible();
     // THE BOX, not `hitExtent`, and the choice is measured rather than preferred. This trigger's fix is a
@@ -1033,13 +1092,17 @@ for (const theme of THEMES) {
       const name = page.getByText("Illustrate the scene", { exact: true });
       await expect(name).toBeVisible();
 
-      // 1. The name column owns its share of the row — the trailing cluster never squeezes the identity.
+      // 1. The name column owns its share of the row — the trailing control never squeezes the identity.
+      //    RE-DERIVED AT #886: the name's own parent chain is now `Stack → CollapsibleTrigger → header Row`,
+      //    so the original `parentElement.parentElement` walk would compare the Stack against the trigger
+      //    that contains it and read ~1.0 for any geometry at all. The honest pair is the DISCLOSURE (which
+      //    carries the whole summary) against the header row that also holds the enable switch.
       await expect
         .poll(async () =>
           name.evaluate((el) => {
-            const column = el.parentElement as HTMLElement;
-            const row = column.parentElement as HTMLElement;
-            return column.getBoundingClientRect().width / row.getBoundingClientRect().width;
+            const trigger = el.closest('[data-slot="collapsible-trigger"]') as HTMLElement;
+            const row = trigger.parentElement as HTMLElement;
+            return trigger.getBoundingClientRect().width / row.getBoundingClientRect().width;
           }),
         )
         .toBeGreaterThanOrEqual(NAME_COLUMN_SHARE);
@@ -1076,16 +1139,27 @@ for (const theme of THEMES) {
         .poll(async () => await contrastBetween(page, (await readGlossAtAssertion())[0], (await readGlossAtAssertion())[1]))
         .toBeGreaterThanOrEqual(CONTRAST_AA);
 
-      // 4. Both row controls still clear the pointer's own touch floor (the RESOLVED token, never a 44).
+      // The rendered receipt of the #886 CLOSED face, taken before anything is opened.
+      await component.screenshot({ path: ctSnapPath(`cb-rules-${theme}-${width}`) });
+
+      // 4. Both row controls still clear the pointer's own touch floor (the RESOLVED token, never a 44) —
+      //    and so does the row's OWN disclosure, which is the new first control a finger meets.
       const floor = await touchFloorPx(page);
+      //    THE BOX, not `hitExtent`: `size="control"` is a real `min-h-control-sm` on the trigger, so its box
+      //    IS its target — and `hitExtent` walks out from the centre and needs a PSEUDO-carried floor to
+      //    credit an ancestor, which this trigger does not have (it measured 1px here for that reason).
+      expect(Math.round((await ruleDisclosure(page, "Illustrate the scene").boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(floor);
+      await openRule(page, "Illustrate the scene");
       const testAction = page.getByRole("button", { name: "Test Illustrate the scene" });
       const more = page.getByRole("button", { name: "More actions for Illustrate the scene" });
-      expect(await hitExtent(testAction, "y")).toBeGreaterThanOrEqual(floor);
-      expect(await hitExtent(more, "y")).toBeGreaterThanOrEqual(floor);
-      expect(await hitExtent(more, "x")).toBeGreaterThanOrEqual(floor);
-
-      // The rendered receipt for the side-eye re-pass (reports/ is ephemera, never a committed artifact).
-      await component.screenshot({ path: ctSnapPath(`cb-rules-${theme}-${width}`) });
+      //    POLLED SINCE #886, and the reason is the mechanism this row now rides: these two controls live
+      //    inside a `CollapsiblePanel`, which animates `height` from 0 with `overflow: hidden`. `aria-expanded`
+      //    flips on the press, not at the end of the fold — so a one-shot `hitExtent` mid-fold walks out of a
+      //    clipped box and reads 1px (measured: this exact arm, light @ 1024px, on the first green run). The
+      //    poll settles on the folded-open geometry instead of racing it.
+      await expect.poll(async () => await hitExtent(testAction, "y"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+      await expect.poll(async () => await hitExtent(more, "y"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+      await expect.poll(async () => await hitExtent(more, "x"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
     });
   }
 }
@@ -1221,6 +1295,9 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   await mount(<RulesSectionStory chatId={CHAT} />);
   const firstRow = page.getByText("Illustrate the scene", { exact: true });
   await expect(firstRow).toBeVisible();
+  // #886 — every action in this drive lives behind the row's disclosure now. Opened BEFORE recording, so the
+  // fold's own (click-adjacent, free) shifts cannot be confused with the three movers the budget prices.
+  await openRule(page, "Illustrate the scene");
   await recordShifts(page);
 
   // 1 — the dry run. Its verdict is inserted between the row's controls and its fire log.
@@ -1450,6 +1527,7 @@ test("#1673 a draft-rewriting rule refuses Run now — and keeps every affordanc
   // THE CONTRAST FIRST: this rule is not broken, so the controls that can act are untouched — no `readOnly`
   // switch, no error badge, a live Test.
   await expect(page.getByRole("switch", { name: "Enable Polish my draft" })).toBeVisible();
+  await openRule(page, "Polish my draft");
   await expect(page.getByRole("button", { name: "Test Polish my draft" })).toBeEnabled();
   await expect(page.getByText("Can't run", { exact: true })).toHaveCount(0);
 
@@ -1470,3 +1548,122 @@ test("#1673 a draft-rewriting rule refuses Run now — and keeps every affordanc
   await expect.poll(() => trpc.count("automation.runRuleNow")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.runRuleNow")).toMatchObject({ ruleId: "automationrule_ct_armless" });
 });
+
+// ── #886 — THE ROW WEARS THE FIELD-OVERRIDES IDIOM ─────────────────────────────────────────────────────
+// Owner ruling 2026-09-06 on side-eye `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` (§5-P3-Rules and
+// the §7 taste finding): "collapse Injections + Rules to the Field-overrides idiom". #821 did the injection
+// rows and moved this section ~800px UP the pane, into the viewport its +519px desktop / +1063px mobile
+// under-reserve had been hiding from.
+//
+// EVERY PIN BELOW ASSERTS THROUGH WHAT A HOST MEETS — the visible summary, the reachable controls, the
+// measured box — never through the new `open` state or a testid. Red-first receipts (measured 2026-09-05,
+// cb-injections-idiom, by restoring `rule-row.tsx` + `rules-section.tsx` to ca853697c): the closed-face pin
+// failed on "Test Illustrate the scene" being VISIBLE with the row shut, `ruleDisclosure` resolved nothing
+// at all (there was no row trigger to press, so `openRule` timed out), and the settled section measured
+// 764px at 367px / 1,166px at 411px against the budgets below.
+//
+// The one pin here that is a FENCE and not a defect proof is the corrupt-state arm: the unreadable badge +
+// sentence were already visible pre-#886 (the row had no closed face to hide them behind). It is kept
+// because the collapse is exactly the change that could have swallowed them, and it is labelled honestly.
+
+/** Three rules — the fixture the CLS review measured (`§Rules 185→704` desktop / `233→1296` mobile). */
+const THREE_RULES = [RULE, FREE_RULE, { ...FREE_RULE, id: "automationrule_ct3", name: "Watch the clock", lastFiredAt: null }];
+
+/** The two REAL context-panel widths the review measured the section at — the docked pane at desktop and at
+ *  430px mobile. Not the CT's roomy default: a collapse that only pays off wide is not a fix. */
+const REVIEW_WIDTHS = { desktop: 367, mobile: 411 } as const;
+
+/** The settled ceiling for three rules, per width. The review measured 704 / 1,296; the collapse must beat
+ *  those by enough that the number is a RESULT and not a rounding. Measured after the fix at 367px/411px
+ *  (see the receipts in the report); the budget carries ~15% headroom for a token retune. */
+const SETTLED_CEILING_PX = { desktop: 420, mobile: 520 } as const;
+
+test("#886: a CLOSED rule row is name + gloss + state + the enable switch, and nothing that acts", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  // The closed face carries the whole of what a rule IS — the #621 trio, unchanged.
+  await expect(page.getByText("Illustrate the scene", { exact: true })).toBeVisible();
+  await expect(page.getByText("Generate a picture of the current scene on a cadence, and post it into the room.")).toBeVisible();
+  await expect(page.getByText("Hasn't run yet.")).toBeVisible();
+  // …plus the ONE control a host scanning a list is asking about. It is not destructive and it does not spend.
+  await expect(page.getByRole("switch", { name: "Enable Illustrate the scene" })).toBeVisible();
+
+  // …and nothing that ACTS is one press from a scan-list any more.
+  await expect(page.getByRole("button", { name: "Test Illustrate the scene" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "More actions for Illustrate the scene" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Recent activity for Illustrate the scene" })).toHaveCount(0);
+  await expect(page.getByText(OFFER_LABEL, { exact: true })).toHaveCount(0);
+});
+
+test("#886: opening the row returns every affordance at its #621 weight", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await openRule(page, "Illustrate the scene");
+
+  // Test: the free dry run, still the ONE primary in the cluster, still wearing the secondary skin.
+  const testAction = page.getByRole("button", { name: "Test Illustrate the scene" });
+  await expect(testAction).toBeVisible();
+  await expect.poll(() => testAction.evaluate((el) => getComputedStyle(el).borderTopWidth)).not.toBe("0px");
+  // The fire-log door and the B4 switch came back with it.
+  await expect(page.getByRole("button", { name: "Recent activity for Illustrate the scene" })).toBeVisible();
+  await expect(page.getByText(OFFER_LABEL, { exact: true })).toBeVisible();
+  // Run-now still names its spend and still lives DEMOTED in the overflow; Delete still rides a confirm.
+  await page.getByRole("button", { name: "More actions for Illustrate the scene" }).click();
+  await expect(page.getByRole("menuitem", { name: "Run now — spends a model call" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText('Delete "Illustrate the scene"?');
+});
+
+test("#886 FENCE: an unreadable rule still states its verdict with the row SHUT", async ({ mount, page }) => {
+  // GREEN-BEFORE by construction (the pre-#886 row had no closed face at all), so this is a fence against the
+  // collapse swallowing the one state a host must meet without opening anything — not a defect proof.
+  await stub(page, { rules: [UNREADABLE_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+
+  await expect(page.getByText("Can't run", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="rule-actions-unreadable"]')).toContainText(UNREADABLE_SENTENCE);
+  // …and the refusing switch is on that same closed face.
+  await expect(page.getByRole("switch", { name: `Can't enable "Broken watcher" — its saved actions can't be read` })).toBeVisible();
+});
+
+test.describe("#886: coarse pointer — the row's own disclosure meets the touch floor", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 900 } });
+
+  test("the rule row is pressable with a finger at the mobile context width", async ({ mount, page }) => {
+    // Settled snapshot: pointer class is fixed when the browser CONTEXT is created, not by page state.
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stub(page);
+    await mount(<RulesSectionStory chatId={CHAT} width={REVIEW_WIDTHS.mobile} />);
+
+    const floor = await touchFloorPx(page);
+    expect(floor).toBeGreaterThanOrEqual(WCAG_TOUCH_FLOOR_PX);
+    const disclosure = ruleDisclosure(page, "Illustrate the scene");
+    await expect(disclosure).toBeVisible();
+    // THE BOX, not `hitExtent`: `size="control"` is a real `min-h-control-sm`, so the box IS the target.
+    await expect.poll(async () => (await disclosure.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+  });
+});
+
+for (const [arm, width] of Object.entries(REVIEW_WIDTHS)) {
+  test(`#886: three rules settle under the ceiling at the ${arm} context width (${width}px)`, async ({ mount, page }) => {
+    await stub(page, { rules: THREE_RULES });
+    const component = await mount(<RulesSectionStory chatId={CHAT} width={width} />);
+
+    // SETTLED: all three rows painted, and the picker trigger below them, before the box is read.
+    await expect(page.getByText("Illustrate the scene", { exact: true })).toBeVisible();
+    await expect(page.getByText("Count the beats", { exact: true })).toBeVisible();
+    await expect(page.getByText("Watch the clock", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add a rule", exact: true })).toBeVisible();
+
+    // THE BOX IS THE PANE, not the viewport — the positive control for the height read below. Both review
+    // widths wrap the glosses to the same line count, so the two arms legitimately measure the same height;
+    // without this the pair would read identically for the WRONG reason (a mount root sized by the 1280px
+    // CT viewport) and neither arm would be about its width at all.
+    await expect.poll(async () => Math.round((await component.boundingBox())?.width ?? 0)).toBe(width);
+
+    const ceiling = SETTLED_CEILING_PX[arm as keyof typeof SETTLED_CEILING_PX];
+    await expect.poll(async () => Math.round((await component.boundingBox())?.height ?? 0), { intervals: [20, 50, 100, 200] }).toBeLessThanOrEqual(ceiling);
+    await component.screenshot({ path: ctSnapPath(`cbii-rules-3-${arm}`) });
+  });
+}

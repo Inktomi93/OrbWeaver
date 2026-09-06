@@ -1,8 +1,8 @@
 // entry/compose/refinery — the refinery seam (R1 — docs/history/design/refinery-r0.md §9.3). Assembles the
 // RefineryContext: db + the injected clock/id determinism seam + the bound `summarize` role thunk + the
-// caller-scoped prose/preset resolvers (the distill rung, verbatim) + the four CHARACTER ops — the two
-// persistence factories (card read + signal stamp; `characters.*` keeps one writer, F6) and the two
-// service verbs (snapshot + update + the zero-write get) the apply path rides.
+// caller-scoped prose/preset resolvers (the distill rung, verbatim) + the CHARACTER ops — three
+// persistence factories (card read, signal stamp, and the #1551 snapshot retraction; `characters.*` keeps
+// one writer, F6) and the three service verbs (snapshot + update + the zero-write get) the apply path rides.
 //
 // Both halves close over the ONE per-user freshness plane (`publishUserEvent`, the house injected-emit
 // pattern — the domain never reaches at transport): the service verbs emit `refineryChanged`, and the sweep
@@ -20,7 +20,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { CharacterService } from "#domain/character";
-import { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
+import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
 import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";
 import { createRefineryService } from "#domain/refinery";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
@@ -63,6 +63,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
     stampRefinerySignals,
     snapshotCharacter: deps.character.snapshot,
+    deleteSnapshot: createDeleteSnapshot({ db: deps.db }),
     updateCharacter: deps.character.update,
     getCharacter: deps.character.get,
     duplicateCharacter: deps.character.duplicate,

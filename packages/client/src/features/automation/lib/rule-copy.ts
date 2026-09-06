@@ -76,7 +76,7 @@ function domainTriggerLabel(type: DomainTriggerType): string {
     case "persona.updated":
       return "when a persona is edited";
     case "world-info.updated":
-      return "when a lorebook is edited";
+      return "when a world book is edited";
     default: {
       const exhaustive: never = type;
       throw new Error(`unhandled domain trigger type: ${JSON.stringify(exhaustive)}`);

@@ -1,6 +1,6 @@
 // @orb/contracts/rpg/tracker — THE tracked-field unification (`docs/design/tracked-field-unification.md`
 // §5, owner-approved 2026-07-31; noun = TRACKER). ONE def replaces the four names the panel used to carry for
-// the same concept — pool (`sheet.poolDefs`), meter/cast field (`features.castFields`), band orb
+// the same concept — pool (`sheet.poolDefs`), meter/npc field (`features.castFields`), band orb
 // (`features.pinnedOrbs`), HUD widget (the dropped `rpg_hud_widgets` table). They were never siblings; they
 // were ONE def read along four AXES:
 //   • `subject` — actor (per-carrier) vs game (one value on the snapshot; the old widgets)
@@ -39,12 +39,12 @@ export const RPG_TRACKER_COLOR_RE =
   /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|oklch\(\s*\d+(\.\d+)?%?\s+\d+(\.\d+)?\s+\d+(\.\d+)?(deg)?\s*(\/\s*\d+(\.\d+)?%?\s*)?\))$/;
 
 /** Who an actor-subject tracker applies to BEFORE per-actor exceptions: a carrier CLASS (`party` = the
- *  roster's character/user actors · `npcs` = scene `cast` actors · `everyone` = both) or an explicit actor
+ *  roster's character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
  *  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters). The
- *  classes are honest to what the old surfaces actually were: pool defs were per-party-member, cast fields
+ *  classes are honest to what the old surfaces actually were: pool defs were per-party-member, npc fields
  *  were per-NPC. Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
  *
- *  The explicit arm holds ACTOR-REF KEYS (`actorRefKey`'s `character:<id>`/`user:<id>`/`cast:<name>` — the ONE
+ *  The explicit arm holds ACTOR-REF KEYS (`actorRefKey`'s `character:<id>`/`user:<id>`/`npc:<name>` — the ONE
  *  string projection every map/lock/find already keys on), not embedded ref objects: it keeps this module free
  *  of an `./actor` import (which imports THIS one for the value plane — the cycle is physics, not taste), and
  *  it stores flat, so a carrier list reads the same as a lock path. */
@@ -136,11 +136,11 @@ export function resolveTrackerMaxOverride(def: RpgTrackerDef, requested: number 
 /** The CLASS a concrete carrier belongs to — the `everyone` member is a def-side wildcard, never a carrier's
  *  own class, so it is excluded by derivation (never re-declared — spine §5.5). The caller classifies, because
  *  the caller is the one holding the `RpgActorRef`: roster identities (character/user) are `party`, scene
- *  `cast` actors are `npcs`. */
+ *  `npc` actors are `npcs`. */
 export type RpgTrackerCarrierKind = Exclude<RpgTrackerCarrierClass, "everyone">;
 
 /** One candidate carrier as the resolver sees it: the actor's ref KEY + its class + that actor's own
- *  exceptions (`sheet.trackerGrants` / `sheet.trackerRevokes` — a `cast` NPC has no sheet, so it carries empty
+ *  exceptions (`sheet.trackerGrants` / `sheet.trackerRevokes` — an `npc` actor has no sheet, so it carries empty
  *  lists and is reached through the `npcs` class or an explicit `appliesTo` list). `name` is the model/panel-
  *  facing display name, carried here so the write-surface assembly can group carriers without a second join. */
 export interface RpgTrackerCarrier {
@@ -292,7 +292,7 @@ export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | unde
 
 /** The ONE tracker gloss (`Mana 5/10 (fuels spellcasting)`). Replaces the three drifted per-concept builders
  *  the reminder used to carry (pool segs · cast-field segs · widget lines) — that drift is exactly how the
- *  R4b class was born (cast fields shipped a hint the model never saw). `null` when there is no reading.
+ *  R4b class was born (npc fields shipped a hint the model never saw). `null` when there is no reading.
  *
  *  READING-BOUND BY CONSTRUCTION, which is why it is NOT the reminder's per-carrier builder any more: an
  *  UNSET tracker glosses to `null`, so a carrier that has the tracker and no reading yet taught the model

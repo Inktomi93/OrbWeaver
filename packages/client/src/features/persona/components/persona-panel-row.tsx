@@ -42,7 +42,10 @@ export interface PersonaPanelRowProps {
   readonly onSetCurrent: () => void;
   readonly onSetDefault: () => void;
   readonly onToggleExpand: () => void;
-  readonly onDelete: () => void;
+  /** Reaches `ConfirmDialog.onConfirm` below, which AWAITS a returned promise (#1563b, widened #1632): the
+   *  confirm holds open busy, closes on resolve, stays open with the reason on rejection. `() => void`
+   *  ACCEPTED an async handler anyway, so the contract said the opposite of what the surface does. */
+  readonly onDelete: () => void | Promise<void>;
 }
 
 /** A panel persona row: click-body sets Current; avatar/name edit inline; a chevron discloses DETAILS. */
@@ -321,7 +324,9 @@ function PersonaRowMenu({
   /** The persona's own name — the destructive confirm quotes it, and a confirm body speaks to a reader who
    *  can SEE which row they opened, so it never wants the disambiguator. */
   readonly name: string;
-  readonly onDelete: () => void;
+  /** Reaches `RowActionsMenu.destructive.onConfirm` below → `ConfirmDialog.onConfirm`, which AWAITS a
+   *  returned promise (#1563b, widened #1632) — see the row's own `onDelete` above. */
+  readonly onDelete: () => void | Promise<void>;
   /** Expands the row's editor (#866 S4 — the ⋯ names what the chevron does, for the reader who opens a
    *  menu looking for a verb; the editing model's HOME is unchanged, it is the expansion). */
   readonly onEdit: () => void;

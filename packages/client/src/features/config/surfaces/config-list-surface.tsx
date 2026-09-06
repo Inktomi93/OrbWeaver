@@ -35,14 +35,10 @@ import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
 import { ConfigSearchInput } from "../components/config-search-input.tsx";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
-import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
+import { CONFIG_MODIFIED_MARKER, SAVE_FAILED_MARKER } from "../lib/config-copy.ts";
 import { CONFIG_SHELF_LABELS, configShelfLabelId } from "../lib/config-nav-model.ts";
 import { useConfigSubcategoryParts } from "../lib/config-subcategories.ts";
 import { orderConfigGroups } from "../lib/order-groups.ts";
-
-// The row marker for a section whose save FAILED (SET-SEAMS §3) — a short string so it rides ListRow's
-// `meta` slot (inside the row's aria-describedby), never a bare icon a screen reader can't read.
-const SAVE_FAILED_MARKER = "Save failed";
 
 /** The "nothing in this group differs" answer, minted once — `useConfigModified` reports only the groups
  *  that HAVE a modified section, so most groups resolve to this on every render. */

@@ -8,7 +8,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { MacroPicksSectionStory } from "../_ct-stories.tsx";
+import { MacroPicksSectionStory, MacroPicksSectionToastStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
 // inputs + the authoring home, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type
@@ -412,4 +412,52 @@ test("an unknown_macro_pick refusal is said BESIDE the knob that caused it, nami
   await expect(component.getByText("That pick is no longer one of this input's options, so nothing was saved. Pick one of: Grim, Warm.")).toBeVisible();
   // The refused write is rolled back — the trigger must not keep showing a pick the server refused.
   await expect(page.getByRole("combobox", { name: "Tone" })).toHaveText("Use default (warm)");
+});
+
+// ── ONE REFUSAL, ONE SURFACE — the half of #1582 that was never observable (#1632 item 4) ─────────────
+// `useSetUserMacroValues` suppresses its `errorToast` for `unknown_macro_pick` on the stated ground that the
+// pane always says that refusal beside the knob, so a toast on top would be one refusal in two spellings.
+// Nothing pinned it: every test above mounts `MacroPicksSectionStory`, whose `CtDataProviders` QueryClient
+// has NO MutationCache error channel at all, so the toast half is invisible there and a "no toast" assertion
+// would read zero with the suppression removed too. These two mount the REAL app QueryClient + the
+// production Toaster, and they come as a PAIR: the second is the positive control that proves the channel is
+// live, which is the only thing that makes the first one's zero a measurement.
+
+/** The app's toast outlet — `CtToastSurface`'s production `AppToaster` renders one root per notice. */
+const TOAST_ROOT = '[data-slot="toast-root"]';
+
+test("the off-vocabulary refusal is said ONCE — beside the knob, with no toast over it (#1582)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+    "chat.setUserMacroValues": () =>
+      trpcError({ code: "BAD_REQUEST", message: 'mood.tone: "grim" is not one of the declared options []', reason: "unknown_macro_pick" }),
+  });
+
+  const component = await mount(<MacroPicksSectionToastStory />);
+  await page.getByRole("combobox", { name: "Tone" }).click();
+  await page.getByRole("option", { name: "Grim", exact: true }).click();
+
+  // The surface that IS owed — and it is the BARRIER, so the toast count below is read on a settled failure
+  // rather than in the window before the mutation has rejected at all.
+  await expect(component.getByText("That pick is no longer one of this input's options, so nothing was saved. Pick one of: Grim, Warm.")).toBeVisible();
+  // …and the one that is NOT. Asserted on the toast ROOT, not on copy: a text query answers zero for a toast
+  // that rendered with different words, which is the false clean.
+  await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
+});
+
+test("…while ANY OTHER refusal of the same write still toasts — the channel is live (#1582 control)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+    // No `reason`, so `isUnknownMacroPick` is false and the suppression does not apply.
+    "chat.setUserMacroValues": () => trpcError({ message: "the chat is gone" }),
+  });
+
+  await mount(<MacroPicksSectionToastStory />);
+  await page.getByRole("combobox", { name: "Tone" }).click();
+  await page.getByRole("option", { name: "Grim", exact: true }).click();
+
+  await expect(page.locator(TOAST_ROOT)).toHaveCount(1);
+  await expect(page.locator(TOAST_ROOT)).toContainText("Couldn't save the macro picks.");
 });

@@ -17,6 +17,22 @@
 //     ConfirmDialog. Three affordances at three weights, and the irreversible one can no longer be reached
 //     by a single click 12px from the one that spends.
 //
+// COLLAPSE-UNTIL-NEEDED (#886, owner ruling 2026-09-06 on side-eye
+// `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §5-P3-Rules/§7). The row above rendered every one of
+// the affordances below at once — measured 704px desktop / 1,296px mobile for three rules against a 185px /
+// 233px reserve, an under-reserve that scored ~0 CLS only because the section sat at y≈2200, below the fold.
+// #821 collapsed the Injections rows and moved Rules ~800px UP, which is exactly where that geometry
+// accident stops protecting it. The row now wears the SAME clothes as the Field-overrides section and the
+// injection rows: a `Collapsible` in a `!p-0` Card whose trigger carries the whole of what a rule IS at a
+// glance — name, what it does, when it last ran, plus the unreadable verdict when there is one — with the
+// enable switch beside it and everything else behind the disclosure.
+//
+// NOTHING #621 DECIDED IS REMOVED; it MOVED behind the trigger. Test keeps its `secondary` skin and its one
+// primary slot, Run-now keeps its spend-naming demotion in `RowActionsMenu`, Delete keeps its confirm, and
+// each is still reachable at the same weight — one press further in, which is the price of a scan-list.
+// ONE affordance stays on the closed face: the enable switch. On/off is the question a host scanning a rule
+// list is actually asking, and it is neither destructive nor spending.
+//
 // B4 (2026-08-29) added the row's SECOND switch: RULED F4's per-rule opt-out, "Offer to run it when
 // rate-capped". It is conditional on the rule carrying a SPEND arm — the same condition the server ANDs the
 // stored knob with — so most rows are unchanged, and it sits in its OWN labelled row rather than in the
@@ -58,6 +74,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Coins, Icon, Play } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -188,6 +205,10 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const deleteRule = useDeleteRule({ trpc, invalidation });
   const setSuggestOnRefusal = useSetRuleSuggestOnRefusal({ trpc, invalidation });
   const [testResult, setTestResult] = useState<TestRunResult | null>(null);
+  // CLOSED ON ARRIVAL, for every state. Unlike an injection row (a blank one opens itself, because the host
+  // just pressed Add and the editor is what they came for), a rule arrives already configured — even the
+  // unreadable one, whose whole verdict is on the closed face. The section's reserved box is sized to this.
+  const [open, setOpen] = useState(false);
   const enableAdmission = useRef(false);
   const spends = hasSpendArm(rule.actions);
   // `actions` is `[]` for BOTH an unreadable blob and a rule with no arms yet; only this flag separates them.
@@ -231,130 +252,159 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   };
 
   return (
-    <Stack gap="block">
-      <Row gap="block" align="start" justify="between">
-        {/* The NAME COLUMN takes the row's slack (`min-w-0` so a long sentence wraps instead of pushing the
-            cluster off the pane at the 384px context width). */}
-        <Stack className="min-w-0 flex-1" gap="tight">
-          <Text voice="promoted">{rule.name}</Text>
-          <Text voice="gloss">{ruleGloss(rule)}</Text>
-          {/* THE ERROR STATE, ANNOUNCED AS ONE (#1558) — badge + sentence, the same anatomy the dry-run
-              verdict above uses, so the two verdicts on this row read as one vocabulary. `align="start"` +
-              `min-w-0` because this sentence is the longest copy on the row and its real mount is the 384px
-              context pane. Not a live region: the row renders this state on arrival rather than in response
-              to a press, and N broken rules would announce N times on mount. */}
-          {unreadable ? (
-            <Row align="start" className="min-w-0 flex-wrap" gap="block">
-              <Badge intent="danger" size="sm" tone="soft">
-                {RULE_UNREADABLE_BADGE}
-              </Badge>
-              <Text className="min-w-0 flex-1" data-slot="rule-actions-unreadable" voice="gloss">
-                {ruleUnreadableLine(rule.lastError)}
+    // `!p-0` so the block padding lives on the trigger and the whole closed row is one tap target — the
+    // Field-overrides card's own reasoning, and the `!` is load-bearing there for the same reason (the tier
+    // padding map is UNLAYERED, so a plain `p-0` utility loses to it inside a Surface).
+    <Card className="!p-0">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        {/* THE ENABLE SWITCH IS A SIBLING OF THE TRIGGER, NEVER INSIDE IT. A control nested in a `button` is
+            unreachable by keyboard and invalid content — so the header is a Row: the disclosure takes the
+            slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
+            and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
+            padding the trigger's own `p-block` does not reach. */}
+        <Row align="center" className="pr-block" gap="field">
+          {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px
+              fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
+              because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
+              triggers of the sibling sections never showed it. The accessible name COMPUTES from the
+              trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
+          <CollapsibleTrigger className="min-w-0 flex-1 p-block text-start" size="control">
+            {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
+                last ran. Nothing here is new copy; it is the #621 row's own name/gloss/state trio, which now
+                stands ALONE while the actions wait behind the disclosure. */}
+            <Stack className="min-w-0 flex-1" gap="tight">
+              <Text voice="promoted">{rule.name}</Text>
+              <Text voice="gloss">{ruleGloss(rule)}</Text>
+              {/* THE ERROR STATE, ANNOUNCED AS ONE (#1558) — badge + sentence, the same anatomy the dry-run
+                  verdict uses, so the two verdicts on this row read as one vocabulary. It stays on the CLOSED
+                  face: a rule that cannot run is exactly what a host must meet without opening anything.
+                  Not a live region: the row renders this state on arrival rather than in response to a press,
+                  and N broken rules would announce N times on mount. */}
+              {unreadable ? (
+                <Row align="start" className="min-w-0 flex-wrap" gap="block">
+                  <Badge intent="danger" size="sm" tone="soft">
+                    {RULE_UNREADABLE_BADGE}
+                  </Badge>
+                  <Text className="min-w-0 flex-1" data-slot="rule-actions-unreadable" voice="gloss">
+                    {ruleUnreadableLine(rule.lastError)}
+                  </Text>
+                </Row>
+              ) : null}
+              <Text voice="gloss">
+                {lastRunLine(rule.lastFiredAt)}
+                {rule.lastError === null ? "" : " Its last run errored."}
               </Text>
-            </Row>
-          ) : null}
-          <Text voice="gloss">
-            {lastRunLine(rule.lastFiredAt)}
-            {rule.lastError === null ? "" : " Its last run errored."}
-          </Text>
-        </Stack>
-        <Row className="shrink-0" gap="field" align="center">
+            </Stack>
+          </CollapsibleTrigger>
           {/* `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host
               most needs to see), the Lock glyph carries the refusal without colour, and the accessible name
-              says WHY instead of offering an action the surface will not perform (#1558). */}
+              says WHY instead of offering an action the surface will not perform (#1558). The ONE affordance
+              that stays on the closed face — on/off is the question a host scanning a rule list is asking,
+              and it is neither destructive nor spending. */}
           <Switch
             aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : `Enable ${rule.name}`}
             checked={rule.enabled}
+            className="shrink-0"
             disabled={setEnabled.isPending}
             onCheckedChange={onEnabledChange}
             readOnly={unreadable}
           />
-          {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an
-              edge + foreground ink) is what separates it from the ghost overflow trigger beside it. */}
-          <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
-            Test
-          </Button>
-          <RowActionsMenu
-            label={`More actions for ${rule.name}`}
-            destructive={{
-              title: `Delete "${rule.name}"?`,
-              description: "This removes the rule and its activity. It can't be undone, but you can add the rule again.",
-              confirmLabel: "Delete rule",
-              onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),
-            }}
-          >
-            {/* THE DOORS AGREE (#1655, #1673). #1558 took the enable switch away from an unreadable rule
-                and left Run-now beside it, so the row refused to switch the rule ON while still offering to
-                RUN it; #1673 is the same shape one arm type over. Both offers reach a server that cannot
-                perform them, and the reason rides `title`: Base UI renders a disabled MenuItem as
-                `div[role=menuitem][aria-disabled]` (never the native attribute), so the element still takes
-                pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree as the
-                item's description — which a tooltip on a disabled trigger would not. The unreadable rule's
-                badge sentence already says it can't run and names the one repair, so nothing there has to
-                change for the doors to agree.
-                A TRANSIENT pending disable carries NO reason (there is nothing to explain and it is gone in
-                a moment); only the persistent gate states explain themselves. */}
-            <MenuItem disabled={runRefusal !== null || runNow.isPending} onClick={onRunNow} title={runRefusal ?? undefined}>
-              <Icon icon={spends ? Coins : Play} size="sm" />
-              {spends ? "Run now — spends a model call" : "Run now"}
-            </MenuItem>
-          </RowActionsMenu>
         </Row>
-      </Row>
+        {/* `text-foreground`, the `chat-context-disclosure-section.tsx:51` arm: the panel primitive paints
+            `text-muted-foreground` for running prose, and both `Button` intents this row uses are
+            `text-current`. Without it Test and the ghost overflow trigger BOTH resolve to the receded ink and
+            compute the identical colour — the exact defect #621 fixed, reintroduced by the container rather
+            than by the controls (its CT caught it: `oklch(0.74 0.008 65)` on both). */}
+        <CollapsiblePanel className="text-foreground">
+          <Stack className="px-block pb-block" gap="field">
+            <Row align="center" gap="field">
+              {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an
+                  edge + foreground ink) is what separates it from the ghost overflow trigger beside it. */}
+              <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
+                Test
+              </Button>
+              <RowActionsMenu
+                label={`More actions for ${rule.name}`}
+                destructive={{
+                  title: `Delete "${rule.name}"?`,
+                  description: "This removes the rule and its activity. It can't be undone, but you can add the rule again.",
+                  confirmLabel: "Delete rule",
+                  onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),
+                }}
+              >
+                {/* THE DOORS AGREE (#1655, #1673). #1558 took the enable switch away from an unreadable rule
+                    and left Run-now beside it, so the row refused to switch the rule ON while still offering to
+                    RUN it; #1673 is the same shape one arm type over. Both offers reach a server that cannot
+                    perform them, and the reason rides `title`: Base UI renders a disabled MenuItem as
+                    `div[role=menuitem][aria-disabled]` (never the native attribute), so the element still takes
+                    pointer events and `title` genuinely surfaces on hover AND reaches the a11y tree as the
+                    item's description — which a tooltip on a disabled trigger would not. The unreadable rule's
+                    badge sentence already says it can't run and names the one repair, so nothing there has to
+                    change for the doors to agree.
+                    A TRANSIENT pending disable carries NO reason (there is nothing to explain and it is gone in
+                    a moment); only the persistent gate states explain themselves. */}
+                <MenuItem disabled={runRefusal !== null || runNow.isPending} onClick={onRunNow} title={runRefusal ?? undefined}>
+                  <Icon icon={spends ? Coins : Play} size="sm" />
+                  {spends ? "Run now — spends a model call" : "Run now"}
+                </MenuItem>
+              </RowActionsMenu>
+            </Row>
 
-      {/* B4 — RULED F4's per-rule opt-out. Rendered ONLY on a rule that carries a SPEND arm, because only
-          those can raise a rate-refusal invitation at all (the server ANDs this knob with the same arm-shape
-          derivation — `substrate/suggestions.ts::invitesOnRefusal`): offering every rule a switch that
-          provably changes nothing on most of them would be a lie the width tax is paid for. Its own row
-          rather than a fourth control in the shrink-0 cluster, which already measures tight at this pane's
-          384px context width — and unlike the enable Switch this one carries VISIBLE label text, so it
-          needs the room a label deserves. */}
-      {spends ? (
-        <Stack gap="tight">
-          <Row gap="field" align="center" justify="between">
-            <Text as="span" voice="label">
-              {SUGGEST_ON_REFUSAL_LABEL}
-            </Text>
-            <Switch
-              aria-label={suggestOnRefusalAccessibleName(rule.name)}
-              checked={rule.suggestOnRefusal}
-              disabled={setSuggestOnRefusal.isPending}
-              onCheckedChange={(next: boolean): void => {
-                setSuggestOnRefusal.mutate({ ruleId: rule.id, suggestOnRefusal: next, chatId });
-              }}
-            />
-          </Row>
-          <Text voice="gloss">{SUGGEST_ON_REFUSAL_HELP}</Text>
-        </Stack>
-      ) : null}
+            {/* B4 — RULED F4's per-rule opt-out. Rendered ONLY on a rule that carries a SPEND arm, because only
+                those can raise a rate-refusal invitation at all (the server ANDs this knob with the same arm-shape
+                derivation — `substrate/suggestions.ts::invitesOnRefusal`): offering every rule a switch that
+                provably changes nothing on most of them would be a lie the width tax is paid for. Its own row
+                rather than a control beside the enable switch, and unlike that switch it carries VISIBLE label
+                text, so it needs the room a label deserves. */}
+            {spends ? (
+              <Stack gap="tight">
+                <Row gap="field" align="center" justify="between">
+                  <Text as="span" voice="label">
+                    {SUGGEST_ON_REFUSAL_LABEL}
+                  </Text>
+                  <Switch
+                    aria-label={suggestOnRefusalAccessibleName(rule.name)}
+                    checked={rule.suggestOnRefusal}
+                    disabled={setSuggestOnRefusal.isPending}
+                    onCheckedChange={(next: boolean): void => {
+                      setSuggestOnRefusal.mutate({ ruleId: rule.id, suggestOnRefusal: next, chatId });
+                    }}
+                  />
+                </Row>
+                <Text voice="gloss">{SUGGEST_ON_REFUSAL_HELP}</Text>
+              </Stack>
+            ) : null}
 
-      {testResult === null ? null : <TestResultView name={rule.name} result={testResult} />}
+            {testResult === null ? null : <TestResultView name={rule.name} result={testResult} />}
 
-      <Collapsible>
-        {/* The NAME disambiguates, the LABEL does not repeat it (WCAG 2.5.3 is satisfied by containment —
-            the accessible name contains the visible one): N rules used to give N disclosures all announced
-            as a bare "Recent activity" (side-eye #621 ARIA), and spelling the rule's name a second time in
-            the visible row is noise a sighted host already has above it. */}
-        {/* `size="control"` — the disclosure IS a row of its own, and it is the ONLY door to the fire log,
-            the "why didn't my rule fire" surface. It shipped `inline` (text-height): measured 413×16 at a
-            coarse pointer with `::after` resolving `content: none`, so no touch layer was in play at all,
-            against the 44px floor — and the 6px bands above and below it belong to the Stack, not to the
-            trigger, so a finger landing 8px off hits nothing. The `control` arm pins the pointer-conditional
-            `--spacing-control-sm` floor (44px coarse / 32px fine) that every other tap-floor control in this
-            pane rides. */}
-        <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`} size="control">
-          <Text voice="label">Recent activity</Text>
-        </CollapsibleTrigger>
-        <CollapsiblePanel>
-          <QueryBoundary
-            fallback={<SkeletonRows count={2} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the recent activity" onRetry={retry} />}
-            reserveKey="automation.rule.activity"
-          >
-            <RuleFireLog ruleId={rule.id} caps={{ cooldownSeconds: rule.cooldownSeconds, maxFiresPerHour: rule.maxFiresPerHour }} />
-          </QueryBoundary>
+            <Collapsible>
+              {/* The NAME disambiguates, the LABEL does not repeat it (WCAG 2.5.3 is satisfied by containment —
+                  the accessible name contains the visible one): N rules used to give N disclosures all announced
+                  as a bare "Recent activity" (side-eye #621 ARIA), and spelling the rule's name a second time in
+                  the visible row is noise a sighted host already has above it. */}
+              {/* `size="control"` — the disclosure IS a row of its own, and it is the ONLY door to the fire log,
+                  the "why didn't my rule fire" surface. It shipped `inline` (text-height): measured 413×16 at a
+                  coarse pointer with `::after` resolving `content: none`, so no touch layer was in play at all,
+                  against the 44px floor — and the 6px bands above and below it belong to the Stack, not to the
+                  trigger, so a finger landing 8px off hits nothing. The `control` arm pins the pointer-conditional
+                  `--spacing-control-sm` floor (44px coarse / 32px fine) that every other tap-floor control in this
+                  pane rides. */}
+              <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`} size="control">
+                <Text voice="label">Recent activity</Text>
+              </CollapsibleTrigger>
+              <CollapsiblePanel>
+                <QueryBoundary
+                  fallback={<SkeletonRows count={2} shape="line" />}
+                  renderError={(_error, retry): ReactElement => <QueryErrorState label="the recent activity" onRetry={retry} />}
+                  reserveKey="automation.rule.activity"
+                >
+                  <RuleFireLog ruleId={rule.id} caps={{ cooldownSeconds: rule.cooldownSeconds, maxFiresPerHour: rule.maxFiresPerHour }} />
+                </QueryBoundary>
+              </CollapsiblePanel>
+            </Collapsible>
+          </Stack>
         </CollapsiblePanel>
       </Collapsible>
-    </Stack>
+    </Card>
   );
 }

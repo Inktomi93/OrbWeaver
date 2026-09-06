@@ -43,7 +43,7 @@ import type { AutomationRunOutcome } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
 import { SuggestionNotFoundError, SuggestionRefusedError } from "../contract/errors.ts";
-import type { PendingSuggestion, RuleRow } from "../contract/ops.ts";
+import type { ArmOutcome, PendingSuggestion, RuleRow } from "../contract/ops.ts";
 import type { ConfirmSuggestionParams } from "../contract/params.ts";
 import type { ConfirmSuggestionResult } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
@@ -52,8 +52,9 @@ import { insertFireWithRuleStamp } from "../persistence/fires.ts";
 import { selectRuleRow } from "../persistence/rules.ts";
 import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
 import { holdsChatHostAuthority } from "../substrate/authority.ts";
-import { dispatchRuleNow } from "../substrate/run-now.ts";
-import { automationLaneKey, runInLane } from "../substrate/serial-lanes.ts";
+import type { ArmsResult } from "../substrate/run-now.ts";
+import { dispatchRuleNow, runStashedContinuation } from "../substrate/run-now.ts";
+import { automationChatLaneKey, runInLane } from "../substrate/serial-lanes.ts";
 import { armToExecute } from "../substrate/suggestions.ts";
 
 /** Gate the caller as HOST of the ask's chat. A non-present member collapses onto the ask's own leak-free
@@ -65,7 +66,7 @@ async function requireSuggestionHost(ctx: AutomationContext, principal: Principa
   if (role === undefined) {
     throw new SuggestionNotFoundError(pending.id);
   }
-  ctx.can(principal, "host", { kind: "chat", roster: { role } });
+  ctx.can(principal, "host", { kind: "chat", membership: { role } });
 }
 
 /** The ACTOR-authority half of the liveness re-check, shared by BOTH origins because it is one ruling, not
@@ -191,8 +192,9 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
 
 /** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it.
  *
- *  #1565 — ON THE CHAT'S OWN SERIAL LANE, the same one the bus door and "Run now" take (`automationLaneKey`
- *  is the one home for the key). A confirmed arm is a real dispatch: it renders against the chat variable
+ *  #1565 — ON THE CHAT'S OWN SERIAL LANE, the same one the bus door and "Run now" take
+ *  (`automationChatLaneKey` is the one home for the key). A confirmed arm is a real dispatch: it renders
+ *  against the chat variable
  *  env, writes through it, and stamps the rule — so a host answering a card while a bus event was mid-arm
  *  interleaved exactly as two bus events used to. The confirm's OTHER execution branches are deliberately
  *  NOT here: `dispatchRuleNow` (the invitation) takes the lane itself, one level down, and the two branches
@@ -204,7 +206,21 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
  *  belts. Putting an unrelated executor behind the chat's dispatch lane would buy nothing and would make a
  *  slow generation delay every rule in the room. */
 function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
-  return runInLane(automationLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
+  return runInLane(automationChatLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
+}
+
+/** #1553 (OWNER RULING: STASH the continuation) — combine the confirmed arm's own outcome with its
+ *  CONTINUATION's (the arms that sat behind it, run against the same frame once the confirmed arm
+ *  succeeded), into ONE `ArmsResult`-shaped verdict — the exact terminal `engine/dispatch.ts::finalizeRule`
+ *  would have reached had this all run as one fresh dispatch. `null` continuation-result = the confirmed
+ *  arm itself failed (or there was nothing behind it to run), so its OWN outcome decides everything. */
+function combinedOutcome(armOutcome: ArmOutcome, continuationResult: ArmsResult | null): ArmsResult {
+  // Only `arm_error` can reach here as a non-ok outcome — the `paused` kind throws above before this is
+  // ever called, so `armOutcome.kind` is narrowed to `"arm_error"` by construction.
+  if (!armOutcome.ok && armOutcome.kind === "arm_error") {
+    return { detail: { error: armOutcome.detail }, suggested: false, paused: false };
+  }
+  return continuationResult ?? { detail: null, suggested: false, paused: false };
 }
 
 async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule: RuleRow, confirmer: Principal): Promise<AutomationRunOutcome> {
@@ -218,7 +234,7 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
     // no-op: a confirm class with no payload is a broken invariant, not a user outcome.
     throw new SuggestionRefusedError("no_stashed_arm", "this suggestion carries nothing to execute");
   }
-  const armOutcome = await ctx.runArm(armToExecute(stashed.action), stashed.frame);
+  const armOutcome = await ctx.runArm(armToExecute(stashed.action), stashed.frame, stashed.continuation);
   if (!armOutcome.ok && armOutcome.kind === "paused") {
     // UNREACHABLE BY THE ARM VOCABULARY: only `run_tool` can pause (D146-d) and `run_tool` is deliberately not
     // suggestible, so nothing that can pause can ever have been stashed. Spelled as a loud invariant rather
@@ -228,10 +244,32 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
     // a user outcome.
     throw new Error(`confirm: a stashed ${stashed.action.type} arm paused — no suggestible arm can pause`);
   }
-  const outcome: AutomationRunOutcome = armOutcome.ok ? "fired" : "action_error";
+  // The CONTINUATION runs only when the confirmed arm itself succeeded (order is semantics — an error aborts
+  // whatever was behind it, exactly as `runArms` aborts on an in-flight arm's own error) and only when there
+  // IS one (the stashed arm may have been the rule's last). It shares `stashed.frame`, mutated in place by
+  // the confirmed arm's own execution above, so a continuation `set_variable` reading what the confirmed arm
+  // just wrote sees it — the same env-sharing `runArms` already guarantees within one dispatch pass.
+  const continuationResult = armOutcome.ok && stashed.continuation.length > 0 ? await runStashedContinuation(ctx, stashed.continuation, stashed.frame) : null;
+  const combined = combinedOutcome(armOutcome, continuationResult);
+  if (combined.paused) {
+    // D146-d, reached only through the CONTINUATION (the confirmed arm itself cannot pause — the invariant
+    // above): no fire row, no error tick, no `last_fired_at` — the same "nothing to log" the gate itself
+    // would produce had this been a fresh dispatch that paused on this arm.
+    return "paused";
+  }
+  if (combined.suggested) {
+    // A LATER arm in the continuation ALSO stashed itself — S4's fire-log honesty (header, "nothing is
+    // written when an ask is RAISED") applies here exactly as it does to a fresh dispatch: the confirmed
+    // arm's own effect already happened, but the rule as a whole is not "fired" while a fresh ask is live.
+    // The new ask's OWN `suggestionRaised` notify already fired inside `stashConfirmFirstArm`; nothing more
+    // to announce or record here.
+    return "suggested";
+  }
+  const outcome: AutomationRunOutcome = combined.detail === null ? "fired" : "action_error";
   const nowMs = ctx.now();
-  // ONE batch — the arm already ran and the ask is spent, so a terminal without its stamp (or a stamp without
-  // its terminal) is unrecoverable state; `persistence/fires.ts::insertFireWithRuleStamp` carries the argument.
+  // ONE batch — the arm(s) already ran and the ask is spent, so a terminal without its stamp (or a stamp
+  // without its terminal) is unrecoverable state; `persistence/fires.ts::insertFireWithRuleStamp` carries
+  // the argument.
   await insertFireWithRuleStamp(
     ctx.db,
     {
@@ -244,14 +282,16 @@ async function executeStashedArm(ctx: AutomationContext, pending: PendingSuggest
         confirmedByUserId: confirmer.userId,
         suggestionId: pending.id,
         armType: stashed.action.type,
-        ...(armOutcome.ok ? {} : { error: armOutcome.detail }),
+        ...(combined.detail === null ? {} : { error: combined.detail }),
       },
       automationDepth: stashed.frame.origin.automationDepth,
       firedAt: nowMs,
     },
-    armOutcome.ok ? nowMs : null,
+    outcome === "fired" ? nowMs : null,
   );
-  ctx.notify(armOutcome.ok ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id });
+  ctx.notify(
+    outcome === "fired" ? { type: "ruleFired", chatId: pending.chatId, ruleId: rule.id } : { type: "ruleErrored", chatId: pending.chatId, ruleId: rule.id },
+  );
   return outcome;
 }
 

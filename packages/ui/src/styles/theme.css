@@ -101,7 +101,6 @@
   --spacing-avatar-hero: round(up, 4rem, 1px);
   --spacing-switch-track: round(up, 4rem, 1px);
   --spacing-switch-track-height: round(up, 2.75rem, 1px);
-  --spacing-switch-thumb: round(up, 1.5rem, 1px);
   --spacing-switch-inset: round(up, 0.5625rem, 1px);
   --spacing-checkbox: round(up, 1.125rem, 1px);
   --spacing-slider-thumb: round(up, 1.5rem, 1px);
@@ -226,7 +225,6 @@
     --spacing-control-lg: round(up, 2.5rem, 1px);
     --spacing-switch-track: round(up, 3rem, 1px);
     --spacing-switch-track-height: round(up, 2rem, 1px);
-    --spacing-switch-thumb: round(up, 1.125rem, 1px);
     --spacing-switch-inset: round(up, 0.375rem, 1px);
   }
 }

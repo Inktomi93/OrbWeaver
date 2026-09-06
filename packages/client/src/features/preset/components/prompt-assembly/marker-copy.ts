@@ -145,14 +145,14 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["world_info_before"]: {
     label: "World info (before)",
-    oneLiner: "Lorebook entries positioned to sit before the conversation.",
-    subtitle: "lorebook — before",
+    oneLiner: "World book entries positioned to sit before the conversation.",
+    subtitle: "world book — before",
     glyph: Library,
   },
   ["world_info_after"]: {
     label: "World info (after)",
-    oneLiner: "Lorebook entries positioned to sit after the conversation.",
-    subtitle: "lorebook — after",
+    oneLiner: "World book entries positioned to sit after the conversation.",
+    subtitle: "world book — after",
     glyph: Library,
   },
 };

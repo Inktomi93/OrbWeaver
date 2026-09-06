@@ -1,8 +1,10 @@
 // Gate: content-part-seam (D51 — the multimodal content-part shape is threaded at the engine WIRE SEAM,
 // content stays a `string` everywhere upstream). `ChatContentPart` is produced exactly once (at
-// domain/chat/engine/pipeline.ts) and consumed only by infra/providers/** (the sealed runners). Everything
-// else stays `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a
-// `ChatContentPart` import from a file outside the seam set is RED.
+// domain/chat/substrate/wire-history.ts, the CONVERT step both the turn pipeline and the read verb's
+// previews call — it moved out of engine/pipeline.ts at #1540 so the previews price the same converted rows
+// the turn fits) and consumed only by infra/providers/** (the sealed runners). Everything else stays
+// `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a `ChatContentPart` import
+// from a file outside the seam set is RED.
 //
 // SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the seam members are SCANNED and exempted by cited
 // rows, not scoped out of scanRoot — an excluded member that moves takes its exemption with it AND leaves a
@@ -32,8 +34,11 @@ const SANCTIONED_HOMES: ExemptionTable = {
   "packages/server/src/infra/providers/": {
     why: "the sealed runner tier is the ONLY consumer — it maps parts onto each backend wire (D51). Same end condition",
   },
+  "packages/server/src/domain/chat/substrate/wire-history.ts": {
+    why: "THE one producer (D51). The CONVERT step MOVED here at #1540 — the read verb's previews must price the same converted rows the turn's fitter prices, and a pure read cannot import the turn-execution module — so the request seam's conversion lives in the engine↔verbs substrate seam that both call. Still exactly ONE producer, still string-shaped upstream. Ends when that module moves",
+  },
   "packages/server/src/domain/chat/engine/pipeline.ts": {
-    why: "THE one producer (D51): parts are built exactly here, at the engine request seam. Ends when the pipeline moves",
+    why: "the engine request seam ASSEMBLES the parts the producer above builds, and mints its own for the TOOL-RESULT rows (`toolResultMessages` — an assistant row of tool-call parts plus one row per result, which never pass through the history conversion). Ends when the pipeline moves",
   },
   "packages/server/src/domain/chat/contract/results.ts": {
     why: "the domain-side request DTO the seam populates (`content: ChatContentPart[]` handed to the runner). Same end condition",
@@ -43,10 +48,11 @@ const SANCTIONED_HOMES: ExemptionTable = {
 const GATE_SELF = "tooling/src/verify/gates/content-part-seam.ts";
 
 const MESSAGE =
-  "`ChatContentPart` is imported outside the D51 seam set (the engine producer `domain/chat/engine/" +
-  "pipeline.ts` · the request DTO `domain/chat/contract/results.ts` · the infra/providers consumers · the " +
-  "@orb/contracts/chat home) — content-parts are produced ONCE at the engine request seam and everything " +
-  "upstream stays `content: string`. See Core-Path-Registry.md D51.";
+  "`ChatContentPart` is imported outside the D51 seam set (the CONVERT producer `domain/chat/substrate/" +
+  "wire-history.ts` · the engine request seam `domain/chat/engine/pipeline.ts` · the request DTO " +
+  "`domain/chat/contract/results.ts` · the infra/providers consumers · the @orb/contracts/chat home) — " +
+  "content-parts are produced ONCE at the request seam's conversion and everything upstream stays " +
+  "`content: string`. See Core-Path-Registry.md D51.";
 /** Is this ImportSpecifier a `ChatContentPart` named import from `@orb/contracts/chat`? */
 function isContentPartImport(spec: Node): boolean {
   if (!Node.isImportSpecifier(spec) || spec.getName() !== SYMBOL) {
@@ -62,7 +68,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
-  fix: "keep `content: string` upstream; ChatContentPart is produced ONCE at the engine request seam (domain/chat/engine/pipeline.ts) and consumed only by infra/providers/**.",
+  fix: "keep `content: string` upstream; ChatContentPart is produced ONCE at the request seam's CONVERT step (domain/chat/substrate/wire-history.ts) and consumed only by infra/providers/**.",
   scanRoot: (p) => PROD_SRC.test(`/${p}`),
   kinds: [SyntaxKind.ImportSpecifier],
   visit: (node, sf, ctx) => {
@@ -89,8 +95,8 @@ export const gate: GateDescriptor = {
         [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
         "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
       },
-      expect: { count: 3, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, so the seam set is judged — the three rows naming homes no file resolves (infra/providers, pipeline.ts, contract/results.ts) each ratchet down; the contracts row resolves (the declaration file itself) and stays",
+      expect: { count: 4, messageIncludes: "stale SANCTIONED-HOME row" },
+      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded, so the seam set is judged — the four rows naming homes no file resolves (infra/providers, substrate/wire-history.ts, engine/pipeline.ts, contract/results.ts) each ratchet down; the contracts row resolves (the declaration file itself) and stays",
     },
   ],
   mustPass: [
@@ -101,8 +107,13 @@ export const gate: GateDescriptor = {
     },
     {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      at: "packages/server/src/domain/chat/substrate/wire-history.ts",
+      why: "the CONVERT step (substrate/wire-history.ts) is the ONE sanctioned producer of parts (D51, #1540) — the turn and the previews both call it",
+    },
+    {
+      files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "packages/server/src/domain/chat/engine/pipeline.ts",
-      why: "the engine request seam (pipeline.ts) is the ONE sanctioned producer of parts (D51)",
+      why: "the engine request seam assembles the produced parts and mints the TOOL-RESULT rows (D51)",
     },
     {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',

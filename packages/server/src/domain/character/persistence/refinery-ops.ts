@@ -1,18 +1,24 @@
-// domain/character/persistence/refinery-ops — the two character-owned ops the refinery domain consumes
+// domain/character/persistence/refinery-ops — the character-owned ops the refinery domain consumes
 // (R1 — docs/history/design/refinery-r0.md §9.3), the `avatar-link-write.ts` worked-example class: cross-domain
 // access routes through the OWNING domain's persistence factory + an injected op, so `characters.*` keeps
 // exactly one writer and the card projection (`cardOf` + its parse seams) keeps exactly one home.
 //
-// The WRITE half is a named exception to "persistence is queries only", like `avatar-link-write.ts` and
-// persona's `import-write.ts`. SILENT by design: no audit entry, no user-bus event, no snapshot — the
-// stamp is a derived-signal refresh (F6), not an authored edit; reversibility lives on the APPLY path
-// (`applyFields` snapshots first), never here.
+// The WRITE halves are a named exception to "persistence is queries only", like `avatar-link-write.ts` and
+// persona's `import-write.ts`. `createStampRefinerySignals` is SILENT by design: no audit entry, no
+// user-bus event, no snapshot — the stamp is a derived-signal refresh (F6), not an authored edit;
+// reversibility lives on the APPLY path (`applyFields` snapshots first), never here.
+//
+// `createDeleteSnapshot` (#1551) is the apply path's OWN retraction, not a new writer of `characters.*`
+// generally: `applyFields` snapshots BEFORE its conditional write (the pre-image must be captured while it
+// is still live), and a `CHARACTER_STALE_BASIS` refusal from that write leaves the snapshot with nothing to
+// witness — this op is how the verb un-does exactly the row it just minted, scoped to its own id.
 
-import { characters } from "@orb/db";
+import { characterSnapshots, characters } from "@orb/db";
 import type { SQL } from "drizzle-orm";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, exists, sql } from "drizzle-orm";
 import type {
   CharacterRefineryOpsContext,
+  DeleteSnapshotOp,
   ListRefineryScoreTargetsOp,
   LoadOwnedCardOp,
   RefineryScoreTarget,
@@ -91,5 +97,25 @@ export function createStampRefinerySignals(ctx: CharacterRefineryOpsContext): St
       .update(characters)
       .set({ refinery: sql`json_set(${healedRefineryObject()}, ${path}, ${value})` })
       .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)));
+  };
+}
+
+/** Build the snapshot-retraction op (#1551, owner-scoped per train-78's `injected-op-caller-param`
+ *  finding) — a single scoped delete: `characterId` in the WHERE (an op that dropped it would let one
+ *  owner's refused apply retract a DIFFERENT character's row if the ids ever collided, which TypeID
+ *  collision-freedom makes practically impossible but the WHERE still states for free), PLUS an `owns`
+ *  EXISTS subquery over `characters` (the `ownedBackgroundExists` shape in `persistence/card.ts`) —
+ *  `character_snapshots` carries no `ownerId` column of its own, so ownership can only be re-asserted
+ *  through the join. A foreign owner's retraction deletes nothing (a silent no-op, same as a
+ *  zero-row/already-gone delete). */
+export function createDeleteSnapshot(ctx: CharacterRefineryOpsContext): DeleteSnapshotOp {
+  return async ({ ownerId, snapshotId, characterId }) => {
+    const owns = exists(
+      ctx.db
+        .select({ one: sql`1` })
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId))),
+    );
+    await ctx.db.delete(characterSnapshots).where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId), owns));
   };
 }

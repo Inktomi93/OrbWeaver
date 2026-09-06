@@ -57,6 +57,38 @@ describe("readActivityHeatmap", () => {
     expect(h.total).toBe(0);
     expect(h.peak).toBeNull();
   });
+
+  test("a husk room's turns are invisible — the heatmap uses the SAME owner-chat scope as the rebuild", async () => {
+    // An unclaimed room (`chats.started_at` NULL) whose seeded greeting already landed. Both rollup
+    // writers (the live delta plane and rebuild-from-canon's `ownerChatIds`) treat it as nonexistent, so
+    // the on-read heatmap must too or the dashboard disagrees with every other stats surface.
+    const husk = await seedChat(db, characterId, { id: "chat_husk", startedAt: null });
+    await seedMessage(db, {
+      chatId: husk,
+      seq: 1,
+      role: "assistant",
+      characterId,
+      createdAt: T0,
+      variants: [{ content: "greeting" }],
+    });
+
+    const huskOnly = await readActivityHeatmap(db, ownerId);
+    expect(huskOnly.total).toBe(0);
+    expect(huskOnly.peak).toBeNull();
+
+    // …and the filter NARROWS rather than blanking: a started room in the same library still counts.
+    const started = await seedChat(db, characterId, { id: "chat_started" });
+    await seedMessage(db, {
+      chatId: started,
+      seq: 1,
+      role: "user",
+      createdAt: T0,
+      variants: [{ content: "hi" }],
+    });
+
+    const withStarted = await readActivityHeatmap(db, ownerId);
+    expect(withStarted.total).toBe(1);
+  });
 });
 
 describe("readCharacterMomentum", () => {

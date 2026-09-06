@@ -52,6 +52,10 @@ interface HarnessOverrides {
   readonly requireChatMember?: RegexContext["requireChatMember"];
   readonly resolveRoomDisplayPolicy?: RegexContext["resolveRoomDisplayPolicy"];
   readonly resolveVisibleRooms?: RegexContext["resolveVisibleRooms"];
+  /** #1746 — the PRE-write delete reach capture. Defaults to a no-op thunk (the fan is not what most delete
+   *  tests are about); the room-plane pins inject the REAL `createDeleteReachCapture(db, spy).regex` over a
+   *  live spy, exactly as the world-info book-delete suite does. */
+  readonly captureRoomReachForDelete?: RegexContext["captureRoomReachForDelete"];
 }
 
 /** ONE room-plane fan the harness recorded (#1733) — `{kind}` says which of the two ops raised it, so a test
@@ -90,6 +94,8 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarn
       roomFans.push({ kind: "script", id: scriptId });
       return Promise.resolve();
     },
+    captureRoomReachForDelete:
+      overrides.captureRoomReachForDelete ?? ((): Promise<(deleted: readonly RegexScriptId[]) => void> => Promise.resolve(() => undefined)),
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },

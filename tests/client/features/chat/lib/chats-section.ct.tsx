@@ -20,6 +20,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
@@ -41,6 +42,13 @@ const THIS_CHAT_TAB_READS = {
   // assertion below reddened. Exactly the "including one added tomorrow" case that assertion was written
   // for, and the unfed-read ratchet named the procedure in the same run. Empty = the section's empty state.
   "worldInfo.listForChat": (): unknown => [],
+  // #1788 — the same story a third time, and the loudest arm of it: the #1742 Regex section joined this tab
+  // with a HEADING CHIP that reads `chat.listEffectiveRegex` through a plain `useQuery` OUTSIDE every
+  // disclosure, so the read fires on every mount here and the unfed answer took the tab's error arm — nine
+  // tests in this file, most of which never mention regex. Off-and-empty (the shared support projection, now
+  // its fourth borrower): this file counts rail cells and asserts "no read-error surface", so the section
+  // must render its real quiet arm rather than rows.
+  ...REGEX_READS_EMPTY,
 };
 
 /** One CELL of the pane's FOOT rail (the context bracket, #860): a BUTTON inside the toolbar named "Chat"

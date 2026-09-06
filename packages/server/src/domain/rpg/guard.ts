@@ -55,7 +55,7 @@ export async function resolveMember(ctx: RpgContext, principal: Principal, chatI
  *  File-local: every rpg authority answer goes through one of the two exported asserts below. */
 function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boolean {
   try {
-    can(principal, "host", { kind: "chat", roster: { role } });
+    can(principal, "host", { kind: "chat", membership: { role } });
     return true;
   } catch (err) {
     if (err instanceof DomainForbiddenError) {

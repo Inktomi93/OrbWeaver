@@ -21,7 +21,7 @@ beforeEach(async () => {
 
 /** The actor the two op-shaped actor verbs are probed against (the authority gate fires before the target is
  *  ever resolved, so the game need not carry the row). */
-const CAST_REF = { kind: "cast", castKey: "mira" } as const;
+const CAST_REF = { kind: "npc", npcKey: "mira" } as const;
 
 /** Seed a game whose roster has a host + a member; return the harness with membership programmed. */
 async function seedGameWithRoster(): Promise<{ chatId: ChatId; h: ReturnType<typeof makeRpgService> }> {

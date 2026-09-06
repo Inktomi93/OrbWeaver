@@ -71,7 +71,7 @@ function walkContainer(def: ZodDefLike, prefix: string, out: string[]): boolean 
   return walkUnion(def, prefix, out);
 }
 
-/** An OBJECT union (discriminated or not) contributes every option's fields — a `cast` NPC's `castKey` is a
+/** An OBJECT union (discriminated or not) contributes every option's fields — a `cast` NPC's `npcKey` is a
  *  field of the actor-ref plane exactly as `characterId` is. A SCALAR union (`number | string`) is a leaf. */
 function walkUnion(def: ZodDefLike, prefix: string, out: string[]): boolean {
   if (def.type !== "union" || def.options === undefined) {

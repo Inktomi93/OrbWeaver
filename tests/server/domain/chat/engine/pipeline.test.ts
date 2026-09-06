@@ -19,7 +19,11 @@ import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/c
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+// The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
+// verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
+// engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
+import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
@@ -135,7 +139,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       runAsUserId: castId("user_host"),
       triggeredBy: castId("user_host"),
       chatId: castId<ChatId>("chat_a"),
-      participants: null,
+      membership: null,
       turnId: castId<ChatTurnId>("chat_turn_a"),
     },
     ...over,
@@ -1667,7 +1671,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
         runAsUserId: host,
         triggeredBy: member,
         chatId: castId<ChatId>("chat_a"),
-        participants: null,
+        membership: null,
         turnId: castId<ChatTurnId>("chat_turn_a"),
       },
     });
@@ -2333,7 +2337,13 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
   });
 
-  test("a terminal declaration COLLIDING with a registry tool name never rides — the registry owns the name (#1404)", async () => {
+  // #1617 AMENDS THIS PIN, and the #1404 ruling it encodes SURVIVES: the registry still keeps the name (it is
+  // the class that EXECUTES; a mis-executed passenger runs an unowned side effect). What changed is the OTHER
+  // half of the drop. Riding the SURVIVING declarations looked graceful and was the one arm with no honest
+  // report — `attached:true` flowed back, the fold took its folded path with one plane missing, and nothing
+  // outside the server log said so. Now ANY collision withholds the whole channel for the turn and NAMES what
+  // it refused, so the consumer's fallback round captures every plane.
+  test("a terminal declaration COLLIDING with a registry tool name withholds the WHOLE channel, named (#1404, #1617)", async () => {
     const requests: TurnRequest[] = [];
     const executed: string[][] = [];
     const { args } = baseArgs({
@@ -2341,16 +2351,87 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
       tools: fakeToolOps(executed),
       attachedToolNames: ["tick_clock"],
       // A contributor that re-spells a registry name would otherwise ship the wire TWO declarations of one
-      // name (malformed) and make the partition unanswerable. The passenger yields.
+      // name (malformed) and make the partition unanswerable. The passenger yields — all of it.
       terminalTools: [{ name: "tick_clock", description: "the terminal twin", parameters: { type: "object" as const } }, ...RPG_TERMINAL_TOOLS],
       runChatTurn: scriptedDepths([[toolFinal("tick... ", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("done.")]], requests),
     });
     const result = await runTurnPipeline(args);
-    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock", "update_scene", "no_changes"]);
+    // NOT the surviving subset: the wire carries the registry declarations alone.
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
     // The name stays the REGISTRY's: it executes and recurses, and the terminal channel never claims it.
     expect(executed).toEqual([["tick_clock"]]);
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
-    expect(result.terminalToolCalls).toEqual([]);
+    // `null`, not `[]`: `[]` would tell the consumer "they rode and the model recorded nothing" — a quiet
+    // beat that never happened — and suppress the fallback that still has to write this turn's state.
+    expect(result.terminalToolCalls).toBeNull();
+    // …and the reason that `null` is not the wire's fault.
+    expect(result.terminalToolsCollided).toEqual(["tick_clock"]);
+  });
+
+  test("#1617 a TOTAL collision reports the same named outcome (it used to read as an ineligible wire)", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["update_scene"],
+      // Every declaration collides, which used to leave `wanted` empty — indistinguishable from "none
+      // requested", so the consumer was told the wire could not carry terminal tools. It could.
+      terminalTools: [{ name: "update_scene", description: "the terminal twin", parameters: { type: "object" as const } }],
+      runChatTurn: scriptedDepths([[doneFinal("done.")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.terminalToolCalls).toBeNull();
+    expect(result.terminalToolsCollided).toEqual(["update_scene"]);
+  });
+
+  test("#1617 an ORDINARY turn reports NO collisions (the planted control for the field)", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[toolFinal("", [{ id: "c1", name: "update_scene", args: '{"weather":"rain"}' }])]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.terminalToolsCollided).toEqual([]);
+    expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
+  });
+
+  // #1604 — after #1404 the terminal half is collected AT THE DEPTH IT WAS EMITTED and accumulated across the
+  // whole recurse loop. A folded game that ALSO attaches registry tools can therefore hand the fold several
+  // depths' calls; nothing pinned that, and the fold's contract did not state it. Both depths' calls survive,
+  // in EMISSION ORDER — which is what makes the fold's last-wins `scene` plane read correctly (a later depth
+  // saw the earlier depth's tool results).
+  test("#1604 terminal calls from SEVERAL recursion depths all reach the channel, in emission order", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths(
+        [
+          // Depth 0: a terminal call co-emitted with the registry call that triggers the recursion. The
+          // aggregate economics keep only the LAST depth's `toolCalls`, so a re-read here would erase it.
+          [
+            toolFinal("tick... ", [
+              { id: "c1", name: "tick_clock", args: "{}" },
+              { id: "c2", name: "update_scene", args: '{"weather":"rain"}' },
+            ]),
+          ],
+          // Depth 1: a second terminal call, emitted after the registry tool's result came back.
+          [toolFinal("done.", [{ id: "c3", name: "update_scene", args: '{"weather":"clearing"}' }])],
+        ],
+        requests,
+      ),
+    });
+    const result = await runTurnPipeline(args);
+    // Only the registry half ever recursed — two depths, one execution.
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.terminalToolCalls?.map((c) => c.toolCallId)).toEqual(["c2", "c3"]);
+    // Emission order, so the fold's single-valued `scene` plane lands on the LATER depth's view of the world.
+    expect(result.terminalToolCalls?.map((c) => c.arguments)).toEqual(['{"weather":"rain"}', '{"weather":"clearing"}']);
   });
 });
 

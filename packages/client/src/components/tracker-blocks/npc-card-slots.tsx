@@ -7,8 +7,8 @@
 // story writes every beat, which reached no reader at all until the panel and the steering reminder grew one).
 // All three are editable-in-place by default per the kit doctrine.
 
-import type { RpgCastGuideField, RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
-import { RPG_CAST_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
+import type { RpgNpcGuideField, RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
+import { RPG_NPC_GUIDE_FIELDS, RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
@@ -19,7 +19,7 @@ import { RelationshipBadge } from "./relationship-badge.tsx";
 import { TrackerChip } from "./tracker-blocks.tsx";
 import { TrackerValue } from "./tracker-value.tsx";
 
-interface CastRelationshipProps {
+interface NpcRelationshipProps {
   readonly name: string;
   readonly relationship?: RpgRelationship;
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
@@ -32,7 +32,7 @@ interface CastRelationshipProps {
 /** The relationship slot — display-at-rest: the read badge (or a quiet "+ relationship" seed affordance
  *  when neutral) opens the 6-kind PICKER popover on click. Read-only (no callback): the badge alone,
  *  silent on neutral. Off-vocab kinds are unconstructable (Tier-0). */
-function CastRelationship({ name, relationship, onEditRelationshipKind, relationshipGlyph }: CastRelationshipProps): ReactElement | null {
+function NpcRelationship({ name, relationship, onEditRelationshipKind, relationshipGlyph }: NpcRelationshipProps): ReactElement | null {
   const kind = relationship?.kind ?? "neutral";
   // Controlled so a PICK closes the popover in the same gesture (commit-and-close).
   const [open, setOpen] = useState(false);
@@ -98,13 +98,13 @@ function CastRelationship({ name, relationship, onEditRelationshipKind, relation
 /** The italic voice for `thoughts` — inner state the reader is overhearing, not a line anyone says. The
  *  other two guides are plain muted prose (they describe what IS on stage). One map, so the distinction is a
  *  lookup rather than a conditional sprinkled through the render. */
-const GUIDE_CLASS: Readonly<Record<RpgCastGuideField, string>> = {
+const GUIDE_CLASS: Readonly<Record<RpgNpcGuideField, string>> = {
   appearance: "min-w-0 break-words",
   outfit: "min-w-0 break-words",
   thoughts: "min-w-0 break-words italic",
 };
 
-interface CastGuidesProps {
+interface NpcGuidesProps {
   readonly name: string;
   /** The standing per-character guides (RV-11) — the story writes them; an unwritten one is simply ABSENT
    *  (an omitted line, never a "none" placeholder: a missing guide is not a missing feature). */
@@ -112,21 +112,21 @@ interface CastGuidesProps {
   readonly outfit?: string;
   readonly thoughts?: string;
   /** Commit one guide (free text) — present ⇒ each SHOWN guide is editable-in-place. It cannot seed an
-   *  unwritten guide: these are prose the story authors, and three empty labelled rows on every cast card
+   *  unwritten guide: these are prose the story authors, and three empty labelled rows on every npc card
    *  would cost more than the seeding is worth. */
-  readonly onEditGuide?: (field: RpgCastGuideField, next: string) => void;
+  readonly onEditGuide?: (field: RpgNpcGuideField, next: string) => void;
 }
 
-/** The guide lines under the cast header — `appearance`/`outfit`/`thoughts` as quiet secondary prose. They
+/** The guide lines under the npc header — `appearance`/`outfit`/`thoughts` as quiet secondary prose. They
  *  are MODEL-authored free text with no length contract, so every line wraps (`min-w-0 break-words`) instead
  *  of widening the card (the 08-01 mood/beat overflow class). Empty ⇒ the line is omitted entirely. */
-function CastGuides({ name, appearance, outfit, thoughts, onEditGuide }: CastGuidesProps): ReactElement | null {
-  const shown = RPG_CAST_GUIDE_FIELDS.map((field) => ({ field, text: { appearance, outfit, thoughts }[field]?.trim() ?? "" })).filter((g) => g.text !== "");
+function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuidesProps): ReactElement | null {
+  const shown = RPG_NPC_GUIDE_FIELDS.map((field) => ({ field, text: { appearance, outfit, thoughts }[field]?.trim() ?? "" })).filter((g) => g.text !== "");
   if (shown.length === 0) {
     return null;
   }
   return (
-    <Stack gap="field" data-slot="cast-guides">
+    <Stack gap="field" data-slot="npc-guides">
       {shown.map(({ field, text }) => (
         <Row key={field} gap="field" align="baseline" className="min-w-0">
           <Text as="span" size="micro" tone="muted" className="shrink-0">
@@ -154,7 +154,7 @@ function CastGuides({ name, appearance, outfit, thoughts, onEditGuide }: CastGui
   );
 }
 
-interface CastMoodProps {
+interface NpcMoodProps {
   readonly name: string;
   readonly mood?: string;
   readonly onEditMood?: (next: string) => void;
@@ -162,7 +162,7 @@ interface CastMoodProps {
 
 /** The mood slot — display-at-rest with the inline editor on click (TrackerValue owns the grammar);
  *  read-only shows the plain line (omitted when absent). */
-function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | null {
+function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null {
   const moodLabel = mood?.trim() ?? "";
   if (onEditMood !== undefined) {
     // flex-1 (basis-0) + min-w-0: the mood is model-authored free text with no length contract — it takes
@@ -201,15 +201,15 @@ function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | nul
 // component-size cap): emoji · name · relationship · mood, then guides, meters and the field chips.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface CastField {
+export interface NpcField {
   readonly name: string;
   readonly value: string;
 }
 
-export interface CastCardProps {
+export interface NpcCardProps {
   readonly name: string;
-  /** The model-written cast EMOJI — the character's face on the row (the reminder has rendered it beside the
-   *  name server-side all along; the client slot was named in this file's cast-row order and never built).
+  /** The model-written npc EMOJI — the character's face on the row (the reminder has rendered it beside the
+   *  name server-side all along; the client slot was named in this file's npc-row order and never built).
    *  Decoration beside the datum: the NAME is the accessible name, so the glyph is `aria-hidden` (the
    *  relationship/tracker-shape glyph rule). Empty ⇒ nothing renders. */
   readonly emoji?: string;
@@ -221,9 +221,9 @@ export interface CastCardProps {
   /** The character's unspoken inner state — rendered in the italic overheard voice, never as dialogue. */
   readonly thoughts?: string;
   /** Commit one guide by field — present ⇒ the shown guide lines are editable; absent ⇒ read-only. */
-  readonly onEditGuide?: (field: RpgCastGuideField, next: string) => void;
-  readonly fields?: readonly CastField[];
-  /** The cast member's relationship stance — badged in the header row; a neutral default shows nothing. */
+  readonly onEditGuide?: (field: RpgNpcGuideField, next: string) => void;
+  readonly fields?: readonly NpcField[];
+  /** The npc's relationship stance — badged in the header row; a neutral default shows nothing. */
   readonly relationship?: RpgRelationship;
   /** Meter blocks for numeric per-NPC trackers (rendered above the text-field chips). */
   readonly meters?: ReactNode;
@@ -242,7 +242,7 @@ export interface CastCardProps {
 
 /** A present-character card: emoji · name · relationship badge/picker · mood · standing guides · numeric
  *  meters · text-field chips. */
-export function CastCard({
+export function NpcCard({
   name,
   emoji,
   mood,
@@ -257,9 +257,9 @@ export function CastCard({
   onEditMood,
   onEditRelationshipKind,
   relationshipGlyph,
-}: CastCardProps): ReactElement {
+}: NpcCardProps): ReactElement {
   return (
-    <Stack gap="block" className="rounded-base border border-border bg-card px-block py-row" data-slot="cast-card">
+    <Stack gap="block" className="rounded-base border border-border bg-card px-block py-row" data-slot="npc-card">
       <Row justify="between" align="baseline" gap="block">
         <Row gap="field" align="center" className="min-w-0">
           {emoji === undefined || emoji === "" ? null : (
@@ -272,18 +272,18 @@ export function CastCard({
           <Text as="span" size="label" weight="semibold" className="shrink-0">
             {name}
           </Text>
-          <CastRelationship
+          <NpcRelationship
             name={name}
             {...(relationship === undefined ? {} : { relationship })}
             {...(onEditRelationshipKind === undefined ? {} : { onEditRelationshipKind })}
             {...(relationshipGlyph === undefined ? {} : { relationshipGlyph })}
           />
         </Row>
-        <CastMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
+        <NpcMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
       </Row>
-      {/* The standing guides sit directly under the header (the design-set cast row order: name · emoji ·
+      {/* The standing guides sit directly under the header (the design-set npc row order: name · emoji ·
           mood · outfit · thoughts · customFields) — prose first, then the tracked readings. */}
-      <CastGuides
+      <NpcGuides
         name={name}
         {...(appearance === undefined ? {} : { appearance })}
         {...(outfit === undefined ? {} : { outfit })}

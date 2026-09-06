@@ -21,8 +21,9 @@
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
-import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
+import type { ChromeEntry, ModalDefinition, SectionDefinition, SectionId } from "@orb/client/state";
 import {
+  assembleChrome,
   ChromeRegistryProvider,
   dockListPanel,
   NO_SELECTION_TITLE,
@@ -36,7 +37,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Command, Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
@@ -695,6 +696,17 @@ export function YouSheetProjectionStory(): ReactElement {
       behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
     },
     {
+      // A TOPBAR MODAL curated off the phone row — the ⌘K palette's shape (#1789). The sheet's projection
+      // rule is by BEHAVIOR KIND, not by id: a row-shaped entry (modal/section) joins the row group, a
+      // widget renders its own lens in the block below it.
+      id: "command",
+      label: "Jump to…",
+      icon: Command,
+      zone: "topbar.trail",
+      mobile: "sheet",
+      behavior: { kind: "modal", modalId: "command" },
+    },
+    {
       // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
       id: "fake-trail-overflow",
       label: "Fake trail widget",
@@ -712,14 +724,77 @@ export function YouSheetProjectionStory(): ReactElement {
     },
   ]);
   return (
-    // The section registry wrapper supplies the REAL MODAL registry, which the sheet now reads to place the
-    // command modal's row (the ⌘K chip's mobile home — app-shell.tsx's budget). The story's own CHROME
-    // registry is nested INSIDE it so it still wins over the real one.
+    // The section registry wrapper supplies the real modal registry (ModalHost's own read); the story's
+    // CHROME registry is nested INSIDE it so it wins, and it is the ONLY source of the sheet's rows —
+    // #1789 deleted the sheet's own `useModalRegistry()` lookup for the command row.
     <CtFakeSectionRegistry>
       <ChromeRegistryProvider value={chrome}>
         <YouSheet />
       </ChromeRegistryProvider>
     </CtFakeSectionRegistry>
+  );
+}
+
+/** A `topbar.trail`-placed modal definition, the shape the command palette declares — the story input for
+ *  the #1789 projection pins. Its `trigger.order` is deliberately NOT set: the stories drive relative order
+ *  through the WIDGET's own `order`, so the pin reads the registry's sort rather than a lens's JSX. */
+const TRAIL_MODAL: ModalDefinition = {
+  id: "command",
+  title: "Jump to…",
+  trigger: { placement: "topbar.trail", label: "Jump to…", icon: Command },
+  body: { planned: "ct" },
+};
+
+/** A fake `topbar.trail` WIDGET, so a trail story always has a second control to order the chip against
+ *  (and a barrier the assertions can wait on before reading the zone's rendered sequence). */
+function trailWidget(order?: number): ChromeEntry {
+  return {
+    id: "fake-trail-widget",
+    label: "Fake trail widget",
+    zone: "topbar.trail",
+    ...(order === undefined ? {} : { order }),
+    behavior: {
+      kind: "widget",
+      body: (): ReactElement => (
+        <button data-testid="fake-trail-widget" type="button">
+          Fake trail widget
+        </button>
+      ),
+    },
+  };
+}
+
+/**
+ * THE TOPBAR TRAIL AS A LENS OVER THE CHROME REGISTRY (#1789). The shell used to render the ⌘K chip from
+ * its OWN `useModalRegistry()` lookup, ahead of the registry's widgets — so the trail's contents and their
+ * order came from two places and the registry could not answer for either. This story hands the shell a
+ * chrome registry the caller composes, so a CT can vary the two things a lookup made unobservable: whether
+ * the zone HAS a modal entry at all, and where that entry sorts among the widgets.
+ *
+ * The MODAL registry stays the real one (nested outside), so the lookup the fix deletes would still find
+ * the command modal — which is exactly what makes `includeCommand={false}` a mechanism proof rather than a
+ * fence: on the pre-fix source the chip renders from that lookup no matter what this registry says.
+ */
+export function AppShellTrailProjectionStory({
+  includeCommand = true,
+  widgetOrder,
+}: {
+  readonly includeCommand?: boolean;
+  readonly widgetOrder?: number;
+}): ReactElement {
+  const chrome = createContributorRegistry<ChromeEntry>(
+    "chrome",
+    assembleChrome({ sections: [], modals: includeCommand ? [TRAIL_MODAL] : [], widgets: [trailWidget(widgetOrder)] }),
+  );
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
+        <LandOn section="chats" />
+        <ChromeRegistryProvider value={chrome}>
+          <AppShell />
+        </ChromeRegistryProvider>
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
   );
 }
 

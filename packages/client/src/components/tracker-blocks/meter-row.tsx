@@ -1,5 +1,5 @@
 // METER ROW — the tracker kit's block 1: `label · value/max` text over a 6px
-// decorative rail, editable in place. Its own module under the component-size cap (the cast-card-slots /
+// decorative rail, editable in place. Its own module under the component-size cap (the npc-card-slots /
 // ambient-strip precedent): the row is five coupled pieces — the label cluster, the read-only datum, the
 // editable value cell, its `/max` half, and the track — and nothing outside this file composes any of them.
 // The kit's shared doctrine (tokens only · a label always · bars are decoration and the TEXT is the datum ·
@@ -34,7 +34,7 @@ export interface MeterRowProps {
    *  simply absent rather than a fabricated `0`). */
   readonly max: number | null;
   /** WHOSE meter this is, for the editable value/max accessible names (the `TrackerChip.subject` rule —
-   *  two cast cards on one tab must not both offer a button called "Vitality value"). */
+   *  two npc cards on one tab must not both offer a button called "Vitality value"). */
   readonly subject?: string;
   /** Which `--color-track-N` fills the bar (categorical, by definition order). @defaultValue 1 */
   readonly color?: TrackColor;

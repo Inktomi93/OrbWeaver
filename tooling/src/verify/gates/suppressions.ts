@@ -219,6 +219,10 @@ const RATIFIED_TEST_RULES: Readonly<Record<string, RatifiedRule>> = {
     kind: "ruling",
     why: "deliberately off-schema / hostile input pushed PAST the wire type to prove the runtime boundary refuses it — the `any` is the test's instrument, never a value the code under test owns",
   },
+  "lint/style/useThrowOnlyError": {
+    kind: "ruling",
+    why: "a DEPENDENCY's non-Error throw is the test's SUBJECT — the arm proves the app's error path (policied 500, request id, ring entry) holds when foreign code throws a string; our own code obeys the rule and the fixture is the instrument, never a value the code under test owns",
+  },
   "@ts-expect-error": {
     kind: "ruling",
     why: "a type-level NEGATIVE pin (`.test-d` and inline): the directive IS the assertion that the type refuses the shape, and tsc reds the day it stops; plus an untyped `.cjs` config import whose shape is asserted immediately after",

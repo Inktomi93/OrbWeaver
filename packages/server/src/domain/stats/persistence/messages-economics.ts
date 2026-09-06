@@ -5,13 +5,18 @@
 //
 // Economics live on `message_variants`, not `messages` — the read aggregates the selected variant of each
 // assistant slot, so a swipe that isn't selected never double-counts. Owner scope derives via
-// `messages.character_id → characters.owner_id`.
+// `messages.character_id → characters.owner_id` PLUS the domain's one owner-chat definition
+// (`substrate/owner-chat-scope.ts`, #1477): a husk chat (`chats.started_at IS NULL`, e.g. an unclaimed
+// seeded greeting) is never one of the owner's chats, so its assistant generations must not enter these
+// sums either — #1791 found both reads here still scanning past that boundary after #1477 fixed
+// heatmap/momentum/latency/rebuild.
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 import { aggregateTokenProvenance, recordedCost, recordedTokens } from "../substrate/rates.ts";
 
 // The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
@@ -70,7 +75,7 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
-    WHERE c.owner_id = ${ownerId} AND m.role = 'assistant'
+    WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND m.chat_id IN (${ownerChatIds(ownerId)})
     GROUP BY m.character_id
   `);
   return rows.map((r) => ({
@@ -113,6 +118,7 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
     JOIN characters c ON c.id = m.character_id
     JOIN message_variants v ON v.id = m.selected_variant_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant' AND v.model IS NOT NULL
+      AND m.chat_id IN (${ownerChatIds(ownerId)})
     GROUP BY m.character_id, v.model, v.provider
   `);
   return rows.map((r) => ({

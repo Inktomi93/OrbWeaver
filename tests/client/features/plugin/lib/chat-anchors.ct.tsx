@@ -27,6 +27,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
@@ -244,6 +245,12 @@ const TAB_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
   "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+  // The #1742 Regex section's four reads (#1786). Its HEADING chip reads `chat.listEffectiveRegex`
+  // eagerly — outside any disclosure — so an unfed tab took the section's error arm and the whole host
+  // band failed to render, which is what made the two tests below red. The shared off-and-empty
+  // projection, not a populated one: this file is about PLUGIN ANCHORS, and a script row would put an
+  // unrelated surface's rows in the band these tests count headings in.
+  ...REGEX_READS_EMPTY,
 };
 
 /** The panel a plugin registers at `chat-settings-section`: one bound line plus an action. */

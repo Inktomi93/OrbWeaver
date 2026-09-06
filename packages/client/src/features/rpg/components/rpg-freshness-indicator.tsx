@@ -50,6 +50,10 @@ const ROUNDING_REASON: Readonly<Record<RpgFoldFallbackReason, string>> = {
   "local-engine-fold-guard": "This room's model goes silent when it's asked to record state inside the reply, so a second pass does it after the turn instead.",
   "no-terminal-channel": "This room's model can't record state inside the reply, so a second pass does it after the turn instead.",
   "no-terminal-calls": "The reply skipped its state bookkeeping, so a second pass records the beat instead.",
+  // #1617 — a HOST-fixable cause, unlike the three above: the model and the room are fine, an installed
+  // contributor claimed a tool name this room's bookkeeping needs. Said in host words, without naming the
+  // collided tools (the server log owns that detail; a name here would read as a setting the host can edit).
+  "terminal-declaration-collided": "Another tool in this room claimed a name the state bookkeeping needs, so a second pass records the beat instead.",
 };
 const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits — the delivery model you picked.";
 

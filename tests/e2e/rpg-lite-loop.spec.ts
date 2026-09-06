@@ -211,8 +211,8 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
       { op: "setStatus", status: "shivering" },
     ]);
     // A cast NPC is an ACTOR (R2): her identity half AND her tracked values ride the SAME per-actor row under
-    // her `cast:` ref, and `presentCharacters` is the pure presence list of actor-ref keys.
-    await patchActor(chatId, { kind: "cast", castKey: "mira" }, [
+    // her `npc:` ref, and `presentCharacters` is the pure presence list of actor-ref keys.
+    await patchActor(chatId, { kind: "npc", npcKey: "mira" }, [
       { op: "setIdentityText", field: "name", text: "Mira" },
       { op: "setIdentityText", field: "emoji", text: "🗡️" },
       { op: "setIdentityText", field: "mood", text: "wary" },
@@ -220,7 +220,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
       { op: "setTracker", key: "trust", value: { value: 4 } },
       { op: "setTracker", key: "secret", value: { value: "knows the password" } },
     ]);
-    await editSnapshot(chatId, { presentCharacters: ["cast:mira"] });
+    await editSnapshot(chatId, { presentCharacters: ["npc:mira"] });
     // LEVEL (hand-only plane, §2.6 — patchSheet is its ONLY door) + className.
     await patchSheet(chatId, ref, { level: 5, className: "Ranger" });
     // Quest plane (goal + n/m objectives).
@@ -268,8 +268,8 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(after.trackerOrbs).toEqual([{ key: "mana", label: "Mana", value: 3, max: 10, color: null }]);
 
     // The presence plane is a KEY list; the person is an actor row beside the roster (ONE shape, R2).
-    expect(after.cast).toEqual(["cast:mira"]);
-    const mira = after.actors.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+    expect(after.cast).toEqual(["npc:mira"]);
+    const mira = after.actors.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
     expect(mira?.presence).toBe(true);
     expect(mira?.name).toBe("Mira");
     expect(mira?.identity?.mood).toBe("wary");

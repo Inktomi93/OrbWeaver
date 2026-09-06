@@ -6,13 +6,22 @@
 // zone against `CHROME_ZONES`, and imposes the canonical per-zone order (the sort below), so a consumer
 // filters by zone and TRUSTS the order — the order algebra has ONE home, here.
 //
-// PLACEMENT_ZONE maps the `MODAL_TRIGGER_PLACEMENTS` that surface as chrome. Only `rail.end → rail.end`
-// maps: the rail consumes these rail.end entries as its footer affordances (§E-3 single-DOM cutover).
-// `topbar.trail` (⌘K) is DELIBERATELY absent — the topbar still renders its bespoke ⌘K chip (whose modal id
-// is already derived from the trigger placement); folding ⌘K into a generically-rendered topbar.trail entry
-// is a VISIBLE change deferred to N1's skin pass. `surface`/`mobile-tab` have no chrome zone (a feature
-// surface reached by `openModal(id)` · the mobile bar). The persona identity avatar is no longer a modal
-// placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed straight through below.
+// PLACEMENT_ZONE maps the `MODAL_TRIGGER_PLACEMENTS` that surface as chrome: `rail.end` (the rail's footer
+// affordances, §E-3 single-DOM cutover) and `topbar.trail` (the ⌘K command palette).
+//
+// TRUTH REPAIR, #1789 (owner ruling 2026-09-06): `topbar.trail` used to be DELIBERATELY unmapped, with the
+// topbar rendering a bespoke ⌘K chip off its own `useModalRegistry()` lookup — the §E-2 note called that a
+// VISIBLE change deferred to N1's skin pass. It is no longer deferred, and the deferral had a cost D73 does
+// not tolerate: the zone's CONTENTS and its ORDER came from a second place, so the ONE registry could not
+// answer for the affordance its own lens was supposed to own. The chip's rendered anatomy is unchanged —
+// `CommandChip` is now the presentation the trail's MODAL arm draws (topbar-trail.tsx), reached through the
+// entry, and its lead position is `commandModal.trigger.order` (-10) rather than a JSX position.
+//
+// The other two placements are NOT chrome, by ruling: `surface` is reached only by an explicit
+// `openModal(id)` from inside a feature surface, and `mobile-tab` is the You sheet — whose bar button is the
+// INTRINSIC DOOR to the mobile projection OF this registry (a door that is an entry inside the projection it
+// opens would be circular; D73 keeps the frame's own grammar intrinsic). The persona identity avatar is no
+// longer a modal placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed through.
 
 import type { ChromeEntry, ChromeZone } from "./chrome-registry.ts";
 import { CHROME_ZONES } from "./chrome-registry.ts";
@@ -24,6 +33,7 @@ const CHROME_ZONE_SET = new Set<string>(CHROME_ZONES);
 /** Which modal-trigger placements surface as a chrome entry, and in which zone (today's vocab). */
 const PLACEMENT_ZONE: Partial<Record<ModalTriggerPlacement, ChromeZone>> = {
   "rail.end": "rail.end",
+  "topbar.trail": "topbar.trail",
 };
 
 export interface AssembleChromeInput {
@@ -49,15 +59,20 @@ function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
   };
 }
 
-/** A mapped modal trigger as a chrome entry: label/icon from the trigger, `order = index` for a
- *  deterministic per-zone order. The affordance opens the modal (behavior arm carries only the id). */
+/** A mapped modal trigger as a chrome entry: every presentation axis comes off the trigger, so a lens never
+ *  re-decides one. `order` falls back to the derivation index — deterministic, but arbitrary — which is why
+ *  a trigger whose position is a DECISION declares it (⌘K's `-10` leads `topbar.trail`); `mobile` is spread
+ *  only when declared (exactOptionalPropertyTypes: an explicit `undefined` is not the same as absent, and
+ *  absent is what `ChromeEntry` documents as "the zone's default"). The affordance opens the modal (the
+ *  behavior arm carries only the id). */
 function modalEntry(def: ModalDefinition, zone: ChromeZone, index: number): ChromeEntry {
   return {
     id: def.id,
     label: def.trigger.label,
     icon: def.trigger.icon,
     zone,
-    order: index,
+    order: def.trigger.order ?? index,
+    ...(def.trigger.mobile === undefined ? {} : { mobile: def.trigger.mobile }),
     behavior: { kind: "modal", modalId: def.id },
   };
 }

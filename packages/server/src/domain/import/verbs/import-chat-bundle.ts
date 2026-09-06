@@ -47,7 +47,7 @@ function candidateHandles(bundle: PortableChat, filename: string): readonly Char
 
 interface ResolvedCharacterIds {
   readonly primary: CharacterId;
-  /** Every seat, primary FIRST — the shape `BulkImportChatInput.roster` expects to be a superset of. */
+  /** Every seat, primary FIRST — the shape `BulkImportChatInput.characterIds` expects to be a superset of. */
   readonly seats: readonly CharacterId[];
   readonly idByHandle: ReadonlyMap<string, CharacterId>;
 }
@@ -167,7 +167,7 @@ function toChatInput(args: {
     injections: bundle.injections,
     isRealConversation: isRealConversation(bundle),
     messages: bundle.messages.map((m) => toMessageInput(m, characterIds, personaIdByName)),
-    roster: characterIds.seats,
+    characterIds: characterIds.seats,
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
     starred: bundle.starred,
     archived: bundle.archived,

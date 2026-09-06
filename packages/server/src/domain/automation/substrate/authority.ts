@@ -38,7 +38,7 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   // collapses to a boolean host-authority verdict; a denied `can()` can never read as host. Ends if `can()`
   // grows a distinct infra-error class this boolean must stop swallowing.
   try {
-    deps.can(principal, "host", { kind: "chat", roster: { role } });
+    deps.can(principal, "host", { kind: "chat", membership: { role } });
     return true;
   } catch {
     return false;

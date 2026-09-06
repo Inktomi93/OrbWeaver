@@ -20,7 +20,7 @@
 // THE `entityRef` ARM IS THE ONE THAT READS THE CHAT (#630). Every other editor is pure over its
 // descriptor; this one asks the server what THIS ROOM has, because the whole point is that a host never
 // types a TypeID from memory. Its three non-pickable states are SAID rather than rendered as an empty
-// dropdown: loading, a failed read, and — the honest one — a room with no lorebooks attached, which no
+// dropdown: loading, a failed read, and — the honest one — a room with no world books attached, which no
 // picker can invent. The mint's own refusal stays reachable behind all of it: attachment is a LIVE fact
 // (`domain/automation/substrate/validate.ts`), so a book listed at render can stop qualifying before the
 // press, and that refusal rides `mintFailureToast`.
@@ -184,13 +184,13 @@ function ChoiceKnobField({
  *
  *  THE EMPTY ARM NOW POINTS SOMEWHERE (#640). It used to prescribe nothing on purpose — no client affordance
  *  attached a book to a chat, so a "go attach one" line would have pointed at a door that was not there. The
- *  door exists now: the "This chat" tab's Lorebooks section (`features/chat/chat-books-section.tsx`), which
+ *  door exists now: the "This chat" tab's World books section (`features/chat/chat-books-section.tsx`), which
  *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
  *  that makes this card completable. */
 function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElement {
   // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs `useQuery`, so the chat-less arm has
   // to be a different COMPONENT rather than an early return. (An `enabled: false` query would report
-  // `isPending` forever and paint "Loading this room's lorebooks…" at a surface that has no room.)
+  // `isPending` forever and paint "Loading this room's world books…" at a surface that has no room.)
   return chatId === null ? <GlobalEntityRefUnavailable knob={props.knob} /> : <ChatWorldInfoBookKnobField {...props} chatId={chatId} />;
 }
 
@@ -202,7 +202,7 @@ function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElem
 function GlobalEntityRefUnavailable({ knob }: { readonly knob: RulePresetKnobView }): ReactElement {
   return (
     <KnobRow knob={knob} issue={null}>
-      <Text voice="gloss">Library-wide rules can't pick a lorebook here yet — add this rule inside a chat, where its books can be listed.</Text>
+      <Text voice="gloss">Library-wide rules can't pick a world book here yet — add this rule inside a chat, where its books can be listed.</Text>
     </KnobRow>
   );
 }
@@ -216,14 +216,14 @@ function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }
   if (books.isPending) {
     return (
       <KnobRow knob={knob} issue={null}>
-        <Text voice="gloss">Loading this room's lorebooks…</Text>
+        <Text voice="gloss">Loading this room's world books…</Text>
       </KnobRow>
     );
   }
   if (books.isError) {
     return (
       <KnobRow knob={knob} issue={issue}>
-        <Text voice="gloss">Couldn't load this room's lorebooks.</Text>
+        <Text voice="gloss">Couldn't load this room's world books.</Text>
       </KnobRow>
     );
   }
@@ -232,8 +232,8 @@ function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }
     return (
       <KnobRow knob={knob} issue={null}>
         <Text voice="gloss">
-          This room has no lorebooks attached yet, so there is nothing for this rule to write into. Attach one under Lorebooks, higher up this tab, and it can
-          be picked here.
+          This room has no world books attached yet, so there is nothing for this rule to write into. Attach one under World books, higher up this tab, and it
+          can be picked here.
         </Text>
       </KnobRow>
     );
@@ -243,7 +243,7 @@ function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }
       <Select<string>
         aria-label={knob.label}
         items={items}
-        placeholder="Choose a lorebook…"
+        placeholder="Choose a world book…"
         value={chosen}
         onValueChange={(next): void => onChange(next ?? "")}
       />
@@ -276,7 +276,7 @@ export interface KnobBlockingLineProps {
 
 /** The lorebook arm of the blocking line. It asks the SAME chat-scoped read the chooser above it asks
  *  (react-query dedupes them into one request), because the two must agree: when the room has no books the
- *  chooser correctly says so and points at Lorebooks, while the blocking line underneath used to say
+ *  chooser correctly says so and points at World books, while the blocking line underneath used to say
  *  "Choose a lorebook to add this rule." — an instruction that cannot be obeyed on this surface, sitting in
  *  the position a host reads LAST before pressing Add (#655). An empty chooser is not a missing CHOICE, it
  *  is a missing PREREQUISITE, and only the read knows which one it is. */
@@ -293,7 +293,7 @@ function ChatWorldInfoBookBlockingLine({ knob, chatId }: KnobBlockingLineProps &
   const nothingToChoose = books.isSuccess && books.data.length === 0;
   return (
     <Text voice="gloss">
-      {nothingToChoose ? "Attach a lorebook under Lorebooks, higher up this tab — then this rule can be added." : knobBlockingLine(knob)}
+      {nothingToChoose ? "Attach a world book under World books, higher up this tab — then this rule can be added." : knobBlockingLine(knob)}
     </Text>
   );
 }

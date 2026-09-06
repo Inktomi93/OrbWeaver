@@ -156,8 +156,11 @@ interface ReConsentNoticeProps {
    *  narrower than the prior grant. Clears `reconsentPending` only when it covers the whole ask; the
    *  caller supplies the anti-TOCTOU host echo, which is about what was RENDERED, not what was ticked. */
   readonly onAllow: (grant: readonly PluginCapability[]) => void;
-  /** Fires the SAME uninstall the row's overflow menu triggers — the notice's other escape action (P1-3). */
-  readonly onRemove: () => void;
+  /** Fires the SAME uninstall the row's overflow menu triggers — the notice's other escape action (P1-3).
+   *  MAY return a promise (#1563b, widened #1632): it reaches `ConfirmDialog.onConfirm`, which awaits it and
+   *  holds the confirm open as the retry surface on rejection. `() => void` accepted an async handler
+   *  anyway, so the declared type said the opposite of what the confirm does with the value. */
+  readonly onRemove: () => void | Promise<void>;
   readonly allowing: boolean;
   readonly removing: boolean;
 }

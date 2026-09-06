@@ -327,6 +327,12 @@ test("two CONCURRENT accepts of one offer mint ONE copy — the loser converges 
   expect(settled.flatMap((result) => result.map((copy) => copy.minted)).filter(Boolean)).toHaveLength(1);
 });
 
+// #1571 — THIS IS A FENCE, NOT A RED-FIRST DEFECT PROOF, and the label is deliberate: c096e260c added this
+// pin alongside the #1560/#1445 basis-fence work, but that commit's code changes never touched the
+// handoff-copy write path itself (`provenance-resolved, mint-the-rest` was already how a retry behaved) —
+// only `card.ts`'s update predicate and `apply-fields.ts`/`iterate.ts` moved. The pin therefore does not
+// fail against the pre-c096e260c source; it REGRESSION-FENCES the retry-converges property the #1432 work
+// established so a future edit to the copier's provenance resolution cannot silently break it.
 test("a mid-set failure leaves the landed copies claimable — the RETRY converges and mints the rest (#1432)", async () => {
   const db = await freshDb();
   const oldHost = await seedUser(db, { handle: castId("partialhost") });

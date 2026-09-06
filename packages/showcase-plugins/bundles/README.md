@@ -83,7 +83,7 @@ want while experimenting.
 
 | Field | Rule |
 | - | - |
-| `id` | Lowercase slug, 2–64 chars, `[a-z0-9][a-z0-9-]*`. Unique **per user**; the namespace root for your tools (`plugin_<id_with_underscores>_<toolname>`), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
+| `id` | Lowercase slug, 2–64 chars, `[a-z0-9][a-z0-9-]*`. Unique **per user**; the namespace root for your tools (`plugin_<id_with_each_hyphen_doubled_to___>_<toolname>` — `oracle-deck` ⇒ `plugin_oracle__deck_<toolname>`; the doubling is what keeps two plugins' namespaces from ever colliding), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
 | `name` | ≤ 80 chars. What the pane and every attribution frame call it. |
 | `version` | Exactly `major.minor.patch`. Display + downgrade refusal only. |
 | `hostVersion` | `1`. The membrane major. A future host that no longer serves 1 refuses your bundle loudly rather than half-running it. |

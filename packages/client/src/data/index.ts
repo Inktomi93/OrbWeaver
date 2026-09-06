@@ -58,6 +58,8 @@ export type { QueryErrorStateProps } from "./query-error-state.tsx";
 export { QueryErrorState } from "./query-error-state.tsx";
 export type { QueryInlineStatesProps } from "./query-inline-states.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";
+export type { RestoreCardLorebookResult } from "./restore-card-lorebook.ts";
+export { restoreCardLorebook } from "./restore-card-lorebook.ts";
 export { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "./session-freshness.ts";
 export type { SessionResumeSnapshot } from "./session-resume.ts";
 export { takeSessionResume, writeSessionResume } from "./session-resume.ts";

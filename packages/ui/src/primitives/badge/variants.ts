@@ -66,6 +66,32 @@ export const badgeVariants = tv({
       // `me-field` is the gap the base's `gap-field` cannot supply here — `gap` is a flex property and this
       // arm is deliberately not a flex box. Pinned by geometry in tests/ui/primitives/badge/badge.ct.tsx.
       inline: "inline select-text rounded-inset [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle",
+      // THE INDICATOR ARM (#1798) — the CHILDLESS dot: "something is here", with no number in it. The owner
+      // ruled the counted pill out of the topbar bell ("ugly as fuck"): a full status pill — the lozenge that
+      // marks `always` on a lore entry — was rendering INLINE beside a 16px glyph inside a 34px icon button,
+      // and the count it carried was already in the control's accessible name and in the popover's own rows.
+      //
+      // It is an arm of `size` and not a new primitive because the base pill fights a dot in exactly ZERO
+      // ways: `rounded-full` is already the shape, `select-none` is already right for an ornament nobody
+      // quotes, and `gap-field`/`whitespace-nowrap`/`font-medium` are inert with no children. The axis is
+      // EXCLUSIVE, which is the property that matters — sm/md's padding is not applied at all here, so the
+      // arm needs no `p-0` reset and cannot be half-overridden into a squashed pill. A separate
+      // `IndicatorDot` primitive would have restated `rounded-full` + the six intent pairs to add nothing.
+      //
+      // `size-field` (6px) is the belt step, not a px literal, and it is deliberately the SAME diameter the
+      // shell's context-rail dot already draws (`context-rail.tsx` — `size-1.5 … p-0` at the call site, the
+      // one live `ui-size-via-variant` ALLOWLIST survivor): one dot diameter in the app. That call site is
+      // NOT converted here — moving it onto this arm makes its allowlist row stale, which is a `tooling/`
+      // edit outside this lane's fence; it is the follow-up this arm makes possible.
+      // `shrink-0` keeps it square in a flex row (the `series-row` swatch precedent); POSITION is the call
+      // site's datum, as it is for every corner ornament.
+      //
+      // NO separating ring. The obvious `ring-2 ring-background` cannot be correct: the bell's ground is
+      // `--color-background` on a default topbar, `--color-card` under `elevation="ramp"`
+      // (shell.css:112) and `bg-accent` while the ghost button is hovered — a fixed ring colour is wrong on
+      // two of the three. The dot separates by SITTING IN THE CORNER instead, which its consumer's geometry
+      // pin asserts against the glyph's own box.
+      dot: "size-field shrink-0",
     },
   },
   compoundVariants: [

@@ -160,7 +160,14 @@ export interface ConfigSearchRow {
  *  - `{ placeholder: true }` — the DECLARED-PLANNED arm; a group with no body can no longer silently
  *    placeholder.
  *  The `surface` arm (a feature-owned opaque render hosting its own hand-stamped anchors) was retired by
- *  §6.8: it was the old nav map beside the new one, in five groups. */
+ *  §6.8: it was the old nav map beside the new one, in five groups.
+ *
+ *  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 — config-revamp-
+ *  design.md §8.2 ruling 3): `automation` graduated to a real surface at `cb8026bfc` and no group literal on
+ *  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
+ *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/ct/ct-config-groups.ts`)
+ *  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if
+ *  the design doc's §8 ruling 2 (the LIST-owns-feature-status landing) itself retires — it has not. */
 export type ConfigGroupBody =
   | { readonly kind: "sections" }
   | { readonly kind: "collection"; readonly collection: CollectionContribution }

@@ -268,6 +268,56 @@ test("re-engaging the game brings the record back with no reload", async ({ moun
   await expect(component.getByRole("button", { name: RE_TRIGGER })).toBeVisible();
 });
 
+// #1468 item 2 — THE ROUND THAT COULD NOT RUN. A provider throw returns the same empty delta a quiet beat
+// returns, so the turn used to record NOTHING and the reader saw a beat that simply did nothing ("it thought
+// for a while and then nothing happened" — the exact silence this surface exists to end). The record now
+// carries the reason with an EMPTY call list, and the disclosure must render on that: an empty list is no
+// longer "nothing to show". The reason is the server's projection — the host reads the vehicle's own error,
+// every other member the bare summary — so the panel prints what it is handed and decides nothing.
+const FAILED_ROUND = [
+  {
+    variantId: "mv_ct_folded",
+    messageId: "msg_ct_folded",
+    createdAt: 1_700_000_000_000,
+    calls: [],
+    failure: "the model call that records game state failed, so this turn changed nothing",
+  },
+];
+
+const RE_ROUND_FAILED = /the model call that records game state failed/;
+const RE_NOT_RECORDED_SUFFIX = /Game actions on this turn — not recorded/;
+
+test("a turn whose STATE ROUND could not run renders the disclosure with the reason — an empty call list is not nothing to show", async ({ mount, page }) => {
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => FAILED_ROUND });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+
+  // The count suffix has nothing to count — the trigger says what happened instead, in the same word a
+  // dropped call's badge uses, so one turn's outcome reads the same whichever half was lost.
+  const trigger = component.getByRole("button", { name: RE_NOT_RECORDED_SUFFIX });
+  await expect(trigger).toBeVisible();
+  // Still COLLAPSED by default: a failed turn is not a reason to shout at the transcript.
+  await expect(component.locator("[data-slot=turn-tool-calls-failure]")).toHaveCount(0);
+
+  await trigger.click();
+
+  // VISIBLE TEXT, never a tooltip — the same posture every other reason on this surface takes.
+  await expect(component.locator("[data-slot=turn-tool-calls-failure]")).toBeVisible();
+  await expect(component.getByText(RE_ROUND_FAILED)).toBeVisible();
+  // …and no fabricated call: the model called nothing, so nothing is listed as called.
+  await expect(component.locator("[data-slot=turn-tool-call]")).toHaveCount(0);
+});
+
+test("a turn that DID run renders no failure line (the field is not a permanent ornament)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  await component.getByRole("button", { name: RE_TRIGGER }).click();
+
+  await expect(component.locator("[data-slot=turn-tool-call]")).toHaveCount(4);
+  await expect(component.locator("[data-slot=turn-tool-calls-failure]")).toHaveCount(0);
+});
+
 test("a room with NO records renders no disclosure at all (a non-game chat is untouched)", async ({ mount, page }) => {
   // [[no-separate-reduced-modes]]: there is no flag and no "reduced" transcript — the surface is simply
   // absent where it does not apply.

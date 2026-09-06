@@ -661,13 +661,21 @@ function expressionsRequestId(turnId: ChatTurnId): string {
  *  commits, classify the speaker's affect and emit an ephemeral sprite-swap. Null op = expressions not wired
  *  (byte-identical no-op — the memory-trigger posture). The op swallows its own errors; `.catch` covers a
  *  synchronous throw so nothing reaches the reply path. Wrapped in its own DETACHED root (`withRequestSpan`,
- *  `root: true`) for the same reason the rpg round is: it outlives the request. */
+ *  `root: true`) for the same reason the rpg round is: it outlives the request.
+ *
+ *  #1461 — the catch LOGS (it was `.catch(() => undefined)`): a rejecting classify left stale affect state
+ *  with no repair signal and no trace, on every committed turn. Warn, not error, and the ids come with it —
+ *  the file's own sibling convention (`fireRpgTurnCompleted` below). The SPAN is already marked ERROR without
+ *  extra work here: this `.catch` sits OUTSIDE `withRequestSpan`, so the rejection passes through the root's
+ *  own catch first (unlike the memory build, which owns an INNER try and must rethrow to reach it). */
 function fireExpressionClassify(ctx: ChatContext, view: MessageView, turnId: ChatTurnId): void {
   if (ctx.expressions !== null) {
     const expressions = ctx.expressions;
     void withRequestSpan(expressionsRequestId(turnId), EXPRESSIONS_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
       expressions.onTurnCompleted(view.chatId, view.id, view.selectedVariantId),
-    ).catch(() => undefined);
+    ).catch((err: unknown) =>
+      getLog().warn({ err, chatId: view.chatId, messageId: view.id, turnId }, "expressions: post-turn classify failed (reply already committed)"),
+    );
   }
 }
 
@@ -755,12 +763,17 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
 /** Fire-and-forget the rpg turn-abort CLEAR (rpg-design/10 §R4 hardening a): drop the turn's staged tool
  *  writes so a dead turn never flushes into the next turn on this chat. Null op = rpg not wired. Fire-and-
  *  forget — clearing staging must never mask the abort the caller is already surfacing. Wrapped in its own
- *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request. */
+ *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request.
+ *
+ *  #1461 — the catch LOGS (it was `.catch(() => undefined)`). This is the hook whose silence costs the most:
+ *  a failed clear leaves the dead turn's staged writes in place, so the NEXT turn on this chat flushes them
+ *  — the exact cross-turn contamination the clear exists to prevent, previously invisible. Warn + ids (the
+ *  sibling convention); the span is already ERROR for the same reason stated on `fireExpressionClassify`. */
 function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
     void withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
-      () => undefined,
+      (err: unknown) => getLog().warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
     );
   }
 }
@@ -1692,7 +1705,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
-        participants: prep.toolRoster ?? null,
+        membership: prep.toolMembership ?? null,
         turnId,
         signal: prep.signal,
       },
@@ -1766,6 +1779,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
+      terminalToolsCollided: result.terminalToolsCollided,
       prose: turnProse(prep),
       // The round's cancellation inputs. `triggeredBy` is the OWNER it is scoped to (`cancelStateRounds` mirrors
       // `activeTurns.abort`'s owner-only rule); `signal` is this turn's own registration signal, which covers
@@ -2031,7 +2045,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
         runAsUserId: prep.runAsUserId,
         triggeredBy: prep.triggeredBy,
         chatId: prep.chatId,
-        participants: prep.toolRoster ?? null,
+        membership: prep.toolMembership ?? null,
         turnId: ctx.newChatTurnId(),
         signal: prep.signal,
       },

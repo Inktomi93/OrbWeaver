@@ -54,9 +54,14 @@ export interface RegexTierGroupProps {
   /** The viewer's own library ids — a chat-tier row outside this set was attached by a PREVIOUS host
    *  (#1739). Empty for a member, whose rows carry no controls to gate. */
   readonly ownedScriptIds: ReadonlySet<RegexScriptId>;
+  /** #1755 — the ROOM's whole run length (`listEffectiveRegex`'s `effective.length`). It is the SET a row's
+   *  rank is a position in, and it is deliberately not this group's row count: a tier draws a SUBSET of the
+   *  run order, so `aria-setsize` taken from `rows.length` announced "2 of 2" for the rows that run 6th and
+   *  7th. NULL for a member, whose read carries no run order at all. */
+  readonly effectiveCount: number | null;
 }
 
-export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, ownedScriptIds }: RegexTierGroupProps): ReactElement {
+export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, ownedScriptIds, effectiveCount }: RegexTierGroupProps): ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isRoomTier = tier.scope === "chat";
   const qualifiers = rowQualifiers(
@@ -75,6 +80,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
       <RegexTierRow
         alsoAt={regexRowAlsoAt(tiers, row.script.id, tier.scope).map((scope) => regexTierKicker(scope, labels))}
         chatId={chatId}
+        effectiveCount={effectiveCount}
         isHost={isHost}
         notYours={isRoomTier && !ownedScriptIds.has(row.script.id)}
         qualifier={qualifiers[index]}
@@ -96,7 +102,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
         // scripts) and a blank block reads as a failed load.
         <Text voice="gloss">{emptyLine(tier.scope, isHost)}</Text>
       ) : (
-        <TierRows chatId={chatId} isRoomTier={isRoomTier} isHost={isHost} renderRow={renderRow} rows={rows} />
+        <TierRows chatId={chatId} effectiveCount={effectiveCount} isRoomTier={isRoomTier} isHost={isHost} renderRow={renderRow} rows={rows} />
       )}
       {isRoomTier && isHost ? (
         <>
@@ -140,12 +146,14 @@ function TierKicker({ allowed, count, label }: { readonly allowed: boolean; read
  *  int-tested with zero client callers, which is exactly the "unwired ≠ worthless" case. */
 function TierRows({
   chatId,
+  effectiveCount,
   isRoomTier,
   isHost,
   renderRow,
   rows,
 }: {
   readonly chatId: ChatId;
+  readonly effectiveCount: number | null;
   readonly isRoomTier: boolean;
   readonly isHost: boolean;
   readonly renderRow: (script: RegexScriptRow, index: number) => ReactElement;
@@ -153,15 +161,30 @@ function TierRows({
 }): ReactElement {
   const scripts = rows.map((row) => row.script);
   if (isRoomTier && isHost) {
+    // The room's own tier is the REORDER editor, and its `<li aria-posinset>` is the sortable seal's
+    // (`@orb/ui/sortable`): that set is the reorderable tier — what Space+arrows moves and what the drop
+    // announcement counts — so it is correct there and is deliberately not overridden. The run-order fact
+    // reaches this arm through the row's own spoken `Runs <n> of <m>` (#1755), which is why that half is
+    // not merely a duplicate of the attributes below.
     return <RegexScopeOrder renderItem={renderRow} scope={{ kind: "chat", chatId }} scripts={scripts} />;
   }
   // LIST SEMANTICS on the read-only arms too: these are RANKED rows, and a rank that exists only as a
   // visual numeral tells a screen reader nothing about where the row sits (`RegexScopeOrder`'s own rule).
+  //
+  // THE SET IS THE ROOM'S RUN ORDER, NOT THIS GROUP (#1755). A tier draws a SUBSET of what runs, so the
+  // index-based pair announced "1 of 3" for rows that run 1st, 2nd and 3rd of SEVEN and restarted the count
+  // at every group — agreeing with the visible column only in the first tier. An UNRANKED row (its tier is
+  // off here, or the viewer is a member with no run order at all) carries NEITHER attribute: a position in
+  // a set it is not in is the same lie the `—` numeral exists to avoid.
   return (
     <Stack gap="tight" role="list">
-      {scripts.map((script, index) => (
-        <Stack aria-posinset={index + 1} aria-setsize={scripts.length} key={script.id} role="listitem">
-          {renderRow(script, index)}
+      {rows.map((row, index) => (
+        <Stack
+          {...(row.runsAt === null || effectiveCount === null ? {} : { "aria-posinset": row.runsAt, "aria-setsize": effectiveCount })}
+          key={row.script.id}
+          role="listitem"
+        >
+          {renderRow(row.script, index)}
         </Stack>
       ))}
     </Stack>

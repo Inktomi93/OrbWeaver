@@ -6,8 +6,8 @@
 // these read contract shapes, so they live in the tool subsystem, not zero-domain `substrate/`).
 //
 // ALIAS RESOLUTION: `targetRef` is a model-facing NAME (projection-clean tool args — no branded ids).
-// `resolveActor` matches an existing `actorState` entry by a cast-key/actor-name projection; an unknown name
-// MINTS a new `cast` actor (the model naming a fresh NPC — the wallet/inventory-on-every-actor ruling).
+// `resolveActor` matches an existing `actorState` entry by a npc-key/actor-name projection; an unknown name
+// MINTS a new `npc` actor (the model naming a fresh NPC — the wallet/inventory-on-every-actor ruling).
 // TRACKERS address by `key` on both subjects (never a label — a rename must not orphan a value). The FOLD gates
 // that mint behind the R5 ghost guard (`ghostTargetRefs`) — an NPC must be on stage (or put there by the same
 // extraction) to be written; the per-tool handlers keep the open mint (a live tool call is the host's own turn).
@@ -30,7 +30,7 @@ import type {
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgCastSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
+import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgNpcSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { ActorRefIndex, ExtractionMints, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
 import type { RpgStateDelta } from "../contract/service.ts";
@@ -38,12 +38,12 @@ import { emptyActorEntry } from "../substrate/actor-ops.ts";
 
 /** The universal self-aliases a model reaches for when it means the human player — resolved to the player
  *  (user-kind) roster actor so a "player"/"you"/"self" targetRef lands on the real ref, never a phantom
- *  `cast:player`. Belt-and-suspenders alongside the schema-level enum constraint (R2, the mis-target fix). */
+ *  `npc:player`. Belt-and-suspenders alongside the schema-level enum constraint (R2, the mis-target fix). */
 const PLAYER_SELF_ALIASES = ["player", "you", "self", "me", "the player"] as const;
 
 /** Build the name→ref index from resolved roster actors (name lowercased — the model's free-text ref). The
  *  player (user-kind) actor ALSO answers to the universal self-aliases (`player`/`you`/`self`/…), so a model
- *  that targets "player" when the roster name is "You" still resolves to the real ref (never a `cast:player`
+ *  that targets "player" when the roster name is "You" still resolves to the real ref (never a `npc:player`
  *  phantom the panel can't render). An explicit roster name always wins over an alias (aliases fill only
  *  gaps the roster didn't already claim). */
 export function buildActorRefIndex(roster: readonly { readonly actorRef: RpgActorRef; readonly name: string }[]): ActorRefIndex {
@@ -60,18 +60,18 @@ export function buildActorRefIndex(roster: readonly { readonly actorRef: RpgActo
 }
 
 /** The `RpgActorRef` a model-facing target NAME addresses: a roster member's own ref when the name is on the
- *  roster (F2 — the tracker view + reminder read that key), else a `cast` ref under the name's stable SLUG.
+ *  roster (F2 — the tracker view + reminder read that key), else a `npc` ref under the name's stable SLUG.
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
- *  a cast NPC introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
+ *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
 function refForTarget(targetRef: string, roster: ActorRefIndex): RpgActorRef {
-  return roster.get(targetRef.toLowerCase()) ?? { kind: "cast", castKey: rpgCastSlug(targetRef) };
+  return roster.get(targetRef.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(targetRef) };
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
- *  1. an EXISTING `actorState` entry whose ref key already matches (roster ref OR cast slug) — keep addressing it;
+ *  1. an EXISTING `actorState` entry whose ref key already matches (roster ref OR npc slug) — keep addressing it;
  *  2. else a ROSTER member by name → mint with its `character:<id>`/`user:<id>` ref (F2), so a party-member
  *     write is FIRST-CLASS and rendered;
- *  3. else a genuine non-roster scene NPC → mint a `cast:<slug>` (the additive, hand-editable actor).
+ *  3. else a genuine non-roster scene NPC → mint a `npc:<slug>` (the additive, hand-editable actor).
  *  Returns the matched/minted actor + its index (-1 = minted, appended). */
 function resolveActor(actors: readonly RpgActorEntry[], targetRef: string, roster: ActorRefIndex): { actor: RpgActorEntry; index: number } {
   const ref = refForTarget(targetRef, roster);
@@ -223,6 +223,41 @@ function applyInventoryUpdates(
   return next;
 }
 
+/** One `remove` entry applied — the QUANTITY is denominated in ITEMS, spent across the name's stacks in order
+ *  (#1468 item 4).
+ *
+ *  WHAT WAS WRONG. `add` permits duplicate names, so a name can address several stacks, while `update` patches
+ *  the FIRST name match. Remove used to walk the whole inventory and take the requested quantity off EVERY
+ *  matching stack, so "the party used 2 potions" burned 2 from each of two stacks — the two verbs disagreed
+ *  about what a name addresses, in the direction that silently destroys the player's things. The tool's own
+ *  contract settles it: `update` "addresses an existing item by its model-visible name"
+ *  (`contracts/rpg/tools.ts`), so the NAME is the address and the quantity is a count of items under it.
+ *
+ *  AN OMITTED QUANTITY still drops every stack of that name — "they lost the potions" is the whole-name
+ *  sentence, and that arm was already correct. */
+function applyInventoryRemoval(
+  inventory: readonly RpgInventoryItem[],
+  rem: { readonly name: string; readonly quantity?: number | undefined },
+): RpgInventoryItem[] {
+  if (rem.quantity === undefined) {
+    return inventory.filter((it) => it.name !== rem.name);
+  }
+  let remaining = rem.quantity;
+  const out: RpgInventoryItem[] = [];
+  for (const it of inventory) {
+    if (it.name !== rem.name || remaining <= 0) {
+      out.push(it);
+      continue;
+    }
+    const spent = Math.min(remaining, it.quantity);
+    remaining -= spent;
+    if (it.quantity > spent) {
+      out.push({ ...it, quantity: it.quantity - spent });
+    }
+  }
+  return out;
+}
+
 export function applyUpdateInventory(
   state: RpgSnapshotState,
   args: UpdateInventoryArgs,
@@ -245,13 +280,7 @@ export function applyUpdateInventory(
   }
   inventory = applyInventoryUpdates(inventory, args.update ?? [], mintItemId);
   for (const rem of args.remove ?? []) {
-    inventory = inventory.flatMap((it) => {
-      if (it.name !== rem.name) {
-        return [it];
-      }
-      const nextQty = it.quantity - (rem.quantity ?? it.quantity);
-      return nextQty > 0 ? [{ ...it, quantity: nextQty }] : [];
-    });
+    inventory = applyInventoryRemoval(inventory, rem);
   }
   const wallet = args.walletDeltas === undefined ? actor.wallet : applyWalletDeltas(actor.wallet, args.walletDeltas);
 
@@ -259,8 +288,8 @@ export function applyUpdateInventory(
   return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
 }
 
-/** Pick the field that WINS a cast merge: the tool's value if provided, else the existing value, else the
- *  default. Kills the nested-ternary spread in the cast merge below. */
+/** Pick the field that WINS a npc merge: the tool's value if provided, else the existing value, else the
+ *  default. Kills the nested-ternary spread in the npc merge below. */
 function pick<T>(next: T | undefined, existing: T | undefined, fallback: T): T {
   if (next !== undefined) {
     return next;
@@ -273,7 +302,7 @@ function carry<T>(next: T | undefined, existing: T | undefined): T | undefined {
   return next ?? existing;
 }
 
-/** The default relationship a fresh cast member is born with (neutral, no label). */
+/** The default relationship a fresh npc is born with (neutral, no label). */
 const DEFAULT_RELATIONSHIP: RpgActorIdentity["relationship"] = { kind: "neutral", label: "" };
 
 /** Merge a `presentUpsert.relationship` patch onto the existing stance (§2.1). Omit = keep (MA-4). A `custom`
@@ -288,10 +317,10 @@ function mergeRelationship(
   return { kind: up.kind, label: up.kind === "custom" ? (up.label ?? "") : "" };
 }
 
-/** Merge one `presentUpsert` entry onto a cast actor's existing IDENTITY half (or a fresh one) — a per-actor
+/** Merge one `presentUpsert` entry onto an npc's existing IDENTITY half (or a fresh one) — a per-actor
  *  PATCH. Since R2 this writes the ACTOR ROW, so a departure (`presentRemove`) no longer destroys any of it:
  *  the guides, the mood and the whole relationship ARC survive offstage and re-surface on return. */
-function mergeCastIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgActorIdentity | undefined): RpgActorIdentity {
+function mergeNpcIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgActorIdentity | undefined): RpgActorIdentity {
   const appearance = carry(up.appearance, existing?.appearance);
   const outfit = carry(up.outfit, existing?.outfit);
   const thoughts = carry(up.thoughts, existing?.thoughts);
@@ -313,7 +342,7 @@ function mergeCastIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[num
  *  list) and the per-actor identity rows.
  *
  *  `presentRemove` drops PRESENCE ONLY — nothing else. That single line is the review's MS-2 fix: departure
- *  used to delete the cast row outright, taking the NPC's mood, emoji, standing guides and relationship stance
+ *  used to delete the npc row outright, taking the NPC's mood, emoji, standing guides and relationship stance
  *  with it while her tracked state survived invisibly, so a returning enemy came back neutral with no journal
  *  beat. A `presentUpsert` naming a ROSTER member adds her presence and writes NO identity (her name is the
  *  roster's, her standing prose the sheet's — one home per fact). */
@@ -328,7 +357,7 @@ function applyPresencePatch(
   for (const up of args.presentUpsert ?? []) {
     const resolved = resolveActor(actorState, up.name, roster);
     const ref = resolved.actor.actorRef;
-    const entry: RpgActorEntry = ref.kind === "cast" ? { ...resolved.actor, identity: mergeCastIdentity(up, resolved.actor.identity) } : resolved.actor;
+    const entry: RpgActorEntry = ref.kind === "npc" ? { ...resolved.actor, identity: mergeNpcIdentity(up, resolved.actor.identity) } : resolved.actor;
     actorState = withActor(actorState, { actor: entry, index: resolved.index });
     const key = actorRefKey(ref);
     if (!present.includes(key)) {
@@ -375,7 +404,7 @@ function sceneClock(state: RpgSnapshotState, args: UpdateSceneArgs): RpgSnapshot
 }
 
 /** `update_scene` → the ambient/cast/beat patch (§2.7). `timeOfDay`/`day` map onto the engine `clock` via the
- *  ONE `TIME_OF_DAY_HOURS` home; `presentUpsert` is a per-cast PATCH (merge by `key` = normalized name);
+ *  ONE `TIME_OF_DAY_HOURS` home; `presentUpsert` is a per-npc PATCH (merge by `key` = normalized name);
  *  `recentEvent` appends one beat. `customFields` array-of-pairs collapses to the stored record. */
 export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs, roster: ActorRefIndex): ScenePatch {
   const patch: ScenePatch = {};
@@ -515,17 +544,17 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
 }
 
 /** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the roster index (members + the
- *  player self-aliases) ∪ the tracked cast actors ∪ the scene cast. The ONE home for "who exists right now" —
+ *  player self-aliases) ∪ the tracked npcs ∪ the scene npcs. The ONE home for "who exists right now" —
  *  {@link ghostTargetRefs} adds the in-flight `presentUpsert` arm on top, and the R1 fold reports this SIZE as
  *  the diagnostic denominator on a write-nothing extraction (it is exactly the target menu the model had),
  *  which is what lets the fold log that fact without re-resolving the whole per-call ref bundle. */
 export function reachableActorRefs(base: RpgSnapshotState, roster: ActorRefIndex): Set<string> {
   const known = new Set<string>(roster.keys()); // already lowercased by `buildActorRefIndex`
   for (const actor of base.actorState) {
-    if (actor.actorRef.kind === "cast") {
+    if (actor.actorRef.kind === "npc") {
       // BOTH spellings answer: the stable slug (what the ref key is) AND the current DISPLAY name (what the
       // enum offers and the model actually writes back). Since R2 they are deliberately different strings.
-      known.add(actor.actorRef.castKey.toLowerCase());
+      known.add(actor.actorRef.npcKey.toLowerCase());
       const name = actor.identity?.name;
       if (name !== undefined) {
         known.add(name.toLowerCase());
@@ -536,14 +565,14 @@ export function reachableActorRefs(base: RpgSnapshotState, roster: ActorRefIndex
 }
 
 /** The GHOST-ACTOR guard (R5). The per-call `targetRef` enum is a MENU the model can misread: a measured spike
- *  saw a hosted model target "Aldric Vane" — an actor from a STALE enum who was in no live cast — and the
+ *  saw a hosted model target "Aldric Vane" — an actor from a STALE enum who was in no live scene — and the
  *  mint arm of {@link resolveActor} happily made him real, so a hallucinated name became a tracked actor the
  *  panel then rendered forever. This returns the party/inventory `targetRef`s that name NOBODY reachable this
  *  turn; {@link extractionToStateDelta} DROPS those args (errors-as-data — a ghost never fails the turn) and
  *  the caller logs them.
  *
- *  Legally reachable = the roster index (members + the player self-aliases) ∪ the tracked cast actors ∪ the
- *  scene cast ∪ the cast this SAME extraction puts on stage (`scene.presentUpsert`) — that last arm keeps the
+ *  Legally reachable = the roster index (members + the player self-aliases) ∪ the tracked npcs ∪ the
+ *  scene npcs ∪ the npcs this SAME extraction puts on stage (`scene.presentUpsert`) — that last arm keeps the
  *  legitimate introduce-and-wound beat working (the model presents a new NPC and damages her in one round),
  *  so the guard only kills names with no referent anywhere. */
 export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, roster: ActorRefIndex): string[] {
@@ -634,7 +663,7 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   return { statePatch, journal: [...journal, ...relationshipBeats] };
 }
 
-/** Derive the relationship-change journal beats (§2.4) — one `event` entry per cast actor whose relationship
+/** Derive the relationship-change journal beats (§2.4) — one `event` entry per npc whose relationship
  *  KIND flipped from its base snapshot value (`Mari: friend → enemy`). Matched by the actor's REF KEY; a
  *  first-seen actor or a label-only change (same kind) is NOT a beat (the kind is the arc-turning datum). A
  *  custom→custom kind with a changed label IS a turn (both read as "custom" by kind, so we also fire when the

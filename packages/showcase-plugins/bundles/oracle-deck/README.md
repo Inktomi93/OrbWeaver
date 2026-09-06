@@ -33,7 +33,7 @@ your other plugins. Every registration feature-detects its grant, so any subset 
 ## How it works
 
 `tools.register({name, description, parameters, handler})` runs once at activation. The host prefixes your
-name — `draw` becomes `plugin_oracle_deck_draw` — and puts it in the same tool registry every first-party
+name — `draw` becomes `plugin_oracle__deck_draw` — and puts it in the same tool registry every first-party
 tool lives in, so the model reaches it exactly the way it reaches anything else. Your `handler` runs inside
 the sandbox on your grants, and **whatever string it returns is what the model reads, verbatim**: a handler
 that returns `JSON.stringify(x)` hands the model exactly that JSON, unwrapped and un-re-encoded. `draw`
@@ -70,7 +70,7 @@ lines, each labeled in `main.js`:
   command or page action. A plugin structurally cannot open a modal spontaneously.
 * **TOASTS** — the answer to every command (`host.ui.toast`), app-stamped with the plugin's name,
   rate-floored (10 s per plugin — two toasts inside the floor deliver one).
-* **The OMEN MACRO** — `{{plugin_oracle_deck_omen}}` substitutes the session's most recent card anywhere
+* **The OMEN MACRO** — `{{plugin_oracle__deck_omen}}` substitutes the session's most recent card anywhere
   macros run. A plugin macro is a VALUE (no arguments — the engine is synchronous and a guest is not),
   resolved once per turn, host-namespaced, and it degrades to `""` rather than ever throwing.
 * **The DRAW ANNOUNCEMENT** — `host.pubsub.emit("draw", {...})` on the deck's private channel. Any of YOUR

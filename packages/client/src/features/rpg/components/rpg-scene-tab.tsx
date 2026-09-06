@@ -1,5 +1,5 @@
 // The SCENE tab ("Scene" — the NOW window): AmbientStrip → present-cast
-// CastCards → GOALS (a PROJECTION of the quest plane — active-only compact echo of the SAME `quests` rows
+// NpcCards → GOALS (a PROJECTION of the quest plane — active-only compact echo of the SAME `quests` rows
 // the Quests tab homes; one datum, two lenses) → subjectName-grouped custom widgets (accent rides
 // the strict-grammar ward: a stored `widget.accent` must pass the strict hex/OKLCH grammar, else it heals to the
 // ordinal ramp) → the P5 CHOICE-echo shell (wired-when-ready — no choice plane exists; renders nothing
@@ -7,7 +7,7 @@
 //
 // EDIT-in-place, all host-only in v1 (`canEditShared`, which also folds the read-only pill's honest
 // arm): ambient fields + game-tracker values + the cast IDENTITY rows ride `editSnapshot` (record/array
-// overlay under [merge-clear]); a cast member's TRACKED VALUES ride `patchActor` (the op door — a cast NPC's
+// overlay under [merge-clear]); a npc's TRACKED VALUES ride `patchActor` (the op door — an npc's
 // values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
 // are a log (read-only by nature).
 
@@ -29,8 +29,8 @@ import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgSceneCards } from "./rpg-scene-cards.tsx";
-import type { SceneCastEdit } from "./rpg-scene-cast.tsx";
-import { SceneCast, SceneKnownCharacters } from "./rpg-scene-cast.tsx";
+import type { SceneNpcEdit } from "./rpg-scene-npcs.tsx";
+import { SceneKnownCharacters, SceneNpcs } from "./rpg-scene-npcs.tsx";
 
 const RECENT_BEATS = 3;
 
@@ -110,7 +110,7 @@ const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "we
  *  a Scene goal row NAVIGATES there (`revealContextPanel("rpg.quests")`), never a second editor. */
 interface SceneEditCallbacks {
   readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
-  readonly castEdit?: SceneCastEdit;
+  readonly npcEdit?: SceneNpcEdit;
   readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
   /** Release a hand-lock path back to the model. Present only for a host (same gate as the edits). */
   readonly onReleaseLock?: (path: string) => void;
@@ -136,9 +136,9 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
       }
     },
     // EVERY cast edit is an OP on the actor's own row (R2) — identity and volatile alike. It used to be a
-    // whole-`presentCharacters` IMAGE rebuilt from the live cast on every keystroke, which pinned the entire
+    // whole-`presentCharacters` IMAGE rebuilt from the live npcs on every keystroke, which pinned the entire
     // plane on one NPC's mood edit and could only ever author the members this client could see.
-    castEdit: {
+    npcEdit: {
       onEditIdentityText: (targetRef, field, text): void => write(targetRef, { op: "setIdentityText", field, text }),
       onEditRelationship: (targetRef, relationship): void => write(targetRef, { op: "setRelationship", relationship }),
       onEditTracker: (targetRef, def, next): void => {
@@ -225,22 +225,22 @@ function ambientStripProps(
 /** The lite Scene tab — ambient, cast, goals, the live choice echo, game trackers, beats. */
 export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   const { tracker } = state;
-  const { onEditAmbient, castEdit, onEditGameTracker, onReleaseLock } = useSceneEdits(state);
+  const { onEditAmbient, npcEdit, onEditGameTracker, onReleaseLock } = useSceneEdits(state);
 
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
   const locked = new Set(tracker.lockedPaths);
   const ambient = tracker.ambient;
   // ONE actor list, partitioned by presence (R2) — the same two-boolean split the reminder makes, so what the
   // host sees on stage and what the model is told are the same set by construction.
-  const castActors = tracker.actors.filter((a) => a.actorRef.kind === "cast");
-  const onStage = castActors.filter((a) => a.presence);
-  const offstage = castActors.filter((a) => !a.presence);
+  const npcActors = tracker.actors.filter((a) => a.actorRef.kind === "npc");
+  const onStage = npcActors.filter((a) => a.presence);
+  const offstage = npcActors.filter((a) => !a.presence);
 
   return (
     <Stack gap="section" data-slot="rpg-scene-tab">
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientStripProps(ambient, locked, onEditAmbient, onReleaseLock)} />}
-      <SceneCast cast={onStage} {...(castEdit === undefined ? {} : { edit: castEdit })} lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)} />
-      <SceneKnownCharacters offstage={offstage} {...(castEdit === undefined ? {} : { edit: castEdit })} />
+      <SceneNpcs npcs={onStage} {...(npcEdit === undefined ? {} : { edit: npcEdit })} lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)} />
+      <SceneKnownCharacters offstage={offstage} {...(npcEdit === undefined ? {} : { edit: npcEdit })} />
       {/* The Goals section is a filtered ECHO of the quest plane: ACTIVE only, compact rows —
           the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />

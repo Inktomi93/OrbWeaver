@@ -54,7 +54,18 @@
       "path": "shadow.cta-glow",
       "reason": "The runtime custom-property and relative-color expression moved to orb.cssValues.",
       "replacement": "color.shadow-cta-highlight and color.primary"
+    },
+    {
+      "path": "spacing.switch-thumb",
+      "reason": "#1684 (owner ruling 2026-09-06): the Switch knob is DERIVED at the site from the other three dimensions (track-height - 2x border - 2x inset) so the centred block gap is an even difference by construction and the resting thumb lands on a whole device pixel at every --font-scale. A fourth independently belted token made that difference odd wherever the belt rounded them apart (fontScale 1.25: 1 + (38-23)/2 = 8.5px), which design-audit's off-grid-transform filed as #1684. Its #1109 ~55%-of-track-height ruling now lives on spacing.switch-inset, the primary of the pair.",
+      "replacement": "spacing.switch-inset with spacing.switch-track-height and border-width.control"
     }
   ],
-  "removedTargets": []
+  "removedTargets": [
+    {
+      "target": "--spacing-switch-thumb",
+      "reason": "#1684 (owner ruling 2026-09-06): the Switch knob became a token-driven calc at packages/ui/src/primitives/switch/variants.ts, so this CSS output has no consumer. See the spacing.switch-thumb row above.",
+      "replacement": "calc(var(--spacing-switch-track-height) - 2 * var(--border-width-control) - 2 * var(--spacing-switch-inset))"
+    }
+  ]
 }

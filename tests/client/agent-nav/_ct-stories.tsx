@@ -13,6 +13,8 @@
 
 import { buildAgentNav } from "@orb/client/agent-nav";
 import { useTRPC } from "@orb/client/data";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -78,6 +80,56 @@ export function PanelRequestStory(): ReactElement {
   return (
     <CtDataProviders>
       <PanelRequestRefusalStory />
+    </CtDataProviders>
+  );
+}
+
+// ── #1638: openConfig()'s registry-backed validation, driven in a REAL browser ──────────────────────────
+// The node unit suite (`agent-nav/index.test.ts`) proves the resolver's DISPATCH against a fake registry;
+// this proves the SAME arm survives real module evaluation (createContributorRegistry, the real
+// openConfigTo store action) in the browser tier, exactly the split `PanelRequestStory` above states for
+// its own arm. A single fixture section — a sub with one leaf — is enough: the vocabulary itself is
+// `resolve-config-target.test.ts`'s job.
+const STORY_GROUP = "appearance" as ConfigGroupId;
+const storySection: ConfigSectionContribution = {
+  id: "story-sizing",
+  anchor: STORY_GROUP,
+  nav: { id: "sizing", label: "Sizing", settings: [{ id: "chat-width", label: "Chat width", teach: { none: "test fixture" } }] },
+  body: () => null,
+};
+
+/** Fires `__orb.nav.openConfig("appearance", sub, setting)` against an INJECTED registry carrying exactly
+ *  one real sub ("sizing") and one real leaf ("chat-width"), and renders the verdict. */
+function ConfigTargetRefusalStory(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [verdict, setVerdict] = useState("");
+  const registry = createContributorRegistry<ConfigSectionContribution>("story-config-sections", [storySection]);
+  const nav = buildAgentNav(trpc, queryClient, () => registry);
+  const fire = (sub: string, setting?: string): void => {
+    const result = nav.openConfig(STORY_GROUP, sub, setting);
+    setVerdict(result.ok ? "ok" : result.reason);
+  };
+  return (
+    <div>
+      <button onClick={(): void => fire("sizing", "chat-width")} type="button">
+        open the real leaf
+      </button>
+      <button onClick={(): void => fire("bogus-sub")} type="button">
+        open an unknown sub
+      </button>
+      <button onClick={(): void => fire("sizing", "bogus-setting")} type="button">
+        open an unknown setting
+      </button>
+      <output data-testid="config-target-verdict">{verdict}</output>
+    </div>
+  );
+}
+
+export function ConfigTargetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ConfigTargetRefusalStory />
     </CtDataProviders>
   );
 }

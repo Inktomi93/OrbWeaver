@@ -300,7 +300,8 @@ export const rpgJournal = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // rpg_turn_tool_calls — WHAT THE MODEL DID on a folded turn (TOOLCALLS-INVISIBLE, arm A). ONE row per
-// producing VARIANT, holding that turn's whole call list as JSON.
+// producing VARIANT, holding that turn's whole call list as JSON — or, when the round could not run at all,
+// an EMPTY list beside the `failure` sentence (#1468 item 2; see that column).
 //
 // WHY AN RPG-OWNED TABLE AND NOT `message_variants.tool_calls`: that column is chat's, typed
 // `ToolCallRecord[]` and read by the transcript's existing tool renderer — exactly the right SHAPE, which is
@@ -348,6 +349,13 @@ export const rpgTurnToolCalls = sqliteTable(
     // (`RpgRecordedToolCall`), produced by the ONE `recordToolCalls` projection the warn and the flight
     // recorder also read — so the row, the log and the ring cannot disagree about what was lost.
     calls: text("calls", { mode: "json" }).$type<readonly RpgRecordedToolCall[]>().notNull(),
+    // THE ROUND COULD NOT RUN (#1468 item 2) — the sentence saying why, NULL on every turn whose vehicle
+    // reached a verdict (including the quiet one). A TURN-level column and not a synthesized `calls` entry:
+    // that array is "what the MODEL called, args verbatim" and a failed round has no call to report, so
+    // fabricating one would put a tool call the model never made in front of the reader. This is the durable
+    // half of the fix — a provider throw used to leave nothing but a transient warn line, and the person whose
+    // state update went missing had no way to learn it happened.
+    failure: text("failure"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

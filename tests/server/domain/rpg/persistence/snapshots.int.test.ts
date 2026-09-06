@@ -349,7 +349,7 @@ describe("write-boundary structural backstop (stickler F1)", () => {
       ...emptyState(),
       actorState: [
         {
-          actorRef: { kind: "cast" as const, castKey: "broken" },
+          actorRef: { kind: "npc" as const, npcKey: "broken" },
           volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
         },
       ],
@@ -372,7 +372,7 @@ describe("write-boundary structural backstop (stickler F1)", () => {
       ...emptyState(),
       actorState: [
         {
-          actorRef: { kind: "cast" as const, castKey: "ok" },
+          actorRef: { kind: "npc" as const, npcKey: "ok" },
           volatile: { trackerValues: { mana: { value: 0, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
         },
       ],

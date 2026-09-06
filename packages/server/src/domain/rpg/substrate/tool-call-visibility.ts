@@ -28,7 +28,7 @@
 // A HOST READS BOTH VERBATIM (identity, not a walk): the truth is the host's plane (parity-plus §3.6).
 
 import type { RpgRecordedToolCall, RpgToolCallDisclosure } from "@orb/contracts/rpg";
-import { parseToolCallArgs, projectIssueSentValue } from "@orb/contracts/rpg";
+import { parseToolCallArgs, projectIssueSentValue, RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
 import { stripHiddenDeep } from "./hidden-spans.ts";
 
 /** One JSON payload with every leaf string's hidden spans removed, re-encoded — or `null` when the input is
@@ -70,4 +70,20 @@ function projectToolCallForViewer(call: RpgRecordedToolCall, readsHidden: boolea
 /** {@link projectToolCallForViewer} across one turn's calls — the shape `listTurnToolCalls` serves. */
 export function projectToolCallsForViewer(calls: readonly RpgRecordedToolCall[], readsHidden: boolean): readonly RpgToolCallDisclosure[] {
   return calls.map((call) => projectToolCallForViewer(call, readsHidden));
+}
+
+/** The member-facing projection of a FAILED round's reason (#1468 item 2). The stored sentence is
+ *  `<summary>: <the vehicle's own error>`; the tail is a provider diagnostic (endpoint, model id, whatever the
+ *  backend put in its error body) and this read is MEMBER-gated, so only a hidden-reading viewer — the host,
+ *  who is also the person who can DO something about a broken connection — gets it. Everyone else is told the
+ *  thing they can act on: their turn did not record, and it was not their doing.
+ *
+ *  It rides `readsHidden` rather than a second axis for the same reason the args do: this file has exactly one
+ *  viewer verdict, threaded in as data by the verb, and a second one would be a second answer to "who is
+ *  privileged here" that could drift from it. */
+export function projectFailureForViewer(failure: string | null, readsHidden: boolean): string | null {
+  if (failure === null) {
+    return null;
+  }
+  return readsHidden ? failure : RPG_STATE_ROUND_FAILED_SUMMARY;
 }

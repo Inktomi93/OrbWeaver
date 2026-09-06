@@ -12,7 +12,7 @@
 //     A non-game chat stages NO `rpg` binding ⇒ `{{expr::rpg.…}}` errors-to-"" (the built CEL degrade).
 //
 // THE STRING PROJECTIONS ARE THE REMINDER'S LINES — this file COMPOSES `substrate/reminder.ts`'s exported
-// builders (`ambientLine`/`actorLine`/`castHeader`/`castLine`/`gameTrackerLine`/`questLine`/`plotLine`) rather
+// builders (`ambientLine`/`actorLine`/`npcHeader`/`gameTrackerLine`/`questLine`/`plotLine`) rather
 // than carrying its own. A file that carries its own line grammar drifts into a strict subset of the
 // reminder's: no volatile plane on ANY carrier (hp · wallet · carrying · status · conditions), none of the
 // standing guides, no attribute readings, no sheet flavor, no game-subject readings, no quest status/
@@ -28,23 +28,23 @@
 
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
-import { RPG_CAST_GUIDE_FIELDS } from "@orb/contracts/rpg";
+import { RPG_NPC_GUIDE_FIELDS } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta.ts";
 import type { RpgMacroFeed } from "../contract/params.ts";
 import { buildDeltaBlock } from "../substrate/delta.ts";
-import { actorLine, ambientLine, castHeader, gameTrackerLine, plotLine, questLine } from "../substrate/reminder.ts";
+import { actorLine, ambientLine, gameTrackerLine, npcHeader, plotLine, questLine } from "../substrate/reminder.ts";
 
-/** The scene-cast actors, in the reminder's own partition (R2): cast-kind actors who stand on stage. */
+/** The scene-npcs, in the reminder's own partition (R2): npc-kind actors who stand on stage. */
 function onStage(view: RpgTrackerView): readonly RpgActorView[] {
-  return view.actors.filter((a) => a.actorRef.kind === "cast" && a.presence);
+  return view.actors.filter((a) => a.actorRef.kind === "npc" && a.presence);
 }
 
 /** The shared render context the `{{rpgCast}}`/`{{rpgSceneState}}` string builders thread — bundled into ONE
  *  object so each builder stays under the param cap. `statProfile` + `relationshipHints` come from the game
- *  config; `prose` is the turn PRESET's `promptConfig.prose` (threaded through the gather), so the cast header
+ *  config; `prose` is the turn PRESET's `promptConfig.prose` (threaded through the gather), so the npc header
  *  resolves the SAME host override the reminder's `Present:` header does (two surfaces, one vocabulary). */
-interface CastRenderCtx {
+interface NpcRenderCtx {
   readonly statProfile: RpgStatProfile;
   readonly relationshipHints: Readonly<Record<string, string>>;
   readonly prose: ProseOverrides;
@@ -52,16 +52,16 @@ interface CastRenderCtx {
 
 /** The `Present:` block both string macros carry — the guide-teaching header + one whole {@link actorLine} per
  *  member (identity · carried trackers · the volatile plane · the standing guides). */
-function castBlock(view: RpgTrackerView, ctx: CastRenderCtx): string[] {
-  const cast = onStage(view);
-  return [castHeader(cast, ctx.prose), ...cast.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints))];
+function npcBlock(view: RpgTrackerView, ctx: NpcRenderCtx): string[] {
+  const npcs = onStage(view);
+  return [npcHeader(npcs, ctx.prose), ...npcs.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints))];
 }
 
 /** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present characters · the GAME-subject tracker
- *  readings (which belong to no actor, so they fall through the party/cast split unless this block carries
+ *  readings (which belong to no actor, so they fall through the party/npc split unless this block carries
  *  them) · recent beats. The party sheets are `{{rpgCast}}`'s job. Empty planes are omitted; a wholly-empty
  *  scene returns "". */
-function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: CastRenderCtx): string {
+function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: NpcRenderCtx): string {
   const lines: string[] = [];
   if (view.ambient !== null) {
     const ambient = ambientLine(view.ambient, dateMode);
@@ -74,7 +74,7 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: Cast
     lines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, ctx));
+    lines.push(...npcBlock(view, ctx));
   }
   if (view.gameTrackers.length > 0) {
     lines.push("Game trackers:", ...view.gameTrackers.map(gameTrackerLine));
@@ -88,15 +88,15 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: Cast
 /** `{{rpgCast}}` — the people: the party actors' whole lines (identity · attribute readings · carried trackers ·
  *  the volatile plane · the sheet's flavor continuation) + the present characters. The identity+volatile planes the
  *  panel's Party + Present tabs render. */
-function castString(view: RpgTrackerView, ctx: CastRenderCtx): string {
+function castString(view: RpgTrackerView, ctx: NpcRenderCtx): string {
   const lines: string[] = [];
-  // The same roster/cast partition the reminder makes off the one actor list (R2) — never a second rule.
-  const party = view.actors.filter((a) => a.actorRef.kind !== "cast");
+  // The same roster/npc partition the reminder makes off the one actor list (R2) — never a second rule.
+  const party = view.actors.filter((a) => a.actorRef.kind !== "npc");
   if (party.length > 0) {
     lines.push("Party:", ...party.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints)));
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, ctx));
+    lines.push(...npcBlock(view, ctx));
   }
   return lines.join("\n");
 }
@@ -147,18 +147,18 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
   };
 }
 
-/** The three STANDING guides (RV-11) as CEL leaves, DERIVED from `RPG_CAST_GUIDE_FIELDS` — never re-spelled
+/** The three STANDING guides (RV-11) as CEL leaves, DERIVED from `RPG_NPC_GUIDE_FIELDS` — never re-spelled
  *  here, so a fourth guide reaches `{{expr::rpg.cast…}}` the moment it joins the tuple (and a rename fails
  *  `tsc` at the tuple's own `satisfies`, not silently at this projection).
  *
- *  They were the last WRITABLE cast fields no macro/CEL consumer could read: the extraction round is asked
+ *  They were the last WRITABLE npc fields no macro/CEL consumer could read: the extraction round is asked
  *  for appearance + outfit + thoughts on every beat, the steering reminder prints them and the Scene tab's
- *  `CastGuides` renders them, but a preset author's predicate could only see name/mood/relationship. The
+ *  `NpcGuides` renders them, but a preset author's predicate could only see name/mood/relationship. The
  *  optional leaves project as `""` (the data-only degrade the whole tree uses — an absent key errors a whole
  *  expr chain, a "" reads as "the story hasn't written one"). */
 function celGuides(actor: RpgActorView): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const field of RPG_CAST_GUIDE_FIELDS) {
+  for (const field of RPG_NPC_GUIDE_FIELDS) {
     out[field] = actor.identity?.[field] ?? "";
   }
   return out;
@@ -200,15 +200,15 @@ export function buildRpgMacroFeed(args: {
   const deltaText = buildDeltaBlock(args.prevSnapshot, args.curSnapshot, args.deltaContext) ?? "";
   // PROSE-1 — the cast-header override rides the SAME preset prose the delta headings do (threaded on
   // `deltaContext`), so both macro surfaces resolve it without a second feed input.
-  const castCtx: CastRenderCtx = {
+  const npcCtx: NpcRenderCtx = {
     statProfile: args.statProfile,
     relationshipHints: args.deltaContext.relationshipHints,
     prose: args.deltaContext.prose ?? {},
   };
   return {
     macros: {
-      rpgSceneState: sceneStateString(args.view, args.dateMode, castCtx),
-      rpgCast: castString(args.view, castCtx),
+      rpgSceneState: sceneStateString(args.view, args.dateMode, npcCtx),
+      rpgCast: castString(args.view, npcCtx),
       rpgQuests: questsString(args.view.quests),
       rpgDelta: deltaText,
     },

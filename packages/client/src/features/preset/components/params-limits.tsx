@@ -15,32 +15,34 @@
 //
 // CONTEXT + ADVANCED render with NO capability: compaction and the escape hatches are ours, not the
 // model's. ADVANCED is the deck's ONE collapsed disclosure (genuinely rare escape hatches).
+//
+// The `<Field>` rows here ride `SettingRowGroup` + `ParamsRow` for the reason params-deck.tsx's header
+// states (#1770 — `row-void`); what stays OUTSIDE a group is anything that is not a label/control pair:
+// the KnobGrids (their own track set), the stop-sequence `Fieldset` (a group, not a row), the compaction
+// gloss and the vertical `Summary instructions` textarea.
 
 import type { ModelCapability, Verbosity } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
-import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Field, FieldLayout } from "@orb/ui/field";
-import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
-import { HintTrigger } from "@orb/ui/hint-trigger";
-import { Icon, X } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Field } from "@orb/ui/field";
+import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { KeyboardEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useState } from "react";
+import { SettingRowGroup } from "#components";
 import type { AppFormInstance } from "#forms";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
+import { ParamsRow } from "./params-row.tsx";
+import { StopSequences } from "./stop-sequences.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -115,99 +117,33 @@ function OutputCluster({
           step={1}
         />
       </KnobGrid>
-      <FieldLayout orientation="horizontal">
-        {verbosityLevels === undefined ? null : (
-          <form.AppField name="params.verbosity">
-            {(field): ReactElement => {
-              const value = field.state.value as Verbosity | undefined;
-              const items: SelectItems<string> = verbosityLevels.map((level) => ({ value: level, label: level }));
-              return (
-                <Field hint="How terse or expansive the model's replies run." label="Verbosity" name={field.name}>
-                  <Select
-                    aria-label="Verbosity"
-                    items={items}
-                    onValueChange={(next): void => field.handleChange(next === null || next === "" ? undefined : (next as Verbosity))}
-                    placeholder="Model default"
-                    value={value ?? ""}
-                  />
-                </Field>
-              );
-            }}
-          </form.AppField>
-        )}
-        {capability.sampling.stop === true ? <StopSequences form={form} /> : null}
-      </FieldLayout>
+      {verbosityLevels === undefined ? null : (
+        <SettingRowGroup>
+          <ParamsRow>
+            <form.AppField name="params.verbosity">
+              {(field): ReactElement => {
+                const value = field.state.value as Verbosity | undefined;
+                const items: SelectItems<string> = verbosityLevels.map((level) => ({ value: level, label: level }));
+                return (
+                  <Field hint="How terse or expansive the model's replies run." label="Verbosity" name={field.name}>
+                    <Select
+                      aria-label="Verbosity"
+                      items={items}
+                      onValueChange={(next): void => field.handleChange(next === null || next === "" ? undefined : (next as Verbosity))}
+                      placeholder="Model default"
+                      value={value ?? ""}
+                    />
+                  </Field>
+                );
+              }}
+            </form.AppField>
+          </ParamsRow>
+        </SettingRowGroup>
+      )}
+      {/* OUTSIDE the row group: this is a `Fieldset` GROUP (N chips plus an add box), not a label/control
+          row, so it declares its own block instead of taking the group's label track. */}
+      {capability.sampling.stop === true ? <StopSequences form={form} /> : null}
     </Section>
-  );
-}
-
-/** The stop-sequence group's hover hint — hoisted out of the JSX so the legend row and the `subject` it
- *  names read as one decision. */
-const STOP_SEQUENCE_HINT = "The model stops generating when it would emit one of these. Type a sequence and press Enter.";
-
-/** G2 — the `params.stop` chip list. No chip-input primitive exists in the seal and none is needed: Badge
- *  chips + a ghost × + an add Input is the landed tag-chip anatomy. */
-function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
-  return (
-    <form.AppField name="params.stop">
-      {(field): ReactElement => {
-        const stops = (field.state.value as readonly string[] | undefined) ?? [];
-        const add = (event: KeyboardEvent<HTMLInputElement>): void => {
-          if (event.key !== "Enter") {
-            return;
-          }
-          event.preventDefault();
-          const input = event.currentTarget;
-          const next = input.value;
-          if (next === "" || stops.includes(next)) {
-            return;
-          }
-          field.handleChange([...stops, next]);
-          input.value = "";
-        };
-        // A FIELDSET, NOT A FIELD (#1620, closing what #1587 opened). This row is a GROUP — N chips plus an
-        // add box — and a `Field` names exactly ONE control: Base UI reaches the sole `Field.Control` (the
-        // add Input) with the label's `aria-labelledby`, which OUTRANKS `aria-label` by the accname spec's
-        // own precedence. So the box announced "Stop sequences" (the group's name, on the wrong element) and
-        // "Add stop sequence" was unreachable — #1587 correctly refused to keep a dead attribute and stated
-        // the fork here rather than faking a fix. The legend is that fork resolved: `Fieldset`/`FieldsetLegend`
-        // name the GROUP (the macro-picks-pane anatomy), which frees the add box to carry its own name.
-        //
-        // HINT, not `description` (crunch-list 21): a Field description renders at the 13px/muted step, which
-        // is a FIFTH type tuple on a deck whose helper voice is `gloss`. A Fieldset has no hint slot, so the
-        // trigger is composed beside the legend the way `Field` composes it beside its label — a SIBLING,
-        // never a descendant, because nesting it leaks "More info" into the group's name through the W3C
-        // accname subtree concatenation. `knob-row.tsx` already does exactly this on this deck.
-        return (
-          <Fieldset>
-            <Row align="center" gap="tight">
-              <FieldsetLegend>Stop sequences</FieldsetLegend>
-              <HintTrigger className="shrink-0" hint={STOP_SEQUENCE_HINT} subject="Stop sequences" />
-            </Row>
-            <Row className="flex-wrap" gap="field">
-              {stops.map((stop) => (
-                <Badge intent="neutral" key={stop} size="sm" tone="soft">
-                  {stop}
-                  <Button
-                    aria-label={`Remove stop sequence ${stop}`}
-                    intent="ghost"
-                    onClick={(): void => field.handleChange(stops.filter((s) => s !== stop))}
-                    size="icon"
-                    type="button"
-                  >
-                    <Icon icon={X} size="xs" />
-                  </Button>
-                </Badge>
-              ))}
-              {/* Now REACHABLE: outside a `Field` there is no context-injected `aria-labelledby` to outrank
-                  it, so this is the box's actual accessible name (pinned in params-deck.ct.tsx by role+name,
-                  which is red against the Field anatomy above). */}
-              <Input aria-label="Add stop sequence" onKeyDown={add} placeholder="add…" />
-            </Row>
-          </Fieldset>
-        );
-      }}
-    </form.AppField>
   );
 }
 
@@ -217,52 +153,60 @@ function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
 function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section kicker="Context">
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="params.compaction.mode">
-          {(field): ReactElement => (
-            <field.SelectField
-              hint="Managed folds older turns into a durable compaction marker once the context fills past the threshold, and that marker is chat canon — it survives a model swap. Auto lets the runner compact its own session instead. Context is always kept in bounds; this only picks how."
-              items={COMPACTION_MODE_ITEMS}
-              label="Compaction mode"
-              placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="params.compaction.thresholdPct">
-          {(field): ReactElement => (
-            <field.NumberField
-              hint="Managed mode summarizes once the context fills past this fraction (0.5–0.99)."
-              label="Managed threshold"
-              max={0.99}
-              min={0.5}
-              placeholder={`${MANAGED_COMPACT_DEFAULT_PCT} (default)`}
-              step={0.01}
-            />
-          )}
-        </form.AppField>
+      <SettingRowGroup>
+        <ParamsRow>
+          <form.AppField name="params.compaction.mode">
+            {(field): ReactElement => (
+              <field.SelectField
+                hint="Managed folds older turns into a durable compaction marker once the context fills past the threshold, and that marker is chat canon — it survives a model swap. Auto lets the runner compact its own session instead. Context is always kept in bounds; this only picks how."
+                items={COMPACTION_MODE_ITEMS}
+                label="Compaction mode"
+                placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
+              />
+            )}
+          </form.AppField>
+        </ParamsRow>
+        <ParamsRow>
+          <form.AppField name="params.compaction.thresholdPct">
+            {(field): ReactElement => (
+              <field.NumberField
+                hint="Managed mode summarizes once the context fills past this fraction (0.5–0.99)."
+                label="Managed threshold"
+                max={0.99}
+                min={0.5}
+                placeholder={`${MANAGED_COMPACT_DEFAULT_PCT} (default)`}
+                step={0.01}
+              />
+            )}
+          </form.AppField>
+        </ParamsRow>
         {/* G4: the "missing 4th compaction knob" — minted on the schema, never given an editor. */}
-        <form.AppField name="params.compaction.verbatimTail">
-          {(field): ReactElement => (
-            <field.NumberField
-              hint="How many of the newest messages stay literal when managed compaction runs — everything older folds into the compaction marker."
-              label="Verbatim tail"
-              max={100}
-              min={1}
-              placeholder={`${MANAGED_VERBATIM_TAIL} (engine default)`}
-              step={1}
-            />
-          )}
-        </form.AppField>
+        <ParamsRow>
+          <form.AppField name="params.compaction.verbatimTail">
+            {(field): ReactElement => (
+              <field.NumberField
+                hint="How many of the newest messages stay literal when managed compaction runs — everything older folds into the compaction marker."
+                label="Verbatim tail"
+                max={100}
+                min={1}
+                placeholder={`${MANAGED_VERBATIM_TAIL} (engine default)`}
+                step={1}
+              />
+            )}
+          </form.AppField>
+        </ParamsRow>
         {/* G3: the provider's OWN context compression — honest per-backend gloss, since only some honor it. */}
-        <form.AppField name="params.providerContextCompression">
-          {(field): ReactElement => (
-            <field.SwitchField
-              hint="Ask the provider to compress context on its side. Only backends that advertise it honor this; the rest ignore it silently."
-              label="Provider context compression"
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+        <ParamsRow>
+          <form.AppField name="params.providerContextCompression">
+            {(field): ReactElement => (
+              <field.SwitchField
+                hint="Ask the provider to compress context on its side. Only backends that advertise it honor this; the rest ignore it silently."
+                label="Provider context compression"
+              />
+            )}
+          </form.AppField>
+        </ParamsRow>
+      </SettingRowGroup>
       {/* HONEST-DEGRADE: the runner's own auto-compaction never exposes its summary, so `auto` stores no
           marker — no carry-forward on a model swap and nothing readable in the transcript. Shown plainly. */}
       <form.Subscribe selector={(state): string | undefined => state.values.params.compaction?.mode}>
@@ -329,38 +273,42 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               actually stored, which is also the honest answer to "invalid JSON is ignored" — the box now
               shows what the preset holds instead of text that looks saved and is not. */}
           <LogitBiasField form={form} />
-          <FieldLayout orientation="horizontal">
-            <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
-              {(parallel): ReactElement => (
-                <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
-                  {/* The `aria-label` is UNREACHABLE and still REQUIRED (#1621) — the Field's label reaches
+          <SettingRowGroup>
+            <ParamsRow>
+              <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
+                {(parallel): ReactElement => (
+                  <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
+                    {/* The `aria-label` is UNREACHABLE and still REQUIRED (#1621) — the Field's label reaches
                       this control through Base UI's `aria-labelledby` and outranks it
                       (`tests/client/a11y/field-control-name.suite.ct.tsx`), but `jsx-a11y` resolves `Switch`
                       to `button`, outside its `ignoreElements`, so dropping it reds
                       `control-has-associated-label`. A lint obligation, not an accessible name. */}
-                  <Switch
-                    aria-label="Parallel tool calls"
-                    checked={parallel}
-                    onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)}
-                  />
-                </Field>
-              )}
-            </form.Subscribe>
-            <form.Subscribe selector={(state): string | undefined => state.values.params.advanced?.dynamicContext}>
-              {(dynamicContext): ReactElement => (
-                <Field hint="Where the per-turn system half is delivered on the wire." label="Dynamic-context delivery">
-                  <Select
-                    aria-label="Dynamic-context delivery"
-                    items={DYNAMIC_CONTEXT_ITEMS}
-                    onValueChange={(next): void =>
-                      form.setFieldValue("params.advanced.dynamicContext", next === "system" || next === "hook" ? next : undefined)
-                    }
-                    value={dynamicContext ?? ""}
-                  />
-                </Field>
-              )}
-            </form.Subscribe>
-          </FieldLayout>
+                    <Switch
+                      aria-label="Parallel tool calls"
+                      checked={parallel}
+                      onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)}
+                    />
+                  </Field>
+                )}
+              </form.Subscribe>
+            </ParamsRow>
+            <ParamsRow>
+              <form.Subscribe selector={(state): string | undefined => state.values.params.advanced?.dynamicContext}>
+                {(dynamicContext): ReactElement => (
+                  <Field hint="Where the per-turn system half is delivered on the wire." label="Dynamic-context delivery">
+                    <Select
+                      aria-label="Dynamic-context delivery"
+                      items={DYNAMIC_CONTEXT_ITEMS}
+                      onValueChange={(next): void =>
+                        form.setFieldValue("params.advanced.dynamicContext", next === "system" || next === "hook" ? next : undefined)
+                      }
+                      value={dynamicContext ?? ""}
+                    />
+                  </Field>
+                )}
+              </form.Subscribe>
+            </ParamsRow>
+          </SettingRowGroup>
           <CustomParametersEditor form={form} />
           <Text voice="gloss">
             `advanced.claudeEnv` is deliberately editor-less — it is a config-tier escape hatch for the agent-sdk process environment, not a generation knob.

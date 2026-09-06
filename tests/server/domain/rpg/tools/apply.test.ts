@@ -21,20 +21,20 @@ import {
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** An actor row on the state plane — `over` patches the VOLATILE half. */
-function actorRow(castKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {
-  return { actorRef: { kind: "cast", castKey }, volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over } };
+function actorRow(npcKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {
+  return { actorRef: { kind: "npc", npcKey }, volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over } };
 }
 
-/** A cast actor row WITH its identity half (the display name + its stance). */
+/** An npc row WITH its identity half (the display name + its stance). */
 function castRow(
-  castKey: string,
+  npcKey: string,
   identity: Partial<NonNullable<RpgSnapshotState["actorState"][number]["identity"]>> & { name: string },
   over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {},
 ): RpgSnapshotState["actorState"][number] {
-  return { ...actorRow(castKey, over), identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity } };
+  return { ...actorRow(npcKey, over), identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity } };
 }
 
-/** The empty roster index — a target name that matches no roster member mints a `cast:<name>` (the non-roster
+/** The empty roster index — a target name that matches no roster member mints a `npc:<name>` (the non-roster
  *  scene-NPC path). Tests that exercise the roster resolution build a populated index instead. */
 const NO_ROSTER = buildActorRefIndex([]);
 
@@ -62,11 +62,11 @@ const idSeq = <T extends string = string>(prefix: string): (() => T) => {
   return () => castId<T>(`${prefix}_${++n}`);
 };
 
-test("update_party mints a fresh cast actor + applies a tracker DELTA", () => {
+test("update_party mints a fresh npc + applies a tracker DELTA", () => {
   const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_ROSTER);
   const actor = result.actorState[0];
   // The ref key is the SLUG (R2); the model's own spelling rides the identity half as the display name.
-  expect(actor?.actorRef).toEqual({ kind: "cast", castKey: "goblin" });
+  expect(actor?.actorRef).toEqual({ kind: "npc", npcKey: "goblin" });
   // TOTAL by construction: the whole `{value,items,max}` is written, so the plane merge (which recurses into
   // this object) can never strand a previous reading's siblings on the new one. `max` (the per-carrier ceiling
   // OVERRIDE) is born null and stays HOST-authored — no tool arm writes it.
@@ -96,7 +96,7 @@ test("update_party: a SET arm naming neither a value nor items is a no-op, never
   expect(result.actorState[0]?.volatile.trackerValues["trust"]).toEqual({ value: 62, items: null, max: null });
 });
 
-test("update_party on a ROSTER-member name mints under the roster ref, not a cast key (F2)", () => {
+test("update_party on a ROSTER-member name mints under the roster ref, not a npc key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
   const roster = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, roster);
@@ -187,6 +187,61 @@ test("update_inventory remove decrements quantity, dropping the item at zero", (
   expect(result.actorState[0]?.volatile.inventory).toEqual([]);
 });
 
+test("update_inventory remove SPENDS a quantity across same-named stacks, it does not decrement each one (#1468 item 4)", () => {
+  // `add` permits duplicate names, so a name can address several stacks — while `update` patches the FIRST
+  // name match. Remove used to `flatMap` the whole inventory and take the full quantity off EVERY stack, so
+  // "the party used 2 potions" burned 2 from each of two stacks: the two verbs disagreed about what a name
+  // addresses, in the direction that silently destroys the player's things.
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 2 }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([
+    { id: "i1", name: "Potion", description: "", quantity: 1, location: "belt", type: "" },
+    { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+  ]);
+});
+
+test("update_inventory remove SPILLS into the next same-named stack when the first cannot cover it", () => {
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  // 4 spent: the belt's 3 are consumed WHOLE and the 4th comes off the pack — the quantity is denominated in
+  // ITEMS, which is the only reading that makes a duplicate-name inventory countable.
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 4 }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i2", name: "Potion", description: "", quantity: 4, location: "pack", type: "" }]);
+});
+
+test('update_inventory remove with NO quantity drops every stack of that name ("they lost the potions")', () => {
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+          { id: "i3", name: "Rope", description: "", quantity: 1, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion" }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i3", name: "Rope", description: "", quantity: 1, location: "pack", type: "" }]);
+});
+
 test("update_scene maps timeOfDay to the representative hour + appends a beat", () => {
   const patch = applyUpdateScene(emptyState(), { timeOfDay: "night", recentEvent: "The bell tolled." }, NO_ROSTER);
   expect(patch.clock).toEqual({ day: 1, hour: 21, minute: 0 });
@@ -205,17 +260,17 @@ test("update_scene writes weather TOTAL — the closed type plus a label that is
 });
 
 test("update_scene presentUpsert is a PATCH on the ACTOR row — an omitted field keeps the existing value", () => {
-  const state = emptyState({ actorState: [castRow("elder", { name: "Elder", emoji: "🧙", mood: "calm" })], presentCharacters: ["cast:elder"] });
+  const state = emptyState({ actorState: [castRow("elder", { name: "Elder", emoji: "🧙", mood: "calm" })], presentCharacters: ["npc:elder"] });
   const patch = applyUpdateScene(state, { presentUpsert: [{ name: "Elder", mood: "angry" }] }, NO_ROSTER);
   const elder = patch.actorState?.[0]?.identity;
   expect(elder?.mood).toBe("angry");
   expect(elder?.emoji).toBe("🧙"); // kept
   expect(elder?.relationship).toEqual({ kind: "neutral", label: "" }); // kept (omit = keep)
   // Presence is idempotent — an upsert on someone already on stage does not double-list them.
-  expect(patch.presentCharacters).toEqual(["cast:elder"]);
+  expect(patch.presentCharacters).toEqual(["npc:elder"]);
 });
 
-// THE R2 RETENTION GUARANTEE. `presentRemove` used to delete the whole cast row, taking the NPC's name, mood,
+// THE R2 RETENTION GUARANTEE. `presentRemove` used to delete the whole npc row, taking the NPC's name, mood,
 // emoji, standing guides and relationship ARC with it while her tracked state survived invisibly on a second
 // plane. A return then re-created her from nothing: neutral stance, blank guides, and (because
 // `deriveRelationshipBeats` skips a first-seen member) no journal beat and no delta line — a silent arc reset.
@@ -238,19 +293,19 @@ test("depart → return RETAINS everything: a presentRemove drops PRESENCE ONLY 
         },
       ),
     ],
-    presentCharacters: ["cast:mira"],
+    presentCharacters: ["npc:mira"],
   });
 
   // SHE LEAVES.
   const departed = applyUpdateScene(established, { presentRemove: ["Mira"] }, NO_ROSTER);
   expect(departed.presentCharacters).toEqual([]);
   // …and her ROW comes back BYTE-IDENTICAL: a departure rewrites nothing about the person. (The old applier
-  // filtered her cast row out of existence here, which is exactly what destroyed her half.)
+  // filtered her npc row out of existence here, which is exactly what destroyed her half.)
   expect(departed.actorState).toEqual(established.actorState);
 
   // SHE COMES BACK — the same slug, so the upsert lands on the row that was waiting.
   const returned = applyUpdateScene({ ...established, presentCharacters: [] }, { presentUpsert: [{ name: "Mira" }] }, NO_ROSTER);
-  expect(returned.presentCharacters).toEqual(["cast:mira"]);
+  expect(returned.presentCharacters).toEqual(["npc:mira"]);
   const row = returned.actorState?.[0];
   expect(row?.identity?.relationship).toEqual({ kind: "enemy", label: "" }); // the ARC survived
   expect(row?.identity?.appearance).toBe("a lean duelist"); // the standing guides survived
@@ -261,14 +316,14 @@ test("depart → return RETAINS everything: a presentRemove drops PRESENCE ONLY 
   expect(row?.volatile.inventory).toHaveLength(1);
 });
 
-test("a cast NPC is addressed by SLUG, so a re-spelled name patches ONE actor (never a sibling identity)", () => {
-  const base = emptyState({ actorState: [castRow("sister-vesna", { name: "Sister Vesna", mood: "warming" })], presentCharacters: ["cast:sister-vesna"] });
+test("an npc is addressed by SLUG, so a re-spelled name patches ONE actor (never a sibling identity)", () => {
+  const base = emptyState({ actorState: [castRow("sister-vesna", { name: "Sister Vesna", mood: "warming" })], presentCharacters: ["npc:sister-vesna"] });
   const patch = applyUpdateScene(base, { presentUpsert: [{ name: "sister  vesna.", mood: "guarded" }] }, NO_ROSTER);
   expect(patch.actorState).toHaveLength(1);
-  expect(patch.actorState?.[0]?.actorRef).toEqual({ kind: "cast", castKey: "sister-vesna" });
+  expect(patch.actorState?.[0]?.actorRef).toEqual({ kind: "npc", npcKey: "sister-vesna" });
   // The model's spelling IS the new display name (that is how a story renames), but the key never moved.
   expect(patch.actorState?.[0]?.identity?.name).toBe("sister  vesna.");
-  expect(patch.presentCharacters).toEqual(["cast:sister-vesna"]);
+  expect(patch.presentCharacters).toEqual(["npc:sister-vesna"]);
 });
 
 test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identity (one name home)", () => {
@@ -282,7 +337,7 @@ test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identit
 });
 
 test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
-  const state = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["cast:mari"] });
+  const state = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
   const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] }, NO_ROSTER);
   expect(toEnemy.actorState?.[0]?.identity?.relationship).toEqual({ kind: "enemy", label: "" });
   const toCustom = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] }, NO_ROSTER);
@@ -352,7 +407,7 @@ test("extractionToStateDelta includes the plot plane in the statePatch when the 
 });
 
 test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 — not model-authored)", () => {
-  const base = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["cast:mari"] });
+  const base = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
   const extraction = {
     party: [],
     inventory: [],
@@ -370,7 +425,7 @@ test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 �
 });
 
 test("extractionToStateDelta does NOT derive a beat when the relationship is unchanged", () => {
-  const base = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["cast:mari"] });
+  const base = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
   // A scene write that changes mood but NOT relationship — no relationship beat.
   const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, trackers: [], quests: [], journal: [] };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
@@ -385,7 +440,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState();
   const extraction = {
-    // "Aldric Vane" is the measured failure: an actor from a STALE enum, in no live cast.
+    // "Aldric Vane" is the measured failure: an actor from a STALE enum, in no live scene.
     party: [
       { targetRef: "Aldric Vane", status: "brooding" },
       { targetRef: "player", status: "wounded" },
@@ -399,7 +454,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   const delta = extractionToStateDelta(base, extraction, mints, roster);
 
   const actors = delta.statePatch["actorState"] as { actorRef: { kind: string }; volatile: { status: string; inventory: unknown[] } }[];
-  // NO cast:aldric-vane mint — the ghost never becomes a tracked actor the panel renders forever.
+  // NO npc:aldric-vane mint — the ghost never becomes a tracked actor the panel renders forever.
   expect(actors).toHaveLength(1);
   expect(actors[0]?.actorRef).toEqual({ kind: "user", userId });
   expect(actors[0]?.volatile.status).toBe("wounded"); // the legitimate write in the SAME extraction still landed
@@ -407,14 +462,14 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   expect(delta.journal).toHaveLength(1); // and the turn is otherwise untouched (errors-as-data, never a throw)
 });
 
-test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked cast / scene cast are reachable)", () => {
+test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked npcs / scene npcs are reachable)", () => {
   const userId = castId<UserId>("user_g2");
   const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState({
-    // A tracked cast actor answers to BOTH spellings since R2: her stable slug AND her display name (the
+    // A tracked npc answers to BOTH spellings since R2: her stable slug AND her display name (the
     // enum offers the display name, so a write coming back under it must not read as a ghost).
     actorState: [actorRow("goblin"), castRow("bartender", { name: "Bartender" })],
-    presentCharacters: ["cast:bartender"],
+    presentCharacters: ["npc:bartender"],
   });
   const ghosts = ghostTargetRefs(
     base,
@@ -445,7 +500,7 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
   const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
   // ONE actor came out of both arms — the party write and the scene upsert resolve through the same slug, so
   // the wound and the introduction land on the same person (they used to be two rows on two planes).
-  expect(delta.statePatch["presentCharacters"]).toEqual(["cast:mari"]);
+  expect(delta.statePatch["presentCharacters"]).toEqual(["npc:mari"]);
   const actors = delta.statePatch["actorState"] as { identity?: { name: string }; volatile: { trackerValues: Record<string, unknown> } }[];
   expect(actors).toHaveLength(1);
   expect(actors[0]?.identity?.name).toBe("Mari");
@@ -600,13 +655,13 @@ test("EXT-4b: the heal does NOT resurrect the custom label — a healed entry is
 test("the player (user-kind) actor answers to the universal self-aliases (player/you/self/me)", () => {
   const userId = castId<UserId>("user_nate");
   const idx = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "Alex" }]);
-  // The roster name AND each self-alias resolve to the SAME user ref — never a phantom cast:player.
+  // The roster name AND each self-alias resolve to the SAME user ref — never a phantom npc:player.
   for (const key of ["alex", "player", "you", "self", "me", "the player"]) {
     expect(idx.get(key)).toEqual({ kind: "user", userId });
   }
 });
 
-test('a "player" targetRef on a user-roster game lands on the user ref — NOT a cast:player phantom (R2)', () => {
+test('a "player" targetRef on a user-roster game lands on the user ref — NOT a npc:player phantom (R2)', () => {
   const userId = castId<UserId>("user_p");
   const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, roster);

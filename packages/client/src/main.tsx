@@ -30,7 +30,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
+import type { ContributorRegistry } from "#lib";
 import { AppErrorBoundary, AppFailureSurface, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
+import type { ConfigSectionContribution } from "#state";
 import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
@@ -51,15 +53,33 @@ import "./styles/index.ts";
 // `globalThis.__orb` and the motion observers land as early as the fetch allows — the singletons it needs
 // are module-scope consts that already exist, and nothing about the handle wants to wait for the first
 // render (only `installAppReadySignal` below does, and for its own reason).
+/** Type-only — the erased shape `compose/config-sections.ts`'s `configSections` returns. Named here so
+ *  the thunk below doesn't restate `ContributorRegistry<ConfigSectionContribution>` twice. */
+type ConfigSectionRegistry = ContributorRegistry<ConfigSectionContribution>;
+
+// #1638 — `openConfig`'s config-section registry, for `agent-handles/index.ts`'s `installAgentHandles`.
+// `configSectionsForNav` is `null` until the dynamic import below resolves; `agent-nav/index.ts`'s
+// `openConfig` reads it through this THUNK at CALL time (never at build time), so a `sub`/`setting`
+// address asked for before this settles refuses loudly instead of validating vacuously. A STATIC import of
+// `compose/config-sections.ts` here would be the exact #433 defect this whole dev-only block exists to
+// dodge — it assembles literally every feature's config section, ~570 kB of graph — so this is a SECOND
+// dynamic import, independent of the agent-handles one below (their relative resolve order doesn't matter;
+// the thunk is read fresh on every `openConfig` call, not captured once).
+let configSectionsForNav: ConfigSectionRegistry | null = null;
 if (import.meta.env.DEV) {
   import("./lib/long-task-tracer.ts")
     .then(({ installLongTaskTracer }) => {
       installLongTaskTracer();
     })
     .catch((error: unknown) => globalThis.reportError(error));
+  import("./compose/config-sections.ts")
+    .then(({ configSections }) => {
+      configSectionsForNav = configSections;
+    })
+    .catch((error: unknown) => globalThis.reportError(error));
   import("./agent-handles/index.ts")
     .then(({ installAgentHandles }) => {
-      installAgentHandles(queryClient, trpcClient, trpcProxy);
+      installAgentHandles(queryClient, trpcClient, trpcProxy, (): ConfigSectionRegistry | null => configSectionsForNav);
     })
     .catch((error: unknown) => globalThis.reportError(error));
 }

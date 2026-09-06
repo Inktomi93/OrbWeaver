@@ -1,4 +1,4 @@
-// CT: the per-chat LOREBOOKS rack (chat-books-section.tsx, #640) at the REAL 320px context-panel floor.
+// CT: the per-chat WORLD BOOKS rack (chat-books-section.tsx, #640) at the REAL 320px context-panel floor.
 //
 // SPLIT OF DUTY: the tab's own `settings-context-tab.ct.tsx` owns the BEHAVIOR pins (the section's order
 // after Documents, the write-reach copy, the attach/detach payloads, the member permission-OMIT) because
@@ -60,5 +60,5 @@ test("320px empty (member): the copy says who can change it, since a member cann
   await stubRack(page, []);
   const component = await mount(<ChatBooksSectionStory isHost={false} />);
   await expect(component.getByText("the host attaches the ones this room carries", { exact: false })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Attach a lorebook" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Attach a world book" })).toHaveCount(0);
 });

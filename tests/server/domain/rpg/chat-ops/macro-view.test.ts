@@ -8,7 +8,7 @@
 // rendered them — writable everywhere, readable by no predicate.
 
 import type { RpgActorView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
-import { RPG_CAST_GUIDE_FIELDS, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
+import { RPG_NPC_GUIDE_FIELDS, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import { evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import { buildRpgMacroFeed } from "../../../../../packages/server/src/domain/rpg/chat-ops/macro-view.ts";
@@ -20,10 +20,10 @@ function sheet(): RpgActorView["sheet"] {
   return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
 
-/** An on-stage CAST actor carrying an identity half — the only actor kind the CEL `cast` list projects. */
-function castActor(castKey: string, identity: Partial<NonNullable<RpgActorView["identity"]>> & { name: string }): RpgActorView {
+/** An on-stage NPC actor carrying an identity half — the only actor kind the CEL `cast` list projects. */
+function castActor(npcKey: string, identity: Partial<NonNullable<RpgActorView["identity"]>> & { name: string }): RpgActorView {
   return {
-    actorRef: { kind: "cast", castKey },
+    actorRef: { kind: "npc", npcKey },
     name: identity.name,
     presence: true,
     identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity },
@@ -38,7 +38,7 @@ function viewWith(...rows: readonly RpgActorView[]): RpgTrackerView {
     ambient: null,
     lockedPaths: [],
     actors: rows,
-    cast: rows.filter((r) => r.presence).map((r) => (r.actorRef.kind === "cast" ? `cast:${r.actorRef.castKey}` : r.name)),
+    cast: rows.filter((r) => r.presence).map((r) => (r.actorRef.kind === "npc" ? `npc:${r.actorRef.npcKey}` : r.name)),
     trackerDefs: [],
     gameTrackers: [],
     quests: [],
@@ -104,10 +104,10 @@ test("the CEL cast projection stages every RV-11 standing guide, readable by an 
   expect(readExpr(feed.rpg, 'rpg.cast.exists(c, c.outfit == "patched grey habit")')).toBe(true);
 });
 
-test("every RPG_CAST_GUIDE_FIELDS member is staged (the tuple is the contract, not this list)", () => {
+test("every RPG_NPC_GUIDE_FIELDS member is staged (the tuple is the contract, not this list)", () => {
   const feed = feedFor(viewWith(castActor("vesna", { name: "Sister Vesna" })));
   // Derived from the tuple: a fourth guide that reaches the tuple and NOT this projection fails HERE.
-  for (const field of RPG_CAST_GUIDE_FIELDS) {
+  for (const field of RPG_NPC_GUIDE_FIELDS) {
     expect(readExpr(feed.rpg, `rpg.cast[0].${field}`)).toBe("");
   }
 });
@@ -118,7 +118,7 @@ test("an unwritten guide projects as the empty string, never an absent key that 
   expect(readExpr(feed.rpg, 'rpg.cast[0].appearance != "" && rpg.cast[0].thoughts == ""')).toBe(true);
 });
 
-test("an offstage cast actor is not in the projection at all (the presence partition is unchanged)", () => {
+test("an offstage npc is not in the projection at all (the presence partition is unchanged)", () => {
   const offstage = { ...castActor("ghost", { name: "Ghost", thoughts: "watching from the rafters" }), presence: false };
   const feed = feedFor(viewWith(offstage));
   expect(readExpr(feed.rpg, "rpg.cast.size()")).toBe(0);

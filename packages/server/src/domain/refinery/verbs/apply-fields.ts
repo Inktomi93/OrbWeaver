@@ -16,12 +16,15 @@
 // SNAPSHOT FIRST (belt 13): `character.snapshot("auto: before refinery apply · <sessionId>")` — the
 // label carries the SESSION id (schema-renderer §6.2's classification convention: the version walk
 // classifies snapshots by prefix + session), and the minted snapshot id rides the RESULT (§16.2's
-// widening) as the immediate rollback-point affordance.
+// widening) as the immediate rollback-point affordance. RETRACTED ON REFUSAL (#1551): the snapshot is the
+// belt-14 write's WITNESS, not its prelude, so a `CHARACTER_STALE_BASIS` refusal deletes exactly that row
+// before re-throwing — see the catch around `ctx.updateCharacter` below.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { updateCharacterSchema } from "@orb/contracts/character";
+import { CHARACTER_STALE_BASIS_OP_CODE, updateCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { CardWriteBasis } from "#domain/character";
@@ -91,7 +94,23 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     // that moved refuses TOTALLY (`CHARACTER_STALE_BASIS`) — nothing is half-applied, the other edit stands,
     // and the user re-runs the apply against a fresh diff. See {@link basisOf} for WHAT is compared.
     const snapshot = await ctx.snapshotCharacter({ principal, characterId: session.characterId, label: applySnapshotLabelOf(sessionId) });
-    const detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
+    let detail: Awaited<ReturnType<typeof ctx.updateCharacter>>;
+    try {
+      detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
+    } catch (err) {
+      // #1551 — the snapshot above is the apply's WITNESS, not its prelude (the `restoreCardInPlace`
+      // precedent's own words): it exists to record what the card looked like BEFORE THIS APPLY, so it has
+      // to be taken while that state is still live, i.e. before the conditional write can refuse. A
+      // `CHARACTER_STALE_BASIS` refusal means the write never happened — the snapshot it was taken FOR is
+      // then a spurious "auto: before refinery apply" row with nothing behind it, so this retracts exactly
+      // that row (by id, never a bulk delete) before re-throwing the SAME refusal the caller already
+      // expects. Any OTHER error rides through unretracted — the header's other belts (12, background
+      // unavailability) leave the card row untouched, so there is nothing to undo.
+      if (err instanceof DomainOperationError && err.code === CHARACTER_STALE_BASIS_OP_CODE) {
+        await ctx.deleteSnapshot({ ownerId, snapshotId: snapshot.id, characterId: session.characterId });
+      }
+      throw err;
+    }
 
     // An apply completes the session (a later run/iterate flips it back active — a label, not a lock), and
     // a greeting removal REMAPS the selection in the same write: the session speaks in positions, so an

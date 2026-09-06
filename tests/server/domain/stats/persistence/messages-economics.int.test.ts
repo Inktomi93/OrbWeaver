@@ -111,6 +111,26 @@ describe("readCharacterEconomics", () => {
     expect(rows.map((r) => r.characterId)).toEqual([mine]);
     expect(rows[0]?.tokensOut).toBe(10);
   });
+
+  // #1791: a husk chat (`started_at IS NULL`, e.g. a seeded greeting never claimed) is not one of the
+  // owner's chats per `ownerChatIds` (#1477) — its assistant generations must not appear in the economics
+  // total.
+  test("a husk chat's assistant generations are excluded — economics spans the same chats as ownerChatIds", async () => {
+    db = await freshDb();
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, owner, { id: "character_husk_econ" });
+    const husk = await seedChat(db, character, { id: "chat_husk_econ", startedAt: null });
+    await seedMessage(db, {
+      chatId: husk,
+      seq: 1,
+      role: "assistant",
+      characterId: character,
+      variants: [{ model: "gpt", tokensOut: 999, costUsd: 9.99 }],
+    });
+
+    const rows = await readCharacterEconomics(db, owner);
+    expect(rows).toHaveLength(0);
+  });
 });
 
 describe("readCharacterModelEconomics", () => {
@@ -155,5 +175,23 @@ describe("readCharacterModelEconomics", () => {
       genTimeMs: 600,
       genSamples: 1,
     });
+  });
+
+  // #1791: same husk-exclusion contract as readCharacterEconomics above.
+  test("a husk chat's assistant generations are excluded from the per-model split", async () => {
+    db = await freshDb();
+    const owner = await seedUser(db);
+    const character = await seedCharacter(db, owner, { id: "character_husk_model_econ" });
+    const husk = await seedChat(db, character, { id: "chat_husk_model_econ", startedAt: null });
+    await seedMessage(db, {
+      chatId: husk,
+      seq: 1,
+      role: "assistant",
+      characterId: character,
+      variants: [{ model: "gpt", tokensOut: 999 }],
+    });
+
+    const rows = await readCharacterModelEconomics(db, owner);
+    expect(rows).toHaveLength(0);
   });
 });

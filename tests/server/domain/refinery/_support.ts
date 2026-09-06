@@ -10,7 +10,13 @@ import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
-import { createCharacterService, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "@orb/server/domain/character";
+import {
+  createCharacterService,
+  createDeleteSnapshot,
+  createListRefineryScoreTargets,
+  createLoadOwnedCard,
+  createStampRefinerySignals,
+} from "@orb/server/domain/character";
 import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@orb/server/domain/refinery";
 import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -85,6 +91,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     loadOwnedCard: createLoadOwnedCard({ db }),
     stampRefinerySignals: createStampRefinerySignals({ db }),
     snapshotCharacter: character.snapshot,
+    deleteSnapshot: createDeleteSnapshot({ db }),
     updateCharacter: character.update,
     getCharacter: character.get,
     duplicateCharacter: character.duplicate,

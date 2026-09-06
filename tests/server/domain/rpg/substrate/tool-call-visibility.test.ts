@@ -4,9 +4,10 @@
 // (1) that the naive strip really does leak — the control — and (2) that the projection does not.
 
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
+import { RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
 import { describe } from "vitest";
-import { projectToolCallsForViewer } from "../../../../../packages/server/src/domain/rpg/substrate/tool-call-visibility.ts";
+import { projectFailureForViewer, projectToolCallsForViewer } from "../../../../../packages/server/src/domain/rpg/substrate/tool-call-visibility.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const TRUTH = "the throne room is a trap";
@@ -86,5 +87,27 @@ describe("projectToolCallsForViewer", () => {
   test("an issue line with no sent value is untouched (the salvage arm is pure schema paths)", () => {
     const [call] = projectToolCallsForViewer([sceneCall("{}", ["update_scene.weather"])], false);
     expect(call?.issues).toEqual(["update_scene.weather"]);
+  });
+});
+
+describe("projectFailureForViewer (#1468 item 2)", () => {
+  // The stored sentence is `<summary>: <the vehicle's own error>`. The tail is a PROVIDER diagnostic and this
+  // read is member-gated, so it goes to the host only — the reader who can act on a broken connection.
+  const stored = `${RPG_STATE_ROUND_FAILED_SUMMARY}: 401 from https://api.internal/v1/chat (model qwen-3-32b, key sk-…)`;
+
+  test("a viewer who does not read hidden gets the SUMMARY only — the provider tail never leaves the host plane", () => {
+    const seen = projectFailureForViewer(stored, false);
+    expect(seen).toBe(RPG_STATE_ROUND_FAILED_SUMMARY);
+    expect(seen).not.toContain("api.internal");
+    expect(seen).not.toContain("sk-");
+  });
+
+  test("the host reads it verbatim (the args posture, one field over)", () => {
+    expect(projectFailureForViewer(stored, true)).toBe(stored);
+  });
+
+  test("a round that reached a verdict has no failure on either arm — the quiet beat says nothing", () => {
+    expect(projectFailureForViewer(null, false)).toBeNull();
+    expect(projectFailureForViewer(null, true)).toBeNull();
   });
 });

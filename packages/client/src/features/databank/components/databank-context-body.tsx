@@ -57,12 +57,27 @@ export function DatabankContextBody(): ReactElement {
   return (
     // The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
     // panel owns the one its suspending reads need.
-    // DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `ContextBody` is not
-    // a suspending child: it reads through plain `useQuery` and renders its OWN one-line pending arm
-    // (below). `reserveKey`'s `MeasuredSettle` remembers the child's box on EVERY commit, so it would
-    // memorise that ~one-line pending render and thereafter reserve a box far shorter than the settled
-    // rail — a reservation that actively lies. Keying this rail means hoisting the pending arm above the
-    // boundary (or suspending the read); until then the honest state is no key at all.
+    // DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `MeasuredSettle`'s
+    // effect carries NO dependency array (`data/query-boundary.tsx`), so it re-measures the wrapper on
+    // EVERY commit; a commit in which the child is a one-line pending arm is remembered exactly like a
+    // settled one, and the rail thereafter reserves a box that lies about its own content.
+    //
+    // #1726 ATTEMPTED THE KEYING AND REFUSED IT, so the next sweep does not pay for the same wall twice.
+    // Hoisting is not enough here, because this rail has TWO in-component readers, not one, and each is
+    // in-component by a RULING rather than by accident:
+    //   · `ContextBody`'s own `databank.get` — the GONE arm. Suspending it would report a deleted document
+    //     as a throw and force this panel to hand-roll a `renderError` (G29 RED). It IS hoistable above the
+    //     boundary, and #1726 did hoist it — that half worked.
+    //   · `databank-active-in.tsx`'s `listAttachments` — the "Checking…" arm. It is non-suspending because
+    //     a failed junction read must say so rather than claim the document feeds NOWHERE (#1500), and
+    //     because a slow junction read must not blank the Everywhere toggle above it. Hoisting THAT one
+    //     above the boundary would replace the whole rail with a loading line on every document switch —
+    //     strictly worse than the block-local wait it exists to give.
+    // With Active-in staying put, a settled COMMIT of this rail is not a settled RAIL, so there is no
+    // instant at which the measurement would be honest. And the boundary's only remaining suspending read
+    // is `EverywhereSection`'s `listGlobal`, which is not keyed by document and therefore never re-suspends
+    // on a switch — so a key here would buy nothing even if it were safe. Reversing this needs Active-in's
+    // #1500 ruling revisited first, which is not a reservation's call to make.
     <QueryBoundary
       fallback={<Text voice="gloss">Loading…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this document's attachments" onRetry={retry} />}

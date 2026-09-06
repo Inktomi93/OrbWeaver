@@ -3,7 +3,7 @@
 // they teach, beside the schema they enforce (`./extraction`, `./config`, `./tools`).
 //
 // WHY A REGISTRY, NOT TWO TEMPLATE LITERALS: the plane-under-service class (§1.6 audit) — `plot`, `widgets`,
-// per-cast `customFields`/`emoji`, the structured `day` counter were renderable + schema-writable planes the
+// per-npc `customFields`/`emoji`, the structured `day` counter were renderable + schema-writable planes the
 // model was NEVER PROMPTED for, because the plane prose was hand-composed in two monolithic system-prompt
 // strings (the structured extraction + the cheap tool round) that drifted from the schema. Home the teaching fragment
 // WITH its plane: BOTH system prompts COMPOSE from this ONE table, so a plane can't be schema-writable but
@@ -140,7 +140,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       // token VALUE would put un-editable model prose back in the code — the disease this program exists to kill.
       lines.push(rpgProse(ctx, ctx.config.dateMode === "structured" ? "rpg.extract.scene.dayStructured" : "rpg.extract.scene.dayNarrated"));
       lines.push(rpgProse(ctx, "rpg.extract.scene.present"));
-      // The mood-prose steer (owner report): models write a whole sentence into `mood`, which the cast row
+      // The mood-prose steer (owner report): models write a whole sentence into `mood`, which the npc row
       // renders as a wall of text. Taught in PROSE, never a schema max/pattern — a hard constraint would make
       // the whole call unemittable on a non-enforcing wire and cost the beat, the exact class EXT-4 is fixing.
       lines.push(rpgProse(ctx, "rpg.extract.scene.mood"));

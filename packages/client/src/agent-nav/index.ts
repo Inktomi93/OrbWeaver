@@ -19,29 +19,77 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
+import type { ContributorRegistry } from "#lib";
 import { deriveChatTitle } from "#lib";
-import type { ConfigGroupId, ModalSlotId, PublishedContextTab, SectionId } from "#state";
+import type { ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionId } from "#state";
 import {
   activeChatId,
   CONFIG_GROUP_IDS,
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
-  getContextTab,
   MODAL_SLOT_IDS,
   openConfigTo,
   openModal,
-  revealContextPanel,
   SECTION_IDS,
   selectCharacter,
   selectChat,
   setActiveSection,
   setFocusMode,
-  subscribeShellState,
 } from "#state";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
 import { markAgentNavigation } from "../lib/motion-stats.ts";
 import { resolvePanelRequest } from "./panel-request.ts";
+import { resolveConfigTarget } from "./resolve-config-target.ts";
+import { resolveContextTab } from "./resolve-context-tab.ts";
+
+// Re-exported for `tests/client/agent-nav/resolve-config-target.test.ts` — the export map's `"./*":
+// "./src/*/index.ts"` (client package.json) means `resolve-config-target.ts` has no subpath a test can
+// reach directly, and this pure function is the unit that earns its own coverage apart from the bridge's
+// dispatch-through-the-store proof below.
+export { resolveConfigTarget } from "./resolve-config-target.ts";
+
+/** What `buildAgentNav` needs to validate a `sub`/`setting` address (#1638) — the config-section registry
+ *  the compose door assembles, which the composition tier's OWN modules may not import
+ *  (`client-compose-door-only` reserves `compose/` for main.tsx/routes/router.tsx/a compose/ sibling; this
+ *  file is neither). So the registry rides down as a LAZY thunk instead: `main.tsx` dynamic-`import()`s
+ *  `compose/config-sections.ts` (never a static import — that would drag the whole feature graph the
+ *  registry reaches into whichever chunk imports it, the #433 boot-eval-split defect this bridge's OWN
+ *  `agent-handles/index.ts` exists to avoid) and hands the resolved registry down through
+ *  `installAgentHandles` → here. `null` = not loaded yet (a real race at cold boot: this module's chunk can
+ *  resolve before or after `compose/config-sections.ts`'s), which `openConfig` refuses loudly rather than
+ *  validating vacuously — the same posture `contextTab`'s #656 fix took for its own empty-vocabulary race,
+ *  except this one needs no bounded wait: the registry is a plain module-scope object, never populated by a
+ *  mount effect, so once the thunk returns non-null it is final for the tab's lifetime. Optional so every
+ *  existing call site (every unit test, `agent-nav/panel-request.ct.tsx`'s story) keeps validating `sub`/
+ *  `setting` structurally-only, exactly as before #1638. */
+type ResolveConfigSections = () => ContributorRegistry<ConfigSectionContribution> | null;
+
+/** #1638's registry-backed half of `openConfig`'s validation, split out so the arm itself stays under the
+ *  complexity ceiling. `null` = the address is fine to dispatch; otherwise the refusal to return verbatim. */
+function validateConfigSubAddress(
+  group: ConfigGroupId,
+  sub: string,
+  setting: string | undefined,
+  resolveConfigSections: ResolveConfigSections | undefined,
+): NavResult | null {
+  // No thunk injected at all (every pre-#1638 call site — a unit test, a story) ⇒ validate structurally
+  // only, byte-identical to the pre-#1638 behavior. Distinct from "injected but not yet loaded" below,
+  // which DOES refuse: an omitted thunk is a caller who never asked for this validation, a `null` return
+  // from a REAL thunk is the boot-time race this whole arm exists to refuse loudly instead of vacuously.
+  if (resolveConfigSections === undefined) {
+    return null;
+  }
+  const registry = resolveConfigSections();
+  if (registry === null) {
+    return {
+      ok: false,
+      reason: `config sections not loaded yet — retry openConfig("${group}", "${sub}"${setting === undefined ? "" : `, "${setting}"`}) in a moment`,
+    };
+  }
+  const resolved = resolveConfigTarget(group, sub, setting, registry);
+  return resolved.ok ? null : resolved;
+}
 
 const OK: NavResult = { ok: true };
 // One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
@@ -64,14 +112,6 @@ const ACTIVE_CHAT_SENTINEL = "current";
 /** The full positional vocabulary `openChat` accepts, as reported by `capabilities().chatPositions`. */
 const CHAT_POSITION_IDS = [...CHAT_LIST_POSITION_IDS, ACTIVE_CHAT_SENTINEL] as const;
 const CHAT_ID_PREFIX = `${ID_PREFIX.chat}_`;
-
-// How long `contextTab` waits for the CONTEXT panel to publish a vocabulary that RESOLVES the request
-// (issue #656). It is a deadline on the panel's OWN mount signal, never a sleep: the common case returns on
-// the very first store write. The bound exists so a genuinely absent panel — a `single`-kind context, a
-// closed shell, a surface with no tabs at all — FAILS LOUDLY instead of hanging a probe. 2s is far above a
-// mount+publish (one effect after paint) and far below the harness's 10s readiness gate, so a refusal from
-// here is a real "this surface has no such tab", not a timing artifact.
-const CONTEXT_TAB_SETTLE_MS = 2000;
 
 function reject(kind: string, id: string, allowed: readonly string[]): NavResult {
   return { ok: false, reason: `unknown ${kind} "${id}" — expected one of: ${allowed.join(", ")}` };
@@ -169,142 +209,11 @@ async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: Que
   };
 }
 
-/** The outcome of matching a requested tab name against ONE reading of the published vocabulary: the stable
- *  id, the ids a label matched more than once, or nothing (which may only mean "not published yet"). */
-type ContextTabMatch =
-  | { readonly kind: "resolved"; readonly id: string }
-  | { readonly kind: "ambiguous"; readonly ids: readonly string[] }
-  | { readonly kind: "unmatched"; readonly available: readonly PublishedContextTab[] };
-
-/** Match `requested` (a stable id OR a visible label, case-insensitively) against the tabs published RIGHT
- *  NOW. Pure over one reading — the caller decides whether an `unmatched` is a typo or an unmounted panel. */
-function matchContextTab(requested: string): ContextTabMatch {
-  const available = getAvailableContextTabs();
-  const exactId = available.find((tab) => tab.id === requested);
-  if (exactId !== undefined) {
-    return { kind: "resolved", id: exactId.id };
-  }
-  const normalized = requested.toLocaleLowerCase();
-  const byLabel = available.filter((tab) => tab.label.toLocaleLowerCase() === normalized);
-  if (byLabel.length > 1) {
-    return { kind: "ambiguous", ids: byLabel.map((tab) => tab.id) };
-  }
-  const single = byLabel[0];
-  return single === undefined ? { kind: "unmatched", available } : { kind: "resolved", id: single.id };
-}
-
-/** Wait until `read()` returns a value, or give up at `deadlineMs` and return `null`.
- *
- *  DRIVEN BY THE STORE'S OWN CHANGE SIGNAL, NEVER A SLEEP (issue #656): a tabbed CONTEXT surface publishes
- *  its ids from a mount effect, so "the panel is ready" is a store write, and a fixed sleep would be exactly
- *  the settle-guess that made the bug survivable-looking. The deadline is the loud-failure floor. */
-async function awaitShellValue<T>(read: () => T | null, deadlineMs: number): Promise<T | null> {
-  const immediate = read();
-  if (immediate !== null) {
-    return immediate;
-  }
-  return await new Promise<T | null>((resolve) => {
-    let unsubscribe: (() => void) | null = null;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const finish = (value: T | null): void => {
-      if (timer !== null) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      unsubscribe?.();
-      unsubscribe = null;
-      resolve(value);
-    };
-    timer = setTimeout((): void => finish(null), deadlineMs);
-    unsubscribe = subscribeShellState((): void => {
-      const value = read();
-      if (value !== null) {
-        finish(value);
-      }
-    });
-  });
-}
-
-/** The tab the mounted panel is ACTUALLY showing, or `null` when no tabbed surface is mounted.
- *
- *  This is `useContextTabSelection`'s rule read from the outside, not a second copy of it: that resolver
- *  shows the stored `contextTab` only while it is still VISIBLE (published by the mounted surface) and
- *  otherwise falls back to the default/first tab. So a stored id the surface publishes IS the active tab —
- *  and a stored id it does not publish is precisely the fell-back case this arm must never call `ok`. */
-function activeContextTab(): string | null {
-  const published = getAvailableContextTabIds();
-  if (published.length === 0) {
-    return null;
-  }
-  const stored = getContextTab();
-  return stored !== null && published.includes(stored) ? stored : null;
-}
-
-/** THE CONTEXT-TAB ARM (issue #656 — the false `ok:true` that poisoned every one-call probe chain).
- *
- *  WHAT WENT WRONG: the old arm validated the request against the published tab-id set and, when that set
- *  was EMPTY, treated "nothing to validate against" as permission to dispatch — an empty set validates
- *  vacuously. But the set is empty for a whole beat after `--open-chat`, because the panel publishes from a
- *  MOUNT EFFECT; so the first call wrote the raw LABEL ("This chat") as the stored tab id, the resolver saw
- *  an id it does not publish, fell back to Members — and the bridge returned `ok:true`. Every design-audit
- *  and snap chain that navigated with a single call censused MEMBERS while reporting the This-chat surface.
- *
- *  THE CONTRACT NOW: a navigation step that cannot verify its landing must not report success. Resolve
- *  against a vocabulary that EXISTS (waiting on the panel's own publish, bounded), then verify the tab the
- *  panel actually landed on. Every failure is distinguishable by its reason — an empty name, an ambiguous
- *  label, an unknown name against a published set, a panel that never published, and a landing that
- *  disagrees with the request are five different sentences, because a probe's next move differs for each. */
-async function resolveContextTab(name: string): Promise<NavResult> {
-  const requested = name.trim();
-  if (requested === "") {
-    return { ok: false, reason: "context tab name is empty" };
-  }
-  let match = matchContextTab(requested);
-  if (match.kind === "unmatched") {
-    // The panel may simply not be mounted yet. OPEN it — with NO tab argument, because writing the
-    // unresolved request is the false-ok itself — and wait for its own publish to resolve the name. The
-    // wait also covers a set that GROWS after mount (a game chat's rpg tabs land with their query).
-    markAgentNavigation();
-    revealContextPanel();
-    match = (await awaitShellValue((): ContextTabMatch | null => {
-      const attempt = matchContextTab(requested);
-      return attempt.kind === "unmatched" ? null : attempt;
-    }, CONTEXT_TAB_SETTLE_MS)) ?? { kind: "unmatched", available: getAvailableContextTabs() };
-  }
-  if (match.kind === "ambiguous") {
-    return { ok: false, reason: `ambiguous context tab label "${requested}" matches: ${match.ids.join(", ")}` };
-  }
-  if (match.kind === "unmatched") {
-    return {
-      ok: false,
-      reason:
-        match.available.length === 0
-          ? `no tabbed context surface published any tabs within ${CONTEXT_TAB_SETTLE_MS}ms — "${requested}" could not be resolved, so the panel was NOT switched`
-          : `unknown context tab "${requested}" — the mounted context surface offers: ${match.available.map((tab) => `${tab.id} (${tab.label})`).join(", ")}`,
-    };
-  }
-  // COMPOSE the reveal, never a bare request (the `openChatIn` precedent: an arm that cannot take effect
-  // must open what it needs). `setContextTab` alone left a collapsed panel unmounted, so the stored tab
-  // was read by nothing — `revealContextPanel` opens the panel AND sets the tab, so the switch is visible.
-  const resolved = match.id;
-  markAgentNavigation();
-  revealContextPanel(resolved);
-  // THE LANDING CHECK. Bounded rather than immediate because a reveal can re-mount the panel (the sheet/dock
-  // regimes), which republishes and momentarily reports nothing active.
-  const landed = await awaitShellValue((): true | null => (activeContextTab() === resolved ? true : null), CONTEXT_TAB_SETTLE_MS);
-  if (landed === null) {
-    return {
-      ok: false,
-      reason: `context tab "${requested}" resolved to "${resolved}" but the mounted panel settled on "${activeContextTab() ?? "no tabbed surface"}"`,
-    };
-  }
-  return OK;
-}
-
 /** Build the `__orb.nav` handle. Called from the composition root under IS_DEV; `trpc` + `queryClient`
  *  are the same singletons the app renders through, so `openChat`'s title resolution reads the very
- *  cache the chat list populates. */
-export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandle {
+ *  cache the chat list populates. `resolveConfigSections` is the #1638 injection arm (see
+ *  {@link ResolveConfigSections}) — optional so every pre-#1638 call site is unaffected. */
+export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfigSections?: ResolveConfigSections): OrbNavHandle {
   return {
     capabilities(): OrbNavCapabilities {
       const contextTabs = [...getAvailableContextTabIds()];
@@ -350,11 +259,20 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       // composition tier's bridge may not import (`client-compose-door-only`, and #433 keeps that graph out
       // of the boot chunk). What IS decidable without it is the address's SHAPE — a leaf is addressed
       // through its section (`ConfigSettingRef.sub` is required for exactly this reason), so a leaf handed
-      // over without one names nothing and is refused instead of landing one level up. Validating that a
-      // sub/setting NAMES a real section/leaf is #1638 — it needs the registry injected down to here, and
-      // the injection arm is a door decision, not this arm's.
+      // over without one names nothing and is refused instead of landing one level up.
       if (setting !== undefined && sub === undefined) {
         return { ok: false, reason: `setting "${setting}" needs its section — call openConfig("${group}", <sub>, "${setting}")` };
+      }
+      // #1638 — validating that `sub`/`setting` NAME a real section/leaf, over the registry injected at
+      // install time (see `ResolveConfigSections`'s doc). `sub === undefined` needs no lookup — a
+      // group-only address works identically whether or not the registry has finished loading — the
+      // common case during the cold-boot race. A `sub` handed over BEFORE the registry loads refuses
+      // loudly naming the race, never silently landing on the section like the pre-#1638 code did.
+      if (sub !== undefined) {
+        const refusal = validateConfigSubAddress(group, sub, setting, resolveConfigSections);
+        if (refusal !== null) {
+          return refusal;
+        }
       }
       markAgentNavigation();
       // The EXACT deep link a feature fires ("configure memory" from a chat surface lands ON the memory

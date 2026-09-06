@@ -131,10 +131,10 @@ export function quest(key: string, over: Partial<RpgQuest> = {}): RpgQuest {
 }
 
 /** A minimal actor-volatile with a wallet + a `focus` tracker reading (for the swipe-consistency drives). */
-export function actorWithWallet(castKey: string, walletAmount: number, poolValue: number): RpgActorEntry {
+export function actorWithWallet(npcKey: string, walletAmount: number, poolValue: number): RpgActorEntry {
   return {
-    actorRef: { kind: "cast", castKey },
-    identity: { name: castKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+    actorRef: { kind: "npc", npcKey },
+    identity: { name: npcKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
     volatile: {
       trackerValues: { focus: { value: poolValue, items: null, max: null } },
       conditions: [],
@@ -185,6 +185,9 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
     // R1: `null` = the folded tools did NOT ride this turn, so a `folded` game falls back to its post-commit
     // round. A fold test overrides it with the calls the character turn co-emitted (`[]` = a quiet beat).
     terminalToolCalls: null,
+    // #1617: the names a registry tool already owned, which is why the channel above is null. EMPTY here —
+    // an ordinary turn has no collision, and the collision arm overrides it explicitly.
+    terminalToolsCollided: [],
     // The turn OWNER — the cancellation scope `cancelStateRounds` matches on (mirrors `activeTurns.abort`'s
     // owner-only rule). Defaults to the harness's host user so a cancel test can name it without plumbing.
     triggeredBy: castId<UserId>("user_host"),

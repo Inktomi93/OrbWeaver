@@ -190,16 +190,28 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * a misconfigured BYO server — reflects the plaintext `Authorization: Bearer <apiKey>` (and any custom auth
  * header value) straight back into the body, so the raw body is a secret sink.
  *
- * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — an endpoint cannot leak
- * a secret we scrubbed by its exact value, regardless of surrounding framing. DEFENSE-IN-DEPTH: `Bearer …`
- * and `sk-…`-shaped substrings are also masked in case the token is re-encoded/reshaped on the way back.
- * Empty values are skipped; every non-empty configured credential is scrubbed even when short. A custom
- * auth header defines the value's secret semantics — collision-driven over-redaction is safer than leakage.
+ * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — in its raw AND its
+ * JSON-escaped spelling, since most callers hand this a SERIALIZED document (`#kit/secret-redaction` owns
+ * that rule) — so an endpoint cannot leak a secret we scrubbed by its exact value, regardless of framing.
+ * DEFENSE-IN-DEPTH: `Bearer …` and `sk-…`-shaped substrings are also masked in case the token is
+ * re-encoded/reshaped on the way back. Empty values are skipped; every non-empty configured credential is
+ * scrubbed even when short. A custom auth header defines the value's secret semantics — collision-driven
+ * over-redaction is safer than leakage.
+ *
+ * ORDER IS LOAD-BEARING (#1785): the by-value belt runs FIRST, on intact text. The shape sweep's token class
+ * stops at a `\`, so on an ESCAPED credential inside a `Bearer …` frame it used to bite the literal in half
+ * (masking `Bearer byo`, leaving the rest of the key standing) — and with the literal now fragmented, both
+ * spellings were absent and nothing else could catch it. Running the primary belt first cannot be undone by
+ * the sweep afterwards: the sweep's class excludes the marker, so it never re-consumes a redacted span.
+ * The PRICE of that order, stated rather than hidden: if an endpoint reflects a token that has our exact
+ * literal as a strict PREFIX (`Bearer <ourKey><suffix>`), the literal pass leaves `Bearer █<suffix>` and the
+ * sweep stops at the marker, so the suffix — which is NOT our credential — survives. Removing OUR literal is
+ * the guarantee; masking an unknown superstring is the bonus, and a bonus never outranks the guarantee.
  */
 export function redactSecretsFromText(text: string, secrets: readonly string[]): string {
   const marker = secretSafeRedactionMarker(secrets);
-  const shaped = text.replace(BEARER_TOKEN_RE, `Bearer ${marker}`).replace(SK_KEY_RE, marker);
-  return redactKnownSecrets(shaped, secrets);
+  const scrubbed = redactKnownSecrets(text, secrets);
+  return scrubbed.replace(BEARER_TOKEN_RE, `Bearer ${marker}`).replace(SK_KEY_RE, marker);
 }
 
 /**

@@ -48,7 +48,8 @@ import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packa
 import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
-import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
@@ -77,6 +78,9 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     // R1: `null` = the folded tools did NOT ride this turn (the post-commit round runs); a fold test overrides
     // it with the calls the character turn co-emitted.
     terminalToolCalls: null,
+    // #1617: no declaration collided — the empty list is what an ordinary turn reports, and the fold reads it
+    // to tell a WITHHELD channel apart from a wire that could not carry one.
+    terminalToolsCollided: [],
     // The round's cancellation inputs: the owner it is scoped to, and the character turn's own signal (absent by
     // default — on a real single-speaker turn it is already released before the round runs).
     triggeredBy: castId<UserId>("user_host"),
@@ -158,7 +162,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   const records = await app.toolUse.executeToolCalls(
     set,
     [{ toolCallId: "call_1", name: "update_scene", arguments: JSON.stringify({ location: "the cave mouth", recentEvent: "entered the cave" }) }],
-    { principal: hostPrincipal(hostId), triggeredBy: hostId, chatId, turnId: TURN, roster: null },
+    { principal: hostPrincipal(hostId), triggeredBy: hostId, chatId, turnId: TURN, membership: null },
   );
   expect(records[0]?.isError).toBe(false); // the real handler staged the scene write (errors-as-data would set true)
 
@@ -191,17 +195,17 @@ async function provePlantedPromotionRecovery(args: {
   const { chatId, hostId } = await seedHostGameChat(db, key);
   const principal = hostPrincipal(hostId);
   await services.rpg.createGame({ principal, chatId, mode: "lite" });
-  await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["cast:vesna"] } });
+  await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["npc:vesna"] } });
   await services.rpg.patchActor({
     principal,
     chatId,
-    targetRef: { kind: "cast", castKey: "vesna" },
+    targetRef: { kind: "npc", npcKey: "vesna" },
     ops: [{ op: "setIdentityText", field: "name", text: "Sister Vesna" }],
   });
 
   // Plant the exact production result after the card step. The second arm additionally plants the seat step;
   // neither calls the RPG verb until the interrupted durable prefix exists in the fresh database.
-  const provenance = rpgPromotionProvenance(chatId, "cast:vesna");
+  const provenance = rpgPromotionProvenance(chatId, "npc:vesna");
   const card = await services.character.create({
     principal,
     input: { handle: castId("sister-vesna"), name: "Sister Vesna", description: "" },
@@ -211,7 +215,7 @@ async function provePlantedPromotionRecovery(args: {
     await services.chat.addCharacterToChat({ principal, chatId, characterId: card.id });
   }
 
-  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "cast", castKey: "vesna" } })).resolves.toEqual({ ok: true, issues: [] });
+  await expect(services.rpg.promoteActor({ principal, chatId, targetRef: { kind: "npc", npcKey: "vesna" } })).resolves.toEqual({ ok: true, issues: [] });
 
   const markedCards = await db
     .select({ id: characters.id })
@@ -228,7 +232,7 @@ async function provePlantedPromotionRecovery(args: {
     markedCards: markedCards.length,
     liveSeats: seats.length,
     characterActors: view.actors.filter((actor) => actor.actorRef.kind === "character" && actor.actorRef.characterId === card.id).length,
-    castActors: view.actors.filter((actor) => actor.actorRef.kind === "cast" && actor.actorRef.castKey === "vesna").length,
+    castActors: view.actors.filter((actor) => actor.actorRef.kind === "npc" && actor.actorRef.npcKey === "vesna").length,
   };
 }
 
@@ -527,7 +531,7 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     ...defaultSnapshotState(),
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "mira" },
+        actorRef: { kind: "npc", npcKey: "mira" },
         identity: { name: "Mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
         volatile: {
           trackerValues: {},
@@ -1168,8 +1172,8 @@ test("§1.6 (plane registry): the extraction system prompt teaches the newly-cov
  *  enum offers each actor's DISPLAY name, so `presentRemove` can name an NPC and party/inventory can reach a
  *  cast actor whether or not she is standing in the scene. */
 function baseWithCast(): RpgSnapshotState {
-  const castRow = (castKey: string, name: string): RpgSnapshotState["actorState"][number] => ({
-    actorRef: { kind: "cast", castKey },
+  const castRow = (npcKey: string, name: string): RpgSnapshotState["actorState"][number] => ({
+    actorRef: { kind: "npc", npcKey },
     identity: { name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
     volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
   });
@@ -1178,7 +1182,7 @@ function baseWithCast(): RpgSnapshotState {
     calendarDate: null,
     location: "the tavern",
     weather: null,
-    presentCharacters: ["cast:bartender"],
+    presentCharacters: ["npc:bartender"],
     recentEvents: [],
     actorState: [castRow("bartender", "Bartender"), castRow("goblin", "Goblin")],
     trackerValues: {},
@@ -1368,7 +1372,7 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+  expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
 test("F3: the host is resolved by ROLE, not join order (post-handoff: first-joined human is a member)", async ({ app, db }) => {
@@ -1653,6 +1657,85 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   expect(byTurn).toContain("flush");
   expect(byTurn).toContain("flushed");
   expect(byTurn).not.toContain("mount");
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// #1468 item 2 — A STATE ROUND THAT COULD NOT RUN IS NOT A QUIET BEAT. Both vehicles return the empty delta on
+// a provider throw (errors-as-data: a broken round must never corrupt canon), and both used to return it BARE —
+// byte-identical to the beat that legitimately changed nothing. The flush then settled `no-writes` and recorded
+// no disclosure at all, so the committed narrative carried an invisible missing state update whose only trace
+// was a transient warn line. These drive the REAL compose round with a provider that rejects and assert the
+// settle the trace ring publishes (`flushed` — the event a barrier and the debug route both read).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The `flushed` settle event this turn published, or `undefined`. */
+function flushedEvent(recorder: ReturnType<typeof createRpgTraceRecorder>, chatId: ChatId): Extract<RpgTraceEvent, { phase: "flushed" }> | undefined {
+  return recorder
+    .recent({ chatId })
+    .map((record) => record.event)
+    .find((event): event is Extract<RpgTraceEvent, { phase: "flushed" }> => event.phase === "flushed");
+}
+
+test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the reason, never the quiet beat's `no-writes`", async ({ app, db }) => {
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const { chatId, hostId } = await seedHostGameChat(db, "roundfail-cheap");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    // The live shape: the wire took the request and refused it (a 502, a context overflow, a dead engine).
+    chatThrows: new Error("upstream 502 from the state-round wire"),
+    trace: recorder.sink,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const flushed = flushedEvent(recorder, chatId);
+  expect(flushed?.outcome).toBe("failed");
+  // The provider's OWN sentence rides out, so the failure is root-causable from the turn rather than from a
+  // log line that has already rolled over.
+  expect(flushed?.droppedReason).toContain("upstream 502 from the state-round wire");
+  // ERRORS-AS-DATA IS UNCHANGED: canon stays untouched — the fix is about what the turn SAYS, never about
+  // letting a broken round write.
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+
+  // AND IT IS DURABLE. The settle above is a log + an in-memory ring, both of which roll over; the record is
+  // what the person who played the turn can still read tomorrow. An EMPTY call list beside the reason — never
+  // a synthesized call, because the model made none.
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls).toEqual([]);
+  expect(record?.failure).toContain("upstream 502 from the state-round wire");
+});
+
+test("#1468: the AGENT-SDK degrade (structured extraction) carries the same failure arm — it is not the tool round's optional half", async ({ app, db }) => {
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const { chatId, hostId } = await seedHostGameChat(db, "roundfail-sdk");
+  // An agent-sdk wire carries no `tools[]`, so `runToolRound` degrades INSIDE itself to one structured call —
+  // a whole class of connection whose failure arm lives in the OTHER catch.
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "agent-sdk",
+    spy: emptySpy(),
+    cannedText: "{}",
+    chatThrows: new Error("agent-sdk transport closed"),
+    trace: recorder.sink,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  const flushed = flushedEvent(recorder, chatId);
+  expect(flushed?.outcome).toBe("failed");
+  expect(flushed?.droppedReason).toContain("agent-sdk transport closed");
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
 });
 
 test("TOOLCALLS arm A: a folded turn RECORDS what it called, keyed to the producing variant", async ({ app, db }) => {
@@ -1941,7 +2024,7 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+  expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
