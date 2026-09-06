@@ -191,10 +191,11 @@ is an owner-adjacent call. **This needs its own row.**
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/origin-server-family.test.ts`) | green — 14 policies, 108 proofs |
-| fixture-resolution control (every relative specifier in every final proof) | 323 checked; the only unresolved are the 7 deliberate `./missing*.ts` fail-closed rows |
+| family conformance (`tests/tooling/verify/gates/origin-server-family.test.ts`) | green — 14 policies, 159 proofs |
+| the four shared readers' own specs (`tests/tooling/verify/lib/{sealed-origin,drizzle-client-call,test-runner-door,template-static-text}.test.ts`) | green — 29 tests; each reader ARMED (neutering its comparison reds exactly the rows that assert it) |
+| fixture-resolution control (every relative specifier in every final proof) | 323 checked corpus-wide; within the fourteen the only 5 unresolved are the deliberate `./missing*.ts` fail-closed rows (the other 2 belong to `no-raw-id` / `no-mint-via-cast`, below) |
 | tooling type program (`ts7.cjs -p tooling/tsconfig.json`) | green, zero errors |
-| scoped biome + eslint on all 32 touched files | green |
+| scoped biome + eslint on all 45 touched `.ts`/`.tsx` files (of 47 touched) | green, both exit 0 |
 | population equality over a frozen 7,203-path manifest | 13 exact, 1 classified |
 | legacy replay + final real-tree pass | see above |
 | the three re-doored sibling specs (`id-brand-flow`, `ledger-banned-shapes`, `schema-fact-wave-1`) | green, 4 tests |
@@ -202,6 +203,8 @@ is an owner-adjacent call. **This needs its own row.**
 **A FIXTURE-RESOLUTION CONTROL IS WORTH KEEPING AS A HABIT.** Eight cross-package relative specifiers in
 this family's own proofs resolved to nothing, which would have made every alias / re-export / namespace
 identity row pass by FAIL-CLOSURE rather than by identity — a lying proof that conformance reports green.
+Within the fourteen, 5 unresolved specifiers remain and all five are the deliberate `./missing*.ts`
+fail-closed rows.
 The same sweep found two pre-existing unresolved specifiers in another lane's rows,
 `no-raw-id mustPass[0]` (`packages/contracts/src/x.ts` → `../../../kit/src/ids/index`, three ups from a
 three-segment directory) and `no-mint-via-cast mustPass[2]` (`tests/server/x.test.ts` →
@@ -226,6 +229,12 @@ prove that.
   bounded by hand in `search.*`.
 - `test-fixture-imports` bans the two doors the doctrine names. The CT runner is a third external door and
   is out of subject, with its own row.
+- `no-await-db-in-loop` sees only a DIRECT Drizzle method call. A domain HELPER that itself hits the db
+  inside the loop is structurally invisible — `character/persistence/backfill-plugin-provenance.ts:87`
+  calls `resolveInstalledPluginId(db, …)` in the same loop body as the waived write at :92, and only the
+  write is seen. Closing it needs a call-graph fact (does this function reach a drizzle call?), which no
+  shared reader supplies today. The legacy text regex was blind to it too, so this is a written baseline
+  rather than a regression.
 - The root graph type program is red at 12 pre-existing errors across five legacy/final harness-caller test
   files (`policy-loader`, `policy-plan`, `render.int`, `resource-declaration`, `scoped.int`) — the known-red
   state the checkpoint records. None is in a file this lane touched.

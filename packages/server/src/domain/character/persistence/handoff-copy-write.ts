@@ -96,8 +96,7 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
     // not come back, and its seat falls to the caller's D64 drop.
     const pending = characterIds.filter((id) => !already.has(id));
     const sources = await listOwnedCharacterRows(db, fromOwnerId, pending);
-    // @orb-waive persistence-no-in-memory-state(Set): call-local handle reservation — the copies in THIS. Ends if it outlives the call.
-    // accept must not collide with each other, which a per-card re-read of the recipient's library cannot see.
+    // @orb-waive persistence-no-in-memory-state(Set): call-local handle reservation — the copies in THIS accept must not collide with each other, which a per-card re-read of the recipient's library cannot see. Ends if the reservation outlives the call.
     const taken = new Set(await listOwnerHandles(db, toOwnerId));
     const at = ctx.now();
 

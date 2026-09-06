@@ -176,7 +176,7 @@ export const gate = defineGate({
         "packages/server/src/domain/feature/persistence/waived.ts":
           "// @orb-waive persistence-no-in-memory-state(Map): query-local lookup map over the row set this query just returned; ends if it outlives the call.\nexport function index(rows: readonly { readonly id: string }[]): Map<string, string> {\n  return new Map(rows.map((row) => [row.id, row.id]));\n}\n",
       },
-      why: "the ONE central positioned waiver naming the exact reported constructor — this is the exact translation the ~35 live `@orb-gate-ignore persistence-no-in-memory-state` markers took",
+      why: "the ONE central positioned waiver naming the exact reported constructor — this is the exact translation the 42 live `@orb-gate-ignore persistence-no-in-memory-state` markers took",
     },
     {
       mode: "types",

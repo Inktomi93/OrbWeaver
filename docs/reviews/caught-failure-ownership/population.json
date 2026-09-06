@@ -2659,7 +2659,7 @@
     {
       "siteId": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts::empty:catch::1",
       "path": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts",
-      "line": 93,
+      "line": 92,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2667,7 +2667,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable row is #471's territory, not",
-      "markerLine": 84
+      "markerLine": 83
     },
     {
       "siteId": "packages/server/src/domain/settings/verbs/add-external-background.ts::empty:catch::1",
