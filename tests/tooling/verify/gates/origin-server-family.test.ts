@@ -5,8 +5,11 @@
 import { gate as discoveryNoStatsRollups } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membershipEnforcer } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as noAwaitDbInLoop } from "../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
+import { gate as noDirectReportsWrite } from "../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as providersRunnerSeal } from "../../../../tooling/src/verify/gates/providers-runner-seal.ts";
+import { gate as testFixtureImports } from "../../../../tooling/src/verify/gates/test-fixture-imports.ts";
+import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -16,7 +19,19 @@ const FAMILY_TIMEOUT_MS = 300_000;
 test(
   "every canonical-origin policy judges declaration homes, member identity and static values rather than written names",
   () => {
-    expect(verifyPolicyProofs([discoveryNoStatsRollups, membershipEnforcer, noAwaitDbInLoop, persistenceNoInMemoryState, providersRunnerSeal, turnIdentity])).toEqual([]);
+    expect(
+      verifyPolicyProofs([
+        discoveryNoStatsRollups,
+        membershipEnforcer,
+        noAwaitDbInLoop,
+        noDirectReportsWrite,
+        persistenceNoInMemoryState,
+        providersRunnerSeal,
+        testFixtureImports,
+        testMockDoctrine,
+        turnIdentity,
+      ]),
+    ).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
