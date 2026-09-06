@@ -219,7 +219,7 @@ export interface MemoryRecallFilter {
 export type MemoryRecallSink = (record: Omit<MemoryRecallRecord, "seq" | "at">) => void;
 
 /** The `memoryRecall` bus member itself (#313) — the domain CONSTRUCTS this literal (the `turnStarted`
- *  precedent: `domain/chat/engine` builds its own bus events), so the bus-coverage gate finds the emit in
+ *  precedent: `domain/chat/engine` builds its own bus events), so `bus-producer-coverage` finds the emit in
  *  domain scope, not in compose wiring. */
 type MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;
 

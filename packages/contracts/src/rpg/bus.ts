@@ -16,8 +16,8 @@
 // bus to announce. The client's tracker/journal invalidation keys list `variantSelected` alongside these.
 //
 // D72 MACHINE-SHIPS-WITH-ITS-SEAL: a NEW member is gated on BOTH ends — the PRODUCER side by
-// `tooling/src/verify/gates/rpg-bus-coverage.ts` (every member needs a server emit site in `domain/rpg/**` OR a
-// cited DEFERRED entry — a declared-never-emitted member is RED, not silent dead wire, D50), and the CONSUMER
+// `tooling/src/verify/gates/bus-producer-coverage.ts` (every member of every belted bus needs a server emit
+// site — a declared-never-emitted member is RED, not silent dead wire, D50), and the CONSUMER
 // side by the exhaustive `EVENT_INVALIDATIONS` mapped Record over `RpgBusEvent["type"]` (a new member fails
 // client tsc until it names its reads; `bus-definition-belts` checks BOTH belts exist). `RPG_BUS_EVENT_TYPES`
 // below is the string mirror the coverage gate reads.
@@ -62,8 +62,8 @@ export type RpgBusEvent =
 
 /** The producer-coverage belt (§4.9, coupled site): every `RpgBusEvent` discriminant, enumerated. The
  *  `satisfies readonly RpgBusEvent["type"][]` proves each member is a real event type (a typo fails tsc); the
- *  reverse — a NEW union member missing here — surfaces via `tooling/src/verify/gates/rpg-bus-coverage.ts`, which
- *  reads THIS list to know the members it must find a producer emit (or a DEFERRED citation) for. The client
+ *  reverse — a NEW union member missing here — surfaces via `tooling/src/verify/gates/bus-producer-coverage.ts`,
+ *  which reads THIS list to know the members it must find a producer emit for. The client
  *  invalidation map keys on the same union. */
 export const RPG_BUS_EVENT_TYPES = [
   "gameChanged",
@@ -81,5 +81,5 @@ export type RpgBusEventType = (typeof RPG_BUS_EVENT_TYPES)[number];
  *  declares this TYPE, the entry root wires the runtime to `domain/rpg/bus.ts`'s `publishRpgEvent`). Fire-and-
  *  forget (`void`) — LIVE-ONLY, so a dead live path costs at most a stale read the next reconnect heals;
  *  called AFTER a durable write commits. All five members are WIRED (W1c-b): the compose-injected `emitBus`
- *  (→ `domain/rpg/bus.ts` `publishRpgEvent`) fires from the verbs/flush — the `rpg-bus-coverage` gate holds it. */
+ *  (→ `domain/rpg/bus.ts` `publishRpgEvent`) fires from the verbs/flush — `bus-producer-coverage` holds it. */
 export type EmitRpgEvent = (event: RpgBusEvent) => void;

@@ -10,13 +10,11 @@
 // are a contracts/server question, definitions reach the client too.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { BusBeltShape, BusCoverageOwner, BusCoverageOwnerFact, BusDefinitionFact, BusUnionDefinition } from "../contract/bus-definition-fact.ts";
+import type { BusBeltShape, BusDefinitionFact, BusUnionDefinition } from "../contract/bus-definition-fact.ts";
 import type { BusDeclarationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import {
-  aliasResolvedDeclarations,
-  authoredProperty,
   BUS_UNION_SUFFIX,
   beltUnionNode,
   busAnchor,
@@ -25,16 +23,13 @@ import {
   busRefusal,
   callableDeclaration,
   canonicalTypeAlias,
-  deliveredSourceIs,
   EVENT_TYPES_SUFFIX,
   NAMED_BUS_UNIONS,
   typeDiscriminators,
 } from "./bus-fact-read.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
-import { readStaticAuthoredScalar, readStaticAuthoredValue } from "./static-authored-value.ts";
+import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 const DISCRIMINATOR = "type";
-const DEFINE_GATE_HOME = "tooling/src/verify/contract/policy.ts";
 
 interface DefinitionState {
   readonly aliases: TypeAliasDeclaration[];
@@ -376,198 +371,4 @@ export const busDefinitionFact = defineFact({
   analysis: "types",
   resources: [],
   create: createDefinitionCollector,
-});
-
-// ── coverage owners ────────────────────────────────────────────────────────────────────────────────────
-
-interface OwnerState {
-  readonly descriptors: CallExpression[];
-  readonly identities: VariableDeclaration[];
-  readonly modules: Set<string>;
-}
-
-/** Is this the canonical `defineGate` call, resolved to the descriptor contract's own declaration? */
-function isDefineGateCall(context: GateFactContext, call: CallExpression): boolean {
-  const origin = resolveCallableOrigin(call);
-  return (
-    origin.kind === "resolved" &&
-    origin.value.target.kind === "module" &&
-    origin.value.target.canonical.kind === "project" &&
-    origin.value.target.canonical.exportedName === "defineGate" &&
-    deliveredSourceIs(context, origin.value.target.canonical.sourceFile, DEFINE_GATE_HOME)
-  );
-}
-
-/** An authored `{ path, exportName }` pair — how a coverage policy names the bus union it owns. */
-function declaredUnionIdentity(declaration: VariableDeclaration): BusDeclarationIdentity | undefined {
-  const initializer = declaration.getInitializer();
-  const expression = Node.isAsExpression(initializer) ? initializer.getExpression() : initializer;
-  if (expression === undefined || !Node.isObjectLiteralExpression(expression)) {
-    return;
-  }
-  const authored = readStaticAuthoredValue(expression);
-  if (authored.kind === "unresolved" || authored.value.kind !== "object") {
-    return;
-  }
-  const entries = new Map(authored.value.properties.map((property) => [property.key, property.value]));
-  const path = entries.get("path");
-  const exportName = entries.get("exportName");
-  if (path?.kind !== "scalar" || exportName?.kind !== "scalar" || typeof path.value !== "string" || typeof exportName.value !== "string") {
-    return;
-  }
-  return { path: path.value, exportName: exportName.value };
-}
-
-/** Every union identity const in the corpus, keyed by its DECLARATION node — the join below is on that
- *  node, never on the file the const happens to live in. */
-function identityByDeclaration(state: OwnerState): ReadonlyMap<object, BusDeclarationIdentity> {
-  const rows = new Map<object, BusDeclarationIdentity>();
-  for (const declaration of state.identities) {
-    const identity = declaredUnionIdentity(declaration);
-    if (identity !== undefined) {
-      rows.set(declaration.compilerNode, identity);
-    }
-  }
-  return rows;
-}
-
-/** The union identities the DESCRIPTOR ITSELF reaches: every identifier inside the `defineGate` argument
- *  whose binding is one of those consts. Reading the module instead credits a policy for a const it never
- *  consumes — measured on this tree, where the warning-debt sibling's own `UNION` made it read as the
- *  owner of `UserBusEvent`, so deleting the real coverage policy left the gate green.
- *
- *  The binding is resolved through {@link aliasResolvedDeclarations}, so a descriptor consuming a SHARED
- *  identity const (`import { SHARED_UNION }`) is the same fact as one declaring it locally: without that
- *  hop the identifier's symbol is the import alias, whose declarations are the `ImportSpecifier`, and the
- *  bus reads as unowned.
- *
- *  The descendant read is BOUNDED to one already-selected node (the descriptor literal). It is navigation
- *  of a delivered subject, not population discovery: no file is opened, no glob is resolved. */
-function descriptorUnions(descriptor: MorphNode, identities: ReadonlyMap<object, BusDeclarationIdentity>): readonly BusDeclarationIdentity[] {
-  const found = new Map<string, BusDeclarationIdentity>();
-  for (const identifier of descriptor.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    for (const declaration of aliasResolvedDeclarations(identifier.getSymbol())) {
-      const identity = identities.get(declaration.compilerNode);
-      if (identity !== undefined) {
-        found.set(busIdentityKey(identity), identity);
-      }
-    }
-  }
-  return [...found.values()];
-}
-
-interface DescriptorLabels {
-  readonly id: string;
-  readonly family: string;
-  readonly severity: string;
-  readonly workItem: number | null;
-  readonly descriptor: MorphNode;
-}
-
-function descriptorLabels(context: GateFactContext, call: CallExpression, unresolved: BusUnresolvedIdentity[]): DescriptorLabels | undefined {
-  const descriptor = call.getArguments()[0];
-  if (descriptor === undefined || !Node.isObjectLiteralExpression(descriptor)) {
-    unresolved.push(busRefusal({ context, stage: "union", reason: "unsupported", detail: "defineGate call has no object-literal descriptor", node: call }));
-    return;
-  }
-  const idNode = authoredProperty(context, descriptor, "id", unresolved);
-  const familyNode = authoredProperty(context, descriptor, "family", unresolved);
-  const severityNode = authoredProperty(context, descriptor, "severity", unresolved);
-  const id = idNode === undefined ? undefined : readStaticAuthoredScalar(idNode);
-  const family = familyNode === undefined ? undefined : readStaticAuthoredScalar(familyNode);
-  const severity = severityNode === undefined ? undefined : readStaticAuthoredScalar(severityNode);
-  if (
-    id?.kind !== "resolved" ||
-    family?.kind !== "resolved" ||
-    severity?.kind !== "resolved" ||
-    typeof id.value !== "string" ||
-    typeof family.value !== "string" ||
-    typeof severity.value !== "string"
-  ) {
-    unresolved.push(
-      busRefusal({ context, stage: "union", reason: "unsupported", detail: "defineGate descriptor has no static id/family/severity", node: call }),
-    );
-    return;
-  }
-  const workItemNode = authoredProperty(context, descriptor, "workItem", []);
-  const workItem = workItemNode === undefined ? undefined : readStaticAuthoredScalar(workItemNode);
-  return {
-    id: id.value,
-    family: family.value,
-    severity: severity.value,
-    workItem: workItem?.kind === "resolved" && typeof workItem.value === "number" ? workItem.value : null,
-    descriptor,
-  };
-}
-
-function ownerRows(context: GateFactContext, state: OwnerState, unresolved: BusUnresolvedIdentity[]): BusCoverageOwner[] {
-  const identities = identityByDeclaration(state);
-  const owners: BusCoverageOwner[] = [];
-  for (const call of state.descriptors) {
-    const labels = descriptorLabels(context, call, unresolved);
-    if (labels === undefined) {
-      continue;
-    }
-    for (const union of descriptorUnions(labels.descriptor, identities)) {
-      owners.push({
-        policyId: labels.id,
-        family: labels.family,
-        severity: labels.severity,
-        workItem: labels.workItem,
-        union,
-        anchor: busAnchor(context, call),
-      });
-    }
-  }
-  return owners;
-}
-
-function createCoverageOwnerCollector(context: GateFactContext): GateFactHooks<BusCoverageOwnerFact> {
-  const state: OwnerState = { descriptors: [], identities: [], modules: new Set<string>() };
-  let finished: BusCoverageOwnerFact | undefined;
-  return {
-    visitors: [
-      {
-        kinds: [SyntaxKind.CallExpression, SyntaxKind.VariableDeclaration],
-        visit: (node, sourceFile): void => {
-          state.modules.add(sourceFile.getFilePath());
-          // A loadable policy module is `export const gate = defineGate({ … })` — the loader refuses any
-          // other shape — so a call bound to a variable with one object-literal argument is the lossless
-          // candidate set. Resolving the origin of every call in the gate corpus costs 35 s.
-          if (
-            Node.isCallExpression(node) &&
-            Node.isIdentifier(node.getExpression()) &&
-            Node.isVariableDeclaration(node.getParent()) &&
-            Node.isObjectLiteralExpression(node.getArguments()[0]) &&
-            isDefineGateCall(context, node)
-          ) {
-            state.descriptors.push(node);
-          }
-          if (Node.isVariableDeclaration(node)) {
-            state.identities.push(node);
-          }
-        },
-      },
-    ],
-    finish: (): BusCoverageOwnerFact => {
-      if (finished === undefined) {
-        const unresolved: BusUnresolvedIdentity[] = [];
-        const owners = ownerRows(context, state, unresolved);
-        finished = { modules: state.modules.size, owners: Object.freeze(owners), unresolved: Object.freeze(unresolved) };
-      }
-      context.receipt({ kind: "population", source: "bus-coverage-owner-fact", members: finished.modules, unresolved: finished.unresolved.length });
-      return finished;
-    },
-  };
-}
-
-export const busCoverageOwnerFact = defineFact({
-  id: "bus-coverage-owners",
-  // The gate corpus PLUS the descriptor contract it must resolve against: `deliveredSourceIs` reads the
-  // repo-relative path of a resolved declaration, and `ctx.relativePath` throws for a file outside the
-  // declared population — so the module the identity is proven against is part of the population, by name.
-  population: { in: ["@tooling"], under: ["tooling/src/verify/gates/**", "tooling/src/verify/contract/policy.ts"], ext: ["ts"] },
-  analysis: "types",
-  resources: [],
-  create: createCoverageOwnerCollector,
 });

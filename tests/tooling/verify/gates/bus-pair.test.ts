@@ -1,15 +1,17 @@
-// Conformance entry for the bus PAIR: the two legacy modules that stayed behind when the four producer
-// coverage policies converted. Every proof runs through the production dispatcher, and the arms a proof
-// row cannot express — a REFUSAL, and the retirement of a whole exemption table — are pinned through
+// Conformance entry for the bus DEFINITION family plus the producer family's warning-debt sibling: what
+// stayed behind when `bus-definition-belts` and `user-bus-coverage` converted, minus the two policies that
+// have since been retired into `bus-producer-coverage` (`user-bus-coverage` itself and `bus-coverage-owner`,
+// whose guarantee the generic policy's belted-roster denominator carries — its pins now live beside it in
+// `bus-fact-health.test.ts`). Every proof runs through the production dispatcher, and the arms a proof row
+// cannot express — a REFUSAL, and the retirement of a whole exemption table — are pinned through
 // `runPolicyPass` here.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as busBeltTotal } from "../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as busConsumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
-import { gate as busCoverageOwner } from "../../../../tooling/src/verify/gates/bus-coverage-owner.ts";
 import { gate as busDefinitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
-import { gate as userBusCoverage } from "../../../../tooling/src/verify/gates/user-bus-coverage.ts";
+import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as userBusDeferredMember } from "../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -20,11 +22,14 @@ const ROOT = "/bus-pair";
 // EVERY per-row loop in this file says its own budget. The default (`BASE_TEST_TIMEOUT_MS`, 5 s scaled by
 // contention) is a per-TEST number, and these tests concentrate the whole family's proof set into ONE
 // test: growth in the proof set walks them into a timeout that reads exactly like an assertion failure.
-// It already happened — `bus-coverage-owner` grew to seven rows and the fixture-resolution control went
-// from 1.8 s to 12.4 s in a batch. `scaledBudget` is the house spelling (it grows with box load too).
+// It already happened — one policy in this family grew to seven rows and the fixture-resolution control
+// went from 1.8 s to 12.4 s in a batch. `scaledBudget` is the house spelling (it grows with box load too).
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(240_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(60_000);
-const PAIR = [busBeltTotal, busConsumerBelt, busCoverageOwner, busDefinitionBelts, userBusCoverage, userBusDeferredMember];
+// The producer-coverage half of this family lives in `bus-fact-health.test.ts` (it is the producer
+// family's conformance entry); `busProducerCoverage` is imported here only for the deferral pin below,
+// which is a claim about the TWO policies together and belongs beside the deferral's own refusal pin.
+const PAIR = [busBeltTotal, busConsumerBelt, busDefinitionBelts, userBusDeferredMember];
 
 const USER_UNION_ONLY_DEFERRED =
   'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n';
@@ -106,7 +111,7 @@ test(
   "the deferred member is owned by exactly one of the two policies, in both of its states",
   () => {
     const deferredLive = { "packages/contracts/src/user-bus/index.ts": USER_UNION_ONLY_DEFERRED };
-    expect(passOf(userBusCoverage, deferredLive).authority.effectiveFindings).toEqual([]);
+    expect(passOf(busProducerCoverage, deferredLive).authority.effectiveFindings).toEqual([]);
     expect(passOf(userBusDeferredMember, deferredLive).authority.effectiveFindings).toEqual([]);
 
     const retired = {
@@ -114,7 +119,7 @@ test(
       "packages/server/src/domain/connection/verbs/save.ts":
         'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function save(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "connectionsChanged" });\n}\n',
     };
-    expect(passOf(userBusCoverage, retired).authority.effectiveFindings).toEqual([]);
+    expect(passOf(busProducerCoverage, retired).authority.effectiveFindings).toEqual([]);
     const retirement = passOf(userBusDeferredMember, retired).authority.effectiveFindings;
     expect(retirement.map(({ policyId, severity }) => `${policyId}/${severity}`)).toEqual(["user-bus-deferred-member/warning"]);
   },
@@ -133,16 +138,6 @@ test(
   },
   PER_ROW_TIMEOUT_MS,
 );
-
-test("a coverage-owner run that parsed no gate module REFUSES instead of reporting every bus unowned", () => {
-  // The union and its belt are real; only the gate corpus is absent, which is "I could not look".
-  const result = passOf(busCoverageOwner, {
-    "packages/contracts/src/probe/index.ts":
-      'export type ProbeBusEvent = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<ProbeBusEvent["type"], true>;\n',
-  });
-  expect(result.policies[0]?.owner.status).toBe("incomplete");
-  expect(result.authority.effectiveFindings).toEqual([]);
-});
 
 test("the retired BELT_EXEMPT rows are DERIVED, not ported: a sub-union is exempt only while it is one", () => {
   const belted =

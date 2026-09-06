@@ -783,7 +783,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // host.ui.setState (ui.surface) — the DOMAIN publisher writes the surface state into the process-wide plane
     // (the SAME store `ctx.surfaceState` reads + deactivate clears — shared by construction) and fires the
     // per-user freshness poke. Homed in `domain/plugin/substrate` (not inline here) so the emit literal is where
-    // the `user-bus-coverage` gate can see it (its scope is domain|transport, not entry/compose). The 16 KiB
+    // the `bus-producer-coverage` gate can see it (its scope is domain|transport, not entry/compose). The 16 KiB
     // cap is enforced inside the store's `set` (a throw ⇒ a rejected guest promise upstream).
     // …and the two U5 HOST-MEDIATED affordances, both straight onto the shared outbox (the SAME store the invoke
     // verbs drain + deactivate clears). Unlike `setState` these emit NO bus event on purpose: a toast and a
