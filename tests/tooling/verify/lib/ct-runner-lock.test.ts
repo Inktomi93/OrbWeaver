@@ -20,8 +20,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { vi } from "vitest";
+import { readConcurrencyProfile } from "../../../../tooling/src/_shared/concurrency-profile.ts";
 import { CT_CACHE_DIR_ENV } from "../../../../tooling/src/_shared/ct-run-slot.ts";
-import { acquireCtRunnerLock, CT_RUN_DIR_REL, ctRunnerLockPath } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
+import { acquireCtRunnerLock, acquireCtRunnerSlots, CT_RUN_DIR_REL, ctRunnerLockPath } from "../../../../tooling/src/verify/lib/ct-runner-lock.ts";
+import { HOST_POOL_ROOT_ENV, hostPoolDir } from "../../../../tooling/src/verify/lib/host-slots.ts";
 
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -155,5 +157,109 @@ test("a MALFORMED lockfile is debris, not a holder (#1581)", () => {
     expect(next.kind).toBe("held");
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ── THE HOST-WIDE CT CAP (#1835) ───────────────────────────────────────────────────────────────────────
+// Everything above is about ONE WORKTREE. `acquireCtRunnerSlots` adds the second cap — at most
+// `ctRunnersHostWide` chromium fleets on the whole BOX — and the two behave DIFFERENTLY on purpose: the
+// local lock REFUSES a corrupting sibling instantly, the host pool WAITS for a busy box. A refused CT run
+// is an exit-2 tool error in a lane, which breaks a merge train; waiting costs only wall clock.
+// The pool's own mechanics (steal, degrade, release) are pinned in host-slots.test.ts; what only THIS file
+// can answer is that the CT door composes the two in the right ORDER and frees both.
+
+/** A scratch per-user runtime dir, so a test never touches the REAL /run/user/<uid> CT pool — a planted
+ *  holder there would block an operator's live `pnpm ct:scoped`. */
+function scratchRuntime(): NodeJS.ProcessEnv {
+  return { [HOST_POOL_ROOT_ENV]: mkdtempSync(join(tmpdir(), "orb-ct-host-")) };
+}
+
+/** Where the CT host pool's slot files live for a given scratch runtime dir. The `label`/`waitBaseMs` are
+ *  irrelevant to the path — only `name` is — so this reads the same directory the door writes. */
+function ctSlotFile(env: NodeJS.ProcessEnv, slot: number): string {
+  return join(hostPoolDir({ name: "ct", label: "", slots: 1, waitBaseMs: 1 }, env), `${String(slot)}.lock`);
+}
+
+const HOST_CT_SLOTS = readConcurrencyProfile({}).ctRunnersHostWide;
+
+test("the CT door takes BOTH caps and releases BOTH (#1581 local + #1835 host-wide)", async () => {
+  const root = scratchRoot();
+  const env = scratchRuntime();
+  try {
+    const held = await acquireCtRunnerSlots(root, { pid: 9001, alive: aliveOnly(9001), host: { env, pid: 9001, alive: aliveOnly(9001) } });
+    expect(held.kind).toBe("held");
+    if (held.kind !== "held") {
+      return;
+    }
+    expect(held.lease.hostSlot, "a free box hands out the first host slot").toBe(1);
+    expect(existsSync(ctRunnerLockPath(root)), "the per-worktree lock is held too").toBe(true);
+    expect(existsSync(ctSlotFile(env, 1)), "and so is the host slot").toBe(true);
+
+    held.lease.release();
+    expect(existsSync(ctRunnerLockPath(root)), "release frees the worktree lock").toBe(false);
+    expect(existsSync(ctSlotFile(env, 1)), "release frees the host slot too").toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  }
+});
+
+test("a LOCAL refusal never occupies a host slot — the doomed run is refused before it takes one", async () => {
+  const root = scratchRoot();
+  const env = scratchRuntime();
+  try {
+    const first = acquireCtRunnerLock(root, { pid: 9101, alive: aliveOnly(9101, 9102) });
+    expect(first.kind).toBe("held");
+    const second = await acquireCtRunnerSlots(root, { pid: 9102, alive: aliveOnly(9101, 9102), host: { env, pid: 9102, alive: aliveOnly(9101, 9102) } });
+    expect(second.kind, "a live sibling in the SAME tree is still a refusal, not a queue").toBe("busy");
+    expect(existsSync(ctSlotFile(env, 1)), "and it took no host slot on its way out").toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  }
+});
+
+test("a run in ANOTHER worktree WAITS for a host slot rather than being refused, and names what it is behind", async () => {
+  const env = scratchRuntime();
+  // One worktree per runner — the shape the per-worktree lock is structurally blind to, and the shape six
+  // lanes on this box actually take.
+  const roots = Array.from({ length: HOST_CT_SLOTS + 1 }, () => scratchRoot());
+  try {
+    for (let i = 0; i < HOST_CT_SLOTS; i += 1) {
+      const lock = await acquireCtRunnerSlots(roots[i] ?? "", { pid: 9200 + i, alive: () => true, host: { env, pid: 9200 + i, alive: () => true } });
+      expect(lock.kind, "each worktree gets its own local lock").toBe("held");
+    }
+    expect(existsSync(ctSlotFile(env, HOST_CT_SLOTS)), "the host pool is now full").toBe(true);
+
+    const queuedBehind: string[] = [];
+    let clockMs = 7_000_000;
+    const extra = await acquireCtRunnerSlots(roots[HOST_CT_SLOTS] ?? "", {
+      pid: 9299,
+      alive: () => true,
+      host: {
+        env,
+        pid: 9299,
+        alive: () => true,
+        now: () => new Date(clockMs),
+        // The real ceiling is load-scaled off 45 minutes; the injected clock jumps a day per poll so the
+        // degrade arm is reached in one iteration instead of in wall-clock time.
+        sleep: (ms) => {
+          clockMs += ms + 86_400_000;
+          return Promise.resolve();
+        },
+        onQueued: (holder) => queuedBehind.push(holder.label),
+        onNotice: () => undefined,
+      },
+    });
+    expect(queuedBehind.length, "the waiter names the holder it is behind").toBe(1);
+    expect(extra.kind, "a busy BOX is never a refusal — only a corrupting sibling in the same tree is").toBe("held");
+    // Read unconditionally: a conditional expect can pass by never running, which is the one thing this
+    // arm must not do.
+    expect(extra.kind === "held" ? extra.lease.hostSlot : "REFUSED", "past the ceiling it proceeds unslotted rather than dying").toBeNull();
+  } finally {
+    for (const root of roots) {
+      rmSync(root, { recursive: true, force: true });
+    }
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
   }
 });
