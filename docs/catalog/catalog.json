@@ -14476,14 +14476,15 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "35fc89866f8eaaa2dc5c54031df585ec2700e6c1a0360a87af01ace553131a2a",
+        "assignedSha256": "224c14e7ea4b1955293893e0a7ca7b6063ec023ac636a60bddadf03b1389a399",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "35fc89866f8eaaa2dc5c54031df585ec2700e6c1a0360a87af01ace553131a2a",
-        "verifiedCommit": "0cb56a7c2546289fa47626481f87775458da88c9",
+        "verifiedSha256": "224c14e7ea4b1955293893e0a7ca7b6063ec023ac636a60bddadf03b1389a399",
+        "verifiedCommit": "54de51d47302fc95549db9ade5e8ec07f0904bc8",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "54de51d47302fc95549db9ade5e8ec07f0904bc8 (#1777 three rows: Regex script, GM voice, World book — owner ruled World book 2026-09-06) on top of 031af3399 (#1755 'Runs <n> of <m>' regex-register row) — re-attested at the fold",
           "0cb56a7c2546289fa47626481f87775458da88c9 (#1772 #1773): rows 41/45 gain the wire-field half (membership / characterIds); row 44's context.ts:112 residue line struck — re-attested at the fold",
           "re-attested after #1010 (row 44: roster → participants landed for the server chat domain, residue enumerated) at 532758261",
           "re-attested after the #1716/#1771 fold (b2e5ba01e: the unreadable-state register rows) at d5cee6b27",
@@ -14541,7 +14542,7 @@
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/work-item-dod.md",
