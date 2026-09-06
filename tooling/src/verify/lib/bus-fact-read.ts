@@ -30,9 +30,18 @@ export function busDeclarationIdentity(context: GateFactContext, declaration: Ty
   return { path: context.relativePath(declaration.getSourceFile()), exportName: declaration.getName() };
 }
 
+/** The ONE type-alias declaration a resolved type names, followed through an import alias. The extra hop
+ *  is not optional: when the type is read at a node in a CONSUMING module (a client mapped type keyed by
+ *  `ChatBusEvent["type"]`), the alias symbol is the IMPORT's symbol and `getDeclarations()` answers an
+ *  empty list — measured, and it is the difference between locating the union and silently not finding it. */
 export function canonicalTypeAlias(type: Type): TypeAliasDeclaration | undefined {
-  const declarations = (type.getAliasSymbol() ?? type.getSymbol())?.getDeclarations().filter(Node.isTypeAliasDeclaration) ?? [];
-  return declarations.length === 1 ? declarations[0] : undefined;
+  const symbol = type.getAliasSymbol() ?? type.getSymbol();
+  const declarations = (symbol?.getDeclarations() ?? []).filter(Node.isTypeAliasDeclaration);
+  if (declarations.length === 1) {
+    return declarations[0];
+  }
+  const aliased = declarations.length === 0 ? (symbol?.getAliasedSymbol()?.getDeclarations() ?? []).filter(Node.isTypeAliasDeclaration) : [];
+  return aliased.length === 1 ? aliased[0] : undefined;
 }
 
 interface RefusalInput {
