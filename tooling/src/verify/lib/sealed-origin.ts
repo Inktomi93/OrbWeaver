@@ -6,6 +6,7 @@
 // `ctx.relativePath` refuses by contract.
 import type { Node as MorphNode } from "ts-morph";
 import type { ModuleMemberOrigin, ReferenceFact } from "../contract/reference-fact.ts";
+import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 /** The verdict for one candidate reference. `unresolved` is never absence: a candidate whose origin cannot
@@ -37,6 +38,18 @@ export function readSealedOrigin(node: MorphNode, home: SealedHome): SealedOrigi
   return path !== null && path.includes(home.pathInfix) && home.exportedNames.has(exportedName)
     ? { kind: "sealed", exportedName, origin: origin.value }
     : { kind: "foreign", origin: origin.value };
+}
+
+/** Does one candidate REPORT under a seal? `sealed` always does, `foreign` never does, and an `unresolved`
+ *  verdict is SCOPED by the shared refusal classifier: a DECLARED import door with no reachable target is
+ *  unreadable and reports (a seal an unreadable barrel can walk through is not a seal), while a member read
+ *  that provably binds something else — a local object's key, a project interface's property — is simply not
+ *  a subject. Conflating the two is how a seal acquires either permanent exemption rows or a silent green. */
+export function sealedOriginReports(verdict: SealedOriginVerdict, anchor: MorphNode): boolean {
+  if (verdict.kind === "foreign") {
+    return false;
+  }
+  return verdict.kind === "sealed" || classifyOriginRefusal(verdict.fact.reason, anchor) === "unreadable";
 }
 
 /** The authored door a resolved origin entered through — the external package name when the door is not a
