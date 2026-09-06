@@ -222,6 +222,10 @@ export function SurfaceSearchBar({
       </Row>
       {filters.length === 0 ? null : (
         <Collapsible>
+          {/* "Filters" — the house neutral name for a narrowing-control group's own disclosure, never
+              minted here: docs/design/vocabulary-map.md's "A group of controls that NARROW a list…" row
+              names this exact fallback as one of its landed carriers, beside the Characters pane's group
+              and the chats pane's phone Filters row (#1735, side-eye 2026-09-05). */}
           <CollapsibleTrigger size="control">{node.filtersLabel ?? "Filters"}</CollapsibleTrigger>
           <CollapsiblePanel>
             <Stack gap="field">{renderChildren(filters, depth)}</Stack>

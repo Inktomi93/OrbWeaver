@@ -473,11 +473,13 @@ test("#1350/#1718 @mobile: the secondary filters fold behind ONE trigger, and th
   await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
 });
 
-// THE FOUR-STATE GRAMMAR, RENDERED (#1718 arm A). The table is unit-pinned at `phoneFiltersLabel`; this is
-// the arm that proves the ROW spends it — that both axes reach the one name, in the ruled order (character
-// first, because the panel puts the faces first), and that setting a filter INSIDE the panel updates the
-// trigger above it rather than leaving a stale name over a narrowed list.
-test("#1718 @mobile: one trigger states BOTH filters in force, character first", async ({ mount, page }) => {
+// THE GRAMMAR, RENDERED (#1718 arm A → #1735, side-eye 2026-09-05). The table is unit-pinned at
+// `phoneFiltersLabel`; this is the arm that proves the ROW spends it. THE RULING SURVIVES, ITS INPUT
+// CHANGED A SECOND TIME: #1735 found the trigger restating the character axis while the `ChatListFilterChip`
+// beside it ALREADY said `Filtered: <name> ✕` — one fact, two sentences. The trigger now states ONLY the
+// axis with no other visible carrier (the month bound); the chip keeps sole ownership of the character
+// name and its only ✕ (#490's one-reset contract).
+test("#1718/#1735 @mobile: the trigger states the month bound only — the chip alone carries the character name and its ✕", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory mobile={true} />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -486,18 +488,24 @@ test("#1718 @mobile: one trigger states BOTH filters in force, character first",
   await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
   await component.getByRole("button", { name: "Filters", exact: true }).click();
 
-  // CHARACTER only — set from inside the panel.
+  // CHARACTER only — set from inside the panel. The trigger stays at its neutral name (the chip carries
+  // the fact); the chip is the ONLY place "Aria Nightshade" and its ✕ appear.
   await component.getByRole("button", { name: "Show chats with Aria Nightshade" }).click();
-  await expect(component.getByRole("button", { name: "Filters: chats with Aria Nightshade", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await expect(component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true })).toBeVisible();
 
-  // BOTH — the character leads, the month follows, joined by a comma.
+  // BOTH — the month clause reaches the trigger; the character clause does not, because the chip already
+  // carries it (never a second sentence for one on-screen fact). `exact` is the whole assertion: a trigger
+  // that also spelled "with Aria Nightshade" fails this match even though the chip's own "Clear the Aria
+  // Nightshade filter" button legitimately carries the same name.
   await component.getByLabel("Show chats up to").fill("2020-06");
-  await expect(component.getByRole("button", { name: "Filters: chats with Aria Nightshade, up to June 2020", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
 
-  // …and dropping the character leaves the month half alone, which is the arm a name built by concatenation
-  // rather than by clause gets wrong.
+  // …and clearing the character leaves the month clause alone, and removes the chip's own ✕ with it.
   await component.getByRole("button", { name: "Clear the Aria Nightshade filter" }).click();
   await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
+  await expect(component.getByText("Filtered:")).toBeHidden();
 });
 
 // The DESKTOP twin: the pane is a 300px column with vertical room to spare, so BOTH controls render outright
@@ -1725,13 +1733,15 @@ test.describe("#1361 the chats pane's phone chrome budget", () => {
   }
 });
 
-// #1361 item 3 -> #1718 arm A - THE FOLD ITSELF, in the two claims a fold owes: the faces are not rendered
-// while folded, and the TRIGGER carries the scope in force. #1361's own trigger is gone (the pane pays for
-// ONE), so the pin is RE-SPELLED to the shared name, not deleted: `Filter by character - Aria Nightshade`
-// -> `Filters: chats with Aria Nightshade`. The strip keeps its own name INSIDE the panel (#208's one
-// string), which is a different fact from the group's, and both are asserted here so neither can absorb the
-// other.
-test("#1361/#1718 @mobile: the faces strip folds behind the shared trigger, which names the scope in force", async ({ mount, page }) => {
+// #1361 item 3 -> #1718 arm A -> #1735 (side-eye 2026-09-05) - THE FOLD ITSELF, in the two claims a fold
+// owes: the faces are not rendered while folded, and the TRIGGER carries the scope in force. #1361's own
+// trigger is gone (the pane pays for ONE); #1735 then found the trigger restating the character scope the
+// `ChatListFilterChip` already names, so the pin is RE-SPELLED again: the trigger stays at its neutral name
+// and the CHIP is what "carries the scope in force" for the character axis (`Filtered: Aria Nightshade ✕`,
+// exercised in full at the `#1718/#1735` test above). The strip keeps its own name INSIDE the panel (#208's
+// one string), which is a different fact from the group's, and both are asserted here so neither can absorb
+// the other.
+test("#1361/#1718 @mobile: the faces strip folds behind the shared trigger, which stays neutral while the chip carries the scope", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
   const component = await mount(<ChatListSurfaceStory mobile={true} width={390} />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -1745,9 +1755,11 @@ test("#1361/#1718 @mobile: the faces strip folds behind the shared trigger, whic
   const strip = component.getByRole("list", { name: "Filter by character" });
   await expect(strip).toBeVisible();
 
-  // Scoping to a face lands on the TRIGGER, so a reader who folds it away still reads the scope.
+  // Scoping to a face leaves the trigger at its neutral name (#1735) - the chip below it is the one place
+  // that now says "Aria Nightshade".
   await strip.getByRole("button", { name: "Show chats with Aria Nightshade" }).click();
-  await expect(component.getByRole("button", { name: "Filters: chats with Aria Nightshade", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
+  await expect(component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true })).toBeVisible();
 });
 
 /** The pane's chrome: the distance from the story root's top edge to the list of chats. */
