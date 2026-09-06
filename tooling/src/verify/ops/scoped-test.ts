@@ -59,7 +59,7 @@ import {
 } from "@orb/tooling/_shared/scoped-run-paths";
 import type { ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
-import { acquireCtRunnerLock } from "../lib/ct-runner-lock.ts";
+import { acquireCtRunnerSlots } from "../lib/ct-runner-lock.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm ct:scoped <paths…>");
 
@@ -72,6 +72,7 @@ export const SCOPED_TEST_USAGE =
 /** Playwright's `--list --reporter=json` dumps the whole resolved config beside the specs; vitest's list
  *  file is small. 64MiB so a large CT selection can never come back as an ENOBUFS kill read as "no tests". */
 const LIST_MAX_BUFFER = 67_108_864; // 64MiB — matches tests-execution-membership's listing headroom.
+const MS_PER_SECOND = 1000;
 
 const CT_CONFIG = "playwright-ct.config.ts";
 
@@ -237,7 +238,7 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
  *  THE CT ARM IS EXCLUSIVE PER WORKTREE (#1581). The lock is taken BEFORE the preflight, so a second runner
  *  refuses instantly and spawns nothing at all, and it is released in a `finally` so a refused preflight
  *  (or a throw) never wedges the tree. The node arm is untouched: vitest runs do not share a build dir. */
-export function runScopedTest(root: string, argv: readonly string[]): number {
+export async function runScopedTest(root: string, argv: readonly string[]): Promise<number> {
   const [runner, ...rest] = argv;
   if (runner === undefined || !(SCOPED_TEST_RUNNERS as readonly string[]).includes(runner)) {
     throw new UsageError(`unknown runner ${runner === undefined ? "(none given)" : JSON.stringify(runner)}\n${SCOPED_TEST_USAGE}`);
@@ -248,7 +249,21 @@ export function runScopedTest(root: string, argv: readonly string[]): number {
     const refusedNode = preflight(tier, root, rest, operands);
     return refusedNode ?? spawnRun(tier, root, rest, null);
   }
-  const lock = acquireCtRunnerLock(root, { argv: rest });
+  const lock = await acquireCtRunnerSlots(root, {
+    argv: rest,
+    host: {
+      // The HOST-WIDE half WAITS rather than refusing (#1835) — see acquireCtRunnerSlots. A lane that
+      // sits here is not stuck; it is being told, on one line, exactly what it is behind.
+      onQueued: (holder) => {
+        warn(
+          `CT RUNNER QUEUED   waiting for a host-wide CT slot — ${holder.label} (pid ${String(holder.pid)}) has held one since ${holder.startedAt}. Two chromium fleets per box is the cap; this run starts as soon as one frees.`,
+        );
+      },
+      onNotice: (message) => {
+        warn(`CT RUNNER SLOTS   ${message}`);
+      },
+    },
+  });
   if (lock.kind === "busy") {
     // Exit-2 class: a run that never happened is not a verdict about anything.
     warn(`CT RUNNER BUSY   ${lock.refusal}`);
@@ -256,6 +271,10 @@ export function runScopedTest(root: string, argv: readonly string[]): number {
   }
   if (lock.lease.stolenFrom !== null) {
     warn(`CT RUNNER LOCK   stole a stale lock from pid ${String(lock.lease.stolenFrom)} (no such process) — a killed run must never wedge the next one.`);
+  }
+  const hostWaitedMs = lock.lease.hostWaitedMs ?? 0;
+  if (hostWaitedMs > 0) {
+    warn(`CT RUNNER SLOTS   host slot ${String(lock.lease.hostSlot)} acquired after ${String(Math.round(hostWaitedMs / MS_PER_SECOND))}s of queueing.`);
   }
   try {
     const refused = preflight(tier, root, rest, operands);

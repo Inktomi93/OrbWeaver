@@ -21,8 +21,14 @@
 // rows, its empty arm) is `surfaces/config-content-surface.ct.tsx`'s — the round trip needs the whole host.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { Rgb } from "@orb/tooling/_shared/wcag";
+import { contrastRatio, relativeLuminance } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+// The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
+// a re-spelling would pass while the instrument matched something else (see the module's header).
+import { SELECTION_RAIL_SEL } from "../../../../../tooling/src/ui-audit/lib/selection-rail-sel.ts";
+import { pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
@@ -176,3 +182,191 @@ test("there is ONE band kind: population changes the number, never the control",
   await expect(component.locator(TAGS_BAND)).toHaveAccessibleName(/ 2$/);
   await expect(component.locator(`[data-config-group="regex"] ${BAND}`)).toHaveAccessibleName(/ 0$/);
 });
+
+// ── #1823 · THE BAND PAINTS ITS `aria-current` ───────────────────────────────────────────────────────
+// RED-FIRST against the unmodified source, where every band on the surface computed
+// `border-left-color: rgba(0, 0, 0, 0)` and `background-color: rgba(0, 0, 0, 0)` in every state — the
+// `aria-current="true"` one byte-identical to its three siblings (side-eye 2026-09-06, runs
+// `main-1922535-…` and `main-1952313-…`). Every claim below reads RENDERED paint, never the new seam, so
+// it compiles and fails against the pre-fix source rather than erroring.
+//
+// The click is DISPATCHED, not pointed: `locator.click()` leaves the pointer resting on the band, so
+// `hover:bg-accent` paints and a reader measures the hover instead of the state — the exact retraction
+// that review had to file about its own first screenshot. A dispatched click moves no pointer.
+
+/** One band's paint channels, as the browser resolves them. */
+function paintOf(band: Locator): Promise<{ readonly rail: string; readonly fill: string }> {
+  return band.evaluate((el: Element) => {
+    const style = getComputedStyle(el);
+    return { rail: style.borderLeftColor, fill: style.backgroundColor };
+  });
+}
+
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
+/** A collection band that is NOT the location — the control every claim below is a delta against. */
+const SIBLING_BAND = `[data-config-group="regex"] ${BAND}`;
+
+/** Enter the Tags library without moving the pointer onto anything. */
+async function enterTags(component: Locator): Promise<void> {
+  await component.locator(TAGS_BAND).dispatchEvent("click");
+  await expect(component.locator(TAGS_BAND)).toHaveAttribute("aria-current", "true");
+}
+
+test("#1823: the band that IS the location paints the ruled rail + tint; a sibling door paints nothing", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  await enterTags(component);
+
+  // The paint is DERIVED from the aria — one statement, so the two halves cannot get out of step.
+  await expect(component.locator(TAGS_BAND)).toHaveAttribute("data-selected", "");
+  await expect(component.locator(SIBLING_BAND)).not.toHaveAttribute("data-selected", /.*/);
+
+  await expect
+    .poll(async () => await paintOf(component.locator(TAGS_BAND)))
+    .toEqual({ rail: expect.not.stringMatching(/^rgba\(0, 0, 0, 0\)$/), fill: expect.not.stringMatching(/^rgba\(0, 0, 0, 0\)$/) });
+  // …and the delta is what the reader actually uses: a door that is not the location is still bare.
+  expect(await paintOf(component.locator(SIBLING_BAND)), "a band that is not the location paints nothing").toEqual({
+    rail: TRANSPARENT,
+    fill: TRANSPARENT,
+  });
+});
+
+test("#1823: the rail box is RESERVED on every band, so entering a library shifts no label", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  const label = component.locator(`${TAGS_BAND} [data-slot="band-label"]`);
+  const before = await label.boundingBox();
+  await enterTags(component);
+
+  // The transparent RESTING rail is why this holds: a 2px border that appeared on selection would move the
+  // band's own label 2px right on entry and leave its siblings' glyph column one step to the left.
+  await expect
+    .poll(async () => {
+      const after = await label.boundingBox();
+      return before === null || after === null ? Number.POSITIVE_INFINITY : Math.abs(after.x - before.x);
+    })
+    .toBeLessThanOrEqual(0.5);
+  const sibling = await component.locator(`${SIBLING_BAND} [data-slot="band-label"]`).boundingBox();
+  expect(before === null || sibling === null ? Number.POSITIVE_INFINITY : Math.abs(before.x - sibling.x)).toBeLessThanOrEqual(0.5);
+});
+
+test("#1823: a SETTINGS group's band is UNCHANGED — its child section row still carries the marker", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  const settings = component.locator(SETTINGS_BAND);
+  await settings.dispatchEvent("click");
+
+  // Appearance HAS sections, so it states `aria-expanded` and NO `aria-current` — two `aria-current` rows
+  // for one location was a landed a11y defect, and the one marker lives on the child section row. The paint
+  // follows the aria, which is exactly what keeps the settings bands byte-identical to before #1823.
+  await expect(settings).toHaveAttribute("aria-expanded", "true");
+  await expect(settings).not.toHaveAttribute("aria-current", /.*/);
+  await expect(settings).not.toHaveAttribute("data-selected", /.*/);
+  expect(await paintOf(settings), "an expanded settings band paints no rail").toEqual({ rail: TRANSPARENT, fill: TRANSPARENT });
+});
+
+test.describe("#1823 at a COARSE pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("the current band's rail survives the pointer class", async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigHostStory />);
+    await enterTags(component);
+
+    // A coarse band is a 44px box rather than 32px; nothing in the rail is pointer-conditional, and this is
+    // the arm that SAYS so rather than assuming it.
+    const current = await paintOf(component.locator(TAGS_BAND));
+    expect(current.rail, "the rail paints at a coarse pointer too").not.toBe(TRANSPARENT);
+    expect(current.fill).not.toBe(TRANSPARENT);
+    expect(await paintOf(component.locator(SIBLING_BAND))).toEqual({ rail: TRANSPARENT, fill: TRANSPARENT });
+  });
+});
+
+// ── #1823 · THE WIDENED design-audit EXEMPTION IS A MEASUREMENT, NOT A SHRUG ─────────────────────────
+// The #485 ruling exempted the ratified rail while it had ONE carrier; #1823 gave the band the identical
+// pair, so the exemption's population followed the FRAGMENT's carriers. An exemption that widened without
+// a control is how a rule quietly stops biting, so this runs the instrument's OWN selector against the
+// real surface plus two PLANTED negatives: an unselected band, and a rounded non-carrier box that wears
+// `data-selected` and a left accent. Both must still be judged (i.e. NOT matched by the exemption).
+test("#1823: the exemption matches the CURRENT band only — an unselected band and a non-carrier box stay judged", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  await enterTags(component);
+
+  const verdict = await page.evaluate((selector: string) => {
+    const planted = document.createElement("div");
+    // The non-carrier control: the rule's REAL target — a rounded box with a 2px accent left edge, wearing
+    // the selection attribute but none of the ratified carrier identities.
+    planted.setAttribute("data-selected", "");
+    planted.setAttribute("data-slot", "cbcf-planted-card");
+    planted.className = "rounded-control border-l-2 border-l-primary";
+    document.body.append(planted);
+    const matched = [...document.querySelectorAll<HTMLElement>(selector)];
+    const answer = {
+      // The band that IS the location: exempt.
+      current: matched.filter((el) => el.dataset["configGroup"] === "tags").length,
+      // Planted negative 1 — the rule's real target.
+      plantedCard: matched.includes(planted),
+      // Planted negative 2 — a real band that is NOT selected (the state half of the predicate).
+      unselectedBands: [...document.querySelectorAll<HTMLElement>('[data-slot="config-band"]')].filter(
+        (el) => !el.hasAttribute("data-selected") && matched.includes(el),
+      ).length,
+    };
+    planted.remove();
+    return answer;
+  }, SELECTION_RAIL_SEL);
+
+  expect(verdict.current, "the band that IS the location wears the ratified rail and is exempt").toBe(1);
+  expect(verdict.plantedCard, "a rounded non-carrier box with a left accent must stay JUDGED").toBe(false);
+  expect(verdict.unselectedBands, "an UNSELECTED band must stay JUDGED — the state half of the predicate").toBe(0);
+});
+
+// ── #1823 · THE RAIL, DECODED FROM THE FRAMEBUFFER, IN BOTH POLARITIES ───────────────────────────────
+// A computed `border-left-color` is the AUTHORED value; what a reader sees is the composited pixel, and a
+// 2px non-text mark that clears 3:1 on the dark shell can fail on the warm light one. Each arm carries its
+// own POLARITY ASSERTION — without it a light arm is a second dark arm wearing a label.
+
+/** The band's own 2px rail strip, decoded out of the framebuffer. */
+async function railPixel(page: Page, band: Locator): Promise<Rgb> {
+  const box = await band.boundingBox();
+  if (box === null) {
+    throw new Error("railPixel: the band has no box");
+  }
+  return (await pixelSurface(page, band, { region: { x0: 0, x1: 2 / box.width, y0: 0.3, y1: 0.7 } })).rgb;
+}
+
+for (const theme of ["hearth", "light"] as const) {
+  test(`#1823: the current band's rail clears the 3:1 non-text floor against a bare door (${theme})`, async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigHostStory />);
+    // The attribute goes on the DOCUMENT ELEMENT, not on a wrapper: the generated palettes are declared at
+    // the root, so a `data-theme` div around the story renders the hearth palette while reading as a light
+    // arm — measured here first (`bare door 15,12,10`, luminance 0.004, on the arm labelled light). Hearth
+    // is the ABSENCE of the attribute (#875 F2); spelling it falls through to `:root` and makes the other
+    // arm look verified. The polarity assertion below is what catches either mistake.
+    await page.evaluate(
+      (next: string | null) => {
+        if (next === null) {
+          document.documentElement.removeAttribute("data-theme");
+          return;
+        }
+        document.documentElement.setAttribute("data-theme", next);
+      },
+      theme === "hearth" ? null : theme,
+    );
+    await enterTags(component);
+
+    const rail = await railPixel(page, component.locator(TAGS_BAND));
+    const bare = await railPixel(page, component.locator(SIBLING_BAND));
+    const measured = `${String(bare.r)},${String(bare.g)},${String(bare.b)}`;
+    // The polarity band this arm claims to be in, asserted rather than assumed (both bounds, so neither
+    // arm can pass by sitting in the other's palette).
+    const polarity = theme === "light" ? { floor: 0.5, ceiling: 1 } : { floor: 0, ceiling: 0.2 };
+    expect(relativeLuminance(bare), `the ${theme} arm must actually BE ${theme} (bare door measured ${measured})`).toBeGreaterThanOrEqual(polarity.floor);
+    expect(relativeLuminance(bare), `the ${theme} arm must actually BE ${theme} (bare door measured ${measured})`).toBeLessThanOrEqual(polarity.ceiling);
+    expect(
+      contrastRatio(rail, bare),
+      `the rail (${String(rail.r)},${String(rail.g)},${String(rail.b)}) against a bare door (${measured})`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+}

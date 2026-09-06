@@ -13,6 +13,10 @@ import { castId } from "@orb/kit/ids";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+// design-audit's OWN `row-void` rule — the one that filed 8 × P2 against this pane — run on the measured
+// geometry instead of a re-spelled threshold pair (see the F13 block at the foot of this file).
+import type { Finding } from "../../../../../tooling/src/ui-audit/contract/findings.ts";
+import { checkRowVoid } from "../../../../../tooling/src/ui-audit/lib/checks-structure.ts";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -187,4 +191,99 @@ test("import: a bundle workload's flattened notes render beside the count summar
   await expect(page.getByTestId("import-report")).toBeVisible();
   await expect(page.getByText("1 imported")).toBeVisible();
   await expect(page.getByText("book kept: primary already exists")).toBeVisible();
+});
+
+// ── #980 F13 · THE INCLUDE CHECKBOXES ARE ATTACHED TO THEIR LABELS ───────────────────────────────────
+// Measured on the live pane 2026-09-06: eleven labels ending at x=461–492 and eleven 18px checkboxes at
+// x=1398 — 906–937px of bare gap, with `design-audit` filing it independently as 8 × `row-void` P2 at
+// 71–76% ("724px of 990px between 'Characters' and its control"). You could not tell by eye whether
+// "Themes" was checked. The cause was structural: the rows sat in a bare `w-full` Fieldset, so each
+// `Field orientation="horizontal"` docked its control in a 200px column at the PANE's right edge with
+// nothing capping the row — the distance from a name to its control was whatever the window happened to
+// be. That is the same defect #932 answered for the Appearance pane with `SettingRowGroup`'s shared track,
+// and this section simply was not using it.
+//
+// The pin is the SHARED TRACK's two consequences, not a remembered pixel: one control x for every row in
+// the group (which is what a track buys and a per-row dock cannot give), and an ink-to-control gap inside
+// the same 25% bar #1824 holds the library row to.
+
+/** Every "Include" row's label-ink → checkbox-box geometry, in DOM order. */
+function includeRowGeometry(
+  page: Page,
+): Promise<readonly { readonly label: string; readonly gap: number; readonly controlX: number; readonly rowWidth: number }[]> {
+  return page.evaluate(() => {
+    // SCOPED TO THE "Include" GROUP, not the pane: the Backup pane holds other checkboxes (the import
+    // half's), and an unscoped sweep reports two control columns and fails for the wrong reason — measured
+    // here first (`[210, 495]`).
+    const include = [...document.querySelectorAll<HTMLElement>('[data-slot="fieldset-root"]')].find(
+      (set) => (set.querySelector('[data-slot="fieldset-legend"]')?.textContent ?? "").trim() === "Include",
+    );
+    if (include === undefined) {
+      throw new Error("includeRowGeometry: no fieldset legended 'Include'");
+    }
+    const boxes = [...include.querySelectorAll<HTMLElement>('[role="checkbox"]')];
+    return boxes.map((box) => {
+      const row = box.closest<HTMLElement>('[data-slot="field-root"]') ?? box.parentElement;
+      const label = row?.querySelector<HTMLElement>('[data-slot="field-label"]') ?? null;
+      if (row === null || label === null) {
+        throw new Error("includeRowGeometry: a checkbox row has no field root or label");
+      }
+      // RANGE, not the label's box: `Field.Label` is a block whose box can run the whole track while its
+      // glyphs stop early — a bounding-box read reports a clean row over a 900px hole (the #1824 lesson).
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const ink = range.getBoundingClientRect();
+      const control = box.getBoundingClientRect();
+      return {
+        label: (label.textContent ?? "").trim(),
+        gap: Math.round(control.left - ink.right),
+        controlX: Math.round(control.left),
+        rowWidth: Math.round(row.getBoundingClientRect().width),
+      };
+    });
+  });
+}
+
+/** The measured row, put to the rule that convicted it. */
+function rowVoidVerdict(row: { readonly label: string; readonly gap: number; readonly rowWidth: number }): Finding | null {
+  return checkRowVoid({
+    selector: `[role=checkbox] // ${row.label}`,
+    gapPx: row.gap,
+    rowWidthPx: row.rowWidth,
+    gapRatio: Math.round((row.gap / row.rowWidth) * 100) / 100,
+    leftSelector: "[data-slot=field-label]",
+    leftText: row.label,
+    leftWidthPx: 0,
+    rightSelector: "[role=checkbox]",
+    rightWidthPx: 18,
+  });
+}
+
+test("#980 F13: every Include checkbox sits at ONE shared x, and design-audit's own row-void rule acquits it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES });
+  await mount(<BackupSettingsStory />);
+  await expect(page.getByRole("checkbox", { name: "Characters" })).toBeVisible();
+
+  const rows = await includeRowGeometry(page);
+  expect(rows.length, "the Include group renders its kind checkboxes").toBeGreaterThanOrEqual(8);
+  // ONE control column: the group's label track sets the control's start x for every row in it, so the eye
+  // runs straight down the marks. A per-row dock gives one shared RIGHT edge and nothing else — and it is
+  // what put these controls in TWO columns (x=210, x=495) when the group was mounted without its middle
+  // link, which is a different defect the same measurement catches.
+  const columns = new Set(rows.map((row) => row.controlX));
+  expect([...columns], `every Include control shares one x (measured ${JSON.stringify([...columns])})`).toHaveLength(1);
+
+  // THE BAR IS THE INSTRUMENT'S OWN, not a number invented here: `checkRowVoid` is the rule that filed
+  // 8 × P2 against this pane, imported and run on the measured geometry rather than re-spelling its two
+  // thresholds (a re-spelled threshold drifts from the rule the moment either moves). A track layout keeps
+  // a real gap by design — a short label does not fill a shared column — so "the gap is zero" would be the
+  // wrong claim; "the rule that convicted this pane acquits it" is the right one.
+  for (const row of rows) {
+    const verdict = rowVoidVerdict(row);
+    expect(verdict?.value ?? null, `"${row.label}": ${String(row.gap)}px across a ${String(row.rowWidth)}px row`).toBeNull();
+  }
+  // PLANTED POSITIVE CONTROL, in the same run: the pre-fix geometry this pane actually had (876px of a
+  // 960px row, measured red-first here; 906–937px on the live pane). A rule that acquits everything is not
+  // a measurement.
+  expect(rowVoidVerdict({ label: "Characters", gap: 876, rowWidth: 960 })?.rule ?? null, "the pre-fix geometry must still convict").toBe("row-void");
 });

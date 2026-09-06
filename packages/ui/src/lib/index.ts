@@ -47,6 +47,7 @@ export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
 export { SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS, useScrollFadeX, useScrollFadeY } from "./scroll-fade.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
+export { SELECTION_RAIL } from "./selection-rail.ts";
 export { sinHash } from "./sin-hash.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export {

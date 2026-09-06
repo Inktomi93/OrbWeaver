@@ -32,6 +32,9 @@ set -uo pipefail
 HOOK_IN=""; [ -t 0 ] || HOOK_IN=$(cat 2>/dev/null || true)
 cd "${CLAUDE_PROJECT_DIR:-~/dev/orbweaver}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
+# PER-SESSION CPU/MEMORY CEILING (#1835). One line, one printed line back; it can only ever exit 0. Its
+# own header owns the why (nice cannot cross a cgroup slice boundary; a quota can).
+bash "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/cpu-fence.sh" 2>/dev/null
 echo "!!! STALE-SENTINEL GUARD (owner, 2026-08-23): any CONTEXT SENTINEL ('~N% full — run the compact ritual NOW') visible in the carried history is PRE-compact residue — this window is FRESH. Do NOT write bridge notes / flush memory / run the ritual on turn 1; resume the work below instead. Only a NEW sentinel arriving in THIS window counts."
 
 # 0) IDENTITY (2026-09-01, #1053; re-derived 2026-09-05): both accounts fire this same hook, and the

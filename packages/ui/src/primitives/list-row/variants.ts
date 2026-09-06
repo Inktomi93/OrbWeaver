@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_INSET, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_INSET, SELECTION_RAIL, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -28,19 +28,20 @@ export const listRowVariants = tv({
     // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     //
-    // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485). `border-l-2` +
-    // `data-selected:border-l-primary` on a `rounded-control` row is the textbook shape of design-audit's
-    // two §6 absolute bans (`side-tab` + `border-accent-on-rounded`), and it fired on every list in the app
-    // — because it IS the app-wide selection idiom, not a decorative card tell. The owner ruled it stands
-    // as shipped; design-audit carries the matching SCOPED exemption, keyed on slot identity AND
-    // `data-selected` together (tooling/src/ui-audit/lib/checks-decor.ts + ops/walker/core.ts's
-    // `LIST_ROW_SELECTED_SEL`). Consequence for anyone editing here: the accent's CARRIER is part of the
-    // exemption — moving it off the `list-row-root` / `list-row-body` slots, or painting it at rest instead
-    // of under `data-selected`, re-reds the whole tree in the design audit.
-    body: [
-      "group flex min-w-0 flex-1 items-center gap-row rounded-control border-l-2 border-l-transparent outline-none",
-      `data-selected:border-l-primary data-selected:bg-primary/10 ${DISABLED_STATE}`,
-    ],
+    // THE LEFT EMBER BAR IS OWNER-RATIFIED (2026-08-22, issue #485) AND ITS SPELLING LEFT THIS FILE (#1823).
+    // `border-l-2` + `data-selected:border-l-primary` on a `rounded-control` row is the textbook shape of
+    // design-audit's two §6 absolute bans (`side-tab` + `border-accent-on-rounded`), and it fired on every
+    // list in the app — because it IS the app-wide selection idiom, not a decorative card tell. The owner
+    // ruled it stands as shipped; design-audit carries the matching SCOPED exemption, keyed on slot identity
+    // AND `data-selected` together (tooling/src/ui-audit/lib/checks-decor.ts + ops/walker/core.ts's
+    // `SELECTION_RAIL_SEL`). Consequence for anyone editing here: the accent's CARRIER is part of the
+    // exemption — moving it off the exempted slots, or painting it at rest instead of under `data-selected`,
+    // re-reds the whole tree in the design audit.
+    //
+    // The two declarations now come from `SELECTION_RAIL` (lib/selection-rail.ts) because the idiom gained a
+    // carrier that is NOT a ListRow — the config band, a `Button`, which cannot inherit it by composition
+    // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
+    body: ["group flex min-w-0 flex-1 items-center gap-row rounded-control outline-none", `${SELECTION_RAIL} ${DISABLED_STATE}`],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     // `min-w-24` is the title-column floor: name/subtitle never collapse below a readable width, so
     // `actions` yields (shrinks + clips) instead.
@@ -200,7 +201,7 @@ export const listRowVariants = tv({
     rowTint: {
       body: {},
       row: {
-        root: ["rounded-control border-l-2 border-l-transparent pe-row", "data-selected:border-l-primary data-selected:bg-primary/10"],
+        root: ["rounded-control pe-row", SELECTION_RAIL],
         body: "rounded-none border-l-0 hover:bg-transparent active:bg-transparent data-selected:bg-transparent data-selected:border-l-transparent",
       },
     },

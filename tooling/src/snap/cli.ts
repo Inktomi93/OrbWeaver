@@ -30,6 +30,7 @@ import {
   snapMatrix,
   snapScenario,
   stageBandRefusalFor,
+  tearDownBootDeadStage,
 } from "./index.ts";
 
 function printCliPreamble(opts: Args): number | null {
@@ -166,7 +167,14 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
         print(bandRefusal);
         return EXIT.toolError;
       }
-      return await runResolvedMode(opts);
+      try {
+        return await runResolvedMode(opts);
+      } finally {
+        // A stage THIS run booted that never served a settled app is torn down here, at the one-shot run's
+        // own exit (#1837) — inside the slot, so its stack log is preserved before the dir goes. Deliberately
+        // NOT on the `--session` leg above: a session daemon owns its stage for the life of the session.
+        tearDownBootDeadStage();
+      }
     },
     REPO_ROOT,
     { complete },

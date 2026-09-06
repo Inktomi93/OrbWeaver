@@ -111,7 +111,7 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     case "scoped":
       return await runScopedCli(root, rest);
     case "scoped-test":
-      return runScopedTest(root, rest);
+      return await runScopedTest(root, rest);
     case "new-gate":
       return runNewGate(root, rest);
     case "gate-contract":

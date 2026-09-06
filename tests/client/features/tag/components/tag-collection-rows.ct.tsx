@@ -290,3 +290,108 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
   await expect(scroller).not.toHaveAttribute("data-more", "");
   await expect.poll(async () => await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage)).toBe("none");
 });
+
+// ── #1824 · THE WIDTH MATRIX THE ROW ANATOMY WAS OWED ────────────────────────────────────────────────
+// DESIGN.md §5 obligation 6: "Rows at pane width carry more air than at 307px — the width matrix (both
+// ends + the crossover, both pointers) is owed before the row anatomy is called converged", and the mock
+// review set the bar at an ink-to-ink void ≤ 25%. It was never landed, and #1725 moved these rows from a
+// 307px LIST column into a 990px CONTENT pane unchanged. Measured on the live surface 2026-09-06:
+//
+//   comedy     ink 30→86   "5 uses" ink 934→982   void 848 of 990 = 86%
+//   rpg-ready  ink 30→98   "4 uses" ink 934→982   void 836 of 990 = 84%
+//   fantasy    ink 30→82   "3 uses" ink 934→982   void 852 of 990 = 86%
+//
+// THE MEASUREMENT IS A RANGE, NEVER A BOUNDING BOX — and that is the whole reason this defect survived
+// two reviews. The title span is `min-w-0 flex-1 truncate`, so its BOX runs the full 30→928 and a
+// `getBoundingClientRect` census reports a 6px gap and a clean row (the retracted first pass did exactly
+// that). Only `Range.selectNodeContents(textNode).getBoundingClientRect()` sees where the glyphs are.
+//
+// THE FIX IS A PLACEMENT, NOT A CAP. Board 02 and DESIGN.md §3.3 both put a tag's usage in the row's
+// SUBTITLE ("on 12 things" under the name); the build parked it in `markers`, the TITLE line's trailing
+// edge, which is the 848px hole. Every other collection row (regex scent, world-info bookScent, roster
+// members, databank, preset) already carries a subtitle — tags was the one that did not.
+
+/** One row's ink-to-ink void: the widest horizontal gap between consecutive rendered GLYPH RUNS, as a
+ *  fraction of the row's own width. Text nodes only — an invisible hover-revealed kebab is not ink, and a
+ *  swatch is not ink either. */
+function inkVoid(page: Page, index: number): Promise<{ readonly width: number; readonly pct: number; readonly at: string; readonly runs: number }> {
+  return page.evaluate((at: number) => {
+    const row = document.querySelectorAll<HTMLElement>('[data-slot="list-row-root"]')[at];
+    if (row === undefined) {
+      throw new Error(`inkVoid: no row at index ${String(at)}`);
+    }
+    const inked = (node: Node): boolean => {
+      const parent = node.parentElement;
+      if (parent === null || (node.textContent ?? "").trim() === "") {
+        return false;
+      }
+      const style = getComputedStyle(parent);
+      return style.visibility !== "hidden" && style.display !== "none" && style.opacity !== "0";
+    };
+    const runRect = (node: Node): DOMRect => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getBoundingClientRect();
+    };
+    const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node): number => (inked(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    const runs: { readonly left: number; readonly right: number; readonly text: string }[] = [];
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      const rect = runRect(node);
+      runs.push({ left: rect.left, right: rect.right, text: (node.textContent ?? "").trim() });
+    }
+    runs.sort((a, b) => a.left - b.left);
+    const width = row.getBoundingClientRect().width;
+    const widest = runs
+      .slice(1)
+      .map((run, i) => ({ gap: run.left - (runs[i]?.right ?? run.left), at: `"${runs[i]?.text ?? ""}" → "${run.text}"` }))
+      .reduce((best, candidate) => (candidate.gap > best.gap ? candidate : best), { gap: 0, at: "" });
+    return { width: Math.round(width), pct: Math.round((widest.gap / width) * 100), at: widest.at, runs: runs.length };
+  }, index);
+}
+
+// 382 is the coarse arm's real row width (430px phone), 990 the desktop CONTENT pane with the context
+// collapsed, 660 the crossover between them — a point measurement at one width would have missed this in
+// either direction (the coarse arm already read 48% while desktop read 86%).
+for (const width of [382, 660, 990] as const) {
+  test(`#1824: a tag row's ink-to-ink void stays inside the 25% bar at ${String(width)}px`, async ({ mount, page }) => {
+    await stub(page, THREE);
+    const rows = await mount(<TagCollectionRowsStory width={width} />);
+    await expect(rows.getByText("adventure")).toBeVisible();
+
+    for (const index of [0, 1, 2]) {
+      const void_ = await inkVoid(page, index);
+      expect(void_.runs, "a row must have rendered ink to measure").toBeGreaterThan(0);
+      expect(void_.pct, `row ${String(index)} at ${String(void_.width)}px: widest ink gap ${String(void_.pct)}% ${void_.at}`).toBeLessThanOrEqual(25);
+    }
+  });
+}
+
+test("#1824: the usage census reads on the row's SUBTITLE line, under the name it counts", async ({ mount, page }) => {
+  await stub(page);
+  const rows = await mount(<TagCollectionRowsStory width={990} />);
+  const row = rows.locator('[data-slot="list-row-root"]').first();
+
+  // The board's anatomy, asserted as GEOMETRY rather than as a slot name: the census sits below the title
+  // and starts at the same left edge, which is what makes it read as the name's own count at any pane
+  // width. On the pre-#1824 source it sat on the title's line, ~850px to the right of it.
+  // ONE poll returning a VERDICT OBJECT (the `ct-no-oneshot-live-read-assert` idiom): the reads are live
+  // layout, so the assertion retries until the row has painted; the failure output still names which claim
+  // broke and at what pixels.
+  await expect
+    .poll(() =>
+      row.evaluate((el: Element) => {
+        const title = el.querySelector<HTMLElement>('[data-slot="list-row-title"]');
+        const subtitle = el.querySelector<HTMLElement>('[data-slot="list-row-subtitle"]');
+        if (title === null || subtitle === null) {
+          throw new Error("the row is missing its title or its subtitle");
+        }
+        const t = title.getBoundingClientRect();
+        const s = subtitle.getBoundingClientRect();
+        const leftDelta = Math.abs(s.left - t.left);
+        return { text: subtitle.textContent ?? "", below: s.top >= t.bottom - 1, leftAligned: leftDelta <= 1, leftDelta };
+      }),
+    )
+    .toMatchObject({ text: "7 uses", below: true, leftAligned: true });
+});

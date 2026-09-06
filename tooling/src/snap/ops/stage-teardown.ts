@@ -24,12 +24,15 @@
 //
 // The group kill is fenced exactly like the sweep's: a band port held by something that is NOT
 // stage-rooted is somebody else's server and is never touched.
-import { existsSync } from "node:fs";
+import { cpSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
 import { missingLauncherRefusal, stageLauncherPath } from "../lib/stage-plan.ts";
+import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { clearRow } from "./stage-marker.ts";
 import { killProcessGroup, pidIsStageRooted, stageBandPortPid } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
@@ -62,4 +65,48 @@ export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm,
   removeStageDir(row.checkout, row);
   clearRow(home, row.band);
   recordStageReap(home, row, arm, nowMs);
+}
+
+/** THE FIFTH ARM, AND THE ONE THAT FIRES INSIDE A RUN (#1837). A stage whose app never settled — warm-up
+ *  re-navigation included (ops/drive.ts) — is not the warm asset #324's ruling protects. It never served an
+ *  app, so leaving it up holds a band, a port pair and a ~7-process group for the full 60 min TTL and hands
+ *  the same dead app to every later reuse; two lanes in one afternoon killed those groups by hand. #324's
+ *  RULE is untouched (no teardown at run completion, warmth across runs is the feature); its INPUT changed.
+ *
+ *  THE LOGS OUTLIVE THE DIR, because the refusal text tells the reader to go read them and `removeStageDir`
+ *  is about to delete them. They are copied into THIS run's slot first (`<slot>/stage-logs/`), and the
+ *  printed line names where they landed — a teardown that silently ate its own evidence would just move the
+ *  lie one hop. No open run slot (a library caller, a test) ⇒ nothing to copy into, and the teardown still
+ *  runs: killing the process group is the part that must not be optional. */
+export function tearDownBootDeadStage(): void {
+  const dead = takeBootDeadStage();
+  if (dead === null) {
+    return;
+  }
+  const { row, home } = dead.binding;
+  const kept = preserveStageLogs(row.dir);
+  print(
+    `[snap-stage] BOOT-DEAD band ${row.band} — ${dead.reason}; tearing the stage down (dir ${row.dir}, :${String(row.serverPort)}/:${String(row.vitePort)}). ` +
+      (kept === null ? "No stack log was found to preserve." : `Its stack log is preserved at ${kept}.`),
+  );
+  tearDownStageRow(home, row, "boot-dead");
+}
+
+/** Copy the staged stack's own logs into this run's slot before the dir goes. Best-effort by design: a
+ *  missing log dir, or no run slot open, costs the reader context but must never block the process-group
+ *  kill this function exists to reach. Returns where they landed, or null. */
+function preserveStageLogs(dir: string): string | null {
+  const source = join(dir, ".cache", "stack");
+  const slot = activeRunSlot();
+  if (slot === null || !existsSync(source)) {
+    return null;
+  }
+  const target = join(slot.dir, "stage-logs");
+  // @orb-gate-ignore caught-failure-ownership(default:catch): documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says "No stack log was found to preserve" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.
+  try {
+    cpSync(source, target, { recursive: true });
+    return target;
+  } catch {
+    return null;
+  }
 }
