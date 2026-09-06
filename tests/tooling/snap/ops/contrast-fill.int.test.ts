@@ -125,10 +125,56 @@ test("a fill subject with no surround left to sample gets NO VERDICT, and it FAI
       <div id="full"></div>
     `);
     const [full] = await captureContrastEvidence(page, ["#full"], false, VIEWPORT);
-    expect(full?.outcome.line).toContain("NO VERDICT (fill-only, undecodable)");
-    expect(full?.outcome.line).toContain("no surround to measure against");
     expect(full?.outcome.failed).toBe(true);
-    expect(full?.evidence).toMatchObject({ status: "refused", method: null, ratio: null, passed: null, sampled: 0 });
+    expect(full?.evidence).toMatchObject({ method: null, ratio: null, passed: null, sampled: 0 });
+    // THE CLASS is pinned, not the reason string (#1758): a `Page.captureScreenshot` protocol error under
+    // contention is an INSTRUMENT fault (status "instrument-error", ops/contrast-fill.ts retries once and
+    // still failed) — a DIFFERENT, honest no-verdict reason from this fixture's real DOMAIN refusal
+    // (status "refused", no surround to sample). Both are legitimate "I could not produce a verdict"
+    // outcomes; only the domain class's exact wording is asserted, on the quiet-box happy path.
+    expect(["refused", "instrument-error"]).toContain(full?.evidence.status);
+    const domainReceipt =
+      full?.evidence.status !== "refused" ||
+      (full.outcome.line.includes("NO VERDICT (fill-only, undecodable)") && full.outcome.line.includes("no surround to measure against"));
+    expect(domainReceipt, `a domain refusal must name the surround reason — ${full?.outcome.line}`).toBe(true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a page.screenshot() failure retries once, and a persisting failure is an instrument fault (#1758)", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(PAGE);
+    const real = page.screenshot.bind(page);
+
+    // A LONE transient failure — the shape a real `Protocol error (Page.captureScreenshot)` takes under
+    // contention — recovers silently through the retry: the SAME domain verdict as an unpatched run.
+    let calls = 0;
+    page.screenshot = (async (options) => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error("Protocol error (Page.captureScreenshot): Target closed.");
+      }
+      return await real(options);
+    }) as typeof page.screenshot;
+    const [recovered] = await captureContrastEvidence(page, ["#quiet"], false, VIEWPORT);
+    expect(calls).toBe(2);
+    expect(recovered?.evidence.status).toBe("ok");
+    expect(recovered?.evidence.method).toBe("fill-sample");
+
+    // A PERSISTENT failure (both attempts) is an INSTRUMENT fault — never folded into the "undecodable"
+    // domain-refusal family, so a reason-string pin on that family cannot red on this CDP message. The run
+    // still FAILS (never a silent green), and the line names the real capture error.
+    page.screenshot = ((): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."))) as typeof page.screenshot;
+    const [persisted] = await captureContrastEvidence(page, ["#quiet"], false, VIEWPORT);
+    expect(persisted?.evidence.status).toBe("instrument-error");
+    expect(persisted?.evidence.ratio).toBeNull();
+    expect(persisted?.evidence.passed).toBeNull();
+    expect(persisted?.outcome.failed).toBe(true);
+    expect(persisted?.outcome.line).toContain("screenshot failed twice");
+    expect(persisted?.outcome.line).toContain("Protocol error (Page.captureScreenshot)");
   } finally {
     await browser.close();
   }

@@ -71,23 +71,72 @@ test("the WORST side carries the verdict, and a borderless subject is refused ra
     // Three sides clear 3:1 and the bottom does not. A perimeter average would call this a pass; 1.4.11 is
     // violated by the one side a user cannot see.
     const split = await measureEdgeContrast(page, "#split", VIEWPORT);
-    expect(split.evidence.passed).toBe(false);
-    expect(split.outcome.line).toContain("worst side bottom");
-    expect(split.outcome.line).toContain("top:");
-    expect(split.outcome.line).toContain("bottom:");
+    // THE CLASS is pinned, not the reason string (#1758): a `Page.captureScreenshot` protocol error under
+    // contention is an INSTRUMENT fault (status "instrument-error", ops/contrast-edge.ts retries once and
+    // still failed) — a DIFFERENT, honest no-verdict reason from this fixture's real per-side verdict
+    // (status "ok", passed false). Both fail the run; only the measured happy path asserts the exact text.
+    expect(["ok", "instrument-error"]).toContain(split.evidence.status);
+    expect(split.outcome.failed).toBe(true);
+    const splitReceipt =
+      split.evidence.status !== "ok" ||
+      (split.evidence.passed === false &&
+        split.outcome.line.includes("worst side bottom") &&
+        split.outcome.line.includes("top:") &&
+        split.outcome.line.includes("bottom:"));
+    expect(splitReceipt, `a measured verdict must name the worst side — ${split.outcome.line}`).toBe(true);
 
     // A subject with no border at all is a REFUSAL that names the right arm — never a silent pass, which is
     // what a "no failures found" edge check on a borderless element would read as.
     const none = await measureEdgeContrast(page, "#none", VIEWPORT);
-    expect(none.evidence).toMatchObject({ status: "refused", ratio: null, passed: null });
+    expect(none.evidence.ratio).toBeNull();
+    expect(none.evidence.passed).toBeNull();
     expect(none.outcome.failed).toBe(true);
-    expect(none.outcome.line).toContain("no border on any side");
-    expect(none.outcome.line).toContain("--contrast");
+    expect(["refused", "instrument-error"]).toContain(none.evidence.status);
+    const noneReceipt = none.evidence.status !== "refused" || (none.outcome.line.includes("no border on any side") && none.outcome.line.includes("--contrast"));
+    expect(noneReceipt, `a domain refusal must name the missing border — ${none.outcome.line}`).toBe(true);
 
     // …and a selector that matches nothing says so instead of measuring the page.
     const missing = await measureEdgeContrast(page, "#absent", VIEWPORT);
     expect(missing.outcome.line).toContain("CONTRAST-EDGE #absent: NOT FOUND");
     expect(missing.outcome.failed).toBe(true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a page.screenshot() failure retries once, and a persisting failure is an instrument fault (#1758)", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(FIXTURE);
+    const real = page.screenshot.bind(page);
+
+    // A LONE transient failure — the shape a real `Protocol error (Page.captureScreenshot)` takes under
+    // contention — recovers silently through the retry: the SAME per-side verdict as an unpatched run.
+    let calls = 0;
+    page.screenshot = (async (options) => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error("Protocol error (Page.captureScreenshot): Target closed.");
+      }
+      return await real(options);
+    }) as typeof page.screenshot;
+    const recovered = await measureEdgeContrast(page, "#clear", VIEWPORT);
+    expect(calls).toBe(2);
+    expect(recovered.evidence.status).toBe("ok");
+    expect(recovered.evidence.method).toBe("edge-sample");
+
+    // A PERSISTENT failure (both attempts) is an INSTRUMENT fault — never folded into the "edge
+    // unmeasurable" domain-refusal family, so a reason-string pin on that family cannot red on this CDP
+    // message. The run still FAILS (never a silent green), and the line names the real capture error.
+    page.screenshot = ((): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."))) as typeof page.screenshot;
+    const persisted = await measureEdgeContrast(page, "#clear", VIEWPORT);
+    expect(persisted.evidence.status).toBe("instrument-error");
+    expect(persisted.evidence.ratio).toBeNull();
+    expect(persisted.evidence.passed).toBeNull();
+    expect(persisted.outcome.failed).toBe(true);
+    expect(persisted.outcome.line).toContain("screenshot failed twice");
+    expect(persisted.outcome.line).toContain("Protocol error (Page.captureScreenshot)");
   } finally {
     await browser.close();
   }
