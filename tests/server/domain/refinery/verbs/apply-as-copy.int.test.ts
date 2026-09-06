@@ -7,7 +7,7 @@ import { characterSnapshots } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeRefineryHarness, principal, rewriteReply, seedOwnedCharacter, seedUser } from "../_support.ts";
+import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 test("applyAsCopy mints a fresh character with the accepted patch; the live card and its snapshots are untouched", async () => {
   const db = await freshDb();
@@ -86,6 +86,50 @@ test("the §21 divergence belt: a field edited under the session drops without c
   expect(snaps[0]?.content.description).toBe("Hand-edited underneath.");
   const detail = await h.character.get({ principal: p, characterId });
   expect(detail.description).toBe("REFINED description.");
+});
+
+test("#1519: applying an OLDER named rewrite stamps the copy with the score run correlated to IT, never a newer score run that landed after", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_ac_e" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "ac-card-e");
+  const p = principal(owner);
+  const session = await h.svc.startSession({ principal: p, characterId });
+
+  // Score run #1 (overallScore 6.5, the default SCORE_PAYLOAD), THEN rewrite #1 — this is the rewrite the
+  // operate-back apply below re-selects.
+  h.queueReply(scoreReply());
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
+  h.advance(1000);
+  h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED against the OLDER score." }] }));
+  const olderRewrite = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+  h.advance(1000);
+
+  // A SECOND, NEWER score run lands after the rewrite the caller is about to apply — the exact drift
+  // `latestRunRowOf(sessionId, "score")` (the session's HEAD) could not tell apart from run #1's.
+  h.queueReply(scoreReply({ overallScore: 9.5 }));
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
+  h.advance(1000);
+  // A second, newer rewrite too — so "latest rewrite" and "the rewrite this copy applies" visibly diverge.
+  h.queueReply(rewriteReply({ fields: [{ field: "description", text: "A newer rewrite nobody is applying." }] }));
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+
+  // The §16.1 operate-back path: apply the OLDER rewrite by id, explicitly.
+  const result = await h.svc.applyAsCopy({
+    principal: p,
+    sessionId: session.id,
+    rewriteRunId: olderRewrite.id,
+    accepts: [{ field: "description" }],
+  });
+  expect(result.character?.description).toBe("REFINED against the OLDER score.");
+  // The RETURNED `character` is captured before the signal stamp lands (a separate, pre-existing
+  // staleness this row does not touch) — re-read the copy to see the actual persisted stamp.
+  const copyId = result.character?.id;
+  expect(copyId).toBeDefined();
+  const copy = await h.character.get({ principal: p, characterId: copyId as NonNullable<typeof copyId> });
+  // The copy is stamped with the OLDER score (6.5) — the one that preceded the applied rewrite — never
+  // the 9.5 that landed afterward and describes a DIFFERENT rewrite's content.
+  expect(copy.refinery?.score).toBe(6.5);
 });
 
 test("an UNMOVED field never trips divergence (the belt is about motion, not the storage spelling)", async () => {
