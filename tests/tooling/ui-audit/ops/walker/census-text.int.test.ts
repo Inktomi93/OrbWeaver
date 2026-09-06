@@ -313,3 +313,56 @@ auditRuleTest(
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 2, judged: 1, withheld: { maskedForeground: 1 } });
   },
 );
+
+// ── `distorted-image`'s background-image sizing mode (#1825) ────────────────────────────────
+//
+// A 2:1 raster (100x50) painted as a `background-image` on a 1:1 box (100x100). Under the DEFAULT
+// `background-size: auto` the image paints at its own natural size — exactly like `object-fit: none` —
+// and cannot squish no matter how the box is shaped, so `distorted-image` must stay silent. Under an
+// EXPLICIT `background-size: 100% 100%` the same raster is stretched to fill the box on both axes
+// independently, a real 100% aspect deviation, so the rule must fire. Both fixtures share the identical
+// raster and box; only the `background-size` declaration differs.
+// %22-encoded SVG attribute quotes, doubly load-bearing: this URL sits inside a CSS `url(' … ')` (single
+// quotes), which itself sits inside an HTML `style="…"` attribute (double quotes). A single-quoted SVG
+// attribute breaks the CSS string (a single-quoted CSS string terminates at its first embedded `'`); a
+// LITERAL double-quoted one breaks the HTML attribute instead (it terminates at its first embedded `"`).
+// Percent-encoding is the one spelling neither host's quoting can see through.
+const BG_RASTER_URL =
+  "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2250%22%3E%3Crect width=%22100%22 height=%2250%22 fill=%22black%22/%3E%3C/svg%3E";
+const BG_BOX = `width:100px;height:100px;background-image:url('${BG_RASTER_URL}');background-repeat:no-repeat`;
+
+auditRuleTest(
+  [
+    {
+      rule: "distorted-image",
+      kind: "silent",
+      reason:
+        "background-size: auto (the CSS default) paints the raster at its own natural size, exactly like object-fit: none — it cannot squish, so it must not be judged for aspect deviation against the box",
+    },
+  ],
+  "a background-image under the default background-size: auto is excluded, never judged",
+  async ({ runCli, scratch }) => {
+    const body = `<div style="${BG_BOX};background-size:auto"></div>`;
+    const report = await auditFixture(scratch, runCli, "bg-distortion-auto", body);
+    expect(report.findings.filter(({ rule }) => rule === "distorted-image")).toHaveLength(0);
+    expect(report.populationAccounting?.["distorted-image"]?.excluded).toMatchObject({ objectFitDoesNotScale: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "distorted-image",
+      kind: "fires",
+      reason:
+        "the identical raster under an EXPLICIT background-size: 100% 100% is stretched to the box on both axes independently — a real distortion the rule must still catch",
+    },
+  ],
+  "the same background-image under an explicit stretching background-size still fires",
+  async ({ runCli, scratch }) => {
+    const body = `<div style="${BG_BOX};background-size:100% 100%"></div>`;
+    const report = await auditFixture(scratch, runCli, "bg-distortion-scales", body);
+    expect(report.findings.filter(({ rule }) => rule === "distorted-image")).toHaveLength(1);
+    expect(report.populationAccounting?.["distorted-image"]).toMatchObject({ judged: 1, emitted: 1 });
+  },
+);

@@ -87,7 +87,7 @@ input object handed to the pure `checks-*.ts` function, which proves the THRESHO
 whether the census can see the shape on a real page. That is precisely the blindness this document
 exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an
 "owed" cell is a real gap in the mechanism axis, filed as such and not backfilled with an invented
-receipt. Of the 62 registered rules, 39 carry a planted rendered control, 22 are owed one, and
+receipt. Of the 62 registered rules, 40 carry a planted rendered control, 21 are owed one, and
 `off-grid-transform` is half-owed (its withheld arm is planted, its firing arm is not). One of the 22 —
 `buried-raster` — is owed BY OWNER RULING rather than by omission; its cell says so.
 
@@ -116,7 +116,7 @@ Finding at all and their control is the printed population row.
 | border-accent-on-rounded | an accent edge on a rounded card — BOTH spellings: own `border-*-width` AND a pinned `::before`/`::after` bar | `w/census-accent` | `lib/checks-decor` | `T/…/census-accent.int.test.ts` · `census-decor.int.test.ts` · walker CT |
 | side-tab | same census, the one-edge flavour | `w/census-accent` | `lib/checks-decor` | same as above |
 | glow-shadow | chromatic box/text-shadow on the element AND its pseudo layers, at rest and under force | `w/census-glow` + `w/state-paint` | `lib/checks-decor` | `T/…/census-glow.int.test.ts` · `state-paint.int.test.ts` |
-| distorted-image | rendered box aspect vs natural raster aspect, gated on the `object-fit` keyword | `w/census-text` (`images`) | `lib/checks-media` | **none — owed** (checker-level only: `T/tooling/ui-audit/lib/checks-media.test.ts` + `index.test.ts`) |
+| distorted-image | rendered box aspect vs natural raster aspect, gated on the `object-fit` keyword (`<img>`) or `background-size` disposition (background-image) | `w/census-text` (`images`) | `lib/checks-media` | `T/…/census-text.int.test.ts` (#1825, background-size auto vs. explicit-stretch) |
 | canvas-ink | visible `<canvas>` elements — accounting only, always `excluded(canvasPaint)` | `w/census-collision` | `lib/collect-families` (census row) | `T/…/census-collision.int.test.ts` (both directions) |
 | broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | **none — owed** (the rendered suite carries the SILENT arm only) |
 | radial-halo | a radial-gradient wash's colour stops (canvas-normalised), fade-out shape + chroma | `w/census-glow` (`radialGlows`) | `lib/checks-ornament` | **none — owed** (checker-level: `T/…/lib/css-color.test.ts` proves the colour-space arm, not the census) |

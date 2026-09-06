@@ -17,6 +17,7 @@ import type {
   TabIndexInput,
   TapTargetInput,
 } from "./samples-interactive.ts";
+import type { ImageDistortionInput } from "./samples-media.ts";
 import type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
 import type { CensusCapAccountingInput, RelationalSamples } from "./samples-populations.ts";
 
@@ -64,16 +65,9 @@ export interface ContrastInput {
   /** Text/ancestor carries `mask-image` (#1078, `.scroll-fade-x/-y`); absent = unmasked. */ readonly foregroundMasked?: boolean;
 }
 
-export interface ImageDistortionInput {
-  readonly selector: string;
-  readonly naturalWidth: number;
-  readonly naturalHeight: number;
-  readonly renderedWidth: number;
-  readonly renderedHeight: number;
-  /** Computed `object-fit`. Only "fill" stretches; "cover"/"contain" crop or letterbox and "none"/"scale-down"
-   *  scale no axis (#1808) — each excluded by a named reason; off-keyword = WITHHELD (lib/checks-media.ts). */
-  readonly objectFit: string;
-}
+// `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — same 450-line-cap split
+// reason as `BuriedRasterInput`'s own home there; re-exported below so existing consumers are unchanged.
+export type { ImageDistortionInput } from "./samples-media.ts";
 
 // ── Broken images (impeccable `broken-image`) ───────────────────────────────
 export interface BrokenImageInput {
@@ -241,9 +235,9 @@ export interface AccentBorderInput {
   readonly statusContext: boolean;
   /** The element carries the ratified SELECTION RAIL (`@orb/ui`'s `SELECTION_RAIL`) AND is selected — the
    *  owner-ratified idiom (#485); both halves required. The carrier set and the ruling: lib/selection-rail-sel.ts.
-   *  THE NAME IS NARROWER THAN THE POPULATION since #1823 (the config band carries the rail too) and is left
-   *  as-is deliberately — renaming it reaches five committed assertions; read it as "wears the rail". */
-  readonly listRowSelected: boolean;
+   *  Renamed from `listRowSelected` (#1834): the config band gained the same rail in #1823, so the field
+   *  now names the FRAGMENT it covers rather than the one primitive it used to be scoped to. */
+  readonly selectionRail: boolean;
   /** The element sits inside an ILLUSTRATED PICKER's art aperture — `@orb/ui`'s PickerCell
    *  `[data-slot="picker-cell-art"]` (packages/ui/src/primitives/picker-cell/picker-cell.tsx), the one
    *  anatomy every single-choice picture picker in this app wears. There the accent stripe is the SUBJECT
@@ -253,7 +247,7 @@ export interface AccentBorderInput {
    *  Keyed on the SHARED slot, so ALL FOUR illustrated pickers ride one row: `<RadioGroupPickerItem art=…>`
    *  is the only door into the aperture and ast-grep finds exactly four (787 tsx, 2026-09-05) — chat style,
    *  density, elevation, and the theme LOOKS picker (`ThemeMiniSurface`), whose swatch is a picture of a design
-   *  too. ANCESTOR-scoped (unlike `listRowSelected`); `closest()` matches SELF, harmless because the aperture's
+   *  too. ANCESTOR-scoped (unlike `selectionRail`); `closest()` matches SELF, harmless because the aperture's
    *  own recipe (`picker-cell/variants.ts` `art`) declares no border, so it never enters this census. */
   readonly artPane: boolean;
 }
