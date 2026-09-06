@@ -3311,7 +3311,7 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
       // the first time this ran post-rebase. Remove, force a style flush, THEN set, so every arm is a real
       // absent→present transition regardless of what the seed left behind.
       grid.removeAttribute("data-list-flip");
-      void grid.offsetWidth;
+      void grid.getBoundingClientRect();
       grid.setAttribute("data-list-flip", dir);
       const read = (selector: string): string | null => {
         const el = document.querySelector(selector);
