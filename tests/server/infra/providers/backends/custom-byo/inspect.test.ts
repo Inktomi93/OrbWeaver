@@ -229,3 +229,61 @@ describe("inspectCustomByoEndpoint", () => {
     expect(result.request.body).toContain("model-");
   });
 });
+
+// #1760: the inspector holds the endpoint FIELDS (it runs before a credential is minted), and its secret
+// list was a third hand-rolled `[apiKey, ...headerValues]` — so a BYO endpoint whose auth is a body field
+// had that credential rendered in cleartext TWICE in the dialog: once in the echoed `request.body` we show
+// back, and again in `bodyPreview` when the endpoint reflects the request. Same class as the P0
+// response-echo leak above; the rule now comes from the ONE producer in `backends/kit/sanitize.ts`.
+describe("inspectCustomByoEndpoint — a key-in-body credential (#1760)", () => {
+  const inBodyKey = "inbody-cred-4d8e1b6a2c90";
+
+  test("the surfaced request body masks the key-in-body credential the wire really carried", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return new Response('{"ok":true}', { status: 200, statusText: "OK" });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: null,
+      headers: null,
+      model: "local-model",
+      includeBody: Object.fromEntries([
+        ["api_key", inBodyKey],
+        ["provider", "cerebras"],
+      ]),
+      excludeBody: null,
+    });
+
+    // The real wire carried the plaintext key (it must — that IS the endpoint's auth)…
+    expect(sentBody["api_key"]).toBe(inBodyKey);
+    // …but the request we hand back to the dialog does not.
+    expect(result.request.body).not.toContain(inBodyKey);
+    expect(result.request.body).toContain("█");
+    // The ordinary routing field survives — an inspector that redacts everything tells the user nothing.
+    expect(result.request.body).toContain("cerebras");
+  });
+
+  test("SCRUBS the key-in-body credential out of an ECHOED response body", async () => {
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      const echoed: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+      return new Response(JSON.stringify({ json: echoed, note: "your request, reflected" }), { status: 200, statusText: "OK" });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: null,
+      headers: null,
+      model: "local-model",
+      includeBody: Object.fromEntries([["api_key", inBodyKey]]),
+      excludeBody: null,
+    });
+
+    const preview = result.response?.bodyPreview ?? "";
+    expect(preview).not.toContain(inBodyKey);
+    expect(preview).toContain("█");
+    expect(preview).toContain("your request, reflected");
+  });
+});

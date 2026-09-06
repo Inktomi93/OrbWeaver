@@ -675,3 +675,39 @@ describe("createCustomByoBackend — error classification", () => {
     expect(headers?.["authorization"]).toBe(`Bearer ${SECRET_KEY}`);
   });
 });
+
+// #1760: the previous F4 pin's includeBody value WAS the apiKey, so the apiKey literal covered it. A BYO
+// endpoint whose auth is a body field only (`apiKey`/`headers` null — a real nonstandard-endpoint shape)
+// has a secret that appears NOWHERE else in the credential, and that literal is what has to reach the
+// scrub set for the debug ring to stay clean.
+describe("createCustomByoBackend — a body-ONLY credential in the capture (#1760)", () => {
+  const bodyOnlyKey = "sk-test-bodyonly-5544332211";
+
+  test("a key-in-body-only credential is REDACTED in the capture and PLAINTEXT on the sent body", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
+    });
+    const captured: Record<string, unknown>[] = [];
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      apiKey: null,
+      headers: null,
+      // `provider` rides along as the control: an ordinary routing field must survive the scrub, or the
+      // capture the fidelity harness reads is blinded.
+      includeBody: Object.fromEntries([
+        ["api_key", bodyOnlyKey],
+        ["provider", "cerebras"],
+      ]),
+    });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+
+    const wire = captured.at(0);
+    expect(wire?.["api_key"]).toBe("█");
+    expect(JSON.stringify(wire)).not.toContain(bodyOnlyKey);
+    expect(wire?.["provider"]).toBe("cerebras");
+    // The endpoint still receives the plaintext key-in-body — the scrub is capture-only.
+    expect(sentBody["api_key"]).toBe(bodyOnlyKey);
+  });
+});

@@ -13,6 +13,7 @@ import {
   providerErrorFromHttp,
 } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
+import { makeCustomOpenAiCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** A credential-derived `ProviderScrubSet` (#1599) — the ONLY way a keyed boundary gets one. A test cannot
@@ -195,5 +196,40 @@ describe("providerErrorFromHttp", () => {
     // rather than a restatement of "always reconstruct".
     const keyless = providerErrorFromHttp(raw, "openrouter catalog", NO_PROVIDER_SECRETS);
     expect(keyless.cause).toBe(raw);
+  });
+});
+
+// #1760: the ERROR-PATH half of the includeBody scrub. `providerErrorFromHttp`'s message is not a log
+// line — since #1373 it flows into a DURABLE `securityEvent("credential_revoked", { reason })` plus the
+// credential audit row, so a key-in-body credential reflected by the endpoint would be written to disk in
+// plaintext. The scrub set is the credential's, minted once; this pins that the includeBody literal is in
+// it at the boundary that actually builds the error.
+describe("providerErrorFromHttp — a key-in-body credential (#1760)", () => {
+  const inBodyKey = "inbody-cred-7f3a9c2e5b1d";
+
+  test("an endpoint reflecting the key-in-body credential cannot reach the message, the log record or the cause", () => {
+    // A no-auth-header BYO endpoint whose auth is a body field — `apiKey`/`headers` are null, so the ONLY
+    // secret this credential holds is the includeBody literal.
+    const cred = makeCustomOpenAiCredential({ apiKey: null, headers: null, includeBody: Object.fromEntries([["api_key", inBodyKey]]) });
+    const raw = Object.assign(new Error(`endpoint rejected api_key=${inBodyKey}`), {
+      statusCode: 401,
+      body: `{"error":{"message":"invalid api_key ${inBodyKey}"}}`,
+      cause: new Error(`upstream echoed ${inBodyKey}`),
+    });
+
+    const pe = providerErrorFromHttp(raw, "custom-byo (https://byo.test/v1)", providerCredentialSecretValues(cred));
+
+    expect(pe.kind).toBe("auth_failed");
+    expect(pe.message).not.toContain(inBodyKey);
+    expect(pe.message).toContain("█");
+    expect(JSON.stringify(pe.toLog())).not.toContain(inBodyKey);
+    expect((pe.cause as Error).message).not.toContain(inBodyKey);
+  });
+
+  test("the peeled diagnostic body/cause are scrubbed of the same literal", () => {
+    const cred = makeCustomOpenAiCredential({ apiKey: null, headers: null, includeBody: Object.fromEntries([["api_key", inBodyKey]]) });
+    const diag = extractHttpErrorDiagnostic({ body: `echo ${inBodyKey}`, cause: new Error(`parse near ${inBodyKey}`) }, providerCredentialSecretValues(cred));
+    expect(JSON.stringify(diag)).not.toContain(inBodyKey);
+    expect(diag.body).toContain("█");
   });
 });
