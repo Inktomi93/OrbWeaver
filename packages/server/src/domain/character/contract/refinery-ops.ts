@@ -6,7 +6,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 
 /** The context both refinery-op factories close over. */
 export interface CharacterRefineryOpsContext {
@@ -60,3 +60,12 @@ export type StampRefinerySignalsOp = (args: {
   readonly characterId: CharacterId;
   readonly patch: RefinerySignalsPatch;
 }) => Promise<void>;
+
+/** Delete ONE `character_snapshots` row by id, scoped to the owning character (#1551). The apply path's
+ *  "auto: before refinery apply" belt-13 snapshot is the apply's WITNESS, not its prelude (the
+ *  `restoreCardInPlace` precedent's own words) — it must be taken BEFORE the conditional write to capture
+ *  the pre-image at all, so a `CHARACTER_STALE_BASIS` refusal from that write leaves a snapshot with
+ *  nothing to witness. This op is how `applyFields` retracts it: never a bulk/owner-wide delete, always the
+ *  exact id the failed apply's own `snapshotCharacter` call just minted. A zero-row delete is a silent
+ *  no-op (nothing to retract is not an error). */
+export type DeleteSnapshotOp = (args: { readonly snapshotId: CharacterSnapshotId; readonly characterId: CharacterId }) => Promise<void>;
