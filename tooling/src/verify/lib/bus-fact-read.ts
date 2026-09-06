@@ -33,12 +33,21 @@ export function busDeclarationIdentity(context: GateFactContext, declaration: Ty
   return { path: context.relativePath(declaration.getSourceFile()), exportName: declaration.getName() };
 }
 
-/** Every declaration a symbol names, INCLUDING the one hop through an import alias. The hop is not
- *  optional and it is not local to one reader: a symbol read at a node in a CONSUMING module is the
- *  IMPORT's symbol, whose own declarations are the `ImportSpecifier` — so a caller looking for the real
- *  declaration (a type alias, a const) finds nothing at all. Measured twice on this tree: a client mapped
- *  type keyed by `ChatBusEvent["type"]` located no union, and a policy descriptor consuming a SHARED union
- *  identity const registered as owning no bus. Both are the same missing hop, so it lives here once. */
+/** Every declaration a symbol names, INCLUDING the ones behind an import alias. `getAliasedSymbol()`
+ *  resolves the WHOLE alias chain in one call, not a single hop: `import { X as U }`,
+ *  `export { X } from "…"`, and a re-export of a re-export all land on the real declaration here.
+ *
+ *  The resolution is not optional and it is not local to one reader: a symbol read at a node in a
+ *  CONSUMING module is the IMPORT's symbol, whose own declarations are the `ImportSpecifier` — so a caller
+ *  looking for the real declaration (a type alias, a const) finds nothing at all. Measured twice on this
+ *  tree: a client mapped type keyed by `ChatBusEvent["type"]` located no union, and a policy descriptor
+ *  consuming a SHARED union identity const registered as owning no bus.
+ *
+ *  DELIBERATELY NOT THE ONLY SITE: `callableDeclaration` below keeps its own `getAliasedSymbol()` with
+ *  DIFFERENT semantics — aliased-preferred (`aliased ?? own`) and EXACTLY ONE — because it needs the one
+ *  callable a call resolves to. Merging it into this helper would answer the import specifier AND the
+ *  function declaration for an imported wrapper, fail its exactly-one test, and silently break relay
+ *  propagation. Two readers, two questions; do not consolidate them. */
 export function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly MorphNode[] {
   const rows: MorphNode[] = [];
   for (const declaration of [...(symbol?.getDeclarations() ?? []), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])]) {
@@ -328,6 +337,8 @@ export function typeForParameter(context: GateFactContext, call: CallExpression,
   return parameter === undefined ? undefined : context.checker().getTypeOfSymbolAtLocation(parameter, call);
 }
 
+/** The ONE callable a call resolves to. Aliased-PREFERRED and exactly-one on purpose — see the note in
+ *  {@link aliasResolvedDeclarations} for why this cannot use the merged helper. */
 export function callableDeclaration(call: CallExpression): MorphNode | undefined {
   const expression = call.getExpression();
   let symbol: import("ts-morph").Symbol | undefined;
