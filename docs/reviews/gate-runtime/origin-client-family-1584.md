@@ -122,7 +122,7 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 
 ## Proofs
 
-117 policy proofs, plus 2 blindness-tripwire pins and 12 focused reader controls — all green
+120 policy proofs, plus 2 blindness-tripwire pins and 12 focused reader controls — all green
 (`tests/tooling/verify/gates/origin-client-family.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
 
 | Policy | mustFlag | mustPass | total |
@@ -131,13 +131,13 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 | `no-chat-trpc-in-surface` | 4 | 4 | 8 |
 | `no-context-provider` | 4 | 4 | 8 |
 | `no-context-returntype` | 2 | 5 | 7 |
-| `no-forward-ref` | 6 | 4 | 10 |
-| `no-inline-optimistic-in-surface` | 3 | 3 | 6 |
+| `no-forward-ref` | 7 | 4 | 11 |
+| `no-inline-optimistic-in-surface` | 4 | 3 | 7 |
 | `no-manual-autosave-flush` | 4 | 6 | 10 |
 | `no-manual-token-estimate` | 7 | 7 | 14 |
 | `no-multiplexed-mutation-error` | 5 | 4 | 9 |
 | `no-static-staletime` | 5 | 5 | 10 |
-| `no-use-context` | 7 | 4 | 11 |
+| `no-use-context` | 8 | 4 | 12 |
 | `zustand-selector-stability` | 7 | 7 | 14 |
 
 Every policy carries the identity matrix its subject can take: an import alias, a namespace member, a
@@ -272,12 +272,21 @@ Two review findings were about the PROOFS rather than the policies, and both gen
 
 ## Known limits and runtime follow-ups (not worked around)
 
-- **`resolveModuleMemberOrigin` refuses an OVERLOADED export as `ambiguous`.** React's `useState` has two
-  declarations, so the reader cannot name it. This is the same class the checkpoint already recorded for
-  drizzle-orm's overloaded operators, and it needs the same shared overload-aware origin reader. React's
-  `forwardRef` and `useContext` are single-declaration today and resolve cleanly (proven by the planted
-  control against the real `@types/react`); if React adds an overload, both policies flip to the LOUD
-  unreadable finding rather than to a silent pass.
+- ~~**`resolveModuleMemberOrigin` refuses an OVERLOADED export as `ambiguous`.**~~ **CLOSED 2026-09-06**
+  by the shared overload-aware origin reader (`reference-fact-module.ts#overloadHome`): a set of declarations
+  that is one FUNCTION-overload set — same kind, same source file, at most one implementation body — resolves
+  to one home, with the count carried in `canonical.declarationCount`. Everything else that yields several
+  declarations (a value/type merge, a `function`+`namespace` merge, an `export *` fan-in, an overload set
+  split across two files) stays `ambiguous`. The limit is now a CAUGHT ROW in both React policies:
+  `no-forward-ref` `mustFlag[1]` and `no-use-context` `mustFlag[1]` build React's door from
+  `reactOverloadedProofModule()` (`forwardRef`/`useContext` declared TWICE) and assert the DEPRECATION
+  message — which the fail-closed `unreadable` arm does not carry, so the row reds the moment the reader
+  refuses an overload set again (red-first receipt: both rows fail against the unmodified reader with
+  `expected one effective finding matching messageIncludes="React 19 deprecates" but no single finding
+  matched`). On the real tree the arm resolves 557 client/server import specifiers that used to refuse —
+  `useState` (206), `useQuery` (135), `useRef` (103), drizzle's `inArray` (53), and the project's own
+  `createAutosaveEntityForm` (27) — while 88 genuinely merged symbols (drizzle's `sql`/`SQL`, `Component`)
+  still refuse.
 - The `#data` / `#forms` package-internal import aliases DO resolve in the `getWorkspace({types:true})`
   program, so a surface importing `useTRPC` from `#data` is judged with the precise verdict, not the
   fail-closed one (verified by the planted control).

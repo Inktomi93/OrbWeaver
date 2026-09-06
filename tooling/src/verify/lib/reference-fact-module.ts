@@ -81,12 +81,65 @@ function importDeclarationOf(node: MorphNode): import("ts-morph").ImportDeclarat
 const requiresResolvedSource = (moduleSpecifier: string): boolean =>
   moduleSpecifier.startsWith(".") || moduleSpecifier.startsWith("/") || moduleSpecifier.startsWith("#");
 
-const projectTarget = (declaration: MorphNode, exportedName: string): CanonicalModuleTarget => ({
+const projectTarget = (declaration: MorphNode, exportedName: string, declarationCount: number): CanonicalModuleTarget => ({
   kind: "project",
   sourceFile: declaration.getSourceFile(),
   exportedName,
   declaration,
+  declarationCount,
 });
+
+/** The ONE declaration kind a MODULE EXPORT symbol may legitimately carry more than once and still name one
+ *  home: a function-overload set — signatures plus at most one implementation, or an ambient
+ *  `declare function` set in a `.d.ts`.
+ *
+ *  It is deliberately not the whole TypeScript overload vocabulary. A `MethodDeclaration`/`MethodSignature`/
+ *  call-signature overload set belongs to a symbol reached off a TYPE (`type-member-origin.ts`), which this
+ *  axis cannot produce: every symbol that reaches here comes from `SourceFile#getExportSymbols()` or an
+ *  export specifier's aliased symbol, so its declarations are module-level. Admitting kinds this reader
+ *  cannot be handed would be an arm no proof row could ever turn red.
+ *
+ *  Everything else that yields several declarations for one exported name — an `interface`+`const` merge, a
+ *  `function`+`namespace` merge, a two-file ambient module merge, an `export *` fan-in — is genuinely more
+ *  than one declaration or has no unique home, and stays `ambiguous`. */
+const OVERLOAD_DECLARATION_KINDS: ReadonlySet<SyntaxKind> = new Set<SyntaxKind>([SyntaxKind.FunctionDeclaration]);
+
+/** The one declaration of an overload set that carries a body. Two bodies is not an overload set at all
+ *  (it is a duplicate implementation), so the home stays unproven. */
+function isOverloadImplementation(declaration: MorphNode): boolean {
+  return Node.isFunctionDeclaration(declaration) && declaration.getBody() !== undefined;
+}
+
+/** ONE identity home for several declarations of one symbol, or `undefined` when they are genuinely
+ *  different declarations.
+ *
+ *  WHY THIS EXISTS: a declaration COUNT is not an identity question. `useState`, drizzle-orm's `inArray`,
+ *  `@trpc/server`'s `TRPCError` and our own `defineBusChannel` each have N declarations that are ONE symbol
+ *  in ONE file (overload signatures plus an implementation, or an ambient `declare` set in a `.d.ts`), so the
+ *  home is unique even though the count is not — and refusing them as `ambiguous` cost three policy families a
+ *  loud "unreadable" where the precise verdict existed, and closed the `.publish` door for every bus channel
+ *  on the tree (bus-pair-1584.md §1). The set is admitted only when every declaration is the same overloadable
+ *  KIND, in the same SOURCE FILE, with at most one implementation body; the home is the implementation when
+ *  there is one, otherwise the first signature. Two files, a value/type merge, and an `export *` fan-in all
+ *  fail at least one of those and keep the refusal.
+ *
+ *  This is the MODULE-EXPORT axis only. A member resolved off a RECEIVER'S TYPE (`type-member-origin.ts`,
+ *  `drizzle-client-call.ts`) deliberately keeps asking every declaration of the property symbol, because that
+ *  reader's question is "is EVERY declaration of this member declared by that home" — a set-membership test
+ *  that an overload set answers correctly as-is. */
+function overloadHome(declarations: readonly MorphNode[]): MorphNode | undefined {
+  const first = declarations[0];
+  if (first === undefined || declarations.length < 2 || !OVERLOAD_DECLARATION_KINDS.has(first.getKind())) {
+    return;
+  }
+  const kind = first.getKind();
+  const sourceFile = first.getSourceFile().compilerNode;
+  if (!declarations.every((declaration) => declaration.getKind() === kind && declaration.getSourceFile().compilerNode === sourceFile)) {
+    return;
+  }
+  const implementations = declarations.filter(isOverloadImplementation);
+  return implementations.length > 1 ? undefined : (implementations[0] ?? first);
+}
 
 const externalTarget = (declaration: MorphNode, moduleSpecifier: string, exportedName: string): CanonicalModuleTarget => ({
   kind: "external-door",
@@ -121,11 +174,12 @@ function resolveExportSpecifier(
     return resolved(externalTarget(declaration, externalSpecifier, declaration.getName()), target, declaration);
   }
   const aliasedTargets = symbol.getAliasedSymbol()?.getDeclarations() ?? [];
-  const aliased = aliasedTargets[0];
+  const overload = overloadHome(aliasedTargets);
+  const aliased = overload ?? aliasedTargets[0];
   if (aliased === undefined) {
     return unresolved("missing", declaration, target, `local export ${exportName} has no resolvable declaration`);
   }
-  if (aliasedTargets.length !== 1) {
+  if (aliasedTargets.length !== 1 && overload === undefined) {
     return unresolved("ambiguous", declaration, target, `local export ${exportName} resolves to ${aliasedTargets.length} declarations`);
   }
   if (aliased.getSourceFile() !== declaration.getSourceFile()) {
@@ -134,7 +188,7 @@ function resolveExportSpecifier(
   if (!enterDeclaration(target, aliased)) {
     return unresolved("cycle", aliased, target, `module export cycle at ${aliased.getText()}`);
   }
-  return validatedProjectTarget(aliased, exportName, target);
+  return validatedProjectTarget(aliased, exportName, target, aliasedTargets.length);
 }
 
 function starExportCandidates(sourceFile: SourceFile, exportName: string): readonly import("ts-morph").ExportDeclaration[] {
@@ -173,12 +227,12 @@ function isBindingAliasInitializer(node: MorphNode, services: ReferenceResolutio
   return Node.isIdentifier(current) || Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current);
 }
 
-function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState): ReferenceFact<CanonicalModuleTarget> {
+function validatedProjectTarget(declaration: MorphNode, exportedName: string, target: ModuleState, declarationCount = 1): ReferenceFact<CanonicalModuleTarget> {
   const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
   if (initializer !== undefined && isBindingAliasInitializer(initializer, target.services)) {
     return unresolved("unsupported", initializer, target, `export ${exportedName} aliases another binding whose canonical origin is not proven`);
   }
-  return resolved(projectTarget(declaration, exportedName), target, declaration);
+  return resolved(projectTarget(declaration, exportedName, declarationCount), target, declaration);
 }
 
 function uniqueExportSymbol(sourceFile: SourceFile, exportName: string, target: ModuleState): ReferenceFact<MorphSymbol> {
@@ -200,11 +254,12 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   }
   const symbol = symbolFact.value;
   const declarations = symbol.getDeclarations();
-  const declaration = declarations[0];
+  const overload = overloadHome(declarations);
+  const declaration = overload ?? declarations[0];
   if (declaration === undefined) {
     return unresolved("missing", sourceFile, target, `export ${exportName} has no declaration`);
   }
-  if (declarations.length !== 1) {
+  if (declarations.length !== 1 && overload === undefined) {
     return unresolved("ambiguous", sourceFile, target, `export ${exportName} has ${declarations.length} declarations`);
   }
   if (declaration.getSourceFile() !== sourceFile) {
@@ -222,7 +277,7 @@ function resolveExportedDeclaration(sourceFile: SourceFile, exportName: string, 
   if (!enterDeclaration(target, declaration)) {
     return unresolved("cycle", declaration, target, `module export cycle at ${declaration.getText()}`);
   }
-  return validatedProjectTarget(declaration, exportName, target);
+  return validatedProjectTarget(declaration, exportName, target, declarations.length);
 }
 
 function moduleOriginFromDoor(

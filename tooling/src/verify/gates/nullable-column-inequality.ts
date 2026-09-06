@@ -102,35 +102,13 @@ function calleeSpellings(sourceFile: SourceFile): ReadonlySet<string> {
   return spellings;
 }
 
-/** THE OVERLOAD DOOR — `drizzle-orm`'s comparison operators are OVERLOADED (`notInArray` has THREE
- *  declarations, measured on this tree), and the shared origin reader correctly refuses an ambiguous
- *  multi-declaration symbol. `schema-fact-value.ts` already solved the same problem for the sqlite-core
- *  builders: when the refusal reason is `ambiguous`, read the binding the trace already walked — an import
- *  or export specifier whose own module specifier is drizzle's — which is evidence about the BINDING, not
- *  about the name. Without this the live `notInArray(characters.avatarAssetId, …)` site produced ZERO
- *  findings and its waiver read as stale (measured 2026-09-05, before the fallback landed). */
-function overloadedDrizzleDoor(declarations: readonly MorphNode[]): string | null {
-  for (const declaration of declarations) {
-    if (!(Node.isImportSpecifier(declaration) || Node.isExportSpecifier(declaration))) {
-      continue;
-    }
-    const specifier =
-      declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration)?.getModuleSpecifierValue() ??
-      declaration.getFirstAncestorByKind(SyntaxKind.ExportDeclaration)?.getModuleSpecifierValue();
-    if (specifier?.startsWith(DRIZZLE_MODULE) === true) {
-      return declaration.getName();
-    }
-  }
-  return null;
-}
-
 /** The exported drizzle name this call resolves to, or null. Spelling-independent: a named import, an
  *  alias, a namespace member and a re-export all resolve to the same origin, and a same-named LOCAL
  *  helper resolves to none of them. */
 function drizzleCallee(call: CallExpression): string | null {
   const origin = resolveModuleMemberOrigin(call.getExpression());
   if (origin.kind !== "resolved") {
-    return origin.reason === "ambiguous" ? overloadedDrizzleDoor(origin.trace.declarations) : null;
+    return null;
   }
   const canonical = origin.value.canonical;
   const moduleSpecifier = canonical.kind === "external-door" ? canonical.moduleSpecifier : origin.value.moduleSpecifier;
@@ -346,7 +324,7 @@ export const gate = defineGate({
           'import { notInArray } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = notInArray(characters.avatarAssetId, ["a"]);\n',
       },
       expect: { count: 1, token: "characters.avatarAssetId" },
-      why: "THE OVERLOAD DOOR, planted so a virtual proof can reach it: the real `drizzle-orm` declares `notInArray` THREE times, the shared origin reader refuses an ambiguous multi-declaration symbol, and the live site therefore read as CLEAN with a stale-looking waiver until the trace-declaration fallback landed",
+      why: "THE OVERLOAD DOOR, planted so a virtual proof can reach it: the real `drizzle-orm` declares `notInArray` THREE times, and the live site read as CLEAN with a stale-looking waiver while the shared reader refused a multiply-declared symbol. It is now a plain IDENTITY row — `overloadHome` resolves a same-file overload set to its one declaring module, so this row is answered by the canonical origin and the gate-local trace-declaration fallback it used to need is deleted",
     },
     {
       mode: "types",

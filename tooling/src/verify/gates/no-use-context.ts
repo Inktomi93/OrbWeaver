@@ -11,7 +11,7 @@
 import type { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { reactExportVisitors } from "../lib/react-origin.ts";
-import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
+import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactOverloadedProofModule, reactProofModule } from "./_proof/react.ts";
 
 const EXPORT = "useContext";
 const MESSAGE =
@@ -54,6 +54,16 @@ export const gate = defineGate({
       },
       expect: { count: 2, token: "useContext" },
       why: "the founding shape — a bare useContext() read; the import fires too, so the whole legacy spelling reds at once (the legacy gate's own two-finding verdict, preserved)",
+    },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactOverloadedProofModule(),
+        "packages/client/src/feature/ui.tsx":
+          'import { createContext, useContext } from "react";\nconst ThemeContext = createContext("");\nexport function useTheme(): string {\n  return useContext(ThemeContext);\n}\n',
+      },
+      expect: { count: 2, messageIncludes: "React 19 deprecates" },
+      why: "AN OVERLOADED REACT EXPORT still gets the PRECISE verdict — the sibling of no-forward-ref's overload row, because these two policies are arm-for-arm identical by construction. The module reader used to refuse a multiply-declared export as `ambiguous`, which this fail-closed arm turns into the loud `unreadable` message; asserting the deprecation message is what reds the row if the refusal returns",
     },
     {
       mode: "types",

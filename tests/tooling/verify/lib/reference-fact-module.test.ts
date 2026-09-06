@@ -36,3 +36,92 @@ test.each(["namespace.record", 'namespace["record"]'])("an exported member alias
 
   expect(aliased).toMatchObject({ kind: "unresolved", reason: "unsupported" });
 });
+
+/** Resolve `pick` (or `choose`) as imported by `/repo/use.ts` from an arbitrary file map. */
+function pickOrigin(files: Readonly<Record<string, string>>): ReturnType<typeof resolveModuleMemberOrigin> {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(path, source);
+  }
+  const source = project.getSourceFileOrThrow("/repo/use.ts");
+  return resolveModuleMemberOrigin(source.getVariableDeclarationOrThrow("value").getInitializerOrThrow());
+}
+
+const SAME_FILE_OVERLOADS =
+  "export function pick(value: string): string;\nexport function pick(value: number): number;\nexport function pick(value: unknown): unknown { return value; }\n";
+const USE_PICK = 'import { pick } from "./api.ts";\nexport const value = pick;\n';
+/** A package door with types, so a BARE specifier really resolves to the planted `.d.ts`. The virtual
+ *  conformance project cannot reach a real installed `node_modules` overload set (schema-fact-family-1584.md),
+ *  so the shape is planted; the `project` canonical below IS the control that the plant resolved — an
+ *  unresolvable door answers `external-door` and would prove nothing about declaration counting. */
+const VENDOR_PACKAGE = '{"name":"vendor","version":"1.0.0","types":"index.d.ts"}';
+
+test("a same-file function-overload set resolves to ONE home at its implementation, carrying the declaration count", () => {
+  const fact = pickOrigin({ "/repo/api.ts": SAME_FILE_OVERLOADS, "/repo/use.ts": USE_PICK });
+
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "pick", declarationCount: 3 } } });
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
+  }
+  const canonical = fact.value.canonical;
+  expect(canonical.kind === "project" && canonical.sourceFile.getBaseName()).toBe("api.ts");
+  // The IMPLEMENTATION is the home, not the first signature: a consumer reading the declaration wants the
+  // one that carries the body.
+  expect(canonical.declaration.getKindName()).toBe("FunctionDeclaration");
+  expect(canonical.declaration.getText()).toContain("return value");
+});
+
+test("an ambient declare-function overload set behind a package door resolves to its declaring .d.ts", () => {
+  const fact = pickOrigin({
+    "/node_modules/vendor/package.json": VENDOR_PACKAGE,
+    "/node_modules/vendor/index.d.ts": "export declare function pick(value: string): string;\nexport declare function pick(value: number): number;\n",
+    "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
+  });
+
+  expect(fact).toMatchObject({ kind: "resolved", value: { moduleSpecifier: "vendor", canonical: { kind: "project", declarationCount: 2 } } });
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
+  }
+  const canonical = fact.value.canonical;
+  expect(canonical.kind === "project" && canonical.sourceFile.getFilePath()).toBe("/node_modules/vendor/index.d.ts");
+});
+
+test("a LOCAL export specifier over a same-file overload set resolves the same way", () => {
+  const fact = pickOrigin({
+    "/repo/api.ts":
+      "function pick(value: string): string;\nfunction pick(value: number): number;\nfunction pick(value: unknown): unknown { return value; }\nexport { pick as choose };\n",
+    "/repo/use.ts": 'import { choose } from "./api.ts";\nexport const value = choose;\n',
+  });
+
+  expect(fact).toMatchObject({ kind: "resolved", value: { canonical: { kind: "project", exportedName: "choose", declarationCount: 3 } } });
+});
+
+test.each([
+  [
+    "two files of one package fanned in by export *",
+    {
+      "/node_modules/vendor/package.json": VENDOR_PACKAGE,
+      "/node_modules/vendor/index.d.ts": 'export * from "./a";\nexport * from "./b";\n',
+      "/node_modules/vendor/a.d.ts": "export declare function pick(value: string): string;\n",
+      "/node_modules/vendor/b.d.ts": "export declare function pick(value: number): number;\n",
+      "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
+    },
+  ],
+  [
+    "an interface merged with a value of the same name",
+    { "/repo/api.ts": "export interface pick { tag: string }\nexport const pick = (): number => 1;\n", "/repo/use.ts": USE_PICK },
+  ],
+  [
+    "a function merged with a namespace of the same name",
+    { "/repo/api.ts": "export function pick(): number { return 1; }\nexport namespace pick { export const version = 1; }\n", "/repo/use.ts": USE_PICK },
+  ],
+  [
+    "two implementations of the same name in one file",
+    {
+      "/repo/api.ts": "export function pick(value: string): string { return value; }\nexport function pick(value: number): number { return value; }\n",
+      "/repo/use.ts": USE_PICK,
+    },
+  ],
+])("%s stays ambiguous — several declarations with no ONE home", (_label, files) => {
+  expect(pickOrigin(files)).toMatchObject({ kind: "unresolved", reason: "ambiguous" });
+});

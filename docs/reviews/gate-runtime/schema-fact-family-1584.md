@@ -301,11 +301,17 @@ The general lesson is the reviewer's: a claim whose counterfactual is acquitted 
 Two mechanisms this cost, both worth copying:
 
 1. **`drizzle-orm`'s comparison operators are OVERLOADED.** `notInArray` has three declarations, so
-   `resolveModuleMemberOrigin` correctly refuses it as `ambiguous` — and the live site therefore produced
-   ZERO findings while its waiver read as unconsumed. `schema-fact-value.ts` had already solved this for the
-   sqlite-core builders; the same trace-declaration door is now in this policy. The proof needed a PLANTED
-   overloaded `node_modules/drizzle-orm/index.ts`, because the virtual conformance project otherwise
-   resolves the module as an unloadable external door and never reaches the ambiguity.
+   `resolveModuleMemberOrigin` refused it as `ambiguous` — and the live site therefore produced ZERO findings
+   while its waiver read as unconsumed. Both this policy and `schema-fact-value.ts` answered it with a
+   gate-local fallback that read the trace declarations for an import/export specifier whose module specifier
+   was drizzle's. **Both fallbacks are DELETED as of 2026-09-06**: the shared reader now resolves a same-file
+   function-overload set to its one home (`reference-fact-module.ts#overloadHome`), so `notInArray` is answered
+   by the canonical origin like any other export and the row is a plain identity row. The proof still needs a
+   PLANTED overloaded `node_modules/drizzle-orm/index.ts`, because the virtual conformance project otherwise
+   resolves the module as an unloadable external door and never reaches the declaration set at all. The
+   deletion is receipted on the real tree, not asserted: the `drizzleSchemaFact` receipt is byte-identical
+   across the change (1,288 members, 0 unresolved) and the composed pass over the whole final corpus moved no
+   per-policy count, no waiver and no grant.
 2. **Resolving a canonical origin on every CallExpression in a 6,112-file population does not finish in ten
    minutes** (the id-brand lane's lesson, re-paid here). A per-file candidate index — the canonical names
    plus every local alias and namespace spelling the file's own drizzle imports bind — gates the expensive

@@ -7,7 +7,7 @@
 import type { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { reactExportVisitors } from "../lib/react-origin.ts";
-import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
+import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactOverloadedProofModule, reactProofModule } from "./_proof/react.ts";
 
 const EXPORT = "forwardRef";
 const MESSAGE =
@@ -49,6 +49,15 @@ export const gate = defineGate({
       },
       expect: { count: 2, token: "forwardRef" },
       why: "the founding shape — the import door AND the call both name React's forwardRef, which is the legacy gate's own two-finding verdict preserved exactly",
+    },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactOverloadedProofModule(),
+        "packages/client/src/feature/ui.tsx": 'import { forwardRef } from "react";\nexport const MyInput = forwardRef((props: object, ref: object) => null);\n',
+      },
+      expect: { count: 2, messageIncludes: "React 19 deprecates" },
+      why: "AN OVERLOADED REACT EXPORT still gets the PRECISE verdict. React ships overloaded hooks and the module reader used to refuse any multiply-declared export as `ambiguous`, which this policy's fail-closed arm turns into the loud `unreadable` message — a declared limit of the origin-client family until `overloadHome` gave an overload set one home. The row asserts the DEPRECATION message, so it goes red the moment the reader refuses the set again",
     },
     {
       mode: "types",

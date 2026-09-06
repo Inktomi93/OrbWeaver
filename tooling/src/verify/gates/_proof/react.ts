@@ -43,3 +43,22 @@ export function reactProofModule(): string {
 export function reactLookalikeProofModule(): string {
   return SURFACE;
 }
+
+/** The same surface with `forwardRef` and `useContext` declared as OVERLOAD SETS.
+ *
+ *  React's real `.d.ts` already ships overloaded hooks (`useState` has two declarations, `useRef` three —
+ *  557 live import specifiers on this tree resolve through an overload set), and the origin-client family
+ *  carried a declared limit that an overloaded React export would flip these policies from their precise
+ *  verdict to the LOUD `unreadable` finding, because `resolveModuleMemberOrigin` refused any multiply-declared
+ *  export as `ambiguous`. The reader now resolves a same-file overload set to its one home
+ *  (`reference-fact-module.ts#overloadHome`), so the limit is closed — and this module is what keeps it
+ *  closed: a proof row built on it asserts the DEPRECATION message, which the unreadable arm does not carry. */
+export function reactOverloadedProofModule(): string {
+  return SURFACE.replace(
+    "export declare function forwardRef<T, P>(render: (props: P, ref: T) => unknown): unknown;",
+    "export declare function forwardRef<T, P>(render: (props: P, ref: T) => unknown): unknown;\nexport declare function forwardRef<T>(render: (props: object, ref: T) => unknown, displayName: string): unknown;",
+  ).replace(
+    "export declare function useContext<T>(context: Context<T>): T;",
+    "export declare function useContext<T>(context: Context<T>): T;\nexport declare function useContext<T>(context: Context<T>, fallback: T): T;",
+  );
+}
