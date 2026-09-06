@@ -77,6 +77,9 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     // R1: `null` = the folded tools did NOT ride this turn (the post-commit round runs); a fold test overrides
     // it with the calls the character turn co-emitted.
     terminalToolCalls: null,
+    // #1617: no declaration collided — the empty list is what an ordinary turn reports, and the fold reads it
+    // to tell a WITHHELD channel apart from a wire that could not carry one.
+    terminalToolsCollided: [],
     // The round's cancellation inputs: the owner it is scoped to, and the character turn's own signal (absent by
     // default — on a real single-speaker turn it is already released before the round runs).
     triggeredBy: castId<UserId>("user_host"),

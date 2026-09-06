@@ -67,8 +67,11 @@ function isRecoverableProselessTurn(result: TurnPipelineResult): boolean {
  * guard fires exactly as it would have and reports the ORIGINAL completion's reasons.
  *
  * The recovered result is pass 2's in every respect a reader cares about — content, reasoning, economics, the
- * request that produced it — EXCEPT `terminalToolCalls`, which stays pass 1's. That single carry-over is the
- * whole point of the feature, and it is why this merges rather than simply returning pass 2.
+ * request that produced it — EXCEPT the FOLD CHANNEL, which stays pass 1's: `terminalToolCalls` (the whole
+ * point of the feature, and why this merges rather than returning pass 2) and, with it, the
+ * `terminalToolsCollided` names that explain a null channel (#1617). Pass 2 rides tool-less by construction,
+ * so its own collided list is always empty — taking it would erase the reason pass 1 refused the channel and
+ * leave the consumer reading "this wire cannot carry terminal tools" about a wire that could.
  */
 export async function resolveTurnNarrative(args: {
   readonly chatId: ChatId;
@@ -138,7 +141,7 @@ export async function resolveTurnNarrative(args: {
     "chat: recovered a prose-less turn — the narrative is pass 2's, the state writes are pass 1's",
   );
 
-  return { ...recovery, terminalToolCalls: first.terminalToolCalls };
+  return { ...recovery, terminalToolCalls: first.terminalToolCalls, terminalToolsCollided: first.terminalToolsCollided };
 }
 
 /** The trailing user row for the recovery pass: the turn's own synthetic row (if any) then the ask. */

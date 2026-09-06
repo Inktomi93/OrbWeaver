@@ -703,6 +703,12 @@ export interface RpgTurnContext {
    *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are
    *  NOT on the committed variant's `toolCalls` — they exist only here. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
+  /** The terminal tool NAMES a registry tool already owned, so the whole channel was withheld this turn
+   *  (#1617) — empty on every ordinary turn, and the ONLY thing that distinguishes the two ways
+   *  `terminalToolCalls` arrives `null`. Without it the consumer reads a withheld-for-collision channel as
+   *  "this wire cannot carry terminal tools", which is false and sends an operator to look at the model.
+   *  Names, not a flag: the fix is per-declaration and belongs to whichever contributor re-spelled one. */
+  readonly terminalToolsCollided: readonly string[];
   /** WHO ran this turn (`prep.triggeredBy`, D19) — the OWNER the rpg state round's cancellation is scoped to.
    *  Threaded because {@link ChatRpgOps.cancelStateRounds} mirrors `activeTurns.abort`'s owner-only semantics
    *  (the rollback-theft defense): without an owner on the round, a member's Stop would cancel ANOTHER member's

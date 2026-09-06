@@ -648,6 +648,50 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
 });
 
+test("#1617 a WITHHELD channel (a collided terminal declaration) is its OWN named reason, not the wire's fault", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // The channel is `null` for a reason that has nothing to do with the model: a contributor re-spelled a
+  // registry tool's name, so the pipeline withheld the whole terminal mount for this turn. The wire here
+  // CO-EMITS fine (the default capability), which is exactly the arm that used to report
+  // `no-terminal-channel` — sending a reader to look at the connection instead of at the tool that collided.
+  const collided = turnConnection({ terminalToolCalls: null, terminalToolsCollided: ["update_scene"] });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, collided);
+
+  // State still lands, on the same vehicle every other fallback uses.
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "terminal-declaration-collided" }]);
+});
+
+test("#1604 a folded turn whose channel carries SEVERAL depths' calls folds them all, in order", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  // Since #1404 the pipeline accumulates the terminal half ACROSS recursion depths, so a folded game that
+  // also attaches registry tools can hand this fold two depths' calls. The fold needs no depth-awareness:
+  // it takes the array exactly as it takes one completion's parallel calls, and emission order is what makes
+  // the single-valued `scene` plane land on the LATER depth's view (it saw the earlier depth's results).
+  const multiDepth = [
+    { toolCallId: "d0", name: "update_scene", arguments: '{"location":"the kitchen table"}' },
+    { toolCallId: "d1", name: "update_scene", arguments: '{"location":"the ford"}' },
+  ];
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: multiDepth }));
+
+  // Every depth's call reaches the fold, in the order the model emitted them — nothing is dropped for having
+  // been emitted at depth 0, and nothing is re-ordered.
+  expect(h.fakes.foldCalls[0]?.toolCalls).toEqual(multiDepth);
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
+});
+
 test("D112 fold guard: a folded game on the LOCAL engine rounds instead — named `local-engine-fold-guard`", async () => {
   const db = await freshDb();
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };

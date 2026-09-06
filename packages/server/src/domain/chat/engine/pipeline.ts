@@ -185,6 +185,12 @@ interface TurnPipelineResult {
    *  folded into `toolRecords`: they were never executed, so a record would be a lie, and they must never reach
    *  a member-visible payload. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
+  /** The terminal tool NAMES that collided with a registry tool name and therefore never rode (#1617) — empty
+   *  on every ordinary turn. A collision makes the whole terminal channel unusable for this turn
+   *  (`terminalToolCalls` is `null`), and this is the only thing that says WHY: the consumer's fallback would
+   *  otherwise report "this wire cannot carry terminal tools", which is false — the wire was fine and a
+   *  contributor re-spelled a name. Names, not a count, because the fix is per-declaration. */
+  readonly terminalToolsCollided: readonly string[];
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
   /** True when a `responseFormat` was requested but the model's `capability.output.structured` isn't true →
@@ -688,6 +694,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
+    terminalToolsCollided: terminal.collided,
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
@@ -786,32 +793,52 @@ async function attachTools(
  *  executor and paid a second model call for a passenger that must never be executed. {@link runRecurseLoop}
  *  and {@link terminalCallsOf} both read THIS set, so neither reader can ever see the other's class.
  *
- *  A COLLIDING DECLARATION NEVER RIDES. A tool NAME is minted once, so a terminal declaration re-spelling a
- *  registry name is a contributor defect — and shipping both would send the wire two declarations of one
- *  name (malformed) and make the partition unanswerable. The registry keeps the name (it is the class that
- *  EXECUTES; a dropped passenger degrades one fold, a mis-executed one runs an unowned side effect) and the
- *  collision is logged, never silent. */
+ *  A COLLIDING DECLARATION NEVER RIDES, AND IT TAKES THE WHOLE CHANNEL WITH IT (#1617). A tool NAME is minted
+ *  once, so a terminal declaration re-spelling a registry name is a contributor defect — shipping both would
+ *  send the wire two declarations of one name (malformed) and make the partition unanswerable. The registry
+ *  keeps the name (it is the class that EXECUTES; a dropped passenger degrades one fold, a mis-executed one
+ *  runs an unowned side effect).
+ *
+ *  What changed is the OTHER half of that drop. Dropping the collided declaration and riding the SURVIVORS
+ *  looked like a graceful degrade and was the one arm with no honest report: `attached:true` flowed back, the
+ *  consumer took its folded path, and one plane of the fold was simply missing — no null, no reason, nothing
+ *  outside this warn line. (A TOTAL collision was not honest either: it left `wanted` empty, which reads as
+ *  "ineligible", so the consumer was told the wire could not carry terminal tools when the wire was fine.)
+ *  So ANY collision makes the channel unusable for this turn: nothing is attached, `terminalToolCalls` comes
+ *  back `null`, and `collided` NAMES what was refused. The consumer's own fallback round then captures every
+ *  plane at the cost of one extra call — the same trade the `folded`→`cheap` fallback already makes, and
+ *  strictly better than folding a half-set that silently loses a state write.
+ *
+ *  THE WARN SITS BEHIND THE ELIGIBILITY GATE. It used to fire before it, so every turn on a wire that never
+ *  carries terminal tools logged the contributor's collision — noise on a path where nothing was going to
+ *  ride anyway. */
 function attachTerminalTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
   registryNames: ReadonlySet<string>,
-): { request: TurnRequest; attached: boolean; names: ReadonlySet<string> } {
+): { request: TurnRequest; attached: boolean; names: ReadonlySet<string>; collided: readonly string[] } {
   const requested = args.terminalTools ?? [];
-  const wanted = requested.filter((tool) => !registryNames.has(tool.name));
-  if (wanted.length < requested.length) {
+  if (requested.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
+    return { request: baseRequest, attached: false, names: new Set(), collided: [] };
+  }
+  const collided = requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name);
+  if (collided.length > 0) {
     getLog().warn(
-      { chatId: args.chatId, collided: requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name) },
-      "chat: terminal tool declarations collided with registry tool names and were dropped (the registry owns the name)",
+      { chatId: args.chatId, collided },
+      "chat: terminal tool declarations collided with registry tool names — the registry owns the name, so the whole terminal channel is withheld this turn",
     );
+    return { request: baseRequest, attached: false, names: new Set(), collided };
   }
-  if (wanted.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
-    return { request: baseRequest, attached: false, names: new Set() };
-  }
-  const names: ReadonlySet<string> = new Set(wanted.map((tool) => tool.name));
+  const names: ReadonlySet<string> = new Set(requested.map((tool) => tool.name));
   if (args.connection.api === "agent-sdk") {
-    return { request: { ...baseRequest, agentTerminalTools: wanted }, attached: true, names };
+    return { request: { ...baseRequest, agentTerminalTools: requested }, attached: true, names, collided };
   }
-  return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true, names };
+  return {
+    request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...requested], toolChoice: { mode: "auto" } },
+    attached: true,
+    names,
+    collided,
+  };
 }
 
 /** The terminal channel's total read. The two arms carry DIFFERENT instructions to the consumer and the
