@@ -2050,3 +2050,114 @@ test("READABLE — an intact preset is byte-identical to before: no state, no di
   await expect(qualityDial(component)).toHaveText(DEEP);
   await expect.poll(() => trpc.count("preset.update")).toBeGreaterThan(0);
 });
+
+// ── #1770 — a Params row binds its control to its LABEL, never to the pane ────────────────────────────
+// design-audit's `row-void` fired five times on the Params tab (46-57% of a 544px row empty between a name
+// and the control it names). The rows were `FieldLayout orientation="horizontal"` in its DEFAULT `block`
+// arm: a flex `justify-between` against the pane with a `w-(--width-control-col)` dock, so the distance
+// from a name to its control was whatever the window happened to be. Measured on this surface before the
+// fix: "Quality" 452px of gap at a 720 pane and 476px at a 1520 pane, with the control's x moving 496 → 520
+// between them — the eye re-learns the traverse per pane, which is the rule's own complaint.
+//
+// The fix is #932's ratified answer (`SettingRowGroup` — `FieldLayout align="track"` over a subgrid whose
+// label track is `--width-control-col`), so this pin asserts the PROPERTY that arm buys rather than the
+// classes that implement it: the control starts at ONE shared x for every row and that x does NOT move with
+// the pane. A SWEEP, never a point: "the gap is small at 720" is satisfied by a layout that still grows with
+// the window, which is the defect.
+// 520 is in the sweep on purpose: it is the 64px container band (between the horizontal arm's own
+// `@max-md` stack and the group's `@lg` track step) where a `track`-aligned row used to fall back to the
+// flex DOCK and void at 51% — measured, and closed in `@orb/ui`'s field variants by the same #1770 pass.
+const ROW_VOID_PANES = [390, 520, 560, 720, 1120, 1520] as const;
+/** design-audit's own absolute fence (`checkRowVoid`, ROW_VOID_MIN_PX) — a gap it would file as a void. */
+const ROW_VOID_MAX_GAP_PX = 240;
+/** Sub-pixel layout rounding between two panes' readings of one fixed track. */
+const ROW_VOID_X_TOLERANCE_PX = 1;
+
+interface ParamsRowReading {
+  readonly label: string;
+  readonly gap: number;
+  readonly controlX: number;
+  readonly stacked: boolean;
+}
+
+/** Every horizontal Field row on the deck, as the `row-void` rule measures one: the distance from the end of
+ *  the label to the start of the control column, and where that column starts inside its row. */
+async function readParamsRows(page: Page): Promise<ParamsRowReading[]> {
+  return await page.evaluate(() => {
+    const readings: { label: string; gap: number; controlX: number; stacked: boolean }[] = [];
+    for (const root of Array.from(document.querySelectorAll('[data-slot="field-root"][data-orientation="horizontal"]'))) {
+      const label = root.querySelector('[data-slot="field-label"]');
+      const control = root.querySelector('[data-slot="field-control-col"]');
+      if (label === null || control === null) {
+        continue;
+      }
+      const rowBox = root.getBoundingClientRect();
+      const labelBox = label.getBoundingClientRect();
+      const controlBox = control.getBoundingClientRect();
+      readings.push({
+        label: (label.textContent ?? "").trim(),
+        gap: Math.round(controlBox.left - labelBox.right),
+        controlX: Math.round(controlBox.left - rowBox.left),
+        // The narrow arm drops the group to one track: the control takes the whole row UNDER its label, so
+        // there is no horizontal gap to judge and its x is the row's own start.
+        stacked: controlBox.top >= labelBox.bottom,
+      });
+    }
+    return readings;
+  });
+}
+
+test("#1770 a Params row's control sits a FIXED distance from its label at every pane width", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+  });
+  const component = await mount(<PresetEditorStripFadeStory />);
+  await expect(component.getByRole("tablist", { name: TABLIST_NAME })).toBeVisible();
+  // The Params view is the default (`PRESET_EDITOR_VIEWS[0]`), and this row is the one the audit named.
+  await expect(component.getByRole("combobox", { name: "Quality", exact: true })).toBeVisible();
+
+  const rows: string[] = [];
+  const failures: string[] = [];
+  const columns: number[] = [];
+  let sideBySideRows = 0;
+  for (const pane of ROW_VOID_PANES) {
+    await page.evaluate((inline) => {
+      const box = document.querySelector("[data-preset-fade-pane]");
+      if (box instanceof HTMLElement) {
+        box.style.setProperty("inline-size", `${String(inline)}px`);
+      }
+    }, pane);
+    await expect
+      .poll(async () => await page.evaluate(() => Math.round(document.querySelector("[data-preset-fade-pane]")?.getBoundingClientRect().width ?? 0)))
+      .toBe(pane);
+    const readings = await readParamsRows(page);
+    expect(readings.length, `no horizontal Field row rendered at ${String(pane)}px — the sweep would prove nothing`).toBeGreaterThan(0);
+    for (const reading of readings) {
+      rows.push(`${String(pane)}px\t${reading.label}\t${reading.stacked ? "stacked" : `gap ${String(reading.gap)}px @ x=${String(reading.controlX)}`}`);
+      if (reading.stacked) {
+        continue;
+      }
+      sideBySideRows += 1;
+      columns.push(reading.controlX);
+      if (reading.gap >= ROW_VOID_MAX_GAP_PX) {
+        failures.push(
+          `${String(pane)}px "${reading.label}": ${String(reading.gap)}px between the label and its control (design-audit row-void files at ${String(ROW_VOID_MAX_GAP_PX)}px)`,
+        );
+      }
+    }
+  }
+  console.info(`\n#1770 Params row measure (label → control)\n${rows.join("\n")}\n`);
+  expect(sideBySideRows, "every pane stacked its rows — the void the sweep is about is only reachable side-by-side").toBeGreaterThan(0);
+  expect(failures, failures.join("\n")).toEqual([]);
+
+  // AND THE COLUMN DOES NOT MOVE. This is the half a per-pane gap check cannot state: one shared control x
+  // across the whole sweep is what stops the eye re-learning the traverse when the pane resizes — and it is
+  // the assertion the pre-fix layout fails even where a single pane's gap happens to look modest.
+  const spread = Math.max(...columns) - Math.min(...columns);
+  expect(spread, `the control column moved ${String(spread)}px across ${String(ROW_VOID_PANES.length)} panes (${columns.join(", ")})`).toBeLessThanOrEqual(
+    ROW_VOID_X_TOLERANCE_PX,
+  );
+});

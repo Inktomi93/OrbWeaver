@@ -78,12 +78,23 @@ export const fieldVariants = tv({
         // `justify-between` (the flex property that WAS the void) and its `@max-md:flex-col` — the narrow
         // stack is not a per-row flip any more, it is the GROUP dropping to one track, which every
         // subgrid in the chain then inherits.
+        //
+        // …AND THAT INHERITANCE HAS A HOLE, MEASURED (#1770). It holds only where `grid` is actually ON.
+        // Between the horizontal arm's own stack step (`@max-md`, 448px) and the group's track step
+        // (`@lg`, 512px) this arm contributes NO display, so the row falls back to the flex
+        // `justify-between` + `w-(--width-control-col)` DOCK — i.e. the void, in a 64px-wide container
+        // band. Measured on the preset Params deck at a 520px pane (496px container): 252px of gap on a
+        // 496px row, 51% — a `row-void` by the detector's own thresholds, in the one state the group's
+        // one-column arm was supposed to have already answered. The ruling above survives and its INPUT is
+        // corrected: the stack is still the GROUP's step, not a per-row breakpoint, so it is spelled at
+        // `@lg` — the same container step every placement below uses — rather than at a new one.
+        // `@max-md:*` from the base horizontal arm stays and simply agrees inside the band it covers.
         // EVERY placement below is gated on the SAME container step the group's track set uses (`@lg`,
         // layout/variants.ts `settingTrack`), and that is not decoration: below the step the group is ONE
         // column, and an ungated `col-start-2` there does not stack — it MINTS AN IMPLICIT SECOND COLUMN
         // and the control sits beside the label again at phone width (measured: control top 1155 against
         // label bottom 1178, i.e. still side-by-side, in the narrow message-style story).
-        root: "@lg:col-span-2 @lg:grid @lg:grid-cols-subgrid",
+        root: "@max-lg:flex-col @max-lg:items-stretch @lg:col-span-2 @lg:grid @lg:grid-cols-subgrid",
         // `contents` DISSOLVES the label block so its two children become grid items of this subgrid: the
         // label lands in the label track and the DESCRIPTION gets its own full-width line beneath the
         // label/control pair. That placement is the E5 half of #932 — the registry gloss has to read as
@@ -101,7 +112,7 @@ export const fieldVariants = tv({
         // cell, filled from its START. Not `items-end`/`stretch`: the cold contract is explicit that
         // unlike controls must not be stretched merely to equalize their visible right edge — a switch is
         // 48px wide and saying so is honest, whereas a 200px switch is a lie about its hit target.
-        controlCol: "@lg:col-start-2 @lg:row-start-1 @lg:w-auto @lg:items-start",
+        controlCol: "@max-lg:w-full @max-lg:items-stretch @lg:col-start-2 @lg:row-start-1 @lg:w-auto @lg:items-start",
       },
     },
   ],
