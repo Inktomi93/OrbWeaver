@@ -1,7 +1,8 @@
-// domain/automation/substrate/run-now — the verbs↔ENGINE mediator for R7 (`runRuleNow`) and for the S4
-// invitation's confirm, which IS an R7 run. SUBSTRATE mediates because `engine/` is a named subsystem a verb
-// may not import directly (`domain-substrate-mediates-subsystems`) — the same seam `handle-event.ts` is for
-// the bus side.
+// domain/automation/substrate/run-now — the verbs↔ENGINE mediator for R7 (`runRuleNow`), for the S4
+// invitation's confirm (which IS an R7 run), and for the S4 CONFIRM class's stashed CONTINUATION (#1553,
+// OWNER RULING: STASH — the arms behind a raised confirmation). SUBSTRATE mediates because `engine/` is a
+// named subsystem a verb may not import directly (`domain-substrate-mediates-subsystems`) — the same seam
+// `handle-event.ts` is for the bus side.
 //
 // WHAT A MANUAL RUN IS: ONE fresh dispatch of ONE rule at cascade depth 0, through the same sequence a bus
 // fire runs, minus the two WHETHER-TO-FIRE-BY-ITSELF gates (the fire-rate cap and the CEL predicate) and
@@ -18,13 +19,15 @@
 // so every "Run now" on such a rule would answer `predicate_false` no matter what the room looked like.
 // The arms still render against a REAL env (chat vars, the author's globals, the injected clock).
 
-import type { AutomationRunOutcome, AutomationTrigger } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationRunOutcome, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
+import type { ArmsResult, DispatchFrame, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
-import { runDispatch } from "../engine/dispatch.ts";
+import { runArms, runDispatch } from "../engine/dispatch.ts";
 import { synthFact } from "./dry-run.ts";
 import { automationChatLaneKey, automationDomainLaneKey, runInLane } from "./serial-lanes.ts";
+
+export type { ArmsResult } from "../contract/ops.ts";
 
 /** The depth a host-initiated run starts at: 0, the human plane (a manual run is not a cascade step). */
 const MANUAL_DEPTH = 0;
@@ -61,4 +64,16 @@ async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId
     await ctx.enabled.refresh();
   }
   return summary.outcomes[0] ?? null;
+}
+
+/** Run a stashed confirm-first arm's CONTINUATION (#1553, OWNER RULING: STASH) — every arm that sat behind
+ *  it in the rule's own action list at fire time, against the SAME frame the confirmed arm just ran in
+ *  (arms mutate a shared env; order is semantics, exactly as a fresh dispatch's `runArms` call already
+ *  states). `verbs/confirm-suggestion.ts::executeStashedArm` is the one caller, ALREADY inside the chat's
+ *  own serial lane (`automationChatLaneKey`) by the time it calls this — a continuation is not a second
+ *  dispatch entry point, it is the tail of the SAME confirmed act, so it takes no lane of its own. An empty
+ *  continuation (the stashed arm was the rule's last) is a legal no-op call: `runArms` returns the
+ *  all-succeeded result on an empty slice without touching `ctx.runArm` at all. */
+export function runStashedContinuation(ctx: AutomationContext, continuation: readonly AutomationAction[], frame: DispatchFrame): Promise<ArmsResult> {
+  return runArms(ctx, continuation, frame);
 }

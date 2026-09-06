@@ -531,7 +531,12 @@ const TRANSFORM_DRAFT_REFUSAL = "transform_draft applies via the prompt-transfor
  *
  *  REPLACE-PER-`(chatId, ruleId)` is the store's (RULED F1): a cadence rule that fires every beat keeps ONE
  *  live ask, so the band's one-visible-card budget is bounded by rule count, not by fire rate. */
-function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): ArmOutcome | null {
+function stashConfirmFirstArm(
+  deps: ArmExecutorDeps,
+  action: AutomationAction,
+  frame: DispatchFrame,
+  continuation: readonly AutomationAction[],
+): ArmOutcome | null {
   if (!isConfirmFirstArm(action)) {
     return null;
   }
@@ -557,7 +562,7 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
     actorUserId: frame.authorUserId,
     summary,
     expiresAt,
-    payload: { via: "arm", stashed: { action, frame } },
+    payload: { via: "arm", stashed: { action, frame, continuation } },
   });
   deps.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt });
   // `suggested` is what keeps the fire log honest: the rule's remaining arms still run, but its TERMINAL
@@ -575,18 +580,18 @@ function stashConfirmFirstArm(deps: ArmExecutorDeps, action: AutomationAction, f
  *  §5.5) is the usual dodge, but its snake_case PROPERTY keys trip `useNamingConvention` — the exact reason a
  *  switch is used here (string-literal `case`s are DATA, not property names). The per-arm `as Extract<>` cast is
  *  the price of not narrowing off `action.type` — sound by construction (each case calls the matching runner). */
-function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame): Promise<ArmOutcome> {
+function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame, continuation: readonly AutomationAction[] = []): Promise<ArmOutcome> {
   const type: AutomationAction["type"] = action.type;
   // S4 — THE CONFIRM-FIRST CHOKEPOINT, deliberately ahead of the switch: an arm that asked to be confirmed
-  // never reaches its executor on a fire. It STASHES itself (arm + frame) and returns `ok`, so the rule's
-  // REMAINING arms still run — a rule may legitimately mix postures (a confirm-first `trigger_turn` beside a
-  // direct `set_variable` bookkeeping arm means exactly what it says). The confirm verb feeds the stored arm
-  // back through THIS function with the flag CLEARED (`armToExecute`), so a confirmed arm reaches its real
-  // executor and can never re-stash itself into a loop.
+  // never reaches its executor on a fire. It STASHES itself (arm + frame + `continuation`, #1553 OWNER
+  // RULING) and returns `ok` — the ARMS BEHIND IT wait on the same ask rather than running now or being
+  // dropped (`verbs/confirm-suggestion.ts::executeStashedArm` runs the continuation once the host confirms).
+  // The confirm verb feeds the stored arm back through THIS function with the flag CLEARED (`armToExecute`),
+  // so a confirmed arm reaches its real executor and can never re-stash itself into a loop.
   // The predicate lives INSIDE the helper (rather than as a type guard here) on purpose: narrowing `action`
   // at this scope would subtract the four suggestible arms from the union the switch below casts against,
   // and every one of those casts would stop overlapping.
-  const stashed = stashConfirmFirstArm(deps, action, frame);
+  const stashed = stashConfirmFirstArm(deps, action, frame, continuation);
   if (stashed !== null) {
     return Promise.resolve(stashed);
   }
@@ -627,5 +632,5 @@ function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: Dispatch
 /** Bind the arm dispatcher to its deps — the injected `ArmDispatch` the compose root hands the
  *  automation context (`ctx.runArm`); the dispatch invokes it per matched arm. */
 export function createArmExecutors(deps: ArmExecutorDeps): ArmDispatch {
-  return (action, frame) => runArm(deps, action, frame);
+  return (action, frame, continuation = []) => runArm(deps, action, frame, continuation);
 }
