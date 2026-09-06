@@ -2,8 +2,9 @@
 // path/name registry, cache, parser, exception table, or legacy gate adapter crosses this boundary.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { BusFact, BusFactQuery, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import type { BusFact, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
+import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
+import { defineFact } from "../contract/fact.ts";
 import type { MutableBusRecord } from "./bus-fact-output.ts";
 import { finishBusFact } from "./bus-fact-output.ts";
 import {
@@ -46,7 +47,6 @@ interface QueryState {
 }
 
 const CHAT_BUS = { path: "packages/contracts/src/chat/bus.ts", exportName: "ChatBusEvent" } as const;
-const BUS_FACT_KEY = Object.freeze({ id: "bus-fact" });
 
 function isProducerPath(record: MutableBusRecord, path: string): boolean {
   if (path.startsWith("packages/server/src/domain/") || path.startsWith("packages/server/src/transport/")) {
@@ -71,7 +71,7 @@ function collectCall(state: QueryState, call: CallExpression, path: string): voi
   }
 }
 
-function collectNode(context: GatePolicyContext, state: QueryState, node: MorphNode, sourceFile: SourceFile): void {
+function collectNode(context: GateFactContext, state: QueryState, node: MorphNode, sourceFile: SourceFile): void {
   const path = context.relativePath(sourceFile);
   if (Node.isTypeAliasDeclaration(node) && node.isExported() && (node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName()))) {
     state.aliases.push(node);
@@ -100,7 +100,7 @@ function collectNode(context: GatePolicyContext, state: QueryState, node: MorphN
 }
 
 function parentResolver(
-  context: GatePolicyContext,
+  context: GateFactContext,
   buses: readonly MutableBusRecord[],
   byUnion: ReadonlyMap<string, MutableBusRecord>,
 ): (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined {
@@ -145,7 +145,7 @@ function addRelay(relays: Relay[], relay: Relay): boolean {
 }
 
 interface AppendEmissionInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly record: MutableBusRecord;
   readonly call: CallExpression;
   readonly values: readonly { readonly value: string; readonly node: MorphNode }[];
@@ -174,7 +174,7 @@ function appendEmission({ context, record, call, values, unresolved }: AppendEmi
   }
 }
 
-function relayFromArgument(context: GatePolicyContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
+function relayFromArgument(context: GateFactContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
   const projection = parameterProjection(context, argument, property, []);
   const declaration = projection === undefined ? undefined : enclosingFunction(projection.parameter);
   if (projection === undefined || declaration === undefined) {
@@ -185,7 +185,7 @@ function relayFromArgument(context: GatePolicyContext, argument: MorphNode, prop
 }
 
 interface DirectArgumentInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly call: CallExpression;
   readonly index: number;
   readonly argument: MorphNode;
@@ -209,7 +209,7 @@ function collectDirectArgument({ context, call, index, argument, path, parentFor
 }
 
 function emitterDoorNames(
-  context: GatePolicyContext,
+  context: GateFactContext,
   declarations: readonly MorphNode[],
   parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined,
 ): ReadonlySet<string> {
@@ -248,7 +248,7 @@ function hasEmitterDoor(call: CallExpression, names: ReadonlySet<string>): boole
 }
 
 interface DirectEmittersInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly calls: readonly CallExpression[];
   readonly emitterNames: ReadonlySet<string>;
   readonly parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined;
@@ -270,7 +270,7 @@ function directEmitters({ context, calls, emitterNames, parentFor, unresolved }:
 }
 
 interface PropagateRelayInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly call: CallExpression;
   readonly relay: Relay;
   readonly relays: Relay[];
@@ -327,7 +327,7 @@ function propagateRelayPass(
   return changed;
 }
 
-function propagateRelays(context: GatePolicyContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
+function propagateRelays(context: GateFactContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
   const visited = new Set<string>();
   const callIndex = callsByName(calls);
   while (propagateRelayPass({ context, callIndex, relays, unresolved, visited })) {
@@ -336,7 +336,7 @@ function propagateRelays(context: GatePolicyContext, calls: readonly CallExpress
 }
 
 interface YieldedValueInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly statement: import("ts-morph").YieldExpression;
   readonly record: MutableBusRecord;
   readonly value: { readonly value: string; readonly node: MorphNode };
@@ -368,7 +368,7 @@ function appendYieldedValue({ context, statement, record, value, unresolved }: Y
 }
 
 function attachYieldEmitter(
-  context: GatePolicyContext,
+  context: GateFactContext,
   statement: import("ts-morph").YieldExpression,
   record: MutableBusRecord,
   unresolved: BusUnresolvedIdentity[],
@@ -392,7 +392,7 @@ function attachYieldEmitter(
 }
 
 function attachYieldEmitters(
-  context: GatePolicyContext,
+  context: GateFactContext,
   yields: readonly import("ts-morph").YieldExpression[],
   byUnion: ReadonlyMap<string, MutableBusRecord>,
   unresolved: BusUnresolvedIdentity[],
@@ -405,7 +405,7 @@ function attachYieldEmitters(
   }
 }
 
-function finishFact(context: GatePolicyContext, state: QueryState): BusFact {
+function finishFact(context: GateFactContext, state: QueryState): BusFact {
   const unresolved: BusUnresolvedIdentity[] = [];
   const mutable: MutableBusRecord[] = state.aliases.map((alias) => ({
     union: { ...busDeclarationIdentity(context, alias), anchor: busAnchor(context, alias) },
@@ -455,7 +455,7 @@ function finishFact(context: GatePolicyContext, state: QueryState): BusFact {
   return finishBusFact(mutable, unresolved);
 }
 
-function createBusFactCollector(context: GatePolicyContext): BusFactQuery {
+function createBusFactCollector(context: GateFactContext): GateFactHooks<BusFact> {
   const state = newState();
   let finished: BusFact | undefined;
   let failure: unknown;
@@ -468,34 +468,35 @@ function createBusFactCollector(context: GatePolicyContext): BusFactQuery {
     }
   };
   return {
-    hooks: {
-      visitors: [
-        {
-          kinds: [
-            SyntaxKind.TypeAliasDeclaration,
-            SyntaxKind.VariableDeclaration,
-            SyntaxKind.CallExpression,
-            SyntaxKind.Parameter,
-            SyntaxKind.PropertySignature,
-            SyntaxKind.MethodSignature,
-            SyntaxKind.YieldExpression,
-          ],
-          visit,
-        },
-      ],
-    },
+    visitors: [
+      {
+        kinds: [
+          SyntaxKind.TypeAliasDeclaration,
+          SyntaxKind.VariableDeclaration,
+          SyntaxKind.CallExpression,
+          SyntaxKind.Parameter,
+          SyntaxKind.PropertySignature,
+          SyntaxKind.MethodSignature,
+          SyntaxKind.YieldExpression,
+        ],
+        visit,
+      },
+    ],
     finish: (): BusFact => {
       if (failure !== undefined) {
         throw failure;
       }
       finished ??= finishFact(context, state);
+      context.receipt({ kind: "population", source: "bus-fact", members: finished.receipt.members, unresolved: finished.receipt.unresolved });
       return finished;
     },
   };
 }
 
-/** Share one collector across every selected bus policy in this pass; only the first registers visitors. */
-export function createBusFactQuery<CoveredBus = never>(context: GatePolicyContext): BusFactQuery<CoveredBus> {
-  const shared = context.sharedFact(BUS_FACT_KEY, () => createBusFactCollector(context));
-  return shared.collect ? shared.value : { ...shared.value, hooks: {} };
-}
+export const busProducerFact = defineFact({
+  id: "bus-producers",
+  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  resources: [],
+  create: createBusFactCollector,
+});

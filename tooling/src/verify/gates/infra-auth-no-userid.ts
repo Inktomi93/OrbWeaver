@@ -21,6 +21,7 @@ export const gate = defineGate({
   population: { in: ["@server"], under: ["packages/server/src/infra/auth/**"] },
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "resolve the id ONCE at the seam (entry/auth/seam.ts) via a domain step (sessions.validate / provisionIdentity); infra yields a pre-row ResolvedIdentity with NO userId.",

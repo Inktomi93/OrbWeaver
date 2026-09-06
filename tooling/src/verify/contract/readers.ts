@@ -19,7 +19,6 @@ export type {
   BusDeclarationIdentity,
   BusEmitterIdentity,
   BusFact,
-  BusFactQuery,
   BusFactReceipt,
   BusFactStatus,
   BusMemberIdentity,

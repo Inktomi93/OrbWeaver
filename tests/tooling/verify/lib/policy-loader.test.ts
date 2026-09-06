@@ -1,8 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
-import { assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
+import { assertGateFactDescriptor, assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function writeModules(root: string, modules: Readonly<Record<string, string>>): void {
@@ -41,6 +43,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
     population: ${population},
     analysis: ${JSON.stringify(analysis)},
     execution: "selected-files",
+    facts: [],
     resources: ${options.resources ?? "[]"},
     message: "fixture policy",
     create: () => ({ evaluate: () => undefined }),
@@ -64,6 +67,44 @@ test("loads a valid corpus in deterministic path order", async ({ repoRoot, scra
   expect(corpus.files).toEqual(["tooling/src/verify/gates/a-policy.ts", "tooling/src/verify/gates/z-policy.ts"]);
   expect(corpus.gates.map(({ id }) => id)).toEqual(["a-policy", "z-policy"]);
   expect(corpus.families).toEqual(["a-policy", "z-policy"]);
+});
+
+test("shared fact descriptors are branded, exact, and restricted to entire-population consumers", () => {
+  const fact = defineFact({
+    id: "fixture-fact",
+    population: "@tooling",
+    analysis: "syntax",
+    resources: [],
+    create: (ctx) => ({
+      finish: () => {
+        ctx.receipt({ kind: "population", source: "fixture-fact", members: 1 });
+        return 1;
+      },
+    }),
+  });
+  expect(() => assertGateFactDescriptor(fact)).not.toThrow();
+  expect(() => assertGateFactDescriptor({ ...fact })).toThrow(/defineFact|brand/i);
+  expect(() => assertGateFactDescriptor(defineFact({ ...fact, extra: true } as never))).toThrow(/unknown.*extra/i);
+
+  const policy = defineGate({
+    id: "fact-consumer",
+    family: "fact-consumer",
+    authority: "hard",
+    severity: "error",
+    population: "@tooling",
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [fact],
+    resources: [],
+    message: "fixture",
+    create: () => ({ evaluate: () => undefined }),
+    mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }],
+    mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
+  } as never);
+  expect(() => assertGatePolicyDescriptor(policy)).toThrow(/shared facts.*entire population|entire-population/i);
+
+  const duplicate = defineGate({ ...policy, execution: "entire-population", facts: [fact, fact] } as never);
+  expect(() => assertGatePolicyDescriptor(duplicate)).toThrow(/duplicate.*fixture-fact/i);
 });
 
 test("refuses an absent or empty corpus", async ({ scratch }) => {
@@ -223,6 +264,7 @@ test("direct descriptor validation requires own enumerable contract fields", () 
     population: "@tooling",
     analysis: "syntax",
     execution: "selected-files",
+    facts: [],
     resources: [],
     message: "fixture policy",
     create: () => ({ evaluate: () => undefined }),

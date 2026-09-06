@@ -1,9 +1,11 @@
 // Deterministic final-policy planner. It consumes the loader roster, reviewed six-kind scope manifest,
 // and the external ResourceHost population manifest without owning another registry or path predicate.
+import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type {
+  PlannedFact,
   PlannedPolicy,
   PolicyCommandRequest,
   PolicyPlanExecutionInput,
@@ -21,7 +23,7 @@ import { resolvePolicyScope } from "./policy-scope.ts";
 import { isPolicySourceCandidate, policySourceCandidates } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, normalizePathSet } from "./policy-validation.ts";
 import { populationIncludes, resolvePopulation } from "./population-resolver.ts";
-import { canonicalResourceDeclarations, resolvePolicyResourcePaths } from "./resource-declaration.ts";
+import { canonicalResourceDeclarations, resolveResourceOwnerPaths } from "./resource-declaration.ts";
 
 function misuse(message: string): PolicyPlanningResult {
   return { ok: false, exitCode: 3, message };
@@ -41,6 +43,7 @@ function rosterEntry(policy: GatePolicy): PolicyRosterEntry {
     population: structuredClone(policy.population),
     analysis: policy.analysis,
     execution: policy.execution,
+    facts: policy.facts.map(({ id }) => id).toSorted(),
     resources: canonicalResourceDeclarations(policy.resources),
     message: policy.message,
     fix: policy.fix ?? null,
@@ -67,7 +70,9 @@ function validateCorpus(input: Pick<PolicyPlannerInput, "corpus">): readonly Gat
   if (JSON.stringify(derivedFamilies) !== JSON.stringify([...input.corpus.families].toSorted())) {
     throw new Error("policy planner corpus family receipt disagrees with loaded descriptors");
   }
-  return [...input.corpus.gates].toSorted((left, right) => left.id.localeCompare(right.id));
+  const sorted = [...input.corpus.gates].toSorted((left, right) => left.id.localeCompare(right.id));
+  factsForPolicies(sorted);
+  return sorted;
 }
 
 function selectedPolicies(policies: readonly GatePolicy[], selector: PolicySelector): readonly GatePolicy[] | PolicyPlanningResult {
@@ -128,18 +133,65 @@ function assertScopeMatches(request: Extract<PolicyCommandRequest, { readonly mo
   }
 }
 
-function resourceManifests(input: PolicyPlannerInput, policies: readonly GatePolicy[]): ReadonlyMap<string, readonly string[]> {
-  if (!policies.some((policy) => policy.resources.length > 0)) {
-    return new Map();
+function resourceManifests(
+  input: PolicyPlannerInput,
+  policies: readonly GatePolicy[],
+  facts: readonly GateFact[],
+): { readonly policies: ReadonlyMap<string, readonly string[]>; readonly facts: ReadonlyMap<string, readonly string[]> } {
+  if (![...policies, ...facts].some((owner) => owner.resources.length > 0)) {
+    return { policies: new Map(), facts: new Map() };
   }
   if (input.resourceOptions === undefined) {
-    throw new Error("policy resource planning requires ResourceHost options");
+    throw new Error("policy/fact resource planning requires ResourceHost options");
   }
-  return resolvePolicyResourcePaths(policies, input.resourceOptions);
+  return {
+    policies: resolveResourceOwnerPaths(policies, input.resourceOptions),
+    facts: resolveResourceOwnerPaths(facts, input.resourceOptions),
+  };
 }
 
-function explicitNone(policy: GatePolicy): boolean {
-  return typeof policy.population === "object" && !Array.isArray(policy.population) && "of" in policy.population && policy.population.of === "none";
+function explicitNone(owner: GatePolicy | GateFact): boolean {
+  return typeof owner.population === "object" && !Array.isArray(owner.population) && "of" in owner.population && owner.population.of === "none";
+}
+
+function factsForPolicies(policies: readonly GatePolicy[]): readonly GateFact[] {
+  const byId = new Map<string, GateFact>();
+  for (const policy of policies) {
+    for (const fact of policy.facts) {
+      const existing = byId.get(fact.id);
+      if (existing !== undefined && existing !== fact) {
+        throw new Error(`selected policies import different fact descriptors with id ${fact.id}`);
+      }
+      byId.set(fact.id, fact);
+    }
+  }
+  return [...byId.values()].toSorted((left, right) => left.id.localeCompare(right.id));
+}
+
+function planFact(fact: GateFact, sourceCandidates: readonly string[], resources: readonly string[]): PlannedFact {
+  const declaredSourcePaths = resolvePopulation(fact.population, sourceCandidates).paths;
+  if (fact.analysis !== "resource" && resources.length > 0) {
+    throw new Error(`non-resource fact ${fact.id} received a resource population`);
+  }
+  if (fact.analysis === "resource" && resources.length === 0) {
+    throw new Error(`resource fact ${fact.id} received an empty resource population`);
+  }
+  if (explicitNone(fact) && declaredSourcePaths.length > 0) {
+    throw new Error(`resource-only fact ${fact.id} unexpectedly resolved source files`);
+  }
+  if (declaredSourcePaths.length + resources.length === 0) {
+    throw new Error(`fact ${fact.id} resolved an empty declared population`);
+  }
+  return {
+    factId: fact.id,
+    population: {
+      declaredSourcePaths,
+      declaredResourcePaths: resources,
+      requestedPaths: null,
+      effectiveSourcePaths: declaredSourcePaths,
+      effectiveResourcePaths: resources,
+    },
+  };
 }
 
 interface PlanOneInput {
@@ -149,16 +201,22 @@ interface PlanOneInput {
   readonly semanticPaths: readonly PolicySemanticPath[] | null;
   readonly currentPaths: ReadonlySet<string>;
   readonly resources: readonly string[];
+  readonly facts: readonly PlannedFact[];
 }
 
-function semanticSelectionTouchesPolicy(policy: GatePolicy, semanticPaths: readonly PolicySemanticPath[] | null, resources: readonly string[]): boolean {
+function semanticSelectionTouchesPolicy(
+  policy: GatePolicy,
+  semanticPaths: readonly PolicySemanticPath[] | null,
+  resources: readonly string[],
+  factPaths: ReadonlySet<string>,
+): boolean {
   if (semanticPaths === null) {
     return true;
   }
   const resourceSet = new Set(resources);
   return semanticPaths.some((semantic) =>
     [semantic.path, ...(semantic.previousPath === null ? [] : [semantic.previousPath])].some(
-      (path) => resourceSet.has(path) || (isPolicySourceCandidate(path) && populationIncludes(policy.population, path)),
+      (path) => resourceSet.has(path) || factPaths.has(path) || (isPolicySourceCandidate(path) && populationIncludes(policy.population, path)),
     ),
   );
 }
@@ -168,13 +226,22 @@ interface PlanModeInput {
   readonly requestedPaths: readonly string[] | null;
   readonly semanticPaths: readonly PolicySemanticPath[] | null;
   readonly resources: readonly string[];
+  readonly factPaths: ReadonlySet<string>;
   readonly declaredCount: number;
   readonly effectiveCount: number;
 }
 
-function planMode({ policy, requestedPaths, semanticPaths, resources, declaredCount, effectiveCount }: PlanModeInput): Pick<PlannedPolicy, "mode" | "reason"> {
+function planMode({
+  policy,
+  requestedPaths,
+  semanticPaths,
+  resources,
+  factPaths,
+  declaredCount,
+  effectiveCount,
+}: PlanModeInput): Pick<PlannedPolicy, "mode" | "reason"> {
   if (requestedPaths !== null && effectiveCount === 0) {
-    return policy.execution === "entire-population" && semanticSelectionTouchesPolicy(policy, semanticPaths, resources)
+    return policy.execution === "entire-population" && semanticSelectionTouchesPolicy(policy, semanticPaths, resources, factPaths)
       ? { mode: "deferred", reason: "entire-population policy requires its complete declared population" }
       : { mode: "skipped", reason: "requested scope has an empty policy intersection" };
   }
@@ -184,7 +251,7 @@ function planMode({ policy, requestedPaths, semanticPaths, resources, declaredCo
   return { mode: "run", reason: null };
 }
 
-function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, currentPaths, resources }: PlanOneInput): PlannedPolicy {
+function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, currentPaths, resources, facts }: PlanOneInput): PlannedPolicy {
   const declaredSourcePaths = resolvePopulation(policy.population, sourceCandidates).paths;
   if (policy.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource policy ${policy.id} received a resource population`);
@@ -197,9 +264,18 @@ function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, curr
   }
   const effectiveSourcePaths = requestedPaths === null ? declaredSourcePaths : declaredSourcePaths.filter((path) => currentPaths.has(path));
   const effectiveResourcePaths = requestedPaths === null ? resources : resources.filter((path) => currentPaths.has(path));
-  const declaredCount = declaredSourcePaths.length + resources.length;
-  const effectiveCount = effectiveSourcePaths.length + effectiveResourcePaths.length;
-  const { mode, reason } = planMode({ policy, requestedPaths, semanticPaths, resources, declaredCount, effectiveCount });
+  const factPaths = new Set(facts.flatMap(({ population }) => [...population.declaredSourcePaths, ...population.declaredResourcePaths]));
+  const requiredPaths = new Set([...declaredSourcePaths, ...resources, ...factPaths]);
+  const effectiveRequiredPaths = requestedPaths === null ? requiredPaths : new Set([...requiredPaths].filter((path) => currentPaths.has(path)));
+  const { mode, reason } = planMode({
+    policy,
+    requestedPaths,
+    semanticPaths,
+    resources,
+    factPaths,
+    declaredCount: requiredPaths.size,
+    effectiveCount: effectiveRequiredPaths.size,
+  });
   return {
     policyId: policy.id,
     family: policy.family,
@@ -215,7 +291,10 @@ function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, curr
   };
 }
 
-function resourceRecord(selected: readonly GatePolicy[], resources: ReadonlyMap<string, readonly string[]>): Readonly<Record<string, readonly string[]>> {
+function resourceRecord(
+  selected: readonly { readonly id: string }[],
+  resources: ReadonlyMap<string, readonly string[]>,
+): Readonly<Record<string, readonly string[]>> {
   const entries: [string, readonly string[]][] = [];
   for (const policy of selected) {
     const paths = resources.get(policy.id);
@@ -240,8 +319,11 @@ function runPlan(
   if (isPlanningFailure(selected)) {
     return selected;
   }
-  const resources = resourceManifests(input, selected);
+  const selectedFacts = factsForPolicies(selected);
+  const resources = resourceManifests(input, selected, selectedFacts);
   const sourceCandidates = policySourceCandidates(scope.programs.flatMap(({ files }) => files));
+  const plannedFacts = selectedFacts.map((fact) => planFact(fact, sourceCandidates, resources.facts.get(fact.id) ?? []));
+  const factPlansById = new Map(plannedFacts.map((fact) => [fact.factId, fact]));
   const requestedPaths =
     scope.requestedPaths === null
       ? null
@@ -257,13 +339,25 @@ function runPlan(
       requestedPaths,
       semanticPaths: scope.requestedPaths,
       currentPaths,
-      resources: resources.get(policy.id) ?? [],
+      resources: resources.policies.get(policy.id) ?? [],
+      facts: policy.facts.map((fact) => {
+        const factPlan = factPlansById.get(fact.id);
+        if (factPlan === undefined) {
+          throw new Error(`policy ${policy.id} has no planned fact ${fact.id}`);
+        }
+        return factPlan;
+      }),
     }),
   );
   const deferred = planned.filter(({ mode }) => mode === "deferred").map(({ policyId }) => policyId);
   if (request.strictScope && deferred.length > 0) {
     return misuse(`strict scope refuses entire-population policies: ${deferred.join(", ")}`);
   }
+  const runningFactIds = new Set(
+    planned.flatMap((row) => (row.mode === "run" ? (selected.find(({ id }) => id === row.policyId)?.facts.map(({ id }) => id) ?? []) : [])),
+  );
+  const facts = plannedFacts.filter(({ factId }) => runningFactIds.has(factId));
+  const factOwners = selectedFacts.filter(({ id }) => runningFactIds.has(id));
   return {
     ok: true,
     plan: {
@@ -276,10 +370,12 @@ function runPlan(
       json: request.json,
       policyIds: selected.map(({ id }) => id),
       policies: planned,
+      facts,
       programs: structuredClone(scope.programs),
       requestedProgramIds: [...scope.requestedProgramIds],
       requestedPaths: scope.requestedPaths === null ? null : structuredClone(scope.requestedPaths),
-      resourcePathsByPolicy: resourceRecord(selected, resources),
+      resourcePathsByPolicy: resourceRecord(selected, resources.policies),
+      resourcePathsByFact: resourceRecord(factOwners, resources.facts),
     },
   };
 }
@@ -319,7 +415,7 @@ export function planPolicyArgv(
 
 /** Map the completed dispatcher result onto the house 0/1/2 contract; argv/planning misuse is class 3. */
 export function policyPassExitCode(result: PolicyPassResult): 0 | 1 | 2 {
-  if (result.toolErrors.length > 0 || result.authority.toolErrors.length > 0) {
+  if (result.factErrors.length > 0 || result.toolErrors.length > 0 || result.authority.toolErrors.length > 0) {
     return 2;
   }
   return result.authority.verdict.blocking > 0 ? 1 : 0;
@@ -365,6 +461,36 @@ function assertExecutionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): v
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error("policy execution resource manifest disagrees with planned populations");
   }
+
+  const selectedFacts = new Set(plan.facts.map(({ factId }) => factId));
+  const unknownFacts = Object.keys(plan.resourcePathsByFact)
+    .filter((factId) => !selectedFacts.has(factId))
+    .toSorted();
+  if (unknownFacts.length > 0) {
+    throw new Error(`policy execution resource population names unselected facts: ${unknownFacts.join(", ")}`);
+  }
+  const expectedFacts = Object.fromEntries(
+    plan.facts
+      .filter(({ population }) => population.declaredResourcePaths.length > 0)
+      .map(({ factId, population }) => [factId, population.declaredResourcePaths] as const),
+  );
+  const actualFacts = Object.fromEntries(
+    Object.entries(plan.resourcePathsByFact)
+      .map(([factId, paths]) => [factId, normalizePathSet(paths, `resource path for fact ${factId}`)] as const)
+      .toSorted(([left], [right]) => left.localeCompare(right)),
+  );
+  if (JSON.stringify(actualFacts) !== JSON.stringify(expectedFacts)) {
+    throw new Error("policy execution fact resource manifest disagrees with planned populations");
+  }
+}
+
+function assertExecutionFacts(plan: PolicyPlanExecutionInput["plan"], policies: readonly GatePolicy[]): void {
+  const running = new Set(plan.policies.filter(({ mode }) => mode === "run").map(({ policyId }) => policyId));
+  const expected = factsForPolicies(policies.filter(({ id }) => running.has(id))).map(({ id }) => id);
+  const actual = plan.facts.map(({ factId }) => factId);
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error("policy execution fact plan disagrees with runnable policy dependencies");
+  }
 }
 
 function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
@@ -378,12 +504,20 @@ function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass:
       throw new Error(`policy execution disposition disagrees with its plan: ${planned.policyId}`);
     }
   }
+  const actualFacts = new Map(pass.facts.map((result) => [result.id, result]));
+  for (const planned of plan.facts) {
+    const result = actualFacts.get(planned.factId);
+    if (result === undefined || JSON.stringify(result.population) !== JSON.stringify(planned.population)) {
+      throw new Error(`policy execution fact population disagrees with its plan: ${planned.factId}`);
+    }
+  }
 }
 
 /** Execute one validated plan through the production pass, including its bound ResourceHost seam. */
 export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanExecutionResult {
   try {
     const policies = executionPolicies(input);
+    assertExecutionFacts(input.plan, policies);
     assertExecutionResourcePaths(input.plan);
     const requestedPaths = input.plan.scope.requestedPaths?.map(({ path }) => path);
     const pass = runPolicyPass({

@@ -2,7 +2,7 @@
 import type { CallExpression, Node as MorphNode, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import type { BusAnchor, BusDeclarationIdentity, BusMemberIdentity, BusOperationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import type { GateFactContext } from "../contract/fact.ts";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
 import { readMemberReference, readStaticString, resolveStableExpression } from "./reference-fact.ts";
@@ -16,17 +16,17 @@ export const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 export const busIdentityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}\0${exportName}`;
 
 /** Compare a resolved declaration to one delivered source without probing foreign dependency files. */
-export function deliveredSourceIs(context: GatePolicyContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
+export function deliveredSourceIs(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
   const absolute = sourceFile.getFilePath().replaceAll("\\", "/");
   return (absolute === path || absolute.endsWith(`/${path}`)) && context.relativePath(sourceFile) === path;
 }
 
-export function busAnchor(context: GatePolicyContext, node: MorphNode): BusAnchor {
+export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor {
   const at = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
   return { path: context.relativePath(node.getSourceFile()), line: at.line, column: at.column, node };
 }
 
-export function busDeclarationIdentity(context: GatePolicyContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
+export function busDeclarationIdentity(context: GateFactContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
   return { path: context.relativePath(declaration.getSourceFile()), exportName: declaration.getName() };
 }
 
@@ -36,7 +36,7 @@ export function canonicalTypeAlias(type: Type): TypeAliasDeclaration | undefined
 }
 
 interface RefusalInput {
-  readonly context: GatePolicyContext;
+  readonly context: GateFactContext;
   readonly stage: BusUnresolvedIdentity["stage"];
   readonly reason: ReferenceUnresolvedReason;
   readonly detail: string;
@@ -83,7 +83,7 @@ export function beltUnionNode(declaration: VariableDeclaration): MorphNode | und
 }
 
 export function beltMembers(
-  context: GatePolicyContext,
+  context: GateFactContext,
   declaration: VariableDeclaration,
   bus: BusDeclarationIdentity,
   unresolved: BusUnresolvedIdentity[],
@@ -119,7 +119,7 @@ export function beltMembers(
   return values.map(({ name, node }) => ({ bus, name, anchor: busAnchor(context, node) }));
 }
 
-function staticPropertyName(context: GatePolicyContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): string | undefined {
+function staticPropertyName(context: GateFactContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): string | undefined {
   if (Node.isIdentifier(node)) {
     return node.getText();
   }
@@ -137,7 +137,7 @@ function staticPropertyName(context: GatePolicyContext, node: MorphNode, unresol
   return read.value;
 }
 
-function objectOf(context: GatePolicyContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): import("ts-morph").ObjectLiteralExpression | undefined {
+function objectOf(context: GateFactContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): import("ts-morph").ObjectLiteralExpression | undefined {
   const stable = resolveStableExpression(node);
   if (stable.kind === "unresolved") {
     if (!Node.isParameterDeclaration(stable.node)) {
@@ -149,7 +149,7 @@ function objectOf(context: GatePolicyContext, node: MorphNode, unresolved: BusUn
 }
 
 export function authoredProperty(
-  context: GatePolicyContext,
+  context: GateFactContext,
   object: import("ts-morph").ObjectLiteralExpression,
   wanted: string,
   unresolved: BusUnresolvedIdentity[],
@@ -159,7 +159,7 @@ export function authoredProperty(
     .reduce<MorphNode | undefined>((value, property) => value ?? authoredPropertyEntry(context, property, wanted, unresolved), undefined);
 }
 
-function authoredPropertyEntry(context: GatePolicyContext, property: MorphNode, wanted: string, unresolved: BusUnresolvedIdentity[]): MorphNode | undefined {
+function authoredPropertyEntry(context: GateFactContext, property: MorphNode, wanted: string, unresolved: BusUnresolvedIdentity[]): MorphNode | undefined {
   if (Node.isSpreadAssignment(property)) {
     const spread = objectOf(context, property.getExpression(), unresolved);
     return spread === undefined ? undefined : authoredProperty(context, spread, wanted, unresolved);
@@ -184,7 +184,7 @@ export interface ParameterProjection {
 }
 
 export function parameterProjection(
-  context: GatePolicyContext,
+  context: GateFactContext,
   node: MorphNode,
   property: string,
   unresolved: BusUnresolvedIdentity[],
@@ -211,7 +211,7 @@ export function parameterProjection(
 }
 
 export function discriminatorValues(
-  context: GatePolicyContext,
+  context: GateFactContext,
   node: MorphNode,
   property: string,
   unresolved: BusUnresolvedIdentity[],
@@ -250,7 +250,7 @@ export function callName(call: CallExpression): string | undefined {
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
-export function typeForParameter(context: GatePolicyContext, call: CallExpression, index: number): Type | undefined {
+export function typeForParameter(context: GateFactContext, call: CallExpression, index: number): Type | undefined {
   const signature = context.checker().getResolvedSignature(call);
   const parameter = signature?.getParameters()[index];
   return parameter === undefined ? undefined : context.checker().getTypeOfSymbolAtLocation(parameter, call);
@@ -268,7 +268,7 @@ export function callableDeclaration(call: CallExpression): MorphNode | undefined
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
-function busChannelReceiver(context: GatePolicyContext, receiver: MorphNode): boolean {
+function busChannelReceiver(context: GateFactContext, receiver: MorphNode): boolean {
   const stable = resolveStableExpression(receiver);
   return stable.trace.declarations.filter(Node.isVariableDeclaration).some((declaration) => {
     const initializer = declaration.getInitializer();
@@ -302,7 +302,7 @@ function injectedReceiver(receiver: MorphNode): boolean {
 export type EmitterSinkKind = "channel" | "injected";
 
 /** Prove the call reaches an injected callable or the one bus-channel publisher, not a same-typed decoy. */
-export function emitterSink(context: GatePolicyContext, call: CallExpression): EmitterSinkKind | undefined {
+export function emitterSink(context: GateFactContext, call: CallExpression): EmitterSinkKind | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
     const declarations = expression.getSymbol()?.getDeclarations() ?? [];
@@ -319,7 +319,7 @@ export function emitterSink(context: GatePolicyContext, call: CallExpression): E
   return member.name === "publish" && busChannelReceiver(context, member.receiver) ? "channel" : undefined;
 }
 
-export function operationIdentity(context: GatePolicyContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
+export function operationIdentity(context: GateFactContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
   const callable = resolveCallableOrigin(call);
   if (callable.kind === "resolved" && callable.value.target.kind === "module" && callable.value.target.canonical.kind === "project") {
     return {
@@ -334,7 +334,7 @@ export function operationIdentity(context: GatePolicyContext, call: CallExpressi
   return { kind: "injected", owner: bus, memberPath: [callName(call) ?? "<call>"] };
 }
 
-export function ownerIdentity(context: GatePolicyContext, node: MorphNode): BusDeclarationIdentity {
+export function ownerIdentity(context: GateFactContext, node: MorphNode): BusDeclarationIdentity {
   const owner = node.getFirstAncestor(
     (candidate) => Node.isTypeAliasDeclaration(candidate) || Node.isVariableDeclaration(candidate) || Node.isFunctionDeclaration(candidate),
   );

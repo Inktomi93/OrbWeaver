@@ -1,6 +1,8 @@
 // Fail-closed runtime validation shared by policy loading and invocation boundaries.
 
 import { SyntaxKind } from "ts-morph";
+import type { GateFact, GateFactHooks } from "../contract/fact.ts";
+import { isDefinedGateFact } from "../contract/fact.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyAnalysis, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode } from "../contract/policy.ts";
 import { GATE_POLICY_ANALYSES, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/policy.ts";
@@ -21,6 +23,7 @@ const POLICY_KEYS = new Set([
   "population",
   "analysis",
   "execution",
+  "facts",
   "resources",
   "message",
   "fix",
@@ -36,6 +39,7 @@ const REQUIRED_POLICY_KEYS = [
   "population",
   "analysis",
   "execution",
+  "facts",
   "resources",
   "message",
   "create",
@@ -51,6 +55,9 @@ const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 const RESOURCE_KEYS = new Set(["kind", "id"]);
 const RESOURCE_KIND_ONLY_KEYS = new Set(["kind"]);
+const FACT_KEYS = new Set(["id", "population", "analysis", "resources", "create"]);
+const REQUIRED_FACT_KEYS = ["id", "population", "analysis", "resources", "create"] as const;
+const FACT_HOOK_KEYS = new Set(["visitors", "visitFile", "finish"]);
 
 function invalid(detail: string): never {
   throw new Error(`Invalid gate policy: ${detail}`);
@@ -228,6 +235,62 @@ function assertAnalysisResources(policy: Readonly<Record<string, unknown>>): voi
   }
 }
 
+export function assertGateFactDescriptor(value: unknown): asserts value is GateFact {
+  if (!isDefinedGateFact(value)) {
+    invalid("fact must be branded by defineFact");
+  }
+  const fact = record(value, "fact");
+  if (Object.getPrototypeOf(fact) !== Object.prototype) {
+    invalid("fact must be a direct plain object with no custom prototype");
+  }
+  for (const key of Reflect.ownKeys(fact)) {
+    if (typeof key !== "string") {
+      invalid("fact may contain only string contract properties");
+    }
+    if (!Object.prototype.propertyIsEnumerable.call(fact, key)) {
+      invalid(`fact.${key} must be an own enumerable property`);
+    }
+  }
+  exactKeys(fact, FACT_KEYS, "fact");
+  for (const key of REQUIRED_FACT_KEYS) {
+    if (!Object.prototype.propertyIsEnumerable.call(fact, key)) {
+      invalid(`fact.${key} must be an own enumerable property`);
+    }
+  }
+  nonBlank(fact["id"], "fact.id");
+  if (!KEBAB_RE.test(fact["id"] as string)) {
+    invalid("fact.id must be kebab-case");
+  }
+  if (!(GATE_POLICY_ANALYSES as readonly unknown[]).includes(fact["analysis"])) {
+    invalid("fact.analysis is required and invalid");
+  }
+  assertAnalysisResources(fact);
+  assertPopulationExpr(fact["population"]);
+  if (isExplicitNone(fact["population"] as PopulationExpr) && fact["analysis"] !== "resource") {
+    invalid('fact population {of:"none"} is valid only for resource analysis');
+  }
+  if (typeof fact["create"] !== "function") {
+    invalid("fact.create must be a function");
+  }
+}
+
+function assertFacts(value: unknown, execution: unknown): void {
+  if (!Array.isArray(value)) {
+    invalid("descriptor.facts must be an array");
+  }
+  const ids = new Set<string>();
+  for (const candidate of value) {
+    assertGateFactDescriptor(candidate);
+    if (ids.has(candidate.id)) {
+      invalid(`descriptor.facts contains duplicate provider id ${candidate.id}`);
+    }
+    ids.add(candidate.id);
+  }
+  if (value.length > 0 && execution !== "entire-population") {
+    invalid("a policy using shared facts must execute over its entire population");
+  }
+}
+
 function assertDirectDescriptor(policy: Readonly<Record<string, unknown>>): void {
   if (Object.getPrototypeOf(policy) !== Object.prototype) {
     invalid("descriptor must be a direct plain object with no custom prototype");
@@ -283,6 +346,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   if (!(GATE_POLICY_EXECUTIONS as readonly unknown[]).includes(policy["execution"])) {
     invalid("descriptor.execution is required and invalid");
   }
+  assertFacts(policy["facts"], policy["execution"]);
   assertAnalysisResources(policy);
   nonBlank(policy["message"], "descriptor.message");
   if (policy["fix"] !== undefined) {
@@ -340,5 +404,17 @@ export function assertGatePolicyHooks(value: unknown): asserts value is GatePoli
   }
   if (hooks["visitors"] === undefined && hooks["visitFile"] === undefined && hooks["evaluate"] === undefined) {
     invalid("create result must expose at least one hook");
+  }
+}
+
+export function assertGateFactHooks(value: unknown): asserts value is GateFactHooks<unknown> {
+  const hooks = record(value, "fact create result");
+  exactKeys(hooks, FACT_HOOK_KEYS, "fact create result");
+  if (hooks["visitors"] !== undefined) {
+    assertVisitors(hooks["visitors"]);
+  }
+  assertOptionalHook(hooks["visitFile"], "visitFile");
+  if (typeof hooks["finish"] !== "function") {
+    invalid("fact create result finish must be a function");
   }
 }

@@ -1,6 +1,6 @@
 // Invocation-local semantic identities returned by the shared bus fact reader.
 import type { Node } from "ts-morph";
-import type { GatePolicyContext, GatePolicyHooks } from "./policy.ts";
+import type { GatePolicyContext } from "./policy.ts";
 
 export const BUS_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
 export type BusFactStatus = (typeof BUS_FACT_STATUSES)[number];
@@ -83,14 +83,6 @@ export interface BusNonReadyFact extends BusFactBase {
 }
 
 export type BusFact = BusReadyFact | BusNonReadyFact;
-
-export interface BusFactQuery<CoveredBus = never> {
-  /** Compile-time ownership witness used by coverage policies; intentionally absent at runtime. */
-  readonly coveredBusType?: CoveredBus;
-  readonly hooks: Pick<GatePolicyHooks, "visitors">;
-  /** Idempotent: one semantic computation is retained by this policy invocation's `create` closure. */
-  readonly finish: () => BusFact;
-}
 
 export function busByUnion(fact: BusFact, selector: BusDeclarationIdentity): BusRecord | undefined {
   return fact.buses.find(({ union }) => union.path === selector.path && union.exportName === selector.exportName);

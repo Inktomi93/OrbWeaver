@@ -1,10 +1,12 @@
 // Visitor-fed registry facts; this module owns no Project, walk, path predicate, or binding resolver.
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Node as MorphNode, ReturnStatement, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { defineFact } from "../contract/fact.ts";
 import type { ReferenceFact, ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import type {
   JsxTagFact,
   RegistryDefinitionFact,
+  RegistryDefinitionFacts,
   RegistryDefinitionKind,
   RegistryDefinitionKindFacts,
   RegistryTypeDeclaration,
@@ -278,6 +280,42 @@ export function createRegistryDefinitionFacts(): {
     forKind: (kind) => factsFor(kind, state),
   };
 }
+
+export const registryDefinitionFact = defineFact({
+  id: "registry-definitions",
+  population: "@client",
+  analysis: "types",
+  resources: [],
+  create: (ctx) => {
+    const collector = createRegistryDefinitionFacts();
+    let result: RegistryDefinitionFacts | undefined;
+    return {
+      visitors: [{ kinds: REGISTRY_DEFINITION_VISITOR_KINDS, visit: collector.visit }],
+      finish: (): RegistryDefinitionFacts => {
+        if (result !== undefined) {
+          return result;
+        }
+        const facts = new Map(REGISTRY_DEFINITION_KINDS.map((kind) => [kind, collector.forKind(kind)] as const));
+        ctx.receipt({
+          kind: "population",
+          source: "registry-definitions",
+          members: [...facts.values()].reduce((sum, fact) => sum + fact.members, 0),
+          unresolved: [...facts.values()].reduce((sum, fact) => sum + fact.unresolved, 0),
+        });
+        result = Object.freeze({
+          forKind: (kind: RegistryDefinitionKind): RegistryDefinitionKindFacts => {
+            const fact = facts.get(kind);
+            if (fact === undefined) {
+              throw new Error(`registry definition fact has no kind ${kind}`);
+            }
+            return fact;
+          },
+        });
+        return result;
+      },
+    };
+  },
+});
 
 /** Normalize opening/self-closing JSX tags and resolve their canonical imported component origin. */
 export function readJsxTagFact(node: MorphNode): ReferenceFact<JsxTagFact> {

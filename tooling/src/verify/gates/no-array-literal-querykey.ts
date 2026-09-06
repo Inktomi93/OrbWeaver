@@ -20,6 +20,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "syntax",
   execution: "selected-files",
+  facts: [],
   resources: [],
   message: MESSAGE,
   fix: "mint the key from the tRPC options proxy: trpc.<router>.<proc>.queryKey() / .queryFilter() / .pathFilter().",

@@ -1,9 +1,8 @@
 // AutomationBusEvent producer coverage: every declared member has a canonical executable server emitter.
 // The shared bus fact owns union/member/call identity and refuses incomplete derivations.
-import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { createBusFactQuery } from "../lib/bus-fact.ts";
+import { busProducerFact } from "../lib/bus-fact.ts";
 
 const UNION = { path: "packages/contracts/src/automation/index.ts", exportName: "AutomationBusEvent" } as const;
 const MESSAGE =
@@ -17,29 +16,26 @@ export const gate = defineGate({
   population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  facts: [busProducerFact],
   resources: [],
   message: MESSAGE,
   fix: "wire the canonical automation notify operation for the member.",
-  create: (ctx) => {
-    const query = createBusFactQuery<AutomationBusEvent>(ctx);
-    return {
-      ...query.hooks,
-      evaluate: () => {
-        const fact = query.finish();
-        recordReadyBusFact(ctx, fact);
-        const bus = busByUnion(fact, UNION);
-        if (bus === undefined) {
-          throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+  create: (ctx) => ({
+    evaluate: () => {
+      const fact = ctx.fact(busProducerFact);
+      recordReadyBusFact(ctx, fact);
+      const bus = busByUnion(fact, UNION);
+      if (bus === undefined) {
+        throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+      }
+      const emitted = new Set(bus.emitters.map(({ member }) => member.name));
+      for (const member of bus.declaredMembers) {
+        if (!emitted.has(member.name)) {
+          ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
         }
-        const emitted = new Set(bus.emitters.map(({ member }) => member.name));
-        for (const member of bus.declaredMembers) {
-          if (!emitted.has(member.name)) {
-            ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${member.name}` });
-          }
-        }
-      },
-    };
-  },
+      }
+    },
+  }),
   mustFlag: [
     {
       mode: "types",

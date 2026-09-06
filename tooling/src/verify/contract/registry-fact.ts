@@ -40,6 +40,10 @@ export interface RegistryDefinitionKindFacts {
   readonly unresolved: number;
 }
 
+export interface RegistryDefinitionFacts {
+  readonly forKind: (kind: RegistryDefinitionKind) => RegistryDefinitionKindFacts;
+}
+
 export interface JsxTagFact {
   readonly element: Node;
   readonly tagName: Node;

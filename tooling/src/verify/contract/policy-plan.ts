@@ -45,6 +45,7 @@ export interface PolicyRosterEntry {
   readonly population: PopulationExpr;
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
+  readonly facts: readonly string[];
   readonly resources: readonly GateResourceRequest[];
   readonly message: string;
   readonly fix: string | null;
@@ -59,6 +60,11 @@ export interface PlannedPolicy {
   readonly population: PolicyPopulationReceipt;
 }
 
+export interface PlannedFact {
+  readonly factId: string;
+  readonly population: PolicyPopulationReceipt;
+}
+
 export interface PolicyRunPlan {
   readonly mode: "run";
   readonly tier: PolicyRunTier;
@@ -69,10 +75,12 @@ export interface PolicyRunPlan {
   readonly json: boolean;
   readonly policyIds: readonly string[];
   readonly policies: readonly PlannedPolicy[];
+  readonly facts: readonly PlannedFact[];
   readonly programs: readonly PolicyProgramMembership[];
   readonly requestedProgramIds: readonly string[];
   readonly requestedPaths: readonly PolicySemanticPath[] | null;
   readonly resourcePathsByPolicy: Readonly<Record<string, readonly string[]>>;
+  readonly resourcePathsByFact: Readonly<Record<string, readonly string[]>>;
 }
 
 export type PolicyInspectionPlan =

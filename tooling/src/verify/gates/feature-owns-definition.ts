@@ -36,6 +36,7 @@ export const gate = defineGate({
   population: { of: "none", why: "feature directory membership is a closed ResourceHost tree fact" },
   analysis: "resource",
   execution: "entire-population",
+  facts: [],
   resources: [{ kind: "authored-tree", id: "client-feature" }],
   message: MESSAGE,
   fix: "add the feature's registered SectionDefinition/ModalDefinition/ConfigGroupDefinition/ChromeEntry under lib/, or delete the dir if it has no product surface.",
