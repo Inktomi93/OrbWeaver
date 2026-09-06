@@ -203,7 +203,21 @@ export const DENY = "deny" as const;
  * (inv §12 — "an unlisted chatId surface defaults to deny"). The verb surface is exhaustively typed
  * (`CHAT_VERB_AUTHORITY` over `keyof ChatService`), so default-deny is the runtime guard for the non-verb
  * surfaces (SSE/bus/lineage/anchor/…) that arrive as strings, not method names.
+ *
+ * `Object.hasOwn`, NOT `in` (#1480 item 2). `in` walks the PROTOTYPE CHAIN, so every `Object.prototype`
+ * member — `toString`, `valueOf`, `constructor`, `hasOwnProperty`, `__proto__` — answered TRUE and this
+ * function handed back that inherited value (a Function, or the prototype object) cast to `ChatAuthority`.
+ * A caller comparing the verdict against {@link DENY} before authorizing would have let those strings
+ * through: not `DENY`, therefore "classified". The surface string is UNTRUSTED input by construction (it is
+ * the string-keyed half of the matrix, the reason default-deny exists at all), so the own-key question is
+ * the only one the contract can be read as asking.
+ *
+ * NO PRODUCTION CALLER TODAY (2026-09-06): `pnpm ast callers authorityForSurface` over 7065 scanned files
+ * returns 4 hits, all in `tests/server/domain/chat/substrate/auth/matrix.test.ts`; a literal sweep adds only
+ * the `substrate/auth/index.ts` re-export. The live verb gates key off `CHAT_VERB_AUTHORITY` directly. This
+ * is exported infrastructure for the non-verb surfaces named in {@link CHAT_NONVERB_SURFACES}, kept
+ * fail-closed here so that WIRING it later is not also a security decision.
  */
 export function authorityForSurface(surface: string): ChatAuthority | typeof DENY {
-  return surface in CHAT_SURFACE_AUTHORITY ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface] : DENY;
+  return Object.hasOwn(CHAT_SURFACE_AUTHORITY, surface) ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface] : DENY;
 }

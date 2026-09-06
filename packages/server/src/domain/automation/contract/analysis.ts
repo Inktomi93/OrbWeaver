@@ -8,6 +8,9 @@
 //     per-field `.catch`, so a row written before a field existed (or with one damaged field) reads with
 //     that field defaulted and its WATERMARK PRESERVED; only non-object garbage resets whole. A reset
 //     watermark is the SAFE direction (0 = re-cover the span, duplicating work but never skipping one).
+//     SIZE is enforced as a CLAMP ON READ, never a schema refusal (#1480 item 3): the reader parses the
+//     row and truncates arc/banks/strings to the caps the live write paths already hold, because a `.max()`
+//     here would make an already-stored row UNPARSEABLE and reset the watermark it was meant to protect.
 //   • the MODEL PAYLOAD — COMPOSED from the arm's enabled routes (`buildAnalysisPayloadSchema`), which is
 //     the xgrammar lever AND a needle wall: an un-authored route's field is absent from the enforced wire
 //     schema (the model cannot emit it on an enforcing vehicle) and absent from THIS zod (a non-enforcing
@@ -24,7 +27,8 @@
 //
 // The twist-bank MERGE is here as a pure function with property tests: RETIRES apply first (freeing the
 // bank before adds — the legacy D93 Finding-2 posture: an arc-completion pass retires the spent set AND
-// seeds the successor in one pass), then ADDS dedup + fill to `ANALYSIS_TWIST_CAP`, overflow dropped.
+// seeds the successor in one pass), then ADDS dedup + fill to `ANALYSIS_TWIST_CAP`, overflow dropped, and
+// the SAME read-side clamp last so an already-oversized incoming bank shrinks instead of surviving.
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
@@ -44,9 +48,10 @@ export const ANALYSIS_TWIST_CAP = 6;
 export const ANALYSIS_RETIRED_CAP = 24;
 /** Per-pass twist-op bound (a wire-stripped post-parse belt — the durable bank cap is the real wall). */
 const TWIST_OPS_PER_PASS = 8;
-/** One arc / one twist is a sentence-class string, not prose. */
-const ARC_MAX = 400;
-const TWIST_MAX = 200;
+/** One arc / one twist is a sentence-class string, not prose. EXPORTED because they are the caps the
+ *  parse-on-read clamp uses too (`parseAnalysisState`), and a cap spelled twice is a cap that drifts. */
+export const ANALYSIS_ARC_MAX = 400;
+export const ANALYSIS_TWIST_MAX = 200;
 /** The lore route's per-pass entry bound — a settled span distills to a few keyed facts, not a chapter. */
 const LORE_PER_PASS = 4;
 const LORE_KEY_MAX = 120;
@@ -95,11 +100,51 @@ const analysisStateSchema = z.object({
 
 export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: 0 };
 
+/** THE SIZE CEILING, APPLIED AS A CLAMP RATHER THAN A REFUSAL (#1480 item 3).
+ *
+ *  The bounds already existed on the MODEL PAYLOAD — {@link ANALYSIS_ARC_MAX} on `updatedArc`/`successorArc`,
+ *  {@link ANALYSIS_TWIST_MAX} per twist op, {@link ANALYSIS_TWIST_CAP}/{@link ANALYSIS_RETIRED_CAP} on the
+ *  banks — so every LIVE write is bounded before storage. They stopped at the stored blob: this schema took
+ *  an unbounded arc and unbounded arrays of unbounded strings, and {@link mergeAnalysisState} only refused to
+ *  ADD past the cap, never shrank a bank already over it. A row that arrived by any other route (a restored
+ *  dump, a hand edit, a future import) therefore rode its whole payload into every assembled prompt and back
+ *  out through the pass write, permanently.
+ *
+ *  WHY A CLAMP AND NOT A `.max()` ON THE SCHEMA: this shape is parsed by the READER
+ *  (`persistence/rule-state.ts#selectRuleState`), so a new refusal does not reject a write — it makes an
+ *  already-stored row unparseable, and the whole row then falls to {@link EMPTY_ANALYSIS_STATE}, RESETTING
+ *  the `settledThroughSeq` watermark and re-covering a span the host already accepted. Refusing on read is
+ *  the one thing the ruled version posture (header) forbids. So the row still parses; it reads back bounded.
+ *
+ *  THE TWO BANKS CLAMP IN OPPOSITE DIRECTIONS, each matching the direction its own live rule already moves:
+ *  the active bank keeps its OLDEST (`applyAdds` stops adding at the cap, so the incumbents are what a
+ *  bounded history would hold), the retired bank keeps its NEWEST (it FIFO-ages in {@link mergeAnalysisState},
+ *  and its job is to stop RECENT resurrections). */
+function clampTwists(twists: readonly string[]): readonly string[] {
+  return twists.slice(0, ANALYSIS_TWIST_CAP).map((twist) => twist.slice(0, ANALYSIS_TWIST_MAX));
+}
+
+/** The retired bank's clamp — count from the END (FIFO age-out, {@link mergeAnalysisState}'s own direction). */
+function clampRetiredTwists(retired: readonly string[]): readonly string[] {
+  return retired.slice(Math.max(0, retired.length - ANALYSIS_RETIRED_CAP)).map((twist) => twist.slice(0, ANALYSIS_TWIST_MAX));
+}
+
 /** Read a stored blob into `AnalysisState`. Only a non-object / unparseable blob resets WHOLE (the safe
- *  direction — watermark 0 re-covers, never skips); anything object-shaped reads field-by-field. */
+ *  direction — watermark 0 re-covers, never skips); anything object-shaped reads field-by-field, then
+ *  CLAMPS to the live write paths' own caps (see {@link clampTwists} for why clamp and not refuse). The
+ *  watermark is never clamped — it is already `.int().nonnegative()` and it is the one field whose loss
+ *  costs work. */
 export function parseAnalysisState(raw: unknown): AnalysisState {
   const parsed = analysisStateSchema.safeParse(raw);
-  return parsed.success ? parsed.data : EMPTY_ANALYSIS_STATE;
+  if (!parsed.success) {
+    return EMPTY_ANALYSIS_STATE;
+  }
+  return {
+    arc: parsed.data.arc.slice(0, ANALYSIS_ARC_MAX),
+    twists: clampTwists(parsed.data.twists),
+    retiredTwists: clampRetiredTwists(parsed.data.retiredTwists),
+    settledThroughSeq: parsed.data.settledThroughSeq,
+  };
 }
 
 // ── the output-class union (the closed routing vocabulary — §3-S5.4) ─────────────────────────────────
@@ -119,7 +164,7 @@ const analysisLoreEntrySchema = z.object({
 });
 type AnalysisLoreEntry = z.infer<typeof analysisLoreEntrySchema>;
 
-const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(TWIST_MAX) });
+const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(ANALYSIS_TWIST_MAX) });
 
 /** C3 — the PROSE AUDIT's verdict, as the model emits it. `clean` is the COMMON case and is spelled as a
  *  first-class arm rather than an empty `text`: the legacy prose-audit's when-in-doubt-clean posture only
@@ -141,9 +186,9 @@ const payloadBase = {
   /** `completed` ⇒ the current arc fully resolved ON-SCREEN and `successorArc` seeds the next. */
   arcStatus: z.enum(["active", "completed"]),
   /** A refreshed spelling of the CURRENT arc; `null` = carry it forward unchanged. */
-  updatedArc: z.string().max(ARC_MAX).nullable(),
+  updatedArc: z.string().max(ANALYSIS_ARC_MAX).nullable(),
   /** The next arc, read ONLY when `arcStatus === "completed"`; `null` otherwise. */
-  successorArc: z.string().max(ARC_MAX).nullable(),
+  successorArc: z.string().max(ANALYSIS_ARC_MAX).nullable(),
   twistOps: z.array(twistOpSchema).max(TWIST_OPS_PER_PASS),
 };
 
@@ -156,7 +201,7 @@ export function buildAnalysisPayloadSchema(routes: AnalysisRoutes): z.ZodType<An
     ...payloadBase,
     // "" = nothing needs steering — the COMMON case, and it CLEARS standing guidance (each pass replaces
     // guidance wholesale; the legacy director refreshed its one instruction every pass).
-    ...(routes.steer !== undefined ? { guidance: z.string().max(ARC_MAX + TWIST_MAX) } : {}),
+    ...(routes.steer !== undefined ? { guidance: z.string().max(ANALYSIS_ARC_MAX + ANALYSIS_TWIST_MAX) } : {}),
     ...(routes.lore !== undefined ? { lore: z.array(analysisLoreEntrySchema).max(LORE_PER_PASS) } : {}),
     ...(routes.suggest !== undefined ? { suggestions: z.array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) })).max(SUGGESTIONS_PER_PASS) } : {}),
     ...(routes.rewrite !== undefined ? { rewrite: analysisRewriteSchema } : {}),
@@ -243,13 +288,18 @@ export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayl
   const retired = [...current.retiredTwists];
   const twistsRetired = applyRetires(twists, retired, payload.twistOps);
   const { added: twistsAdded, dropped: droppedAdds } = applyAdds(twists, retired, payload.twistOps);
-  const aged = retired.slice(Math.max(0, retired.length - ANALYSIS_RETIRED_CAP)); // FIFO — oldest ages out.
 
   const resolvedArc = payload.arcStatus === "completed" ? (payload.successorArc ?? payload.updatedArc) : payload.updatedArc;
+  // THE CLAMP RUNS LAST AND UNCONDITIONALLY (#1480 item 3). `applyAdds` only declines to GROW a full bank,
+  // so a `current` that arrived over the cap — a pre-clamp stored blob, or a state handed straight to the
+  // confirm path's faithful round-trip (`persistence/rule-state.ts#upsertRuleState`) — used to survive every
+  // merge at its original size. `clampTwists`/`clampRetiredTwists` are the same read-side helpers, so a
+  // merge can never produce a state this file's own reader would have to shrink. It subsumes the retired
+  // bank's FIFO age-out, which was already this exact slice.
   return {
-    arc: resolvedArc ?? current.arc,
-    twists,
-    retiredTwists: aged,
+    arc: (resolvedArc ?? current.arc).slice(0, ANALYSIS_ARC_MAX),
+    twists: clampTwists(twists),
+    retiredTwists: clampRetiredTwists(retired),
     twistsAdded,
     twistsRetired,
     droppedAdds,
