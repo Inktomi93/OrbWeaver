@@ -1,10 +1,11 @@
 // domain/chat/verbs/resolve-rpg-participants — the participants-resolution op (rpg-design/05 §4.3): resolve a
 // chat's PRESENT participants into rpg actor refs + display name + avatar hash.
 //
-// NAME ASYMMETRY, deliberate (#1010): this side ships `RpgParticipantActor`/`ResolveRpgParticipants` while the
-// rpg domain still declares its own structural twin as `RpgRosterActor`/`RpgResolveRoster`. #1010 renamed the
-// SERVER CHAT DOMAIN only; the rpg family's word (and `promoteToRoster`'s) needs its own vocabulary-map row
-// before it can move, so the twins are spelled apart until that row lands rather than half-renamed here. STANDALONE + principal-free (rpg gated the game read; the `getMembership`/
+// THE TWINS NOW AGREE (#1774 closed the asymmetry #1010 opened): this side ships
+// `RpgParticipantActor`/`ResolveRpgParticipants` and the rpg domain's own structural twin is
+// `RpgParticipantActor`/`RpgResolveParticipants`. #1010 renamed the SERVER CHAT DOMAIN only and left the pair
+// spelled apart rather than half-renaming the rpg family here; vocabulary-map row 155 then RULED the rpg word
+// and #1774 landed it by codemod. STANDALONE + principal-free (rpg gated the game read; the `getMembership`/
 // `setRpgPointer`/`postNarratorMessage` injected-op precedent). Homed in chat because the name/avatar joins are
 // chat/character's — rpg stays table-blind. A CHARACTER seat resolves its card under the chat HOST's ownership
 // (the `getCard` ownerId); a HUMAN seat resolves its publics. A seat that resolves to neither ref (a gone card,

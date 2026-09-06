@@ -15,7 +15,7 @@ import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { findSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, makeRpgService, principal, rosterUser, seedChat, seedLiteGame, seedUser, test } from "../_support.ts";
+import { expect, makeRpgService, participantUser, principal, seedChat, seedLiteGame, seedUser, test } from "../_support.ts";
 
 const RANGE_RE = /out of range/i;
 const UNKNOWN_ATTR_RE = /not in the profile/i;
@@ -148,7 +148,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
 
   test("filling a sheet one cell at a time keeps every earlier attribute (the panel's exact payload)", async () => {
     const hostId = await seedUser(db, castId<Handle>("host"));
-    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
     const host = principal(castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };
@@ -168,7 +168,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
     // Stat profile editor's Remove would be permanently dead for any attribute anyone ever filled in). The
     // house grammar for this is [merge-clear] (D108): omit keeps, explicit `null` clears.
     const hostId = await seedUser(db, castId<Handle>("host"));
-    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
     const host = principal(castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };
@@ -188,7 +188,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
     // hearing about), but it must not be measured against `[min,max]` — that comparison on null is the classic
     // silent-true that would let a clear through a range gate for the wrong reason.
     const hostId = await seedUser(db, castId<Handle>("host"));
-    const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "The Host")] });
+    const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
     const host = principal(castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };

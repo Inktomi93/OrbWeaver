@@ -24,7 +24,7 @@ beforeEach(async () => {
 const CAST_REF = { kind: "npc", npcKey: "mira" } as const;
 
 /** Seed a game whose roster has a host + a member; return the harness with membership programmed. */
-async function seedGameWithRoster(): Promise<{ chatId: ChatId; h: ReturnType<typeof makeRpgService> }> {
+async function seedGameWithParticipants(): Promise<{ chatId: ChatId; h: ReturnType<typeof makeRpgService> }> {
   const chatId = await seedChat(db, "a");
   await seedUser(db, castId<Handle>("host"));
   await seedUser(db, castId<Handle>("member"));
@@ -37,7 +37,7 @@ async function seedGameWithRoster(): Promise<{ chatId: ChatId; h: ReturnType<typ
 
 describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-free NOT-FOUND", () => {
   test("updateConfig", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.updateConfig({ principal: principal(castId<Handle>("member")), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(
       DomainForbiddenError,
     );
@@ -47,13 +47,13 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   });
 
   test("upsertQuest", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.upsertQuest({ principal: principal(castId<Handle>("member")), chatId, name: "Q" })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.upsertQuest({ principal: principal(castId<Handle>("ghost")), chatId, name: "Q" })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("addJournalEntry", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.addJournalEntry({ principal: principal(castId<Handle>("member")), chatId, type: "note", title: "t", content: "c" })).rejects.toThrow(
       DomainForbiddenError,
     );
@@ -63,13 +63,13 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   });
 
   test("createCheckpoint", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.createCheckpoint({ principal: principal(castId<Handle>("member")), chatId, label: "L" })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.createCheckpoint({ principal: principal(castId<Handle>("ghost")), chatId, label: "L" })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("editSnapshot", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.editSnapshot({ principal: principal(castId<Handle>("member")), chatId, patch: { location: "x" } })).rejects.toThrow(
       DomainForbiddenError,
     );
@@ -82,7 +82,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   // doorway is `assertOwnUserRef` on `targetRef`, `verbs/patch-actor.ts` header): a member gets a FORBIDDEN
   // here, which is a refusal, not a lie about the plane.
   test("patchActor", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     const ops = [{ op: "setStatus", status: "x" }] as const;
     await expect(h.service.patchActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(
       DomainForbiddenError,
@@ -93,7 +93,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   });
 
   test("dismissActor", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.dismissActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.dismissActor({ principal: principal(castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
   });
@@ -102,7 +102,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   // character card + a chat roster seat), so its host floor is the gate that keeps a mere member from minting
   // library rows into the host's account. Both refusals land BEFORE any mint.
   test("promoteActor", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.promoteActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.promoteActor({ principal: principal(castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
     expect(h.fakes.promoteMints).toHaveLength(0);
@@ -114,7 +114,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   // takes the sentence as its argument), so this pin is what proves the collapse is BYTE-IDENTICAL and not a
   // silent flattening of six refusals into one generic "host authority required".
   test("each host-gated verb keeps its OWN refusal sentence (the chokepoint collapse is behavior-free)", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     const member = principal(castId<Handle>("member"));
     const expectMessage = async (promise: Promise<unknown>, message: string): Promise<void> => {
       await expect(promise).rejects.toThrow(new DomainForbiddenError(message));
@@ -141,7 +141,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
 
 describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT-FOUND", () => {
   test("getGame / getTrackerView / listJournal allow a member, refuse a non-member identically", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.getGame({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
     await expect(h.service.getGame({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
     await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
@@ -151,7 +151,7 @@ describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT
   });
 
   test("getConfigView is HOST-gated — a member is FORBIDDEN, a non-member NOT-FOUND", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.getConfigView({ principal: principal(castId<Handle>("host")), chatId })).resolves.toBeDefined();
     await expect(h.service.getConfigView({ principal: principal(castId<Handle>("member")), chatId })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.getConfigView({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
@@ -160,7 +160,7 @@ describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT
 
 describe("patchSheet — a member may write their OWN user row, never a foreign one", () => {
   test("member writes own user sheet; a foreign user ref is FORBIDDEN; a non-member NOT-FOUND", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     const member = principal(castId<Handle>("member"));
     // Own row — allowed.
     await expect(
@@ -190,7 +190,7 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
   // lists are host-plane FIELDS inside a row a member may otherwise write, so they carry their own floor with
   // its own sentence (behavior + no-write proven in `verbs/patch-sheet.int.test.ts`).
   test("the tracker EXCEPTIONS carry a per-FIELD host floor with its own refusal sentence", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     const member = principal(castId<Handle>("member"));
     await expect(
       h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: member.userId }, patch: { trackerGrants: ["bound_will"] } }),
@@ -273,7 +273,7 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
 
 describe("member-gated rollDice + listCheckpoints", () => {
   test("a member may roll + list; a non-member is leak-free refused", async () => {
-    const { chatId, h } = await seedGameWithRoster();
+    const { chatId, h } = await seedGameWithParticipants();
     await expect(h.service.rollDice({ principal: principal(castId<Handle>("member")), chatId, notation: "1d20" })).resolves.toBeDefined();
     await expect(h.service.listCheckpoints({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
     await expect(h.service.rollDice({ principal: principal(castId<Handle>("ghost")), chatId, notation: "1d20" })).rejects.toThrow(DomainNotFoundError);

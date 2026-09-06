@@ -171,7 +171,7 @@ export { createReactAsCharacter } from "./verbs/reactions.ts";
 // Exported for the same reason `isBelowHistoryFloor` is: the verdict must be chat's everywhere it is applied,
 // and a sibling domain re-deriving it is the defect class this op exists to make impossible.
 // The rpg roster-resolution op (rpg-design/05 §4.3) — resolves present participants into rpg actor refs +
-// name/avatar; wired into `RpgContext.resolveRoster` at the composition root (W1c-b). Standalone + principal-free.
+// name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.

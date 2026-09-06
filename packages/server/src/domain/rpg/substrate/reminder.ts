@@ -538,7 +538,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   // license's "let the change land in the fiction" has its referent (here is what changed; now let it land).
   // ALWAYS ON (§13 #10 — no knob); OMITTED on no-change (`null` — the byte-stable quiet-turn signal).
   const delta = buildDeltaBlock(input.prevSnapshot, input.curSnapshot, {
-    rosterNames: input.rosterNames,
+    participantNames: input.participantNames,
     trackerDefs: view.trackerDefs,
     relationshipHints: input.features.relationshipHints,
     // PROSE-1 — the two delta HEADINGS are slots resolved off the preset prose (§4.3). Absent ⇒ shipped defaults.

@@ -9,7 +9,7 @@
 // THE INJECTED-OP SEAM (the cross-feature pattern, §0/§3): rpg's verbs need chat/connection ops they do NOT
 // own — the privilege KERNEL (`can`, admin's seam — spine invariant #6), membership (`getMembership`), the
 // opaque pointer write (`setRpgPointer`), the roster projection
-// (`resolveRoster`), the narrator-slot mint for restore (`postNarratorMessage`), and the honest-arms
+// (`resolveParticipants`), the narrator-slot mint for restore (`postNarratorMessage`), and the honest-arms
 // capability verdict (`resolveStateDelivery`). These are declared HERE as typed members of `RpgContext`
 // and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
@@ -293,15 +293,15 @@ export type RpgResolveViewerVisibility = (
  *  dangling-pointer heal §3.3 — `detachDanglingPointer` nulls a pointer at a vanished game). */
 export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
 
-/** One roster actor projected for the tracker view (roster ∪ sheets, §4.3). The injected `resolveRoster` op
+/** One participant actor projected for the tracker view (participants ∪ sheets, §4.3). The injected `resolveParticipants` op
  *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the
  *  name/avatar joins live in chat/character (rpg stays table-blind). */
-export interface RpgRosterActor {
+export interface RpgParticipantActor {
   readonly actorRef: RpgActorRef;
   readonly name: string;
   readonly avatar?: string;
 }
-export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
+export type RpgResolveParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** R4 — PROMOTION's durable half: resolve-or-mint a marked character CARD from a promoted NPC and ensure its
  *  chat roster seat, returning the stable `CharacterId` the actor row is re-keyed onto. The one rpg write that
@@ -313,23 +313,23 @@ export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
  *  injected-op caller-gate class: an op that dropped the caller and re-derived an owner would mint a card into
  *  whoever the impl happened to pick). The card is minted UNDER that user and the seat added AS that user, so a
  *  promoted character is host-owned exactly like every other roster character — which is what keeps the seat
- *  resolvable (`resolveRpgRoster` reads character cards under the room host's ownership) and the stats
+ *  resolvable (`resolveRpgParticipants` reads character cards under the room host's ownership) and the stats
  *  attribution consistent.
  *
  *  `sourceActorKey` + `chatId` form the existing-column recovery marker. `handle` is the DESIRED per-owner
  *  handle; the impl uniquifies it (the per-owner handle index) and refuses as DATA if it cannot. */
-export type RpgPromoteToRoster = (input: RpgPromoteToRosterInput) => Promise<RpgPromoteToRosterResult>;
+export type RpgPromoteToCharacter = (input: RpgPromoteToCharacterInput) => Promise<RpgPromoteToCharacterResult>;
 
 /** What the promotion's durable half is handed: the room + the host it acts as, and the CARD CONTENT derived
  *  server-side from the actor's own identity row (never client-authored — the R1 lesson).
- *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
-interface RpgPromoteToRosterInput {
+ *  Non-exported: reachable only through `RpgPromoteToCharacter`'s signature — no consumer names it (knip). */
+interface RpgPromoteToCharacterInput {
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
   /** Stable source identity for interruption recovery (`actorRefKey` before the re-key). */
   readonly sourceActorKey: string;
   /** The pre-write room roster used for the model-addressability name-collision refusal. */
-  readonly roster: readonly RpgRosterActor[];
+  readonly participants: readonly RpgParticipantActor[];
   /** The NPC's display name → the card's `name` (and the roster name every model `targetRef` resolves by). */
   readonly name: string;
   /** The desired per-owner card handle (the npc slug); the impl uniquifies against the owner's library. */
@@ -341,8 +341,8 @@ interface RpgPromoteToRosterInput {
 
 /** The durable half's verdict. `ok:false` is DATA (a handle the owner's library cannot free), raised BEFORE
  *  the snapshot re-key so a refused promotion leaves neither a card, a seat, nor a snapshot row.
- *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
-type RpgPromoteToRosterResult = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly reason: string };
+ *  Non-exported: reachable only through `RpgPromoteToCharacter`'s signature — no consumer names it (knip). */
+type RpgPromoteToCharacterResult = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly reason: string };
 
 /** Commit checkpoint restore's visible narrator marker together with ONE RPG-owned companion statement.
  * Chat mints the marker ids, hands them to the builder, and appends the returned statement to its existing
@@ -651,10 +651,10 @@ export interface RpgContext {
    *  class). Collapsing the two is the defect the spine's three-questions clause names. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   readonly setPointer: RpgSetPointer;
-  readonly resolveRoster: RpgResolveRoster;
+  readonly resolveParticipants: RpgResolveParticipants;
   /** R4 — promotion's DURABLE half (mint the card + seat it on the roster), wired at compose over the
    *  character + chat front doors. rpg owns neither table; the verb owns the snapshot re-key alone. */
-  readonly promoteToRoster: RpgPromoteToRoster;
+  readonly promoteToCharacter: RpgPromoteToCharacter;
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;

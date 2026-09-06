@@ -1741,6 +1741,23 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
   await expect(component.locator('[data-slot="rpg-character-detail"]')).toHaveCount(0);
 });
 
+// #1774 / vocabulary-map:146 — the breadcrumb's VISIBLE word and its ACCESSIBLE NAME must name the same
+// thing. They disagreed: the accname said "Back to the characters" while the button read "Roster", which
+// is (a) WCAG 2.5.3 label-in-name — a voice user saying the visible word addresses nothing — and (b) map
+// row 50's reserved word for the SAVED TEMPLATE spent on the room's characters. Asserted through the
+// affordance, not the source: the node is FOUND by its accessible name and its TEXT is read off the render.
+test("#1774 the takeover breadcrumb's visible label is the word its accessible name uses — Characters, never the reserved Roster", async ({ mount, page }) => {
+  await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  const back = component.locator('[data-slot="rpg-character-detail"]').getByRole("button", { name: "Back to the characters" });
+  await expect(back).toBeVisible();
+  await expect(back).toHaveText("Characters");
+  await expect(back).not.toContainText("Roster");
+});
+
 test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires patchActor — the mutation COUNTs", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);

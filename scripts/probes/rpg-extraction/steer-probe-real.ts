@@ -158,7 +158,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
       cyoaChoiceBehavior: "compose",
       plotProgression: true,
     },
-    rosterNames: {},
+    participantNames: {},
     deception: false,
     omniscience: false,
     dateMode: "narrated",

@@ -17,7 +17,7 @@ import type { ChatId, ChatTurnId, Handle, MessageVariantId, RpgQuestId, UserId }
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
-import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
+import type { RpgParticipantActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
 import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import { findSnapshotByVariant, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
@@ -366,7 +366,7 @@ test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flu
   // The EXACT captured extraction the exec replayed (a schema-valid, enum-constrained, applicable delta
   // the F1 diagnosis said was silently dropped): a scene write + a party status on the player + a journal beat.
   // This pins the FULL round-trip lands (no silent write-boundary drop for a legitimate extraction).
-  const player: RpgRosterActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "You" };
+  const player: RpgParticipantActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "You" };
   const toolRoundDelta = extractionToStateDelta(
     defaultSnapshotState(),
     {
@@ -382,7 +382,7 @@ test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flu
     { item: () => "item_x", quest: () => castId<RpgQuestId>("q_x"), objective: () => "obj_x" },
     buildActorRefIndex([player]),
   );
-  const { chatId, h } = await seedLiteGame(db, { roster: [player], toolRoundDelta });
+  const { chatId, h } = await seedLiteGame(db, { participants: [player], toolRoundDelta });
   await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
@@ -488,8 +488,8 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
   const db = await freshDb();
   // A roster character "Kael" — the gather reminder + tracker view key volatile by the roster ref. The id is a
   // REAL TypeID (the contract `characterId` belt validates it at flush; a malformed fake id would be refused).
-  const kael: RpgRosterActor = { actorRef: { kind: "character", characterId: mintTypeId(ID_PREFIX.character) }, name: "Kael" };
-  const { chatId, h } = await seedLiteGame(db, { roster: [kael] });
+  const kael: RpgParticipantActor = { actorRef: { kind: "character", characterId: mintTypeId(ID_PREFIX.character) }, name: "Kael" };
+  const { chatId, h } = await seedLiteGame(db, { participants: [kael] });
 
   // The model addresses the party member by NAME (it never sees ids).
   await rpgToolDefinitions(h.ctx)[0]?.handler({ targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, exec(chatId, TURN));
@@ -507,8 +507,8 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
 
 test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster key", async () => {
   const db = await freshDb();
-  const player: RpgRosterActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "Player" };
-  const { chatId, h } = await seedLiteGame(db, { roster: [player] });
+  const player: RpgParticipantActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "Player" };
+  const { chatId, h } = await seedLiteGame(db, { participants: [player] });
 
   await rpgToolDefinitions(h.ctx)[1]?.handler({ targetRef: "Player", walletDeltas: [{ name: "gold", delta: 20 }] }, exec(chatId, TURN));
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });

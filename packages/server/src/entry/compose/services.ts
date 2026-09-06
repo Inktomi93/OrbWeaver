@@ -827,7 +827,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // stay explicit params so no call site can drop one). Absent an offer this op is never called and the
     // built conditional heal stands.
     copyPresetToUser: createCopyPresetToUser({ db, now, newPresetId: minter(ID_PREFIX.preset) }),
-    // R4 promotion's durable half — the two front doors the injected `promoteToRoster` op mints through (a
+    // R4 promotion's durable half — the two front doors the injected `promoteToCharacter` op mints through (a
     // character card + a chat roster seat, both under the room host). rpg reads neither table itself.
     character,
     chat: chatCompose.service,

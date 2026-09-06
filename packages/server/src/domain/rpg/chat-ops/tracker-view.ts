@@ -166,7 +166,7 @@ function ambientView(state: RpgSnapshotState): RpgTrackerView["ambient"] {
  *  one). Absent — the PANEL read and every FRESH turn — resolves the head exactly as before. */
 export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, trackersReadOnly: boolean, regenSlotMessageId?: MessageId): Promise<RpgTrackerView> {
   const state = regenSlotMessageId === undefined ? await currentSnapshotState(ctx, game) : await snapshotStateBeforeSlot(ctx, game, regenSlotMessageId);
-  const [roster, sheetRows] = await Promise.all([ctx.resolveRoster(game.chatId), listSheets(ctx.db, game.id)]);
+  const [participants, sheetRows] = await Promise.all([ctx.resolveParticipants(game.chatId), listSheets(ctx.db, game.id)]);
   const defs = game.config.trackers;
 
   const sheetByKey = new Map<string, RpgSheet>();
@@ -186,7 +186,7 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
   // every TRACKED NPC actor the roster does not already cover, present or offstage. The offstage half is the
   // whole point: those rows existed before and were projected NOWHERE, so a departed NPC's retained state was
   // invisible to the host and unreachable by any gesture.
-  const rosterActors = roster.map((r) => {
+  const participantActors = participants.map((r) => {
     const key = actorRefKey(r.actorRef);
     const sheet = sheetByKey.get(key) ?? defaultSheet();
     return actorView({
@@ -200,9 +200,9 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
       trackers: trackersForCarrier(defs, actorCarrier(r.actorRef, r.name, sheet)),
     });
   });
-  const rosterKeys = new Set(rosterActors.map((a) => actorRefKey(a.actorRef)));
+  const participantKeys = new Set(participantActors.map((a) => actorRefKey(a.actorRef)));
   const npcActors = state.actorState
-    .filter((entry) => entry.actorRef.kind === "npc" && !rosterKeys.has(actorRefKey(entry.actorRef)))
+    .filter((entry) => entry.actorRef.kind === "npc" && !participantKeys.has(actorRefKey(entry.actorRef)))
     .map((entry) => {
       const key = actorRefKey(entry.actorRef);
       // An npc's DISPLAY name is its identity's; the slug key is the fallback for a row that predates an
@@ -218,7 +218,7 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
         trackers: trackersForCarrier(defs, actorCarrier(entry.actorRef, name, undefined)),
       });
     });
-  const actors = [...rosterActors, ...npcActors];
+  const actors = [...participantActors, ...npcActors];
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
 

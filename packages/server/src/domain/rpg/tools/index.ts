@@ -92,8 +92,8 @@ async function effectiveState(ctx: RpgContext, game: RpgGameRow, turnId: ChatTur
 /** The name→roster-ref index for the actor-targeting tools (F2): resolve the chat's roster once and index it by
  *  name, so `update_party`/`update_inventory` land a party-member write under its roster key — the SAME key the
  *  tracker view + reminder read (never an orphan `npc:<name>`). */
-async function rosterIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<ActorRefIndex> {
-  return buildActorRefIndex(await ctx.resolveRoster(game.chatId));
+async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<ActorRefIndex> {
+  return buildActorRefIndex(await ctx.resolveParticipants(game.chatId));
 }
 
 /** Build the 7 rpg tool defs closing over `ctx` (registered at compose, W1c-b). */
@@ -113,7 +113,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
         // TOTAL since R3 — the one refusal arm (`hpDelta` on a null-hp actor) left with `hp`'s demotion to an
         // ordinary tracker, whose per-actor key enum makes the illegal write untypeable instead of refusable.
-        ctx.staging.stage(resolved.turn.turnId, applyUpdateParty(state, args, await rosterIndexFor(ctx, resolved.turn.game)));
+        ctx.staging.stage(resolved.turn.turnId, applyUpdateParty(state, args, await participantIndexFor(ctx, resolved.turn.game)));
         return { ok: true, value: { targetRef: args.targetRef } };
       },
     }),
@@ -129,7 +129,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        const patch = applyUpdateInventory(state, args, () => newId(), await rosterIndexFor(ctx, resolved.turn.game));
+        const patch = applyUpdateInventory(state, args, () => newId(), await participantIndexFor(ctx, resolved.turn.game));
         ctx.staging.stage(resolved.turn.turnId, patch);
         return { ok: true, value: { targetRef: args.targetRef } };
       },
@@ -148,7 +148,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
         // ScenePatch is a named partial (no index signature) — cast to the [merge-clear] patch shape the
         // accumulator overlays (the staging.ts domain-internal cast pattern).
-        ctx.staging.stage(resolved.turn.turnId, { ...applyUpdateScene(state, args, await rosterIndexFor(ctx, resolved.turn.game)) });
+        ctx.staging.stage(resolved.turn.turnId, { ...applyUpdateScene(state, args, await participantIndexFor(ctx, resolved.turn.game)) });
         return { ok: true, value: {} };
       },
     }),

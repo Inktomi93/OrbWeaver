@@ -35,7 +35,7 @@ import { insertCharacterClaimingProvenance } from "./card.ts";
 import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandles } from "./queries.ts";
 
 /** How many handle candidates a copy probes before giving up on the card. The handle is a machine label in
- *  the RECIPIENT's own namespace (nothing addresses a character by it — the `promoteToRoster` mint states the
+ *  the RECIPIENT's own namespace (nothing addresses a character by it — the `promoteToCharacter` mint states the
  *  same rule), so uniquifying it silently loses nothing; the bound exists so a pathological library cannot
  *  turn one accept into an unbounded scan. */
 const HANDLE_ATTEMPTS = 50;
