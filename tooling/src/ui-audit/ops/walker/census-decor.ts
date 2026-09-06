@@ -6,8 +6,16 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { interactiveTagSelector } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
+
+/** The island's role list is wider than the base vocabulary's — every ARIA composite a nested
+ *  interactive island can be — but the TAG portion is the one shared tuple (#1074), so textarea/summary
+ *  cannot drop out of this census while staying in the base one. */
+const INTERACTIVE_ISLAND_ROLES = ["button", "link", "menuitem", "option", "tab", "switch", "checkbox", "radio"];
+const INTERACTIVE_ISLAND_SELECTOR_VALUE = [...interactiveTagSelector(), ...INTERACTIVE_ISLAND_ROLES.map((role) => `[role=${role}]`)].join(",");
+const INTERACTIVE_ISLAND_SELECTOR_JS = JSON.stringify(INTERACTIVE_ISLAND_SELECTOR_VALUE);
 
 export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shadow||border) && (radius||bg)) ─────────
   // CARD-NESS IS MEASURED, NEVER NAMED (2026-08-23, issue #552). \`hasBorder\` used to OR in
@@ -41,7 +49,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // "a grid cell IS an interactive island", docs/architecture/core/UI-Density-Law.md:134). So a button/link/
   // input/[role=button] carrying a border and a radius inside a card is the house style, not a defect.
   // The rule keeps its real target: a decorative CARD PANEL nested inside another card panel.
-  var INTERACTIVE_ISLAND_SELECTOR = "a,button,input,select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=option],[role=tab],[role=switch],[role=checkbox],[role=radio]";
+  var INTERACTIVE_ISLAND_SELECTOR = ${INTERACTIVE_ISLAND_SELECTOR_JS};
   function isInteractiveIsland(el) {
     if (el.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
     // ListRow's root owns the row's visual chrome but delegates the one offered action to its
