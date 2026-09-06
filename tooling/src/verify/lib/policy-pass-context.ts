@@ -117,7 +117,7 @@ function derivedNodePosition(node: Node): { readonly offset: number; readonly to
       (kind >= ts.SyntaxKind.FirstLiteralToken && kind <= ts.SyntaxKind.LastLiteralToken) ||
       (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword);
     if (identityKind && !/[()\r\n]/u.test(token)) {
-      return { offset: scanner.getTokenPos(), token };
+      return { offset: scanner.getTokenStart(), token };
     }
   }
   throw new Error(`node finding cannot derive a nonempty authored position token from ${node.getKindName()}`);
