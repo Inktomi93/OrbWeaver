@@ -331,4 +331,4 @@ export type {
   RpgTrackerView,
   RpgTurnToolCallsView,
 } from "./views.ts";
-export { RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";
+export { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";

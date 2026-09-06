@@ -34,22 +34,35 @@ const TURN_TOOL_CALLS_TURN_WINDOW = 50;
 
 const EMPTY_CALLS: readonly RpgToolCallDisclosure[] = [];
 
+/** The "this variant has no record" answer, hoisted to a module constant so a miss returns a STABLE identity
+ *  (a fresh object per select would wake every mounted disclosure on every refetch of the room-wide read). */
+const NO_RECORD: Pick<RpgTurnToolCallsView, "calls" | "failure"> = { calls: EMPTY_CALLS, failure: null };
+
 /**
- * The recorded calls for one selected variant in the room's shared query window.
+ * The record for one selected variant in the room's shared query window: what the turn CALLED, and — when the
+ * state round could not run at all — the sentence saying so (#1468 item 2). Both, because a record can be
+ * present with an EMPTY call list: that is exactly the failed turn, and a caller reading only `calls` would
+ * render nothing for the one turn the disclosure exists for.
  *
  * A plain `useQuery`, deliberately NOT suspense: this is a footer ornament on a transcript that must render
  * immediately. Suspending here would hold the whole row list behind an observability read — the disclosure
  * simply appears when the data lands, and a room with no live game never ASKS at all (an empty index, no
  * request, no error — see the header's gate note).
  */
-export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): readonly RpgToolCallDisclosure[] {
+export function useTurnToolCallsForVariant(chatId: ChatId, variantId: MessageVariantId): Pick<RpgTurnToolCallsView, "calls" | "failure"> {
   const trpc = useTRPC();
   // Cache-first: every room surface already holds this read, so on a game room the gate costs no round-trip.
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const isGame = isRpgEngaged(detail.data?.rpg ?? null);
   const { data } = useGatedQuery(isGame ? chatId : null, (id) => ({
     ...trpc.rpg.listTurnToolCalls.queryOptions({ chatId: id, turnLimit: TURN_TOOL_CALLS_TURN_WINDOW }),
-    select: (rows: readonly RpgTurnToolCallsView[]): readonly RpgToolCallDisclosure[] => rows.find((row) => row.variantId === variantId)?.calls ?? EMPTY_CALLS,
+    select: (rows: readonly RpgTurnToolCallsView[]): Pick<RpgTurnToolCallsView, "calls" | "failure"> => {
+      const row = rows.find((r) => r.variantId === variantId);
+      // `?? null` rather than a bare read: this is a WIRE value, and a payload from a server that predates the
+      // field must read as "the round reached a verdict", never as a failure with no sentence (the `withheld`
+      // precedent, one field over).
+      return row === undefined ? NO_RECORD : { calls: row.calls, failure: row.failure ?? null };
+    },
   }));
-  return data ?? EMPTY_CALLS;
+  return data ?? NO_RECORD;
 }

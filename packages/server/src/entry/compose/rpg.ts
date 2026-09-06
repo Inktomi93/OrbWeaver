@@ -52,6 +52,7 @@ import {
   healedJournalTypes,
   malformedToolCallDetails,
   RPG_NO_CHANGES_TOOL,
+  RPG_STATE_ROUND_FAILED_SUMMARY,
   recordToolCalls,
   rpgExtractionSchema,
   rpgGameConfigSchema,
@@ -1028,14 +1029,13 @@ function logCancelled(args: {
 /** THE STATE ROUND'S FAILURE SENTENCE (#1468 item 2) — the resync/populate `*_FAILED_REASON` precedent, one
  *  vehicle down. It rides `RpgStateDelta.failure` to the flush, which settles the turn `failed` and writes it
  *  onto the turn's durable record, where the person who just played the turn reads it under "Game actions on
- *  this turn". Vehicle-FREE on purpose: which of the two rounds carried the call is operator vocabulary (the
- *  `rpg.toolround.failed` / `rpg.extraction.failed` warn beside each catch names it), while THIS text answers
- *  "why is my panel unchanged".
- *  PROSE-OK: the per-turn disclosure's reason line (`RpgTurnToolCallsView.failure` → the UI), never a model prompt */
-const STATE_ROUND_FAILED_REASON = "the model call that records game state failed, so this turn changed nothing:";
-
+ *  this turn". The SUMMARY half is `contracts/rpg`'s ({@link RPG_STATE_ROUND_FAILED_SUMMARY}) because the
+ *  member-facing projection serves it BARE — the provider tail appended here is host-only. Vehicle-FREE on
+ *  purpose: which of the two rounds carried the call is operator vocabulary (the `rpg.toolround.failed` /
+ *  `rpg.extraction.failed` warn beside each catch names it), while THIS text answers "why is my panel
+ *  unchanged". */
 function roundFailure(err: unknown): string {
-  return `${STATE_ROUND_FAILED_REASON} ${errorMessage(err)}`;
+  return `${RPG_STATE_ROUND_FAILED_SUMMARY}: ${errorMessage(err)}`;
 }
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */

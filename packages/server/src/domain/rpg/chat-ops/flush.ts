@@ -391,7 +391,7 @@ async function flushWritableTurn(
       ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: produced.failure });
     }
   } finally {
-    await recordTurnCalls(ctx, game, turn, { roundCalls: produced.calls, suppressed });
+    await recordTurnCalls(ctx, game, turn, { roundCalls: produced.calls, suppressed, failure: produced.failure });
   }
 }
 
@@ -433,7 +433,8 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
  *  co-emitted with prose; a cheap/fallback round contributes the calls returned with its delta. The latter is
  *  a separate model request, but it is still what changed this visible turn's RPG state — omitting it made the
  *  durable inspector lie by absence after the in-memory trace ring rolled over. A vehicle that called NOTHING
- *  records nothing, so a quiet beat still has no empty disclosure.
+ *  records nothing, so a quiet beat still has no empty disclosure — with ONE exception, the round that could
+ *  not run (see the guard below).
  *
  *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
  *  read, so the row, the log and the trace cannot disagree about what was lost. `suppressed` adds the ONE
@@ -448,19 +449,25 @@ async function recordTurnCalls(
   /** What this turn's vehicle produced, grouped: the round's own recorded calls (absent on a folded turn,
    *  whose calls ride `turnConnection`) and what the two merges suppressed. They travel together — the record
    *  is written from exactly this pair and nothing else. */
-  produced: { readonly roundCalls: readonly RpgRecordedToolCall[] | undefined; readonly suppressed: readonly string[] },
+  produced: { readonly roundCalls: readonly RpgRecordedToolCall[] | undefined; readonly suppressed: readonly string[]; readonly failure: string | null },
 ): Promise<void> {
   const recorded = produced.roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
-  if (recorded === undefined || recorded.length === 0) {
+  const calls = recorded === undefined ? [] : markLockSuppressions(recorded, produced.suppressed);
+  // A VEHICLE THAT CALLED NOTHING RECORDS NOTHING — unless it could not RUN (#1468 item 2). Those are two
+  // different turns wearing one shape: the quiet beat legitimately has no disclosure, while a round the
+  // provider refused is precisely the turn a reader needs an answer for ("it thought for a while and then
+  // nothing happened"), and its call list is empty BY NECESSITY. So the row is written with `failure` and an
+  // empty list rather than not written at all — and the reader is never shown a fabricated tool call.
+  if (calls.length === 0 && produced.failure === null) {
     return;
   }
-  const calls = markLockSuppressions(recorded, produced.suppressed);
   await recordTurnToolCalls(ctx.db, {
     id: ctx.ids.turnToolCalls(),
     gameId: game.id,
     messageId: turn.messageId,
     variantId: turn.variantId,
     calls,
+    failure: produced.failure,
     createdAt: ctx.now(),
   });
   // AFTER the durable write, like every other emit here. Its own event rather than `snapshotPatched`: a turn

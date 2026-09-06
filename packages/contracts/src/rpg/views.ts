@@ -232,10 +232,24 @@ export interface RpgToolCallDisclosure {
   readonly withheld: RpgToolCallWithholdReason | null;
 }
 
+/** WHAT A READER IS TOLD when the turn's state round could not RUN (#1468 item 2) — one home, two renderings.
+ *  The DURABLE row stores this sentence with the vehicle's own error appended (`<summary>: upstream 502 …`),
+ *  which is what the host reads; every other viewer reads the summary BARE, because the tail is a provider
+ *  diagnostic (endpoints, model ids, whatever the backend chose to put in an error body) and this read is
+ *  MEMBER-gated. Composed at `entry/compose/rpg.ts` and projected in `domain/rpg/substrate/tool-call-visibility.ts`.
+ *  PROSE-OK: the per-turn disclosure's reason line, never a model prompt */
+export const RPG_STATE_ROUND_FAILED_SUMMARY = "the model call that records game state failed, so this turn changed nothing";
+
 export interface RpgTurnToolCallsView {
   readonly variantId: MessageVariantId;
   readonly messageId: MessageId;
   readonly calls: readonly RpgToolCallDisclosure[];
+  /** The round could not RUN, said out loud ({@link RPG_STATE_ROUND_FAILED_SUMMARY}) — `null` on every turn
+   *  whose vehicle reached a verdict, including the quiet one. It rides beside `calls` rather than inside it
+   *  because a failed round has NO call to report: the array is what the model called, args verbatim, and a
+   *  synthesized entry would show the reader a tool call that never happened. A record can therefore carry an
+   *  EMPTY `calls` list and still be worth rendering — which is exactly the turn the disclosure exists for. */
+  readonly failure: string | null;
   readonly createdAt: number;
 }
 

@@ -49,6 +49,7 @@ import { resolveModelCapability } from "../../../../packages/server/src/domain/c
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
@@ -1702,6 +1703,13 @@ test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the r
   // ERRORS-AS-DATA IS UNCHANGED: canon stays untouched — the fix is about what the turn SAYS, never about
   // letting a broken round write.
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+
+  // AND IT IS DURABLE. The settle above is a log + an in-memory ring, both of which roll over; the record is
+  // what the person who played the turn can still read tomorrow. An EMPTY call list beside the reason — never
+  // a synthesized call, because the model made none.
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls).toEqual([]);
+  expect(record?.failure).toContain("upstream 502 from the state-round wire");
 });
 
 test("#1468: the AGENT-SDK degrade (structured extraction) carries the same failure arm — it is not the tool round's optional half", async ({ app, db }) => {
