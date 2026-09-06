@@ -566,14 +566,15 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "00d7ea24d7c1bd19fa7edd348a210700f80d824a0e3041ceebb73dbe0123e48d",
+      "assignedSha256": "3ab44b0725ca404123f05fbfe69d7d273185f78c70c3796dff66c50bbbfcf254",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "00d7ea24d7c1bd19fa7edd348a210700f80d824a0e3041ceebb73dbe0123e48d",
-      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+      "verifiedSha256": "3ab44b0725ca404123f05fbfe69d7d273185f78c70c3796dff66c50bbbfcf254",
+      "verifiedCommit": "9d6008a20d4136a94328196a205209b1804e3109",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after the dangling-refs truth-repair (planned paths de-backticked, the CT list re-pointed at the config-era files) at 9d6008a20",
         "re-attested after #1722 (status: draft → active, p-docs-batch) and the #1741/#1747 amendments at e9ad555ac",
         "re-attested at 626a06121 by the orchestrator after reading NEW §8.1b in full (cb-config-list, #1725): the four-ruling verdict table — #925 ENTER (select survives, disclose retired), D121(D) Import (band → overflow), #1099 F5 intact, #1211 copy survives with a changed address; the member lists now live in CONTENT (config-collection-landing); updated 2026-09-05.",
         "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 amendment in full (cb-config-list): §8.1 clause 1 keeps the must-WORK bar and the four #925 landing rulings as built behaviour; NEW §8.1a carries the owner's verbatim 2026-09-05 word and retires the 'distinct species → do not converge' inference (the ruling survives, its INPUT changed); §8.3's 'clean seam for #1169' paragraph is replaced by the priced result (all six divergences hold on structural reasons; two more in-pane divergences hold by TYPE); frontmatter updated 2026-09-05. Not touched: the rest of the program.",
