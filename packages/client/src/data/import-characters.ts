@@ -14,11 +14,13 @@ const IMPORT_FIELD = "file";
  *  byte-identical re-import (already present, no write). `notes` mirrors the server's `ImportedCard.notes`
  *  (#1598/#1709): the card planes this import deliberately did NOT assert (today's one member — a
  *  re-uploaded card whose embedded lorebook was KEPT because the character already holds a primary book
- *  the owner may have edited). Present even when empty, exactly like the server shape it mirrors. */
+ *  the owner may have edited). The server always sends it (present even when empty); OPTIONAL here because
+ *  this whole interface is read off an UNVALIDATED `as CardImportResult` cast below — no zod on this raw
+ *  route — so a caller reading an older/incomplete body must not assume the field survived the cast. */
 interface ImportedCardResult {
   readonly filename: string | null;
   readonly created: boolean;
-  readonly notes: readonly string[];
+  readonly notes?: readonly string[];
 }
 
 /** One card the server could not import (unreadable/invalid bytes) — carries the reason, isolated not thrown. */
