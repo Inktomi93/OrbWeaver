@@ -114,6 +114,27 @@ test("imported object provenance resolves, while writes and builders refuse", ()
   expect(result.authority.withheldPolicyIds).toEqual(["registry-modal"]);
 });
 
+test("a field the value reader cannot read never revokes the definition's own provenance", () => {
+  const { facts, result } = runRegistry("modal", {
+    "packages/client/src/types.ts": "export interface ModalDefinition { readonly id: string }",
+    "packages/client/src/icons.ts": "export declare const Icon: unique symbol;",
+    "packages/client/src/defs.ts": `
+      import type { ModalDefinition } from "./types";
+      import { Icon } from "./icons";
+      export const iconed: ModalDefinition = { id: "iconed", icon: Icon };
+      export const hooked: ModalDefinition = { id: "hooked", body: () => null };
+    `,
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(facts).toMatchObject({ members: 2, unresolved: 0 });
+  expect(facts.definitions.map(({ object }) => object.kind)).toEqual(["resolved", "resolved"]);
+  expect(facts.definitions.map(({ authoredValue }) => (authoredValue.kind === "unresolved" ? authoredValue.reason : "resolved"))).toEqual([
+    "missing",
+    "unsupported",
+  ]);
+});
+
 test("only section definitions admit factories, and multiple returns refuse as ambiguous", () => {
   const { facts, result } = runRegistry("section", {
     "packages/client/src/types.ts": "export type SectionDefinition = { readonly id: string };",

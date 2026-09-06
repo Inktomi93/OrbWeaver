@@ -243,6 +243,34 @@ function readValue(node: MorphNode, target: ReadState): ReferenceFact<StaticAuth
   return scalarFromResolved(node, terminal, target);
 }
 
+/** Resolve one authored entry to its stable terminal, refusing only when the composite's OWN binding is
+ *  mutated or has an invoked member.
+ *
+ *  This answers ROOT PROVENANCE ("which authored node is this value?"), which is a strictly weaker and
+ *  independent question from `readStaticAuthoredValue`'s ("is every field of it statically readable?").
+ *  A caller that needs the literal's own identity — a registry definition whose fields legitimately carry
+ *  imported icons, components, and hooks — must not inherit a FIELD-level refusal as a provenance refusal;
+ *  that conflation reported zero live definitions for four registry kinds while every path check stayed
+ *  green (#1584 registry family). */
+export function resolveAuthoredComposite(node: MorphNode): ReferenceFact<MorphNode> {
+  const target = state();
+  const stable = resolveStableExpression(node);
+  if (stable.kind === "unresolved") {
+    return mergeRefusal(stable, target);
+  }
+  appendDeclarations(target, stable.trace.declarations);
+  const terminal = stable.value;
+  if (!(Node.isObjectLiteralExpression(terminal) || Node.isArrayLiteralExpression(terminal))) {
+    return { kind: "resolved", value: terminal, trace: stable.trace };
+  }
+  const refusal = explicitCompositeRefusal(terminal, stable.trace.declarations, target);
+  if (refusal === undefined) {
+    return { kind: "resolved", value: terminal, trace: stable.trace };
+  }
+  const detail = refusal.reason === "write" ? "is mutated after declaration" : "has an invoked member whose effect is not statically known";
+  return unresolved(refusal.reason, refusal.node, target, `authored composite ${terminal.getText()} ${detail}`);
+}
+
 /** Read one literal scalar through immutable aliases; unsupported syntax is always a loud fact. */
 export function readStaticAuthoredScalar(node: MorphNode): ReferenceFact<StaticAuthoredScalar> {
   const fact = readStaticAuthoredValue(node);
