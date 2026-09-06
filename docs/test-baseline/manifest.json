@@ -2322,6 +2322,7 @@
     "tests/tooling/verify/lib/biome-verdict.int.test.ts",
     "tests/tooling/verify/lib/bus-coverage.test.ts",
     "tests/tooling/verify/lib/bus-fact-relay.test.ts",
+    "tests/tooling/verify/lib/comment-spans.test.ts",
     "tests/tooling/verify/lib/css-rules.test.ts",
     "tests/tooling/verify/lib/ct-runner-lock.test.ts",
     "tests/tooling/verify/lib/drizzle-client-call.test.ts",
