@@ -19,6 +19,8 @@ import {
   readOwnedDigestKeywords,
   readOwnedDigestVectors,
   readSegmentHubVectors,
+  readThemeClusterMembers,
+  readThemeClusterTimeline,
   readTier0DigestSpans,
 } from "../../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -37,6 +39,9 @@ import {
   seedUser,
   vec,
 } from "../_support.ts";
+
+/** `themeDetail`'s member cap, spelled here so the owner-scope pin below is not a bare number. */
+const MEMBER_LIMIT = 15;
 
 // A theme cluster + one assignment row — `readTier0DigestSpans` reads only digests that were ASSIGNED.
 async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): Promise<void> {
@@ -226,5 +231,48 @@ describe("readTier0DigestSpans", () => {
     const spans = await readTier0DigestSpans(db, owner);
 
     expect(spans).toEqual([{ digestId: castId<ChatDigestId>("chat_digest_1"), chatId: chat, seqStart: 10, seqEnd: 21 }]);
+  });
+});
+
+// #1480 item 6 — THE THEME-DETAIL READS CARRY THEIR OWN OWNER PREDICATE. `verbs/views::themeDetail` resolves
+// `theme.id` from an owner-scoped list one hop earlier and then handed the bare id to these two, which
+// belted nothing: a themeClusterId is a caller-reachable value the moment anything else resolves one
+// differently, and the reads return another owner's CARD NAMES (members) and their library's story-time
+// shape (timeline). The verb path cannot reach the hole, so the probe is direct — the roster-preset
+// `updatePresetWithMembers` stickler-F2 precedent.
+describe("readThemeCluster* — owner-scoped (#1480 item 6)", () => {
+  test("a FOREIGN themeClusterId reads back EMPTY on both reads; the OWNER's own reads back the rows", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const stranger = await seedUser(db, "user_b");
+    const chat = await seedHostedChat(db, "chat_1", owner);
+    const hero = await seedCharacter(db, { id: "character_hero", ownerId: owner, name: "Hero" });
+    await seedChatDigest(db, { id: "chat_digest_t1", chatId: chat, embedding: vec(1), scopedCharacterId: hero, tier: 0, blockIdx: 0 });
+    const cluster = castId<ThemeClusterId>("theme_cluster_owned");
+    await db.insert(themeClusters).values({
+      id: cluster,
+      ownerId: owner,
+      level: "scene",
+      clusterIdx: 0,
+      name: "Quests",
+      centroid: vec(1),
+      size: 1,
+      model: EMBED_MODEL,
+      computedAt: FROZEN_AT,
+    });
+    await db.insert(digestThemeAssignments).values({
+      digestId: castId<ChatDigestId>("chat_digest_t1"),
+      themeClusterId: cluster,
+      msgMidAt: Date.UTC(2024, 0, 10),
+      computedAt: FROZEN_AT,
+    });
+
+    // Receipt AS THE STRANGER: they name the owner's clusterId at the persistence seam.
+    expect(await readThemeClusterMembers(db, stranger, cluster, MEMBER_LIMIT)).toEqual([]);
+    expect(await readThemeClusterTimeline(db, stranger, cluster)).toEqual([]);
+
+    // POSITIVE ARM, AS THE OWNER — the same id, and both reads answer.
+    expect(await readThemeClusterMembers(db, owner, cluster, MEMBER_LIMIT)).toEqual([{ characterId: hero, name: "Hero", count: 1 }]);
+    expect(await readThemeClusterTimeline(db, owner, cluster)).toEqual([{ bucket: "2024-01", count: 1 }]);
   });
 });

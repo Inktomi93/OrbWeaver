@@ -56,6 +56,37 @@ describe("persistence/avatar-link-write", () => {
     expect(theirsRow?.at).not.toBe(RELINK_AT);
   });
 
+  // #1480 item 4 — THE ASSET AXIS. The WHERE constrained the character (id + owner); the SET wrote
+  // `link.assetId` unexamined, so a caller-supplied id pointing at ANOTHER owner's asset landed on the
+  // owner's own card. That is a live pointer into a library the card's owner cannot read AND it GC-roots
+  // the other owner's blob through an FK they do not control — the same failure `ensureAssetOwned` /
+  // `ensureBackgroundOverrideOwned` exist to stop on the front-door verbs. The sole production caller
+  // (`assets.backfillAvatars`) stores the blob under the identical `ownerId` moments before linking, so
+  // this is the local belt, not a live bug.
+  test("a FOREIGN asset is refused — the asset must share the character's owner", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const foreignAsset = await seedAsset(db, { id: "asset_foreign", ownerId: other });
+    const ownAsset = await seedAsset(db, { id: "asset_own", ownerId: owner, hash: "own-asset-hash" });
+    const mine = await seedRawCharacter(db, { id: "character_mine", ownerId: owner, handle: castId<CharacterHandle>("mine") });
+
+    // Receipt taken AS `owner` (the op's `ownerId` argument IS the principal this write runs under).
+    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({ ownerId: owner, links: [{ characterId: mine, assetId: foreignAsset }] });
+
+    const refused = (await db.select({ avatar: characters.avatarAssetId, at: characters.updatedAt }).from(characters).where(eq(characters.id, mine)))[0];
+    expect(refused?.avatar).toBeNull();
+    // Zero rows updated — the refusal does not even stamp `updatedAt` (a stamp with no relink would be a lie).
+    expect(refused?.at).not.toBe(RELINK_AT);
+
+    // POSITIVE ARM — the same op, the same principal, the owner's OWN asset: it lands. (Without this the
+    // empty read above would be evidence about the query, not about the predicate.)
+    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({ ownerId: owner, links: [{ characterId: mine, assetId: ownAsset }] });
+    const linked = (await db.select({ avatar: characters.avatarAssetId, at: characters.updatedAt }).from(characters).where(eq(characters.id, mine)))[0];
+    expect(linked?.avatar).toBe(ownAsset);
+    expect(linked?.at).toBe(RELINK_AT);
+  });
+
   test("an empty link list writes nothing", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

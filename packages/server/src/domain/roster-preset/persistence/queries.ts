@@ -1,8 +1,10 @@
 // All db access for the feature (queries only). Every preset read is OWNERSHIP-scoped in the WHERE
 // (`ownerId = ?`), never a post-filter; member reads derive through the preset row (D23 — the junction
-// stamps no owner). Member views join the LIVE card (name + avatar hash, the ParticipantView resolution
-// posture — joined server-side, the client has no id→hash resolver): an INNER join, because a deleted
-// character CASCADEs its seat row out, so an unresolvable member is unrepresentable, not a degrade arm.
+// stamps no owner) AND carry that derivation as a JOIN PREDICATE, not as an assumption about the caller
+// (#1480 item 6 — see `loadMemberCardRows`). Member views join the LIVE card (name + avatar hash, the
+// ParticipantView resolution posture — joined server-side, the client has no id→hash resolver): an INNER
+// join, because a deleted character CASCADEs its seat row out, so an unresolvable member is
+// unrepresentable, not a degrade arm.
 //
 // NO `chat_participants` access anywhere in this directory — `applyToChat` drives chat's own verbs via
 // injected ops (the no-second-add-path law, D61 B6; grep-provable, dep-cruiser-backstopped).
@@ -56,15 +58,30 @@ export async function ownedPresetNameTaken(db: Db, ownerId: UserId, name: string
 }
 
 /** The members of `presetIds` with their card joins, FLAT and ordered (presetId, position) — the
- *  per-preset grouping is the pure `groupMemberViews` in `substrate/members.ts` (persistence holds no Map). */
-export async function loadMemberCardRows(db: Db, presetIds: readonly RosterPresetId[]): Promise<MemberCardRow[]> {
+ *  per-preset grouping is the pure `groupMemberViews` in `substrate/members.ts` (persistence holds no Map).
+ *
+ *  OWNER-SCOPED ON BOTH AXES (#1480 item 6). `presetIds` is caller-supplied, and this is the feature's only
+ *  read that leaves the roster tables: a foreign presetId used to read back that preset's whole member list
+ *  WITH each seated card's `name` and `avatarHash`. The two live callers resolve their ids one hop earlier
+ *  from an owner-scoped read (`listOwnedPresetRows` in `verbs/list`, `loadOwnedPresetRow` in
+ *  `substrate/authored-input`), so the belt is local rather than a live fix — the same disposition the
+ *  seven-seam pass took (00d770fa4): a predicate at the seam, not a dataflow argument.
+ *   • THE PRESET axis rides `roster_presets.owner_id` through a join, because the junction stamps no owner
+ *     by design (D23 derive-don't-stamp) — the identical belt `updatePresetWithMembers` puts on its DELETE.
+ *   • THE CARD axis is an INNER-join predicate, and it is fail-closed rather than restrictive:
+ *     `substrate/authored-input::ensureMembersOwned` gates every member characterId to the preset's owner
+ *     at BOTH write verbs, so same-owner is already an invariant of every member row. A row that violated
+ *     it would be corrupt, and this read drops it exactly as it already drops a member whose card was
+ *     deleted (the header's "unresolvable member is unrepresentable" posture). */
+export async function loadMemberCardRows(db: Db, ownerId: UserId, presetIds: readonly RosterPresetId[]): Promise<MemberCardRow[]> {
   if (presetIds.length === 0) {
     return [];
   }
   const rows = await db
     .select({ member: rosterPresetMembers, name: characters.name, avatarHash: assets.hash })
     .from(rosterPresetMembers)
-    .innerJoin(characters, eq(rosterPresetMembers.characterId, characters.id))
+    .innerJoin(rosterPresets, and(eq(rosterPresets.id, rosterPresetMembers.presetId), eq(rosterPresets.ownerId, ownerId)))
+    .innerJoin(characters, and(eq(rosterPresetMembers.characterId, characters.id), eq(characters.ownerId, ownerId)))
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(inArray(rosterPresetMembers.presetId, [...presetIds]))
     .orderBy(asc(rosterPresetMembers.presetId), asc(rosterPresetMembers.position));

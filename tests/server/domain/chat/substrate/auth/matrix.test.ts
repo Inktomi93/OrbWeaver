@@ -86,4 +86,15 @@ describe("default-deny (inv §12 — an unlisted chatId surface defaults to deny
     expect(authorityForSurface("totally-unknown-surface")).toBe(DENY);
     expect(authorityForSurface("")).toBe(DENY);
   });
+
+  // #1480 item 2 — DEFAULT-DENY IS AN OWN-KEY QUESTION. `surface in CHAT_SURFACE_AUTHORITY` walks the
+  // PROTOTYPE CHAIN, so every `Object.prototype` member answered TRUE and the lookup handed back a Function
+  // (or, for `__proto__`, the prototype object) typed as a `ChatAuthority` — a value that is not `DENY`,
+  // which is the one thing inv §12 says an unlisted surface must be. Any caller comparing the verdict to
+  // `DENY` before authorizing would have let those five strings through.
+  test("an INHERITED Object.prototype key is DENIED, not answered from the prototype chain", () => {
+    for (const inherited of ["toString", "valueOf", "constructor", "hasOwnProperty", "__proto__", "isPrototypeOf"]) {
+      expect(authorityForSurface(inherited)).toBe(DENY);
+    }
+  });
 });
