@@ -803,6 +803,62 @@ describe("memory/recall — the §3a recall window-filter (the SECOND guard, tok
     expect(cand.map((k) => k.blockIdx)).toEqual([0]);
   });
 
+  // ── #1518: the drop test reads the digest's whole SPAN, not just its first covered block ───────────────
+  // `filterPool` resolves both endpoints (`first`/`last`) and the witnessing check uses both, but the
+  // live-window test read only `first.seqStart` — so a tier>0 digest whose span STRADDLES the cutoff stayed
+  // in the pool, summarising content the prompt already carries verbatim. It is dropped now, and the pool's
+  // FINER coverage of its aged-out half takes over (the bridge re-covers the same blocks at tier 0) — which
+  // is exactly why the rule is tier-aware: a tier-0 straddler has nothing finer behind it, so it is KEPT
+  // (the second pin). The verdict ledger is the observable: today the straddler is eliminated one stage
+  // later as "bridge-covered", which reports the wrong reason for the wrong block.
+  /** Eight shared-bucket tier-0 blocks 0…7, spans [1-8] … [57-64], plus tier-1 parents over each pair. */
+  async function seedEightBlocksWithTier1(chatId: ChatId): Promise<void> {
+    for (let b = 0; b < 8; b += 1) {
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[t0.${b}]`, keywords: [] });
+      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+    }
+    for (let p = 0; p < 4; p += 1) {
+      await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 1, blockIdx: p, topicAnchor: `[T1.${p}]`, keywords: [] });
+    }
+  }
+
+  /** The verdict the trace recorded for one pool member (undefined ⇒ it never entered the ledger). */
+  function verdictOf(candidates: readonly { tier: number; blockIdx: number; verdict?: string }[], tier: number, blockIdx: number): string | undefined {
+    return candidates.find((c) => c.tier === tier && c.blockIdx === blockIdx)?.verdict;
+  }
+
+  test("#1518 a tier-1 digest whose span STRADDLES the cutoff is dropped by the live-window filter", async () => {
+    const chatId = await seedChat(db, "lw-straddle");
+    await seedEightBlocksWithTier1(chatId);
+    // Cutoff 45 sits INSIDE tier-0 block 5 (seq 41-48). T1.2 covers blocks 4-5 (seq 33-48): it STARTS below
+    // the cutoff (so the old start-only test kept it) and ENDS above it — half of what it summarises is
+    // verbatim in the prompt.
+    const { trace } = await recallMemory(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 45,
+      config: { mode: "tiered", fanOut: 2, maxTier: 1 },
+    });
+    expect(verdictOf(trace.candidates, 1, 2)).toBe("live-window");
+    // The wholly-aged-out coarse parents are untouched — the fix drops the OVERLAP, not the tier.
+    expect(verdictOf(trace.candidates, 1, 0)).toBe("admitted");
+  });
+
+  test("#1518 …but a TIER-0 straddler is KEPT — nothing finer covers its aged-out half", async () => {
+    const chatId = await seedChat(db, "lw-straddle-t0");
+    await seedEightBlocksWithTier1(chatId);
+    const { trace } = await recallMemory(makeChatContext(db), {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 45,
+      config: { mode: "mixA", fanOut: 2, maxTier: 1 },
+    });
+    // Block 5 (seq 41-48) straddles cutoff 45: dropping it would delete seq 41-44 from BOTH planes.
+    expect(verdictOf(trace.candidates, 0, 5)).toBe("admitted");
+    // Block 6 (seq 49-56) is wholly inside the live window — still dropped.
+    expect(verdictOf(trace.candidates, 0, 6)).toBe("live-window");
+  });
+
   test("cutoff absent ⇒ NO live-window filtering (current behavior preserved)", async () => {
     const chatId = await seedChat(db, "lw-none");
     await seedThreeBlocks(chatId);
