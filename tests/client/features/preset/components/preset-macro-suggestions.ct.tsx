@@ -47,8 +47,10 @@ test("a preset's own macro completes in a GUIDED TEMPLATE", async ({ mount, page
 
 test("a preset's own macro completes in ANOTHER macro's body (the editor offers its own plane)", async ({ mount, page }) => {
   const probe = await mount(<UserMacroBodyCompletionStory />);
-  // The ListRow title is the edit affordance; the dialog portals to document.body, so it is `page`-scoped.
-  await probe.getByText(USER_MACRO_ROW).click();
+  // The ListRow title is the edit affordance, addressed by its ACCESSIBLE NAME rather than by raw text
+  // (#859 T-3): the Macro browser under this list is open by default now and prints every user macro's
+  // `{{name}}` in a <code>, so bare text matches the row AND its catalogue entry. The row is the button.
+  await probe.getByRole("button", { name: USER_MACRO_ROW, exact: true }).click();
   const body = page.getByRole("textbox", { name: "Template" });
   await completeIn(page, body, "{{scen");
   await expect(page.getByRole("option", { name: USER_MACRO_ROW })).toBeVisible();

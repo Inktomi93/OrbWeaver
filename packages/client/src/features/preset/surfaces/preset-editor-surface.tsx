@@ -127,6 +127,18 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   // The active-for-generation pointer — read here (not just in the LIST) because the built-in's copy-on-write
   // fork must INHERIT it: a fork the user can't generate with makes every edit a silent no-op.
+  //
+  // THESE TWO STAY SINGULAR, AND THAT IS MEASURED, NOT AN OVERSIGHT (#859). They are the same serialized-
+  // waterfall shape the LIST pane's `preset-library-surface.tsx` just closed with `useSuspenseQueries` — the
+  // first read SUSPENDS before React reaches the second hook — but the PLURAL hook cannot be used HERE,
+  // because `presetId` is a prop that CHANGES (the rail switches presets under a mounted editor).
+  // `useQueries` only pushes new queries into its `QueriesObserver` from an EFFECT, and an effect never runs
+  // while the component is suspended, so a key change suspends forever: converted, this pane stuck in its
+  // `QueryBoundary` fallback after "switch to B" and took the SWITCH and drill-leak P0 pins red with it
+  // (measured 2026-09-05, @tanstack/react-query 5.101.4). The repo's other warm channel does not apply
+  // either: `usePrefetchQuery` is ruled unusable with tRPC's `queryOptions()` output
+  // (`data/use-display-scripts.ts`), and the house `ensureQueryData` idiom fires from an effect — one commit
+  // too late to join this wave. Closing this one needs a different mechanism, not this one.
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const reset = useResetPreset({ trpc, invalidation });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
