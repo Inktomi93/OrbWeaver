@@ -1,11 +1,14 @@
 // Gate: tooling-slot-template (docs/architecture/core/Core-Tooling-Law.md §4.1) — the five-slot tool template.
 // Arms: (A) a loose file at tooling/src/ root; (B) a tool dir missing index.ts, or missing cli.ts
-// without a BASH_FRONTED_TOOLS row; (C) a tool-root entry outside {cli.ts,index.ts,contract/,ops/,lib/}
+// without a BASH_FRONTED_TOOLS row AND without being an ENGINE DIR — a dir some file under snap/ imports
+// through `<tool>/index.ts` (owner ask 2026-09-06, #1315: Snap is the sole rendered front door, so the
+// engines behind its arms own no argv door; DERIVED from snap's import specifiers, never a row); (C) a tool-root entry outside {cli.ts,index.ts,contract/,ops/,lib/}
 // (+ *.sh for bash-fronted rows); (D) a subdir under _shared/ (the plumbing floor is FLAT by design);
 // (E) stale BASH_FRONTED_TOOLS row (no such dir, or the dir grew a cli.ts); (F) stale CORPUS_SLOTS row
 // (no such tool dir, or the named slot dir is gone). Comment posture: fs-shape only, comment-SAFE.
 import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, normalize, relative, sep } from "node:path";
+import type { Project } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 
 const TOOLING_SRC = "tooling/src";
@@ -36,7 +39,34 @@ interface FsViolation {
   readonly message: string;
 }
 
-function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
+/** The tool dirs some module under `tooling/src/snap/` enters through `<tool>/index.ts` — the ENGINES behind
+ *  Snap's arms (ui-audit, motion-audit, cpu-profile). Read from snap's own relative import specifiers resolved
+ *  against the importing file, so an engine that stops being imported reverts to owing a cli.ts by itself. */
+function engineTools(root: string, project: Project): ReadonlySet<string> {
+  const out = new Set<string>();
+  const snapDir = join(root, TOOLING_SRC, "snap") + sep;
+  const srcDir = join(root, TOOLING_SRC);
+  for (const sf of project.getSourceFiles()) {
+    const file = sf.getFilePath();
+    if (!file.startsWith(snapDir)) {
+      continue;
+    }
+    for (const decl of sf.getImportDeclarations()) {
+      const spec = decl.getModuleSpecifierValue();
+      if (!spec.startsWith(".")) {
+        continue;
+      }
+      const target = relative(srcDir, normalize(join(dirname(file), spec))).split(sep);
+      const [tool, entry] = target;
+      if (target.length === 2 && tool !== undefined && tool !== "snap" && tool !== SHARED && entry === "index.ts") {
+        out.add(tool);
+      }
+    }
+  }
+  return out;
+}
+
+function toolDirViolations(root: string, tool: string, engines: ReadonlySet<string>): readonly FsViolation[] {
   const out: FsViolation[] = [];
   const dir = join(root, TOOLING_SRC, tool);
   const rel = `${TOOLING_SRC}/${tool}`;
@@ -49,10 +79,11 @@ function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
       message: `tool "${tool}" has no index.ts — the programmatic front door is mandatory (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
     });
   }
-  if (!(names.has("cli.ts") || bashFronted)) {
+  // An ENGINE dir (index.ts entered by a snap arm) owns no argv door: Snap is the sole rendered front door.
+  if (!(names.has("cli.ts") || bashFronted || (names.has("index.ts") && engines.has(tool)))) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row, or the dir is an ENGINE a snap arm enters through its index.ts (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
     });
   }
   for (const e of entries) {
@@ -76,7 +107,7 @@ function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
   return out;
 }
 
-function scanTree(root: string, srcDir: string): readonly FsViolation[] {
+function scanTree(root: string, srcDir: string, engines: ReadonlySet<string>): readonly FsViolation[] {
   const out: FsViolation[] = [];
   for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) {
@@ -87,7 +118,7 @@ function scanTree(root: string, srcDir: string): readonly FsViolation[] {
     } else if (entry.name === SHARED) {
       out.push(...sharedViolations(srcDir));
     } else {
-      out.push(...toolDirViolations(root, entry.name));
+      out.push(...toolDirViolations(root, entry.name, engines));
     }
   }
   return out;
@@ -157,13 +188,13 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message:
     "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.1).",
-  fix: "add the missing front door, move the stray into ops//lib/, or (bash-fronted) add the BASH_FRONTED_TOOLS row with its why.",
+  fix: "add the missing front door, move the stray into ops//lib/, (bash-fronted) add the BASH_FRONTED_TOOLS row with its why, or (an engine) enter it from a snap arm through its index.ts — an engine dir owns no cli.ts.",
   run: (ctx) => {
     const srcDir = join(ctx.root, TOOLING_SRC);
     if (!existsSync(srcDir)) {
       return;
     }
-    for (const v of scanTree(ctx.root, srcDir)) {
+    for (const v of scanTree(ctx.root, srcDir, engineTools(ctx.root, ctx.project))) {
       ctx.report({ file: v.file, line: 0, column: 0, message: v.message });
     }
     // Arm E — the two-sided exemption sweep. Anchored on the real tree's _shared floor (never a row's own
@@ -176,6 +207,16 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      files: {
+        "tooling/src/enginetool/index.ts": "export const engine = 1;\n",
+        "tooling/src/snap/cli.ts": "export {};\n",
+        "tooling/src/snap/index.ts": "export {};\n",
+        "tooling/src/snap/ops/arms/design.ts": "export const d = 1;\n",
+      },
+      expect: { messageIncludes: "no cli.ts" },
+      why: "the engine clause's POSITIVE CONTROL: an index.ts-only dir nothing under snap imports is not an engine and still owes its argv door",
+    },
     {
       files: { "tooling/src/badtool/stray.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "no index.ts" },
@@ -202,6 +243,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "tooling/src/enginetool/index.ts": "export const engine = 1;\n",
+        "tooling/src/snap/cli.ts": "export {};\n",
+        "tooling/src/snap/index.ts": "export {};\n",
+        "tooling/src/snap/ops/arms/design.ts": 'import { engine } from "../../../enginetool/index.ts";\nexport const d = engine;\n',
+      },
+      why: "an ENGINE dir — index.ts only, entered by a snap arm through that index — owns no argv door (owner ask 2026-09-06, #1315: Snap is the sole rendered front door; the stub cli.ts files were doors kept alive for this arm alone)",
+    },
     {
       files: {
         "tooling/src/goodtool/cli.ts": "export {};\n",
