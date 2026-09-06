@@ -331,7 +331,8 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     subject: "packages/ui/src/lib/coarse-pointer-now.ts",
     operation: "raw-match-media",
     why: "the ONE (pointer: coarse) home minted by #1182 (`coarsePointerNow()`, the imperative twin of the reduced-motion pair): every coarse-pointer read in @orb/ui and the client goes through it, so the raw `matchMedia` read belongs here and nowhere else — the same recurring permission the two reduced-motion homes carry.",
-    endsWhen: "the pointer-coarseness read moves into a shared media-query seam that also serves the reduced-motion homes, or the browser exposes the fact without matchMedia.",
+    endsWhen:
+      "the pointer-coarseness read moves into a shared media-query seam that also serves the reduced-motion homes, or the browser exposes the fact without matchMedia.",
   },
   {
     id: "no-raw-matchmedia:media-grid",
