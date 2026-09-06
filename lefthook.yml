@@ -17,7 +17,7 @@
 # not a folklore 4-command pipe. Repointed 2026-07-12 (V3).
 #   • pre-commit → `pnpm check` (= `verify --static`): lint (Biome, whole repo) + per-package `tsc` +
 #     `test:types` (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
-#     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot be
+#     (the ts-morph gates) + dep-cruiser (every workspace package plus `tooling`). ~30s. A type/lint/boundary-red tree cannot be
 #     committed. Pre-commit stays at the STATIC tier (design §4.3: full-static-at-commit is the born-compliant
 #     doctrine; --changed+related-tests would be faster but weakens it).
 #   • pre-push → `pnpm verify --push` (ONE command, ONE summary, ONE exit code, ONE json): the static
@@ -27,7 +27,9 @@
 #     This REPLACES the old 4-command `piped` pipe: run-all-report-all (every stage runs, all failures shown
 #     at once) instead of piped early-abort — strictly more informative, and the max-severity exit (§3.3) is
 #     the single verdict. Browser suites never gate the STATIC tier (vitest-browser hangs, Spine-Testing §7):
-#     CT rides the `pnpm test` lane (green-to-commit), e2e-smoke gates HERE. NOTE: needs Playwright chromium on the
+#     CT rides the `pnpm test` lane (green-to-PUSH — this bullet describes the pre-push hook; the
+#     "GREEN-TO-COMMIT" doctrine term above is about `pnpm check` at pre-commit, a different tier),
+#     e2e-smoke gates HERE. NOTE: needs Playwright chromium on the
 #     pushing machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires
 #     on the host.
 #   • e2e ANTI-ROT (2026-07-12): the full e2e suite is manual (`pnpm e2e`) and CI is workflow_dispatch-only
@@ -100,7 +102,7 @@ post-checkout:
 pre-push:
   commands:
     # The ONE push-tier command (V3 repoint): static + deps:orphan-ratchet + tests:node (`pnpm test` =
-    # the 4 vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd`,
+    # the configured vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd`,
     # with the unified summary + max-severity exit. Replaces the 4-command piped pipe —
     # verify runs ALL stages and reports ALL failures, then exits max-severity.
     #

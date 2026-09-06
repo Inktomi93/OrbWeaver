@@ -12,7 +12,7 @@ import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/supp
 // (tests/e2e/support/modes.ts is the source of truth for each mode's ports/DB/secrets). Each mode gets an
 // ISOLATED stack — its own `AUTH_MODE`, DB/assets dir, and a distinct port pair — so the modes never collide
 // and a spec can boot the mode it needs:
-//   • single-user — the DEFAULT lane (ports 8796/5181, no login; the existing 22 specs run here unchanged).
+//   • single-user — the DEFAULT lane (ports 8796/5181, no login; the pre-existing e2e specs run here unchanged).
 //   • local       — cookie/BFF sessions (ports 8799/5183); global-setup seeds a member for the multi-human specs.
 //   • forward-header — SSO trusted-proxy signed-JWT (ports 8798/5182); the actor mints the JWT in-test.
 //   • oidc         — DEFERRED (no mock IdP yet); see modes.ts.
