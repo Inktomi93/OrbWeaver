@@ -125,7 +125,7 @@ test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails
       workloadId: castId<WorkloadId>("workload_ct_import"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 12, skipped: 1, failed: 0 },
+      result: { imported: 12, skipped: 1, failed: 0, notes: [] },
     },
   ]);
 
