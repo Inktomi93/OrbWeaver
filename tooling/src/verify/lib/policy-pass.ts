@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
+import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type {
@@ -22,6 +23,7 @@ import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
+import { ordinaryWaiverResourceFormat } from "./ordinary-waiver-source.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
@@ -434,17 +436,35 @@ function ownerResult(run: PolicyRun): PolicyOwnerResult {
   };
 }
 
-function ordinaryWaiverSourceFiles(policies: readonly PolicyOwnerResult[], sourceFiles: ReadonlyMap<string, SourceFile>): ReadonlyMap<string, SourceFile> {
-  const paths = new Set(policies.flatMap(({ population }) => population.effectiveSourcePaths));
-  return new Map(
-    [...paths].toSorted().map((path) => {
-      const sourceFile = sourceFiles.get(path);
-      if (sourceFile === undefined) {
-        throw new Error(`ordinary waiver source population has no SourceFile: ${path}`);
-      }
-      return [path, sourceFile] as const;
-    }),
-  );
+function ordinaryWaiverSources(
+  policies: readonly PolicyOwnerResult[],
+  sourceFiles: ReadonlyMap<string, SourceFile>,
+  resourceSources: readonly OrdinaryWaiverSource[],
+): readonly OrdinaryWaiverSource[] {
+  const sourcePaths = new Set(policies.flatMap(({ population }) => population.effectiveSourcePaths));
+  const resourcePaths = new Set(policies.flatMap(({ population }) => population.effectiveResourcePaths));
+  const resourcesByPath = new Map(resourceSources.map((source) => [source.path, source]));
+  const sources: OrdinaryWaiverSource[] = [...sourcePaths].toSorted().map((path) => {
+    const sourceFile = sourceFiles.get(path);
+    if (sourceFile === undefined) {
+      throw new Error(`ordinary waiver source population has no SourceFile: ${path}`);
+    }
+    return { kind: "typescript", path, sourceFile };
+  });
+  for (const path of [...resourcePaths].toSorted()) {
+    if (ordinaryWaiverResourceFormat(path) === undefined) {
+      continue;
+    }
+    const source = resourcesByPath.get(path);
+    if (source === undefined || source.kind !== "resource") {
+      throw new Error(`ordinary waiver resource population has no exact text carrier: ${path}`);
+    }
+    if (sourcePaths.has(path)) {
+      throw new Error(`ordinary waiver population has ambiguous syntax and resource carriers: ${path}`);
+    }
+    sources.push(source);
+  }
+  return Object.freeze(sources);
 }
 
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
@@ -455,7 +475,8 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   assertOwnerPlans(input);
   const started = performance.now();
   const toolErrors: PolicyToolError[] = [];
-  const resources = createResourceHost({ ...input.resourceOptions, root: input.root }).host;
+  const resourceInvocation = createResourceHost({ ...input.resourceOptions, root: input.root });
+  const resources = resourceInvocation.host;
   const { runs, sourceFiles } = resolveRuns(input, resources, toolErrors);
   let checker: TypeChecker | undefined;
   const sharedChecker = (): TypeChecker => {
@@ -469,7 +490,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   const authority = coordinateGateAuthority({
     knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
-    ordinaryWaiverSourceFiles: ordinaryWaiverSourceFiles(policies, sourceFiles),
+    ordinaryWaiverSources: ordinaryWaiverSources(policies, sourceFiles, resourceInvocation.ordinaryWaiverSources()),
     ownerResults: policies.map(({ id, population, owner, findings }) => ({
       policyId: id,
       populationFiles: [...new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths])].toSorted(),

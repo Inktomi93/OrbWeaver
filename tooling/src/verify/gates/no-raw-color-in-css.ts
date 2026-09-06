@@ -9,8 +9,39 @@ const MESSAGE =
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/u;
 const COLOR_FN_RE = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
 
+function withoutQuotedContent(value: string): string {
+  let authored = "";
+  let quote = "";
+  let escaped = false;
+  for (const char of value) {
+    if (escaped) {
+      escaped = false;
+    } else if (quote !== "" && char === "\\") {
+      escaped = true;
+    } else if (quote !== "" && char === quote) {
+      quote = "";
+    } else if (quote === "" && (char === '"' || char === "'")) {
+      quote = char;
+    } else if (quote === "") {
+      authored += char;
+    }
+  }
+  return authored;
+}
+
 function rawColor(value: string): boolean {
-  return HEX_RE.test(value) || (COLOR_FN_RE.test(value) && !value.includes("var(--"));
+  const authored = withoutQuotedContent(value);
+  return HEX_RE.test(authored) || (COLOR_FN_RE.test(authored) && !authored.includes("var(--"));
+}
+
+function valuePosition(text: string, declarationOffset: number, value: string): { readonly line: number; readonly column: number } {
+  const offset = text.indexOf(value, declarationOffset);
+  if (offset === -1) {
+    throw new Error(`CSS declaration value has no exact authored position: ${value}`);
+  }
+  const before = text.slice(0, offset);
+  const newline = before.lastIndexOf("\n");
+  return { line: before.split("\n").length, column: offset - newline };
 }
 
 export const gate = defineGate({
@@ -32,9 +63,12 @@ export const gate = defineGate({
       }
       for (const declaration of inventory.value.declarations) {
         if (declaration.file !== GENERATED_THEME && rawColor(declaration.value)) {
+          const source = inventory.value.files.find(({ path }) => path === declaration.file);
+          if (source === undefined) {
+            throw new Error(`CSS declaration has no source resource: ${declaration.file}`);
+          }
           ctx.report.file(declaration.file, {
-            line: declaration.line,
-            column: declaration.column,
+            ...valuePosition(source.text, declaration.offset, declaration.value),
             token: declaration.value,
           });
         }
@@ -66,9 +100,18 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/client/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
-        "packages/ui/src/x/near.css": '/* #abc rgb(0 0 0) */\n.#abc { content: "#abc"; color: var(--color-foreground); }\n',
+        "packages/ui/src/x/near.css": '/* #abc rgb(0 0 0) */\n.near { content: "#abc"; color: var(--color-foreground); }\n',
       },
       why: "comments, selector text, and content strings are not color declarations",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/styles/waived.css":
+          ".waived {\n  /* @orb-waive no-raw-color-in-css(#ff0000): deliberate external brand color */\n  color: #ff0000;\n}\n",
+        "packages/ui/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
+      },
+      why: "one exact ordinary waiver suppresses one raw declaration finding",
     },
     {
       mode: "resource",

@@ -22,7 +22,8 @@ interface WaiverFixture {
 function fixture(files: Readonly<Record<string, string>>, policies: readonly SelectedGatePolicy[] = POLICIES): WaiverFixture {
   const project = new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
   const sourceFiles = new Map(Object.entries(files).map(([path, source]) => [path, project.createSourceFile(`/repo/${path}`, source)] as const));
-  return { sourceFiles, engine: createOrdinaryWaiverEngine({ sourceFiles, knownPolicies: policies }) };
+  const sources = [...sourceFiles].map(([path, sourceFile]) => ({ kind: "typescript" as const, path, sourceFile }));
+  return { sourceFiles, engine: createOrdinaryWaiverEngine({ sources, knownPolicies: policies }) };
 }
 
 function occurrence(source: string, token: string, nth = 1): number {

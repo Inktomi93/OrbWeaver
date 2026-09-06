@@ -1,10 +1,10 @@
 // Final ordinary-waiver acquisition and reconciliation contract.
-import type { SourceFile } from "ts-morph";
 import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "./gate-authority.ts";
+import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 
 export interface OrdinaryWaiverEngineInput {
-  /** Repo-relative POSIX paths from the policy pass; only authored `.ts`/`.tsx` files carry waivers. */
-  readonly sourceFiles: ReadonlyMap<string, SourceFile>;
+  /** Exact repo-relative sources admitted by the selected policies' effective source/resource manifests. */
+  readonly sources: readonly OrdinaryWaiverSource[];
   /** The full loaded roster, including policies not selected for this invocation. */
   readonly knownPolicies: readonly SelectedGatePolicy[];
 }

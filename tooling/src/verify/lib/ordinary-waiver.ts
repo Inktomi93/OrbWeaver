@@ -10,6 +10,7 @@ import type {
   OrdinaryWaiverMarkerOutcome,
   OrdinaryWaiverMatchResult,
 } from "../contract/ordinary-waiver.ts";
+import type { OrdinaryWaiverResourceFormat, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import { blankTsComments, commentSpansInText, forEachTriviaCarrier } from "./comment-spans.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 
@@ -19,6 +20,8 @@ const EXACT_MARKER_RE = new RegExp(String.raw`^${MARKER}\s+(${KEBAB})\(([^()\r\n
 const ATTEMPT_RE = new RegExp(String.raw`^${MARKER}(?:\s|$)`, "u");
 const PARTIAL_POLICY_RE = new RegExp(String.raw`^${MARKER}(?:\s+([^\s(:]+))?`, "u");
 const UNKNOWN_POLICY = "ordinary-waiver";
+const HTML_COMMENT_OPEN = "<!--";
+const HTML_COMMENT_CLOSE = "-->";
 
 interface ParsedMarker {
   readonly policyId: string;
@@ -32,8 +35,9 @@ interface AcquiredMarker extends ParsedMarker {
   readonly file: string;
   readonly pos: number;
   readonly end: number;
-  readonly carriers: readonly ts.Node[];
-  readonly jsxExpressions: readonly ts.JsxExpression[];
+  readonly binding:
+    | { readonly kind: "typescript"; readonly carriers: readonly ts.Node[]; readonly jsxExpressions: readonly ts.JsxExpression[] }
+    | { readonly kind: "resource"; readonly start: number; readonly end: number };
   readonly initialOutcome: Extract<OrdinaryWaiverMarkerOutcome, "malformed" | "unknown-policy" | "wrong-authority" | "matched">;
 }
 
@@ -60,6 +64,14 @@ interface EvaluatedMarker {
 function commentBody(comment: string): string {
   if (comment.startsWith("//")) {
     return comment.slice(2).trim();
+  }
+  if (comment.startsWith("--")) {
+    return comment.slice(2).trim();
+  }
+  if (comment.startsWith(HTML_COMMENT_OPEN)) {
+    return comment.endsWith(HTML_COMMENT_CLOSE)
+      ? comment.slice(HTML_COMMENT_OPEN.length, -HTML_COMMENT_CLOSE.length).trim()
+      : comment.slice(HTML_COMMENT_OPEN.length).trim();
   }
   return comment.endsWith("*/") ? comment.slice(2, -2).trim() : comment.slice(2).trim();
 }
@@ -165,23 +177,208 @@ function initialOutcome(marker: ParsedMarker, policies: ReadonlyMap<string, Sele
 
 function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<string, SelectedGatePolicy>): readonly AcquiredMarker[] {
   const markers: AcquiredMarker[] = [];
-  for (const [file, sourceFile] of [...input.sourceFiles].toSorted(([left], [right]) => left.localeCompare(right))) {
-    if (!isPolicySourceCandidate(file)) {
+  for (const source of [...input.sources].toSorted((left, right) => left.path.localeCompare(right.path))) {
+    if (source.kind === "typescript") {
+      if (!isPolicySourceCandidate(source.path)) {
+        continue;
+      }
+      for (const marker of collectMarkers(source.sourceFile)) {
+        const { line, column } = source.sourceFile.getLineAndColumnAtPos(marker.pos);
+        markers.push({
+          ...marker,
+          id: `${source.path}:${line}:${column}`,
+          file: source.path,
+          binding: { kind: "typescript", carriers: [...marker.carriers], jsxExpressions: [...marker.jsxExpressions] },
+          initialOutcome: initialOutcome(marker, policies),
+        });
+      }
       continue;
     }
-    for (const marker of collectMarkers(sourceFile)) {
-      const { line, column } = sourceFile.getLineAndColumnAtPos(marker.pos);
+    const comments = resourceComments(source.text, source.format);
+    for (const comment of comments) {
+      const parsed = parseMarker(comment.text);
+      if (parsed === undefined) {
+        continue;
+      }
+      const { line, column } = textPosition(source.text, comment.pos);
+      const binding = followingResourceCarrier(source.text, comments, comment);
       markers.push({
-        ...marker,
-        id: `${file}:${line}:${column}`,
-        file,
-        carriers: [...marker.carriers],
-        jsxExpressions: [...marker.jsxExpressions],
-        initialOutcome: initialOutcome(marker, policies),
+        ...parsed,
+        id: `${source.path}:${line}:${column}`,
+        file: source.path,
+        pos: comment.pos,
+        end: comment.end,
+        binding: { kind: "resource", ...binding },
+        initialOutcome: initialOutcome(parsed, policies),
       });
     }
   }
   return markers;
+}
+
+interface ResourceComment {
+  readonly pos: number;
+  readonly end: number;
+  readonly text: string;
+}
+
+interface ResourceQuoteState {
+  quote: string;
+  escaped: boolean;
+}
+
+function consumesResourceQuote(state: ResourceQuoteState, char: string): boolean {
+  if (state.escaped) {
+    state.escaped = false;
+    return true;
+  }
+  if (state.quote !== "") {
+    if (char === "\\") {
+      state.escaped = true;
+    } else if (char === state.quote) {
+      state.quote = "";
+    }
+    return true;
+  }
+  if (char === '"' || char === "'" || char === "`") {
+    state.quote = char;
+    return true;
+  }
+  return false;
+}
+
+function lineCommentAt(text: string, index: number, prefix: "//" | "--"): ResourceComment {
+  const newline = text.indexOf("\n", index + prefix.length);
+  const end = newline === -1 ? text.length : newline;
+  return { pos: index, end, text: text.slice(index, end) };
+}
+
+function blockCommentAt(text: string, index: number): ResourceComment {
+  const close = text.indexOf("*/", index + "/*".length);
+  const end = close === -1 ? text.length : close + "*/".length;
+  return { pos: index, end, text: text.slice(index, end) };
+}
+
+function codeComments(text: string, options: { readonly linePrefix?: "//" | "--"; readonly block: boolean }): readonly ResourceComment[] {
+  const comments: ResourceComment[] = [];
+  const quote: ResourceQuoteState = { quote: "", escaped: false };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index] ?? "";
+    if (consumesResourceQuote(quote, char)) {
+      continue;
+    }
+    const linePrefix = options.linePrefix;
+    if (linePrefix !== undefined && text.startsWith(linePrefix, index)) {
+      const comment = lineCommentAt(text, index, linePrefix);
+      comments.push(comment);
+      index = comment.end - 1;
+      continue;
+    }
+    if (options.block && text.startsWith("/*", index)) {
+      const comment = blockCommentAt(text, index);
+      comments.push(comment);
+      index = comment.end - 1;
+    }
+  }
+  return comments;
+}
+
+function markdownFence(line: string, current: "```" | "~~~" | undefined): "```" | "~~~" | undefined {
+  const trimmed = line.trimStart();
+  if (current !== undefined) {
+    return trimmed.startsWith(current) ? undefined : current;
+  }
+  if (trimmed.startsWith("```")) {
+    return "```";
+  }
+  return trimmed.startsWith("~~~") ? "~~~" : undefined;
+}
+
+function markdownCommentInLine(text: string, line: string, offset: number): ResourceComment | undefined {
+  const open = line.indexOf(HTML_COMMENT_OPEN);
+  if (open === -1) {
+    return;
+  }
+  const pos = offset + open;
+  const close = text.indexOf(HTML_COMMENT_CLOSE, pos + HTML_COMMENT_OPEN.length);
+  const end = close === -1 ? text.length : close + HTML_COMMENT_CLOSE.length;
+  return { pos, end, text: text.slice(pos, end) };
+}
+
+function markdownComments(text: string): readonly ResourceComment[] {
+  const comments: ResourceComment[] = [];
+  let fence: "```" | "~~~" | undefined;
+  let offset = 0;
+  for (const line of text.split(/(?<=\n)/u)) {
+    const nextFence = markdownFence(line, fence);
+    if (fence === undefined && nextFence === undefined) {
+      const comment = markdownCommentInLine(text, line, offset);
+      if (comment !== undefined) {
+        comments.push(comment);
+      }
+    }
+    fence = nextFence;
+    offset += line.length;
+  }
+  return comments;
+}
+
+function resourceComments(text: string, format: OrdinaryWaiverResourceFormat): readonly ResourceComment[] {
+  switch (format) {
+    case "css":
+      return codeComments(text, { block: true });
+    case "markdown":
+      return markdownComments(text);
+    case "jsonc":
+      return codeComments(text, { linePrefix: "//", block: true });
+    case "json":
+      return [];
+    case "sql":
+      return codeComments(text, { linePrefix: "--", block: true });
+  }
+}
+
+function blankResourceComments(text: string, format: OrdinaryWaiverResourceFormat): string {
+  const chars = [...text];
+  for (const comment of resourceComments(text, format)) {
+    for (let index = comment.pos; index < comment.end; index += 1) {
+      if (chars[index] !== "\n" && chars[index] !== "\r") {
+        chars[index] = " ";
+      }
+    }
+  }
+  return chars.join("");
+}
+
+function textPosition(text: string, offset: number): { readonly line: number; readonly column: number } {
+  const starts = lineStarts(text);
+  const lineIndex = starts.findLastIndex((candidate) => candidate <= offset);
+  const lineStart = starts[lineIndex] ?? 0;
+  return { line: lineIndex + 1, column: offset - lineStart + 1 };
+}
+
+function commentAt(comments: readonly ResourceComment[], position: number): ResourceComment | undefined {
+  return comments.find((comment) => comment.pos === position);
+}
+
+function followingResourceCarrier(
+  text: string,
+  comments: readonly ResourceComment[],
+  marker: ResourceComment,
+): { readonly start: number; readonly end: number } {
+  let start = marker.end;
+  while (start < text.length) {
+    while (/\s/u.test(text[start] ?? "")) {
+      start += 1;
+    }
+    const nextComment = commentAt(comments, start);
+    if (nextComment === undefined) {
+      break;
+    }
+    start = nextComment.end;
+  }
+  const newline = text.indexOf("\n", start);
+  return { start, end: newline === -1 ? text.length : newline };
 }
 
 function lineStarts(text: string): readonly number[] {
@@ -194,24 +391,39 @@ function lineStarts(text: string): readonly number[] {
   return starts;
 }
 
-function locateFinding(index: number, finding: CoordinatedGateFinding, sourceFiles: ReadonlyMap<string, SourceFile>): LocatedFinding {
-  const sourceFile = sourceFiles.get(finding.file);
+function sourceTable(sources: readonly OrdinaryWaiverSource[]): ReadonlyMap<string, OrdinaryWaiverSource> {
+  const table = new Map<string, OrdinaryWaiverSource>();
+  for (const source of sources) {
+    if (table.has(source.path)) {
+      throw new Error(`ordinary waiver engine received duplicate source ${source.path}`);
+    }
+    table.set(source.path, source);
+  }
+  return table;
+}
+
+function locateFinding(index: number, finding: CoordinatedGateFinding, sources: ReadonlyMap<string, OrdinaryWaiverSource>): LocatedFinding {
+  const source = sources.get(finding.file);
   const token = finding.token;
   const at = `${finding.file}:${finding.line}:${finding.column}`;
-  if (sourceFile === undefined) {
-    return { index, finding, failure: { policyId: finding.policyId, message: `ordinary finding ${at} has no TypeScript SourceFile for waiver binding` } };
+  if (source === undefined) {
+    return {
+      index,
+      finding,
+      failure: { policyId: finding.policyId, message: `ordinary finding ${at} has no declared source or resource carrier for waiver binding` },
+    };
   }
   if (token === undefined || token.trim() === "") {
     return { index, finding, failure: { policyId: finding.policyId, message: `ordinary finding ${at} has no nonempty position token for waiver binding` } };
   }
-  const text = sourceFile.getFullText();
+  const text = source.kind === "typescript" ? source.sourceFile.getFullText() : source.text;
   const starts = lineStarts(text);
   const lineStart = starts[finding.line - 1];
   if (lineStart === undefined) {
     return {
       index,
       finding,
-      failure: { policyId: finding.policyId, message: `ordinary finding ${at} falls outside its TypeScript SourceFile` },
+      failure: { policyId: finding.policyId, message: `ordinary finding ${at} falls outside its waiver carrier` },
     };
   }
   const lineEnd = starts[finding.line] === undefined ? text.length : (starts[finding.line] ?? text.length) - 1;
@@ -223,7 +435,8 @@ function locateFinding(index: number, finding: CoordinatedGateFinding, sourceFil
       failure: { policyId: finding.policyId, message: `ordinary finding ${at} does not point at its exact position token ${JSON.stringify(token)}` },
     };
   }
-  if (blankTsComments(sourceFile).slice(offset, offset + token.length) !== token) {
+  const authored = source.kind === "typescript" ? blankTsComments(source.sourceFile) : blankResourceComments(source.text, source.format);
+  if (authored.slice(offset, offset + token.length) !== token) {
     return {
       index,
       finding,
@@ -299,32 +512,39 @@ function adjacentJsxChildren(expression: ts.JsxExpression, root: ts.SourceFile):
   return adjacent;
 }
 
-function markerBinds(marker: AcquiredMarker, offset: number, root: ts.SourceFile): boolean {
-  if (marker.carriers.some((carrier) => carrierContains(carrier, offset, root))) {
+function markerBinds(marker: AcquiredMarker, offset: number, root?: ts.SourceFile): boolean {
+  if (marker.binding.kind === "resource") {
+    return marker.binding.start <= offset && offset < marker.binding.end;
+  }
+  if (root === undefined) {
+    throw new Error(`TypeScript ordinary waiver marker has no syntax root: ${marker.id}`);
+  }
+  if (marker.binding.carriers.some((carrier) => carrierContains(carrier, offset, root))) {
     return true;
   }
-  return marker.jsxExpressions.some((expression) =>
+  return marker.binding.jsxExpressions.some((expression) =>
     adjacentJsxChildren(expression, root).some((child) => child.getStart(root) <= offset && offset < child.end),
   );
 }
 
 function hasAmbiguousTrivia(marker: AcquiredMarker, root: ts.SourceFile): boolean {
-  return marker.jsxExpressions.some((expression) => adjacentJsxChildren(expression, root).length > 1);
+  return marker.binding.kind === "typescript" && marker.binding.jsxExpressions.some((expression) => adjacentJsxChildren(expression, root).length > 1);
 }
 
-function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFinding[], sourceFiles: OrdinaryWaiverEngineInput["sourceFiles"]): EvaluatedMarker {
+function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFinding[], sources: ReadonlyMap<string, OrdinaryWaiverSource>): EvaluatedMarker {
   if (marker.initialOutcome !== "matched") {
     return { marker, candidates: [], outcome: marker.initialOutcome };
   }
-  const sourceFile = sourceFiles.get(marker.file);
-  if (sourceFile === undefined) {
+  const source = sources.get(marker.file);
+  if (source === undefined) {
     return { marker, candidates: [], outcome: "unbound-trivia" };
   }
-  if (hasAmbiguousTrivia(marker, sourceFile.compilerNode)) {
+  if (source.kind === "typescript" && hasAmbiguousTrivia(marker, source.sourceFile.compilerNode)) {
     return { marker, candidates: [], outcome: "ambiguous-trivia" };
   }
   const inFile = findings.filter(({ finding, offset }) => finding.file === marker.file && finding.policyId === marker.policyId && offset !== undefined);
-  const inCarrier = inFile.filter(({ offset }) => markerBinds(marker, offset as number, sourceFile.compilerNode));
+  const root = source.kind === "typescript" ? source.sourceFile.compilerNode : undefined;
+  const inCarrier = inFile.filter(({ offset }) => markerBinds(marker, offset as number, root));
   const candidates = inCarrier.filter(({ finding }) => finding.token === marker.position).map(({ index }) => index);
   if (candidates.length > 1) {
     return { marker, candidates, outcome: "over-broad" };
@@ -344,11 +564,11 @@ function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFindin
 
 function matchBatch(
   markers: readonly AcquiredMarker[],
-  sourceFiles: OrdinaryWaiverEngineInput["sourceFiles"],
+  sources: ReadonlyMap<string, OrdinaryWaiverSource>,
   findings: readonly CoordinatedGateFinding[],
 ): OrdinaryWaiverMatchResult {
-  const located = findings.map((finding, index) => locateFinding(index, finding, sourceFiles));
-  const evaluated = markers.map((marker) => evaluateMarker(marker, located, sourceFiles));
+  const located = findings.map((finding, index) => locateFinding(index, finding, sources));
+  const evaluated = markers.map((marker) => evaluateMarker(marker, located, sources));
   const byFinding = Map.groupBy(
     evaluated.filter(({ outcome, candidates }) => outcome === "matched" && candidates.length === 1),
     ({ candidates }) => candidates[0] as number,
@@ -422,9 +642,10 @@ function reconcileMatch(completedPolicyIds: readonly string[], match: OrdinaryWa
 
 export function createOrdinaryWaiverEngine(input: OrdinaryWaiverEngineInput): OrdinaryWaiverEngine {
   const policies = policyTable(input.knownPolicies);
+  const sources = sourceTable(input.sources);
   const markers = acquireMarkers(input, policies);
   return {
-    match: (findings) => matchBatch(markers, input.sourceFiles, findings),
+    match: (findings) => matchBatch(markers, sources, findings),
     reconcile: ({ completedPolicyIds, match }) => reconcileMatch(completedPolicyIds, match),
   };
 }
