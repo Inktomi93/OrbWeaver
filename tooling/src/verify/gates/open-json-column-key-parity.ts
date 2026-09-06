@@ -434,6 +434,12 @@ function collectAccumulatorWrites(sf: SourceFile, byProp: ReadonlyMap<string, re
 const SQL_READ_RE = /json_(?:extract|each)\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
 const SQL_WRITE_RE = /json_set\(\s*([^,()]+?)\s*,\s*['"]\$\.([\w.]+)['"]/giu;
 const SQL_ALIAS_RE = /\b(?:from|join)\s+([a-z_][a-z0-9_]*)\s+(?:as\s+)?([a-z][a-z0-9_]*)\b/giu;
+/** `FROM/JOIN json_each(<arg>) [AS] <alias>` / `json_tree(...)` — a TABLE-VALUED FUNCTION, not a table (#1802).
+ *  The arg may carry one level of nested parens (`json_each(json_extract(«col», '$.k'))`). Its alias binds the
+ *  virtual row whose `.value` / `.key` / `.type` are json_each's own columns, never a drizzle column. */
+const SQL_VIRTUAL_ALIAS_RE = /\b(?:from|join)\s+json_(?:each|tree)\s*\((?:[^()]|\([^()]*\))*\)\s+(?:as\s+)?([a-z][a-z0-9_]*)\b/giu;
+/** The alias-map value for a virtual alias — no drizzle table is ever spelled with a leading colon. */
+const VIRTUAL_TABLE = ":json_each";
 
 /** A `sql` template's text with every `${expr}` rendered as «expr» — so a drizzle column interpolation is
  *  resolvable and an interpolated PATH is visibly not a literal. */
@@ -464,12 +470,26 @@ function resolveSqlRef(ref: string, aliases: ReadonlyMap<string, string>, schema
     return byTableVar;
   }
   const sqlTable = head === undefined ? undefined : aliases.get(head.toLowerCase());
+  // A json_each/json_tree alias (#1802): `element.value` is the VIRTUAL row's column, which no drizzle column
+  // is — attributing it would pool every column NAMED `value` (the open `settings.value` blob among them) and
+  // red a key that blob's writers never spell. Nothing open is addressed; the ref resolves to nothing.
+  if (sqlTable === VIRTUAL_TABLE) {
+    return [];
+  }
   const byAlias = sqlTable === undefined ? [] : columns.filter((c) => tables.get(c.table) === sqlTable && (c.sqlName === tail || c.prop === tail));
   return byAlias.length > 0 ? byAlias : columns.filter((c) => c.prop === tail || c.sqlName === tail);
 }
 
 function aliasMap(text: string): Map<string, string> {
   const out = new Map<string, string>();
+  // Virtual aliases FIRST, so a later same-named real alias in the same template cannot be shadowed silently
+  // (the real-alias loop below re-sets the key; a virtual alias only ever names json_each's row).
+  for (const m of text.matchAll(SQL_VIRTUAL_ALIAS_RE)) {
+    const alias = m[1];
+    if (alias !== undefined) {
+      out.set(alias.toLowerCase(), VIRTUAL_TABLE);
+    }
+  }
   for (const m of text.matchAll(SQL_ALIAS_RE)) {
     const table = m[1];
     const alias = m[2];
@@ -866,6 +886,17 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'export const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/automation/persistence/migrate.ts":
+          "export async function arms(db) {\n  return await db.all(sql`select element.key from json_each(actions_json) as element where json_extract(element.value, '$.type') = 'tool'`);\n}\n",
+      },
+      why: "#1802 — a `json_each(…) AS element` alias is a table-valued function's VIRTUAL row: `element.value` is json_each's own column, never the open `settings.value` blob, so the read addresses nothing open (the pool-by-name fallback used to attribute it and red a key the blob's writers never spell — a lying, run-order-dependent verdict)",
+    },
     {
       files: {
         "packages/db/src/schema/embeddings.ts":
