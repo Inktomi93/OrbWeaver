@@ -170,14 +170,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "6cd0e8667b027a06949e45fa4b4bef6a8a4b3c86754fe7862deff845ccc76c85",
+      "assignedSha256": "34aa0864cfbc7e011de12c24c20435255c60d41be5e98724cd2a5519d716c03d",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "6cd0e8667b027a06949e45fa4b4bef6a8a4b3c86754fe7862deff845ccc76c85",
-      "verifiedCommit": "bdd812a89c1f5f38bedb2149151ae839808e76e4",
+      "verifiedSha256": "34aa0864cfbc7e011de12c24c20435255c60d41be5e98724cd2a5519d716c03d",
+      "verifiedCommit": "af4fa7357b872f919e535933512bedff8ff468a1",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "#1844 (cb-push-reds): the last bare SERIAL_INT cite struck (~~SERIAL_INT~~) per dangling-refs arm 4; row re-read against the #1842 split names",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
         "tooling-slot-template ENGINE arm row (ea1952de5)",
         "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
