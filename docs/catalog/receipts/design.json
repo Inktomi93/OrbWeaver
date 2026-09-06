@@ -1850,14 +1850,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
+      "assignedSha256": "35fc89866f8eaaa2dc5c54031df585ec2700e6c1a0360a87af01ace553131a2a",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
-      "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
+      "verifiedSha256": "35fc89866f8eaaa2dc5c54031df585ec2700e6c1a0360a87af01ace553131a2a",
+      "verifiedCommit": "0cb56a7c2546289fa47626481f87775458da88c9",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "0cb56a7c2546289fa47626481f87775458da88c9 (#1772 #1773): rows 41/45 gain the wire-field half (membership / characterIds); row 44's context.ts:112 residue line struck — re-attested at the fold",
         "re-attested after #1010 (row 44: roster → participants landed for the server chat domain, residue enumerated) at 532758261",
         "re-attested after the #1716/#1771 fold (b2e5ba01e: the unreadable-state register rows) at d5cee6b27",
         "re-attested after the #1754 fold (cb-regex-label: the regex register's per-tier label rows) at 5cc98a324",

@@ -1892,7 +1892,7 @@
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:run::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 63,
+      "line": 75,
       "column": 16,
       "grammar": "promise",
       "position": "promise:run",
@@ -1900,12 +1900,12 @@
       "snippet": "const tail = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this swallow LOSES NOTHING — the rejection it",
-      "markerLine": 58
+      "markerLine": 70
     },
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::promise:tail::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 68,
+      "line": 80,
       "column": 3,
       "grammar": "promise",
       "position": "promise:tail",
@@ -1944,7 +1944,7 @@
     {
       "siteId": "packages/server/src/domain/character/persistence/card.ts::default:err::1",
       "path": "packages/server/src/domain/character/persistence/card.ts",
-      "line": 182,
+      "line": 183,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1952,7 +1952,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the ONE absorbed arm is a LOST RACE, and it is",
-      "markerLine": 172
+      "markerLine": 173
     },
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::empty:err::1",
