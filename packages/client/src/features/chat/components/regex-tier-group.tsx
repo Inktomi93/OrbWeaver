@@ -1,5 +1,5 @@
-// ONE TIER GROUP of the room's Regex section — `Everywhere` · `From the preset` · `From <character>` (one
-// per seat) · `This chat`, in RUN ORDER (`docs/design/mocks/regex-section/DESIGN.md` §3).
+// ONE TIER GROUP of the room's Regex section — `Everywhere` · `From the preset · <name>` · `From <character>`
+// (one per seat) · `This chat`, in RUN ORDER (`docs/design/mocks/regex-section/DESIGN.md` §3).
 //
 // A PLAIN `Section`, NOT A DISCLOSURE, and that is the v2 shape: the groups are already inside a closed-by-
 // default disclosure, and a second layer of doors would put every lever behind two taps and hide the run
@@ -26,7 +26,7 @@
 
 import type { RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
+import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
@@ -48,13 +48,15 @@ export interface RegexTierGroupProps {
   readonly rows: readonly RegexTierRowView[];
   /** Every tier of this room, for the `+N` chip's naming. */
   readonly tiers: readonly RegexTierGroupView[];
-  readonly names: ReadonlyMap<CharacterId, string>;
+  /** WHAT EACH TIER IS CALLED (`regexTierLabels`) — the wire label for the preset tier, the seat name for a
+   *  character tier. Threaded rather than rebuilt here: the `+N` chip names OTHER tiers. */
+  readonly labels: ReadonlyMap<RegexTierKey, string>;
   /** The viewer's own library ids — a chat-tier row outside this set was attached by a PREVIOUS host
    *  (#1739). Empty for a member, whose rows carry no controls to gate. */
   readonly ownedScriptIds: ReadonlySet<RegexScriptId>;
 }
 
-export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, names, ownedScriptIds }: RegexTierGroupProps): ReactElement {
+export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, ownedScriptIds }: RegexTierGroupProps): ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isRoomTier = tier.scope === "chat";
   const qualifiers = rowQualifiers(
@@ -71,7 +73,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, names, owned
     }
     return (
       <RegexTierRow
-        alsoAt={regexRowAlsoAt(tiers, row.script.id, tier.scope).map((scope) => regexTierKicker(scope, names))}
+        alsoAt={regexRowAlsoAt(tiers, row.script.id, tier.scope).map((scope) => regexTierKicker(scope, labels))}
         chatId={chatId}
         isHost={isHost}
         notYours={isRoomTier && !ownedScriptIds.has(row.script.id)}
@@ -86,9 +88,9 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, names, owned
     <Section
       data-slot="regex-tier"
       data-tier={tier.scope}
-      kicker={<TierKicker allowed={tier.allowed} count={regexTierInForceCount(rows)} label={regexTierKicker(tier.scope, names)} />}
+      kicker={<TierKicker allowed={tier.allowed} count={regexTierInForceCount(rows)} label={regexTierKicker(tier.scope, labels)} />}
     >
-      {isHost ? <Text voice="gloss">{regexTierProvenance(tier.scope, names)}</Text> : null}
+      {isHost ? <Text voice="gloss">{regexTierProvenance(tier.scope, labels)}</Text> : null}
       {rows.length === 0 ? (
         // Never render nothing — an empty tier is a normal state (a room with no preset, a card with no
         // scripts) and a blank block reads as a failed load.

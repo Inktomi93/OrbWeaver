@@ -44,6 +44,23 @@ export interface HostTierRegexSources {
   readonly allow: HostTierRegexAllow;
 }
 
+/**
+ * WHAT THE TIERS ARE CALLED (#1754) — the names the resolver stamps onto `RegexTierGroupView.label`
+ * (`@orb/contracts/chat`), for the tiers whose KEY does not carry its own identity. Today exactly one: `preset`.
+ *
+ * It is a SECOND PARAMETER of `resolveRegexTiers` rather than a member of {@link HostTierRegexSources},
+ * because naming is the LISTING half's concern and the sources are the RUN ORDER's: every turn-path caller
+ * reaches the resolver through `resolveHostTierRegexScripts`, which discards the listing entirely and would
+ * otherwise have to carry a name it never renders. Required (not optional) at the one seam that does render
+ * it, so a listing caller must state what it knows instead of silently drawing an unnamed tier.
+ */
+export interface RegexTierLabels {
+  /** The name of the preset THIS ROOM assembles — the rpg GM redirect's when it fires, else the host's own
+   *  default. `null` when no preset row resolved (the system `DEFAULT_PROMPT_CONFIG` stood in): the section
+   *  then says the bare `From the preset`, which is the honest answer rather than a wrong name. */
+  readonly preset: string | null;
+}
+
 /** The room's regex levers as the resolver consumes them — the two `ChatMetadata` keys, lifted out of the
  *  blob so the pure resolver never has to know what a chat row looks like. */
 export interface HostTierRegexAllow {

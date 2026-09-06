@@ -31,7 +31,7 @@
 // A member gets the rows and NO controls — the §8.1 permission-OMIT at row level, the Lorebooks rack's
 // shape — plus one line saying whose regex this is. Nothing about the host's library leaks.
 
-import type { RegexTierGroupView } from "@orb/contracts/chat";
+import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -44,7 +44,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
-import { regexRowHomes, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
+import { regexRowHomes, regexTierLabels, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
 import { RegexOnScreenGroup } from "./regex-on-screen-group.tsx";
 import { RegexTierGroup } from "./regex-tier-group.tsx";
 
@@ -125,8 +125,14 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // outside the host's library was attached by someone who is no longer here). Shared cache entry with the
   // `On screen` roster below, so it costs no second request.
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
-  const names = new Map<CharacterId, string>(
-    chat.participants.flatMap((participant) => (participant.characterId === null ? [] : [[participant.characterId, participant.displayName] as const])),
+  // WHAT EACH TIER IS CALLED: the wire's server-resolved name for the preset tier (#1754 — the client cannot
+  // know it; the viewer's own active preset is a DIFFERENT preset on a GM-redirect room), the roster's seat
+  // names for the character tiers (an exact match on the id their own key carries).
+  const labels = regexTierLabels(
+    view.tiers,
+    new Map<CharacterId, string>(
+      chat.participants.flatMap((participant) => (participant.characterId === null ? [] : [[participant.characterId, participant.displayName] as const])),
+    ),
   );
   const homes = regexRowHomes(view.tiers);
   return (
@@ -136,14 +142,14 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
         Prompt rules apply from the next reply; the switches below say <b>where they run here</b>. A row’s own switch is the script’s — <b>off everywhere</b>.
         What you see on screen is the last group.
       </Text>
-      <RegexLeverStrip chatId={chatId} enabled={view.enabled} homes={homes} names={names} tiers={view.tiers} />
+      <RegexLeverStrip chatId={chatId} enabled={view.enabled} homes={homes} labels={labels} tiers={view.tiers} />
       <StageLegend />
       {view.tiers.map((tier) => (
         <RegexTierGroup
           chatId={chatId}
           isHost={true}
           key={tier.scope}
-          names={names}
+          labels={labels}
           ownedScriptIds={new Set(owned.map((script) => script.id))}
           rows={regexTierRows(tier, homes)}
           tier={tier}
@@ -165,7 +171,7 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
       <RegexTierGroup
         chatId={chatId}
         isHost={false}
-        names={new Map<CharacterId, string>()}
+        labels={new Map<RegexTierKey, string>()}
         ownedScriptIds={new Set<RegexScriptId>()}
         rows={tier.rows}
         tier={tier}
@@ -223,13 +229,13 @@ function RegexLeverStrip({
   chatId,
   enabled,
   homes,
-  names,
+  labels,
   tiers,
 }: {
   readonly chatId: ChatId;
   readonly enabled: boolean;
   readonly homes: ReadonlyMap<RegexScriptRow["id"], RegexTierGroupView["scope"]>;
-  readonly names: ReadonlyMap<CharacterId, string>;
+  readonly labels: ReadonlyMap<RegexTierKey, string>;
   readonly tiers: readonly RegexTierGroupView[];
 }): ReactElement {
   const trpc = useTRPC();
@@ -250,7 +256,7 @@ function RegexLeverStrip({
         />
       </Row>
       {tiers.map((tier) => {
-        const label = regexTierLever(tier.scope, names);
+        const label = regexTierLever(tier.scope, labels);
         const rows = regexTierRows(tier, homes);
         return (
           <Row align="center" gap="field" justify="between" key={tier.scope}>

@@ -241,6 +241,67 @@ test("host: a PREVIOUS host's row can still be DETACHED — the room gate, not t
     .toMatchObject({ scriptId: "regex_script_ct_sailor" });
 });
 
+// ── #1754 — the preset tier's NAME comes off the wire ────────────────────────────────────────────────
+// The section must never name the wrong preset. The only client-side route to a preset name is the
+// VIEWER's active-preset chip (`chat-context-band.tsx` → `settings.getUserSettings` + `preset.list`), and
+// on a GM-redirect room that is a DIFFERENT preset from the one this room's turn assembles. So the read
+// carries the label, and these two pin that the rendered heading is the wire's answer and nothing else.
+
+/** The viewer's OWN active preset, seeded as a DECOY: any name that leaks from here into a tier heading is
+ *  the exact defect #1754 exists for. `chat-context-band` resolves it from these two reads. */
+const VIEWER_ACTIVE_PRESET = "Viewer's own preset";
+
+function stubHostWithViewerPreset(page: Page, view: Record<string, unknown>): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.listEffectiveRegex": () => view,
+    "chat.getChat": () => CHAT_DETAIL,
+    "regex.listScripts": () => OWNED,
+    "regex.listRoomDisplayScripts": () => [],
+    "settings.getUserSettings": () => ({ seeds: { defaultPresetId: "preset_ct_viewer" } }),
+    "preset.list": () => [{ id: "preset_ct_viewer", name: VIEWER_ACTIVE_PRESET }],
+  });
+}
+
+test("host: the preset tier is named by the WIRE's label, never by the viewer's own active preset (#1754)", async ({ mount, page }) => {
+  const view = board01();
+  const tiers = view["tiers"] as Record<string, unknown>[];
+  tiers[1] = { scope: "preset", allowed: true, label: "Grimdark GM", rows: [row(HEDGES, 0, 4)] };
+  await stubHostWithViewerPreset(page, view);
+  const component = await mount(<RegexSectionStory />);
+  // The group heading and the lever both say the ROOM's preset…
+  await expect(component.getByRole("heading", { name: /^From the preset · Grimdark GM/u })).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Preset · Grimdark GM — in this chat" })).toBeVisible();
+  // …and the viewer's own preset name appears nowhere in the section.
+  await expect(component.getByText(VIEWER_ACTIVE_PRESET)).toHaveCount(0);
+});
+
+test("host: a LONG preset name reaches BOTH voices whole — the lever clips visually, never in its name (#1754)", async ({ mount, page }) => {
+  // A preset name is user-authored, so the design's short `Grimdark GM` proves nothing about the range.
+  // This is the other end. What is pinned is the ACCESSIBLE side: the lever truncates on screen (the label
+  // carries `truncate`), and a truncated NAME would leave a voice-control user unable to say the control's
+  // words (WCAG 2.5.3) — so the switch's accessible name must still carry the whole preset name.
+  //
+  // NOT a geometry arm, deliberately: containment is not measurable from this story. `boundingBox()` on the
+  // section grows with its own content and the 380px wrapper is not the mount root, so a width assertion
+  // here PASSES with `truncate` AND with `min-w-0` planted off (both controls run, both green) — it would be
+  // a fence wearing a receipt's clothes.
+  const longName = "Grimdark GM voice — long-context table rules v3";
+  const view = board01();
+  const tiers = view["tiers"] as Record<string, unknown>[];
+  tiers[1] = { scope: "preset", allowed: true, label: longName, rows: [row(HEDGES, 0, 4)] };
+  await stubHostWithViewerPreset(page, view);
+  const component = await mount(<RegexSectionStory />);
+  await expect(component.getByRole("heading", { name: new RegExp(`^From the preset · ${longName}`, "u") })).toBeVisible();
+  await expect(component.getByRole("switch", { name: `Preset · ${longName} — in this chat` })).toBeVisible();
+});
+
+test("host: with NO label on the wire the preset tier says the bare `From the preset` (#1754)", async ({ mount, page }) => {
+  await stubHostWithViewerPreset(page, board01());
+  const component = await mount(<RegexSectionStory />);
+  await expect(component.getByRole("heading", { name: /^From the preset\s+\d/u })).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Preset — in this chat" })).toBeVisible();
+});
+
 test("host: a preset-less room's group says so instead of naming a preset it cannot name (§7.5)", async ({ mount, page }) => {
   const view = board01();
   const tiers = view["tiers"] as Record<string, unknown>[];

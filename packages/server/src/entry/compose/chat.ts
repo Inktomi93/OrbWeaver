@@ -936,21 +936,25 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
   // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
   // can't drift; takes the id (not the whole settings read) so a caller that already loaded it doesn't double-read.
-  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<PromptConfig> => {
+  //
+  // It returns the resolved row's NAME beside its config (#1754), and the two travel together by
+  // construction: the name comes off the very `PresetDetail` the config did, so nothing downstream can
+  // name one preset while assembling another. `null` = the system default stood in (there is no row to name).
+  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
     if (defaultPresetId === null) {
-      return DEFAULT_PROMPT_CONFIG;
+      return { config: DEFAULT_PROMPT_CONFIG, name: null };
     }
     try {
       const detail = await input.preset.get({
         userId: runAsUserId,
         id: castId<PresetId>(defaultPresetId),
       });
-      return detail.config;
+      return { config: detail.config, name: detail.name };
     } catch (err) {
       // Only a genuinely stale/unowned/missing preset id degrades to the system default — a database,
       // I/O, or program failure must surface, never run the turn with the wrong prompt (#759).
       if (err instanceof PresetNotFoundError) {
-        return DEFAULT_PROMPT_CONFIG;
+        return { config: DEFAULT_PROMPT_CONFIG, name: null };
       }
       throw err;
     }
@@ -965,13 +969,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     runAsUserId: UserId,
     presetOverride: PresetId | undefined,
     defaultPresetId: string | null,
-  ): Promise<{ config: PromptConfig; presetId: PresetId | null }> => {
+  ): Promise<{ config: PromptConfig; presetId: PresetId | null; presetName: string | null }> => {
     if (presetOverride !== undefined) {
       // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — documented below: only a
       // genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule,
       // #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes.
       try {
-        return { config: (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config, presetId: presetOverride };
+        const detail = await input.preset.get({ userId: runAsUserId, id: presetOverride });
+        return { config: detail.config, presetId: presetOverride, presetName: detail.name };
       } catch (err) {
         // Only a genuinely stale/unowned/missing override falls through to the host's normal default (the
         // lenient-id rule) — a database, I/O, or program failure must surface (#759).
@@ -980,9 +985,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       }
     }
-    const config = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
+    const { config, name } = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
     // The effective id is the host default only when it actually resolved a preset (not the DEFAULT fallback).
-    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null) };
+    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null), presetName: name };
   };
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
@@ -1004,7 +1009,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return [];
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.variables;
   };
 
@@ -1018,7 +1023,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return [];
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.userMacros;
   };
 
@@ -1031,7 +1036,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return DEFAULT_PROMPT_CONFIG.params;
     }
     const us = await input.settings.loadUserSettings(hostUserId);
-    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.params;
   };
 
@@ -1573,7 +1578,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
       // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
       // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
-      const { config: promptConfig, presetId } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
+      const { config: promptConfig, presetId, presetName } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
 
       // THE ROOM-PLANE PERSONA READ (the multi-human widening). NOT `persona.get` under a host Principal:
       // that owner-scoped keyhole silently nulled every NON-HOST member's persona, so a member's own turn
@@ -1613,6 +1618,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         promptConfig,
         // WAVE MU — the resolved preset id for user-macro source attribution (override id / host default / null).
         presetId,
+        // #1754 — the SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
+        // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
+        presetName,
         personas: { anchor, active },
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.

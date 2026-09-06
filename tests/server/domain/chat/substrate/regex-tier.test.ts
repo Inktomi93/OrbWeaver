@@ -12,7 +12,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { HostTierRegexSources } from "../../../../../packages/server/src/domain/chat/contract/regex.ts";
+import type { HostTierRegexSources, RegexTierLabels } from "../../../../../packages/server/src/domain/chat/contract/regex.ts";
 import { resolveHostTierRegexScripts, resolveRegexTiers } from "../../../../../packages/server/src/domain/chat/substrate/regex-tier.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -59,6 +59,10 @@ function seat(characterId: CharacterId, scripts: readonly RegexScriptRow[]): Cha
 /** A room that never touched the Regex section: no master, no tier flags ⇒ EVERYTHING runs. Every pre-#1742
  *  assertion in this file is taken under it, which is the byte-identical claim. */
 const ALLOW_ALL: HostTierRegexSources["allow"] = { enabled: undefined, tiers: undefined };
+
+/** #1754 — "this caller names nothing", the arm the TURN path takes: the listing is discarded there, so a
+ *  name would be a value nobody renders. Every allow/dedup pin below is about run order, not naming. */
+const UNNAMED: RegexTierLabels = { preset: null };
 
 /** A room with named tiers switched off. */
 function allowWithout(...off: readonly string[]): HostTierRegexSources["allow"] {
@@ -159,7 +163,7 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
     expect(ids(resolveHostTierRegexScripts(sources))).toEqual(["g1", "c1", "r1"]);
     // The rows are still LISTED — a host cannot switch back on what the read stopped mentioning — and their
     // ranks drop out, because a rank is a claim about the run order.
-    const view = resolveRegexTiers(sources);
+    const view = resolveRegexTiers(sources, UNNAMED);
     const preset = view.tiers.find((t) => t.scope === "preset");
     expect(preset?.allowed).toBe(false);
     expect(preset?.rows.map((r) => r.script.name)).toEqual(["p1"]);
@@ -176,7 +180,7 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
       chat: [script("r1")],
       allow: { enabled: false, tiers: undefined },
     };
-    const view = resolveRegexTiers(sources);
+    const view = resolveRegexTiers(sources, UNNAMED);
     expect(view.enabled).toBe(false);
     expect(view.effective).toEqual([]);
     expect(resolveHostTierRegexScripts(sources)).toEqual([]);
@@ -196,7 +200,7 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
       allow: allowWithout(characterRegexTierKey(ARIA)),
     };
     expect(ids(resolveHostTierRegexScripts(sources))).toEqual(["brin-1"]);
-    expect(resolveRegexTiers(sources).tiers.map((t) => t.allowed)).toEqual([true, true, false, true, true]);
+    expect(resolveRegexTiers(sources, UNNAMED).tiers.map((t) => t.allowed)).toEqual([true, true, false, true, true]);
   });
 
   test("THE DROP HAPPENS BEFORE THE DEDUP: a script attached at a disallowed tier AND an allowed one still runs", () => {
@@ -213,20 +217,23 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
     const result = resolveHostTierRegexScripts(sources);
     expect(ids(result)).toEqual(["dup"]);
     expect(result[0]?.replaceString).toBe("<r>");
-    const view = resolveRegexTiers(sources);
+    const view = resolveRegexTiers(sources, UNNAMED);
     // The rank is drawn at the tier that CLAIMED it (the room's), not at the switched-off one.
     expect(view.tiers.find((t) => t.scope === "preset")?.rows[0]?.runsAt).toBeNull();
     expect(view.tiers.find((t) => t.scope === "chat")?.rows[0]?.runsAt).toBe(1);
   });
 
   test("dedup shows a script ONCE at its earliest tier — the later occurrence keeps the chip, loses the rank", () => {
-    const view = resolveRegexTiers({
-      hostGlobal: [script("dup")],
-      preset: [],
-      character: [seat(ARIA, [script("dup")])],
-      chat: [],
-      allow: ALLOW_ALL,
-    });
+    const view = resolveRegexTiers(
+      {
+        hostGlobal: [script("dup")],
+        preset: [],
+        character: [seat(ARIA, [script("dup")])],
+        chat: [],
+        allow: ALLOW_ALL,
+      },
+      UNNAMED,
+    );
     expect(view.effective.map((e) => e.runsAt)).toEqual([1]);
     expect(view.tiers.find((t) => t.scope === "global")?.rows[0]?.runsAt).toBe(1);
     expect(view.tiers.find((t) => t.scope === characterRegexTierKey(ARIA))?.rows[0]?.runsAt).toBeNull();
@@ -236,18 +243,21 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
   });
 
   test("a row attached at exactly one tier is NOT `attachedElsewhere` (the detach toast's own gate)", () => {
-    const view = resolveRegexTiers({ hostGlobal: [], preset: [], character: [], chat: [script("only-here")], allow: ALLOW_ALL });
+    const view = resolveRegexTiers({ hostGlobal: [], preset: [], character: [], chat: [script("only-here")], allow: ALLOW_ALL }, UNNAMED);
     expect(view.tiers.find((t) => t.scope === "chat")?.rows[0]?.attachedElsewhere).toBe(false);
   });
 
   test("RUN ORDER IS DISPLAY ORDER: the tiers come back in the order the executor applies them", () => {
-    const view = resolveRegexTiers({
-      hostGlobal: [script("g1")],
-      preset: [script("p1")],
-      character: [seat(ARIA, [script("a1")]), seat(BRIN, [script("b1")])],
-      chat: [script("r1")],
-      allow: ALLOW_ALL,
-    });
+    const view = resolveRegexTiers(
+      {
+        hostGlobal: [script("g1")],
+        preset: [script("p1")],
+        character: [seat(ARIA, [script("a1")]), seat(BRIN, [script("b1")])],
+        chat: [script("r1")],
+        allow: ALLOW_ALL,
+      },
+      UNNAMED,
+    );
     expect(view.tiers.map((t) => t.scope)).toEqual(["global", "preset", characterRegexTierKey(ARIA), characterRegexTierKey(BRIN), "chat"]);
     // The ranks read top-to-bottom down the drawn section with no re-sort on the client.
     expect(view.tiers.flatMap((t) => t.rows.map((r) => r.runsAt))).toEqual([1, 2, 3, 4, 5]);
@@ -264,10 +274,40 @@ describe("resolveRegexTiers — the room's per-chat allows", () => {
   });
 
   test("an EMPTY tier still lists (the section draws its empty state) and a preset-less room has an empty preset tier", () => {
-    const view = resolveRegexTiers({ hostGlobal: [], preset: [], character: [], chat: [], allow: ALLOW_ALL });
+    const view = resolveRegexTiers({ hostGlobal: [], preset: [], character: [], chat: [], allow: ALLOW_ALL }, UNNAMED);
     expect(view.tiers.map((t) => t.scope)).toEqual(["global", "preset", "chat"]);
     expect(view.tiers.every((t) => t.rows.length === 0)).toBe(true);
     expect(view.enabled).toBe(true);
+  });
+
+  // ── #1754 — the naming half ─────────────────────────────────────────────────────────────────────────
+  test("the caller's preset NAME lands on the preset tier and on no other", () => {
+    const view = resolveRegexTiers(
+      { hostGlobal: [script("g1")], preset: [script("p1")], character: [seat(ARIA, [script("c1")])], chat: [script("r1")], allow: ALLOW_ALL },
+      { preset: "Grimdark GM" },
+    );
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBe("Grimdark GM");
+    // The other three keys carry their own identity, so the wire says nothing about them — a label there
+    // would be a second, drift-prone spelling of `Everywhere` / the seat name / `This chat`.
+    expect(view.tiers.filter((t) => t.scope !== "preset").map((t) => t.label)).toEqual([undefined, undefined, undefined]);
+  });
+
+  test("an UNNAMED preset leaves the key ABSENT — the section says the bare word, never a placeholder", () => {
+    const view = resolveRegexTiers({ hostGlobal: [], preset: [script("p1")], character: [], chat: [], allow: ALLOW_ALL }, UNNAMED);
+    const preset = view.tiers.find((t) => t.scope === "preset");
+    expect(preset?.label).toBeUndefined();
+    expect(Object.hasOwn(preset ?? {}, "label")).toBe(false);
+  });
+
+  test("a name never touches the RUN ORDER — the effective half is byte-identical named or not", () => {
+    const sources: HostTierRegexSources = {
+      hostGlobal: [script("g1")],
+      preset: [script("p1")],
+      character: [seat(ARIA, [script("c1")])],
+      chat: [script("r1")],
+      allow: allowWithout("preset"),
+    };
+    expect(resolveRegexTiers(sources, { preset: "Grimdark GM" }).effective).toEqual(resolveRegexTiers(sources, UNNAMED).effective);
   });
 
   test("an ABSENT allow blob is byte-identical to everything switched on (an existing room is unchanged)", () => {

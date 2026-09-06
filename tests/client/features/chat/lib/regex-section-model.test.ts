@@ -18,6 +18,7 @@ import {
   regexRowHomes,
   regexTierInForceCount,
   regexTierKicker,
+  regexTierLabels,
   regexTierLever,
   regexTierLeverCount,
   regexTierProvenance,
@@ -108,21 +109,35 @@ describe("the two counts say different things", () => {
 });
 
 describe("tier labels", () => {
-  const names = new Map<CharacterId, string>([["character_x" as CharacterId, "Bo"]]);
+  const seats = new Map<CharacterId, string>([["character_x" as CharacterId, "Bo"]]);
+  /** The two label sources joined as the section joins them (#1754): the WIRE names the preset tier, the
+   *  ROSTER names a seat by the id that seat's own key carries. */
+  const labels = regexTierLabels([{ ...tier("preset", []), label: "Grimdark GM" }, tier(CHARACTER_TIER, [])], seats);
 
   test("a seat is named by its own id, in all three voices", () => {
-    expect(regexTierLever(CHARACTER_TIER, names)).toBe("Bo");
-    expect(regexTierKicker(CHARACTER_TIER, names)).toBe("From Bo");
-    expect(regexTierProvenance(CHARACTER_TIER, names)).toBe("Came with Bo’s card.");
+    expect(regexTierLever(CHARACTER_TIER, labels)).toBe("Bo");
+    expect(regexTierKicker(CHARACTER_TIER, labels)).toBe("From Bo");
+    expect(regexTierProvenance(CHARACTER_TIER, labels)).toBe("Came with Bo’s card.");
   });
 
-  test("the preset tier carries NO name — the read does not say which preset, so the label does not claim one", () => {
-    expect(regexTierLever("preset", names)).toBe("Preset");
-    expect(regexTierKicker("preset", names)).toBe("From the preset");
+  test("the preset tier is named by the WIRE — the one name the client cannot derive (#1754)", () => {
+    expect(regexTierLever("preset", labels)).toBe("Preset · Grimdark GM");
+    expect(regexTierKicker("preset", labels)).toBe("From the preset · Grimdark GM");
+  });
+
+  test("with no wire label the preset tier says the bare word rather than guessing", () => {
+    const unnamed = regexTierLabels([tier("preset", [])], seats);
+    expect(regexTierLever("preset", unnamed)).toBe("Preset");
+    expect(regexTierKicker("preset", unnamed)).toBe("From the preset");
+  });
+
+  test("a seat that left between the two reads degrades to a word, never a raw id (R10)", () => {
+    const orphan = regexTierLabels([tier(CHARACTER_TIER, [])], new Map<CharacterId, string>());
+    expect(regexTierKicker(CHARACTER_TIER, orphan)).toBe("From a character");
   });
 
   test("the two scope words are the pane's own (`Everywhere` / `This chat`)", () => {
-    expect(regexTierLever("global", names)).toBe("Everywhere");
-    expect(regexTierLever("chat", names)).toBe("This chat");
+    expect(regexTierLever("global", labels)).toBe("Everywhere");
+    expect(regexTierLever("chat", labels)).toBe("This chat");
   });
 });
