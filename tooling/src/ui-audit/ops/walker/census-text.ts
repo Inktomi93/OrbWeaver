@@ -1,13 +1,13 @@
 // ui-audit in-page walker — segment: the text/contrast/typography TreeWalker census + the image census (img + non-cover background-image).
 //
-// STATED LIMIT ON THE BACKGROUND-IMAGE ARM (#1807 docs pass, 2026-09-06). That arm drops
-// `background-size: cover|contain` and then stamps every survivor `objectFit: "fill"` as "a neutral
-// placeholder". It is not neutral: `fill` is the ONE keyword `lib/checks-media.ts` treats as stretching,
-// so a raster under the DEFAULT `background-size: auto` — which paints at natural size and cannot squish,
-// exactly like `object-fit: none` — is judged for aspect deviation against its element's box. The
-// `<img>` half of the census reads the real computed keyword and is unaffected. Closing this owes the
-// SAMPLE the real background sizing mode (a walker change plus a contract field), not another keyword
-// guess Node-side; filed rather than papered over.
+// THE BACKGROUND-IMAGE ARM'S SIZING MODE (#1825, closed 2026-09-06, from the #1807 docs pass). That arm
+// drops `background-size: cover|contain` and stamps every survivor `objectFit: "fill"` as a neutral
+// placeholder for the shared distortion math (`lib/checks-media.ts` — only `fill` stretches). `fill` alone
+// used to leave the DEFAULT `background-size: auto` — natural size, cannot squish, exactly like
+// `object-fit: none` — indistinguishable from an explicit stretch, so a `backgroundSizeMode` field now
+// carries the REAL sizing disposition alongside the placeholder: "auto" (every axis auto) excludes exactly
+// like `object-fit: none`; anything else falls through to the "fill" math unchanged. The `<img>` half of
+// the census reads the real computed keyword and was never affected.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
@@ -341,7 +341,12 @@ export const WALKER_CENSUS_TEXT = `
     if (sizeVal === "cover" || sizeVal === "contain") continue;
     var urlMatch = BG_URL_RE.exec(bgImg);
     if (!urlMatch || !isVisible(bel)) continue;
-    bgCandidates.push({ el: bel, url: urlMatch[2], rect: bel.getBoundingClientRect() });
+    // Every axis "auto" (the CSS default — a bare "auto" shorthand expands to "auto auto") paints at
+    // natural size and cannot squish; anything else carries an explicit length/percentage on at least
+    // one axis and CAN distort (#1825).
+    var sizeTokens = sizeVal.trim().split(/\s+/);
+    var bgSizeMode = sizeTokens.every(function (tok) { return tok === "auto"; }) ? "auto" : "scales";
+    bgCandidates.push({ el: bel, url: urlMatch[2], rect: bel.getBoundingClientRect(), sizeMode: bgSizeMode });
   }
   for (var k = 0; k < bgCandidates.length; k += 1) {
     var cand = bgCandidates[k];
@@ -356,6 +361,7 @@ export const WALKER_CENSUS_TEXT = `
       // background-size cover/contain already excluded candidate collection above (non-stretching by
       // definition); "fill" here is a neutral placeholder so the shared distortion check still applies.
       objectFit: "fill",
+      backgroundSizeMode: cand.sizeMode,
     });
   }
 
