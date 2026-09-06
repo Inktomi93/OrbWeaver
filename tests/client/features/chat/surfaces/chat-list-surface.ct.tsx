@@ -1696,6 +1696,12 @@ test("#1180 the intent wrapper is display:contents — it generates no box and m
 // A FOLD BUYS `band - 44`, NOT THE BAND. That is why #1361's second fold returned only 25 of the ~69px it
 // hid, and it is the arithmetic that made ONE row the right shape: the two facts now share one trigger box
 // instead of renting two.
+//
+// THE HEADROOM IS 2px, SO THE SMALLEST OVERSHOOT THIS FENCE REFUSES IS 3px (#1776, measured with a planted
+// `pt-[Npx]` on `chat-list-phone-filters.tsx`): at +2 the closed chrome lands on 106 exactly and passes a
+// `<=` ceiling by design, at +3 both arms go red. Worth stating because "the fence still catches a 2px
+// regression" is the natural thing to assume of a ratchet and is not true of this one — the sub-pixel
+// headroom the number was minted with is spent on exactly that.
 const CHAT_PHONE_CHROME_CEILING_PX = 106;
 const CHAT_PHONE_CHROME_ARMS = [
   { width: 320, ceiling: CHAT_PHONE_CHROME_CEILING_PX },
@@ -1712,7 +1718,7 @@ test.describe("#1361 the chats pane's phone chrome budget", () => {
       const component = await mount(<ChatListSurfaceStory mobile={true} width={arm.width} />);
       await expect(component.getByText("A grand adventure")).toBeVisible();
 
-      expect(await chatPhoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+      expect(await settledChatPhoneChrome(component, page)).toBeLessThanOrEqual(arm.ceiling);
     });
 
     // THE FENCE'S OWN POSITIVE CONTROL, one per arm - a ceiling that never moves is indistinguishable from
@@ -1724,11 +1730,14 @@ test.describe("#1361 the chats pane's phone chrome budget", () => {
       await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
       const component = await mount(<ChatListSurfaceStory mobile={true} width={arm.width} />);
       await expect(component.getByText("A grand adventure")).toBeVisible();
-      expect(await chatPhoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+      expect(await settledChatPhoneChrome(component, page)).toBeLessThanOrEqual(arm.ceiling);
 
       await component.getByRole("button", { name: "Filters", exact: true }).click();
+      // VISIBLE IS NOT OPEN (#1776): the panel's content mounts a frame before the Collapsible's height
+      // animation has pushed the list down, so this assertion is the START of the barrier, never the end
+      // of it — the settled read below is what makes the number a fact about the OPEN pane.
       await expect(component.getByLabel("Show chats up to")).toBeVisible();
-      expect(await chatPhoneChrome(component)).toBeGreaterThan(arm.ceiling);
+      expect(await settledChatPhoneChrome(component, page)).toBeGreaterThan(arm.ceiling);
     });
   }
 });
@@ -1767,4 +1776,59 @@ async function chatPhoneChrome(component: Locator): Promise<number> {
   const list = component.getByRole("list", { name: "Chats list" });
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
   return Math.round((listBox?.y ?? 0) - (paneBox?.y ?? 0));
+}
+
+/**
+ * THE SAME MEASUREMENT, TAKEN ON A SETTLED PANE (#1776, the #1686 barrier discipline).
+ *
+ * The budget arms were reading a number that was still moving. The tell was the fence's OWN positive
+ * control: after clicking Filters it waited for `Show chats up to` to be VISIBLE and then measured — and
+ * `toBeVisible()` resolves the frame the panel is inserted, while Base UI's `Collapsible` is still
+ * animating its height, so the chats list had not been pushed down yet and the read came back 104, the
+ * CLOSED chrome, against a `> 106` assertion. Reproduced 7 times in 20 under `--repeat-each=5`; it passed
+ * alone because a fast frame finished the animation inside the assertion's own latency.
+ *
+ * The barrier is the state the number is ABOUT, in three parts and in this order:
+ *   1. FONTS — the bands above the list are typeset, so which pixel row the list starts at is a function of
+ *      the real face. A face swapping in after the read moves the answer.
+ *   2. EVERY FINITE ANIMATION ON THE PAGE has reached `finished`. That is the Collapsible's height
+ *      animation and any co-motion beside it, read as `Animation` objects rather than guessed at with a
+ *      wall-clock poll (a fixed budget is exactly what stretches past under lane load). Infinite
+ *      animations — a spinner — are excluded by construction: their `finished` never resolves.
+ *   3. TWO CONSECUTIVE EQUAL READINGS, which is what makes it a SETTLED state rather than a state that
+ *      merely started. This is also the guard against a vacuous pass in the other direction: a pane that
+ *      never began moving reads the same number twice immediately and returns it, so the closed arm cannot
+ *      be held open by the barrier itself.
+ *
+ * Deliberately NOT a widened ceiling. 106 is a measured budget (`CHAT_PHONE_CHROME_CEILING_PX`'s own note);
+ * raising it to swallow a race would retire the ratchet the number exists to be.
+ */
+async function settledChatPhoneChrome(component: Locator, page: Page): Promise<number> {
+  await page.evaluate(async (): Promise<boolean> => {
+    await document.fonts.ready;
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().iterations ?? Number.POSITIVE_INFINITY))
+        // A cancelled animation REJECTS `finished`; a cancelled animation is also a finished movement.
+        .map(async (animation) => await animation.finished.catch(() => undefined)),
+    );
+    return true;
+  });
+  let settled: number | null = null;
+  await expect
+    .poll(
+      async (): Promise<boolean> => {
+        const current = await chatPhoneChrome(component);
+        const stable = settled !== null && settled === current;
+        settled = current;
+        return stable;
+      },
+      { intervals: [16, 32, 64, 128, 256] },
+    )
+    .toBe(true);
+  if (settled === null) {
+    throw new Error("chat phone chrome: never reached two consecutive equal readings");
+  }
+  return settled;
 }
