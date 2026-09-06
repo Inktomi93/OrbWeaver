@@ -255,7 +255,7 @@ describe("assembly/user-macros — preset + game defs (owner ruling #20 / the 20
 /** A resolved plugin macro exactly as `PluginMacroRegistry.resolveForTurn` emits one: host-namespaced name,
  *  no args, no inputs, the guest's (neutralized) answer as the body. */
 function pluginDrawDef(body = "Ace of Cups"): UserMacroDef {
-  return { name: "plugin_oracle_deck_draw", description: "a card", args: [], body, inputs: [], strict: false };
+  return { name: "plugin_oracle__deck_draw", description: "a card", args: [], body, inputs: [], strict: false };
 }
 
 describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", () => {
@@ -264,9 +264,9 @@ describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", (
       buildTurnUserMacros({ preset: { id: "preset-1", defs: [] }, plugin: { id: "chat_1", defs: [pluginDrawDef()] }, values: {}, prng: () => 0 }),
     );
     // THE OWNER TEST: the macro renders its resolved value at the same seam every preset/game macro uses.
-    expect(render(b, "plugin_oracle_deck_draw")).toBe("Ace of Cups");
+    expect(render(b, "plugin_oracle__deck_draw")).toBe("Ace of Cups");
     // …and the browser tells the truth about where it came from (never "this preset").
-    expect(b.registry.getMetadata("plugin_oracle_deck_draw")?.source).toEqual({ kind: "plugin", id: "chat_1" });
+    expect(b.registry.getMetadata("plugin_oracle__deck_draw")?.source).toEqual({ kind: "plugin", id: "chat_1" });
     expect(b.rejected).toEqual([]);
   });
 
@@ -282,7 +282,7 @@ describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", (
   test("plugin macros register LAST — an author who deliberately spells the same name keeps their own def", () => {
     // The namespace makes a collision essentially impossible, but the ORDER is the ruling when it happens:
     // kit refuses a name already taken, so the human author's definition is the one that renders.
-    const authored: UserMacroDef = { name: "plugin_oracle_deck_draw", description: "mine", args: [], body: "MY OWN", inputs: [], strict: false };
+    const authored: UserMacroDef = { name: "plugin_oracle__deck_draw", description: "mine", args: [], body: "MY OWN", inputs: [], strict: false };
     const b = unwrap(
       buildTurnUserMacros({
         preset: { id: "preset-1", defs: [authored] },
@@ -291,8 +291,8 @@ describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", (
         prng: () => 0,
       }),
     );
-    expect(render(b, "plugin_oracle_deck_draw")).toBe("MY OWN");
-    expect(b.registry.getMetadata("plugin_oracle_deck_draw")?.source).toEqual({ kind: "preset", id: "preset-1" });
+    expect(render(b, "plugin_oracle__deck_draw")).toBe("MY OWN");
+    expect(b.registry.getMetadata("plugin_oracle__deck_draw")?.source).toEqual({ kind: "preset", id: "preset-1" });
   });
 
   test("a plugin macro is OUTSIDE the game↔preset shadow rule — all three homes coexist", () => {
@@ -307,14 +307,14 @@ describe("assembly/user-macros — plugin macros (the third home, U6 §5.15)", (
     );
     expect(b.registry.get("greeting")).toBeDefined();
     expect(b.registry.get("mood")).toBeDefined();
-    expect(render(b, "plugin_oracle_deck_draw")).toBe("Ace of Cups");
+    expect(render(b, "plugin_oracle__deck_draw")).toBe("Ace of Cups");
   });
 });
 
 describe("assembly/user-macros — a losing def never contaminates the winner (#1452)", () => {
   /** The authored macro that WINS the collision: it has a real input, so it has bindings and a draw. */
   function authoredPickDef(): UserMacroDef {
-    return { ...moodDef(), name: "plugin_oracle_deck_draw", description: "mine", body: "The tone is {{tone}}." };
+    return { ...moodDef(), name: "plugin_oracle__deck_draw", description: "mine", body: "The tone is {{tone}}." };
   }
 
   test("the WINNING macro renders its OWN input bindings, not the losing same-named def's", () => {
@@ -333,10 +333,10 @@ describe("assembly/user-macros — a losing def never contaminates the winner (#
     );
 
     // The winner's own input resolved and reached its body. Before the fix this rendered "The tone is ."
-    expect(render(b, "plugin_oracle_deck_draw")).toBe("The tone is grim.");
+    expect(render(b, "plugin_oracle__deck_draw")).toBe("The tone is grim.");
     // …and the PERSISTED draw record describes the macro that actually rendered, so a swipe replays the
     // same turn. A record keyed to the loser is a durable lie about what the model was shown.
-    expect(b.draws["plugin_oracle_deck_draw"]).toEqual({ tone: "grim" });
+    expect(b.draws["plugin_oracle__deck_draw"]).toEqual({ tone: "grim" });
   });
 
   test("a shadowed-by-precedence def consumes NO draw of its own", () => {
@@ -347,7 +347,7 @@ describe("assembly/user-macros — a losing def never contaminates the winner (#
     const b = unwrap(
       buildTurnUserMacros({
         preset: { id: "preset-1", defs: [authoredPickDef()] },
-        plugin: { id: "chat_1", defs: [{ ...moodDef(), name: "plugin_oracle_deck_draw" }] },
+        plugin: { id: "chat_1", defs: [{ ...moodDef(), name: "plugin_oracle__deck_draw" }] },
         values: {},
         prng: () => {
           draws.push(1);
@@ -357,6 +357,6 @@ describe("assembly/user-macros — a losing def never contaminates the winner (#
     );
 
     expect(draws).toHaveLength(1);
-    expect(Object.keys(b.draws)).toEqual(["plugin_oracle_deck_draw"]);
+    expect(Object.keys(b.draws)).toEqual(["plugin_oracle__deck_draw"]);
   });
 });
