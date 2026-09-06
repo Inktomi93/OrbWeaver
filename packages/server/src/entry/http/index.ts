@@ -41,7 +41,7 @@ export type { PluginFrameDeps, PluginFrameSurfacePort } from "./plugin-frame.ts"
 export { registerPluginFrame } from "./plugin-frame.ts";
 export type { PluginUiPort } from "./plugin-ui.ts";
 export { registerPluginUi } from "./plugin-ui.ts";
-export { securityHeaders } from "./security-headers.ts";
+export { normalizeThrownErrors, securityHeaders } from "./security-headers.ts";
 export type { SpaDeps } from "./spa.ts";
 export { registerSpa, resolveSpaDistDir } from "./spa.ts";
 export type { UploadAssetsPort, UploadDeps } from "./upload.ts";

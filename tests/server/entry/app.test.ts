@@ -654,8 +654,9 @@ describe("createApp: every response carries X-Request-Id (#480)", () => {
   // what licensed DELETING that pre-`next()` set rather than keeping it as a belt: Hono's `compose` catches
   // a thrown handler at ITS OWN dispatch frame and runs `onError` there, so `next()` resolves normally and
   // the post-`next()` stamp still lands on the 500. Measured, not assumed (planted control: with the
-  // pre-`next()` line deleted both of these stay green; a non-Error throw escapes `app.fetch` with NO
-  // Response at all, so no stamp of either kind could have covered it).
+  // pre-`next()` line deleted both of these stay green). The non-Error throw that used to escape `app.fetch`
+  // with NO Response at all — uncoverable by a stamp of either kind — is normalised since #1761; the arms
+  // that pin its 500 (headers + stamp + ring) are at the end of this file.
   test("FENCE: the content-type belt's own 415 refusal carries X-Request-Id", async () => {
     const requestId = "req-480-belt-415-1";
     const app = createApp(deps({ seam: fakeSeam(OWNER) }));
@@ -673,5 +674,69 @@ describe("createApp: every response carries X-Request-Id (#480)", () => {
     const res = await hit(app, new Request("http://localhost/api/_probe/throw-480", { headers: { "X-Request-Id": requestId } }));
     expect(res.status).toBe(INTERNAL_ERROR);
     expect(res.headers.get("X-Request-Id")).toBe(requestId);
+  });
+});
+
+// #1761 — EVERY THROW REACHES THE POLICY WRITER, on the REAL `createApp` composition. hono's `compose()`
+// only routes an `err instanceof Error` to `app.onError`; a non-Error value was rethrown past every
+// middleware, so the adapter answered a bare 500 with NO security headers, NO `X-Request-Id`, and nothing
+// in the observability ring. `normalizeThrownErrors` is mounted immediately INSIDE `securityHeaders` (the
+// order is the fix — normalising ABOVE the header writer would run `onError` at a frame the writer no
+// longer encloses), so the 500 is now indistinguishable from the `Error` one.
+//
+// These arms drive `createApp` rather than a hand-built Hono so they pin the WIRING, not the middleware.
+describe("app: a NON-Error throw is a policied 500, not a bare adapter answer (#1761)", () => {
+  /** The app-policy floor a browser must see on any 500 — the three headers #1615 found missing. */
+  function expectPolicied(res: Response, arm: string): void {
+    expect(res.headers.get("content-security-policy"), arm).toContain("default-src 'self'");
+    expect(res.headers.get("x-frame-options"), arm).toBe("DENY");
+    expect(res.headers.get("x-content-type-options"), arm).toBe("nosniff");
+  }
+
+  // A ROUTE throw is the below-`observability` half of the pair: the inner mount converts it under that
+  // middleware, so its post-`next()` stamp AND ring record still run. Anything less would be a 500 with the
+  // headers but no correlation handle — policied but undiagnosable.
+  test("a route handler throwing a bare value → 500 WITH the app security headers, the stamp and a ring entry", async () => {
+    initTracing();
+    const requestId = "req-1761-nonerror-route-1";
+    const app = createApp(deps({ seam: fakeSeam(OWNER) }));
+    app.get("/api/_probe/throw-1761", () => {
+      // biome-ignore lint/style/useThrowOnlyError: the non-Error throw IS the subject — the rule is what our own code obeys, this arm proves the edge holds when a dependency does not.
+      throw "a bare string, not an Error";
+    });
+
+    const res = await hit(app, new Request("http://localhost/api/_probe/throw-1761", { headers: { "X-Request-Id": requestId } }));
+
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+    expectPolicied(res, "non-Error route throw");
+    // The response body is the same fixed text the Error path returns — the thrown value is never echoed.
+    expect(await res.text()).not.toContain("a bare string");
+    // Parity with the Error path's observables, not just its status.
+    const records = recentRequests(500).filter((r) => r.id === requestId);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.status).toBe(INTERNAL_ERROR);
+    expect(getTraceByRequestId(requestId)?.status).toBe("error");
+  });
+
+  test("a non-Error AUTH-infrastructure fault is policied AND observable (the #1479 class, widened)", async () => {
+    // The auth middleware sits above `observability`, so before #1761 a non-Error rejection there produced
+    // no Response, no ring entry and no trace — the exact invisibility #1479 closed for `Error` faults.
+    initTracing();
+    const requestId = "req-1761-nonerror-auth-1";
+    const throwingSeam: AuthSeam = {
+      resolvePrincipal: (): Promise<SeamResult> => Promise.reject({ code: "not-an-error-object" }),
+      debugGateAdmits: (): boolean => false,
+    };
+    const app = createApp(deps({ seam: throwingSeam }));
+
+    const res = await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
+
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expectPolicied(res, "non-Error auth fault");
+    const records = recentRequests(500).filter((r) => r.id === requestId);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.status).toBe(INTERNAL_ERROR);
+    expect(getTraceByRequestId(requestId)?.status).toBe("error");
   });
 });
