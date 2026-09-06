@@ -50,6 +50,7 @@ import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/pe
 import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { terminalSseLine } from "../../../support/provider-stream.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, TEST_CAPABILITY, testConnection } from "./_support.ts";
 
@@ -94,8 +95,9 @@ function capturingClient(sink: { body?: Record<string, unknown> }): VllmEngineCl
   // at (`choices[0]` is the only choice the reducer reads), so the turn reduced with `finishReason: null`.
   // Nothing complained until the #1400 truncation fence started refusing a turn that never terminated —
   // and a grep for `finish_reason` reads this fixture as terminal-bearing, which is exactly why it survived
-  // that sweep. The reply is one token; the terminal is what makes it a COMPLETED one.
-  const canned = 'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}\ndata: [DONE]\n';
+  // that sweep. The reply is one token; the terminal is what makes it a COMPLETED one. Composed from the
+  // shared `tests/support/provider-stream.ts` constant (#1552) so a fixture cannot regress to that shape.
+  const canned = `${terminalSseLine({ delta: { content: "ok" }, usage: { promptTokens: 3, completionTokens: 1 } })}\ndata: [DONE]\n`;
   return {
     enginePost: (): Promise<never> => Promise.reject(new Error("chat must stream")),
     engineStream: (_lane, _path, body): Promise<ReadableStream<Uint8Array>> => {

@@ -53,6 +53,7 @@ import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { terminalSseLine } from "../../../support/provider-stream.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
@@ -582,7 +583,7 @@ function toolRoundEngineClient(): VllmEngineClient {
   const args = JSON.stringify({ location: "the obsidian tower", recentEvent: "arrived at the tower" });
   const canned =
     `data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"update_scene","arguments":${JSON.stringify(args)}}}]}}]}\n` +
-    `data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}\n` +
+    `${terminalSseLine({ finishReason: "tool_calls", delta: {}, usage: { promptTokens: 3, completionTokens: 1 } })}\n` +
     "data: [DONE]\n";
   return {
     enginePost: (): Promise<never> => Promise.reject(new Error("chat must stream")),
