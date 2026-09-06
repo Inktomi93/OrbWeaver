@@ -146,13 +146,18 @@ selected, and `reviewedGrantsFor(policies)`:
 
 ```
 knownPolicies=89 selected=11 loadedSources=7212
-workspaceMs=4328 passMs=14852 wallMs=19180
+workspaceMs=17667 passMs=53082 wallMs=70749
 factErrors=0 toolErrors=0 authorityToolErrors=0 alarms=0 withheld=[]
 raw=40 waived=0 granted=40 effective=0
 ```
 
-`/usr/bin/time -v`: **20.30 s wall, 4,019,828 KiB peak RSS**, 0 swaps, 0 major page faults (an earlier
-identical-verdict run on a busier box measured 29.75 s / 3,833,236 KiB, so read the wall as a range). **All 40 grant
+`/usr/bin/time -v`: **3,994,188 KiB peak RSS**, 0 swaps, 0 major page faults. **The wall is a RANGE, not a
+number**: four identical-verdict runs of this exact selection measured 20.3 s, 29.8 s, 74.8 s and 75.2 s on
+the same tree, and the spread is contention rather than the policies — the shared workspace BUILD alone
+moved 4.3 s → 17.7 s across them while every policy's own share scaled by the same factor. The post-review
+arms (a bare `now()`/`random()` call, the env destructure site, the const-alias prefilter hop) cost nothing
+measurable: `no-raw-clock` moved 0.6 s → 2.8 s in the same window in which `content-part-seam`, which
+gained no arm, moved 2.9 s → 12.0 s. **All 40 grant
 rows consumed EXACTLY once** — no stale row, no over-broad row. Per-policy cost is concentrated where the
 population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s over 3,367,
 `no-raw-clock` 0.6 s, `sole-env-reader` 0.6 s over 1,488; the other seven total under 1 s combined.
@@ -163,11 +168,34 @@ population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s
 | - | - |
 | family conformance (`tests/tooling/verify/gates/home-server-family.test.ts`) | green — 11 policies, 8 tests: 92 policy proofs plus 7 runtime pins |
 | the two new readers' own specs (`tests/tooling/verify/lib/{ambient-determinism,role-vocabulary}.test.ts`) | green — 11 tests, each ARMED (neutralising the identity comparison reds 3 of 6 and 2 of 5 rows respectively) |
-| fixture-specifier resolution control | 53 relative specifiers across all 11 policies' proofs; **0 accidental unresolved**, 5 deliberate `./missing*.ts` fail-closed rows |
+| fixture-specifier resolution control | 59 relative specifiers across all 11 policies' proofs; **0 accidental unresolved**, 5 deliberate `./missing*.ts` fail-closed rows |
 | receipt refusals, pinned through `runPolicyPass` | the D51 declaration home leaving `contracts/src/chat/`; the kit content home holding no source; the participant vocabulary absent AND relocated |
 | grant liveness, pinned through `runPolicyPass` | consumed-exactly-once with TWO constructions in the granted carrier; STALE when the home stops constructing; STALE plus an effective finding when the grant names another subject |
+| ESCAPE BATTERY — alias / destructure / globalThis / namespace / computed on every arm each policy visits | 13 spellings through `runPolicyPass`: **11 CAUGHT, 2 missed, and both misses are the two DECLARED limits** (the namespace TYPE reference, the switch-case enforcement), each carrying its own `mustPass` row |
+| IDENTITY-SWAP probe on the four home/axis comparisons (`readSealedOrigin`'s path infix, `readAxisVerdict`) | all four new counterfactual rows go RED and no other row moves — the receipt that the comparisons are load-bearing |
 | population equality over a frozen 7,208-path manifest | 7 exact, 3 classified, 0 added |
 | legacy replay + final real-tree pass | above |
+
+## What the fresh-context review changed (round 2)
+
+Verifier-F confirmed every headline and returned one P2 and six P3s; all seven are repaired on this branch
+and each carries its own proof row.
+
+- **Four "counterfactual" rows did not exercise the comparison their `why` claimed.** Under an identity swap
+  (`readSealedOrigin`'s path infix and `readAxisVerdict` replaced by name-only comparisons) they stayed
+  GREEN, because each was decided EARLIER: a purely local declaration is not a candidate node at all, and a
+  local function is acquitted by the shared refusal classifier before the home comparison is reached. Four
+  new rows now put a GENUINE candidate — an import specifier resolving OUTSIDE the home, a `role` read on a
+  closed literal union that omits a vocabulary member — through the actual comparison, and all four go RED
+  under the swap. The four original `why` strings now say what those rows really prove.
+- **Five escape spellings are now CAUGHT rather than declared**: the const-aliased constructor
+  (`const D = Date; new D()`), the const-aliased class (`const EE = EventEmitter; new EE()`), the
+  destructured globals (`const { now } = Date`, `const { random } = Math`) and the destructured env bag
+  (`const { env } = process`). The first two came free from teaching the shared name prefilter to follow an
+  immutable const hop; the rest are one extra candidate arm each, prefiltered so tightly that the destructure
+  arm looks at one node per destructure.
+- **Both role policies stopped failing OPEN** on `any` / `string` / superset axes (above).
+- **The `switch (role)` enforcement spelling** is now a written third limit rather than an unnoticed hole.
 
 ## Known limits, written down
 
@@ -176,10 +204,11 @@ population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s
   outside its candidate set. The legacy import-keyed detector was blind to it as well, so this is a written
   baseline plus a runtime follow-up, not a regression. `no-direct-users-read`'s subject is a VALUE, so its
   namespace arm is a `PropertyAccessExpression` and is covered (both spellings carry `mustFlag` rows).
-- **Every candidate PREFILTER is the sealed NAME**, so a barrel that re-exports a subject under a DIFFERENT
-  name is out of subject for `bus-channel-primitive`, `content-part-seam`, `no-direct-users-read` and
-  `scrubber-home`. Same limit the legacy name readers carried; closing it means resolving an origin on
-  every identifier in a 3,367-file population, which does not finish.
+- **Every candidate PREFILTER is the sealed NAME**, followed through an import ALIAS and through immutable
+  CONST-ALIAS hops, so a barrel that re-exports a subject under a DIFFERENT name is the one spelling out of
+  subject for `bus-channel-primitive`, `content-part-seam`, `no-direct-users-read` and `scrubber-home`. Same
+  limit the legacy name readers carried; closing it means resolving an origin on every identifier in a
+  3,367-file population, which does not finish.
 - **`no-raw-clock` / `no-raw-random` see a MEMBER read or a zero-argument `new`.** A bare local alias of the
   method (`const now = Date.now; now()`) is outside the prefilter — widening it means resolving an origin on
   \~700 injected-clock call sites per pass. The legacy text comparison missed the shape too.
@@ -189,10 +218,17 @@ population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s
 - **Both role policies keep the `role` NAME in the subject.** Dropping it widens onto every comparison of a
   role-typed value — `resolvedRole === "owner"` at `domain/sessions/verbs/provision-identity.ts:180,310` is
   the live shape — which is a burn-down and not a conversion. Each carries the limit as a `mustPass` row.
-- **`two-class-role-authority`'s two other legacy blind spots are unchanged and still carry rows**: a
-  comparison hoisted into a boolean const used later in a throwing `if`, and the guard-INVERSION spelling
-  whose `throw` sits outside the `if`. Its transport-tier blind spot (`authority === "host"`) is retired BY
-  CONSTRUCTION — that tier string is not the participant vocabulary.
+- **`two-class-role-authority` carries THREE declared limits, each a zero-instance shape with its own row**:
+  a comparison hoisted into a boolean const used later in a throwing `if`, the guard-INVERSION spelling whose
+  `throw` sits outside the `if`, and a `switch (role)` whose CASE CLAUSE throws (the enforcement test reads an
+  `if` condition, and a switch carries no comparison node to walk out of). Its transport-tier blind spot
+  (`authority === "host"`) is retired BY CONSTRUCTION — that tier string is not the participant vocabulary.
+- **Both role policies FAIL CLOSED on an axis the checker cannot close.** A read typed `any`, plain `string`,
+  or a strict SUPERSET that still carries the whole vocabulary is REPORTED, because each might be the lattice
+  and the legacy readers bit the `string` case; only a closed literal union that provably omits a vocabulary
+  member acquits. The ONE narrowing that survives is a read already narrowed to a proper SUBSET, which is not
+  a lattice comparison. Six `mustFlag` rows and two `mustPass` rows pin the four states; the real tree holds
+  none of them, so the widening added zero findings.
 - **`lib/sanctioned-home.ts` STAYS.** After this conversion it has **15 remaining importers**, all client- or
   class/style-shaped (nine belong to the sibling `cb-home-client` lane); the file retires when the last one
   converts.

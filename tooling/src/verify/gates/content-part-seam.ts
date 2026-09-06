@@ -182,7 +182,16 @@ export const gate = defineGate({
         "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
         "packages/server/src/domain/chat/lib/local.ts": "export type ChatContentPart = { readonly other: number };\nexport type T = ChatContentPart;\n",
       },
-      why: "THE HOME COUNTERFACTUAL — a GENUINE declaration of the same name in another module is a different type by the type-home law. Deleting the home comparison turns this row red, which is what proves the identity was resolved rather than spelled",
+      why: "A PURELY LOCAL declaration of the same name is not a CANDIDATE at all: there is no import specifier and no member read, so no node is ever offered to the identity reader. This row proves the prefilter, NOT the home comparison — the row below is the one that proves the comparison",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+        "packages/server/src/domain/chat/lib/wire.ts": "export type ChatContentPart = { readonly other: number };\n",
+        "packages/server/src/domain/chat/verbs/foreign.ts": 'import type { ChatContentPart } from "../lib/wire.ts";\nexport type T = ChatContentPart;\n',
+      },
+      why: "THE HOME COUNTERFACTUAL, and the row that actually exercises the comparison: a GENUINE import specifier named `ChatContentPart` — a candidate by every test the prefilter makes — that resolves cleanly to a declaration OUTSIDE the chat contracts home. Replacing the home comparison with a name comparison turns this row RED, which is what proves the identity was resolved rather than spelled",
     },
     {
       mode: "types",

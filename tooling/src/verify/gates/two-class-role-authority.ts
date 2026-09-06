@@ -21,9 +21,15 @@
 // `authority === "host"` compares a StreamAuthority TIER string that merely shares a lexeme, and its type is
 // not the participant vocabulary.
 //
-// THE `role` NAME REMAINS PART OF THE SUBJECT, and the two other declared limits are unchanged and carry
-// rows: a comparison hoisted into a boolean CONST used later in a throwing `if`, and the GUARD-INVERSION
-// spelling (`if (role === "host") { return; } throw …`) whose throw is outside the `if`.
+// THE `role` NAME REMAINS PART OF THE SUBJECT, and three declared limits carry rows: a comparison hoisted
+// into a boolean CONST used later in a throwing `if`, the GUARD-INVERSION spelling
+// (`if (role === "host") { return; } throw …`) whose throw is outside the `if`, and a `switch (role)` whose
+// CASE CLAUSE throws — the enforcement-position test reads an `if` condition, and a switch is a different
+// statement shape with no comparison node to walk out of. All three are zero-instance on this tree.
+//
+// The AXIS test FAILS CLOSED: a read the checker types `any`, plain `string`, or a strict SUPERSET of the
+// vocabulary is reported, because each MIGHT be the participant axis and the legacy name reader bit the
+// `string` case. Only a closed literal union that provably omits a vocabulary member acquits.
 //
 // AUTHORITY IS reviewed-grant: both legacy tables were recurring repository PERMISSIONS, not per-occurrence
 // mistakes — the `can()` seam's own comparison, and the ONE nominee TARGET-VALIDITY check that is not a
@@ -33,7 +39,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readIsOnAxis, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 const VOCABULARY = "PARTICIPANT_ROLES";
@@ -136,7 +142,11 @@ export const gate = defineGate({
         }
         const reported = new Map<string, MorphNode>();
         for (const candidate of candidates) {
-          if (!(members.has(candidate.value) && readIsOnAxis(candidate.read, members))) {
+          // FAIL-CLOSED on an axis the checker could not close: a read typed `any`/`string`, or one whose
+          // type is a strict SUPERSET still carrying the whole vocabulary, MIGHT be the participant axis —
+          // and the legacy name reader bit the `string` case, so passing it would be a narrowing. Only a
+          // proven other axis (a closed literal union missing a member) acquits.
+          if (!(members.has(candidate.value) && readAxisVerdict(candidate.read, members) !== "foreign")) {
             continue;
           }
           // ONE finding per carrier: a reviewed grant licenses one `(subject, operation)`.
@@ -217,8 +227,61 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: two enforcement comparisons in one carrier are ONE finding, because a reviewed grant licenses one `(subject, operation)` and two matching findings make the row OVER-BROAD and license neither",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/chat/verbs/loose.ts":
+          'export function f(m: { role: string }): void {\n  if (m.role !== "host") {\n    throw new Error("nope");\n  }\n}\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on a `string`-typed carrier — the shape the LEGACY name reader bit. Passing it would make the conversion a narrowing rather than an identity upgrade",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/chat/verbs/superset.ts":
+          'import type { ParticipantRole } from "../../../../../contracts/src/identity/index.ts";\nexport function f(m: { role: ParticipantRole | "observer" }): void {\n  if (m.role !== "host") {\n    throw new Error("nope");\n  }\n}\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on a strict SUPERSET — a type that still carries every participant role is the axis plus something, not another axis",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/chat/verbs/opaque.ts":
+          'export function f(m: any): void {\n  if (m.role !== "host") {\n    throw new Error("nope");\n  }\n}\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on an `any` receiver — the silent open a boolean axis test left in a family whose other arms all fail closed",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/chat/verbs/guest-axis.ts":
+          'export function f(m: { role: "host" | "guest" }): void {\n  if (m.role !== "host") {\n    throw new Error("nope");\n  }\n}\n',
+      },
+      why: "THE AXIS COUNTERFACTUAL, and the row the identity-swap probe measures: the `role` NAME, the `host` literal that IS a vocabulary member, and an enforcement position — everything the detector keys on except the one thing that matters, a CLOSED literal union that omits `member`. Replacing the axis comparison with a name comparison turns this row RED",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',
+        "packages/server/src/domain/chat/verbs/switched.ts":
+          'import type { ParticipantRole } from "../../../../../contracts/src/identity/index.ts";\nexport function f(role: ParticipantRole): void {\n  switch (role) {\n    case "member":\n      throw new Error("nope");\n    default:\n      return;\n  }\n}\n',
+      },
+      why: "DECLARED LIMIT, proven not assumed: a `switch (role)` whose CASE CLAUSE throws is the same enforcement decision, but it carries no comparison node for the condition walk to climb out of — the enforcement test reads an `if` condition. Zero instances on this tree; this row is the written baseline a future widening starts from",
+    },
     {
       mode: "types",
       files: {

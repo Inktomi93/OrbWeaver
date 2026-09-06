@@ -25,7 +25,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readIsOnAxis, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 const VOCABULARY = "USER_ROLES";
@@ -76,7 +76,10 @@ export const gate = defineGate({
         const reported = new Map<string, MorphNode>();
         for (const candidate of candidates) {
           const onLattice = LATTICE_MEMBERS.includes(candidate.value) && members.has(candidate.value);
-          if (!(onLattice && readIsOnAxis(candidate.read, members))) {
+          // FAIL-CLOSED on an axis the checker could not close: a read typed `any`/`string`, or one whose
+          // type is a strict SUPERSET still carrying the whole lattice, MIGHT be the privilege axis, and
+          // the legacy literal reader caught the `string` case. Only a proven other axis acquits.
+          if (!(onLattice && readAxisVerdict(candidate.read, members) !== "foreign")) {
             continue;
           }
           // ONE finding per carrier: a reviewed grant licenses one `(subject, operation)`.
@@ -146,8 +149,48 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: two lattice comparisons in one carrier are ONE finding, because a reviewed grant licenses one `(subject, operation)` and two matching findings make the row OVER-BROAD and license neither",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const USER_ROLES = ["owner", "admin", "user"] as const;\nexport type UserRole = (typeof USER_ROLES)[number];\n',
+        "packages/server/src/domain/hub/loose.ts": 'export const isOwner = (r: { role: string }): boolean => r.role === "owner";\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on a `string`-typed carrier: the checker closed no axis, so this MIGHT be the privilege lattice — and the legacy literal-text reader caught exactly this shape, so passing it would be a narrowing rather than a conversion",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const USER_ROLES = ["owner", "admin", "user"] as const;\nexport type UserRole = (typeof USER_ROLES)[number];\n',
+        "packages/server/src/domain/hub/superset.ts":
+          'import type { UserRole } from "../../../../contracts/src/identity/index.ts";\nexport const isOwner = (r: { role: UserRole | "service" }): boolean => r.role === "owner";\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on a strict SUPERSET: a type that still carries every lattice member is the lattice plus something, not a different axis",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const USER_ROLES = ["owner", "admin", "user"] as const;\nexport type UserRole = (typeof USER_ROLES)[number];\n',
+        "packages/server/src/domain/hub/opaque.ts": 'declare const r: any;\nexport const isOwner = (): boolean => r.role === "owner";\n',
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED on an `any` receiver — the silent open a boolean axis test left in a family whose other arms all fail closed",
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/identity/index.ts":
+          'export const USER_ROLES = ["owner", "admin", "user"] as const;\nexport type UserRole = (typeof USER_ROLES)[number];\n',
+        "packages/server/src/domain/hub/foreign-axis.ts": 'export const isOwner = (m: { role: "owner" | "guest" }): boolean => m.role === "owner";\n',
+      },
+      why: "THE AXIS COUNTERFACTUAL the identity-swap probe measures: the `role` NAME, a literal that IS a lattice member, and a CLOSED literal union that omits `admin`/`user` — provably another axis. Replacing the axis comparison with a name comparison turns this row RED, which is what proves the type test is load-bearing",
+    },
     {
       mode: "types",
       files: {
