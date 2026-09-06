@@ -17,6 +17,7 @@ import { useState } from "react";
 import { FirstRunPersonaDialog } from "../../../../packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx";
 import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "../../../../packages/client/src/features/persona/components/persona-list.tsx";
+import { PersonaNotificationsSection } from "../../../../packages/client/src/features/persona/components/persona-notifications-section.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -198,5 +199,29 @@ export function FirstRunPersonaDialogStory(): ReactElement {
     <CtDataProviders>
       <FirstRunPersonaDialog />
     </CtDataProviders>
+  );
+}
+
+/** The Personas NOTIFICATIONS section with a REOPEN driver (#1726, the `LooksSectionReopenStory` idiom).
+ *  The section's `QueryBoundary` carries `reserveKey="config.personas.notifications"`, and a reservation is
+ *  only observable across a SECOND cold read of the same surface: the box store is module-level and
+ *  survives, while `key`-ing the providers gives the remount a fresh QueryClient so `getUserSettings` is
+ *  actually re-requested rather than served from cache. The tail sentinel below is what a reader is
+ *  looking at when the pane jumps — the section sits mid-column in the Personas group, so everything under
+ *  it pays the delta between a text line and a control row. */
+export function PersonaNotificationsReopenStory(): ReactElement {
+  const [open, setOpen] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={(): void => setOpen((n) => n + 1)}>
+        reopen
+      </button>
+      <CtDataProviders key={open}>
+        <div style={{ width: 720, padding: 16 }}>
+          <PersonaNotificationsSection />
+          <div data-testid="personas-notifications-tail" style={{ height: 8 }} />
+        </div>
+      </CtDataProviders>
+    </>
   );
 }

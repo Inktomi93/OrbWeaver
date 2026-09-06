@@ -17,13 +17,26 @@ import {
   CorpusUnderstandingInvitation,
 } from "@orb/client/features/discovery";
 import { useActiveChatId, useActiveSection } from "@orb/client/state";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
+import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+
+// The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
+// `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.
+type ThemeRows = Parameters<typeof CorpusThemeSection>[0]["sceneThemes"];
+const THEME_PROVENANCE = { model: "ct-distiller", computedAt: 0 };
+const SCENE_THEMES: ThemeRows = [
+  { ...THEME_PROVENANCE, id: castId<ThemeClusterId>("theme_scene_0"), clusterIdx: 0, level: "scene", name: "A bargain at the crossroads", size: 12 },
+  { ...THEME_PROVENANCE, id: castId<ThemeClusterId>("theme_scene_1"), clusterIdx: 1, level: "scene", name: "The map changes hands", size: 7 },
+];
+const ARC_THEMES: ThemeRows = [
+  { ...THEME_PROVENANCE, id: castId<ThemeClusterId>("theme_arc_0"), clusterIdx: 0, level: "arc", name: "The long road home", size: 21 },
+];
 
 /** The Corpus LIST navigator (omnibox + browse) over the real data layer. */
 export function CorpusListSurfaceStory(): ReactElement {
@@ -403,6 +416,26 @@ export function CorpusFieldsSearchStory({ query = "crimson" }: { readonly query?
     <CtDataProviders>
       <div style={{ height: 600, width: 420 }}>
         <CorpusSearchResults query={query} targetId="fields" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The overview's STORY-THEME section with its two theme lists supplied directly (the surface passes exactly
+ *  these two props off `discovery.home`), plus a tail sentinel under it (#1726).
+ *
+ *  The section's drill-in card carries `reserveKey="corpus.themeDetail"`, and the defect that key exists for
+ *  is a SECOND pick: the card re-suspends on every theme you open, and unreserved it collapsed to a sentence
+ *  and shoved everything below it up and back. So the story renders the section inside a column with content
+ *  beneath — the reservation is only observable as the absence of that shove, and a content-sized mount with
+ *  nothing under the card cannot see it at all. Both lists are populated because an empty section renders
+ *  `null` by design. */
+export function CorpusThemeSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <CorpusThemeSection arcThemes={ARC_THEMES} sceneThemes={SCENE_THEMES} />
+        <div data-testid="corpus-themes-tail" style={{ height: 8 }} />
       </div>
     </CtDataProviders>
   );
