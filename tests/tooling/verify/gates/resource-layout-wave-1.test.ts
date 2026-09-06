@@ -1,12 +1,13 @@
 import { Project } from "ts-morph";
 import { gate as featureOwnsDefinition } from "../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as packageLayout } from "../../../../tooling/src/verify/gates/package-layout.ts";
+import { gate as serverLayout } from "../../../../tooling/src/verify/gates/server-layout.ts";
 import { gate as uiExportsMapComplete } from "../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const policies = [featureOwnsDefinition, packageLayout, uiExportsMapComplete] as const;
+const policies = [featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;
 
 test("first resource layout policies keep their two-sided proofs", () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
