@@ -10,9 +10,13 @@
 // IS the store identity. zustand's own `UseBoundStore` is admitted as the second home for a store minted
 // outside the factories.
 //
-// EXECUTION IS entire-population BECAUSE THE ANCHOR IS A PROJECT FILE. The hook-type home is read through
-// `ctx.sourceFile`, so a narrowed selection that does not carry it DEFERS loudly rather than passing every
-// selector in the selection, and a rename resolves zero members and REFUSES.
+// EXECUTION IS entire-population BECAUSE THE ANCHOR IS A PROJECT FILE. The hook-type home is located in the
+// effective population, so a narrowed selection that does not carry it DEFERS loudly rather than passing
+// every selector in the selection, and a rename resolves zero members and REFUSES.
+//
+// THREE ANSWERS: a proven store hook is the finding; any type the checker actually resolved and that is not
+// one of the two homes passes (both homes are named ALIASES, so an unnamed type proves a non-store); an
+// `any`/`unknown` callee is REPORTED (GATE-AUTHORING §5, #944) — type erasure is unreadable, not innocent.
 //
 // THE SELECTOR BODY IS JUDGED AS AUTHORED, never through the binding reader: `useX(s => DEFAULT)` where
 // DEFAULT is a frozen module constant is the sanctioned FIX, so following the alias to its object literal
@@ -36,22 +40,48 @@ const ZUSTAND_HOOK_TYPE = "UseBoundStore";
 
 const MESSAGE =
   "zustand selector returns a fresh object/array literal — under v5's Object.is this re-renders forever (useSyncExternalStore loop). Select a stored ref, use a frozen module-constant default, or wrap in useShallow. See UI-Lib-Zustand.md C-1/B-2.";
+const UNREADABLE = `${MESSAGE} This callee's TYPE has no name the checker can give, so whether it is a store hook CANNOT be established — reported rather than passed.`;
 
-function isStoreHook(callee: MorphNode, home: SourceFile): boolean {
+type HookVerdict = "store" | "other" | "unreadable";
+
+/** THREE answers, like every sibling in this family, and the boundary between the last two is exact.
+ *
+ *  The refusal is NOT routed through the shared `classifyOriginRefusal`: that classifier answers a
+ *  MODULE-origin question, where "this binds a local declaration" genuinely proves a different identity.
+ *  Here the question is a TYPE identity, and a local binding proves nothing: an `any`-typed
+ *  `declare const useThingStore` is a perfectly ordinary local const whose type is erased.
+ *
+ *  UNREADABLE IS TYPE ERASURE, NOT ABSENCE OF A NAME. Both store homes are declared type ALIASES, so the
+ *  checker always names a real store hook; a well-formed but unnamed function type therefore PROVES a
+ *  non-store, and `rows.map((row) => ({ … }))` is that shape. Reporting every unnamed callee instead cost
+ *  nine false findings on the real tree — array `map`/`flatMap` callbacks in server, tooling and test files
+ *  that have nothing to do with zustand (measured 2026-09-06, committed as a mustPass row). Only `any` /
+ *  `unknown` — where the checker was given nothing and a store hook COULD be hiding — is fail-closed. */
+function hookVerdict(callee: MorphNode, home: SourceFile): HookVerdict {
+  const type = callee.getType();
+  if (type.isAny() || type.isUnknown()) {
+    return "unreadable";
+  }
   const identity = resolveTypeIdentityOrigin(callee);
   if (identity.kind === "unresolved") {
-    return false;
+    return "other";
   }
   if (identity.value.name === STORE_HOOK_TYPE && declaredByFile(identity.value.declarations, home)) {
-    return true;
+    return "store";
   }
-  return identity.value.name === ZUSTAND_HOOK_TYPE && declaredByPackage(identity.value.declarations, ZUSTAND);
+  return identity.value.name === ZUSTAND_HOOK_TYPE && declaredByPackage(identity.value.declarations, ZUSTAND) ? "store" : "other";
 }
 
-/** Does this arrow selector return a FRESHLY BUILT object/array? Parenthesis, `as` and `satisfies` wrappers
- *  are seen through; a named reference is not followed, because a frozen module constant is the fix. */
+/** Does this arrow SELECTOR return a FRESHLY BUILT object/array? Parenthesis, `as` and `satisfies` wrappers
+ *  are seen through; a named reference is not followed, because a frozen module constant is the fix.
+ *
+ *  THE ARITY FENCE IS SEMANTIC, not a filter of convenience: a zustand selector is `(state) => U` and takes
+ *  exactly one parameter, so `rows.map((row, index) => ({ … }))` cannot be one. Without it, a two-parameter
+ *  array callback in a file the analysis program types loosely reaches the type check and reports as
+ *  unreadable — two such survivors in a CT spec's in-browser closure were the last real-tree noise
+ *  (measured 2026-09-06, committed as a mustPass row). */
 function returnsFreshLiteral(argument: MorphNode | undefined): boolean {
-  if (argument === undefined || !Node.isArrowFunction(argument)) {
+  if (argument === undefined || !Node.isArrowFunction(argument) || argument.getParameters().length !== 1) {
     return false;
   }
   const body = referenceResolutionServices.unwrapExpression(argument.getBody());
@@ -100,7 +130,8 @@ export const gate = defineGate({
             continue;
           }
           const callee = node.getExpression();
-          if (!isStoreHook(callee, home)) {
+          const verdict = hookVerdict(callee, home);
+          if (verdict === "other") {
             continue;
           }
           // Anchored on the STORE HOOK inside the call, which is the position an author names in a waiver
@@ -108,7 +139,11 @@ export const gate = defineGate({
           // is neither stable nor unique, so it cannot be the position.
           const text = callee.getText();
           const token = text.slice(text.lastIndexOf(".") + 1);
-          ctx.report.node(node, { token, offset: Math.max(node.getText().lastIndexOf(token), 0) });
+          ctx.report.node(node, {
+            ...(verdict === "unreadable" ? { message: UNREADABLE } : {}),
+            token,
+            offset: Math.max(node.getText().lastIndexOf(token), 0),
+          });
         }
       },
     };
@@ -158,6 +193,16 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "an `as`-wrapped literal is still a fresh reference — the wrapper is seen through, where the legacy check handled only the parenthesized form",
     },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/client/src/components/foo.tsx":
+          "declare const useThingStore: any;\nexport const A = (): unknown => useThingStore((s: any) => ({ a: s.a }));\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "FAIL-CLOSED (#944): an `any`-typed callee has no TYPE NAME at all, so whether it is a store hook is UNKNOWN. Returning false here would make an untyped binding the one supported way past this law — the review's own reproduction",
+    },
   ],
   mustPass: [
     {
@@ -203,12 +248,30 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "node_modules/zustand/middleware/index.d.ts":
-          "export declare function persist<T>(initializer: () => T, options: { name: string }): () => T;\nexport declare function devtools<T>(initializer: () => T, options: { name: string }): () => T;\n",
+          "export declare function persist<T>(initializer: (set: unknown) => T, options: { name: string }): () => T;\nexport declare function devtools<T>(initializer: (set: unknown) => T, options: { name: string }): () => T;\n",
         [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
         "packages/client/src/state/create-entity-draft-store.ts":
-          'import { persist } from "zustand/middleware";\nexport const store = persist((): { drafts: Record<string, string> } => ({ drafts: {} }), { name: "drafts" });\n',
+          'import { persist } from "zustand/middleware";\nexport const store = persist((set): { drafts: Record<string, string> } => ({ drafts: {} }), { name: "drafts" });\n',
       },
       why: "THE REAL-TREE FALSE POSITIVE THIS ROW WAS MINTED FROM: `persist((): S => ({ drafts: {} }), …)` in create-entity-draft-store.ts is a zustand MIDDLEWARE whose initializer legitimately returns a fresh object once at creation, not a selector that runs every render. Admitting anything zustand-declared would red it, so the hook TYPE name is part of the identity and not the package alone",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/server/src/domain/chat/persistence/identity.ts":
+          "interface Row {\n  readonly id: string;\n  readonly name: string;\n}\nexport const shape = (rows: readonly Row[]): readonly unknown[] => rows.map((row) => ({ kind: 'character', id: row.id }));\n",
+      },
+      why: "THE SECOND REAL-TREE FALSE POSITIVE (nine of them, measured 2026-09-06): an ordinary `rows.map((row) => ({ … }))` has an UNNAMED function type, and reporting every unnamed callee red array callbacks across server, tooling and test files. Both store homes are named type ALIASES, so an unnamed type PROVES a non-store — only type erasure is unreadable",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "tests/client/features/chat/components/composer.ct.tsx":
+          "declare const properties: any;\nexport const durations = (): unknown => properties.map((property: any, index: number) => ({ property, index }));\n",
+      },
+      why: "THE ARITY FENCE, and the last two real-tree survivors: a two-parameter `.map((property, index) => ({ … }))` inside a CT spec's in-browser closure is typed `any` by this analysis program (the root tsconfig is DOM-less), so the erasure check alone would report it. A zustand selector is `(state) => U` and takes exactly ONE parameter, so a two-parameter callback is provably not one — the fence is semantic, not a convenience filter",
     },
   ],
 });

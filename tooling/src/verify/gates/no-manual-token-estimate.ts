@@ -14,14 +14,18 @@
 // is 4 is not a token estimate, and only the divisor's NAME distinguishes a chars-per-token ratio from a
 // page size. It stays, with its own mustPass row.
 //
-// THE ESTIMATOR'S OWN HOME is excluded structurally by the symbol it EXPORTS, never by a file-path pin
-// (path-keyed gates die on rename): any file exporting `estimateTokens` is the home, and inside it the
-// division IS the algorithm.
+// THE ESTIMATOR'S OWN HOME is excluded by the SYMBOL, never by a file-path pin (path-keyed gates die on
+// rename) — but the symbol must be the CANONICAL one, not merely a name. A file whose exported
+// `estimateTokens` resolves to the declaration in `packages/kit/src/tokens/index.ts` is the home (a
+// re-export of the real estimator still is); a file that exports its OWN function of that name is not, and
+// the first cut of this policy let exactly that silence every division in a feature file (reviewed
+// 2026-09-06). The canonical home is located in the effective population and receipted, so its rename
+// REFUSES the run — which is why `execution` is entire-population.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readStaticNumber } from "../lib/reference-fact.ts";
+import { readMemberReference, readStaticNumber } from "../lib/reference-fact.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 const LENGTH = "length";
@@ -33,17 +37,39 @@ const CHARS_PER_TOKEN_NAME = /CHAR|TOKEN/iu;
 /** TypeScript's own `node_modules` directory: `String#length` / `Array#length` are declared in its bundled
  *  `lib.*.d.ts`, and that is the whole identity claim behind "this is a character count". */
 const AMBIENT_HOME = "typescript";
+/** The estimator's ONE home — the file this policy's own message points every author at. */
+const ESTIMATOR_HOME = "packages/kit/src/tokens/index.ts";
+/** Every fixture map carries the canonical home: without it the receipt resolves zero members and the whole
+ *  policy REFUSES, which is the behaviour the rename tripwire exists for and would make each row vacuous. */
+const ESTIMATOR_PROOF = { [ESTIMATOR_HOME]: "export function estimateTokens(text: string): number {\n  return text.length / 4;\n}\n" };
 
 const MESSAGE =
   "hand-rolled `.length / 4` token estimate — @orb/kit/tokens is the ONE estimator: import { estimateTokens } and call estimateTokens(text). A flat length/N undercounts CJK/emoji ~4x and silently overflows token budgets. This also catches the `.length / CHARS_PER_TOKEN` const dodge. See packages/kit/src/tokens/index.ts.";
 const UNREADABLE =
   "this division reads a `.length` whose identity the checker cannot resolve, so whether it is a character count divided by a chars-per-token ratio CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 
-/** The estimator's one home, derived from what the file EXPORTS. `getExportSymbols` sees `export function`,
- *  `export const`, `export { estimateTokens }` and a re-export alike — the legacy two-lookup version saw
- *  only the first two. */
-function exportsEstimator(sourceFile: SourceFile): boolean {
-  return sourceFile.getExportSymbols().some((symbol) => symbol.getName() === ESTIMATOR);
+/** Every declaration this file's exported `estimateTokens` ultimately names, seen THROUGH a re-export
+ *  (`export { estimateTokens } from "./impl.ts"` yields the implementation's declaration, not the specifier). */
+function estimatorDeclarations(sourceFile: SourceFile): readonly MorphNode[] {
+  return sourceFile
+    .getExportSymbols()
+    .filter((symbol) => symbol.getName() === ESTIMATOR)
+    .flatMap((symbol) => (symbol.getAliasedSymbol() ?? symbol).getDeclarations());
+}
+
+/** Is this file the estimator's own home — the one place the division IS the algorithm?
+ *
+ *  IDENTITY, NOT SPELLING. The first cut of this policy asked only "does the file export something NAMED
+ *  estimateTokens", which is a self-exemption door with file scope: a feature file that exports its own
+ *  `estimateTokens` silenced every division in it (reviewed 2026-09-06, reproduced at 0 findings vs 2 with
+ *  the export renamed). The condition is now that the exported symbol RESOLVES to the canonical estimator
+ *  declared in `packages/kit/src/tokens/index.ts` — which keeps the original rename-proof intent (the home
+ *  is still a SYMBOL, not a path pin, and a re-export of the real one is still the home) while removing the
+ *  door. The canonical file itself is located in the effective population and receipted, so a rename of the
+ *  estimator's home REFUSES the run instead of silently exempting nobody. */
+function isEstimatorHome(sourceFile: SourceFile, canonical: ReadonlySet<object>): boolean {
+  const declarations = estimatorDeclarations(sourceFile);
+  return declarations.length > 0 && declarations.every((declaration) => canonical.has(declaration.compilerNode));
 }
 
 type LengthVerdict = "ambient" | "other" | "unreadable";
@@ -72,6 +98,22 @@ function isBannedDivisor(right: MorphNode): boolean {
   return CHARS_PER_TOKEN_NAME.test(right.getText()) && value.value >= CHARS_PER_TOKEN_MIN && value.value <= CHARS_PER_TOKEN_MAX;
 }
 
+/** The divided expression, unwrapped. */
+function leftOperand(node: MorphNode): MorphNode {
+  return Node.isBinaryExpression(node) ? node.getLeft() : node;
+}
+
+/** Is this `<something>.length / <banned ratio>` at all? The member name is read through the shared member
+ *  reader rather than a `isPropertyAccessExpression` guard, so `text["length"] / 4` is the SAME candidate as
+ *  the dotted form — a bracket spelling was a whole-expression escape while the dotted twin was a mustFlag. */
+function isBannedRatio(node: MorphNode): boolean {
+  if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.SlashToken) {
+    return false;
+  }
+  const read = readMemberReference(node.getLeft());
+  return read.kind === "resolved" && read.value.name === LENGTH && isBannedDivisor(node.getRight());
+}
+
 export const gate = defineGate({
   id: "no-manual-token-estimate",
   family: "no-manual-token-estimate",
@@ -79,31 +121,40 @@ export const gate = defineGate({
   severity: "error",
   population: { in: ["@client", "@ui", "@server", "@kit"], notNamed: ["*.test.ts", "*.test.tsx"] },
   analysis: "types",
-  execution: "selected-files",
+  execution: "entire-population",
   facts: [],
   resources: [],
   message: MESSAGE,
   fix: 'import { estimateTokens } from "@orb/kit/tokens" and use it',
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.BinaryExpression],
-        visit: (node, sourceFile): void => {
-          if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.SlashToken) {
-            return;
+  create: (ctx) => {
+    const candidates: MorphNode[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.BinaryExpression],
+          visit: (node): void => {
+            if (isBannedRatio(node)) {
+              candidates.push(node);
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        const home = ctx.files.find((file) => ctx.relativePath(file) === ESTIMATOR_HOME);
+        const canonical = new Set<object>((home === undefined ? [] : estimatorDeclarations(home)).map((declaration) => declaration.compilerNode));
+        // ZERO members is a REFUSAL: the ONE estimator this policy points every author at was renamed or
+        // moved, so the law's own destination no longer exists and no verdict here can be honest.
+        ctx.receipt({ kind: "population", source: ESTIMATOR, members: canonical.size, unresolved: 0 });
+        if (canonical.size === 0) {
+          return;
+        }
+        for (const node of candidates) {
+          if (isEstimatorHome(node.getSourceFile(), canonical)) {
+            continue;
           }
-          const left = node.getLeft();
-          const leafName = Node.isPropertyAccessExpression(left) ? left.getName() : undefined;
-          if (leafName !== LENGTH || !isBannedDivisor(node.getRight())) {
-            return;
-          }
-          // The estimator's own home is where this division IS the algorithm.
-          if (exportsEstimator(sourceFile)) {
-            return;
-          }
-          const verdict = lengthVerdict(left);
+          const verdict = lengthVerdict(leftOperand(node));
           if (verdict === "other") {
-            return;
+            continue;
           }
           // Anchored on `.length`, not on the receiver's own name: a waiver position must name the thing
           // being judged, and `ctx.report.node` would otherwise derive the token from whatever identifier
@@ -113,20 +164,21 @@ export const gate = defineGate({
             token: LENGTH,
             offset: Math.max(node.getText().indexOf(LENGTH), 0),
           });
-        },
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",
-      files: { "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 4;\n" },
-      expect: { count: 1 },
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 4;\n" },
+      expect: { count: 1, token: "length" },
       why: "the founding shape — a flat `.length / 4` character heuristic standing in for the one estimator",
     },
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/bar.ts": "const CHARS_PER_TOKEN = 4;\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
       },
       expect: { count: 1 },
@@ -135,6 +187,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/ratio.ts": "export const CHARS_PER_TOKEN = 4;\n",
         "packages/kit/src/foo/bar.ts":
           'import { CHARS_PER_TOKEN } from "./ratio.ts";\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n',
@@ -145,6 +198,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/bar.ts":
           "const BASE = 4;\nconst CHARS_PER_TOKEN = BASE;\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
       },
@@ -153,23 +207,41 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/domain/x/verb.ts": "export const g = (parts: readonly string[]): number => parts.length / 4;\n" },
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": "export const g = (parts: readonly string[]): number => parts.length / 4;\n" },
       expect: { count: 1 },
       why: "an ARRAY length is the same ambient character/element count heuristic — the identity is the ambient `length`, not the string type",
+    },
+    {
+      mode: "types",
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": 'export const g = (text: string): number => text["length"] / 4;\n' },
+      expect: { count: 1, token: "length" },
+      why: "the COMPUTED-LITERAL spelling of `.length` is the same character count — a bare `isPropertyAccessExpression` guard passed it while the dotted twin above was a finding, so the member name is read through the shared reader (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...ESTIMATOR_PROOF,
+        "packages/client/src/features/hack/self-exempt.ts":
+          "export function estimateTokens(text: string): number {\n  return text.length / 4;\n}\nexport const other = (t: string): number => t.length / 4;\n",
+      },
+      expect: { count: 2 },
+      why: "THE SELF-EXEMPTION DOOR THIS ROW CLOSES (reviewed 2026-09-06): a feature file exporting its OWN function named `estimateTokens` silenced every division in it while the condition was 'exports something with that name'. The home is the CANONICAL symbol, so both divisions here are findings",
     },
   ],
   mustPass: [
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/server/src/domain/x/verb.ts":
-          'import { estimateTokens } from "@orb/kit/tokens";\nexport const g = (text: string): number => estimateTokens(text);\n',
+          'import { estimateTokens } from "../../../../kit/src/tokens/index.ts";\nexport const g = (text: string): number => estimateTokens(text) / 4;\n',
       },
-      why: "the official estimator this policy exists to drive traffic to",
+      why: "the official estimator this policy exists to drive traffic to. The row carries a DIVISION on purpose: without one it asserts nothing this policy could ever have flagged, and an inert mustPass is a row that cannot fail",
     },
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/server/src/domain/x/embed.ts":
           "const APPROX_CHARS_PER_TOKEN = 4;\nexport const chars = (maxTokens: number): number => maxTokens * APPROX_CHARS_PER_TOKEN;\n",
       },
@@ -178,22 +250,22 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/kit/src/tokens/index.ts":
-          "const CHARS_PER_TOKEN = 4;\nexport function estimateTokens(text: string): number {\n  return text.length / CHARS_PER_TOKEN;\n}\n",
+        [ESTIMATOR_HOME]: "const CHARS_PER_TOKEN = 4;\nexport function estimateTokens(text: string): number {\n  return text.length / CHARS_PER_TOKEN;\n}\n",
       },
-      why: "THE ESTIMATOR HOME — a `/ CHARS_PER_TOKEN` division here IS the algorithm, and the home is identified by the symbol the file exports rather than by its path",
+      why: "THE ESTIMATOR HOME — a `/ CHARS_PER_TOKEN` division here IS the algorithm, and the home is the canonical exported SYMBOL rather than a path pin",
     },
     {
       mode: "types",
       files: {
         "packages/kit/src/tokens/impl.ts": "export function estimateTokens(text: string): number {\n  return text.length / 4;\n}\n",
-        "packages/kit/src/tokens/index.ts": 'export { estimateTokens } from "./impl.ts";\n',
+        [ESTIMATOR_HOME]: 'export { estimateTokens } from "./impl.ts";\n',
       },
-      why: "the estimator home reached through a RE-EXPORT is still the home — `getExportSymbols` sees the forwarded symbol, where the legacy `getFunction`/`getVariableDeclaration` pair saw neither",
+      why: "the estimator home reached through a RE-EXPORT is still the home, on BOTH sides: the canonical declaration lives in impl.ts and index.ts forwards it, so the aliased symbol resolves to the same declaration and neither file is accused",
     },
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/paginate.ts": "const PAGE_SIZE = 4;\nexport const pages = (items: readonly unknown[]): number => items.length / PAGE_SIZE;\n",
       },
       why: "a non-char/token-named divisor is not a token estimate — the NAME fence is the only thing separating a page size from a chars-per-token ratio, so it is law and not laziness",
@@ -201,6 +273,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/server/src/domain/x/verb.ts": "interface Buffer { length: number }\nexport const g = (buf: Buffer): number => buf.length / 4;\n",
       },
       why: "SAME NAME, NOT A CHARACTER COUNT: a `length` field declared by a project interface is not the ambient string/array length, so dividing it by 4 is not a token estimate. The legacy name-only check RED this",
@@ -208,6 +281,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/bar.ts":
           "declare function ratio(): number;\nconst CHARS_PER_TOKEN = ratio();\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
       },
