@@ -99,9 +99,10 @@ Every row is reached by the pnpm script name in the last column, never by path.
 
 **A TOOL DIR IS NOT A COMMAND (#1315, owner ruling 2026-09-04).** `ui-audit/`, `motion-audit/` and
 `cpu-profile/` are ENGINES: Snap is the only rendered front door, they are entered through their own
-`index.ts`, and each keeps a three-line `cli.ts` for one reason only — gate `tooling-slot-template` arm B
-requires an argv door per tool dir. Those files carry NO argv translation and NO migration recipe beyond
-the one Snap spelling. The product is unlaunched, so a retired command is GREP-FIXED at its call sites
+`index.ts`, and they own NO `cli.ts` at all — gate `tooling-slot-template` arm B recognises an ENGINE DIR
+(an `index.ts`-only tool dir that some module under `snap/` imports through that index, derived from Snap's
+own import specifiers, never a row) and asks it for no argv door (owner ask 2026-09-06). The three-line
+`cli.ts` refusal stubs that arm B used to force are deleted with that clause. The product is unlaunched, so a retired command is GREP-FIXED at its call sites
 rather than kept alive behind a redirect that must be maintained, tested and retired a second time; that
 is why `screen-record/` (which was nothing BUT a redirect) is gone from this roster entirely, along with
 the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
@@ -110,7 +111,7 @@ the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
 | - | - | - |
 | `bug-reports/` | the READER for the dev bug button's gitignored captures (list + show) — the artifacts have no tree presence, so the script name IS their discoverability | `bug:reports` |
 | `snap/` | the sole rendered-instrument CLI — and since #1315 the sole rendered-instrument ARGV DOOR: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, the deterministic design/a11y scan, scenarios, sessions, and the isolated stage | `snap` |
-| `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` arm (#1315); it has no program of its own, and `cli.ts` is a bare argv refusal the five-slot template requires | (none — `snap --design-audit`) |
+| `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` arm (#1315); it has no program and no `cli.ts` (an engine dir, entered through `index.ts` — §4.1) | (none — `snap --design-audit`) |
 | `render-trace/` | render/tail/fire — three ops behind one dispatcher | `trace:render` `trace:tail` `trace:fire` |
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
 | `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
@@ -212,7 +213,7 @@ Six tooling gates, three cruiser stanzas, two extensions of existing gates. Each
 
 fsBacked, whole-project, comment-SAFE (fs shape, reads no file text); scan unit is the `tooling/src/` tree.
 
-REDs: a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a subdir inside `_shared/`. `_shared/` is exempt from the tool SHAPE (flat modules).
+REDs: a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a subdir inside `_shared/`. `_shared/` is exempt from the tool SHAPE (flat modules). **An ENGINE DIR owes no `cli.ts`**: a tool dir with `index.ts` that some module under `tooling/src/snap/` imports through `<tool>/index.ts` (ui-audit, motion-audit, cpu-profile — Snap is the sole rendered front door, #1315). The set is DERIVED from Snap's relative import specifiers on every run, never declared: an engine nothing under Snap imports any more reverts to owing its argv door by itself, and the positive control is a `mustFlag` row (owner ask 2026-09-06).
 
 Two typed exemption tables, both two-sided: `BASH_FRONTED_TOOLS` (a `.sh`-entrypoint tool needs no `cli.ts`) — a row naming a dead dir OR a dir that grew a `cli.ts` is RED; `CORPUS_SLOTS` (the `verify/gates/` sixth slot) — a row naming a dead dir or a tool that lost its extra slot is RED.
 

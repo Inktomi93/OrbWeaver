@@ -2313,6 +2313,7 @@
     "tests/tooling/verify/gates/test-presence-client.int.test.ts",
     "tests/tooling/verify/gates/test-presence.int.test.ts",
     "tests/tooling/verify/gates/tooling-front-door.int.test.ts",
+    "tests/tooling/verify/gates/tooling-slot-template.test.ts",
     "tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts",
     "tests/tooling/verify/gates/verb-naming.test.ts",
     "tests/tooling/verify/gates/zod-modern-spellings.test.ts",
