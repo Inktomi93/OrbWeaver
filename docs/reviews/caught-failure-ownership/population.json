@@ -2477,7 +2477,7 @@
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::default:catch::1",
       "path": "packages/server/src/domain/plugin/substrate/plugin-macros.ts",
-      "line": 71,
+      "line": 102,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2485,7 +2485,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a throw, a rejected invoke,",
-      "markerLine": 66
+      "markerLine": 97
     },
     {
       "siteId": "packages/server/src/domain/plugin/verbs/transform-for-display.ts::default:catch::1",

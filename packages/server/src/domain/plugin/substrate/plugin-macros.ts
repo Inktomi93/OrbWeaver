@@ -26,6 +26,7 @@
 //      `interaction-direction-spec.md` §2 law 7 requires the house primitive at exactly that write boundary.
 
 import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plugin";
+import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -46,16 +47,46 @@ export const PLUGIN_MACROS_MAX = 16;
  *  per-plugin invoker activation closed over. */
 interface RegisteredMacro {
   readonly name: string;
+  /** The PRE-#1391 spelling of {@link RegisteredMacro.name}, or `null` when the slug carries no hyphen and the
+   *  two spellings coincide. Carried per macro so the degrade alias below costs no second flatten at
+   *  resolution time and no second source of truth about what the old name was. */
+  readonly legacyName: string | null;
   readonly description: string;
   readonly resolve: (chat: InvocationChat | null) => Promise<string>;
 }
 
-/** The host namespace a plugin macro's name lands in — the `plugin_<slug'>_<name>` rule `registerTool` uses,
- *  for the same reason: the slug is HOST knowledge (derived from the re-validated manifest), so a guest can
- *  neither shadow a builtin (`{{char}}`) nor collide with another plugin. Hyphens are illegal in the middle of
- *  a macro name run, so the slug's are folded to underscores exactly as the tool namespacer folds them. */
+/** The host namespace a plugin macro's name lands in. The slug is HOST knowledge (derived from the
+ *  re-validated manifest), so a guest can neither shadow a builtin (`{{char}}`) nor collide with another
+ *  plugin; hyphens are illegal in the middle of a macro name run, so the slug's are transliterated.
+ *
+ *  IT DELEGATES TO THE TOOL MINT AND THAT IS THE POINT (#1391). This used to spell the flattening a second
+ *  time (`slug.replaceAll("-", "_")`), which meant the macro plane and the tool plane were two homes for ONE
+ *  namespace rule — and when the tool mint was made injective, the drift would have been silent in both
+ *  directions. `pluginToolWireName` is the one mint (`contracts/plugin/registrations.ts`, where the
+ *  injectivity proof lives); this function is the macro plane's NAME for it, not a second rule. The two
+ *  planes are separate registries, so the identical string in each is not a collision. */
 export function pluginMacroName(slug: string, guestName: string): string {
-  return `plugin_${slug.replaceAll("-", "_")}_${guestName}`;
+  return pluginToolWireName(slug, guestName);
+}
+
+/** The PRE-#1391 spelling of {@link pluginMacroName} — the slug's hyphens folded to a SINGLE underscore.
+ *
+ *  THIS IS A DEGRADE PATH, NOT A SECOND MINT, and the distinction is the whole reason it may exist: nothing
+ *  ever MINTS this name, and no registry key is derived from it. It exists only because a plugin macro's name
+ *  is USER-TYPED CONTENT — a host writes `{{plugin_oracle_deck_omen}}` into a persona note, a scenario line or
+ *  an author's note, and that prose is not a row this app may rewrite (unlike the `ToolCallRecord.name` and
+ *  `run_tool` arm spellings, which #1391's boot migrations do rewrite). Renaming the macro with no fallback
+ *  would silently render those references as "" — the exact silent-loss class #1649 ruled against.
+ *
+ *  The fallback is applied ONLY at `resolveForTurn`, ONLY when the legacy spelling is claimed by exactly one
+ *  of the author's own macros, and ONLY when it does not shadow a live name (see the alias fold below). An
+ *  ambiguous legacy name — which is precisely the pre-#1391 defect this row fixed — stays unresolved, i.e.
+ *  exactly today's behaviour. Returns `null` when the slug has no hyphen and the two spellings coincide. */
+function pluginMacroLegacyName(slug: string, guestName: string): string | null {
+  if (!slug.includes("-")) {
+    return null;
+  }
+  return `${PLUGIN_TOOL_NAME_PREFIX}${slug.replaceAll("-", "_")}_${guestName}`;
 }
 
 /** Race one guest resolution against the shared deadline. Resolves to `null` on ANY failure — a throw, a
@@ -93,6 +124,7 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
     }
     const entries: RegisteredMacro[] = req.macros.map((macro) => ({
       name: pluginMacroName(req.slug, macro.name),
+      legacyName: pluginMacroLegacyName(req.slug, macro.name),
       description: macro.description,
       // The guest receives an EMPTY args object (the single-arg host→guest seam, arity-stable) and the turn's
       // chat scope, so `chat.current()` works inside a macro resolver exactly as it does inside a tool handler.
@@ -133,7 +165,8 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
     });
     try {
       const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline)));
-      return macros.map((macro, index) => toDef(macro, values[index] ?? null));
+      const defs = macros.map((macro, index) => toDef(macro.name, macro, values[index] ?? null));
+      return [...defs, ...legacyAliases(macros, values)];
     } finally {
       if (timer !== undefined) {
         clearTimeout(timer);
@@ -148,13 +181,42 @@ export function createPluginMacroRegistry(deadlineMs: () => number = () => PLUGI
  *  NEUTRALIZED first (interaction-spec §2 law 7: plugin-authored text entering a macro-execution plane goes
  *  through the house primitive at the write boundary, so a plugin can never emit `{{getglobalvar::…}}` and
  *  have the engine resolve it). `strict:false` matches every other authored macro. */
-function toDef(macro: RegisteredMacro, value: string | null): UserMacroDef {
+function toDef(name: string, macro: RegisteredMacro, value: string | null): UserMacroDef {
   return {
-    name: macro.name,
+    name,
     description: macro.description,
     args: [],
     body: neutralizeMacros(value ?? ""),
     inputs: [],
     strict: false,
   };
+}
+
+/** The #1391 LEGACY-SPELLING fold: the extra defs that let prose written before the injective rename keep
+ *  resolving. See {@link pluginMacroLegacyName} for why this exists at all (a macro reference is user-typed
+ *  content in a persona note or scenario line, and no migration can reach it).
+ *
+ *  TWO GUARDS, and both are refusals rather than guesses:
+ *    • UNIQUENESS — a legacy spelling claimed by TWO of this author's macros is the pre-#1391 ambiguity itself
+ *      (`foo-bar`/`baz` and `foo`/`bar_baz` both answered to `plugin_foo_bar_baz`). Resolving it would pick a
+ *      winner the author never chose, so it resolves to nothing, exactly as it does today.
+ *    • NO SHADOWING — a legacy spelling that equals some macro's LIVE name loses to the live name. The
+ *      alias plane may never take a name the current mint hands out.
+ *  The values array is the ALREADY-RESOLVED per-turn answers, so an alias costs no second guest invoke: one
+ *  resolution, two names pointing at it. */
+function legacyAliases(macros: readonly RegisteredMacro[], values: readonly (string | null)[]): readonly UserMacroDef[] {
+  const live = new Set(macros.map((macro) => macro.name));
+  const claims = new Map<string, number>();
+  for (const macro of macros) {
+    if (macro.legacyName !== null) {
+      claims.set(macro.legacyName, (claims.get(macro.legacyName) ?? 0) + 1);
+    }
+  }
+  return macros.flatMap((macro, index) => {
+    const legacy = macro.legacyName;
+    if (legacy === null || claims.get(legacy) !== 1 || live.has(legacy)) {
+      return [];
+    }
+    return [toDef(legacy, macro, values[index] ?? null)];
+  });
 }

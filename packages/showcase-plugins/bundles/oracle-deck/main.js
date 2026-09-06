@@ -239,7 +239,8 @@ async function announceDraw(cards, dealt, commitment) {
 
 // ── the tools ──────────────────────────────────────────────────────────────────────────────────────────────
 // `tools.register` is activation-time and synchronous. The host namespaces each name to
-// `plugin_<slug>_<name>` (so this pair lands as `plugin_oracle_deck_draw` / `plugin_oracle_deck_reveal`) and
+// `plugin_<slug'>_<name>`, where `slug'` doubles each hyphen (so this pair lands as
+// `plugin_oracle__deck_draw` / `plugin_oracle__deck_reveal`) and
 // registers it into the ONE tool registry every other tool consumer already funnels through. Your handler runs
 // IN the sandbox under the per-invocation budget, and whatever STRING it returns is what the model reads —
 // returned verbatim, never re-encoded, so `JSON.stringify(x)` yields exactly that JSON to the model.
@@ -309,16 +310,17 @@ if (canDeal) {
 } // end canDeal — the tools exist only when both capabilities are granted.
 
 // ── THE OMEN MACRO (macros.register) ───────────────────────────────────────────────────────────────────────
-// `{{plugin_oracle_deck_omen}}` — usable anywhere macros run (a persona note, a scenario line, an author's
+// `{{plugin_oracle__deck_omen}}` — usable anywhere macros run (a persona note, a scenario line, an author's
 // note) — substitutes the MOST RECENT card of the open session. Put "The table's omen is
-// {{plugin_oracle_deck_omen}}." in a scenario note and every turn quietly leans toward the last card drawn.
+// {{plugin_oracle__deck_omen}}." in a scenario note and every turn quietly leans toward the last card drawn.
 //
 // WHAT A PLUGIN MACRO IS, precisely — three facts that shape everything you can do with one:
 //   1. It is a VALUE, not a function: `resolve` takes NO arguments. The kit macro engine is synchronous and
 //      a guest call is not, so the host resolves each plugin macro ONCE per turn, before assembly, and
 //      registers the RESULT as that turn's value. (An arg-taking plugin macro is structurally impossible —
 //      do not design around it.)
-//   2. The NAME is host-namespaced: you register "omen", macros see `plugin_oracle_deck_omen`. You can never
+//   2. The NAME is host-namespaced: you register "omen", macros see `plugin_oracle__deck_omen` (each `-`
+//      in the slug becomes `__`, which is what keeps two plugins' namespaces apart). You can never
 //      shadow a builtin or another plugin's macro.
 //   3. A throw or an overrun resolves to "" for that turn — degrade-never-throw is the macro plane's own law,
 //      so returning "" for "nothing to say" (no session yet) is the idiomatic empty, not an error.
@@ -347,7 +349,7 @@ if (host.grants.includes("chat.transform") && host.grants.includes("storage.kv")
 //
 // THE THREE THINGS TO KNOW:
 //  1. `toolName` is the LINKAGE, and it is your OWN name for the tool — `draw`, exactly as `tools.register`
-//     took it. The app resolves the model-visible `plugin_oracle_deck_draw` on its side; you never spell
+//     took it. The app resolves the model-visible `plugin_oracle__deck_draw` on its side; you never spell
 //     that, and a card that named it would break the day your slug changed.
 //  2. THE BINDING ROOT IS THE CALL, not `setState`. `{ $state: "result.commitment" }` reads the result
 //     document of THE CALL BEING DRAWN, so an old draw in the scrollback keeps showing the cards it drew.

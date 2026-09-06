@@ -61,6 +61,7 @@ import {
   DB_LAUNCHED,
   healLegacyBackgroundPinsOnBoot,
   migrateHandoffOfferVocabOnBoot,
+  migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
   reclaimLocksOnBoot,
   runBootMigrations,
@@ -317,6 +318,13 @@ export function createLifecycle(): Lifecycle {
     // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
     // first. Runs before compose, which is where the first preset read lives.
     await migrateProseSlotVocabOnBoot({ db });
+
+    // #1391 DATA migration, same window and same class: `pluginToolWireName` became INJECTIVE (a slug's `-`
+    // now doubles to `__`), which renames every hyphen-slug plugin's model-visible tool names. A persisted
+    // `ToolCallRecord.name` under the old spelling silently unmatches its plugin's `tool-card` surface, and a
+    // `run_tool` automation arm under it stops firing. Idempotent, and a no-op on a box with no hyphenated
+    // plugin slug installed. Runs before compose, which is where the first plugin activation lives.
+    await migratePluginToolWireNamesOnBoot({ db });
 
     // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
     // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
