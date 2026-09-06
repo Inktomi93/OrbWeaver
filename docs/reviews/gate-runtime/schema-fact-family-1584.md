@@ -289,6 +289,15 @@ fence are deleted — the fence became population algebra, because the central w
 marker universe from the effective population and a tool file mentioning the grammar is outside the policy.
 Malformed / stale / over-broad markers are CENTRAL engine behaviors and are not re-proven per policy.
 
+**THE MODULE-ORIGIN CLAIM NEEDED ITS OWN CONTROL.** "Only `drizzle-orm` counts" was asserted by
+`moduleSpecifier.startsWith(DRIZZLE_MODULE)` and proven by nothing: deleting that comparison left the
+conformance suite fully green, because the local-shadow `mustPass` passed STRING LITERALS and was acquitted
+upstream by column resolution before the origin was ever consulted. The two halves are now isolated
+separately — the local-shadow row carries a real nullable column (a local declaration is no module member at
+all), and a new row imports a GENUINE `ne` export from a non-drizzle module and applies it to that same
+column, so only the module comparison can acquit it. Deleting the comparison turns exactly that row red.
+The general lesson is the reviewer's: a claim whose counterfactual is acquitted UPSTREAM isolates nothing.
+
 Two mechanisms this cost, both worth copying:
 
 1. **`drizzle-orm`'s comparison operators are OVERLOADED.** `notInArray` has three declarations, so
