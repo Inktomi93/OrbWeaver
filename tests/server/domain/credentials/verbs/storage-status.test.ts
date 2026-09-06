@@ -12,12 +12,18 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SecretBox } from "@orb/server/infra/crypto";
-import { describe } from "vitest";
+import { budget } from "@orb/tooling/_shared/load-budget";
+import { describe, vi } from "vitest";
 import type { CredentialContext } from "../../../../../packages/server/src/domain/credentials/context.ts";
 import { CREDENTIALS_OP_CODES } from "../../../../../packages/server/src/domain/credentials/contract/errors.ts";
 import { createStorageStatus } from "../../../../../packages/server/src/domain/credentials/verbs/storage-status.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+
+// The last test dynamic-`import()`s `verbs/add.ts` — a cold pull of its own graph (crypto, errors) that
+// measured sitting at ~10.6s against the project's ~9.7s scaled default under load (#1810), a near-miss with
+// no headroom. `budget()` (not a fixed number) so the ceiling stays load-scaled rather than fighting it.
+vi.setConfig({ testTimeout: budget(20_000) });
 
 /** The verb reads exactly one field off the ctx; everything else would be a lie about what it touches. */
 function ctxWithBox(enabled: boolean): CredentialContext {
