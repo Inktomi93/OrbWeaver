@@ -90,7 +90,7 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: NpcR
  *  panel's Party + Present tabs render. */
 function castString(view: RpgTrackerView, ctx: NpcRenderCtx): string {
   const lines: string[] = [];
-  // The same roster/npc partition the reminder makes off the one actor list (R2) — never a second rule.
+  // The same participant/npc partition the reminder makes off the one actor list (R2) — never a second rule.
   const party = view.actors.filter((a) => a.actorRef.kind !== "npc");
   if (party.length > 0) {
     lines.push("Party:", ...party.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints)));

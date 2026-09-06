@@ -16,12 +16,31 @@ function isAnalyzerArtifact(candidate: SnapRunArtifact): candidate is AnalyzerAr
   return isSnapAnalyzerProducer(candidate.producer);
 }
 
+/** `exemption` is NEVER an error (#1780): the row exists to say WHY a measurement that would have failed
+ *  was excused, so promoting it would manufacture the very finding the carve-out ruled out. It reads as an
+ *  annotation, which `run-findings.ts` carries without severity and without a count. */
+function analyzerProblemSeverity(problem: SnapAnalyzerProblem): FindingDraft["severity"] {
+  if (problem.kind === "exemption") {
+    return "annotation";
+  }
+  return (problem.arm === "interaction-perf" || problem.arm === "heap") && problem.kind === "threshold" ? "annotation" : "error";
+}
+
 function analyzerProblemDraft(problem: SnapAnalyzerProblem, artifact: AnalyzerArtifact): FindingDraft {
   return {
-    severity: (problem.arm === "interaction-perf" || problem.arm === "heap") && problem.kind === "threshold" ? "annotation" : "error",
+    severity: analyzerProblemSeverity(problem),
     arms: [problem.arm],
     channels: [problem.arm],
-    what: `${problem.metric}: ${problem.observed} (threshold ${problem.threshold})`,
+    // An exemption row's `threshold` field carries the carve-out's NAME, not a number, so "(threshold …)"
+    // would read as a budget it met — it names the carve-out instead. And ONLY the name: the four
+    // conditions are 580 bytes and this line is inside the 4096-byte agent-readable body budget
+    // (tests/tooling/snap/ops/agent-readable-output.suite.int.test.ts), so they stay in the artifact's
+    // `detail`, which the row's own `next=` command prints. Same posture as the console collapse: name the
+    // artifact and the exact reader, never the block.
+    what:
+      problem.kind === "exemption"
+        ? `${problem.metric}: ${problem.observed} (${problem.threshold})`
+        : `${problem.metric}: ${problem.observed} (threshold ${problem.threshold})`,
     where: problem.subject,
     evidence: [findingRef(problem.arm, artifact.path, artifact.scope)],
     completeness: findingCompleteness(artifact),

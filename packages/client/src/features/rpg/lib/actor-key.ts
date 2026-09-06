@@ -1,6 +1,6 @@
-// The stable member-scope selector KEY for a roster actor: the contract's canonical immutable-ref
+// The stable member-scope selector KEY for a participant actor: the contract's canonical immutable-ref
 // projection. One home for Sheet / Inventory / the subject dropdown, so every member-scoped surface
-// addresses the same actor by the same key through renames and same-name roster entries.
+// addresses the same actor by the same key through renames and same-name participant entries.
 
 import type { RpgActorView } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
@@ -11,20 +11,20 @@ export function actorKey(actor: RpgActorView): string {
 }
 
 /**
- * The A11Y SUBJECT for each actor in one roster, keyed by {@link actorKey} — the string every control on
+ * The A11Y SUBJECT for each actor in one participant list, keyed by {@link actorKey} — the string every control on
  * that actor's block runs through the tracker kit's `subject` grammar ("Mara Vitality value", "Add
  * condition to Mara").
  *
- * A DISPLAY NAME IS NOT UNIQUE (#1531). Two roster entries may legally carry the same name — #1366 keys
+ * A DISPLAY NAME IS NOT UNIQUE (#1531). Two participant entries may legally carry the same name — #1366 keys
  * distinct SPELLINGS distinctly, and identical spellings stay allowed — and when they do, the whole #1383
  * repair collapses back to what it was built to fix: two groups with one accessible name and byte-identical
  * control names across them, on an EDITING surface. So a colliding name is qualified by its POSITION in the
- * roster the reader is hearing, which is the one disambiguator that is speakable (an actor key read aloud
+ * participant list the reader is hearing, which is the one disambiguator that is speakable (an actor key read aloud
  * is not) and that tells them there is more than one.
  *
  * ONLY the contended names change. An uncontended actor is spoken as itself — the qualifier is a repair for
  * a collision, not a house style, and paying it everywhere would make every reading longer to fix a case
- * most rosters never hit. The qualifier is a11y-only: nothing here touches the VISIBLE name, so the
+ * most participant lists never hit. The qualifier is a11y-only: nothing here touches the VISIBLE name, so the
  * accessible name still contains the visible label (WCAG 2.5.3).
  */
 export function actorSubjects(actors: readonly RpgActorView[]): ReadonlyMap<string, string> {

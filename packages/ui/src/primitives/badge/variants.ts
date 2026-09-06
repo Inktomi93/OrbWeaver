@@ -79,10 +79,11 @@ export const badgeVariants = tv({
       // `IndicatorDot` primitive would have restated `rounded-full` + the six intent pairs to add nothing.
       //
       // `size-field` (6px) is the belt step, not a px literal, and it is deliberately the SAME diameter the
-      // shell's context-rail dot already draws (`context-rail.tsx` — `size-1.5 … p-0` at the call site, the
-      // one live `ui-size-via-variant` ALLOWLIST survivor): one dot diameter in the app. That call site is
-      // NOT converted here — moving it onto this arm makes its allowlist row stale, which is a `tooling/`
-      // edit outside this lane's fence; it is the follow-up this arm makes possible.
+      // shell's context-rail dot already drew by hand (`context-rail.tsx` — `size-1.5 … p-0` at the call
+      // site, the one live `ui-size-via-variant` ALLOWLIST survivor): one dot diameter in the app. THAT
+      // CALL SITE IS NOW CONVERTED (#1799 follow-up) — `ContextCellBadge` in `context-rail.tsx` renders
+      // this exact arm, and the stale `ui-size-via-variant` ALLOWLIST row for it is gone; the follow-up
+      // this note flagged is done.
       // `shrink-0` keeps it square in a flex row (the `series-row` swatch precedent); POSITION is the call
       // site's datum, as it is for every corner ornament.
       //

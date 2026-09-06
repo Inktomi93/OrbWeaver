@@ -65,7 +65,7 @@ export interface RpgSatelliteRowProps {
  * READING: on a phone there is no room for both, and the READING is what the pane is for. `pointer-coarse`,
  * not a width query — the constraint is the phone's vertical budget, which a container query cannot see.
  * WHERE THE DROPPED FIGURES GO at coarse (owner ruling 2026-08-07 — KEEP the drop, and the honest version
- * of the claim): HP/Mana/Focus are tracker rows on the Status roster card, one tap away; the WALLET is not
+ * of the claim): HP/Mana/Focus are tracker rows on the Status participant card, one tap away; the WALLET is not
  * a Status row and never was — it renders in the INVENTORY tab header. The accepted cost: on
  * Scene/Quests/Journal/Map at coarse there are no vitals and no wallet on screen.
  *

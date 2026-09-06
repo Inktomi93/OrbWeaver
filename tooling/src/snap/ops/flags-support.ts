@@ -7,6 +7,16 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export const MS_PER_SECOND = 1000;
 
+/** THE UNSTATED SENTINEL (#1509), and the `--watch` tick interval's ONE resolver. `args.watchEveryMs`
+ *  parses to 0 — "the argv did not state a cadence" — and every reader resolves it HERE, to one second. It
+ *  used to parse straight to that default, which erased the difference between "no `--every`" and
+ *  "`--every 1000`": session inheritance had no way to ask whether the call stated a cadence, so it asked
+ *  about `--watch` instead and gave both asymmetric calls an interval the argv never asked for
+ *  (`lib/session-plan.ts`). A stated `--every` can never be 0 — `FLAG_HANDLERS` floors it at 1. */
+export function watchIntervalMs(args: Pick<Args, "watchEveryMs">): number {
+  return args.watchEveryMs === 0 ? MS_PER_SECOND : args.watchEveryMs;
+}
+
 // --mobile: a Playwright device descriptor name (registry lookup in _shared/browser.ts). Real touch +
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
 // rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot

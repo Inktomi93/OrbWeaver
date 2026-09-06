@@ -1,7 +1,7 @@
 // Unit: the transcript→card projection the Scene "Cards" archive and the Journal chronicle share. The
 // load-bearing fact is PER-ROW PROVENANCE: each card carries the render policy of the message it was
 // archived from (resolved through the ONE trust authority, `lib/render-trust`), so the archive can never
-// paint an external image the transcript blocked one panel away. Fail-CLOSED while the roster is loading.
+// paint an external image the transcript blocked one panel away. Fail-CLOSED while the participants are loading.
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
@@ -59,7 +59,7 @@ test("each card carries ITS OWN author's external-media verdict, not one blanket
   ]);
 });
 
-test("FAIL-CLOSED: an unresolvable author (roster still loading) archives the card with media blocked", () => {
+test("FAIL-CLOSED: an unresolvable author (participants still loading) archives the card with media blocked", () => {
   const [card] = collectArchivedCards([message(castId<MessageId>("msg_1"), TRUSTING)], { participants: undefined, viewerUserId: VIEWER });
 
   expect(card?.allowExternalMedia).toBe(false);

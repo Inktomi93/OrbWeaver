@@ -25,9 +25,20 @@ interface PresetFile {
 }
 
 /** Refuse keys the shared schema strips and values its `.catch()` clauses would silently replace. A
- * probe arm is evidence about the requested value, so schema self-healing here would be a false receipt. */
+ * probe arm is evidence about the requested value, so schema self-healing here would be a false receipt.
+ *
+ * `safeParse`, not `.parse` (#1509): this function's whole contract is the `{ error }` shape its callers
+ * turn into an ARG ERROR at EXIT.misuse, and neither caller catches — a throw here would leave a raw
+ * ZodError as the CLI's last word. Measured on the tree, the schema is total for every plain object (every
+ * leaf carries a `.catch`), so the throwing arm is reachable only for a NON-object; both current callers
+ * guard with `isPlainObject` first, which makes this a FENCE on the exported door rather than a live
+ * defect fix — the function is exported, and the next caller does not inherit those guards. */
 export function validateAppearancePatch(patch: AppearancePatch, source: string): AppearanceParse {
-  const parsed = appearanceSettingsSchema.parse(patch) as Readonly<Record<string, unknown>>;
+  const outcome = appearanceSettingsSchema.safeParse(patch);
+  if (!outcome.success) {
+    return { error: `${source} is not a readable appearance object: ${outcome.error.issues.map((issue) => issue.message).join("; ")}` };
+  }
+  const parsed = outcome.data as Readonly<Record<string, unknown>>;
   for (const [key, requested] of Object.entries(patch)) {
     if (!Object.hasOwn(parsed, key)) {
       return { error: `${source} contains unknown appearance key ${JSON.stringify(key)}` };

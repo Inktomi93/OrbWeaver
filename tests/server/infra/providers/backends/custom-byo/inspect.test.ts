@@ -397,3 +397,78 @@ describe("inspectCustomByoEndpoint — the by-value scrub runs BEFORE sanitize (
     expect(result.error).toContain("transport rejected");
   });
 });
+
+// #1809's corollary that reordering CANNOT fix (#1820, SECURITY). `readBodyPreview` bounded the stream at
+// `BODY_previewLimit` and only then handed the bytes to `redactSecretsFromText`. A length cap is a mutation
+// like any other, so it obeys the "scrub before you mangle" law — but a cap at the READ is strictly worse
+// than a mis-ordered one: the tail of a straddling credential was never pulled off the socket, so no later
+// belt can reach it, and the surviving PREFIX is real key material rendered in the Test-endpoint dialog. An
+// echoing endpoint controls where the reflected key lands in its body, so it controls whether it straddles.
+// The fix over-reads by the longest literal the scrub will search for, scrubs, and slices LAST.
+//
+// SHAPE-BLIND FIXTURE (#1760/#1785/#1809): matches neither `sk-…` nor `Bearer …`, and is never emitted
+// behind a `Bearer ` frame — otherwise the defense-in-depth sweep masks it whatever the by-value belt does
+// and the pin goes green against the broken source.
+describe("inspectCustomByoEndpoint — a credential STRADDLING the preview cut (#1820)", () => {
+  // Mirrors `inspect.ts`'s own `BODY_previewLimit` (file-local there; the pre-existing hard-cap test above
+  // spells the same 4000).
+  const previewLimit = 4000;
+  const straddlingKey = "byocred4d8e1b6a2c90straddlethecut";
+  // The half that survived the cut on the broken source — the actual leaked bytes, and therefore the
+  // assertion that matters. `not.toContain(straddlingKey)` alone would pass on the broken source too,
+  // because the truncation itself removed the tail.
+  const leakedPrefix = straddlingKey.slice(0, 10);
+  const tail = "TAILMARKER";
+
+  test("the reflected key is scrubbed whole, not left as a prefix at the cut", async () => {
+    // The key starts 10 chars before the limit and runs past it.
+    const filler = "x".repeat(previewLimit - 10);
+    vi.stubGlobal("fetch", (): Response => new Response(`${filler}${straddlingKey}${tail}`, { status: 200, statusText: "OK" }));
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: straddlingKey,
+      headers: null,
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+
+    const preview = result.response?.bodyPreview ?? "";
+    expect(preview).not.toContain(leakedPrefix);
+    expect(preview).not.toContain(straddlingKey);
+    expect(preview).toContain("█");
+    // NON-VACUITY + no over-redaction: `redactKnownSecrets` fail-closes to "", and an over-read that forgot
+    // to slice would blow past the limit. The legitimate content ahead of the cut is intact and the preview
+    // still honours its own bound.
+    expect(preview.startsWith(filler)).toBe(true);
+    expect(preview.length).toBe(previewLimit);
+  });
+
+  // THE SAME DEFECT REACHED THROUGH MULTI-BYTE CONTENT — the arm that fails a byte-budget-only fix. The read
+  // was bounded in BYTES while the preview is sliced (and the scrub matches) in UTF-16 CODE UNITS, so a body
+  // whose filler is multi-byte exhausts the byte budget mid-key while the string is still far short of the
+  // character limit: the slice is a no-op and the prefix rides straight through. Counting the read in the
+  // unit it is cut in is what closes the class rather than the one position a probe happened to pick.
+  test("…including when multi-byte content ahead of it exhausts a byte budget first", async () => {
+    // 1330 × 3-byte characters = 3990 bytes but only 1330 code units.
+    const filler = "あ".repeat(1330);
+    vi.stubGlobal("fetch", (): Response => new Response(`${filler}${straddlingKey}${tail}`, { status: 200, statusText: "OK" }));
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: straddlingKey,
+      headers: null,
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+
+    const preview = result.response?.bodyPreview ?? "";
+    expect(preview).not.toContain(leakedPrefix);
+    expect(preview).toContain("█");
+    // Non-vacuity: the whole body is well inside the limit here, so everything but the key survives.
+    expect(preview.startsWith(filler)).toBe(true);
+    expect(preview).toContain(tail);
+  });
+});

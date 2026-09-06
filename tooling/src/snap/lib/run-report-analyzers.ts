@@ -1,12 +1,16 @@
 // Browser-free rendering for analyzer-owned problem rows. The analyzer artifacts own threshold policy;
 // this module only preserves severity, caps terminal output and points to the full immutable population.
 import { print } from "../../_shared/artifacts.ts";
+import type { SnapAnalyzerProblemKind } from "../contract/analyzer.ts";
 import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
 import type { SnapReportQuery, SnapRunIndex } from "../contract/run-index.ts";
 import { readSnapAnalyzerProblems } from "./run-report-problems.ts";
 
 const DISPLAY_CAP = 20;
-const PROBLEM_RANK = { "evidence-gap": 0, failure: 1, threshold: 2 } as const;
+/** Mapped over the kind union, so a new member fails `tsc` here rather than sorting as `undefined`.
+ *  `exemption` ranks LAST: it explains a measurement that did NOT fail, so it never displaces a row that
+ *  did under the display cap. */
+const PROBLEM_RANK: Record<SnapAnalyzerProblemKind, number> = { "evidence-gap": 0, failure: 1, threshold: 2, exemption: 3 };
 
 export async function reportAnalyzerProblems(index: SnapRunIndex, query: SnapReportQuery, showRows = true): Promise<void> {
   const artifacts = index.artifacts.filter(

@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BLUR_SURFACES } from "@orb/contracts/settings";
+import { zScopeOfCssVar } from "@orb/ui/z-scope";
 import { expect, test } from "../../support/fixtures.ts";
 
 const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/globals.css");
@@ -358,4 +359,40 @@ test("client globals.css: colorization pairs the shell grid and themed portal ro
   expect(declarations(scopedBlock), "seed/provider-less and custom-theme branches must derive the same token family").toBe(declarations(rootBlock));
   expect(rules.match(/html\[data-theme-colorization\]/gu)?.length, "colorization has exactly one root arm and one paired descendant arm").toBe(2);
   expect(rules, "the historical grid-only arm strands Dialog/Drawer portals").not.toContain("html[data-theme-colorization] .shell-grid {");
+});
+
+// ── THE SHELL'S STACKING SCOPE (#1794) ────────────────────────────────────────────────────────────────
+// `.shell-grid` is `isolation: isolate`, so every z-index in shell.css orders that box's own children and
+// nothing else. A cross-boundary float escapes by being PORTALED to `[data-slot="portal-root"]` (the grid's
+// `display: contents` sibling) — never by naming a higher token. So the shell may spell only the
+// `in-context` and `app-frame` rungs; a `portal-float` token here claims a reach the scope cannot grant.
+// (`no-raw-z-index` is green either way — it proves the token VOCABULARY, never the scope. The scope map
+// itself is `packages/ui/src/tokens/z-scope.ts`, total by `satisfies`; this is its CSS-side reader.)
+//
+// COMMENTS ARE STRIPPED FIRST and that is load-bearing, not hygiene: the file's own scope block NAMES
+// `--z-modal` while explaining why it may not be declared there, and a text scan that could not tell prose
+// from a declaration would either red on the explanation or force the explanation to go unwritten.
+const Z_VAR_RE = /var\(\s*(--z-[a-z0-9-]+)/gu;
+
+/** Every `--z-*` this CSS declares a value from, with the scope each one claims. */
+function zScopeClaims(css: string): readonly { readonly cssVar: string; readonly scope: string }[] {
+  return [...css.replace(COMMENT_RE, "").matchAll(Z_VAR_RE)].map((match) => ({
+    cssVar: match[1] ?? "",
+    scope: zScopeOfCssVar(match[1] ?? "") ?? "UNKNOWN",
+  }));
+}
+
+test("shell.css consumes only shell-scoped z rungs — a portal-float token there claims a reach it cannot have", () => {
+  const claims = zScopeClaims(readFileSync(SHELL_CSS_PATH, "utf8"));
+  // Empty would pass vacuously — the shell does stack things, and if this ever reads zero the scan broke.
+  expect(claims.length, "shell.css declares z-index from the token scale").toBeGreaterThan(3);
+  expect(claims.filter((claim) => claim.scope !== "app-frame" && claim.scope !== "in-context")).toEqual([]);
+
+  // PLANTED POSITIVE CONTROL, same predicate, same invocation: the scan does bite on the drift it exists
+  // for (the mobile sheet's pre-#1794 `--z-modal`) and on a name outside the governed vocabulary.
+  const planted = zScopeClaims(".shell-panel { z-index: var(--z-modal); }\n.x { z-index: var(--z-nope); }");
+  expect(planted).toEqual([
+    { cssVar: "--z-modal", scope: "portal-float" },
+    { cssVar: "--z-nope", scope: "UNKNOWN" },
+  ]);
 });

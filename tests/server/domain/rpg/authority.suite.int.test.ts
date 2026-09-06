@@ -1,5 +1,5 @@
 // verbs/authority — THE per-verb authority matrix (rpg-design/05 §4.4, §6.2). The cross-tenant trust boundary:
-// host-gated verbs require the roster host; a member may write their OWN `user` row; shared planes are
+// host-gated verbs require the room host; a member may write their OWN `user` row; shared planes are
 // host-write; reads are member-gated. Refusals are LEAK-FREE — a non-member gets the SAME not-found a no-game
 // chat gets (the not-a-member and no-game cases are indistinguishable). Every verb is probed here across the
 // host / member-own / member-foreign / non-member grid; behavior detail lives in the per-verb suites.
@@ -23,7 +23,7 @@ beforeEach(async () => {
  *  ever resolved, so the game need not carry the row). */
 const CAST_REF = { kind: "npc", npcKey: "mira" } as const;
 
-/** Seed a game whose roster has a host + a member; return the harness with membership programmed. */
+/** Seed a game whose participants include a host + a member; return the harness with membership programmed. */
 async function seedGameWithParticipants(): Promise<{ chatId: ChatId; h: ReturnType<typeof makeRpgService> }> {
   const chatId = await seedChat(db, "a");
   await seedUser(db, castId<Handle>("host"));
@@ -99,7 +99,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   });
 
   // R4 — the promotion doorway. It is the ONE rpg verb whose write reaches OUTSIDE the game (a durable
-  // character card + a chat roster seat), so its host floor is the gate that keeps a mere member from minting
+  // character card + a chat participant seat), so its host floor is the gate that keeps a mere member from minting
   // library rows into the host's account. Both refusals land BEFORE any mint.
   test("promoteActor", async () => {
     const { chatId, h } = await seedGameWithParticipants();
@@ -127,7 +127,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
     await expectMessage(h.service.dismissActor({ principal: member, chatId, targetRef: CAST_REF }), "host authority required to dismiss an actor");
     await expectMessage(
       h.service.promoteActor({ principal: member, chatId, targetRef: CAST_REF }),
-      "host authority required to promote an actor to the roster",
+      "host authority required to promote an actor to the room's characters",
     );
     // createGame gates BEFORE a game exists (membership read direct, no game gate) — a second chat, no game.
     const bareChatId = await seedChat(db, "b");
@@ -213,7 +213,7 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
 describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (leak-free)", () => {
   // The by-id host verbs (updateWidget/deleteWidget/editJournalEntry/deleteJournalEntry) operate on a
   // caller-supplied entity id. Without game-scoping, host-of-A could mutate/delete game B's rows — a
-  // cross-tenant write IDOR (chat A's roster ≠ chat B's roster). The refusal MUST be a leak-free not-found
+  // cross-tenant write IDOR (chat A's participants ≠ chat B's participants). The refusal MUST be a leak-free not-found
   // (never Forbidden): a foreign host must not learn the id names a real row in another game. The victim
   // row is read back to prove it is UNTOUCHED.
   async function seedTwoGames(): Promise<{

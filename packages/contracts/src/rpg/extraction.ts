@@ -79,11 +79,11 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema>;
 // The MIS-TARGET fix (R1) — per-call REF CONSTRAINT injected into the PROJECTED schema.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // The extraction fields reference actors by NAME (`targetRef`) and trackers by KEY. A model producing
-// SCHEMA-VALID but WRONG refs (targeting "player" when the roster actor is "You", or shoving a location into
+// SCHEMA-VALID but WRONG refs (targeting "player" when the participant actor is "You", or shoving a location into
 // a nonexistent tracker) yields a silent empty panel — the phantom mint never renders. Constraining those
 // string fields to an `enum` of the ACTUAL per-call refs makes an invalid ref UNREPRESENTABLE at the token
 // level under a schema-enforcing backend (LIVE-VERIFIED 2026-07-27: vLLM xgrammar forced a "player" ask onto
-// a valid roster ref; OpenRouter strict json_schema binds the same enum; agent-sdk at least sharpens the
+// a valid participant ref; OpenRouter strict json_schema binds the same enum; agent-sdk at least sharpens the
 // post-parse belt). PORTABLE by construction — it returns plain JSON Schema, so each backend's existing
 // response_format mapping enforces it with ZERO provider-specific code. The extraction PROMPT still
 // enumerates the valid refs as the fallback arm for a non-enforcing model.
@@ -91,13 +91,13 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema>;
 // COMPILE-COST NOTE (from the vLLM v0.22.1 source + a live probe): xgrammar caches compiled grammars by
 // schema, so a fresh per-call enum set is a cache MISS that recompiles (~0.7s measured on the gen engine for
 // the full extraction schema — acceptable for a post-turn extraction, and the schema stays minimal). The
-// enum lists are kept SMALL (only the live roster + widget refs), so the grammar stays cheap to compile.
+// enum lists are kept SMALL (only the live participants + widget refs), so the grammar stays cheap to compile.
 
-/** The per-call refs the constraint binds: the roster actor names (party/inventory/scene targets) + the
+/** The per-call refs the constraint binds: the participant actor names (party/inventory/scene targets) + the
  *  per-actor TRACKER write surface (R6). Empty arrays leave their field unconstrained (a fresh game doesn't
  *  force an impossible empty enum). */
 export interface ExtractionRefs {
-  /** Roster actor names the model may target (`targetRef` on party/inventory; `presentRemove` on scene). */
+  /** Participant actor names the model may target (`targetRef` on party/inventory; `presentRemove` on scene). */
   readonly actorRefs: readonly string[];
   /** R6 — the per-actor WRITE SURFACE, grouped by identical writable-tracker set. Each group binds its
    *  actors' `party[].trackerDeltas[].key` / `trackerSets[].key` enums, so the schema NEVER offers a tracker

@@ -39,7 +39,7 @@ export const RPG_TRACKER_COLOR_RE =
   /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|oklch\(\s*\d+(\.\d+)?%?\s+\d+(\.\d+)?\s+\d+(\.\d+)?(deg)?\s*(\/\s*\d+(\.\d+)?%?\s*)?\))$/;
 
 /** Who an actor-subject tracker applies to BEFORE per-actor exceptions: a carrier CLASS (`party` = the
- *  roster's character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
+ *  participants' character/user actors · `npcs` = scene `npc` actors · `everyone` = both) or an explicit actor
  *  list (the ad-hoc arm — "the act-3 demon's Bound Will", a personal field on two named characters). The
  *  classes are honest to what the old surfaces actually were: pool defs were per-party-member, npc fields
  *  were per-NPC. Ignored entirely on a `subject:"game"` tracker (there is no carrier to resolve).
@@ -135,7 +135,7 @@ export function resolveTrackerMaxOverride(def: RpgTrackerDef, requested: number 
 
 /** The CLASS a concrete carrier belongs to — the `everyone` member is a def-side wildcard, never a carrier's
  *  own class, so it is excluded by derivation (never re-declared — spine §5.5). The caller classifies, because
- *  the caller is the one holding the `RpgActorRef`: roster identities (character/user) are `party`, scene
+ *  the caller is the one holding the `RpgActorRef`: participant identities (character/user) are `party`, scene
  *  `npc` actors are `npcs`. */
 export type RpgTrackerCarrierKind = Exclude<RpgTrackerCarrierClass, "everyone">;
 

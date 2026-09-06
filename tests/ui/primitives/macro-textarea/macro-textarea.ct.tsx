@@ -12,6 +12,7 @@ import {
   CappedStory,
   DerivedSuggestionsStory,
   EmptySuggestionsStory,
+  FieldlessGhostStory,
   FieldWrappedStory,
   GhostDefaultStory,
   MacroTextareaStory,
@@ -210,6 +211,19 @@ test("a 60-word ghost default never becomes the field's accessible name", async 
   // fall-through to the ghost placeholder, that poll still passed.
   await mount(<GhostDefaultStory />);
   const control = page.getByRole("textbox", { name: "Template" });
+  await expect(control).toHaveAccessibleName("Template");
+});
+
+// #1645: the pin above proves only the ROLE regression — `<Field>`'s `aria-labelledby` OUTRANKS whatever
+// the control itself sets, so a fall-through planted at the control (`aria-label={placeholder}`) stays
+// GREEN there even though it is real. `template-drill-in.tsx`'s `ProseTemplateBody` and
+// `section-body.tsx`'s `TemplatedMarkerBody` both mount `<MacroTextarea>` with NO `<Field>`, so for THOSE
+// mounts the control's own `aria-label` prop is the ONLY name source, and a fall-through there is fully
+// exposed. Measured: planting `aria-label={placeholder}` on the control (`macro-textarea.tsx`) reds this
+// test — the accessible name becomes the 60-word ghost instead of "Template".
+test("a Field-LESS mount's accessible name comes from its own aria-label, never the placeholder ghost", async ({ mount, page }) => {
+  await mount(<FieldlessGhostStory />);
+  const control = page.getByRole("textbox");
   await expect(control).toHaveAccessibleName("Template");
 });
 

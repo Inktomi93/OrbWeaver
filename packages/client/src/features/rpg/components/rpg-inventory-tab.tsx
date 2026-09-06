@@ -55,7 +55,7 @@ import type { PackEdit } from "./rpg-pack-rows.tsx";
 import { PackBody } from "./rpg-pack-rows.tsx";
 import { RpgSubjectSelect } from "./rpg-subject-select.tsx";
 
-/** The viewer's own `user` actor, or the first roster actor as a fallback. */
+/** The viewer's own `user` actor, or the first participant actor as a fallback. */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
@@ -119,7 +119,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
       {/* The subject selector IS the identity line (owner ruling 2026-07-28 — no pill shelf): whose PACK
-          is shown; clicking the name opens the member dropdown. Omitted on a one-actor roster. */}
+          is shown; clicking the name opens the member dropdown. Omitted when there is only one participant. */}
       {state.tracker.actors.length > 1 && actor !== undefined ? (
         <Row gap="field" align="center">
           <RpgSubjectSelect actors={state.tracker.actors} value={actor} onChange={setSelectedKey} ariaLabel="Whose pack" />

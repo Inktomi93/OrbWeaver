@@ -58,7 +58,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // (on stage) and in its Known-characters disclosure (offstage); duplicating them here would give one person
   // two edit homes, which is the dual-homing rule this IA exists to obey.
   const characters = tracker.actors.filter((a) => a.actorRef.kind !== "npc");
-  // The a11y subject per character — the display name, qualified by roster position ONLY where two entries
+  // The a11y subject per character — the display name, qualified by participant position ONLY where two entries
   // carry the same name (#1531). Derived over the FILTERED list, because the collision that matters is the
   // one a reader actually hears in this tab: an npc with the same name lives on Scene and is never in
   // this tree, so qualifying against it would rename a character for a rival nobody here can reach.
@@ -167,7 +167,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
 interface RpgStatusCardProps {
   readonly actor: RpgActorView;
-  /** How this character is NAMED to a reader — `actor.name`, qualified by roster position when a same-named
+  /** How this character is NAMED to a reader — `actor.name`, qualified by participant position when a same-named
    *  entry shares the tab (`actorSubjects`, #1531). Every accessible name on the card is built from it. */
   readonly subject: string;
   readonly edit?: ActorEdit;
@@ -188,7 +188,7 @@ interface RpgStatusCardProps {
  *  boundary does not rename the controls, and unique names alone leave no structure to navigate by.
  *
  *  …AND THE SUBJECT IS NOT THE RAW NAME (#1531). Both halves above are built on the display name, so two
- *  roster entries carrying the SAME name (legal — #1366 keys distinct spellings distinctly, identical ones
+ *  participant entries carrying the SAME name (legal — #1366 keys distinct spellings distinctly, identical ones
  *  stay allowed) put the region straight back where it started: two groups sharing one label, and every
  *  control name duplicated across them. The card is handed a `subject` that `actorSubjects` has already
  *  qualified where — and only where — it collides.

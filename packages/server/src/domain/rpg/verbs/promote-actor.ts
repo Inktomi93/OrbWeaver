@@ -1,21 +1,21 @@
 // domain/rpg/verbs/promote-actor — promoteActor (the actor-state review §4.3 / §5 R4). THE promotion doorway,
 // and `dismissActor`'s exact opposite: dismissal FORGETS a known character, promotion KEEPS her forever. A
-// scene NPC the story kept bringing back stops being a scene annotation and becomes a roster CHARACTER — a
+// scene NPC the story kept bringing back stops being a scene annotation and becomes a CHARACTER — a
 // durable card in the host's library, a seat in the room the model can speak from, and one row on the tracker
 // plane, RE-KEYED under her new identity with everything the acquaintance wrote still on it.
 //
 // TWO HALVES, IN THIS ORDER, AND THE ORDER IS THE DESIGN:
 //   1. the DURABLE half (`ctx.promoteToCharacter`, an injected compose op over the character + chat front doors —
-//      rpg owns neither table): resolve-or-mint the marked card, ensure its roster seat, hand back the `CharacterId`;
+//      rpg owns neither table): resolve-or-mint the marked card, ensure its character seat, hand back the `CharacterId`;
 //   2. the SNAPSHOT half (`writeHandState` + `rekeyActor`): move the actor's row, presence and hand PINS from
 //      `npc:<slug>` onto `character:<id>` against the TRUE head, clone-forwarding like every hand door.
 // Every REFUSAL that can be decided is decided before a NEW card write — an untracked target, an actor with no
-// identity, or a name the roster already carries. Step (1) carries a stable promotion marker and each half is
+// identity, or a name the participants already carry. Step (1) carries a stable promotion marker and each half is
 // idempotent, so an interruption after card or seat creation resumes those same rows and reaches the re-key.
 // Inverting the order is not available: the re-key's target key IS the id (1) resolves or mints.
 //
 // THE NAME COLLISION IS A REFUSAL, NOT A SUFFIX. The model addresses actors by NAME, and `buildActorRefIndex`
-// is a lowercased name→ref Map — two roster actors sharing a name means one of them silently shadows the other
+// is a lowercased name→ref Map — two participant actors sharing a name means one of them silently shadows the other
 // and becomes unaddressable by every tool write. So a promotion that would mint the second "Vesna" refuses with
 // a sentence the host can act on (rename her first — `patchActor`'s `setIdentityText` is exactly that gesture,
 // and the slug key makes it safe). The card HANDLE collides in a different namespace (the host's own library)
@@ -23,8 +23,8 @@
 // namespace belongs to the character domain, the handle is minted by THAT namespace's engine
 // (`slugifyHandle`), never by the actor-key engine (#1386; the reasoning sits on the mint below).
 //
-// WHAT DOES NOT SURVIVE, AND WHY IT IS NOT A LEAK: the identity HALF. A roster actor carries none by R2 law —
-// her name is the chat roster's and her standing prose the sheet's — so the durable content is carried onto the
+// WHAT DOES NOT SURVIVE, AND WHY IT IS NOT A LEAK: the identity HALF. A participant actor carries none by R2 law —
+// her name is the chat's and her standing prose the sheet's — so the durable content is carried onto the
 // CARD in step (1) (display name → `name`, the standing guides → `description`, via the one
 // `rpgPromotedCardDescription` home) and `mood`/`relationship` are dropped. The panel's promotion affordance
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
@@ -43,7 +43,7 @@ import { rekeyActor } from "../substrate/actor-rekey.ts";
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the roster");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the room's characters");
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
@@ -100,10 +100,10 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     if (!written.ok) {
       // The card + seat DID land (they are durable and this verb is not transactional across domains). Say so:
       // "nothing happened" would send the host looking for a character that is already in their library.
-      return { ok: false, reason: `${written.reason} — the card and roster seat were created, but the tracked state could not be moved onto them` };
+      return { ok: false, reason: `${written.reason} — the card and character seat were created, but the tracked state could not be moved onto them` };
     }
 
-    // The whole panel re-resolves: she leaves the Scene tab's cast and appears on the Status roster, under the
+    // The whole panel re-resolves: she leaves the Scene tab's cast and appears on the Status participant list, under the
     // card's name, carrying the state she arrived with (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId: written.snapshotId });
     return {

@@ -2,7 +2,7 @@
 // over the profile's attribute vocabulary; a sheet read treats a MISSING key as absent (lite renders
 // nothing; full backfills at `center` when ITS seeding lands — the mutability rule, §2.3). Sheets live in
 // `rpg_sheets` (the no-party-system ruling: NOT a membership shadow — keyed by durable actor identity,
-// projected roster ∪ rows at read time, created on first write). Full grafts `arc` as an ADD COLUMN.
+// projected participants ∪ rows at read time, created on first write). Full grafts `arc` as an ADD COLUMN.
 //
 // TRACKER DEFS DO NOT LIVE HERE (the tracked-field unification): the old `poolDefs` made the same concept
 // per-ACTOR here and per-GAME in `config.features.castFields`, which is exactly what forced the three-tab

@@ -6,7 +6,7 @@
 // THE TRUST BOUNDARY (§3.6, the reason this is a dedicated read): hidden content is a GM-plane secret. It is
 // SERVER-STRIPPED from a member's message payload (`domain/chat` member-visibility) — a member never receives
 // the truth bytes. The reveal is a SEPARATE host-gated read so the truth is served ONLY to the host, never
-// bundled into the payload every member gets. HOST-gated here via `resolveHost` (the roster host check every
+// bundled into the payload every member gets. HOST-gated here via `resolveHost` (the participant host check every
 // shared-plane rpg verb uses): a member gets the SAME leak-free NOT_FOUND a no-game chat gives (the cross-tenant
 // belt — a non-host must not even learn the game has hidden content). The bodies read is chat-scoped by the
 // `messages.chatId` join (D108 carve #1 — a foreign message is unreachable).

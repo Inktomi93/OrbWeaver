@@ -1,4 +1,10 @@
-// ui-audit in-page walker — segment: quality censuses: heading order, text overflow, repeated container text, clipped positioned children, edge-flush scroller cards.
+// ui-audit in-page walker — segment: quality censuses: heading order, text overflow, repeated container
+// text, clipped overflow, edge-flush scroller cards.
+// THE CLIP CENSUS HAS TWO ARMS, not the "positioned children" this line claimed until 2026-09-06 (#1807
+// docs pass): a POSITIONED arm and a deliberately narrower IN-FLOW arm that judges only children which
+// ARE or CONTAIN a control — in-flow TEXT spilling a clip is `text-overflow`'s finding, not this one's.
+// The paint fence that decides which children either arm may see is hoisted above the split (#1783); the
+// reasoning lives beside `clippedOverflows` below.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see

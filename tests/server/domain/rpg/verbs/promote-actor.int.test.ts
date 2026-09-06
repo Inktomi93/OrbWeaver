@@ -8,7 +8,7 @@
 // the survival test asserts all three at the db row through the real verb, not the verb's return value.
 //
 // The second class is the name COLLISION. The model addresses actors by NAME (`buildActorRefIndex` is a
-// lowercased name→ref Map), so a second roster "Vesna" makes one of them unaddressable by every tool write.
+// lowercased name→ref Map), so a second participant "Vesna" makes one of them unaddressable by every tool write.
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -101,7 +101,7 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(moved?.volatile.conditions.map((c) => c.name)).toEqual(["Bleeding"]);
   expect(moved?.volatile.inventory.map((i) => i.name)).toEqual(["Prayer beads"]);
   expect(moved?.volatile.wallet).toEqual([{ name: "gold", amount: 12 }]);
-  // The identity half is GONE by design (a roster actor carries none) — its durable content went to the card.
+  // The identity half is GONE by design (a participant actor carries none) — its durable content went to the card.
   expect(moved?.identity).toBeUndefined();
   // Presence follows her: she is still standing in the scene, under the new key.
   expect(after?.presentCharacters).toEqual([promotedKey]);
@@ -128,7 +128,7 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(description).not.toContain("guarded");
 });
 
-test("the promoted actor is projected as a ROSTER member carrying her state — not as an npc, and not twice", async () => {
+test("the promoted actor is projected as a PARTICIPANT carrying her state — not as an npc, and not twice", async () => {
   const { chatId, service } = await seedGame();
   await seedVesna(service, chatId);
   await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
@@ -137,7 +137,7 @@ test("the promoted actor is projected as a ROSTER member carrying her state — 
   const vesna = view.actors.filter((a) => a.name === "Sister Vesna");
   expect(vesna).toHaveLength(1);
   expect(vesna[0]?.actorRef.kind).toBe("character");
-  // A roster actor's identity half is null by construction — the panel reads her name off the roster/card now.
+  // A participant actor's identity half is null by construction — the panel reads her name off the participant/card now.
   expect(vesna[0]?.identity).toBeNull();
   expect(vesna[0]?.presence).toBe(true);
   expect(vesna[0]?.volatile?.status).toBe("limping");
@@ -145,16 +145,16 @@ test("the promoted actor is projected as a ROSTER member carrying her state — 
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
-test("a NAME the chat roster already carries is REFUSED as data — no card, no seat, no write", async () => {
+test("a NAME the chat's participants already carry is REFUSED as data — no card, no seat, no write", async () => {
   const { chatId, game, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
-  // A roster human already answers to the same name: the model's name→ref index cannot hold both.
+  // A participant human already answers to the same name: the model's name→ref index cannot hold both.
   fakes.participants.push(participantUser(castId<Handle>("other"), "sister vesna"));
   const slotsBefore = fakes.narratorPosts.length;
 
   const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
   expect(refused.ok).toBe(false);
-  expect(refused.ok === false && refused.reason).toContain("already on this chat's roster");
+  expect(refused.ok === false && refused.reason).toContain("already among this chat's participants");
 
   // Nothing durable and nothing snapshot-shaped happened — the gate runs BEFORE the mint on purpose.
   expect(fakes.promoteMints).toHaveLength(0);
@@ -261,7 +261,7 @@ test("#1386 two NPCs named in different scripts promote to two DISTINCT handles 
   expect(handles).toHaveLength(names.length);
   expect(new Set(handles).size).toBe(names.length);
   expect(handles).toEqual(names.map((name) => slugifyHandle(name)));
-  // A SECOND promotion of the same name is the roster's documented refusal (pinned above), never a
+  // A SECOND promotion of the same name is the participants' documented refusal (pinned above), never a
   // unique-index throw — and the handle namespace's own duplicates are uniquified by the compose mint.
 });
 
@@ -299,7 +299,7 @@ test("#1449 a short NPC name promotes cleanly: no truncation, no issue", async (
   expect(fakes.promoteMints[0]?.name).toBe("Sister Vesna");
 });
 
-test("a promoted character is a normal roster actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {
+test("a promoted character is a normal participant actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {
   const { chatId, game, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
   await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
@@ -311,7 +311,7 @@ test("a promoted character is a normal roster actor afterwards: hand ops reach h
 
   // The volatile door still reaches her under the new key — the re-key did not orphan her from the ops.
   expect(await service.patchActor({ principal: HOST, chatId, targetRef: promoted, ops: [{ op: "setStatus", status: "healed" }] })).toStrictEqual({ ok: true });
-  // …and the identity arms refuse, exactly as they do for every other roster member (her name is the card's).
+  // …and the identity arms refuse, exactly as they do for every other participant (her name is the card's).
   const refused = await service.patchActor({ principal: HOST, chatId, targetRef: promoted, ops: [{ op: "setIdentityText", field: "mood", text: "calm" }] });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("carries no identity of its own");

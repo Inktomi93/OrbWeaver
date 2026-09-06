@@ -145,7 +145,7 @@ async function writeSheetHalf(
     sheet: next,
     now: ctx.now(),
   });
-  // The Status roster + the takeover refetch (§4.9).
+  // The Status participant list + the takeover refetch (§4.9).
   ctx.emitBus({ type: "sheetChanged", chatId: args.chatId, sheetId: row.id });
   return true;
 }

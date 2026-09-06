@@ -15,7 +15,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { MutantPopulation, MutantReceipt, ProbeSummary } from "../contract/types.ts";
 import { resolveMirrors } from "../lib/mirror.ts";
-import { lineStarts, offsetOf } from "../lib/offsets.ts";
+import { lineStarts, offsetRangeOf } from "../lib/offsets.ts";
 import { classifySuiteExit } from "../lib/outcome.ts";
 import type { ReportMutant } from "../lib/report.ts";
 import { mutantsOf, survivorsOf, totalMutants } from "../lib/report.ts";
@@ -188,8 +188,9 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
         continue;
       }
       const { mutant, population } = entry;
-      const from = offsetOf(starts, mutant.location.start);
-      const to = offsetOf(starts, mutant.location.end);
+      // Validated as a PAIR (offsets.ts): an out-of-line column or an inverted range plants at the wrong
+      // byte and reads as a survivor, so it refuses the run rather than producing a receipt.
+      const { from, to } = offsetRangeOf(pristine, starts, mutant.location);
       const mutated = pristine.slice(0, from) + mutant.replacement + pristine.slice(to);
       writeFileSync(sourceAbs, mutated);
       receipts.push(receiptFor({ index: i, mutant, noop: mutated === pristine, outcome: runMirrorSuite(root, specs, jsonOut), population }));

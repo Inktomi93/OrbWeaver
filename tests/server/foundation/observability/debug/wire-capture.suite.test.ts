@@ -19,10 +19,21 @@ import { join } from "node:path";
 import process from "node:process";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");
+
+// EVERY test here pays a `vi.resetModules()` + dynamic `import("@orb/server/foundation/observability")` —
+// a fresh transform of the WHOLE barrel's graph, not a cache hit. Measured cold (immediately after an edit
+// anywhere in that graph, the shape the state-bleed fold hit): a single reimport ran 6.5-6.9s even at a
+// modest ~1.5x load factor, and the fold that filed #1810 measured 48s cold vs 12s warm under heavier
+// contention — both comfortably past the project's scaled 5s `testTimeout` default. `vi.setConfig`, not a
+// hoisted `beforeAll` warm: each test needs its OWN fresh module graph (a different `WIRE_CAPTURE` env or a
+// different `node:fs/promises` mock per test), so there is no shared warm import to hoist without changing
+// what the suite proves.
+vi.setConfig({ testTimeout: budget(60_000) });
 
 const EMPTY_DIR = mkdtempSync(join(tmpdir(), "orb-wire-outcomes-"));
 afterAll(() => {

@@ -112,11 +112,13 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
   }
   const locator = page.locator(assertion.selector);
   if (assertion.kind === "visible") {
-    // @orb-gate-ignore caught-failure-ownership(promise:isVisible): probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
-    const pass = await locator
-      .first()
-      .isVisible()
-      .catch(() => false);
+    // THE WHOLE POPULATION, not `.first()` (#1509): a hidden duplicate ahead of a visible match made this
+    // flag report FAIL about an element the user can see. `visibleLocators` is asked for the VISIBLE
+    // population unconditionally — `--include-hidden` widens the other assertions' population, but for
+    // this one visibility IS the question, so widening it would answer a different one.
+    // @orb-gate-ignore caught-failure-ownership(promise:visibleLocators): probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
+    const matched = await visibleLocators(locator, false).catch((): Locator[] => []);
+    const pass = matched.length > 0;
     // NEVER a NO-MATCH: an absent element is precisely the finding this flag exists to report.
     return judged(`ASSERT visible ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, !pass);
   }

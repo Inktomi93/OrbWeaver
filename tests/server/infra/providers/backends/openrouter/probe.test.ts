@@ -1,6 +1,9 @@
 // backends/openrouter probe — the credential-health probe: a credits round-trip classified into
 // CredentialHealth (ok / revoked / unreachable). The SDK client is a fake; the clock is injected.
 
+import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { ProviderScrubSet } from "@orb/server/infra/providers";
+import { providerCredentialSecretValues } from "@orb/server/infra/providers/backends/kit";
 import { probeOpenRouterCredential } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -8,13 +11,28 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 const FIXED_NOW = 5000;
 type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];
 
+/** A credential-derived `ProviderScrubSet` (#1599; required at this boundary since #1820) — the ONLY way a
+ *  keyed boundary gets one. A test cannot hand-cast `[secret]` into the brand any more than a runner can,
+ *  which is the point of the brand. Mirrors `backends/kit/error-classify.test.ts`'s helper of the same name. */
+function scrubSetFor(apiKey: string): ProviderScrubSet {
+  // ResolvedCredential is brand-sealed (contracts/credentials) — only domain credentials/substrate/mint
+  // constructs one, and infra tests must not import a domain.
+  // FABRICATION-OK: server-can't-mint — see above.
+  return providerCredentialSecretValues({ source: "openrouter", apiKey, credentialId: null } as unknown as ResolvedCredential);
+}
+
+/** The scrub set for an arm whose fixture reflects NOTHING — a real credential that simply does not appear
+ *  in the message under test. Deliberately not `NO_PROVIDER_SECRETS`: a probe always holds a credential, so
+ *  the keyless spelling would be a false claim about this boundary. */
+const UNREFLECTED_SECRETS = scrubSetFor("or-probe-key-never-reflected-9f2c");
+
 describe("probeOpenRouterCredential", () => {
   test("a successful credits read → ok, stamped with the injected clock", async () => {
     // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.resolve({ data: {} }) },
     } as unknown as ProbeClient;
-    expect(await probeOpenRouterCredential(client, () => FIXED_NOW)).toEqual({
+    expect(await probeOpenRouterCredential(client, () => FIXED_NOW, UNREFLECTED_SECRETS)).toEqual({
       status: "ok",
       checkedAt: FIXED_NOW,
     });
@@ -27,7 +45,7 @@ describe("probeOpenRouterCredential", () => {
         getCredits: (): Promise<unknown> => Promise.reject(new Error("401 invalid api key")),
       },
     } as unknown as ProbeClient;
-    const health = await probeOpenRouterCredential(client, () => FIXED_NOW);
+    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, UNREFLECTED_SECRETS);
     expect(health.status).toBe("revoked");
     expect(health.checkedAt).toBe(FIXED_NOW);
   });
@@ -37,7 +55,7 @@ describe("probeOpenRouterCredential", () => {
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.reject(new Error("ECONNRESET")) },
     } as unknown as ProbeClient;
-    expect((await probeOpenRouterCredential(client, () => FIXED_NOW)).status).toBe("unreachable");
+    expect((await probeOpenRouterCredential(client, () => FIXED_NOW, UNREFLECTED_SECRETS)).status).toBe("unreachable");
   });
 
   // SHAPE-BELT CONTROL (#1760/#1785/#1809): this fixture matches the `sk-…` shape, so `redactSecretsFromText`'s
@@ -48,7 +66,7 @@ describe("probeOpenRouterCredential", () => {
     const client: ProbeClient = {
       credits: { getCredits: (): Promise<never> => Promise.reject(new Error(`401 invalid api key ${secret}`)) },
     };
-    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, [secret]);
+    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, scrubSetFor(secret));
 
     expect(health.status).toBe("revoked");
     if (health.status !== "revoked") {
@@ -78,7 +96,7 @@ describe("probeOpenRouterCredential — the by-value scrub runs BEFORE sanitize 
       credits: { getCredits: (): Promise<never> => Promise.reject(new Error(`401 invalid api key ${angleKey}`)) },
     };
 
-    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, [angleKey]);
+    const health = await probeOpenRouterCredential(client, () => FIXED_NOW, scrubSetFor(angleKey));
 
     expect(health.status).toBe("revoked");
     if (health.status !== "revoked") {

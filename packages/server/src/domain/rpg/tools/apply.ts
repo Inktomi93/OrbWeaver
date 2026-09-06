@@ -37,15 +37,15 @@ import type { RpgStateDelta } from "../contract/service.ts";
 import { emptyActorEntry } from "../substrate/actor-ops.ts";
 
 /** The universal self-aliases a model reaches for when it means the human player — resolved to the player
- *  (user-kind) roster actor so a "player"/"you"/"self" targetRef lands on the real ref, never a phantom
+ *  (user-kind) participant actor so a "player"/"you"/"self" targetRef lands on the real ref, never a phantom
  *  `npc:player`. Belt-and-suspenders alongside the schema-level enum constraint (R2, the mis-target fix). */
 const PLAYER_SELF_ALIASES = ["player", "you", "self", "me", "the player"] as const;
 
-/** Build the name→ref index from resolved roster actors (name lowercased — the model's free-text ref). The
+/** Build the name→ref index from resolved participant actors (name lowercased — the model's free-text ref). The
  *  player (user-kind) actor ALSO answers to the universal self-aliases (`player`/`you`/`self`/…), so a model
- *  that targets "player" when the roster name is "You" still resolves to the real ref (never a `npc:player`
- *  phantom the panel can't render). An explicit roster name always wins over an alias (aliases fill only
- *  gaps the roster didn't already claim). */
+ *  that targets "player" when the participant name is "You" still resolves to the real ref (never a `npc:player`
+ *  phantom the panel can't render). An explicit participant name always wins over an alias (aliases fill only
+ *  gaps the participants didn't already claim). */
 export function buildActorRefIndex(participants: readonly { readonly actorRef: RpgActorRef; readonly name: string }[]): ActorRefIndex {
   const index = new Map<string, RpgActorRef>(participants.map((r) => [r.name.toLowerCase(), r.actorRef]));
   const player = participants.find((r) => r.actorRef.kind === "user");
@@ -59,8 +59,8 @@ export function buildActorRefIndex(participants: readonly { readonly actorRef: R
   return index;
 }
 
-/** The `RpgActorRef` a model-facing target NAME addresses: a roster member's own ref when the name is on the
- *  roster (F2 — the tracker view + reminder read that key), else a `npc` ref under the name's stable SLUG.
+/** The `RpgActorRef` a model-facing target NAME addresses: a participant's own ref when the name is on the
+ *  participant list (F2 — the tracker view + reminder read that key), else a `npc` ref under the name's stable SLUG.
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
  *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
 function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgActorRef {
@@ -68,10 +68,10 @@ function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgAc
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
- *  1. an EXISTING `actorState` entry whose ref key already matches (roster ref OR npc slug) — keep addressing it;
- *  2. else a ROSTER member by name → mint with its `character:<id>`/`user:<id>` ref (F2), so a party-member
+ *  1. an EXISTING `actorState` entry whose ref key already matches (participant ref OR npc slug) — keep addressing it;
+ *  2. else a PARTICIPANT by name → mint with its `character:<id>`/`user:<id>` ref (F2), so a party-member
  *     write is FIRST-CLASS and rendered;
- *  3. else a genuine non-roster scene NPC → mint a `npc:<slug>` (the additive, hand-editable actor).
+ *  3. else a genuine non-participant scene NPC → mint a `npc:<slug>` (the additive, hand-editable actor).
  *  Returns the matched/minted actor + its index (-1 = minted, appended). */
 function resolveActor(actors: readonly RpgActorEntry[], targetRef: string, participantIndex: ActorRefIndex): { actor: RpgActorEntry; index: number } {
   const ref = refForTarget(targetRef, participantIndex);
@@ -154,8 +154,8 @@ function applyTrackerWrites(
   return out;
 }
 
-/** `update_party` → the new `actorState` plane (per-actor tracker/condition/status writes). `roster` resolves
- *  the target NAME to a roster member's ref (F2 — a party-member write lands FIRST-CLASS).
+/** `update_party` → the new `actorState` plane (per-actor tracker/condition/status writes). `participantIndex` resolves
+ *  the target NAME to a participant's ref (F2 — a party-member write lands FIRST-CLASS).
  *
  *  TOTAL since R3 — there is no refusal arm left. The one that existed (an `hpDelta` on a null-hp actor)
  *  disappeared with `hp`'s demotion to an ordinary meter: health now rides `trackerDeltas`, whose keys the
@@ -191,8 +191,8 @@ export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs,
  *  ids via the injected `mintItemId` (determinism); `update` patches the first name-matched existing item and
  *  preserves its id/type/icon. A missing update target is salvaged as an add: hosted models sometimes choose
  *  the tool's `update` arm for a newly introduced item despite the wire description, and silently dropping a
- *  fully described story item makes an `applied` call disagree with resolved state. `roster` resolves the
- *  target NAME to a roster member's ref (F2). */
+ *  fully described story item makes an `applied` call disagree with resolved state. `participantIndex` resolves the
+ *  target NAME to a participant's ref (F2). */
 function applyInventoryUpdates(
   inventory: RpgInventoryItem[],
   updates: NonNullable<UpdateInventoryArgs["update"]>,
@@ -344,8 +344,8 @@ function mergeNpcIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numb
  *  `presentRemove` drops PRESENCE ONLY — nothing else. That single line is the review's MS-2 fix: departure
  *  used to delete the npc row outright, taking the NPC's mood, emoji, standing guides and relationship stance
  *  with it while her tracked state survived invisibly, so a returning enemy came back neutral with no journal
- *  beat. A `presentUpsert` naming a ROSTER member adds her presence and writes NO identity (her name is the
- *  roster's, her standing prose the sheet's — one home per fact). */
+ *  beat. A `presentUpsert` naming a PARTICIPANT adds her presence and writes NO identity (her name is
+ *  chat's, her standing prose the sheet's — one home per fact). */
 function applyPresencePatch(
   state: RpgSnapshotState,
   args: UpdateSceneArgs,
@@ -543,7 +543,7 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
   return { type, label: type === "custom" ? (args.label ?? "") : "", title: journalTitleFor(args), content: args.content };
 }
 
-/** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the roster index (members + the
+/** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the participant index (members + the
  *  player self-aliases) ∪ the tracked npcs ∪ the scene npcs. The ONE home for "who exists right now" —
  *  {@link ghostTargetRefs} adds the in-flight `presentUpsert` arm on top, and the R1 fold reports this SIZE as
  *  the diagnostic denominator on a write-nothing extraction (it is exactly the target menu the model had),
@@ -571,7 +571,7 @@ export function reachableActorRefs(base: RpgSnapshotState, participantIndex: Act
  *  turn; {@link extractionToStateDelta} DROPS those args (errors-as-data — a ghost never fails the turn) and
  *  the caller logs them.
  *
- *  Legally reachable = the roster index (members + the player self-aliases) ∪ the tracked npcs ∪ the
+ *  Legally reachable = the participant index (members + the player self-aliases) ∪ the tracked npcs ∪ the
  *  scene npcs ∪ the npcs this SAME extraction puts on stage (`scene.presentUpsert`) — that last arm keeps the
  *  legitimate introduce-and-wound beat working (the model presents a new NPC and damages her in one round),
  *  so the guard only kills names with no referent anywhere. */
@@ -683,7 +683,7 @@ function deriveRelationshipBeats(prev: readonly RpgActorEntry[], cur: readonly R
     const identity = actor.identity;
     const was = before.get(actorRefKey(actor.actorRef));
     if (identity === undefined || was === undefined || !relationshipTurned(was, identity.relationship)) {
-      continue; // a roster actor has no stance; a newly-tracked one has no prior stance to have "turned" from
+      continue; // a participant actor has no stance; a newly-tracked one has no prior stance to have "turned" from
     }
     const from = relationshipBeatLabel(was);
     const to = relationshipBeatLabel(identity.relationship);

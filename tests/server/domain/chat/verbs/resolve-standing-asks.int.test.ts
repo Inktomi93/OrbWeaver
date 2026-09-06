@@ -10,6 +10,7 @@
 // page, so an id belonging to somebody else's room must come back ABSENT rather than standing — otherwise
 // the bell would answer "yes, that exists" about another user's invite.
 
+import type { InviteStatus } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInvites, chats } from "@orb/db";
 import type { ChatInviteId, UserId } from "@orb/kit/ids";
@@ -33,7 +34,7 @@ beforeEach(async () => {
 });
 
 /** A targeted invite row addressed at `invitedUserId`, in whatever status the case needs. */
-async function seedInvite(invitedUserId: UserId | null, status: "pending" | "accepted" | "declined" | "revoked" | "expired"): Promise<ChatInviteId> {
+async function seedInvite(invitedUserId: UserId | null, status: InviteStatus): Promise<ChatInviteId> {
   const chat = await seedChat(db);
   const id = mintTypeId(ID_PREFIX.chatInvite);
   await db.insert(chatInvites).values({ id, chatId: chat.id, tokenHash: `hash_${id}`, invitedUserId, status, createdAt: 0 });

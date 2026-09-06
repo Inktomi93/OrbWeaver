@@ -37,12 +37,12 @@ const OPERATION = "raw-match-media";
 
 const MESSAGE =
   "a raw `matchMedia` read outside the named media-query one-homes — use `usePrefersReducedMotion()` " +
-  "(render, live-updating) or `prefersReducedMotionNow()` (imperative) from `@orb/ui`'s `#lib`, or the " +
-  "shell's viewport hook, instead of forking matchMedia plumbing. See UI-Gates-and-Lessons.md §11.";
+  "(render, live-updating), `prefersReducedMotionNow()` or `coarsePointerNow()` (imperative, #1182) from " +
+  "`@orb/ui`'s `#lib`, or the shell's viewport hook, instead of forking matchMedia plumbing. See UI-Gates-and-Lessons.md §11.";
 const UNREADABLE =
   "this reference is spelled like the ambient `matchMedia` but the shared readers cannot place its binding, so whether it is the browser api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =
-  "read the fact through its one-home hook (usePrefersReducedMotion / prefersReducedMotionNow / the shell viewport hook); a NEW media query needs a new one-home plus an exact reviewed grant, never a local read.";
+  "read the fact through its one-home hook (usePrefersReducedMotion / prefersReducedMotionNow / coarsePointerNow / the shell viewport hook); a NEW media query needs a new one-home plus an exact reviewed grant, never a local read.";
 
 /** Could this reference name the global at all? A bare `matchMedia`, or any member read whose leaf is
  *  `matchMedia` (`globalThis.matchMedia`, `window["matchMedia"]`). */

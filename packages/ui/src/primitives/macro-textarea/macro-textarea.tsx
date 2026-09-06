@@ -156,6 +156,18 @@ function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly 
  * `aria-activedescendant` point at the live listbox, and an `aria-live` status line announces the match
  * count so a non-sighted user learns the popup appeared at all (which is the affordance `aria-expanded`
  * was pretending to carry). The textarea remains the one tab stop; the highlight moves with Arrow keys.
+ *
+ * ACCESSIBLE-NAME SOURCE, Field-wrapped vs Field-LESS (#1645). Wrapped in a real `<Field label>`
+ * (`macro-field.tsx`'s `<MacroField>`), Base UI's `Field.Control` wires `aria-labelledby`, which OUTRANKS
+ * whatever this component sets on the control itself — so a regression at the `aria-label` prop is
+ * invisible from a Field-wrapped mount (measured: `tests/ui/primitives/macro-textarea/macro-textarea.ct.tsx`'s
+ * `GhostDefaultStory` pin stays green under a planted `aria-label={placeholder}` fall-through). TWO real
+ * consumers mount this component WITHOUT a `<Field>` — `template-drill-in.tsx`'s `ProseTemplateBody` and
+ * `section-body.tsx`'s `TemplatedMarkerBody`, both passing `aria-label` directly because a `<Field label>`
+ * here would repeat a heading the surrounding drill-in already renders (side-eye F-32). For THOSE mounts
+ * the `aria-label` prop forwarded onto the control below is the ONLY name source — there is no Field to
+ * fall back to — which is why `FieldlessGhostStory` + its CT pin exist: they are the one place a
+ * fall-through at the control is actually exposed.
  */
 export function MacroTextarea({
   value,

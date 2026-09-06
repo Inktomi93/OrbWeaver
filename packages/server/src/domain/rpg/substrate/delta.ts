@@ -94,11 +94,11 @@ function perActor(
   return out;
 }
 
-/** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
+/** An actor row's display label. A participant actor (character/user) resolves to its display NAME through
  *  `ctx.participantNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); an `npc` actor
- *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
+ *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The participant join
  *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
- *  roster map has no name for the key (a gone member — never a crash). */
+ *  participant map has no name for the key (a gone member — never a crash). */
 function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   const ref = row.actorRef;
   if (ref.kind === "npc") {
@@ -111,7 +111,7 @@ function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   return PARTICIPANT_GENERIC[ref.kind];
 }
 
-/** The WORD a roster ref degrades to when nothing names it — one home, because two callers need it: this
+/** The WORD a participant ref degrades to when nothing names it — one home, because two callers need it: this
  *  file's row-bearing {@link actorLabel} and the row-LESS {@link presenceName} fallback below. A second
  *  spelling would drift, and the drift is invisible: both arms only fire when a name is already missing. */
 const PARTICIPANT_GENERIC: Readonly<Record<"character" | "user", string>> = { character: "character", user: "you" };
@@ -134,8 +134,8 @@ const ORPHAN_PRESENCE_LABEL: Readonly<Record<"character" | "user" | "npc", (tail
  *  this string is MODEL-FACING, and the one thing it may never be is an id. */
 const UNKNOWN_PRESENT_ACTOR = "someone";
 
-/** The row-LESS arm of {@link presenceName}: name a presence key whose actor row is gone. The roster map is
- *  keyed by the SAME projection, so it answers first — a roster member listed on stage before her row exists
+/** The row-LESS arm of {@link presenceName}: name a presence key whose actor row is gone. The participant map is
+ *  keyed by the SAME projection, so it answers first — a participant listed on stage before her row exists
  *  is the common case; only then does the kind-derived word apply. */
 function orphanPresenceName(key: string, ctx: DeltaContext): string {
   const named = ctx.participantNames[key];
@@ -376,7 +376,7 @@ interface PresenceSlice {
 
 /** THE presence-key → display NAME resolution, and the only one. A presence entry is a bare `actorRefKey`
  *  (R2), so every surface that prints "who is on stage" has to join it back to its actor row — and the join
- *  MUST go through {@link actorLabel}, because a ROSTER actor carries no identity by design: her name lives in
+ *  MUST go through {@link actorLabel}, because a PARTICIPANT actor carries no identity by design: her name lives in
  *  `ctx.participantNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
  *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
  *  never model-facing"). One helper, both readers.
@@ -384,7 +384,7 @@ interface PresenceSlice {
  *  THE ROW-LESS ARM CLOSES THE SAME HOLE ONE STEP FURTHER OUT (#1468 item 6). This used to return the KEY
  *  when no actor row matched — so a presence entry whose row had gone (a rekey that lost it, a hand edit that
  *  dropped an actor still listed on stage, a stale key surviving a restore) printed `character:chr_…` /
- *  `user:usr_…` into exactly the two model-facing surfaces the roster join was fixed for. The row's absence is
+ *  `user:usr_…` into exactly the two model-facing surfaces the participant join was fixed for. The row's absence is
  *  a reason to name the actor less precisely, never a licence to emit an id. */
 function presenceName(key: string, actors: ActorState, ctx: DeltaContext): string {
   const row = actors.find((a) => volatileKey(a) === key);
@@ -459,7 +459,7 @@ const relationshipRenderer: PlaneDiffRenderer<ActorState> = {
     for (const actor of cur) {
       const identity = actor.identity;
       if (identity === undefined) {
-        continue; // a roster actor carries no stance of its own
+        continue; // a participant actor carries no stance of its own
       }
       const was = before.get(volatileKey(actor));
       const nextDisp = relationshipDisplay(identity.relationship, ctx);
@@ -571,7 +571,7 @@ export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotS
  *  It takes the `DeltaContext` for ONE reason and it is load-bearing: the presence plane stores ref KEYS, and a
  *  PARTICIPANT actor's name lives in `ctx.participantNames`, not on her row. Resolving without it printed the raw
  *  `character:chr_…`/`user:usr_…` key into the model's prompt on turn 1 of effectively every new game (the
- *  establish-when-unset arm forces a non-empty cast, and the model habitually lists the roster character). */
+ *  establish-when-unset arm forces a non-empty cast, and the model habitually lists the participant character). */
 function buildFirstSnapshotBlock(cur: RpgSnapshotState, ctx: DeltaContext): string | null {
   const parts: string[] = [];
   if (cur.location !== "") {

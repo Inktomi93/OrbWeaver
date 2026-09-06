@@ -1,5 +1,20 @@
 // Analyzer-owned problem rows for the Snap motion artifact. This module imports the verdict engine's
 // thresholds so the browser-free report never duplicates or re-derives motion policy.
+//
+// THE EXEMPTION ROW (#1780). #1647 landed the bounded input-dispatch layout-frame carve-out as DATA in
+// `motion-audit/lib/verdicts.ts` (`loafTotals().boundedInputDispatchExempt`), but nothing here read it, so
+// an excused run printed `loaf-style-layout-count 0` with no way to tell it from a run that never did any
+// style/layout work at all. The carve-out and the FAILING row are mutually exclusive by construction —
+// condition (d) requires the excused frame to be the only one with `styleAndLayoutStart > 0`, so once it
+// is excused `budgetedStyleLayout` is necessarily 0 and the `> 0` branch below can never fire alongside
+// it. The exemption is therefore a row about a CLEAN verdict, and it is emitted as the non-failing
+// `exemption` kind rather than folded into the threshold row's text.
+//
+// CONDITION (c) IS A PROXY, RECORDED: it approximates "style/layout ran in the render-phase TAIL" as
+// `styleAndLayoutStart >= Σ scripts[].duration`, because `packages/client/src/lib/motion-stats.ts` does
+// not plumb the LoAF spec's own `renderStart` field. That is the one real collector gap; plumbing it is a
+// client-side change and is deliberately NOT done here. The exemption's printed detail names the proxy so
+// a reader of the verdict is never told a stronger claim than the instrument can compute.
 import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
@@ -26,6 +41,20 @@ function gapProblems(gaps: readonly EvidenceGap[]): SnapAnalyzerProblem[] {
   }));
 }
 
+/** The carve-out's NAME, in the row's `threshold` slot — a reader who sees the row can grep the one home
+ *  of the rule (`motion-audit/lib/verdicts.ts`) by this string. */
+const BOUNDED_INPUT_DISPATCH_EXEMPTION = "bounded-input-dispatch-layout-frame";
+
+/** All FOUR conditions, in the order the engine checks them, plus the recorded proxy in (c). A reader of
+ *  the verdict must be able to re-derive WHY the frame was excused without opening the engine. */
+const BOUNDED_INPUT_DISPATCH_DETAIL = [
+  `one style/layout Long Animation Frame was excused under the ${BOUNDED_INPUT_DISPATCH_EXEMPTION} exemption (#1647), which requires all four of:`,
+  "(d) it is the ONLY frame in the window performing style/layout;",
+  "(a) one of its scripts IS the measured input's own dispatch (sourceFunctionName dispatchDiscreteEvent);",
+  "(b) no script forced a synchronous reflow (forcedStyleAndLayoutDuration 0 on every script);",
+  "(c) style/layout began at or after the frame's own script span — approximated as the sum of scripts[].duration, because the collector does not plumb the LoAF renderStart field",
+].join(" ");
+
 function budgetProblems(data: AuditData): SnapAnalyzerProblem[] {
   const problems: SnapAnalyzerProblem[] = [];
   const loaf = loafTotals(data.motion);
@@ -49,6 +78,16 @@ function budgetProblems(data: AuditData): SnapAnalyzerProblem[] {
       observed: String(loaf.budgetedStyleLayout),
       threshold: "0",
       detail: "budgeted Long Animation Frames performed style/layout work",
+    });
+  } else if (loaf.boundedInputDispatchExempt) {
+    problems.push({
+      arm: "motion",
+      kind: "exemption",
+      metric: "loaf-style-layout-count",
+      subject: "measurement-window",
+      observed: "0 budgeted, 1 excused",
+      threshold: BOUNDED_INPUT_DISPATCH_EXEMPTION,
+      detail: BOUNDED_INPUT_DISPATCH_DETAIL,
     });
   }
   const cls = clsBudgeted(data.motion, data.measuredInput);

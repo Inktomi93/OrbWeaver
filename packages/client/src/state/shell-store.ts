@@ -31,6 +31,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
+import { MODAL_CONTENT_LIFETIME } from "./modal-slot-ids.ts";
 import type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 import { PANEL_MODES } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
@@ -191,13 +192,46 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>("she
 
 // ── The write API — intent-named module actions (the store handle never escapes this file). ──
 
+/**
+ * THE ONE DOOR FOR A CONTENT SWAP (#1795, UI-Arch §4a) — every `#state` action that replaces what the
+ * CONTENT pane shows (section · room · library entity) writes through here, never through
+ * `withViewTransition` directly, because a swap owes TWO things: the hand-driven crossfade (the router
+ * cannot fire at a constant route — `lib/view-transition.ts`), and the FLOAT LIFETIME. The transition
+ * captures `.shell-content` alone and modals portal to a root that is a SIBLING of the grid, so a swap
+ * neither hides nor captures an open float: it keeps painting over content it no longer describes.
+ * Whether it may is a product rule, declared per slot in `MODAL_CONTENT_LIFETIME` and applied HERE — one
+ * tier above `#lib` (reading the modal slot from the transition util would be an upward import) and one
+ * below the features (which would each have to remember it — the "two-line intent written twice" shape
+ * `resumeChat` was minted to delete).
+ *
+ * DECIDED SYNCHRONOUSLY, APPLIED IN THE CALLBACK — not the same moment. `withViewTransition` defers (and
+ * coalesces) its callback into a later task, so a float opened BETWEEN the raise and the callback belongs
+ * to the NEW content and must survive: navigate-then-open-a-modal-for-the-destination is an ordinary
+ * intent (app-shell.ct.tsx's per-slot stories are exactly that pair). So the slot is read NOW and the
+ * write re-checks it is still the open one; applying it inside the callback keeps the removal and the new
+ * content in ONE commit. A content-scoped def's `onClose` does not fire here, by the rule that already
+ * governs the host swapping one modal body for another (`openImageEdit`) — every such opener seeds its
+ * own subject on the way in, which is what keeps a re-open honest.
+ */
+export function withContentSwap(update: () => void): void {
+  const openSlot = useShellStore.getState().openModal;
+  const stranded = openSlot !== null && MODAL_CONTENT_LIFETIME[openSlot] === "content" ? openSlot : null;
+  withViewTransition(() => {
+    if (stranded !== null && useShellStore.getState().openModal === stranded) {
+      useShellStore.setState({ openModal: null }, false, "shell/dismissContentScopedModal");
+    }
+    update();
+  });
+}
+
 /** Switch the active rail section. Also closes any open slide-over AND leaves focus mode — a rail-tab tap
  *  must land on the new section's own layout, never carry the prior section's open sheet/overlay or its
  *  panels-hidden reading mode across. */
 export function setActiveSection(id: SectionId): void {
   // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
-  // drive it by hand so every writer of the section inherits the crossfade for free.
-  withViewTransition(() => {
+  // drive it by hand (and drop any CONTENT-scoped float with it) so every writer of the section inherits
+  // both halves for free.
+  withContentSwap(() => {
     useShellStore.setState({ activeSection: id, openOverlayPanel: null, focusMode: false }, false, "shell/setActiveSection");
   });
 }

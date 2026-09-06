@@ -216,3 +216,60 @@ test("a RETRIED room re-point converges on the book the recipient already owns o
   expect(await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId))).toHaveLength(1);
   expect(await db.select().from(worldBooks).where(eq(worldBooks.ownerId, nominee.id))).toHaveLength(1);
 });
+
+// #1819 (SECURITY) — THE COPY AXIS. Every SOURCE read in this op carries `fromOwnerId` (the file header's
+// subject), but the junction's DESTINATION was whatever `cardCopies[].characterId` named: `pendingCardCopies`
+// read `character_books` by id alone, with no owner anywhere, so a copy id belonging to a THIRD PARTY got a
+// `character_books` row pointing at a book this call minted under the recipient. Two failures in one row: a
+// write into another tenant's entity graph (theirs to CASCADE away with their card) and a recipient whose
+// "copy" is inert, because the character-book pool is owner-filtered and they own no card it hangs off.
+// The one production caller (`chat/substrate/handoff-copy.ts`) derives the ids from `copyHandoffCards` under
+// `toOwnerId`, so this is the local belt an injected op's signature owes its next call site — the same
+// disposition the `duplicate-carry` twin took at #1516 and six seams like it took at #1480.
+//
+// PRINCIPAL: the op's `toOwnerId` argument IS the principal the copy runs as (the nominee). Both receipts
+// below are UNSCOPED table reads keyed by card id, so an empty result is evidence about the WRITE rather
+// than about which principal did the asking.
+test("a copy id the RECIPIENT does not own gets no junction row — the destination axis is owner-gated", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, { handle: castId("oldhost") });
+  const stranger = await seedUser(db, { handle: castId("stranger") });
+  const nominee = await seedUser(db, { handle: castId("nominee") });
+  const chatId = (await seedChat(db)).id;
+  const sourceForeign = await seedCard(db, oldHost.id, "aria");
+  const sourceOwn = await seedCard(db, oldHost.id, "brix");
+  const strangerCard = await seedCard(db, stranger.id, "stranger_card");
+  const ownCopy = await seedCard(db, nominee.id, "brix_copy");
+  const ariaLore = await seedBook(db, oldHost.id, "aria_lore", ["the secret"]);
+  const brixLore = await seedBook(db, oldHost.id, "brix_lore", ["the other secret"]);
+  await db.insert(characterBooks).values([
+    { characterId: sourceForeign, worldBookId: ariaLore, role: "primary", createdAt: AT },
+    { characterId: sourceOwn, worldBookId: brixLore, role: "primary", createdAt: AT },
+  ]);
+
+  // ONE call, TWO pairings: the departing host names a THIRD PARTY's card as the destination for aria's
+  // lore, and the nominee's own copy as the destination for brix's.
+  await copier(db)({
+    fromOwnerId: oldHost.id,
+    toOwnerId: nominee.id,
+    chatId,
+    cardCopies: [
+      { sourceCharacterId: sourceForeign, characterId: strangerCard },
+      { sourceCharacterId: sourceOwn, characterId: ownCopy },
+    ],
+  });
+
+  // THE REFUSAL: the stranger's card gained nothing at all.
+  expect(await db.select().from(characterBooks).where(eq(characterBooks.characterId, strangerCard))).toEqual([]);
+  // …and no book was minted for the refused pairing either — a mint whose junction is dropped would leave
+  // the departed host's lore sitting unreferenced in the nominee's library.
+  const copied = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, nominee.id));
+  expect(copied.map((book) => book.name)).toEqual(["brix_lore"]);
+
+  // POSITIVE ARM — the same call, the same principal, the recipient's OWN copy: it still links. Without it
+  // the empty read above would be evidence about the query, not about the predicate.
+  const own = await db.select().from(characterBooks).where(eq(characterBooks.characterId, ownCopy));
+  expect(own).toHaveLength(1);
+  expect(own[0]?.worldBookId).toBe(copied[0]?.id);
+  expect(own[0]?.role).toBe("primary");
+});
