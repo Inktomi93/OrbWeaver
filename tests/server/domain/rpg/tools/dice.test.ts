@@ -36,3 +36,18 @@ test("out-of-bounds notation is rejected (no huge roll loop)", () => {
   expect(rollNotation("9999d9999", scripted([]))).toBeNull();
   expect(rollNotation("0d6", scripted([]))).toBeNull();
 });
+
+test("the MODIFIER is bounded too — a 309-digit one is rejected, never rolled to Infinity (#1468 item 5)", () => {
+  // `Number("1e309"-many digits)` is `Infinity`, and the modifier was the one field with no bound: the roll
+  // came back `{faces:[…], total: Infinity}` and nothing downstream re-validates a `DiceRoll`, so an
+  // unrenderable total rode into the tool result and any tracker write derived from it.
+  const overflow = `1d6+${"9".repeat(309)}`;
+  expect(Number(`${"9".repeat(309)}`)).toBe(Number.POSITIVE_INFINITY); // the control: this input really does overflow
+  expect(rollNotation(overflow, scripted([0]))).toBeNull();
+  expect(rollNotation(`1d6-${"9".repeat(309)}`, scripted([0]))).toBeNull();
+});
+
+test("an in-range modifier still rolls, at the bound and just past it", () => {
+  expect(rollNotation("1d6+1000", scripted([0]))).toEqual({ faces: [1], total: 1001 });
+  expect(rollNotation("1d6+1001", scripted([0]))).toBeNull();
+});

@@ -223,6 +223,41 @@ function applyInventoryUpdates(
   return next;
 }
 
+/** One `remove` entry applied — the QUANTITY is denominated in ITEMS, spent across the name's stacks in order
+ *  (#1468 item 4).
+ *
+ *  WHAT WAS WRONG. `add` permits duplicate names, so a name can address several stacks, while `update` patches
+ *  the FIRST name match. Remove used to walk the whole inventory and take the requested quantity off EVERY
+ *  matching stack, so "the party used 2 potions" burned 2 from each of two stacks — the two verbs disagreed
+ *  about what a name addresses, in the direction that silently destroys the player's things. The tool's own
+ *  contract settles it: `update` "addresses an existing item by its model-visible name"
+ *  (`contracts/rpg/tools.ts`), so the NAME is the address and the quantity is a count of items under it.
+ *
+ *  AN OMITTED QUANTITY still drops every stack of that name — "they lost the potions" is the whole-name
+ *  sentence, and that arm was already correct. */
+function applyInventoryRemoval(
+  inventory: readonly RpgInventoryItem[],
+  rem: { readonly name: string; readonly quantity?: number | undefined },
+): RpgInventoryItem[] {
+  if (rem.quantity === undefined) {
+    return inventory.filter((it) => it.name !== rem.name);
+  }
+  let remaining = rem.quantity;
+  const out: RpgInventoryItem[] = [];
+  for (const it of inventory) {
+    if (it.name !== rem.name || remaining <= 0) {
+      out.push(it);
+      continue;
+    }
+    const spent = Math.min(remaining, it.quantity);
+    remaining -= spent;
+    if (it.quantity > spent) {
+      out.push({ ...it, quantity: it.quantity - spent });
+    }
+  }
+  return out;
+}
+
 export function applyUpdateInventory(
   state: RpgSnapshotState,
   args: UpdateInventoryArgs,
@@ -245,13 +280,7 @@ export function applyUpdateInventory(
   }
   inventory = applyInventoryUpdates(inventory, args.update ?? [], mintItemId);
   for (const rem of args.remove ?? []) {
-    inventory = inventory.flatMap((it) => {
-      if (it.name !== rem.name) {
-        return [it];
-      }
-      const nextQty = it.quantity - (rem.quantity ?? it.quantity);
-      return nextQty > 0 ? [{ ...it, quantity: nextQty }] : [];
-    });
+    inventory = applyInventoryRemoval(inventory, rem);
   }
   const wallet = args.walletDeltas === undefined ? actor.wallet : applyWalletDeltas(actor.wallet, args.walletDeltas);
 

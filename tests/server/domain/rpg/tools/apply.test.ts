@@ -187,6 +187,61 @@ test("update_inventory remove decrements quantity, dropping the item at zero", (
   expect(result.actorState[0]?.volatile.inventory).toEqual([]);
 });
 
+test("update_inventory remove SPENDS a quantity across same-named stacks, it does not decrement each one (#1468 item 4)", () => {
+  // `add` permits duplicate names, so a name can address several stacks — while `update` patches the FIRST
+  // name match. Remove used to `flatMap` the whole inventory and take the full quantity off EVERY stack, so
+  // "the party used 2 potions" burned 2 from each of two stacks: the two verbs disagreed about what a name
+  // addresses, in the direction that silently destroys the player's things.
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 2 }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([
+    { id: "i1", name: "Potion", description: "", quantity: 1, location: "belt", type: "" },
+    { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+  ]);
+});
+
+test("update_inventory remove SPILLS into the next same-named stack when the first cannot cover it", () => {
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  // 4 spent: the belt's 3 are consumed WHOLE and the 4th comes off the pack — the quantity is denominated in
+  // ITEMS, which is the only reading that makes a duplicate-name inventory countable.
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion", quantity: 4 }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i2", name: "Potion", description: "", quantity: 4, location: "pack", type: "" }]);
+});
+
+test('update_inventory remove with NO quantity drops every stack of that name ("they lost the potions")', () => {
+  const state = emptyState({
+    actorState: [
+      actorRow("hero", {
+        inventory: [
+          { id: "i1", name: "Potion", description: "", quantity: 3, location: "belt", type: "" },
+          { id: "i2", name: "Potion", description: "", quantity: 5, location: "pack", type: "" },
+          { id: "i3", name: "Rope", description: "", quantity: 1, location: "pack", type: "" },
+        ],
+      }),
+    ],
+  });
+  const result = applyUpdateInventory(state, { targetRef: "Hero", remove: [{ name: "Potion" }] }, idSeq("item"), NO_ROSTER);
+  expect(result.actorState[0]?.volatile.inventory).toEqual([{ id: "i3", name: "Rope", description: "", quantity: 1, location: "pack", type: "" }]);
+});
+
 test("update_scene maps timeOfDay to the representative hour + appends a beat", () => {
   const patch = applyUpdateScene(emptyState(), { timeOfDay: "night", recentEvent: "The bell tolled." }, NO_ROSTER);
   expect(patch.clock).toEqual({ day: 1, hour: 21, minute: 0 });
