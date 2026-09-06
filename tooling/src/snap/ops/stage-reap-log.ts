@@ -28,7 +28,7 @@ const REAP_RING_SIZE = 20;
 
 /** Narrowed by SEARCH rather than by a cast: a stored arm that is not a member reads as an unparseable
  *  entry and is dropped, which is the same posture `readRow` takes for a band row it cannot reason about. */
-const REAP_ARMS: readonly StageReapArm[] = ["timer", "acquire", "sweep", "down"];
+const REAP_ARMS: readonly StageReapArm[] = ["timer", "acquire", "sweep", "down", "boot-dead"];
 
 function readArm(value: unknown): StageReapArm | null {
   return REAP_ARMS.find((arm) => arm === value) ?? null;
