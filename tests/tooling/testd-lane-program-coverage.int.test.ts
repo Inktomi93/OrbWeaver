@@ -1,18 +1,19 @@
-// THE PIN FOR "WHICH LANE ACTUALLY VERDICTS A `.test-d.ts`" (#1270). A `.test-d.ts` carries no runtime
-// assertions — its ENTIRE value is that some TS program compiles it — so "which program roots it" is not
-// trivia, it is the test's only enforcement mechanism. That fact is a DATA FACT about a tsconfig's
+// THE PIN FOR "WHICH LANE ACTUALLY VERDICTS A `.test-d.ts`" (#1270, split #1313). A `.test-d.ts` carries no
+// runtime assertions — its ENTIRE value is that some TS program compiles it — so "which program roots it"
+// is not trivia, it is the test's only enforcement mechanism. That fact is a DATA FACT about a tsconfig's
 // include/exclude, and nothing re-derives it when a tsconfig moves: the compiler cannot complain about a
-// file it was never handed, `structure:full` reads source shapes rather than program membership, and the
-// vitest `types` project reports a cheerful `✓ 3 tests` for a file its configured tsconfig excludes.
+// file it was never handed, `structure:full` reads source shapes rather than program membership, and a
+// vitest `types-*` project reports a cheerful `✓` for a file its configured tsconfig excludes.
 //
-// MEASURED, 2026-09-02 (the founding receipt, both directions, one run):
-//   • planted `export const x: number = "…"` in `tests/ui/primitives/input/index.test-d.ts` (a tests/ui
-//     file, wholesale-excluded from `tsconfig.json` by #1243) → `pnpm test:types` printed
-//     `✓ |types| TS tests/ui/primitives/input/index.test-d.ts (3 tests)`. The error was invisible.
-//   • the SAME error planted in `tests/contracts/regex/index.test-d.ts` (still a root-program member) →
-//     `FAIL |types| tests/contracts/regex/index.test-d.ts`. So the lane works; it just cannot see that tree.
-//   • both files planted again under `pnpm typecheck:tests-dom` → exit 1, TS2322 at BOTH sites. The
-//     coverage MOVED to `types:tests-dom`; it did not vanish. That is what this pin freezes.
+// FOUNDING RECEIPT, 2026-09-02 (pre-#1313 shape — kept for the incident record): the single `types` project
+// checked EVERY `.test-d.ts` under `tsconfig.json` and carried `ignoreSourceErrors: true`, so a planted
+// `export const x: number = "…"` in a `tests/ui` file printed a cheerful `✓ 3 tests` while `pnpm
+// typecheck:tests-dom` caught it (TS2322). #1313 REMOVED that mask by splitting the vitest lane into
+// `types-node` (root graph, EXCLUDES the six DOM-touching subjects) and `types-browser` (exactly those six,
+// under `tsconfig.tests-dom.json`) and dropping `ignoreSourceErrors` — there is no longer a wrong-lib
+// program left to suppress. THIS FILE now pins the POST-SPLIT shape: every `.test-d.ts` file is collected by
+// exactly one of the two vitest projects, and that project's tsconfig is the one that actually ROOTS it —
+// so a vitest `✓` and a real static pass now agree everywhere, not just on the five it happened to.
 //
 // WHY THESE SUBJECTS ARE DURABLE (the #1270 lesson — a pin whose premise is graph membership must name a
 // subject the graph reaches WITHOUT a test tree): every input here is a repo-ROOT config —
@@ -44,23 +45,29 @@ const SHOW_CONFIG_MAX_BUFFER = 268_435_456;
 
 interface TypecheckShape {
   readonly include?: readonly string[];
+  readonly exclude?: readonly string[];
   readonly tsconfig?: string;
 }
 interface ProjectShape {
   readonly test?: { readonly name?: string; readonly typecheck?: TypecheckShape };
 }
 
-/** The `types` project's OWN declaration of what it collects and which program it collects it under —
- *  read from `vitest.config.ts`, never restated here (a copy would rot into agreement with nothing). */
-function typesProject(): { readonly include: readonly string[]; readonly tsconfig: string } {
+/** One `types-*` project's OWN declaration of what it collects, excludes, and which program it collects it
+ *  under — read from `vitest.config.ts`, never restated here (a copy would rot into agreement with
+ *  nothing). */
+function typesProject(name: "types-node" | "types-browser"): {
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly tsconfig: string;
+} {
   const projects = (vitestConfig.test?.projects ?? []) as readonly ProjectShape[];
-  const found = projects.find((p) => p.test?.name === "types")?.test?.typecheck;
+  const found = projects.find((p) => p.test?.name === name)?.test?.typecheck;
   if (found?.include === undefined || found.tsconfig === undefined) {
     throw new Error(
-      "vitest.config.ts has no `types` project with a typecheck include + tsconfig — this pin could not measure, which is not the same as the invariant holding",
+      `vitest.config.ts has no \`${name}\` project with a typecheck include + tsconfig — this pin could not measure, which is not the same as the invariant holding`,
     );
   }
-  return { include: found.include, tsconfig: found.tsconfig };
+  return { include: found.include, exclude: found.exclude ?? [], tsconfig: found.tsconfig };
 }
 
 /** The repo-relative TS SOURCE files a program ROOTS (its resolved include/files), minus `.d.ts` — the
@@ -84,8 +91,8 @@ function programRoots(root: string, cfg: string): ReadonlySet<string> {
   return out;
 }
 
-/** The collected corpus, derived by handing the project's OWN include globs to git as a pathspec — no
- *  hand-rolled glob matcher to disagree with vitest's. */
+/** The collected corpus, derived by handing a project's OWN include globs/paths to git as a pathspec —
+ *  no hand-rolled glob matcher to disagree with vitest's. */
 function collectedTestD(root: string, include: readonly string[]): readonly string[] {
   const res = runNicedSync("git", ["ls-files", "--", ...include], { cwd: root });
   if (res.status !== 0) {
@@ -99,12 +106,24 @@ function tree(rel: string): string {
   return rel.split("/").slice(0, 2).join("/");
 }
 
-test("every `.test-d.ts` is rooted by exactly one type program, and the vitest `types` lane's blind half is the tests-dom half", ({ repoRoot }) => {
-  const project = typesProject();
-  expect(project.tsconfig).toBe(GRAPH);
+test("every `.test-d.ts` is claimed by exactly one `types-*` project, and each project's tsconfig is the program that actually roots its files", ({
+  repoRoot,
+}) => {
+  const node = typesProject("types-node");
+  const browser = typesProject("types-browser");
+  expect(node.tsconfig).toBe(GRAPH);
+  expect(browser.tsconfig).toBe(TESTS_DOM);
 
-  const files = collectedTestD(repoRoot, project.include);
-  expect(files.length).toBeGreaterThan(MIN_TESTD_FILES);
+  // `types-node`'s glob collects the whole `.test-d.ts` census; its `exclude` is what hands the six
+  // DOM-touching subjects to `types-browser` instead — the two field values are the ONE coupling site
+  // (both ends say so in their own vitest.config.ts comment).
+  const allTestD = collectedTestD(repoRoot, node.include);
+  expect(allTestD.length).toBeGreaterThan(MIN_TESTD_FILES);
+
+  const browserSet = new Set(node.exclude);
+  expect(browserSet.size).toBeGreaterThan(0);
+  const nodeSelected = allTestD.filter((rel) => !browserSet.has(rel));
+  const browserSelected = collectedTestD(repoRoot, browser.include);
 
   const graphRoots = programRoots(repoRoot, GRAPH);
   const domRoots = programRoots(repoRoot, TESTS_DOM);
@@ -113,34 +132,39 @@ test("every `.test-d.ts` is rooted by exactly one type program, and the vitest `
   expect(graphRoots.size).toBeGreaterThan(MIN_GRAPH_ROOTS);
   expect(domRoots.size).toBeGreaterThan(MIN_TESTS_DOM_ROOTS);
 
-  // 1. TOTAL: no `.test-d.ts` is typechecked by nothing. (`types:tests-membership` guards the wider
-  //    tests/** corpus; this arm is the same promise stated where a reader of THIS lane will look.)
-  const orphans = files.filter((rel) => !(graphRoots.has(rel) || domRoots.has(rel)));
+  // 1. TOTAL + DISJOINT: every collected `.test-d.ts` lands in EXACTLY one of the two selected sets — no
+  //    file is dropped by the exclude/include split, and none is claimed by both.
+  const nodeSelectedSet = new Set(nodeSelected);
+  const browserSelectedSet = new Set(browserSelected);
+  const orphans = allTestD.filter((rel) => !(nodeSelectedSet.has(rel) || browserSelectedSet.has(rel)));
   expect(orphans).toEqual([]);
-
-  // 2. DISJOINT: a file in both programs would be checked under two lib sets and could pass in one while
-  //    failing in the other — the ambiguity this partition exists to forbid.
-  const doubled = files.filter((rel) => graphRoots.has(rel) && domRoots.has(rel));
+  const doubled = allTestD.filter((rel) => nodeSelectedSet.has(rel) && browserSelectedSet.has(rel));
   expect(doubled).toEqual([]);
 
-  // 3. THE PIN. The files the `types` project COLLECTS but its own tsconfig does not ROOT get a vacuous
-  //    green from `pnpm test:types`; `types:tests-dom` is their real enforcer. That set is non-empty
-  //    today (see the founding receipt above), so its emptying is a real event: it means those files
-  //    rejoined the root program and every header below that names `types:tests-dom` has gone stale.
-  const vacuous = files.filter((rel) => !graphRoots.has(rel));
-  expect(vacuous.length).toBeGreaterThan(0);
-  for (const rel of vacuous) {
-    expect(domRoots.has(rel), `${rel} is collected by the vitest \`types\` lane, is NOT rooted by ${GRAPH}, and is not rooted by ${TESTS_DOM} either`).toBe(
+  // 2. THE FIX ITSELF: `types-node` no longer collects a file its own tsconfig does not root — the class
+  //    of "vacuous green" `ignoreSourceErrors` used to swallow is gone, not relocated. Every file
+  //    `types-node` selects must be in `graphRoots`.
+  for (const rel of nodeSelected) {
+    expect(graphRoots.has(rel), `${rel} is selected by \`types-node\` but is NOT rooted by ${GRAPH} — the wrong-lib class #1313 removed has come back`).toBe(
       true,
     );
   }
 
-  // 4. WHOLESALE, never per-file. Every vacuous file's exclusion must come from its whole tree being out
-  //    of the root program, not from a per-file `exclude` row. The per-file escapee ledger is exactly the
-  //    shape #1228/#1243 kept re-growing until both moves went wholesale-by-directory; a new per-file row
-  //    under an otherwise-included tree reds here rather than rotting quietly.
+  // 3. `types-browser`'s six files are real DOM-coupled escapees, not an arbitrary carve-out: none of them
+  //    is rooted by the DOM-less graph (that is WHY they needed a second program), and all of them are
+  //    rooted by `tsconfig.tests-dom.json` (that is what makes `types-browser` an honest check rather than
+  //    a second vacuous one).
+  expect(browserSelected.length).toBeGreaterThan(0);
+  for (const rel of browserSelected) {
+    expect(graphRoots.has(rel), `${rel} is checked by \`types-browser\` but ${GRAPH} ALSO roots it — the DOM split is unnecessary for this file`).toBe(false);
+    expect(domRoots.has(rel), `${rel} is checked by \`types-browser\` but is NOT rooted by ${TESTS_DOM} — its own tsconfig does not own it`).toBe(true);
+  }
+
+  // 4. WHOLESALE, never per-file. `types-node`'s exclusions must come from the six-file `exclude` list
+  //    landing files whose WHOLE tree is otherwise DOM-less-owned — not from `tsconfig.json` itself
+  //    carving a per-file hole (the shape #1228/#1243 kept re-growing until both moves went wholesale).
   const graphTrees = new Set([...graphRoots].map(tree));
-  for (const rel of vacuous) {
+  for (const rel of browserSelected) {
     expect(
       graphTrees.has(tree(rel)),
       `${rel} is excluded from ${GRAPH} while ${tree(rel)}/** is otherwise included — a per-file escapee row, not the ratified wholesale-by-directory shape`,
@@ -148,19 +172,19 @@ test("every `.test-d.ts` is rooted by exactly one type program, and the vitest `
   }
 });
 
-test("the root tsconfig's own exclude list still names the trees this pin found blind (the config is the authority, not this file)", ({ repoRoot }) => {
-  // The second opinion on arm 4: read the config TEXT rather than `--showConfig`'s resolution. If a tree
-  // shows up blind above but is absent from the exclude list here, the two readings disagree and the
-  // conclusion drawn from either is unsafe.
-  const project = typesProject();
-  const files = collectedTestD(repoRoot, project.include);
-  const graphRoots = programRoots(repoRoot, GRAPH);
-  const blindTrees = [...new Set(files.filter((rel) => !graphRoots.has(rel)).map(tree))].toSorted();
-  expect(blindTrees.length).toBeGreaterThan(0);
+test("the root tsconfig's own exclude list still names the trees `types-browser` claims (the config is the authority, not this file)", ({ repoRoot }) => {
+  // The second opinion on arm 4 above: read the config TEXT rather than `--showConfig`'s resolution. If a
+  // tree is claimed by `types-browser` above but absent from the exclude list here, the two readings
+  // disagree and the conclusion drawn from either is unsafe.
+  const browser = typesProject("types-browser");
+  const browserSelected = collectedTestD(repoRoot, browser.include);
+  const browserTrees = [...new Set(browserSelected.map(tree))].toSorted();
+  expect(browserTrees.length).toBeGreaterThan(0);
   const configText = readFileSync(join(repoRoot, GRAPH), "utf8");
-  for (const t of blindTrees) {
-    expect(configText.includes(`"${t}"`), `${t}/** reads as blind via --showConfig but ${GRAPH} carries no \`"${t}"\` row — the two readings disagree`).toBe(
-      true,
-    );
+  for (const t of browserTrees) {
+    expect(
+      configText.includes(`"${t}"`),
+      `${t}/** is claimed by \`types-browser\` but ${GRAPH} carries no \`"${t}"\` exclude row — the two readings disagree`,
+    ).toBe(true);
   }
 });
