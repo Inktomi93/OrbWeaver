@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Authoring a structural gate
@@ -413,8 +413,8 @@ Two traps this cost, both worth copying:
 - **`getVariableDeclarations()` is not "every definition."** `section-registry-completeness` and
   `placeholder-copy-registry` read only annotated consts, so the four FACTORY sections
   (chats/characters/home/config) were outside every arm — a distinctness gate comparing 6 of 10 pairs and
-  reporting a full file count. The shared discovery is now `lib/section-defs.ts`, one home, so the two
-  subjects cannot drift apart again.
+  reporting a full file count. The shared discovery is now the first-class `registryDefinitionFact`
+  (`lib/registry-fact.ts`), one home, so the two subjects cannot drift apart again.
 - **`startsWith("<Type>")` on an annotation also matches `<Type>[]`** — an ARRAY of definitions is an
   assembler's derivation, not a definition, and a fail-closed arm keyed on the loose prefix would accuse it.
   Match the head exactly (`=== "X"` or `startsWith("X<")`).
