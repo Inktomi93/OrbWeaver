@@ -1,351 +1,311 @@
-// Gate: section-registry-completeness (client-architecture-lockdown.md §6 / §16 G1) — the section
-// registry's structural walls tsc can't see. tsc forces the door Record total over SECTION_IDS; this adds:
-// (1) CO-LOCATION — a `SectionDefinition` lives only in `features/<owner>/lib/<id>-section.{ts,tsx}`;
-// (2) the PLANNED discipline (O1) — `content: { planned }` needs a non-empty reason AND no real body
-//     (a planned section that also wires list/header/non-`none` context is the refinery bug in a badge);
-// (3) the ANTI-GOD-MAP arm — a `sections={{…}}` object literal in a route file, or a non-auth feature
-//     front-door import in `routes/**` outside the sanctioned composition route (app-root.tsx). The
-//     `modals={{…}}` twin of arm (3) lands at M4 (when modal bodies move to the door); staged, not forgotten.
-// (4) DUPLICATE ID — two co-located SectionDefinitions declaring the same `id` (a shadow def rots green
-//     while edits land in the dead twin; tsc's total door Record can't see this — the door assembly just
-//     picks one of the two importable names, silently orphaning the other).
+// Policy: section-registry-completeness (client-architecture-lockdown.md §6 / §16 G1) — the section
+// registry's structural walls tsc cannot see. tsc forces the door Record total over SECTION_IDS; this adds
+// CO-LOCATION, the DECLARED-PLANNED discipline (O1), DUPLICATE ID, and the anti-god-map ban on a route
+// re-forming a `sections` object-literal map.
 //
-// THE SUBJECT IS BOTH SANCTIONED AUTHORING SHAPES (#944, 2026-09-01), read through ONE shared discovery
-// (lib/section-defs.ts, also used by placeholder-copy-registry so the two subjects cannot drift): the
-// annotated `const` AND the FACTORY (`makeChatsSection(…): SectionDefinition`, §6b/M3). A
-// variable-declaration-only reader never saw chats/characters/home/config at all — four of ten live
-// sections outside every arm below. A co-located definition whose initializer is NOT resolvable to an
-// object literal (an import, a builder) now FAILS CLOSED instead of `continue`ing: the co-location law
-// cannot be established through it. The gate declares its SECTION POPULATION (#946) so the next shrink is loud.
-import type { ObjectLiteralExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
+// The subject is the shared `registryDefinitionFact`'s section view, which covers BOTH sanctioned authoring
+// shapes — the annotated const AND the `make<X>Section(): SectionDefinition` factory (§6b/M3, live on four
+// of the ten sections) — by canonical TYPE identity, so an aliased or re-exported annotation is the same
+// subject and a local type that merely shares the name is not. The definition's own object literal is
+// resolved across files, so an imported initializer is not an unjudgeable blob: it is a definition whose
+// HOME is checked directly.
+//
+// THE ROUTE IMPORT ARM IS NOT HERE. "A non-auth feature front door may be imported only by the sanctioned
+// composition route" is a rule whose exceptions are recurring repository PERMISSIONS, not per-occurrence
+// waivers, so it is `route-imports-no-feature` under reviewed-grant authority — one authority per policy
+// (the same split the design's own `tooling-front-door` row prescribes).
+import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-import type { SectionDef } from "../lib/section-defs.ts";
-import { SECTION_FILE_RE, sectionDefsIn } from "../lib/section-defs.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
+import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
+import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
+import { registryDefinitionFact } from "../lib/registry-fact.ts";
 
-/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
- *  node carries its own position, and `token` folds the per-occurrence detail the gate's static `message`
- *  can't. */
-interface Hit {
-  readonly node: TsMorphNode;
-  readonly token: string;
+const ROUTES = "packages/client/src/routes/";
+const GOD_MAP_PROP = "sections";
+/** The one context kind that is NOT a real body: a section that renders no context pane. */
+const CONTEXT_NONE = "none";
+
+const MESSAGE =
+  "a section is dishonest: a SectionDefinition whose declaration or resolved definition is not co-located at " +
+  "packages/client/src/features/<owner>/lib/<id>-section.{ts,tsx}, a definition this policy cannot resolve to an " +
+  "authored object literal, an unreadable or duplicate id, a DECLARED-PLANNED section with an empty reason or a real " +
+  "body, or a route re-forming the `sections` god-map — client-architecture-lockdown.md §6.";
+const FIX =
+  "co-locate the definition and write it as an authored object literal, or a `make<X>Section(): SectionDefinition` factory returning one; a planned section is a non-empty reason and no body (context kind none); a route is a thin mount — sections ride the registry.";
+
+interface Claim {
+  readonly name: string;
+  readonly file: string;
 }
 
-const CLIENT_SRC = "/packages/client/src/";
-const ROUTES_DIR = "/packages/client/src/routes/";
-/** The population's stable name — what a reader diffs run over run (#946). */
-const POPULATION = "SectionDefinition";
-
-function rel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
+interface Home {
+  readonly object: ObjectLiteralExpression;
+  readonly path: string;
 }
 
-function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
-  const prop = obj.getProperty(name);
-  return prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
-}
-
-/** A section definition's declared `id` string literal (through any as/satisfies/paren wrapper), or undefined. */
-function sectionId(section: ObjectLiteralExpression): string | undefined {
-  const id = objProp(section, "id");
-  return id === undefined ? undefined : readStringValue(id);
-}
-
-/** A section definition's declared `content` — the planned arm if it is an object literal with `planned`. */
-function plannedReason(section: ObjectLiteralExpression): string | undefined {
-  const content = objProp(section, "content");
-  if (content === undefined || !Node.isObjectLiteralExpression(content)) {
-    return;
-  }
-  const planned = content.getProperty("planned");
-  if (planned === undefined || !Node.isPropertyAssignment(planned)) {
-    return;
-  }
-  const init = planned.getInitializer();
-  return (init === undefined ? undefined : readStringValue(init)) ?? "";
-}
-
-/** True when a section object wires a REAL body (list/header/non-`none` context) — illegal for planned.
- *  A `context` initializer is real unless it is the literal `{ kind: "none" }` — this includes a
- *  `defineContextTabs(…)` CALL (the mint returns a `{ kind: "tabs" }` shape a plain object-literal check
- *  can't see; without this arm a planned section wired `context: defineContextTabs(…)` slips through). */
-function wiresRealBody(section: ObjectLiteralExpression): boolean {
-  if (section.getProperty("list") !== undefined || section.getProperty("header") !== undefined) {
+/** Does this section wire a REAL body — a list, a header, or a context pane that is not `{ kind: "none" }`?
+ *  A `context` produced by a CALL (the `defineContextTabs(…)` mint) is real: it returns a rendered shape a
+ *  plain object-literal check cannot see. */
+function wiresRealBody(object: ObjectLiteralExpression): boolean {
+  if (object.getProperty("list") !== undefined || object.getProperty("header") !== undefined) {
     return true;
   }
-  const context = objProp(section, "context");
+  const context = definitionField(object, "context");
   if (context === undefined) {
     return false;
   }
   if (Node.isCallExpression(context)) {
     return true;
   }
-  if (Node.isObjectLiteralExpression(context)) {
-    const kind = context.getProperty("kind");
-    if (kind !== undefined && Node.isPropertyAssignment(kind)) {
-      const k = kind.getInitializer();
-      const kindValue = k === undefined ? undefined : readStringValue(k);
-      return kindValue !== undefined && kindValue !== "none";
-    }
+  const resolved = definitionObjectField(object, "context");
+  if (resolved === undefined || resolved.kind === "unresolved") {
+    return false;
   }
-  return false;
+  const kind = definitionStringField(resolved.value, "kind");
+  return kind !== undefined && kind.kind === "resolved" && kind.value !== CONTEXT_NONE;
 }
 
-interface SeenId {
-  readonly name: string;
-  readonly file: string;
+/** A `sections={{…}}` object-literal prop — the deleted override god-map re-formed at a route. */
+function isGodMapAttribute(node: MorphNode): boolean {
+  if (!(Node.isJsxAttribute(node) && node.getNameNode().getText() === GOD_MAP_PROP)) {
+    return false;
+  }
+  const initializer = node.getInitializer();
+  if (initializer === undefined || !Node.isJsxExpression(initializer)) {
+    return false;
+  }
+  const expression = initializer.getExpression();
+  return expression !== undefined && Node.isObjectLiteralExpression(expression);
 }
 
-interface DuplicateIdCheck {
-  readonly name: string;
-  readonly path: string;
-  readonly line: number;
-  readonly id: string | undefined;
-}
+export const gate = defineGate({
+  id: "section-registry-completeness",
+  family: "registry-definitions",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [registryDefinitionFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const claimedIds = new Map<string, Claim>();
+    const godMaps: MorphNode[] = [];
+    const report = (node: MorphNode, detail: string): void => ctx.report.node(node, { ...definitionAnchor(node), message: `${MESSAGE} ${detail}`, fix: FIX });
 
-/** Records a section def's `id` against `seenIds`; flags a second def claiming an already-owned id. */
-function checkDuplicateId(check: DuplicateIdCheck, seenIds: Map<string, SeenId>, out: Violation[]): void {
-  if (check.id === undefined) {
-    return;
-  }
-  const firstOwner = seenIds.get(check.id);
-  if (firstOwner === undefined) {
-    seenIds.set(check.id, { name: check.name, file: rel(check.path) });
-    return;
-  }
-  out.push({
-    file: rel(check.path),
-    line: check.line,
-    message: `SectionDefinition "${check.name}" declares id "${check.id}", already claimed by "${firstOwner.name}" (${firstOwner.file}) — two definitions for one id is a shadow def that rots green while edits land in the dead twin — client-architecture-lockdown.md §16 G1.`,
-  });
-}
-
-/** The accumulators one `run` threads through the per-file checks (bundled so no helper exceeds the
- *  param cap), plus the #946 member tally. */
-interface Scan {
-  readonly out: Violation[];
-  readonly hits: Hit[];
-  readonly seenIds: Map<string, SeenId>;
-  members: number;
-  unresolved: number;
-}
-
-/** Judge ONE discovered section definition — either authoring shape, `const` or factory. */
-function checkSectionDef(def: SectionDef, path: string, scan: Scan): void {
-  const { name } = def.site;
-  if (!SECTION_FILE_RE.test(path)) {
-    scan.hits.push({ node: def.node, token: `${name}-not-co-located` });
-    return;
-  }
-  // FAIL CLOSED (#944): a co-located declaration whose definition this gate cannot read is the law being
-  // unestablishable, never a silent `continue` — that is exactly how a definition moves behind an import
-  // while every path check stays green. Same-file consts and as/satisfies wrappers still resolve.
-  if (def.read.kind === "unresolved") {
-    scan.unresolved += 1;
-    scan.hits.push({ node: def.node, token: `${name}-unreadable-definition (${def.read.shape})` });
-    return;
-  }
-  scan.members += 1;
-  const init = def.read.object;
-  checkDuplicateId({ name, path, line: def.site.line, id: sectionId(init) }, scan.seenIds, scan.out);
-  const reason = plannedReason(init);
-  if (reason === undefined) {
-    return;
-  }
-  if (reason.length === 0) {
-    scan.hits.push({ node: def.node, token: `${name}-empty-planned-reason` });
-  }
-  if (wiresRealBody(init)) {
-    scan.hits.push({ node: def.node, token: `${name}-planned-wires-real-body` });
-  }
-}
-
-function checkSectionDefs(sf: SourceFile, scan: Scan): void {
-  const path = sf.getFilePath();
-  for (const def of sectionDefsIn(sf)) {
-    checkSectionDef(def, path, scan);
-  }
-}
-
-function checkRouteFile(sf: SourceFile, hits: Hit[]): void {
-  const path = sf.getFilePath();
-  const rp = rel(path);
-  const isAppRoot = rp.endsWith("/routes/app-root.tsx");
-  // Arm (3a): a `sections={{…}}` god-map object literal in ANY route file (incl. app-root) is RED.
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    if (attr.getNameNode().getText() !== "sections") {
-      continue;
-    }
-    const init = attr.getInitializer();
-    if (init !== undefined && Node.isJsxExpression(init)) {
-      const expr = init.getExpression();
-      if (expr !== undefined && Node.isObjectLiteralExpression(expr)) {
-        hits.push({ node: attr, token: "sections-god-map" });
+    const resolveHome = (definition: RegistryDefinitionFact, name: string): Home | undefined => {
+      const declarationPath = ctx.relativePath(definition.declaration.getSourceFile());
+      if (!isDefinitionHome(declarationPath, DEFINITION_SLOTS.section)) {
+        report(definition.declaration, `Not co-located: "${name}" is declared at ${declarationPath}.`);
+        return;
       }
-    }
-  }
-  // Arm (3b): a non-auth feature front-door import in a route — legal only inside app-root (the one
-  // sanctioned composition route) and #features/auth anywhere (the login surface + the beforeLoad gate).
-  if (isAppRoot) {
-    return;
-  }
-  for (const imp of sf.getImportDeclarations()) {
-    const spec = imp.getModuleSpecifierValue();
-    if (spec.startsWith("#features/") && spec !== "#features/auth") {
-      hits.push({ node: imp, token: `feature-front-door-import:${spec}` });
-    }
-  }
-}
-
-/** Drain the pass into findings, and declare the SEMANTIC denominator beside the harness's file one
- *  (#946): `members` is what the duplicate-id/planned arms actually judged, `unresolved` is denominator
- *  loss and is an instrument error, and ZERO members on the real tree means the discovery went blind. */
-function reportScan(ctx: GateRunCtx, scan: Scan): void {
-  for (const v of scan.out) {
-    ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-  }
-  for (const hit of scan.hits) {
-    ctx.report(hit.node, { token: hit.token, offset: 0 });
-  }
-  ctx.scan({ population: [{ source: POPULATION, members: scan.members, unresolved: scan.unresolved }] });
-}
-
-export const gate: GateDescriptor = {
-  name: "section-registry-completeness",
-  docRow: "client-architecture-lockdown.md §6 / §16 G1",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a section is dishonest: a SectionDefinition not co-located in a feature section file, a co-located definition this gate cannot READ (an imported/builder initializer — the co-location law cannot be established through it), a DECLARED-PLANNED section with an empty reason or a real body, or a route re-forming the god-map (a `sections` object-literal map / a non-auth feature import outside app-root) — client-architecture-lockdown.md §6.",
-  fix: "co-locate the definition and write it as an object literal or a `make<X>Section(): SectionDefinition` factory returning one (a same-file const and an `as`/`satisfies` wrapper read fine — an IMPORT does not); a planned section is a non-empty reason + no body (context kind none); a route is a thin mount — sections ride the registry, only app-root composes features.",
-  run: (ctx) => {
-    const scan: Scan = { out: [], hits: [], seenIds: new Map<string, SeenId>(), members: 0, unresolved: 0 };
-    for (const sf of ctx.project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!path.includes(CLIENT_SRC)) {
-        continue;
+      if (definition.object.kind === "unresolved") {
+        report(definition.declaration, `Unreadable definition: "${name}" — ${definition.object.reason}: ${definition.object.detail}.`);
+        return;
       }
-      checkSectionDefs(sf, scan);
-      if (path.includes(ROUTES_DIR)) {
-        checkRouteFile(sf, scan.hits);
+      const object = definition.object.value;
+      const objectPath = ctx.relativePath(object.getSourceFile());
+      if (!isDefinitionHome(objectPath, DEFINITION_SLOTS.section)) {
+        report(definition.declaration, `Definition outside its home: "${name}" resolves to an object literal declared at ${objectPath}.`);
+        return;
       }
-    }
-    reportScan(ctx, scan);
+      return { object, path: objectPath };
+    };
+
+    const claimId = (definition: RegistryDefinitionFact, name: string, home: Home): boolean => {
+      const id = definitionStringField(home.object, "id");
+      if (id === undefined || id.kind === "unresolved") {
+        report(definition.declaration, `Unreadable id: "${name}" declares no authored string id, so the duplicate-id arm cannot judge it.`);
+        return false;
+      }
+      const owner = claimedIds.get(id.value);
+      if (owner === undefined) {
+        claimedIds.set(id.value, { name, file: home.path });
+        return true;
+      }
+      report(definition.declaration, `Duplicate id "${id.value}": "${name}" repeats the id first claimed by "${owner.name}" (${owner.file}).`);
+      return true;
+    };
+
+    const judgePlanned = (definition: RegistryDefinitionFact, name: string, home: Home): void => {
+      const content = definitionObjectField(home.object, "content");
+      if (content === undefined || content.kind === "unresolved") {
+        return;
+      }
+      const planned = definitionStringField(content.value, "planned");
+      if (planned === undefined) {
+        return;
+      }
+      if (planned.kind === "unresolved") {
+        report(definition.declaration, `Unreadable planned reason: "${name}" declares a \`content.planned\` this policy cannot read as an authored string.`);
+        return;
+      }
+      if (planned.value.length === 0) {
+        report(definition.declaration, `Empty planned reason: "${name}" declares \`content: { planned: "" }\`, which states nothing.`);
+      }
+      if (wiresRealBody(home.object)) {
+        report(definition.declaration, `Planned section wires a real body: "${name}" is DECLARED-PLANNED and still wires a list, a header, or a context pane.`);
+      }
+    };
+
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.JsxAttribute],
+          visit: (node, sourceFile: SourceFile) => {
+            if (ctx.relativePath(sourceFile).startsWith(ROUTES) && isGodMapAttribute(node)) {
+              godMaps.push(node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const view = ctx.fact(registryDefinitionFact).forKind("section");
+        ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
+        for (const definition of view.definitions) {
+          const name = definitionName(definition.declaration);
+          const home = resolveHome(definition, name);
+          if (home !== undefined && claimId(definition, name, home)) {
+            judgePlanned(definition, name, home);
+          }
+        }
+        for (const attribute of godMaps) {
+          report(attribute, "A route declares a `sections={{…}}` object-literal prop — the override god-map the registry replaced.");
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export const xSection: SectionDefinition = { id: 'x', content: () => null };\n",
-      at: "packages/client/src/features/x/lib/not-a-section-file.ts",
-      expect: { token: "xSection-not-co-located" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/features/x/lib/not-a-section-file.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const xSection: SectionDefinition = { id: "x", content: () => null };\n',
+      },
+      expect: { count: 1, token: "xSection", messageIncludes: "Not co-located" },
       why: "a SectionDefinition outside a `*-section` file — the co-location arm",
     },
     {
-      files: "export const xSection: SectionDefinition = { id: 'x', content: { planned: '' }, context: { kind: 'none' } };\n",
-      at: "packages/client/src/features/x/lib/x-section.ts",
-      expect: { token: "xSection-empty-planned-reason" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const xSection: SectionDefinition = { id: "x", content: { planned: "" }, context: { kind: "none" } };\n',
+      },
+      expect: { count: 1, token: "xSection", messageIncludes: "Empty planned reason" },
       why: "a DECLARED-PLANNED section with an empty reason — the planned-reason arm (O1)",
     },
     {
-      files: "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, list: () => null, context: { kind: 'none' } };\n",
-      at: "packages/client/src/features/x/lib/x-section.ts",
-      expect: { token: "xSection-planned-wires-real-body" },
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const xSection: SectionDefinition = { id: "x", content: { planned: "soon" }, list: () => null, context: { kind: "none" } };\n',
+      },
+      expect: { count: 1, token: "xSection", messageIncludes: "wires a real body" },
       why: "a planned section that also wires a list — the badge-wearing half-build arm (O1)",
     },
     {
-      files:
-        "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, context: defineContextTabs({ useContextState: () => null, tabs: [] }) };\n",
-      at: "packages/client/src/features/x/lib/x-section.ts",
-      expect: { token: "xSection-planned-wires-real-body" },
-
-      why: "a planned section wired `context: defineContextTabs(…)` — a CallExpression the plain object-literal check can't see (M3 amendment)",
-    },
-    {
-      files: "export const G = <AppShell sections={{ chats: 1, characters: 2 }} />;\n",
-      at: "packages/client/src/routes/some-route.tsx",
-      expect: { token: "sections-god-map" },
-      why: "a `sections` prop object literal in a route — the anti-god-map arm (3a)",
-    },
-    {
-      files: 'import { X } from "#features/chat";\nexport const G = X;\n',
-      at: "packages/client/src/routes/some-route.tsx",
-      expect: { token: "feature-front-door-import:#features/chat" },
-      why: "a non-auth feature import in a non-app-root route — the anti-god-map arm (3b)",
-    },
-    {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-section.ts":
-          "export const aSection: SectionDefinition = { id: 'dup', content: () => null, context: { kind: 'none' } };\n",
-        "packages/client/src/features/b/lib/b-section.ts":
-          "export const bSection: SectionDefinition = { id: 'dup', content: () => null, context: { kind: 'none' } };\n",
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\ndeclare function defineContextTabs(input: unknown): { kind: "tabs" };\nexport const xSection: SectionDefinition = { id: "x", content: { planned: "soon" }, context: defineContextTabs({ tabs: [] }) };\n',
       },
-      expect: { messageIncludes: "already claimed by" },
-      why: "two co-located SectionDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
+      expect: { count: 1, token: "xSection", messageIncludes: "wires a real body" },
+      why: "a planned section wired `context: defineContextTabs(…)` — a CALL the plain object-literal check cannot see (M3 amendment)",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/features/a/lib/a-section.ts":
-          "export const aSection: SectionDefinition = { id: 'dup' as never, content: () => null, context: { kind: 'none' } };\n",
-        "packages/client/src/features/b/lib/b-section.ts":
-          "export const bSection: SectionDefinition = { id: 'dup' as never, content: () => null, context: { kind: 'none' } };\n",
-      },
-      expect: { messageIncludes: "already claimed by" },
-      why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening",
-    },
-    {
-      files: {
-        "packages/client/src/features/a/lib/a-definition.ts": "export const aDef = { id: 'dup', content: () => null, context: { kind: 'none' } };\n",
-        "packages/client/src/features/a/lib/a-section.ts": 'import { aDef } from "./a-definition.ts";\nexport const aSection: SectionDefinition = aDef;\n',
-      },
-      expect: {
-        token: "aSection-unreadable-definition (the identifier `aDef` (not an object literal declared in this file — an imported or re-exported definition))",
-      },
-      why: "THE #944 CONTROL: an IMPORTED initializer at a sanctioned `*-section.ts` path. Every co-location check stays green and the duplicate-id/planned arms silently returned before the fail-closed arm — the audit's exact escape shape",
-    },
-    {
-      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/a-section.tsx":
-          "export function makeASection(): SectionDefinition {\n  return { id: 'dup', content: () => null, context: { kind: 'none' } };\n}\n",
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport function makeASection(): SectionDefinition {\n  return { id: "dup", content: () => null, context: { kind: "none" } };\n}\n',
         "packages/client/src/features/b/lib/b-section.ts":
-          "export const bSection: SectionDefinition = { id: 'dup', content: () => null, context: { kind: 'none' } };\n",
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "dup", content: () => null, context: { kind: "none" } };\n',
       },
-      expect: { messageIncludes: "already claimed by" },
-      why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory colliding with a const section's id. Four live sections (chats/characters/home/config) are authored this way and a `getVariableDeclarations()`-only reader saw NONE of them",
+      expect: { count: 1, messageIncludes: "Duplicate id" },
+      why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory colliding with a const section's id. Four live sections are authored this way and a variable-declaration-only reader saw none of them",
     },
     {
-      files: "export function makeXSection(): SectionDefinition {\n  return { id: 'x', content: { planned: '' }, context: { kind: 'none' } };\n}\n",
-      at: "packages/client/src/features/x/lib/x-section.tsx",
-      expect: { token: "makeXSection-empty-planned-reason" },
-      why: "the PLANNED arm reaching a factory too — the honesty arms are the point of widening the subject, not just the duplicate-id one",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-definition.ts": 'export const aDef = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { aDef } from "./a-definition.ts";\nexport const aSection: SectionDefinition = aDef;\n',
+      },
+      expect: { count: 1, token: "aSection", messageIncludes: "Definition outside its home" },
+      why: "THE #944 CASE, judged instead of refused: the IMPORTED initializer means the sanctioned `*-section.ts` path holds no definition",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell sections={{ chats: 1, characters: 2 }} />;\n",
+      },
+      expect: { count: 1, token: "sections", messageIncludes: "god-map" },
+      why: "a `sections` prop object literal in a route — the anti-god-map arm",
     },
   ],
   mustPass: [
     {
-      files: "export const refinerySection: SectionDefinition = { id: 'refinery', content: { planned: 'build pending' }, context: { kind: 'none' } };\n",
-      at: "packages/client/src/features/refinery/lib/refinery-section.ts",
-      why: "the founding DECLARED-PLANNED section — non-empty reason, fully placeholder — passes (O1)",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/refinery/lib/refinery-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const refinerySection: SectionDefinition = { id: "refinery", content: { planned: "build pending" }, context: { kind: "none" } };\n',
+      },
+      why: "the founding DECLARED-PLANNED section — a non-empty reason, fully placeholder — passes (O1)",
     },
     {
-      files: "export const chatsSection: SectionDefinition = { id: 'chats', content: () => null, context: { kind: 'none' } };\n",
-      at: "packages/client/src/features/chat/lib/chats-section.tsx",
-      why: "a FULL co-located section (function content) — passes",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/chat/lib/chats-section.tsx":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport function makeChatsSection(): SectionDefinition {\n  return { id: "chats", content: () => null, context: { kind: "none" } };\n}\n',
+      },
+      why: "the factory arm's FALSE branch — a co-located factory with a unique id and a real body passes, so widening the subject is not a blanket accusation",
     },
     {
-      files: 'import { AppShell } from "#features/app-shell";\nexport const G = AppShell;\n',
-      at: "packages/client/src/routes/app-root.tsx",
-      why: "app-root.tsx — the sanctioned composition route — may import feature front doors",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nconst xDef = { id: "x", content: () => null, context: { kind: "none" } };\nexport const xSection: SectionDefinition = xDef;\n',
+      },
+      why: "SAME-FILE indirection — the resolved literal is still in the section's own home, so every arm judges the real definition",
     },
     {
-      files: "export function makeChatsSection(): SectionDefinition {\n  return { id: 'chats', content: () => null, context: { kind: 'none' } };\n}\n",
-      at: "packages/client/src/features/chat/lib/chats-section.tsx",
-      why: "the factory arm's FALSE branch — a co-located factory with a unique id and a real body passes, so widening the subject is not a blanket accusation against the four live factory sections",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/features/b/lib/b-section.ts":
+          'interface SectionDefinition {\n  readonly id: string;\n}\nexport const bSection: SectionDefinition = { id: "a", content: () => null };\n',
+      },
+      why: "THE COUNTERFACTUAL: `bSection` is annotated with a LOCAL type that merely shares the name, so it is not a section and cannot collide with a section's id",
     },
     {
-      files: "const xDef = { id: 'x', content: () => null, context: { kind: 'none' } };\nexport const xSection: SectionDefinition = xDef;\n",
-      at: "packages/client/src/features/x/lib/x-section.ts",
-      why: "SAME-FILE indirection — still co-located, so it resolves and is judged normally. The declared limit this row writes down: only an import/builder fails closed",
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/routes/app-root.tsx": "export const G = <AppShell sections={sectionRegistry} />;\n",
+      },
+      why: "the god-map arm's FALSE branch: a `sections` prop that forwards the assembled registry is not an object-literal override map",
     },
   ],
-};
+});
