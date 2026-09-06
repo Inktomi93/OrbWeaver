@@ -27,7 +27,7 @@
 // with a `w-(--width-control-col)` dock — so the distance from a name to its control was whatever the
 // window happened to be: `design-audit` filed five `row-void`s on this tab at 46-57% of a 544px row
 // (Quality · Seed · Reasoning · Effort · Verbatim tail), and the gap GREW with the pane (452px at 720,
-// 476px at 1520, with the control's x moving with it). They are `SettingRowGroup` + `ParamsRow` now
+// 476px at 1520, with the control's x moving with it). They are `SettingRowGroup` + `SettingTrackRow` now
 // (#932's ratified answer): the label track is `--width-control-col`, so every control on the deck starts
 // at ONE x that does not move — measured identical at 560/720/1120/1520 and stacked below the group's own
 // step. A knob row is NOT one of these: its control is a flexing rail, which is `KnobGrid`'s own track set
@@ -45,7 +45,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { SettingRowGroup } from "#components";
+import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms";
 import {
   pageStep,
@@ -63,7 +63,7 @@ import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { CapabilityGate } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
-import { ParamsRow } from "./params-row.tsx";
+
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -177,7 +177,7 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
           return (
             <Stack gap="tight">
               <SettingRowGroup>
-                <ParamsRow>
+                <SettingTrackRow>
                   <Field
                     hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it."
                     label="Quality"
@@ -190,7 +190,7 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
                       value={qualitySelectValue(current)}
                     />
                   </Field>
-                </ParamsRow>
+                </SettingTrackRow>
               </SettingRowGroup>
               {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
             </Stack>
@@ -246,11 +246,11 @@ function SamplingCluster({
       </form.Subscribe>
       {supportsSeed(capability) ? (
         <SettingRowGroup>
-          <ParamsRow>
+          <SettingTrackRow>
             <form.AppField name="params.seed">
               {(field): ReactElement => <field.NumberField hint="A fixed seed makes sampling reproducible." label="Seed" placeholder="random" />}
             </form.AppField>
-          </ParamsRow>
+          </SettingTrackRow>
         </SettingRowGroup>
       ) : null}
       <StalenessRow form={form} stale={effective?.stale ?? []} />
@@ -333,7 +333,7 @@ function ReasoningCluster({
               // the effort select start their controls at one x), and a wrapper would make the pair ONE
               // grid item, which is the same reason `KnobRow` returns a fragment into `KnobGrid`.
               <>
-                <ParamsRow>
+                <SettingTrackRow>
                   <Field label="Reasoning" name={field.name}>
                     {/* THE `aria-label` HERE IS A LIE THE TREE NEVER REPEATS, and it cannot simply be deleted
                       (#1621). "Enable reasoning" is a DIFFERENT string from the Field's label, and it loses to
@@ -344,7 +344,7 @@ function ReasoningCluster({
                       reports instead: the attribute stays for the rule, and stops promising a second name. */}
                     <Switch aria-label="Reasoning" checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
                   </Field>
-                </ParamsRow>
+                </SettingTrackRow>
                 {on && control.kind === "effort" ? <EffortField levels={control.effortLevels ?? []} onChange={field.handleChange} value={effort} /> : null}
               </>
             );
@@ -406,7 +406,7 @@ function EffortField({
   }
   const items: SelectItems<string> = levels.map((level) => ({ value: level, label: level }));
   return (
-    <ParamsRow>
+    <SettingTrackRow>
       <Field label="Effort" name="reasoning-effort">
         <Select
           aria-label="Effort"
@@ -416,7 +416,7 @@ function EffortField({
           value={value ?? ""}
         />
       </Field>
-    </ParamsRow>
+    </SettingTrackRow>
   );
 }
 
@@ -426,7 +426,7 @@ function EffortField({
 function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   const resolved = effective?.knobs["thinkingDisplay"]?.value;
   return (
-    <ParamsRow>
+    <SettingTrackRow>
       <form.AppField name="params.thinkingDisplay">
         {(field): ReactElement => (
           <field.SelectField
@@ -437,6 +437,6 @@ function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; rea
           />
         )}
       </form.AppField>
-    </ParamsRow>
+    </SettingTrackRow>
   );
 }

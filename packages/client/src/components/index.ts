@@ -57,6 +57,7 @@ export { SettingRowGroup } from "./setting-row-group.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
 export type { ConfigTeachScopeValue, SettingRowProps } from "./setting-teach-row.tsx";
 export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
+export { SettingTrackRow } from "./setting-track-row.tsx";
 export type { StoredConfigUnreadableNoticeProps } from "./stored-config-unreadable-notice.tsx";
 export { StoredConfigUnreadableNotice } from "./stored-config-unreadable-notice.tsx";
 export type { TagPickerDialogProps } from "./tag-picker-dialog.tsx";
