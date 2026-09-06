@@ -28,7 +28,7 @@ import type { Db } from "@orb/db";
 import { assets, characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
-import { and, asc, desc, eq, inArray, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
@@ -121,6 +121,34 @@ export async function latestRunRowOf(db: Db, sessionId: RefinerySessionId, stage
     .from(refineryRuns)
     .where(and(eq(refineryRuns.sessionId, sessionId), eq(refineryRuns.stage, stage)))
     // The uuidv7 tie-break — see {@link listRunRowsOf}. "Newest" must not depend on scan order.
+    .orderBy(desc(refineryRuns.createdAt), desc(refineryRuns.id))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** The newest run of ONE stage that is NO NEWER than `cutoff` — the score/analyze run CORRELATED to a
+ *  specific applied rewrite (#1519), never the session's head. A branch-off copy's signal stamps must
+ *  describe the rewrite actually being copied: `latestRunRowOf` alone answers "what does the session know
+ *  right now", which drifts the moment a newer score/analyze run lands after an OLDER named rewrite is
+ *  applied (the §16.1 operate-back path). `cutoff` is the applied rewrite's own `(createdAt, id)` pair —
+ *  the same uuidv7 mint-time tie-break {@link listRunRowsOf} states, so two runs stamped in the same
+ *  millisecond still order correctly under a coarse/frozen clock. */
+export async function latestRunRowAtOrBefore(
+  db: Db,
+  sessionId: RefinerySessionId,
+  stage: RefineryStage,
+  cutoff: { readonly createdAt: number; readonly id: RefineryRunId },
+): Promise<RefineryRunRow | undefined> {
+  const rows = await db
+    .select()
+    .from(refineryRuns)
+    .where(
+      and(
+        eq(refineryRuns.sessionId, sessionId),
+        eq(refineryRuns.stage, stage),
+        or(lt(refineryRuns.createdAt, cutoff.createdAt), and(eq(refineryRuns.createdAt, cutoff.createdAt), lte(refineryRuns.id, cutoff.id))),
+      ),
+    )
     .orderBy(desc(refineryRuns.createdAt), desc(refineryRuns.id))
     .limit(LIMIT_ONE);
   return rows[0];
