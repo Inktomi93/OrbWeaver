@@ -66,6 +66,15 @@ const UNCOMMITTED = 0;
  *  "State as of before the story started" IS the baseline posture, so that is exactly the right degrade. */
 const NO_SEQ = -1;
 
+/** THE D124 TWO-ARM DISCRIMINANT, READ SIDE — the query twin of the write-side {@link turnArmKeys} /
+ *  {@link handArmKeys}. A row is a TURN row (a gameplay BEAT) iff it is variant-keyed, i.e. it was produced by
+ *  that variant's own turn flush; every other row is a message-less HAND row. Homed here, beside the ladder
+ *  order and the write-side keys, so "which arm is this row" has ONE spelling on both sides: a reader that
+ *  re-spells the predicate can get the polarity backwards, which is precisely how the reconcile cadence came
+ *  to count hand edits as beats. */
+const TURN_ARM_ROW = isNotNull(rpgSnapshots.variantId);
+const HAND_ARM_ROW = isNull(rpgSnapshots.variantId);
+
 // The array/record JSON columns whose element schema `@orb/contracts/rpg` exports singular.
 // The PRESENCE plane is a flat `actorRefKey` list since R2 — the same shape `recentEvents` has, and the reason
 // it no longer needs an element schema of its own.
@@ -120,12 +129,34 @@ export async function listSnapshots(db: Db, gameId: RpgGameId): Promise<readonly
   return rows.map(parseSnapshotRow);
 }
 
-/** The count of snapshots a game has written — the reconcile-cadence BEAT COUNTER (crunchy-cluster §1.3): every
- *  `reconcileEveryBeats`-th flush is a reconcile beat (`count % N === 0`). Derived (never a stamped counter) off
- *  the table the flush already writes; a cheap `COUNT(*)`, not a row scan. Read at `stageStateRound` BEFORE this
- *  flush's own write, so the count is the number of PRIOR beats. */
+/** EVERY snapshot row a game has, both arms — a row CENSUS, not a beat count. Nothing in production reads it;
+ *  it is the tests' "did this write land a row" lens (a fold writes a HAND row, and that is exactly what the
+ *  census must see). The cadence counter is {@link countBeatSnapshots} below, and the two are deliberately
+ *  different questions.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
 export async function countSnapshots(db: Db, gameId: RpgGameId): Promise<number> {
   const rows = await db.select({ n: count() }).from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
+  return rows.at(0)?.n ?? 0;
+}
+
+/** The reconcile-cadence BEAT COUNTER (crunchy-cluster §1.3): every `reconcileEveryBeats`-th flush is a
+ *  reconcile beat. Derived (never a stamped counter) off the table the flush already writes; a cheap
+ *  `COUNT(*)`, not a row scan. Read at `stageStateRound` BEFORE this flush's own write, so the count is the
+ *  number of PRIOR beats.
+ *
+ *  IT COUNTS THE TURN ARM ONLY ({@link TURN_ARM_ROW}). A BEAT is a turn flush; the table also holds HAND rows
+ *  (host resync, populate-from-card, checkpoint restore, an `editSnapshot` clone-forward), which are edits made
+ *  ON TOP OF a beat and are not beats themselves (D124's two-arm law, this file's header). Counting them made
+ *  the boundary of the expensive full-corpus reconciliation move with the host's manual editing activity — a
+ *  hand edit shifted WHICH turn paid for the reconcile, which is neither cadence nor anything a reader could
+ *  predict. */
+export async function countBeatSnapshots(db: Db, gameId: RpgGameId): Promise<number> {
+  const rows = await db
+    .select({ n: count() })
+    .from(rpgSnapshots)
+    .where(and(eq(rpgSnapshots.gameId, gameId), TURN_ARM_ROW));
   return rows.at(0)?.n ?? 0;
 }
 
@@ -269,7 +300,7 @@ async function handRung(db: Db, gameId: RpgGameId, bound?: HandWalkBound): Promi
     .select({ snapshot: rpgSnapshots, asOfSeq })
     .from(rpgSnapshots)
     .leftJoin(messages, eq(messages.id, rpgSnapshots.asOfMessageId))
-    .where(and(eq(rpgSnapshots.gameId, gameId), isNull(rpgSnapshots.variantId), ...before))
+    .where(and(eq(rpgSnapshots.gameId, gameId), HAND_ARM_ROW, ...before))
     .orderBy(desc(asOfSeq), desc(rpgSnapshots.createdAt), desc(rpgSnapshots.id))
     .limit(LIMIT_ONE);
   const hit = rows[0];
@@ -306,10 +337,7 @@ async function ladderPosOf(db: Db, row: RpgSnapshotRow): Promise<LadderPos | und
 async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
   // A variant belongs to exactly ONE message, so the existence of a slot selecting it is unambiguous without a
   // chat scope — this asks "is this row's variant the one on screen anywhere", which is a global fact.
-  const onLiveLineage = or(
-    isNull(rpgSnapshots.variantId),
-    sql`exists (select 1 from ${messages} where ${messages.selectedVariantId} = ${rpgSnapshots.variantId})`,
-  );
+  const onLiveLineage = or(HAND_ARM_ROW, sql`exists (select 1 from ${messages} where ${messages.selectedVariantId} = ${rpgSnapshots.variantId})`);
   const scope = [
     eq(rpgSnapshots.gameId, gameId),
     onLiveLineage,
@@ -539,7 +567,7 @@ export async function writeStagedSnapshotAndJournal(
     .values(next)
     .onConflictDoUpdate({
       target: rpgSnapshots.variantId,
-      targetWhere: isNotNull(rpgSnapshots.variantId),
+      targetWhere: TURN_ARM_ROW,
       set: {
         clock: next.clock,
         calendarDate: next.calendarDate,
