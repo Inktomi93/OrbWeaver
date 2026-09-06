@@ -4,7 +4,7 @@
 //
 // WHAT ONLY A REAL MOUNT CAN PROVE, and what this file owns:
 //   1. THE GRANT — a `page`-anchored surface's first `primary` button renders as the house primary CTA. The
-//      anchor is `data-cta` on the sealed `Button` (`button.tsx:28` — the attribute the gradient accent ring
+//      anchor is `data-cta` on the sealed `Button` (`button.tsx:61` — the attribute the gradient accent ring
 //      keys off), so this is the rendered weight, not the spec's claim.
 //   2. THE ONE-PER-ANCHOR REFUSAL — a SECOND `primary` in the same surface renders at the neutral weight and
 //      the plugin's author is told, in the browser console, which button was demoted and why. The console
