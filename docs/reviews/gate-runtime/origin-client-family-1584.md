@@ -100,7 +100,8 @@ written where an unreadable identity must still be reported.
 ## Same-fixture old/new agreement
 
 Every frozen legacy descriptor was replayed over the exact file map of every new proof
-(`scratch/cb-origin-client/replay.ts`, receipts in `/tmp/cb-origin-client-replay.txt`). Every delta is
+(method: extract the pre-conversion descriptors into a scratch tree, shim their `../contract/gate.ts` import,
+and run each through the legacy `runPass` over an in-memory project built from the proof's own file map). Every delta is
 deliberate and falls into two classes.
 
 **Legacy 0 → new ≥1 (a spelling escape the text check could not see), 17 rows:**
@@ -128,7 +129,8 @@ estimator home reached through a re-export.
 ## Population equality
 
 Legacy `scanRoot` admitted sets vs the declared populations, over the same 7,181-file harness corpus
-(`scratch/cb-origin-client/population.ts`, receipts in `/tmp/cb-origin-client-population.txt`):
+(method: record each legacy `scanRoot`'s admitted set over the loaded corpus, then apply the declared
+expression through `compilePopulation` to the same path list and diff both directions):
 
 - **Exact, zero delta (7):** `fetch-fn-in-features` (1,000), `no-chat-trpc-in-surface` (66),
   `no-context-returntype` (32), `no-inline-optimistic-in-surface` (66), `no-manual-autosave-flush` (1,000),
@@ -142,14 +144,15 @@ Legacy `scanRoot` admitted sets vs the declared populations, over the same 7,181
 
 ## Real-tree differential
 
-Legacy descriptors over the current tree (`scratch/cb-origin-client/legacy-tree.ts`): **3 findings**, all
+Legacy descriptors over the current tree (the same frozen descriptors through `runPass` over
+`getWorkspace({root})`): **3 findings**, all
 `no-context-provider`, all Base UI namespace components —
 `packages/ui/src/primitives/{drawer/drawer,toast/toast,tooltip/tooltip}.tsx`. Those three were previously
 SUPPRESSED by three permanent legacy ignore markers, so the legacy EFFECTIVE count was 0.
 
 Final policies over the current tree, one pass over the whole family
-(`scratch/cb-origin-client/real-pass.ts`, `knownPolicies` = all 64 `defineGate` modules on the tree,
-`reviewedGrants: reviewedGrantsFor(policies)`):
+(`runPolicyPass` over `getWorkspace({root, types: true})`; `knownPolicies` = all 64 `defineGate` modules
+discovered on the tree, `reviewedGrants: reviewedGrantsFor(policies)`):
 
 ```
 knownPolicies=64 selected=12 loadedSources=7196
@@ -182,7 +185,7 @@ Nothing to translate; `reviewedGrantConsumption` is empty and there are no autho
 A real-tree zero is only evidence if the same run bites a plant. Nine virtual files were added to the loaded
 typed workspace — plants against the REAL `@types/react`, `@tanstack/react-query`, `@tanstack/form-core`,
 `zustand`, the app's own `data/trpc.ts`, `data/create-entity-mutation.ts` and `state/create-gated-store.ts`
-(`scratch/cb-origin-client/planted-control.ts`). Result: **13 findings across all 12 policies, every verdict
+(added with `project.createSourceFile`; nothing written to disk). Result: **13 findings across all 12 policies, every verdict
 clean (not the fail-closed "unreadable" message), zero stray findings elsewhere in the corpus.**
 
 Two plant iterations were themselves informative and are recorded so a future lane does not repeat them: a
