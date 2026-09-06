@@ -244,6 +244,16 @@ test("written, cyclic, dynamic, and computed column populations refuse instead o
       reason: /mutated|assigned|write/u,
     },
     {
+      source:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst [alias] = [columns];\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+      reason: /mutated|assigned|write/u,
+    },
+    {
+      source:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst columns = { id: text("id") };\nconst { value: alias } = { value: columns };\nObject.assign(alias, { late: text("late") });\nexport const t = sqliteTable("t", columns);',
+      reason: /mutated|assigned|write/u,
+    },
+    {
       source: 'import { sqliteTable } from "drizzle-orm/sqlite-core";\nconst a = { ...b };\nconst b = { ...a };\nexport const t = sqliteTable("t", a);',
       reason: /cycle/u,
     },
@@ -295,14 +305,14 @@ export const t = sqliteTable("t", columns, () => extras);`,
     `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 const columns = { id: text("id") };
 const extras = [];
-const [extrasAlias] = extras;
+const [extrasAlias] = [extras];
 extrasAlias.push(index("t_id_idx").on(columns.id));
 export const t = sqliteTable("t", columns, () => extras);`,
     `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 const columns = { id: text("id") };
 const extras = [];
 let extrasAlias;
-[extrasAlias] = extras;
+[extrasAlias] = [extras];
 extrasAlias.push(index("t_id_idx").on(columns.id));
 export const t = sqliteTable("t", columns, () => extras);`,
   ];
