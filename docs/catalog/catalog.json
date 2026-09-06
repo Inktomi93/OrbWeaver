@@ -12045,8 +12045,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 1037,
-      "bytes": 156050,
-      "sha256": "ecd711b3cd72be899a26b296a35b3f4832e8a6ce43436e728b71dbe533f7b42d",
+      "bytes": 156044,
+      "sha256": "dde48191bb97bb9f2f08693982ef6ea44525a7169d339824f22efb9c8a3bee84",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12099,7 +12099,7 @@
         ],
         "summary": "Config revamp design (#866): ONE closed config-group registry (four shelves You/App/Collections/Extensions; body arms sections|surface|collection|placeholder) that settings panes, collections, persona and Plugins register through; the shipped scroll-spy re-homed as the one spy; one search index with VS Code-style @modified/@shelf/@in/@ext/@advanced tokens, in-place highlights and a ⌘K source; openConfigTo replacing openSettingsTo + goToCollection; dense SettingRowFrame rows; the context pane as the TEACHER (About · Applies · Learn) over a focused-setting seam and per-leaf SettingTeach data; the rail persona slot as switcher · identity · log out; four client composites, no new primitives; nine owner forks with recommendations; sequence S1-S5."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/containerize-build-plan.md",
