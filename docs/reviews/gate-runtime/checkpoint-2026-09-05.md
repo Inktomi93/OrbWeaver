@@ -144,9 +144,11 @@ comment.
   an overload set — `useState` 206, `useQuery` 135, `useRef` 103, drizzle `inArray` 53, the project's own
   `createAutosaveEntityForm` 27, `defineBusChannel` 4 — while **88** stay `ambiguous` and are all genuine
   merges (drizzle's `sql` 58, `SQL` 23, `Component`, `SubstituteFindRegex`, `Agent`, `buildConnector`,
-  `Quantization`). `@trpc/server`'s `TRPCError` is in NEITHER list: it is a single-declaration class, so
-  `home-server-family-1584.md`'s claim that it was "a third live instance" of this refusal is REFUTED — those
-  five accusations came from the missing name prefilter alone.
+  `Quantization`). `@trpc/server`'s `TRPCError` is in NEITHER list, and the reason is not the one recorded:
+  measured directly, all seven of its server import specifiers refuse as `unsupported` — "local export
+  TRPCError forwards an imported binding without a proven canonical export", the package barrel re-exporting a
+  binding it imported — so `home-server-family-1584.md`'s claim that it was "a third live instance" of the
+  OVERLOAD refusal is REFUTED, and closing it is a separate follow-up (below).
 - **Composed pre/post over the same corpus, all 109 final policies**: 237 raw = 157 waived + 78 granted + 2
   effective, 0 alarms, 0 tool/fact/authority errors — and the diff is EMPTY in every direction: no per-policy
   count moved, no finding appeared or disappeared, no waiver or grant consumption changed, every provider
@@ -177,6 +179,14 @@ one policy). Conformance and the two refusal pins are in `bus-fact-health.test.t
 producer family's entry — and `bus-pair.test.ts` keeps the definition family plus the deferral pins. Real
 pass over the family: 0/0/0/0; producer fact 66 members / **271 emitter anchors** / 0 unresolved, compared as
 a SET difference against the pre arm and IDENTICAL. Full evidence: [bus-pair-1584.md](bus-pair-1584.md) §5.
+
+**Runtime follow-up this wave opened.** `resolveModuleMemberOrigin` refuses a barrel that re-exports an
+IMPORTED binding under its own name (`import { X } from "./x"; export { X };`) as `unsupported`, because the
+local-export arm requires the aliased declaration to live in the exporting file. `@trpc/server`'s `TRPCError`
+is the live instance (7 server import specifiers). The arm is deliberate — it is what stops a same-named leaf
+export from validating a RENAMING re-export (`reference-fact-module.test.ts` row 1) — so the fix is a narrower
+condition (same NAME, aliased symbol proven) rather than a removal, and it moves verdicts, so it is its own
+lane with its own pre/post classification.
 
 **Fold receipts** (lane worktree, base `0c7bc1eca`): tooling TS7 clean; 49 focused tests across 26 files
 green (reader battery 178 tests / 13 files, family battery 56 / 10, bus family 23 / 3, schema 18 / 3 — with

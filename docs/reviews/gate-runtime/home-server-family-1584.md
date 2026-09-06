@@ -256,11 +256,13 @@ and each carries its own proof row.
 - ~~`resolveModuleMemberOrigin` refuses an OVERLOADED / multiply-declared export as `ambiguous`.~~
   **CLOSED 2026-09-06** by `reference-fact-module.ts#overloadHome` (a same-file function-overload set resolves
   to one home; a value/type merge, a `function`+`namespace` merge and an `export *` fan-in still refuse).
-  **One half of this row was WRONG and the measurement says so:** `@trpc/server`'s `TRPCError` is NOT an
-  overloaded export — it is a single-declaration class, and it appears in neither the 557 now-resolving
-  import specifiers nor the 88 still-ambiguous ones on this tree. The five `new TRPCError(…)` accusations this
-  family measured came from the MISSING NAME PREFILTER alone, which `referenceNamesExport` already fixed; the
-  overload reader changes nothing here. The prefilter remains mandatory on every fail-closed arm for the
+  **One half of this row was WRONG and the measurement says so:** `@trpc/server`'s `TRPCError` is NOT refused
+  as `ambiguous` at all. All seven of its import specifiers under `packages/server/src` refuse as
+  **`unsupported`: "local export TRPCError forwards an imported binding without a proven canonical export"** —
+  the package barrel re-exports a binding it imported from another module, which is a DIFFERENT declared limit
+  of `resolveModuleMemberOrigin` (the local-export arm requires the aliased declaration to live in the
+  exporting file) and is unaffected by the overload reader. The five `new TRPCError(…)` accusations this
+  family measured came from the MISSING NAME PREFILTER alone, which `referenceNamesExport` already fixed. The prefilter remains mandatory on every fail-closed arm for the
   reason it was minted — an unreadable node is not an accusation — and this family's real-tree verdict is
   unchanged by the reader (composed pre/post over the same corpus: identical per-policy counts, identical
   waiver/grant multisets).
