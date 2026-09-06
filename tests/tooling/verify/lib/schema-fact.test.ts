@@ -259,6 +259,52 @@ test("written, cyclic, dynamic, and computed column populations refuse instead o
   }
 });
 
+test("invoked members through schema-population aliases refuse instead of shrinking", () => {
+  const cases = [
+    `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const extras = [];
+const extrasAlias = extras;
+extrasAlias.push(index("t_id_idx").on(columns.id));
+export const t = sqliteTable("t", columns, () => extras);`,
+    `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const extras = [];
+const [extrasAlias] = extras;
+extrasAlias.push(index("t_id_idx").on(columns.id));
+export const t = sqliteTable("t", columns, () => extras);`,
+    `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const extras = [];
+let extrasAlias;
+[extrasAlias] = extras;
+extrasAlias.push(index("t_id_idx").on(columns.id));
+export const t = sqliteTable("t", columns, () => extras);`,
+  ];
+  for (const source of cases) {
+    const fact = queryOf({ "packages/db/src/schema/x.ts": source }).query.schema();
+    expect(unresolvedReason(fact)).toMatch(/invoked member|authored array|change/u);
+    expect(fact.receipt).toMatchObject({ status: "unresolved", tables: 0, columns: 0, indexes: 0 });
+  }
+});
+
+test("immutable schema populations and unrelated member effects remain ready", () => {
+  const { query } = queryOf({
+    "packages/db/src/schema/x.ts": `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const extras = [index("t_id_idx").on(columns.id)];
+const unrelated = [];
+unrelated.push("runtime-only");
+export const t = sqliteTable("t", columns, () => extras);`,
+  });
+  const fact = query.schema();
+  expect(ready(fact).tables[0]).toMatchObject({
+    columns: [{ identity: { propertyName: "id" } }],
+    indexes: [{ kind: "index", name: { kind: "named", value: "t_id_idx" } }],
+  });
+  expect(fact.receipt).toMatchObject({ status: "ready", tables: 1, columns: 1, indexes: 1, members: 3 });
+});
+
 test("a written sqliteTable alias is an unresolved schema candidate, not an empty schema", () => {
   const { query } = queryOf({
     "packages/db/src/schema/x.ts":

@@ -457,7 +457,13 @@ function ordinaryWaiverSources(
     }
     const source = resourcesByPath.get(path);
     if (source === undefined || source.kind !== "resource") {
-      throw new Error(`ordinary waiver resource population has no exact text carrier: ${path}`);
+      const completedOwnerRequiresCarrier = policies.some(
+        ({ owner, population }) => owner.status === "success" && population.effectiveResourcePaths.includes(path),
+      );
+      if (completedOwnerRequiresCarrier) {
+        throw new Error(`ordinary waiver resource population has no exact text carrier: ${path}`);
+      }
+      continue;
     }
     if (sourcePaths.has(path)) {
       throw new Error(`ordinary waiver population has ambiguous syntax and resource carriers: ${path}`);

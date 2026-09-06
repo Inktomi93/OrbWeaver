@@ -115,7 +115,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
           }
           const text = reader.read(path);
           if (text.status !== "ready") {
-            throw new Error(`ordinary waiver resource carrier ${path} is ${text.status}: ${text.reason}`);
+            return [];
           }
           return [Object.freeze({ kind: "resource", path, format, text: text.value })];
         }),

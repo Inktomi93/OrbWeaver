@@ -201,7 +201,7 @@ function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<
         continue;
       }
       const { line, column } = textPosition(source.text, comment.pos);
-      const binding = followingResourceCarrier(source.text, comments, comment);
+      const binding = followingResourceCarrier(source.text, comment);
       markers.push({
         ...parsed,
         id: `${source.path}:${line}:${column}`,
@@ -294,15 +294,24 @@ function markdownFence(line: string, current: "```" | "~~~" | undefined): "```" 
   return trimmed.startsWith("~~~") ? "~~~" : undefined;
 }
 
-function markdownCommentInLine(text: string, line: string, offset: number): ResourceComment | undefined {
-  const open = line.indexOf(HTML_COMMENT_OPEN);
-  if (open === -1) {
-    return;
+function markdownCommentsInLine(text: string, line: string, offset: number): readonly ResourceComment[] {
+  const comments: ResourceComment[] = [];
+  let from = 0;
+  while (from < line.length) {
+    const open = line.indexOf(HTML_COMMENT_OPEN, from);
+    if (open === -1) {
+      break;
+    }
+    const pos = offset + open;
+    const close = text.indexOf(HTML_COMMENT_CLOSE, pos + HTML_COMMENT_OPEN.length);
+    const end = close === -1 ? text.length : close + HTML_COMMENT_CLOSE.length;
+    comments.push({ pos, end, text: text.slice(pos, end) });
+    if (end >= offset + line.length) {
+      break;
+    }
+    from = end - offset;
   }
-  const pos = offset + open;
-  const close = text.indexOf(HTML_COMMENT_CLOSE, pos + HTML_COMMENT_OPEN.length);
-  const end = close === -1 ? text.length : close + HTML_COMMENT_CLOSE.length;
-  return { pos, end, text: text.slice(pos, end) };
+  return comments;
 }
 
 function markdownComments(text: string): readonly ResourceComment[] {
@@ -312,10 +321,7 @@ function markdownComments(text: string): readonly ResourceComment[] {
   for (const line of text.split(/(?<=\n)/u)) {
     const nextFence = markdownFence(line, fence);
     if (fence === undefined && nextFence === undefined) {
-      const comment = markdownCommentInLine(text, line, offset);
-      if (comment !== undefined) {
-        comments.push(comment);
-      }
+      comments.push(...markdownCommentsInLine(text, line, offset));
     }
     fence = nextFence;
     offset += line.length;
@@ -357,26 +363,12 @@ function textPosition(text: string, offset: number): { readonly line: number; re
   return { line: lineIndex + 1, column: offset - lineStart + 1 };
 }
 
-function commentAt(comments: readonly ResourceComment[], position: number): ResourceComment | undefined {
-  return comments.find((comment) => comment.pos === position);
-}
-
-function followingResourceCarrier(
-  text: string,
-  comments: readonly ResourceComment[],
-  marker: ResourceComment,
-): { readonly start: number; readonly end: number } {
-  let start = marker.end;
-  while (start < text.length) {
-    while (/\s/u.test(text[start] ?? "")) {
-      start += 1;
-    }
-    const nextComment = commentAt(comments, start);
-    if (nextComment === undefined) {
-      break;
-    }
-    start = nextComment.end;
+function followingResourceCarrier(text: string, marker: ResourceComment): { readonly start: number; readonly end: number } {
+  const markerLineEnd = text.indexOf("\n", marker.end);
+  if (markerLineEnd === -1) {
+    return { start: text.length, end: text.length };
   }
+  const start = markerLineEnd + 1;
   const newline = text.indexOf("\n", start);
   return { start, end: newline === -1 ? text.length : newline };
 }

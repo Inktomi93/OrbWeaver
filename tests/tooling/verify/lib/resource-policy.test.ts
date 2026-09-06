@@ -110,6 +110,7 @@ test("a caught undeclared request leaves the owner unresolved even when its path
     mustPass: [{ mode: "resource", files: overlay, why: "declared request identity" }],
   });
   const result = runPolicyPass({
+    knownPolicies: [gate],
     policies: [gate],
     root: scratch,
     project: new Project({ useInMemoryFileSystem: true }),
@@ -140,6 +141,7 @@ test("overlapping declared requests must each be consumed", ({ scratch }) => {
     mustPass: [{ mode: "resource", files: overlay, why: "both declarations are consumed" }],
   });
   const result = runPolicyPass({
+    knownPolicies: [gate],
     policies: [gate],
     root: scratch,
     project: new Project({ useInMemoryFileSystem: true }),

@@ -27,6 +27,13 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
   expect(Object.isFrozen(invocation.host)).toBe(true);
 });
 
+test("a missing acquired package does not throw while collecting ordinary waiver sources", ({ scratch }) => {
+  const invocation = createResourceHost({ root: scratch });
+
+  expect(invocation.host.packageMetadata("root").status).toBe("missing");
+  expect(invocation.ordinaryWaiverSources()).toEqual([]);
+});
+
 test("package and tree facts share overlay contents and callers cannot mutate cached values", ({ scratch }) => {
   const content = JSON.stringify({ name: "@orb/ui", private: true, exports: { "./button": "./src/button.ts" } });
   const { host } = createResourceHost({ root: scratch, overlay: { "packages/ui/package.json": content } });
