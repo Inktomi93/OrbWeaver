@@ -926,3 +926,102 @@ test.describe("pending rows are marked, not merely painted (#1799)", () => {
     await expect(sheet.locator('[data-slot="inbox-row"][data-pending]')).toHaveCount(1);
   });
 });
+
+// ── NOTHING NAVIGATES OUT OF THIS POPOVER AND LEAVES IT OPEN (the #1795 float class) ──────────────────
+// #1795's ruling: a float must not stay attached to content that has navigated away. This popover is out of
+// reach of that fix's mechanism twice over — a row's action is an INSIDE press, so Base UI's outside-press
+// close never fires, and the inbox is not a modal slot, so the shell's own float teardown cannot see it. So
+// the invariant has to be LOCAL: every handler that moves the shell closes the popover itself.
+//
+// THESE THREE ARE FENCES, and they are labelled rather than counted (the honest half of the receipt): run
+// against `git show HEAD:` of `notification-bell.tsx` they were ALREADY GREEN — the two handlers #1795's
+// finding named (`onAccepted`, `onOpenPlugins`) each already closed before navigating, and the third
+// (`onHandoffAccepted`) inherited its close from `onRequestHandoff` two steps up the chain. What the commit
+// beside them changes is that the third stops INHERITING it. The pins exist because that inheritance is
+// exactly the shape that rots: a future caller opening the confirm from anywhere else — the sheet lens's
+// own Accept, a deep link, a retry — would navigate with the bar's popover still hanging over the room it
+// just left, and no test would have noticed.
+//
+// PLANTED POSITIVE CONTROL, so a green here is a measurement and not a shrug: with `onAccepted`'s own
+// `setOpen(false)` removed — the exact defect #1795 described — the first pin REDS,
+//   `expect(locator).toBeHidden()` failed · Locator: getByText('nate invited you to a chat')
+//   Expected: hidden · Received: visible   (…resolved to the row's `<span data-slot="text">`, still there
+//   after the shell had moved)
+// i.e. the inbox really does hang over the departed room, and these pins really do see it.
+test.describe("navigating out of the inbox closes it (#1795 class)", () => {
+  test("accepting an invite closes the popover as it moves the shell", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 1 }),
+      "notifications.dismiss": () => null,
+      "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellDestinationStory />);
+    await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+    await expect(page.getByText("nate invited you to a chat")).toBeVisible();
+
+    await page.getByRole("button", { name: "Accept invitation from nate" }).click();
+
+    // The shell MOVED — this is the navigation the float would have been left hanging over…
+    await expect(page.getByTestId("ct-shell-destination")).toHaveText("chats/none");
+    // …and the inbox went with it. Asserted on the ROW rather than a popup slot: the popup portals out of
+    // the mount, and a bare slot selector would pass on an empty container that is still open.
+    await expect(page.getByText("nate invited you to a chat")).toBeHidden();
+  });
+
+  test("confirming a host handoff closes the popover as it moves the shell", async ({ mount, page }) => {
+    // The one that inherited its close. The confirm is a modal dialog OUTSIDE the popup (#1762 hoisted it
+    // there), so this walks the whole two-step: the row's Accept opens the disclosure, the disclosure's
+    // Accept fires the verb and moves the shell.
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [handoffRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 1 }),
+      "notifications.dismiss": () => null,
+      "invites.acceptHostHandoff": () => null,
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellDestinationStory />);
+    await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+    await page.getByRole("button", { name: "Accept the host handoff" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Accept", exact: true }).click();
+
+    await expect(page.getByTestId("ct-shell-destination")).toHaveText("chats/none");
+    await expect(page.getByText("You've been nominated to host a chat")).toBeHidden();
+  });
+
+  test("a programmatic close still leaves the read bookkeeping done", async ({ mount, page }) => {
+    // `controlled-popover-close-bypasses-onopenchange`: `setOpen(false)` does NOT call `onOpenChange`, so
+    // anything hanging on it is skipped. Here that is safe BY SHAPE and this pin is what keeps it so — the
+    // only work in `onOpenChange` is on the OPENING transition (mark-all-read), which the user's own click
+    // already ran. If a close-side effect is ever added there, this goes red instead of shipping an inbox
+    // that navigates away without recording that it was read.
+    const trpc = await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 1 }),
+      "notifications.dismiss": () => null,
+      "invites.acceptInvite": () => ({ chat: { id: "chat_ct_target", participants: [] }, participant: { id: "participant_ct_new" } }),
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellDestinationStory />);
+    await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+    await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBe(1);
+
+    await page.getByRole("button", { name: "Accept invitation from nate" }).click();
+    await expect(page.getByTestId("ct-shell-destination")).toHaveText("chats/none");
+
+    // Exactly one — the open recorded it, and the programmatic close neither repeated nor lost it.
+    await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBe(1);
+  });
+});
+
+// THE SHEET LENS IS OUT OF SCOPE HERE, AND NOT BY OMISSION: it renders no popover at all (`isSheet` returns
+// a `Section` block, not a `Popover`), so there is no float to leave attached — `setOpen` is inert in that
+// lens and the You sheet's own dismissal is the shell's. The mirror this leg owes it was the phone TELL
+// (#1815), which is pinned in `notifications-chrome.ct.tsx`.

@@ -147,7 +147,20 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     openConfigTo("plugins");
   };
 
+  // EVERY HANDLER THAT MOVES THE SHELL CLOSES THE POPOVER ITSELF — an INHERITED invariant is the rot shape
+  // (#1795's float class, re-derived here 2026-09-06). #1795 rules that a float must not stay attached to
+  // content that has navigated away, and this popover is out of reach of that fix's mechanism twice over: a
+  // row's action is an INSIDE press, so Base UI's outside-press close never fires, and the inbox is not a
+  // modal slot, so the shell's float teardown cannot see it. The invariant has to be local.
+  //
+  // This handler was the one that did not state it. It was still CORRECT — `onRequestHandoff` closes two
+  // steps up the chain before the confirm ever opens — and that is precisely the problem: correctness by
+  // inheritance from a caller three hops away survives exactly until someone opens the confirm from
+  // somewhere else (the sheet lens's own Accept, a deep link, a retry), at which point the bar's inbox hangs
+  // over the room it just left and nothing in the file looks wrong. `setOpen(false)` is idempotent, so
+  // stating it here costs nothing and removes the dependency.
   const onHandoffAccepted = (chatId: ChatId): void => {
+    setOpen(false);
     setHandoffDecision(null);
     setActiveSection("chats");
     selectChat(chatId);
