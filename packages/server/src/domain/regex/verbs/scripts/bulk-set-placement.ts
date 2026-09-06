@@ -53,6 +53,11 @@ export function createBulkSetPlacement(ctx: RegexContext): RegexService["bulkSet
       );
       // O-7 arm (a): ONE per-owner `regexChanged` for the whole gesture — N emits would be N refetches.
       ctx.emitUserEvent(ownerId, { type: "regexChanged" });
+      // #1746 — the ROOM plane, per written row (the `bulk-set-enabled` shape exactly). A placement change
+      // moves WHAT the room's own tier runs on every member's turns (`chat.listEffectiveRegex`, and the
+      // display/prompt split the member's transcript renders through), and each script reaches a different
+      // set of rooms. Post-write reach is correct here: the rows survive this write.
+      await Promise.all(updates.map((update) => ctx.fanRegexScriptRooms(update.id)));
     }
     return { affected };
   };

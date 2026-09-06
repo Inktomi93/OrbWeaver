@@ -80,6 +80,11 @@ export interface RegexContext {
    *  those rooms are not knowable from the verb's arguments. Resolved at the composition root through the
    *  entity→room reach table's `regex` arm. Error-isolated: it can never fault the write it follows. */
   readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
+  /** #1746 — the DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
+   *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack
+   *  that still lists the gone script. Call this BEFORE the delete to snapshot the reach, then call the
+   *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */
+  readonly captureRoomReachForDelete: (scriptIds: readonly RegexScriptId[]) => Promise<(deleted: readonly RegexScriptId[]) => void>;
 }
 
 export interface RegexService {
