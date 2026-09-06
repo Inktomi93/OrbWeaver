@@ -145,20 +145,12 @@ export function authoredProperty(
   wanted: string,
   unresolved: BusUnresolvedIdentity[],
 ): MorphNode | undefined {
-  for (const property of [...object.getProperties()].reverse()) {
-    const value = authoredPropertyEntry(context, property, wanted, unresolved);
-    if (value !== undefined) {
-      return value;
-    }
-  }
+  return [...object.getProperties()]
+    .reverse()
+    .reduce<MorphNode | undefined>((value, property) => value ?? authoredPropertyEntry(context, property, wanted, unresolved), undefined);
 }
 
-function authoredPropertyEntry(
-  context: GatePolicyContext,
-  property: MorphNode,
-  wanted: string,
-  unresolved: BusUnresolvedIdentity[],
-): MorphNode | undefined {
+function authoredPropertyEntry(context: GatePolicyContext, property: MorphNode, wanted: string, unresolved: BusUnresolvedIdentity[]): MorphNode | undefined {
   if (Node.isSpreadAssignment(property)) {
     const spread = objectOf(context, property.getExpression(), unresolved);
     return spread === undefined ? undefined : authoredProperty(context, spread, wanted, unresolved);
@@ -174,9 +166,7 @@ function authoredPropertyEntry(
 
 function parameterDeclaration(node: MorphNode): import("ts-morph").ParameterDeclaration | undefined {
   const stable = resolveStableExpression(node);
-  if (stable.kind === "unresolved" && Node.isParameterDeclaration(stable.node)) {
-    return stable.node;
-  }
+  return stable.kind === "unresolved" && Node.isParameterDeclaration(stable.node) ? stable.node : undefined;
 }
 
 export interface ParameterProjection {

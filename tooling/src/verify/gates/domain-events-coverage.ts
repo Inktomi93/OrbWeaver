@@ -17,6 +17,7 @@ export const gate = defineGate({
   population: { in: ["@authored"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
+  resources: [],
   message: MESSAGE,
   fix: "emit the member through the injected EmitDomainEvent operation in its owning domain.",
   create: (ctx) => {

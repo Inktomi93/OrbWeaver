@@ -6,8 +6,8 @@ import { defineGate } from "../contract/policy.ts";
 const GENERATED_THEME = "packages/ui/src/styles/theme.css";
 const MESSAGE =
   "raw color literal in CSS (UI-Architecture-and-Layout.md / D43) — use a var(--color-*) token or a token-derived relative color; raw literals live only in generated theme.css.";
-const HEX_RE = /#[0-9a-fA-F]{3,8}\\b/u;
-const COLOR_FN_RE = /\\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\\s*\\(/u;
+const HEX_RE = /#[0-9a-fA-F]{3,8}\b/u;
+const COLOR_FN_RE = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
 
 function rawColor(value: string): boolean {
   return HEX_RE.test(value) || (COLOR_FN_RE.test(value) && !value.includes("var(--"));
@@ -21,12 +21,15 @@ export const gate = defineGate({
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
   analysis: "resource",
   execution: "entire-population",
+  resources: [{ kind: "authored-css" }],
   message: MESSAGE,
   fix: "use a var(--color-*) token or oklch(from var(--color-*) l c h / α)",
   create: (ctx) => ({
     evaluate: () => {
       const inventory = ctx.resources.cssInventory("authored");
-      if (inventory.status !== "ready") return;
+      if (inventory.status !== "ready") {
+        return;
+      }
       for (const declaration of inventory.value.declarations) {
         if (declaration.file !== GENERATED_THEME && rawColor(declaration.value)) {
           ctx.report.file(declaration.file, {
@@ -63,8 +66,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/client/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
-        "packages/ui/src/x/near.css":
-          "/* #abc rgb(0 0 0) */\n.#abc { content: \"#abc\"; color: var(--color-foreground); }\n",
+        "packages/ui/src/x/near.css": '/* #abc rgb(0 0 0) */\n.#abc { content: "#abc"; color: var(--color-foreground); }\n',
       },
       why: "comments, selector text, and content strings are not color declarations",
     },
