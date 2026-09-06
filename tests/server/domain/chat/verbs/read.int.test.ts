@@ -2803,6 +2803,114 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.compactSummary).toBeNull();
   });
+
+  // ── #1540 — the preview fits the CONVERTED rows, exactly as the turn's fitter does (#1434) ────────────
+  //
+  // The turn pipeline runs CONVERT → FIT: the wire conversion collapses a stored `:::card` body to
+  // `[card: Title]` and DROPS a `:::choices` block entirely, and the fitter prices what is left. The preview
+  // used to fit the RAW shaped rows, so on a card-heavy or choices-heavy chat it charged the budget for
+  // multi-KB bodies the provider never receives — reporting rows as out of context that the very next turn
+  // keeps, and drawing the transcript divider above them. Both arms below FIT UNDER THE WIRE COST and blow
+  // the window under the raw one, so each fails on the pre-fix read and passes on the converted one.
+  const wideEnoughForStubs = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 6000 } });
+
+  /** A `ctx.rpg` that contributes ONLY the M2 wire knob — a game chat whose `cardKeepLastX: 0` stubs every
+   *  STORED card on the wire (rpg's own shipped default). */
+  function cardWindowRpg(cardKeepLastX: number): NonNullable<ChatContext["rpg"]> {
+    // FABRICATION-OK: the preview path reaches exactly these three rpg ops (`resolvePresetOverride`,
+    // `resolveUserMacros`, `gatherTurnContext`); a full ChatRpgOps double would assert ~20 ops no preview calls.
+    return {
+      resolvePresetOverride: () => Promise.resolve(null),
+      resolveUserMacros: () => Promise.resolve([]),
+      gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX }),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+  }
+
+  /** One stored card whose BODY is ~2000 estimated tokens — three of them blow a 6000-token window, while
+   *  their `[card: cN]` stubs cost a handful. The body is the shape the wire seam actually sees: a closed
+   *  `:::card` fence over an html blob (what an immersive-html game persists). */
+  const bigCard = (n: number): string => `:::card title="c${n}"\n<div>${"blob ".repeat(1600)}</div>\n:::`;
+
+  test("a CARD-HEAVY chat: the preview prices the wire STUBS the turn sends, not the stored bodies (#1540)", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_cards"));
+    const chatId = await seedRoom("fitcards", host);
+    // 7 alternating turns (odd ⇒ ends on USER, so SHAPE appends no continuation nudge). The oldest three
+    // carry the big stored cards; the rest are ordinary prose.
+    await Promise.all(
+      Array.from({ length: 7 }, (_, i) => {
+        const seq = i + 1;
+        return seedMessage(db, chatId, seq, {
+          role: seq % 2 === 1 ? "user" : "assistant",
+          content: seq <= 3 ? bigCard(seq) : `turn ${seq} with several words to spend a few tokens`,
+        });
+      }),
+    );
+
+    const ctx = makeChatContext(db, { rpg: cardWindowRpg(0) });
+    const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    // Every card collapses to `[card: cN]` before the fit prices it, so the whole transcript fits: nothing
+    // is dropped and the divider has no line to draw. Pre-fix the three raw bodies (~6000 tokens) blew the
+    // ~3900-token prompt budget and the boundary named a row the next turn keeps.
+    expect(fit.droppedCount).toBe(0);
+    expect(fit.boundaryMessageId).toBeNull();
+    // …and the NUMBER is the wire's, not the transcript's: seven stub/prose rows cost ~100 tokens, never the
+    // ~6000 the stored bodies weigh. (A range, because the estimator is advisory by contract.)
+    expect(fit.usedTokens).toBeLessThan(400);
+  });
+
+  test("a CHOICES-HEAVY chat: the CYOA blocks are dropped from the wire, so the preview never charges for them (#1540)", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_choices"));
+    const chatId = await seedRoom("fitchoices", host);
+    // A `:::choices` block is `wire:"drop"` — unselected options must not re-pile into context — so its
+    // bytes reach the transcript and never the model. No rpg game is needed: the drop is unconditional.
+    const bigChoices = (n: number): string =>
+      `:::choices\n${Array.from({ length: 40 }, (_, k) => `${k + 1}. option ${k} of turn ${n} spelled out at length so the block is expensive`).join("\n")}\n:::`;
+    await Promise.all(
+      Array.from({ length: 7 }, (_, i) => {
+        const seq = i + 1;
+        return seedMessage(db, chatId, seq, {
+          role: seq % 2 === 1 ? "user" : "assistant",
+          content: seq <= 4 ? `here is what you can do\n${bigChoices(seq)}` : `turn ${seq} with several words to spend a few tokens`,
+        });
+      }),
+    );
+
+    const tight = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 2800 } });
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tight));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    expect(fit.droppedCount).toBe(0);
+    expect(fit.boundaryMessageId).toBeNull();
+    expect(fit.usedTokens).toBeLessThan(400);
+  });
+
+  // A FENCE, NOT A DEFECT PROOF — it passes on the pre-fix read too (which priced every card raw, so a card
+  // riding FULL was the one case the old code got right by accident). It is here to stop the fix from
+  // over-correcting into "always stub": the conversion must track `cardKeepLastX`, and a card inside the
+  // window costs its real bytes on the wire and therefore in the preview.
+  test("FENCE: the M2 window is honoured — a card inside keep-last-1 rides whole and costs its bytes (#1540)", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_cards_win"));
+    const chatId = await seedRoom("fitcardswin", host);
+    await Promise.all(
+      Array.from({ length: 7 }, (_, i) => {
+        const seq = i + 1;
+        return seedMessage(db, chatId, seq, {
+          role: seq % 2 === 1 ? "user" : "assistant",
+          content: seq <= 3 ? bigCard(seq) : `turn ${seq} with several words to spend a few tokens`,
+        });
+      }),
+    );
+
+    // The NEWEST stored card (seq 3) rides FULL under `cardKeepLastX: 1` — so the preview must charge for it,
+    // which is the other half of the honesty claim: the fit tracks the window, it does not just always stub.
+    const ctx = makeChatContext(db, { rpg: cardWindowRpg(1) });
+    const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
+    const fit = await previewContextFit({ principal: principal(host), chatId });
+
+    expect(fit.usedTokens).toBeGreaterThan(1000);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

@@ -19,7 +19,11 @@ import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/c
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+// The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
+// verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
+// engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
+import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
