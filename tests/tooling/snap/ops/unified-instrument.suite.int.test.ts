@@ -2,8 +2,9 @@
 // argv-ordered tape, explicit interference refusals, and — since #1315 — the only argv door in the
 // fleet. The browser arm below plants real motion/perf subjects; the corpus arm plants a retired
 // command spelling in the same invocation so a zero cannot pass for a search that never looked.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
@@ -441,15 +442,19 @@ const FOLDED_TOOLS: readonly (readonly [string, string])[] = [
   ["cpu-profile", "--perf"],
 ];
 
-test("the folded tool dirs are NOT programs: every argv door refuses, names the snap arm, and opens no run slot", async ({ runCli }) => {
+test("the folded tool dirs are NOT programs: no argv door exists at all — only the engine index, and the arm is snap's", async () => {
+  // Truth-repaired 2026-09-06 (the tooling-slot-template ENGINE arm, ea1952de5 / 7ce93bad4): the refusing
+  // stub `cli.ts` files were DELETED, so the proof is no longer "the door refuses" but "there is no door".
+  // The four-hop shape that survives: the dir has an `index.ts` (an engine snap imports), it has NO `cli.ts`
+  // (nothing the argv front door could run as a program), and the spelling that replaced it is a REAL snap
+  // flag — `parseSnapArgs` must not reject it as unknown.
+  const { parseSnapArgs } = await import("../../../../tooling/src/snap/index.ts");
   for (const [tool, arm] of FOLDED_TOOLS) {
-    const refused = await runCli(tool, ["/chats", "--whatever"]);
-    await expect(refused, tool).toExitWith(EXIT.misuse);
-    expect(refused.stdout, tool).toContain("NOT A CLI");
-    expect(refused.stdout, tool).toContain("pnpm snap");
-    expect(refused.stdout, tool).toContain(arm);
-    // A refusal that opened a slot would leave an artifact directory claiming a run that never measured.
-    expect(refused.stdout, tool).not.toContain("run slot");
+    const dir = join(process.cwd(), "tooling", "src", tool);
+    await expect(stat(join(dir, "index.ts")), `${tool}/index.ts`).resolves.toBeDefined();
+    await expect(stat(join(dir, "cli.ts")), `${tool}/cli.ts must not exist`).rejects.toMatchObject({ code: "ENOENT" });
+    const errors = parseSnapArgs(["/chats", arm, "body"]).errors.join("\n");
+    expect(errors, `${tool} → ${arm}`).not.toMatch(/unknown (flag|option)/iu);
   }
 });
 
