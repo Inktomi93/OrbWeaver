@@ -711,3 +711,96 @@ describe("createCustomByoBackend — a body-ONLY credential in the capture (#176
     expect(sentBody["api_key"]).toBe(bodyOnlyKey);
   });
 });
+
+// #1785 (SECURITY): the capture SERIALIZES before it scrubs (`JSON.parse(redactSecretsFromText(
+// JSON.stringify(body), …))`), and `JSON.stringify` ESCAPES `"` and `\`. A credential containing either was
+// therefore present in the serialized bytes under a spelling the raw-literal search never saw, so it landed
+// in the debug ring in cleartext — and the fail-closed containment check searched for that same raw literal
+// and certified the leak clean. The scrub set now carries each literal's JSON-escaped spelling too.
+//
+// THE FIXTURES ARE SHAPE-BLIND ON PURPOSE (the #1760 instrument-lie): `redactSecretsFromText` also sweeps
+// `Bearer …` and `sk-…` SHAPES, so an `sk-…` fixture is masked by the SHAPE belt even when the by-value
+// belt is broken — it goes green against the unfixed source and testifies about nothing. These credentials
+// match neither shape, so only the by-value belt can remove them. They are assembled from parts so no
+// contiguous credential-looking literal sits in this file.
+describe("createCustomByoBackend — a QUOTE-bearing credential in the capture (#1785)", () => {
+  const quote = '"';
+  const backslash = "\\";
+  const quotedApiKey = `byo${quote}key${backslash}7c1e4a`;
+  const quotedHeaderSecret = `hdr${quote}secret${backslash}3b9d02`;
+  const quotedBodyKey = `body${quote}cred${backslash}5e8f11`;
+  /** A literal's JSON-string spelling — the form the serialized capture actually holds. */
+  const escaped = (literal: string): string => JSON.stringify(literal).slice(1, -1);
+
+  test("a quoted apiKey + a quoted custom auth header are REDACTED in the capture, in BOTH spellings", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
+    });
+    const captured: Record<string, unknown>[] = [];
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      apiKey: quotedApiKey,
+      headers: { "x-team": "alpha", "x-api-key": quotedHeaderSecret },
+      // The user pastes their key into the body (the nonstandard-endpoint pattern) AND mentions the header
+      // secret in a free-text body field — the two ways an apiKey/header value reaches the CAPTURED body.
+      includeBody: Object.fromEntries([
+        ["auth_token", quotedApiKey],
+        ["note", `sent with ${quotedHeaderSecret}`],
+      ]),
+    });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+
+    const wire = JSON.stringify(captured.at(0));
+    for (const secret of [quotedApiKey, quotedHeaderSecret]) {
+      // The ring entry holds NEITHER the raw spelling nor the escaped one it is really written in.
+      expect(wire).not.toContain(secret);
+      expect(wire).not.toContain(escaped(secret));
+    }
+    // POSITIVE CONTROL: the capture is still a populated object, so the assertions above read "removed",
+    // not "the ring entry is empty".
+    expect(captured.at(0)?.["model"]).toBe("local-model");
+    // The endpoint still receives the plaintext key-in-body — the scrub is capture-only.
+    expect(sentBody["auth_token"]).toBe(quotedApiKey);
+  });
+
+  test("a quoted key-in-body-ONLY credential is REDACTED in the capture, in BOTH spellings", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]);
+    });
+    const captured: Record<string, unknown>[] = [];
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      apiKey: null,
+      headers: null,
+      includeBody: Object.fromEntries([
+        ["api_key", quotedBodyKey],
+        // The ordinary routing field is the control: a scrub that blanks it has blinded the wire capture.
+        ["provider", "cerebras"],
+      ]),
+    });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+
+    const wire = JSON.stringify(captured.at(0));
+    expect(wire).not.toContain(quotedBodyKey);
+    expect(wire).not.toContain(escaped(quotedBodyKey));
+    expect(captured.at(0)?.["provider"]).toBe("cerebras");
+    expect(sentBody["api_key"]).toBe(quotedBodyKey);
+  });
+
+  test("CONTROL — an `sk-`-shaped quoted credential goes green on the SHAPE belt alone", async () => {
+    // Why the fixtures above are shaped the way they are. This credential carries the same `"`+`\` framing
+    // bug, but its `sk-…` prefix is masked by the shape sweep in `redactSecretsFromText` whatever the
+    // by-value belt does — so this assertion ALSO passed against the unfixed source. A shape-matching
+    // fixture cannot testify about the by-value scrub; it is kept as the documented control, never the pin.
+    const shapedKey = `sk-shapebelt0123456789${quote}${backslash}tail`;
+    vi.stubGlobal("fetch", (): Response => sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', TERMINAL_SSE, "data: [DONE]"]));
+    const captured: Record<string, unknown>[] = [];
+    const cred = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null, includeBody: Object.fromEntries([["api_key", shapedKey]]) });
+    await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
+    expect(JSON.stringify(captured.at(0))).not.toContain(shapedKey);
+  });
+});

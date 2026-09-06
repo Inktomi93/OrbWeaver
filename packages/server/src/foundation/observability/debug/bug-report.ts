@@ -43,7 +43,7 @@ import type { BugReportBuildIdentity, BugReportRecord } from "@orb/kit/bug-repor
 import { BUG_REPORT_DIR, bugReportStem } from "@orb/kit/bug-report";
 import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
-import { redactKnownSecrets } from "#kit/secret-redaction";
+import { redactKnownSecrets, secretRedactionLiterals } from "#kit/secret-redaction";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
@@ -111,11 +111,16 @@ export function secretLiterals(environment: Readonly<Record<string, unknown>>): 
  *  disk to one particular failure SPELLING inside the scrubber; asking the question the caller actually cares
  *  about survives a change there. On today's kit implementation the arm is unreachable (the scrubber loops
  *  until every literal is gone, degrading its marker to `""` when it must), which is exactly the property the
- *  spec pins — a post-condition on a security boundary earns its keep by being checked, not by firing. */
+ *  spec pins — a post-condition on a security boundary earns its keep by being checked, not by firing.
+ *
+ *  It asks about `secretRedactionLiterals`, not about the raw `secrets` (#1785). This is a SERIALIZE-then-
+ *  scrub site: `JSON.stringify` escapes `"` and `\`, so an operator credential holding either is in these
+ *  bytes only as `a\"b`. A post-condition that searched for the raw literal would have certified exactly the
+ *  bytes it exists to refuse. */
 export function serializeScrubbed(record: BugReportRecord, secrets: readonly string[]): string | null {
   const json = JSON.stringify(record, null, 2);
   const scrubbed = redactKnownSecrets(json, secrets);
-  return secrets.some((secret) => secret.length > 0 && scrubbed.includes(secret)) ? null : scrubbed;
+  return secretRedactionLiterals(secrets).some((literal) => scrubbed.includes(literal)) ? null : scrubbed;
 }
 
 /** The log ring's ERROR lines inside the window. Pino stamps `time` (epoch ms) on every line, which is the one

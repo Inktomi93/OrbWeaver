@@ -147,6 +147,60 @@ describe("redactSecretsFromText", () => {
     const key = "sk-a.b*c(secret)+lit";
     expect(redactSecretsFromText(`echo=${key}`, [key])).not.toContain(key);
   });
+
+  // #1785 — a credential containing a JSON metacharacter. Every caller that hands this function a
+  // SERIALIZED document (the wire capture, the inspector's surfaced request, an echoing endpoint's body)
+  // holds such a credential only in its ESCAPED spelling, so the by-value belt must search for both. The
+  // fixtures match NEITHER shape belt: an `sk-…`/`Bearer …` fixture is masked by the shape sweep whatever
+  // the by-value belt does, and goes green against broken source (the #1760 instrument-lie).
+  describe("a credential containing a JSON metacharacter (#1785)", () => {
+    const quote = '"';
+    const backslash = "\\";
+    const tail = "tail7c1e4a";
+    const quotedKey = `byo${quote}key${backslash}${tail}`;
+    const escaped = (literal: string): string => JSON.stringify(literal).slice(1, -1);
+
+    test("is removed from a SERIALIZED document, in both its raw and its escaped spelling", () => {
+      const body = JSON.stringify({ auth: quotedKey, model: "local-model" });
+      // The premise: the raw literal is not a substring of the serialized bytes at all.
+      expect(body).not.toContain(quotedKey);
+      const out = redactSecretsFromText(body, [quotedKey]);
+      expect(out).not.toContain(quotedKey);
+      expect(out).not.toContain(escaped(quotedKey));
+      expect(out).toContain("local-model");
+    });
+
+    test("is removed WHOLE when the shape sweep also matches its frame — no fragment survives", () => {
+      // ORDER pin. The `Bearer …` sweep's token class stops at the escape's backslash, so running it BEFORE
+      // the by-value belt bit the literal in half (`Bearer byo` masked) and left the rest of the credential
+      // standing — with the raw AND escaped literals now both absent, so nothing else could catch it. The
+      // by-value belt is the PRIMARY guarantee and must see intact text; the shape sweep runs after it.
+      const echoed = JSON.stringify({ headers: { authorization: `Bearer ${quotedKey}` }, note: "your request, reflected" });
+      const out = redactSecretsFromText(echoed, [quotedKey]);
+      expect(out).not.toContain(quotedKey);
+      expect(out).not.toContain(escaped(quotedKey));
+      // The distinctive tail of the credential is the fragment that used to survive the truncation.
+      expect(out).not.toContain(tail);
+      expect(out).toContain("your request, reflected");
+    });
+
+    test("the shape sweep still masks a RESHAPED token it holds no literal for (defense-in-depth kept)", () => {
+      const out = redactSecretsFromText('{"h":"Bearer some-reshaped-token"}', [quotedKey]);
+      expect(out).not.toContain("some-reshaped-token");
+      expect(out).toContain("Bearer █");
+    });
+
+    test("the PRICE of the order: a suffix appended to our literal survives — the credential itself does not", () => {
+      // Stated in the function header rather than hidden. When a reflected token has our exact literal as a
+      // strict PREFIX, the literal pass masks the literal and the sweep stops at the marker, so the unknown
+      // SUFFIX survives. That is the deliberate trade: removing OUR credential is the guarantee, masking an
+      // unknown superstring is the bonus, and the bonus never outranks the guarantee.
+      const plainKey = "byo-plain-key-9f3a2c";
+      const out = redactSecretsFromText(`{"h":"Bearer ${plainKey}SUFFIX"}`, [plainKey]);
+      expect(out).not.toContain(plainKey);
+      expect(out).toContain("SUFFIX");
+    });
+  });
 });
 
 describe("applyIncludeExclude", () => {

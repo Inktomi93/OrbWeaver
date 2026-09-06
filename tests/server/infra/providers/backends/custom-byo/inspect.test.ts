@@ -287,3 +287,75 @@ describe("inspectCustomByoEndpoint — a key-in-body credential (#1760)", () => 
     expect(preview).toContain("your request, reflected");
   });
 });
+
+// #1785 (SECURITY): the surfaced `request.body` is `redactSecretsFromText(JSON.stringify(body, …), …)` —
+// SERIALIZE, then scrub — and `JSON.stringify` escapes `"` and `\`. A credential containing either was
+// present in the displayed bytes only in its ESCAPED spelling, which the raw-literal search never saw: the
+// dialog rendered it in cleartext. The echoed `bodyPreview` is the same class one hop later (the endpoint
+// reflects our serialized body back). The scrub set now carries both spellings.
+//
+// SHAPE-BLIND FIXTURE (the #1760 instrument-lie): `sk-…`/`Bearer …` fixtures are masked by the shape sweep
+// whatever the by-value belt does, so they go green against the broken source. This one matches neither and
+// is assembled from parts.
+describe("inspectCustomByoEndpoint — a QUOTE-bearing credential (#1785)", () => {
+  const quote = '"';
+  const backslash = "\\";
+  const quotedInBodyKey = `inbody${quote}cred${backslash}4d8e1b`;
+  const quotedHeaderSecret = `hdr${quote}cred${backslash}6a2c90`;
+  const escaped = (literal: string): string => JSON.stringify(literal).slice(1, -1);
+
+  test("the surfaced request body masks a quoted key-in-body credential in BOTH spellings", async () => {
+    let sentBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return new Response('{"ok":true}', { status: 200, statusText: "OK" });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: null,
+      headers: { "x-api-key": quotedHeaderSecret },
+      model: "local-model",
+      includeBody: Object.fromEntries([
+        ["api_key", quotedInBodyKey],
+        ["note", `sent with ${quotedHeaderSecret}`],
+        ["provider", "cerebras"],
+      ]),
+      excludeBody: null,
+    });
+
+    // The real wire carried the plaintext key (it must — that IS the endpoint's auth)…
+    expect(sentBody["api_key"]).toBe(quotedInBodyKey);
+    // …and the dialog gets neither spelling of it, nor of the quoted custom auth header value.
+    for (const secret of [quotedInBodyKey, quotedHeaderSecret]) {
+      expect(result.request.body).not.toContain(secret);
+      expect(result.request.body).not.toContain(escaped(secret));
+    }
+    // POSITIVE CONTROL: the ordinary routing field survives — an inspector that redacts everything tells
+    // the user nothing, and a blank body would make the assertions above vacuous.
+    expect(result.request.body).toContain("cerebras");
+  });
+
+  test("an ECHOED response body is scrubbed of a quoted credential in BOTH spellings", async () => {
+    // httpbin-style: the endpoint reflects our serialized request straight back, so the credential arrives
+    // inside a JSON document — escaped — exactly like the request preview above.
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      const echoed: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+      return new Response(JSON.stringify({ json: echoed, note: "your request, reflected" }), { status: 200, statusText: "OK" });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: null,
+      headers: null,
+      model: "local-model",
+      includeBody: Object.fromEntries([["api_key", quotedInBodyKey]]),
+      excludeBody: null,
+    });
+
+    const preview = result.response?.bodyPreview ?? "";
+    expect(preview).not.toContain(quotedInBodyKey);
+    expect(preview).not.toContain(escaped(quotedInBodyKey));
+    expect(preview).toContain("your request, reflected");
+  });
+});
