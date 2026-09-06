@@ -38,6 +38,13 @@ export const settingsRouter = t.router({
       }),
     ),
 
+  // The whole-blob repair door (#1771, from #1716) — resets this user's settings to the contract defaults.
+  // NO INPUT, deliberately: the verb is scoped to `principal.userId` and there is no id to accept, so
+  // "reset another user's settings" is not a request the wire can express (the cross-tenant surface is
+  // absent by construction, not by a check). It is the ONE settings write that runs while the #471 guard is
+  // refusing everything else, because its content is a contract constant rather than a read of the row.
+  resetUserConfig: authedProcedure.mutation(({ ctx }) => ctx.services.settings.resetUserConfig({ principal: ctx.auth })),
+
   // F-P0-2: materialize a user-pasted external image URL into an owned CAS asset, returning a ready
   // BackgroundLibraryEntry the client appends to appearance.backgroundLibrary via the autosave form. Owner-
   // scoped (`principal.userId`) — the asset is stored under the caller. A pasted URL never persists paintable.

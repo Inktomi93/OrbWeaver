@@ -1727,6 +1727,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "chat.listChats": "self-scoped: only the caller's member chats",
   "settings.getUserSettings": "self-scoped by principal.userId",
   "settings.updateUserSettingsSection": "self-scoped by principal.userId",
+  // The whole-blob repair door (#1771). Self-scoped like its sibling AND unable to express a foreign
+  // target: the procedure takes NO input at all, so there is no id to hijack — the classification rests on
+  // the router shape, not only on the verb's internal scoping (a no-id verb is not automatically exempt).
+  "settings.resetUserConfig": "self-scoped by principal.userId; the procedure accepts no input, so no foreign id can reach the write",
   "settings.addExternalBackground": "self-scoped: materializes the pasted URL into the caller's OWN CAS (principal.userId); no foreign id in params",
   "settings.listThemes": "self-scoped: owned ∪ seeds",
   "settings.createTheme": "self-scoped",

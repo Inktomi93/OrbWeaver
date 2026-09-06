@@ -23,6 +23,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
@@ -98,6 +99,7 @@ const SETTINGS_VIEW = {
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  configUnreadable: null,
 };
 
 interface PresetDetailFixture {
@@ -110,6 +112,10 @@ interface PresetDetailFixture {
   readonly updatedAt: number;
   readonly config: PromptConfig;
   readonly schemaVersion: number;
+  /** #1716: the server's read verdict on the stored blob. `null` on every fixture below except the
+   *  unreadable-state stories — required, not optional, so a stub cannot omit the field the editor now
+   *  branches on. */
+  readonly configUnreadable: VersionedParseFailure | null;
 }
 
 /** A PresetDetail whose config differs only in `params.quality` — the dial the CT reads + edits. A detail is
@@ -127,6 +133,9 @@ function presetDetail(id: string, name: string, quality: "fast" | "balanced" | "
     updatedAt: 0,
     config,
     schemaVersion: config.schemaVersion,
+    // #1716: every fixture here is a preset whose stored blob READ FINE — the unreadable state has its own
+    // stories at the bottom of this file, and they pass the failure kind explicitly.
+    configUnreadable: null,
   };
 }
 
@@ -1943,3 +1952,101 @@ for (const polarity of ["dark", "light"] as const) {
     expect(dimmest, `the band dims nothing: faded floor ${dimmest.toFixed(2)}:1 vs unfaded floor ${unfaded.toFixed(2)}:1`).toBeLessThan(unfaded);
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// #1716 — THE UNREADABLE STORED BLOB. `preset.get` now carries the server's own read verdict
+// (`configUnreadable`), which is the read-time twin of the refusal `preset.update` would answer with
+// (`stored_config_unreadable`, the #1026 guard). Before it the editor showed a DEFAULTS-looking form and a
+// header reading "Saved", and the user only found out after typing — from a generic failure whose Retry
+// could never succeed, because the bytes are what they are.
+//
+// These pins assert through what a user can SEE and what the WIRE carries: the state's own words, the
+// header's status line, and the absence of a `preset.update` after a real edit + the full debounce.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** `PRESET_A`, but the server says its stored blob could not be read. */
+function unreadablePreset(failure: VersionedParseFailure): PresetDetailFixture {
+  return { ...presetDetail(PRESET_A, "Preset A", "fast"), configUnreadable: failure };
+}
+
+test("UNREADABLE — a corrupt stored preset says so on OPEN, disables saving, and names the repair doors", async ({ mount, page }) => {
+  const detail = unreadablePreset("schema-rejected");
+  const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => detail,
+    "preset.list": () => [detail],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.update": () => detail,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // BARRIER: the settled editor. The dial is the last thing the Params view paints, so its presence is the
+  // signal that `preset.get` landed and the body is the real render, not the boundary's skeleton.
+  await expect(qualityDial(component)).toBeVisible();
+
+  // THE STATE, on ARRIVAL — before any interaction. It names what is on screen (defaults, not the stored
+  // preset), why saving is off, and BOTH doors.
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText("This preset couldn't be read");
+  await expect(notice).toContainText("Reset it to the default, or import a preset file over it.");
+
+  // …and the header's live status says it too, with NO retry affordance: a retry cannot succeed.
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Can't save — this couldn't be read");
+  await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
+
+  // THE WRITE IS ACTUALLY DISARMED, not merely labelled: a real edit, then the whole debounce window, and
+  // nothing reaches the wire. (`preset.update` is stubbed above, so a fired write would be recorded.)
+  await pickQuality(component, page, DEEP);
+  // BARRIER on the RENDERED settled edit before timing anything — the dial's trigger text IS the form's
+  // committed value, so this is the instant the debounce would have armed from.
+  await expect(qualityDial(component)).toHaveText(DEEP);
+  // The negative-assertion WINDOW — a real-timer sleep evaluated in the page (`page.waitForTimeout` is
+  // biome-banned, `noPlaywrightWaitForTimeout`; this is the house idiom the prose-cap pin above uses).
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
+  // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
+  // plus the full debounce window, so the read IS settled at this line.
+  // ONESHOT-OK: a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
+  expect(trpc.count("preset.update")).toBe(0);
+  // The status has not drifted to "Saving…"/"Saved" behind the edit either — the one lie this state exists
+  // to kill is a success word over a write that cannot happen.
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Can't save — this couldn't be read");
+});
+
+test("UNREADABLE — a blob from a NEWER build gets a different story, and is NOT told to reset first", async ({ mount, page }) => {
+  const detail = unreadablePreset("version-from-future");
+  await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => detail,
+    "preset.list": () => [detail],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await expect(qualityDial(component)).toBeVisible();
+
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toContainText("saved by a newer version of Orbweaver");
+  // THE LOAD-BEARING DIFFERENCE: this blob is INTACT data an older build cannot represent, so leading with
+  // "reset it" would tell the user to destroy what the newer version stored. The corrupt arm's imperative
+  // must not appear here.
+  await expect(notice).not.toContainText("Reset it to the default, or import a preset file over it.");
+  await expect(notice).toContainText("would discard what the newer version stored");
+});
+
+test("READABLE — an intact preset is byte-identical to before: no state, no disabled save", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...PRESET_EDITOR_AMBIENT_ROUTES,
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.update": () => PRESET_A_DETAIL,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await expect(qualityDial(component)).toBeVisible();
+
+  // THE CONTROL for the two pins above — without it they prove only that SOMETHING renders a band.
+  await expect(component.locator('[data-slot="stored-config-unreadable"]')).toHaveCount(0);
+  await pickQuality(component, page, DEEP);
+  await expect(qualityDial(component)).toHaveText(DEEP);
+  await expect.poll(() => trpc.count("preset.update")).toBeGreaterThan(0);
+});

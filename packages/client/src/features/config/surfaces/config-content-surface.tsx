@@ -53,6 +53,7 @@ import {
 import { ConfigCollectionLanding } from "../components/config-collection-landing.tsx";
 import { ConfigGroupPlaceholder } from "../components/config-group-placeholder.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
+import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
 import { computeActiveSub, computeVisibleSettings } from "../lib/config-scroll-spy.ts";
@@ -291,7 +292,14 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
   if (active !== null) {
     return (
       <SaveStatusHostContext value={true}>
-        <GroupBody group={active} />
+        {/* #1716: the gate is transparent while `user_settings.config` reads fine. When it does not, the
+            whole pane is showing schema defaults and every section's save is refused server-side, so the
+            gate states that ONCE here (never per section) and stands every autosave driver below it down.
+            It wraps the SECTION-BODY arm only — the MEMBER arm above is a preset/world-book/theme editor,
+            whose own stored blob is a different row with its own verdict. */}
+        <SettingsUnreadableGate>
+          <GroupBody group={active} />
+        </SettingsUnreadableGate>
       </SaveStatusHostContext>
     );
   }

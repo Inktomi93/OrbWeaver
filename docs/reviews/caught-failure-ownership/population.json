@@ -566,7 +566,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/role-slot-row.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/role-slot-row.tsx",
-      "line": 337,
+      "line": 345,
       "column": 26,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -574,7 +574,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below sets",
-      "markerLine": 334
+      "markerLine": 342
     },
     {
       "siteId": "packages/client/src/features/credentials/lib/add-credential-form-model.ts::default:catch::1",
@@ -1242,7 +1242,7 @@
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::1",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 235,
+      "line": 249,
       "column": 9,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1250,12 +1250,12 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 232
+      "markerLine": 246
     },
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::2",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 316,
+      "line": 330,
       "column": 11,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1263,12 +1263,12 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 315
+      "markerLine": 329
     },
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::3",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 331,
+      "line": 348,
       "column": 7,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1276,7 +1276,7 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 329
+      "markerLine": 346
     },
     {
       "siteId": "packages/client/src/lib/app-ready-signal.ts::promise:appReady::1",

@@ -1549,6 +1549,7 @@
     "tests/server/domain/settings/verbs/load-user-settings.int.test.ts",
     "tests/server/domain/settings/verbs/promote-theme.int.test.ts",
     "tests/server/domain/settings/verbs/remove-theme.int.test.ts",
+    "tests/server/domain/settings/verbs/reset-user-config.int.test.ts",
     "tests/server/domain/settings/verbs/update-theme.int.test.ts",
     "tests/server/domain/settings/verbs/update-user-settings-echo-stability.suite.int.test.ts",
     "tests/server/domain/settings/verbs/update-user-settings-section.int.test.ts",

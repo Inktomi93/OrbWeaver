@@ -31,6 +31,9 @@ const USER_SETTINGS_VIEW = {
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  // #1716: the server's read verdict on the stored blob. `null` everywhere but the unreadable-state pins at
+  // the bottom of this file, which override it with a failure kind.
+  configUnreadable: null,
 };
 
 /** The Distribute section's own dropzone input, addressed by its ACCESSIBLE NAME — the group hosts TWO
@@ -1135,4 +1138,119 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
   await expect(content.getByText(REGEX_BLURB), "the blurb the settling arm and the LIST both show").toBeVisible();
   await expect(content.getByText("No scripts yet.")).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// #1716/#1771 — THE UNREADABLE SETTINGS BLOB. When `user_settings.config` cannot be read, `getUserSettings`
+// serves schema DEFAULTS and every section's save is refused server-side (`stored_config_unreadable`, the
+// #471 guard). Before these pins the pane rendered those defaults as if they were the user's settings, the
+// aggregate footer said "Saved" over them, and the only feedback was a generic failure AFTER typing —
+// with a Retry that could never succeed.
+//
+// The state is stated ONCE by the gate that wraps the section-body arm, and its door is the only settings
+// repair that exists (`settings.resetUserConfig` — the per-leaf "Reset to its default" writes through the
+// refused verb, and would not even be rendered here because `modified` compares the DEGRADED read against
+// the defaults and finds every row equal).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The unreadable-blob read: same defaults on the wire, plus the server's verdict. */
+function unreadableSettings(failure: "schema-rejected" | "version-from-future"): Record<string, unknown> {
+  return { ...USER_SETTINGS_VIEW, configUnreadable: failure };
+}
+
+/** The Avatars section's first switch — a real settings leaf whose toggle normally autosaves. */
+const AVATARS_SWITCH = "Show avatars in chat";
+
+test("UNREADABLE SETTINGS — the pane says so once, the footer stops saying Saved, and no section can save", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("schema-rejected"),
+    "settings.listThemes": () => LOOKS_THEMES,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  // STATED ONCE, not per section — the condition belongs to the blob, and N banners is the smear the
+  // save-status seam exists to prevent.
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText("Your settings couldn't be read");
+
+  // The aggregate footer no longer claims success over a pane that cannot save.
+  await expect(component.locator('[data-slot="config-save-footer"]')).toContainText("your settings couldn't be read");
+
+  // THE WRITE IS DISARMED, not merely labelled: toggle a real leaf, wait past the whole debounce, and
+  // nothing reaches the wire.
+  const avatars = component.getByRole("switch", { name: AVATARS_SWITCH, exact: true });
+  await expect(avatars).toBeVisible();
+  const before = await avatars.getAttribute("aria-checked");
+  await avatars.click();
+  // BARRIER on the RENDERED settled edit — the switch's own state is the committed form value, and it is
+  // the instant the debounce would have armed from.
+  await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
+  // The negative-assertion WINDOW — a real-timer sleep evaluated in the page (`page.waitForTimeout` is
+  // biome-banned, `noPlaywrightWaitForTimeout`; this is the house idiom the prose-cap pin above uses).
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
+  // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
+  // plus the full debounce window, so the read IS settled at this line.
+  // ONESHOT-OK: a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
+  expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
+});
+
+test("UNREADABLE SETTINGS — the reset door is the ONE repair, and it is confirmed before it fires", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("schema-rejected"),
+    "settings.listThemes": () => LOOKS_THEMES,
+    "settings.resetUserConfig": () => USER_SETTINGS_VIEW,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  await component.getByRole("button", { name: "Reset my settings to the defaults" }).click();
+  // The confirm is a PAGE-level dialog (a portal), and it names what is destroyed before anything fires.
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Reset all your settings?");
+  // The confirm dialog's own rendered text is the barrier immediately above; this asserts the mutation has
+  // NOT fired yet, and a call that must not exist cannot be polled for.
+  // ONESHOT-OK: a NEGATIVE recorder read, taken after the confirm dialog's rendered text settled.
+  expect(trpc.count("settings.resetUserConfig")).toBe(0);
+  await confirm.getByRole("button", { name: "Reset settings" }).click();
+  await expect.poll(() => trpc.count("settings.resetUserConfig")).toBe(1);
+});
+
+test("UNREADABLE SETTINGS — a NEWER-version blob does not lead with reset, and its door says so", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("version-from-future"),
+    "settings.listThemes": () => LOOKS_THEMES,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toContainText("saved by a newer version of Orbweaver");
+  // The load-bearing difference: this blob is INTACT data an older build cannot represent, so the door is
+  // an explicit last resort rather than the fix, and the primary-repair wording must be absent.
+  await expect(component.getByRole("button", { name: "Reset my settings anyway" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Reset my settings to the defaults" })).toHaveCount(0);
+});
+
+test("READABLE SETTINGS — an intact blob is byte-identical to before: no state, and saving still works", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "settings.listThemes": () => LOOKS_THEMES,
+    "settings.updateUserSettingsSection": () => USER_SETTINGS_VIEW,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  // THE CONTROL for the three pins above — without it they prove only that SOMETHING renders a band.
+  await expect(component.locator('[data-slot="stored-config-unreadable"]')).toHaveCount(0);
+  const avatars = component.getByRole("switch", { name: AVATARS_SWITCH, exact: true });
+  const before = await avatars.getAttribute("aria-checked");
+  await avatars.click();
+  await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
+  await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBeGreaterThan(0);
 });
