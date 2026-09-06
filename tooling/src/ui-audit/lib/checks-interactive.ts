@@ -7,12 +7,12 @@
 // row-void binding, and the composite-credit veto: vocabulary DRIFT, not a judgment call. String-union
 // dispatch discipline (Spine-TypeScript-and-Patterns.md): one importable tuple, derived selector text,
 // every consumer imports it — a sixth interactive tag cannot fork a new hand-typed literal.
-export const INTERACTIVE_TAGS = ["a", "button", "input", "select", "textarea", "summary"] as const;
+const INTERACTIVE_TAGS = ["a", "button", "input", "select", "textarea", "summary"] as const;
 type InteractiveTag = (typeof INTERACTIVE_TAGS)[number];
 
 /** ARIA-role equivalent the base "is this an offered control" vocabulary recognizes alongside the
  *  native tags above (`[role=button]` — a Base UI primitive rendered on a non-native element). */
-export const INTERACTIVE_ROLES = ["button"] as const;
+const INTERACTIVE_ROLES = ["button"] as const;
 
 /** The tag portion of the vocabulary, with `a` swapped for the href-qualified form some consumers
  *  need (an anchor with no `href` offers no navigation, `census-quality.ts`'s `CHILD_SUBSTANTIVE_SEL`) —
@@ -33,7 +33,7 @@ export const INTERACTIVE_SELECTOR_JS = JSON.stringify(INTERACTIVE_BASE_SELECTOR)
  *  `type` attribute and is dispatched separately, `census-interactive.ts`'s `doorRole`) — keyed
  *  EXHAUSTIVELY off `INTERACTIVE_TAGS` so a tag added to the tuple without a role mapping is a compile
  *  error (`Exclude<InteractiveTag, "input">`), never a silent gap in the door-name census. */
-export const IMPLICIT_INTERACTIVE_ROLES: Record<Exclude<InteractiveTag, "input">, string> = {
+const IMPLICIT_INTERACTIVE_ROLES: Record<Exclude<InteractiveTag, "input">, string> = {
   a: "link",
   button: "button",
   select: "combobox",

@@ -39,6 +39,8 @@
     "../../platform.d.ts",
     "../../tests/ui/**/*.tsx",
     "../../tests/support/ct/ct-providers.tsx",
+    "../../tests/support/ct/contained-within-fixtures.tsx",
+    "../../tests/support/ct/contained-within.ct.tsx",
     "../../tests/support/ct/touch-floor-fixtures.tsx",
     "../../tests/support/ct/touch-floor.ct.tsx",
     "../../playwright/**/*.tsx",
