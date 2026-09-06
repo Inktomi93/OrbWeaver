@@ -1,4 +1,4 @@
-// Conformance entry for the ORDINARY-VISITOR wave: ten legacy simple-visitor gates converted into fourteen
+// Conformance entry for the ORDINARY-VISITOR wave: ten legacy simple-visitor gates converted into fifteen
 // final policies. Every proof runs through the production dispatcher on an isolated population; the pins
 // below cover what a proof row structurally cannot express — a receipt REFUSAL (a tool error, not a
 // finding), the ordinary marker identity each ordinary policy's report must supply, and the grant liveness

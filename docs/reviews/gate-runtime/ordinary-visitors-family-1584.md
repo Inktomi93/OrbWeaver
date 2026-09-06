@@ -187,7 +187,9 @@ STALE by contract, so copying them would have shipped two dead rows.
    suppresses every matching occurrence in that file including tomorrow's. A grant needs a stable
    per-occurrence SUBJECT and none exists (a title is often an expression, an index moves on the next
    edit), so the ordinary marker is the exact instrument: it lives AT the occurrence and consumes exactly
-   one finding. Two files had two dead ends each riding one row; they are now two decisions.
+   one finding. FOUR files had two dead ends each riding one row — `section-placeholder.tsx` (the weave and
+   icon arms), `variant-wire-viewer.tsx`, `databank-context-body.tsx` and `databank-detail-surface.tsx` —
+   and each is now two decisions.
 
 ## The marker-carrier lesson this wave paid for
 
@@ -253,30 +255,47 @@ They are deliberately **UNWAIVED** — a waiver here would be a `// TODO` wearin
 | client / server / contracts package programs | green |
 | scoped biome + eslint over the full base-to-tip changed-file set | green |
 | both line-coupled ledgers | re-derived and fresh |
+| the fifteen `Core-Enforcement-Active-Gates.md` rows | authored for the CUTOVER rewrite — today's `enforcement-registry-parity` cannot read a final policy, so they are inert to it (see the limit below) |
 
 ## Known limits, written down
+
+- **The enforcement-document rows are INERT to `enforcement-registry-parity` today, and that is program-wide
+  pre-existing debt rather than this wave's.** That gate reads `name` and `status` off an OBJECT-LITERAL
+  `gate` initializer (`gates/enforcement-registry-parity.ts:199-210`), so a `defineGate({…})` call
+  initializer yields no descriptor and EVERY final policy is invisible to it: at the base commit it
+  measures 108 findings (107 orphan rows plus the "declares 255 / there are 155" count line) and at this
+  tip 123 (+15 orphans, 145 registered). The rows here are authored for the cutover rewrite of that gate,
+  which is when the roster becomes loader-derived; the branch's own
+  `enforcement-registry-parity.int.test.ts` is red for the same reason and belongs to the legacy-loader
+  known-red set. Measured and confirmed by a fresh-context verifier on this branch.
 
 - **`no-inline-types`'s schema arm is NOT fail-closed.** Its population is every exported const in three
   roots, so reporting each factory-named call whose origin cannot be read would accuse the whole unreadable
   tail rather than a bounded candidate set. An unreadable `makeSchema.object({})` passes; the type-alias
   arm carries the law where a schema read cannot place the call. Its own `mustPass` row says so.
+
 - **`no-raw-egress` / `persistence-boundary` are precise only where the ROOT resolves**, which on this
   DOM-less analysis program means `globalThis`. A bare `fetch(url)` or `window.localStorage` lands on the
   fail-closed UNREADABLE finding — still reported, never silently passed, but without the precise message.
   Each spelling carries its own proof row.
+
 - **`no-raw-egress` reports an IMPORTED binding named `fetch`** (a polyfill, `undici`) as a finding, which
   is what legacy did through its identifier-callee check. A parameter or local named `fetch` now PASSES,
   which legacy reported — a declared narrowing with its own row, because an injected reader is the testable
   shape.
+
 - **`plugin-dump-guard`'s ordering analysis is unchanged** and remains shallow: the guard must precede the
   dump STATEMENT in the same helper body, and "every unsafe path exits" is the same structural walk legacy
   used. Nested control flow beyond an if/else pair is out of its reach, as before.
+
 - **`empty-state-has-action` still treats a SPREAD attribute as satisfying the rule.** A spread may carry a
   conditional `action` no static read resolves, and accusing it would demand a fix for something that may
   already be correct.
+
 - **`zod-modern-spellings` ARM A stays narrow**: the `.strict()` receiver must be the `object(…)` call
   itself, because `.strict()` on a schema VARIABLE has no `z.strictObject` respelling and flagging it would
   demand a fix that does not exist.
+
 - **`no-untyped-soft-ref` reads the JS key**, exactly as D24 states it; a column named `widget_id` whose JS
   key is not `*Id` is outside the subject, and an id-shaped column built by something other than
   `text`/`integer` is a different shape.
