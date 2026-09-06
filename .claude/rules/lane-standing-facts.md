@@ -125,13 +125,24 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   green light naming the concurrency.
 - **Lanes NEVER busy-wait on a long run** (every sleep-loop poll re-bills cache reads on the lane's ENTIRE
   context). A lane that launches a >10-min detached run REPORTS AND STOPS, naming its log/exit-file; the
-  orchestrator resumes it by SendMessage. **A finished subagent turn is NOT re-invoked by its own
-  background jobs** — a run under \~10 min is redirected to a log and READ in a later call in the same
-  turn, never backgrounded-and-waited-on.
+  orchestrator resumes it by SendMessage. The harness-mechanics half — why a backgrounded run never comes
+  back to you — is its own section below, **"Running a long command"**, because it binds every lane, not
+  only the ones running suites (#911: three stalls in one day under this suite-load head).
 - **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure**
   (`reports/verify.json`, `reports/verify/<stage>.log`, `reports/test-report.json`), and those paths are
   `latest` POINTERS, not files written in place. What a run writes where: constitution §4 →
   `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
+
+## Running a long command (every lane — this is not a suite-load rule)
+
+- **A finished subagent turn is NOT re-invoked by its own background jobs.** There is no notification
+  coming: when your turn ends, nothing you started in the background can wake you. A run under \~10 min is
+  redirected to a log (`> $LOG 2>&1; echo EXIT=$?`) and READ in a LATER CALL IN THE SAME TURN — never
+  backgrounded-and-waited-on. A run over \~10 min is REPORTED AND STOPPED (name the log/exit-file); the
+  orchestrator resumes you by SendMessage.
+- **The failure shape, so you can catch yourself:** the sentence *"I'll wait for the notification"* (or
+  "I'll pause tool calls until the background job completes") is the tell — a lane that has written it has
+  already stalled (#911, three lanes in one day, 2026-08-30). Read the log now, or report and stop.
 
 ## The dev stack
 
