@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Bus producer family conversion for #1584
@@ -28,8 +28,8 @@ Dynamic emitter arguments are not fact-health failures. They contribute no produ
 | `bus-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
 | `domain-events-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
 | `rpg-bus-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
-| `user-bus-coverage` | remains legacy; `connectionsChanged` still needs a ruled warning work item or exact reviewed grant | unchanged | unchanged |
-| `bus-definition-belts` | remains legacy; no longer blocked on recognizing one policy module per belt because that speculative coupling was removed | unchanged | unchanged |
+| `user-bus-coverage` | CONVERTED 2026-09-06; split into the ordinary coverage policy plus the `user-bus-deferred-member` warning-debt sibling (#1822). Evidence: [bus-pair-1584.md](bus-pair-1584.md) | ordinary/error + hard/warning | contracts + server TS/TSX, entire population |
+| `bus-definition-belts` | CONVERTED 2026-09-06; split into `bus-definition-belts` + `bus-belt-total` + `bus-consumer-belt` + `bus-coverage-owner` on a second `busDefinitionFact` provider, with all three name tables derived. Evidence: [bus-pair-1584.md](bus-pair-1584.md) | hard/error | contracts + client + server TS/TSX, entire population |
 
 `bus-fact-health` is a new hard/error support policy in family `bus-fact`. It shares the same collector and reports missing/empty/unresolved producer facts on the first delivered contracts/server source. Each ordinary producer policy also calls `recordReadyBusFact`, so selecting one without the health policy still withholds an incomplete fact.
 
@@ -63,7 +63,37 @@ A proposed argument-first prefilter was discarded after it remained live beyond 
 
 The provider remains slower than legacy in isolation, and the merged-tree run shows material timing variance under the larger corpus/current host load. The final runtime shares its typed Project, checker, physical source walk, and providers with the rest of the gate fleet; the atomic cutover performance/RSS battery must measure repeated composed commands before acceptance. No compatibility adapter or second workspace loader was added.
 
-A no-grant generic-producer probe remains blocked: it correctly finds the intentional `UserBusEvent.connectionsChanged` debt but also misses the live `chatsChanged` relay through a conditional local event, `publishUserEvent`, and `defineBusChannel.publish`. The four policy modules are therefore not consolidated yet; typed callable-declaration/call-edge indexing must prove that relay before any retirement.
+A no-grant generic-producer probe was blocked here: it correctly found the intentional
+`UserBusEvent.connectionsChanged` debt but also missed the live `chatsChanged` relay through a conditional
+local event, `publishUserEvent`, and `defineBusChannel.publish`. **That blocker is closed** (2026-09-06,
+[bus-pair-1584.md](bus-pair-1584.md) §1): the door was ONE fact, not three — `defineBusChannel` is an
+OVERLOADED export, so `resolveModuleMemberOrigin` refused its minting call as `ambiguous` and every real
+`bus.publish(...)` fell through as a non-door, which in turn made the parameter forward above it
+unreachable. The door is now the `publish` METHOD's declaration home, and the argument ladder is
+authored syntax -> parameter relay -> republish relay -> checker flow type -> refusal. The four policy
+modules are still not consolidated: they differ only in their `UNION` constant, so the consolidation is
+now a live follow-up rather than a blocked one.
+
+## The conditional publisher (2026-09-06)
+
+The producer fact proves three shapes it could not see before, and refuses one it must never harvest:
+
+- an argument bound to a `const` whose initializer is a `ConditionalExpression` of authored literals (the
+  syntax reader always handled this; it was never REACHED, because the sink below it was not a door);
+- a wrapper that forwards its own parameter to `defineBusChannel.publish`, propagated to its callers;
+- `TABLE[<projection of the relayed parameter>]` — the coarse per-user republish — carried as a relay
+  whose translation is READ from the table, never assumed to be the identity;
+- an argument whose flow type is the WHOLE declared union is a FORWARD: no emission, and no fact-health
+  failure. Harvesting it is the measured false green the `UserBusEvent` header records, and it is also the
+  shape of an honest subscriber forward (`entry/compose/automation-watcher.ts:136`). The family's standing
+  ruling that an unprovable emitter argument is an ordinary missing-emitter finding therefore SURVIVES,
+  with its condition restated in checker terms; a refusal is now reserved for an argument the checker
+  cannot read at all (`any`/`unknown`/no literal discriminator).
+
+Real-tree differential on the same checkout, `f6078a884` vs the model: 66 declared members and zero
+unresolved identities in both; proven emitters 269 -> 273; `UserBusEvent.chatsChanged` moves from
+declared-never-emitted to proven at `transport/trpc/user-events-bus.ts:43`; `connectionsChanged` remains
+the only unproduced member on the tree. All five producer policies stay 0/0.
 
 ## Remaining bus work
 
