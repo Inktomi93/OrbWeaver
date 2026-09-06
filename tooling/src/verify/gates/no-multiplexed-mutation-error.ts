@@ -7,13 +7,19 @@
 // and cannot prove receiver identity". The two homes that DO carry the sticky semantics are the app's own
 // `EntityMutationResult` and TanStack Query's result types.
 //
+// THREE ANSWERS, and BOTH operands must be one of the two reportable ones: a proven mutation-result `error`,
+// a proven something-else (pass), or an `error` read whose receiver the checker cannot place — which is
+// REPORTED (GATE-AUTHORING §5, #944). An `any`-typed receiver is unreadable, not innocent; passing it would
+// make an untyped seam the one supported way past this law.
+//
 // EXECUTION IS entire-population BECAUSE THE ANCHOR IS A PROJECT FILE. The `EntityMutationResult` home is
-// read through `ctx.sourceFile`, so a narrowed selection that does not carry it DEFERS the policy loudly
-// instead of silently passing every surface in the selection. If the home is renamed away, the population
-// receipt resolves zero members and the run REFUSES — the §4.6 blindness tripwire as a receipt.
+// located in the effective population, so a narrowed selection that does not carry it DEFERS the policy
+// loudly instead of silently passing every surface in the selection. If the home is renamed away, the
+// population receipt resolves zero members and the run REFUSES — the §4.6 blindness tripwire as a receipt.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import { declaredByFile, declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
@@ -26,20 +32,42 @@ const ENTITY_MUTATION_TYPE = "EntityMutationResult";
 
 const MESSAGE =
   "multiplexed mutation errors — v5 errors are sticky until the next mutate, so this leaks one action's stale failure into another's surface. One error slot per mutation (createEntityMutation's { error, clearError }). See UI-Gates-and-Lessons.md §11.1.";
+const UNREADABLE = `${MESSAGE} One of the two error reads has a receiver the checker cannot place, so whether both are sticky mutation slots CANNOT be established — reported rather than passed.`;
 
 const MULTIPLEXING_OPERATORS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
 
-/** Is this operand a mutation-result `error` read? */
-function isMutationError(operand: MorphNode, home: SourceFile): boolean {
+type OperandVerdict = "mutation" | "other" | "unreadable";
+
+/** Classify one operand. THREE answers, like every sibling in this family: a proven mutation-result `error`,
+ *  a proven something-else, or an `error` read whose receiver the checker cannot place — which is the fail-
+ *  closed arm, not an innocent one. `declare const a: any; a.error ?? b.error` lives exactly there, and
+ *  returning false for it would make an untyped seam the one way past this law. */
+function operandVerdict(operand: MorphNode, home: SourceFile): OperandVerdict {
   const read = readMemberReference(operand);
   if (read.kind === "unresolved" || read.value.name !== ERROR_MEMBER) {
-    return false;
+    // Not an `error` member read at all (a literal, a bare identifier, a different member) — never a candidate.
+    return "other";
   }
   const origin = resolveTypeMemberOrigin(operand);
   if (origin.kind === "unresolved") {
-    return false;
+    return classifyOriginRefusal(origin.reason, operand);
   }
-  return declaredByFile(origin.value.declarations, home) || declaredByPackage(origin.value.declarations, QUERY_CORE);
+  return declaredByFile(origin.value.declarations, home) || declaredByPackage(origin.value.declarations, QUERY_CORE) ? "mutation" : "other";
+}
+
+/** The whole-expression verdict: `null` when this is not two error slots at all, otherwise which message the
+ *  finding carries. BOTH sides must be candidates — one real mutation error beside a plain row is not
+ *  multiplexing, and one beside an unreadable receiver still might be. */
+function multiplexVerdict(node: MorphNode, home: SourceFile): "mutation" | "unreadable" | null {
+  if (!Node.isBinaryExpression(node)) {
+    return null;
+  }
+  const left = operandVerdict(node.getLeft(), home);
+  const right = operandVerdict(node.getRight(), home);
+  if (left === "other" || right === "other") {
+    return null;
+  }
+  return left === "unreadable" || right === "unreadable" ? "unreadable" : "mutation";
 }
 
 export const gate = defineGate({
@@ -80,13 +108,15 @@ export const gate = defineGate({
           return;
         }
         for (const node of candidates) {
-          if (!Node.isBinaryExpression(node)) {
-            continue;
-          }
-          if (isMutationError(node.getLeft(), home) && isMutationError(node.getRight(), home)) {
+          const verdict = multiplexVerdict(node, home);
+          if (verdict !== null) {
             // Anchored on the multiplexed member, not on the left receiver's name: `ctx.report.node` would
             // otherwise take the token from the first identifier (`a`), which names no position at all.
-            ctx.report.node(node, { token: ERROR_MEMBER, offset: Math.max(node.getText().indexOf(ERROR_MEMBER), 0) });
+            ctx.report.node(node, {
+              ...(verdict === "unreadable" ? { message: UNREADABLE } : {}),
+              token: ERROR_MEMBER,
+              offset: Math.max(node.getText().indexOf(ERROR_MEMBER), 0),
+            });
           }
         }
       },
@@ -133,6 +163,15 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the COMPUTED-LITERAL spelling of both operands — the shared member reader normalizes it, where the legacy `getName()` pair was offered nothing (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        [ENTITY_MUTATION_HOME]: "export interface EntityMutationResult {\n  readonly error: unknown;\n}\n",
+        "packages/client/src/features/x/x.tsx": "declare const a: any;\ndeclare const b: any;\nexport const g: unknown = a.error ?? b.error;\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "FAIL-CLOSED (#944): an `any`-typed receiver has no readable identity, so whether these are two sticky mutation slots is UNKNOWN. Returning false here would make an untyped seam the one supported way past this law — the review's own reproduction",
     },
   ],
   mustPass: [

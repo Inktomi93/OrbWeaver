@@ -196,10 +196,11 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "node_modules/cross-fetch/index.d.ts": "export declare function fetch(url: string): Promise<unknown>;\n",
         "packages/client/src/features/thing/lib/polyfill.ts":
           'import { fetch } from "cross-fetch";\nexport async function load(): Promise<unknown> {\n  return await fetch("/api/x");\n}\n',
       },
-      why: "SAME NAME, IMPORTED: a module-provided `fetch` is a proven different identity from the ambient global R5 bans",
+      why: "SAME NAME, IMPORTED: a module-provided `fetch` is a proven different identity from the ambient global R5 bans. The package door is PLANTED in the row so the import actually resolves — an unresolvable specifier would make this row pass for the wrong reason (an unreadable binding), not because the origin was proven foreign",
     },
     {
       mode: "types",

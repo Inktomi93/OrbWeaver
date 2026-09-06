@@ -22,7 +22,7 @@ and a same-named local or third-party lookalike red as the real thing.
 | `no-context-provider` | ordinary | `react-origin` | selected-files | the `Provider` property symbol's declaration home (React's `Context`) |
 | `no-context-returntype` | ordinary | singleton | selected-files | ambient-global origin: TypeScript's `ReturnType` utility |
 | `fetch-fn-in-features` | ordinary | singleton | selected-files | ambient-global origin: the `fetch` wire primitive |
-| `no-manual-token-estimate` | ordinary | singleton | selected-files | the ambient `length` member plus `readStaticNumber` on the divisor |
+| `no-manual-token-estimate` | ordinary | singleton | **entire-population** | the ambient `length` member, `readStaticNumber` on the divisor, and the canonical `estimateTokens` declaration |
 | `no-inline-optimistic-in-surface` | ordinary | `tanstack-query-origin` | selected-files | `cancelQueries`/`setQueryData` declared by `@tanstack/query-core` |
 | `no-static-staletime` | ordinary | `tanstack-query-origin` | selected-files | the CONTEXTUAL `staleTime` property + `readStaticString` on the value |
 | `no-multiplexed-mutation-error` | ordinary | `tanstack-query-origin` | **entire-population** | `error` declared by `EntityMutationResult` or query-core |
@@ -31,19 +31,55 @@ and a same-named local or third-party lookalike red as the real thing.
 | `no-manual-autosave-flush` | ordinary | singleton | selected-files | the form members declared by `@tanstack/form-core`'s `FormApi` |
 
 All twelve are `ordinary` per the manifest and none needed a reviewed grant. **No `REVIEWED_GRANTS` rows were
-added.** The one policy with a sanctioned HOME — `no-manual-token-estimate`'s estimator — keeps that home as
-a semantic condition (any file EXPORTING `estimateTokens`) rather than a grant row, because the legacy header
-recorded that choice deliberately: "excluded structurally by the symbol it exports — never by a file-path
-pin (path-keyed gates die on rename)". A grant row keyed on a subject path would reintroduce exactly the
-fragility the exported-symbol test avoids. Recorded here as a fork for the owner rather than taken silently.
+added.**
+
+### The estimator-home fork, and how it was ruled (2026-09-06)
+
+`no-manual-token-estimate` is the one policy with a sanctioned HOME. It was first converted keeping the
+legacy header's deliberate choice — "excluded structurally by the symbol it exports, never by a file-path
+pin (path-keyed gates die on rename)" — as `getExportSymbols().some(s => s.getName() === "estimateTokens")`,
+and the fork was raised rather than a grant row invented.
+
+**The review ruled that intent RIGHT and the delivered condition WRONG, and it is repaired here.** A name
+test with FILE scope is a self-exemption door: a planted
+`packages/client/src/features/hack/self-exempt.ts` exporting its own `estimateTokens` silenced both
+divisions in that file (reproduced at 0 findings, and 2 with the export renamed). The condition is now an
+IDENTITY test — the file's exported symbol must RESOLVE, through any re-export, to the canonical declaration
+in `packages/kit/src/tokens/index.ts`. That keeps the rename-proof intent (the home is still a SYMBOL, and a
+re-export of the real estimator is still the home) and removes the door. The canonical file is located in
+the effective population and receipted, so its rename REFUSES the run — which moves this policy to
+`entire-population` as well. The self-exempt plant is committed as a `mustFlag` row; the canonical home and
+a re-export of it are `mustPass` rows on both sides of the forwarding.
 
 ### `execution` re-derived away from the manifest
 
-The manifest classified all twelve `selected-files`. Two were re-derived to `entire-population` from source:
-their identity ANCHOR is a project file (`packages/client/src/data/create-entity-mutation.ts`,
-`packages/client/src/state/create-gated-store.ts`), so a narrowed selection that does not carry the anchor
-cannot render a verdict. `entire-population` DEFERS them loudly on such a selection; `selected-files` would
-have passed every occurrence in the selection silently. The whole-project run is unaffected.
+The manifest classified all twelve `selected-files`. **Three** are `entire-population`: their identity
+ANCHOR is a project file (`packages/client/src/data/create-entity-mutation.ts`,
+`packages/client/src/state/create-gated-store.ts`, `packages/kit/src/tokens/index.ts`), so a narrowed
+selection that does not carry the anchor cannot render a verdict. `entire-population` DEFERS them loudly on
+such a selection; `selected-files` would have passed every occurrence in the selection silently. The
+whole-project run is unaffected.
+
+### Fail-closed on an unreadable identity — the boundary, exactly
+
+Ten policies routed an unreadable identity to a finding from the start; `no-multiplexed-mutation-error` and
+`zustand-selector-stability` returned a bare `false` and so failed OPEN. Both are repaired, and the two
+axes need DIFFERENT rules — which is the durable lesson here:
+
+- **Member axis** (`no-multiplexed-mutation-error`): the shared `classifyOriginRefusal` is correct. Its leaf
+  is the PROPERTY name node, so `declare const a: any; a.error ?? b.error` yields no property symbol at all
+  and classifies as unreadable, while `a.error` on a project interface classifies as a proven other.
+- **Type-identity axis** (`zustand-selector-stability`): the shared classifier is WRONG here and is
+  deliberately not used. Its leaf is the callee's own binding, and a local binding proves nothing about a
+  TYPE — `declare const useThingStore: any` is an ordinary local const. Reporting every callee whose type
+  the checker could not NAME was equally wrong in the other direction: it produced nine real-tree false
+  findings on `rows.map((row) => ({ … }))` callbacks in server, tooling and test files. Both store homes are
+  declared type ALIASES, so an unnamed type PROVES a non-store; only `any`/`unknown` erasure is fail-closed.
+  A semantic ARITY fence completes it — a zustand selector is `(state) => U` and takes exactly one
+  parameter, so a two-parameter `.map((property, index) => ({ … }))` (the last two survivors, in a CT
+  spec's in-browser closure that this DOM-less analysis program types as `any`) is provably not a selector.
+
+Each of the four measured states above is a committed proof row.
 
 ## Shared readers added
 
@@ -74,7 +110,7 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 
 ## Proofs
 
-109 policy proofs, plus 2 blindness-tripwire pins and 10 focused reader controls — all green
+115 policy proofs, plus 2 blindness-tripwire pins and 10 focused reader controls — all green
 (`tests/tooling/verify/gates/origin-client-family.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
 
 | Policy | mustFlag | mustPass | total |
@@ -86,11 +122,11 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 | `no-forward-ref` | 6 | 4 | 10 |
 | `no-inline-optimistic-in-surface` | 3 | 3 | 6 |
 | `no-manual-autosave-flush` | 4 | 6 | 10 |
-| `no-manual-token-estimate` | 5 | 7 | 12 |
-| `no-multiplexed-mutation-error` | 4 | 4 | 8 |
+| `no-manual-token-estimate` | 7 | 7 | 14 |
+| `no-multiplexed-mutation-error` | 5 | 4 | 9 |
 | `no-static-staletime` | 5 | 5 | 10 |
 | `no-use-context` | 7 | 4 | 11 |
-| `zustand-selector-stability` | 4 | 5 | 9 |
+| `zustand-selector-stability` | 5 | 7 | 12 |
 
 Every policy carries the identity matrix its subject can take: an import alias, a namespace member, a
 computed-literal member, a re-export door, a const chain across modules, a local shadow, a parameter shadow,
@@ -114,10 +150,10 @@ deliberate and falls into two classes.
 | `no-use-context` | the same three |
 | `no-inline-optimistic-in-surface` | the computed-literal method spelling |
 | `no-manual-autosave-flush` | the computed-literal spelling of both calls |
-| `no-manual-token-estimate` | an imported ratio, and a const chain to the ratio |
-| `no-multiplexed-mutation-error` | the computed-literal spelling of both operands |
+| `no-manual-token-estimate` | an imported ratio, a const chain to the ratio, the bracket `t["length"]` spelling, and a file that self-exempted by exporting its own `estimateTokens` |
+| `no-multiplexed-mutation-error` | the computed-literal spelling of both operands, and an `any`-typed receiver on both sides |
 | `no-static-staletime` | a const alias of `"static"`, and the same alias one module away |
-| `zustand-selector-stability` | a store hook not matching `/^use[A-Z].*Store$/`, and an `as`-wrapped literal |
+| `zustand-selector-stability` | a store hook not matching `/^use[A-Z].*Store$/`, an `as`-wrapped literal, and an `any`-typed callee |
 
 **Legacy ≥1 → new 0 (a lookalike the text check red), 16 rows:** a local `forwardRef`/`useContext` helper; a
 context.ts declaring its OWN `ReturnType`; a project type named `ReturnType`; a parameter named `fetch`; an
@@ -156,17 +192,22 @@ discovered on the tree, `reviewedGrants: reviewedGrantsFor(policies)`):
 
 ```
 knownPolicies=64 selected=12 loadedSources=7196
-workspaceMs=4219 passMs=18574 wallMs=22793
+workspaceMs=6510 passMs=18534 wallMs=25044
 factErrors=0 toolErrors=0 authorityToolErrors=0 alarms=0
 withheld=[]
 raw=0 waived=0 granted=0 effective=0
 ```
 
-`/usr/bin/time -v`: 24.03 s wall, 5,554,516 KB peak RSS, 0 swaps, 0 major page faults, 1,416,899 minor faults.
-All 12 owners `success/complete`. Per-policy cost is concentrated in `no-manual-autosave-flush` (5.0 s),
-`zustand-selector-stability` (1.6 s) and `no-multiplexed-mutation-error` (1.2 s); the other nine total under
-2 s combined. Both home receipts are healthy: `EntityMutationResult` members 1 unresolved 0, `GatedStoreHook`
-members 1 unresolved 0.
+`/usr/bin/time -v`: 26.28 s wall, 5,557,844 KB peak RSS, 0 swaps, 0 major page faults. All 12 owners
+`success/complete`. Per-policy cost is concentrated in `no-manual-autosave-flush` (5.1 s),
+`zustand-selector-stability` (1.7 s) and `no-multiplexed-mutation-error` (1.3 s); the other nine total under
+2 s combined. All three home receipts are healthy at members 1, unresolved 0: `EntityMutationResult`,
+`GatedStoreHook`, `estimateTokens`.
+
+The fail-closed repairs above were each measured against this pass rather than reasoned about: routing
+`zustand-selector-stability`'s type refusal to a finding first produced **9** effective findings, narrowing
+"unreadable" to type ERASURE cut it to **2**, and the semantic arity fence returned it to **0**. Every one of
+the three states is a committed proof row.
 
 **Classification of the −3 delta:** all three are legacy FALSE POSITIVES. Base UI's `Drawer.Provider`,
 `Tooltip.Provider` and `Toast.Provider` are namespace COMPONENTS, and their `Provider` property is declared by
@@ -203,6 +244,19 @@ like a policy defect. A plant must use a spelling the real tree already type-che
   checked against nothing at its own site and has no contextual owner.
 - `react-origin`'s import door: a re-export shim that RENAMES (`export { forwardRef as fr }`, then
   `import { fr }`) is not a candidate at its door; the call site still resolves it.
+
+## Fixture hygiene rules this lane paid for
+
+Two review findings were about the PROOFS rather than the policies, and both generalise:
+
+- **A fixture that names a package must PLANT that package's door in its own file map.** The
+  `fetch-fn-in-features` "same name, imported" row imported from `cross-fetch` with no `node_modules`
+  entry, so the specifier did not resolve and the row passed because the binding was UNREADABLE — the
+  opposite of the proven-foreign origin it claimed. The eight vendor-lookalike rows already did this; the
+  odd one out now does too.
+- **A `mustPass` row must contain the shape the policy could flag.** `no-manual-token-estimate`'s "the
+  official estimator" row had no DIVISION in it at all, so no edit to the policy could ever have failed it.
+  An inert `mustPass` is a row that reads like a baseline and asserts nothing.
 
 ## Known limits and runtime follow-ups (not worked around)
 
