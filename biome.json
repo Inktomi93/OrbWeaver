@@ -147,6 +147,10 @@
                 "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design \u00a73, work-order item 15)."
               },
               {
+                "group": ["@orb/contracts/sessions", "@orb/contracts/sessions/**"],
+                "message": "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name \u2014 a reintroduction is banned; drop it or contest the D-cite in Core-Laws-and-Precedents.md. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts."
+              },
+              {
                 "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
                 "message": "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
               }
