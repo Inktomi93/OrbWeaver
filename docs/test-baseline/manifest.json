@@ -1445,6 +1445,7 @@
     "tests/server/domain/rpg/snapshot-edit.int.test.ts",
     "tests/server/domain/rpg/snapshot-edit.test.ts",
     "tests/server/domain/rpg/staging.test.ts",
+    "tests/server/domain/rpg/stale-actor-key.suite.int.test.ts",
     "tests/server/domain/rpg/substrate/actor-ops.test.ts",
     "tests/server/domain/rpg/substrate/actor-rekey.test.ts",
     "tests/server/domain/rpg/substrate/default-state.test.ts",
