@@ -75,7 +75,15 @@ export { POLICY_SCOPE_KINDS, POLICY_SEMANTIC_PATH_STATUSES } from "./contract/po
 export type { GateResourceRequest } from "./contract/resource-declaration.ts";
 export { GATE_RESOURCE_REQUEST_KINDS } from "./contract/resource-declaration.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
-export type { BootChunkVerdict, ConformanceFailure, LedgerFreshness, SchemaBaselineComparison, ScopedResult } from "./contract/scoped.ts";
+export type {
+  AssetRefsCoverage,
+  AssetRefsRegistryRow,
+  BootChunkVerdict,
+  ConformanceFailure,
+  LedgerFreshness,
+  SchemaBaselineComparison,
+  ScopedResult,
+} from "./contract/scoped.ts";
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
@@ -106,6 +114,8 @@ export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
 export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
+export type { ContractBannedShape, SchemaBannedShape } from "./lib/ledger-banned-shapes.ts";
+export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
 export type { GateCorpus } from "./lib/loader.ts";
 export { loadGateCorpus, loadGates } from "./lib/loader.ts";
 export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";
@@ -127,6 +137,8 @@ export { failReason, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
 export { refuseVerbTail } from "./lib/verb-tail.ts";
 
+export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
+export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
 export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";

@@ -77,8 +77,10 @@ export const ASSET_REFS: readonly AssetRef[] = [
  *  this file may not import. `image_index_skips` is the indexer's admission-floor skip-log (#273): a
  *  re-derivable verdict about the bytes, so it must NOT keep a degenerate blob alive (it CASCADEs away when
  *  the asset is reaped — retaining it would make a skipped 1×1 un-GC-able forever).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+ *
+ *  The `@public` marker retired 2026-09-05: the front door now re-exports this list and the
+ *  `structure:asset-refs` stage's comparator consumes it, so it is an ordinary consumed export and a
+ *  `@public`-family marker on a consumed export is stale by the orphan-ratchet's own two-sided rule. */
 export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id", "image_index_skips.asset_id"];
 
 /** The non-FK live-source: `AssetId`s pinned inside a JSON settings blob. Two sources, both under

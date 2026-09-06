@@ -12,6 +12,7 @@
 //   check:tests-membership   → cli.ts tests-membership
 //   check:tests-execution-membership → cli.ts tests-execution-membership
 //   check:db-baseline        → cli.ts db-baseline
+//   check:asset-refs         → cli.ts asset-refs
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
@@ -25,6 +26,7 @@ import {
   BASELINE_HELP,
   parse,
   refuseVerbTail,
+  runAssetRefsCoverage,
   runBaseline,
   runBootChunkRatchet,
   runDbBaselineParity,
@@ -74,6 +76,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "tests-execution-membership":
     "usage: node tooling/src/verify/cli.ts tests-execution-membership\n  Reconciles which test files a vitest project actually RUNS — reports the unrun.",
   "db-baseline": "usage: node tooling/src/verify/cli.ts db-baseline\n  Compares the drizzle schema against the committed 0000_baseline.sql.",
+  "asset-refs":
+    "usage: node tooling/src/verify/cli.ts asset-refs\n  Reconciles every live FK\u2192assets.id column against the asset-ref classification registry.",
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk": "usage: node tooling/src/verify/cli.ts boot-chunk\n  Measures the client boot chunk against its committed ceiling.",
   "ledgers-fresh":
@@ -120,6 +124,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runTestsExecutionMembership(root);
     case "db-baseline":
       return await runDbBaselineParity(root);
+    case "asset-refs":
+      return await runAssetRefsCoverage(root);
     case "orphan-ratchet":
       return runOrphanRatchet(root, rest);
     case "boot-chunk":
