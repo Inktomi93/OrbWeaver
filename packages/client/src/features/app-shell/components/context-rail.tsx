@@ -310,7 +310,12 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
                 the track's budget is byte-identical to the pre-F17 geometry. `aria-hidden`: it is a rule,
                 not a control. */}
             <Row align="center" className="relative shrink-0">
-              <Separator orientation="vertical" aria-hidden={true} className="-start-tight absolute inset-y-row w-px" />
+              {/* No call-site `w-px`: `orientation="vertical"` IS `h-full w-px` on the primitive
+                  (separator/variants.ts), so the class was a redundant restatement of the seal — and it was
+                  invisible to `ui-size-via-variant` only because this FILE carried a whole-file ALLOWLIST
+                  row for the dot below, whose reason never mentioned it. Retiring that row (#1799) surfaced
+                  it; dropping it is a no-op on the rendered rule. `inset-y-row` is the deliberate part. */}
+              <Separator orientation="vertical" aria-hidden={true} className="-start-tight absolute inset-y-row" />
               {actions}
             </Row>
           </>
@@ -444,6 +449,10 @@ function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot
     );
   }
   // The boolean form is the same primitive with no content — a shell-tier surface never paints a raw
-  // element, so the dot is a childless `Badge` sized down, not a styled `<span>`.
-  return dot ? <Badge intent="primary" size="sm" aria-hidden={true} className="absolute end-field top-field size-1.5 rounded-full p-0" /> : null;
+  // element, so the dot is a childless `Badge`, not a styled `<span>`. It rode `size="sm"` plus a
+  // call-site `size-1.5 rounded-full p-0` for as long as Badge had no dot to give (the one live
+  // `ui-size-via-variant` ALLOWLIST survivor); `size="dot"` is that shape as a VARIANT (#1798/#1799), so
+  // the seal is intact here and the allowlist row is gone. Same rendered 6px circle — `size-field` is the
+  // belt step `size-1.5` was spelling by hand.
+  return dot ? <Badge intent="primary" size="dot" aria-hidden={true} className="absolute end-field top-field" /> : null;
 }
