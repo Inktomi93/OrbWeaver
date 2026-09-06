@@ -1141,6 +1141,12 @@
     "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tests/server/infra/providers/backends/openrouter/probe.test-d.ts": {
+    "count": 3,
+    "ratified": 3,
+    "why": "ratified by rule: @ts-expect-error×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tests/server/infra/providers/backends/openrouter/runners/chat/chat-completions.test.ts": {
     "count": 4,
     "ratified": 4,

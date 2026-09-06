@@ -3634,15 +3634,15 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts::promise:readBodyPreview::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts",
-      "line": 121,
+      "line": 136,
       "column": 24,
       "grammar": "promise",
       "position": "promise:readBodyPreview",
       "ordinal": 1,
-      "snippet": "const text = await readBodyPreview(res).catch((): string => \"\");",
+      "snippet": "const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.",
-      "markerLine": 120
+      "markerLine": 135
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
@@ -3712,7 +3712,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::empty:err::1",
       "path": "packages/server/src/infra/providers/backends/openrouter/probe.ts",
-      "line": 36,
+      "line": 47,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -3720,7 +3720,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a credential-probe failure is classified into a typed CredentialHealth (auth-class → revoked, else → unreachable), reason sanitized + secret-redacted by value; propagated as a verdict, never a false green, no secret leak. Ends if the catch can return \"ok\".",
-      "markerLine": 32
+      "markerLine": 43
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/runners/chat/chat-completions.ts::empty:err::1",

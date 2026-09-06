@@ -8,7 +8,7 @@
 // must not depend on that infra-internal funnel type (which doesn't exist yet), so this takes a minimal
 // {@link OpenAiSamplingInput} the runner projects its resolved knobs into.
 
-import { redactKnownSecrets, secretSafeRedactionMarker } from "#kit/secret-redaction";
+import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "#kit/secret-redaction";
 import type { ResponseFormat, ToolChoice, WireTool } from "../../../contract/chat.ts";
 import type { ChatToolCallDelta } from "../wire-schemas.ts";
 
@@ -212,6 +212,33 @@ export function redactSecretsFromText(text: string, secrets: readonly string[]):
   const marker = secretSafeRedactionMarker(secrets);
   const scrubbed = redactKnownSecrets(text, secrets);
   return scrubbed.replace(BEARER_TOKEN_RE, `Bearer ${marker}`).replace(SK_KEY_RE, marker);
+}
+
+/**
+ * How far PAST a display cut a truncating reader must read before it may hand the bytes to
+ * {@link redactSecretsFromText} (#1820).
+ *
+ * A reader that truncates FIRST and scrubs SECOND cannot be saved by any later belt: a secret straddling
+ * the cut is only half present, so neither of its spellings matches, and the surviving PREFIX is real key
+ * material. That is the same "scrub before you mangle" law the `sanitizeApiError` sites obey, one hop
+ * earlier — and unlike those, reordering alone cannot fix it, because the missing tail was never read.
+ * So the reader over-reads by this much, scrubs the whole buffer, and only then slices to its own limit.
+ *
+ * The number is DERIVED, not estimated: it is the longest literal `redactSecretsFromText` will actually
+ * search for, i.e. the longest member of the EXPANDED set (`secretRedactionLiterals` — a `"`/`\`-bearing
+ * credential is present in a serialized body only in its JSON-escaped spelling, which is the longer one).
+ * It therefore stays correct if that expansion ever widens.
+ *
+ * STATED LIMIT: this sizes the BY-VALUE guarantee only. The `Bearer …`/`sk-…` shape sweep is
+ * defense-in-depth for tokens we hold no literal for, and an unknown token has no known length to
+ * over-read by; a shape-matched span cut by the limit leaves a fragment that is, by construction, not a
+ * credential we were given. The guarantee is the literal set — the sweep is the bonus (see above).
+ * The caller counts in the SAME unit it slices in (UTF-16 code units, the unit `String.includes` matches
+ * in): a byte-counted read against a code-unit slice reopens this hole for any body with multi-byte
+ * content ahead of the credential.
+ */
+export function secretScrubOverhang(secrets: readonly string[]): number {
+  return secretRedactionLiterals(secrets).reduce((longest, literal) => Math.max(longest, literal.length), 0);
 }
 
 /**
