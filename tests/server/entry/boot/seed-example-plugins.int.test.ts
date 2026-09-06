@@ -23,6 +23,7 @@ import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/co
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
@@ -1097,7 +1098,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
  *  (2026-09-05, `git show HEAD:` sources): `items` was EMPTY. */
 test("the seeder leaves the owner ONE durable ask that counts every waiting plugin", async () => {
   const db = await freshDb();
-  const notifications = createNotificationsService({ db, now: (): number => FROZEN_AT_MS });
+  const notifications = createNotificationsService({ db, now: (): number => FROZEN_AT_MS, resolveStandingAsks: createResolveStandingAsks(db) });
   const inert = makeInertOps();
   const ops: PluginHostOps = {
     ...inert,

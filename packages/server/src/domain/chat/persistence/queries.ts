@@ -190,6 +190,25 @@ export async function loadPendingHandoff(db: Db, chatId: ChatId): Promise<{ pend
   };
 }
 
+/** The subset of `chatIds` whose pending host-handoff nomination is STILL OPEN and still names this user
+ *  (#1799 — the second half of the read behind `InboxView.actionable`). `pending_host_user_id = :user` is
+ *  both predicates at once: `acceptHostHandoff` CLEARS the column in the same statement that swaps the role,
+ *  a re-nominate OVERWRITES it with someone else, and a host cancelling nulls it — so a nomination that was
+ *  accepted, superseded or withdrawn is simply not in the answer, and a chat that named somebody else never
+ *  was. A chat id the caller asked about and does not get back is settled, gone, or was never theirs: one
+ *  indistinguishable answer, which is what keeps this read from being an existence oracle over other
+ *  people's rooms. Empty `chatIds` short-circuits (`inArray` on an empty list is a SQL error). */
+export async function selectStandingNominationChatIds(db: Db, nomineeUserId: UserId, chatIds: readonly ChatId[]): Promise<ChatId[]> {
+  if (chatIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(and(inArray(chats.id, [...chatIds]), eq(chats.pendingHostUserId, nomineeUserId)));
+  return rows.map((row) => row.id);
+}
+
 /**
  * The membership-scoped chat read: the chat row joined to the caller's present participant row, returning
  * the row + the caller's `role` + `activePersonaId` (the attribution fallback for un-stamped sends) + the

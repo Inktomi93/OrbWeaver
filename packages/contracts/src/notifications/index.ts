@@ -224,6 +224,25 @@ export interface InboxView {
   readonly id: NotificationId;
   readonly type: NotificationType;
   readonly payload: NotificationEvent;
+  /** THIS ROW IS STILL WAITING ON A DECISION (#1799) — an invite nobody has accepted or declined, a host
+   *  nomination nobody has confirmed, a standing consent ask. FALSE for an informational row (a kick, a
+   *  handoff someone else accepted, an auto-disable notice), and false for a decision that has since been
+   *  settled ANYWHERE — accepted from a share link, revoked by the host, or accepted here by a client whose
+   *  follow-up dismiss failed (#1501).
+   *
+   *  IT IS DERIVED SERVER-SIDE, ON BOTH WIRES, AND THE READER MUST NOT RE-DERIVE IT. The bell's indicator
+   *  means "new OR pending" (owner ruling, #1799): opening the inbox marks every row read, which clears the
+   *  NEW half, and only ACTING clears this one. A client cannot compute that — the settling state lives in
+   *  the chat domain's `chat_invites.status` and `chats.pending_host_user_id`, which the inbox reader has
+   *  no business reading and which change without any notification row changing. So the domain resolves it
+   *  through ONE injected op for the page it is about to return (`contract/ops.ts`
+   *  `ResolveStandingAsks`), and `notifications.list` and the `notifications` room frame stamp it through
+   *  the same substrate so the two wires can never disagree.
+   *
+   *  It is a POINT-IN-TIME read, like `readAt`: a row whose decision settles elsewhere keeps `true` on the
+   *  copy an open tab already holds until the next list/resume. That is the same freshness every other
+   *  field on this view has, and the acting client invalidates its own read. */
+  readonly actionable: boolean;
   /** The monotonic per-recipient cursor — the stable paging / stream-resume key. */
   readonly seq: number;
   /** null = unread; epoch-ms when the recipient first read it (idempotent — set once). */

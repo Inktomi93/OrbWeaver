@@ -177,6 +177,11 @@ export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
 export { createResolveRpgCardCorpus } from "./verbs/resolve-rpg-card-corpus.ts";
 export { createResolveRpgParticipants } from "./verbs/resolve-rpg-participants.ts";
+// The #1799 inbox read: which of a notifications page's chat-owned decisions are still open. Exported for
+// the same reason the guards above are — the ANSWER is chat's (it lives in `chat_invites.status` and
+// `chats.pending_host_user_id`), while the QUESTION belongs to a domain that must not import chat. The
+// composition root joins them; notifications declares the op type it consumes and never learns a table name.
+export { createResolveStandingAsks } from "./verbs/resolve-standing-asks.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
 // The opaque rpg-pointer WRITE op (rpg-design/05 §3.1) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).

@@ -13,6 +13,7 @@ import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
 import { insertNotification } from "../persistence/queries.ts";
+import { asRaised } from "../substrate/actionable.ts";
 
 export function createRecord(ctx: NotificationsContext): Pick<NotificationsService, "record"> {
   async function record(params: RecordParams): Promise<InboxView> {
@@ -29,10 +30,14 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
     // When the producer supplies its membership-transition statements — or asks for singleton delivery —
     // the INSERT rides the same `db.batch`: a crash can never commit the transition without the durable
     // notification, and a supersede can never land without its replacement.
-    return await insertNotification(ctx.db, row, {
+    // `asRaised` stamps `actionable` (#1799) with no cross-feature call: the producer writes this row
+    // BECAUSE the decision exists, so a decision-carrying member is standing at the instant it is recorded.
+    // It is what the bus publishes, so a live arrival raises the bell's dot without waiting for a re-list.
+    const inserted = await insertNotification(ctx.db, row, {
       ...(params.coStatements !== undefined && params.coStatements.length > 0 ? { coStatements: params.coStatements as BatchStmt[] } : {}),
       ...(params.supersedeActiveOfSameType === true ? { supersedeActiveOfSameType: true } : {}),
     });
+    return asRaised(inserted);
   }
   return { record };
 }

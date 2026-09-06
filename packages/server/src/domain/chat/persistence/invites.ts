@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
@@ -24,6 +24,24 @@ export async function findInviteByTokenHash(db: Db, tokenHash: string): Promise<
 export async function findInviteById(db: Db, inviteId: ChatInviteId): Promise<typeof chatInvites.$inferSelect | undefined> {
   const rows = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId)).limit(1);
   return rows.at(0);
+}
+
+/** The subset of `inviteIds` that are STILL PENDING **and still targeted at this user** (#1799 — the read
+ *  behind `InboxView.actionable`). Both predicates are the point: `status = 'pending'` excludes an invite
+ *  that was accepted, declined, revoked or expired ANYWHERE (a share-link accept, a host revoke, or the
+ *  #1501 accept whose follow-up dismiss failed), and `invited_user_id = :user` is what stops the read from
+ *  becoming an existence oracle over invites belonging to other people's rooms. An untargeted share-link
+ *  invite is never in the answer — it addresses nobody, so nobody's inbox is waiting on it.
+ *  Empty `inviteIds` returns empty without touching the db (`inArray` on an empty list is a SQL error). */
+export async function selectStandingInviteIds(db: Db, invitedUserId: UserId, inviteIds: readonly ChatInviteId[]): Promise<ChatInviteId[]> {
+  if (inviteIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ id: chatInvites.id })
+    .from(chatInvites)
+    .where(and(inArray(chatInvites.id, [...inviteIds]), eq(chatInvites.invitedUserId, invitedUserId), eq(chatInvites.status, "pending")));
+  return rows.map((row) => row.id);
 }
 
 /** Every invite for a chat, newest-first. The token hash never leaves persistence. */
