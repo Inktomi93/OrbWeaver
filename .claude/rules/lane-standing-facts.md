@@ -80,7 +80,14 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   ui/client src AND is the ONLY program that owns `tests/**/*.ct.tsx`; `tests-dom` owns
   `tests/{client,ui}/**/*.ts` plus an explicit list of non-CT DOM-coupled escapees and does NOT see CT tsx.
   A floor claims only coverage it verified — when uncertain, PLANT a control error; that is the standard,
-  not paranoia.
+  not paranoia. **A fourth, `.test-d.ts`-only invocation exists but adds no NEW coverage** — `pnpm
+  test:types` (the `types:testd` verify stage) runs vitest's typecheck feature, split 2026-09-05 (#1313)
+  into `types-node` (root `tsconfig.json`) and `types-browser` (`tsconfig.tests-dom.json`, for the handful
+  of `.test-d.ts` subjects that import a browser package) — it DUPLICATES `types:graph`/`typecheck:tests-dom`
+  for `.test-d.ts` files rather than supplementing them, and the split's whole point was to stop it
+  double-reporting under the wrong lib (it used to check every `.test-d.ts` under the DOM-less root with
+  `ignoreSourceErrors: true` swallowing the fallout — a floor that ran only `pnpm test:types` was measurably
+  blind to a real subject error in a DOM-touching `.test-d.ts` file before this fix).
 - **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load** (owner ruling): exit
   134/137, a heap abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
