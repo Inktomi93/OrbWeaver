@@ -11,7 +11,7 @@
 import type { InboxView, NotificationEvent } from "@orb/contracts/notifications";
 import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   asksNothing,
   asRaised,
@@ -20,6 +20,7 @@ import {
   standingAsksOf,
   withActionable,
 } from "../../../../../packages/server/src/domain/notifications/substrate/actionable.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const RECIPIENT = castId<UserId>("user_reader");
 const INVITE_A = castId<ChatInviteId>("chatinvite_a");

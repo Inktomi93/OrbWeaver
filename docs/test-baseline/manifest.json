@@ -2394,6 +2394,7 @@
     "tests/ui/layout/stack.ct.tsx",
     "tests/ui/layout/toolbar.ct.tsx",
     "tests/ui/lib/class-merge.test.ts",
+    "tests/ui/lib/coarse-pointer-now.test.ts",
     "tests/ui/lib/use-prefers-reduced-motion.ct.tsx",
     "tests/ui/lib/variant-attrs.ct.tsx",
     "tests/ui/lib/variant-attrs.test.ts",
