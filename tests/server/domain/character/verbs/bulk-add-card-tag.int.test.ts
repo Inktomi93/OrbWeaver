@@ -5,6 +5,7 @@
 // `tags`/`character_tags`, so a break in tag's resolve-or-create-and-attach is visible from character's tree.
 
 import { characterTags, tags } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
@@ -110,7 +111,7 @@ describe("bulk add card tag", () => {
     expect(h.tagAttaches).toEqual([]);
   });
 
-  test("one failing attach still audits + ANNOUNCES the siblings that committed, then rethrows", async () => {
+  test("one failing attach still audits + ANNOUNCES the siblings that committed, and NAMES the failure in the result (#1694)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -122,16 +123,41 @@ describe("bulk add card tag", () => {
 
     // The per-character attaches are independent writes. Under `Promise.all` the first rejection abandoned
     // the verb before the audit/emit block, so B's committed tag change was never announced and the client
-    // kept rendering a stale card.
+    // kept rendering a stale card. The verb used to rethrow the first rejection unchanged, laundering B's
+    // real success into one opaque failure for the whole batch (#1694) — it now resolves with the honest
+    // per-item split instead.
     const svc = createCharacterService({
       ...h.ctx,
       attachCardTag: async (args): Promise<boolean> => (args.characterId === a.id ? await Promise.reject(new Error("the tag store is down")) : true),
     });
 
-    await expect(svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] })).rejects.toThrow("the tag store is down");
+    const result = await svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] });
 
+    expect(result.applied).toEqual([b.id]);
+    expect(result.failed).toEqual([{ id: a.id, error: { code: "unexpected", message: "the tag store is down" } }]);
     expect(h.audits).toHaveLength(1);
     expect(h.audits[0]?.entry.metadata).toEqual({ tag: "hero", updated: 1 });
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged" } }]);
+  });
+
+  test("a DomainOperationError('tag_resolve_failed', …) reads through as its own typed code, not `unexpected`", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const base = createCharacterService(h.ctx);
+    const a = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
+
+    const svc = createCharacterService({
+      ...h.ctx,
+      attachCardTag: (): Promise<boolean> =>
+        Promise.reject(new DomainOperationError("tag_resolve_failed", 'resolve-or-create tag "hero" found no row after a unique conflict')),
+    });
+
+    const result = await svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id] });
+
+    expect(result.applied).toEqual([]);
+    expect(result.failed).toEqual([
+      { id: a.id, error: { code: "tag_resolve_failed", message: 'resolve-or-create tag "hero" found no row after a unique conflict' } },
+    ]);
   });
 });

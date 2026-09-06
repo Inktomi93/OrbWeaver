@@ -2,8 +2,8 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle, PluginId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, PluginId } from "@orb/kit/ids";
+import { brandedId, castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
@@ -566,3 +566,39 @@ export const CHARACTER_HANDLE_RESERVED_OP_CODE = "handle_reserved" as const;
  *  fix is to re-read and re-apply. OPT-IN: only a caller that writes from a basis it read EARLIER declares
  *  the hash (the refinery apply), so the ordinary edit-in-place update can never raise this. */
 export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
+
+// ── Bulk card-tag per-item result (#1694) — the honest wire for a PARTIAL batch ────────────────────────
+// `bulkAddCardTag`/`bulkRemoveCardTag` used to `allSettled` the per-character writes, audit + announce the
+// siblings that committed, then RETHROW the first rejection unchanged — so the caller saw one typed error
+// for a batch that had, in fact, partially landed. The honest shape is a per-item result: which characters
+// kept the write, and which refused and why. `error` is a CLOSED, wire-safe union — derived from the two
+// domain classes `domain/tag`'s by-name attach/detach ops can actually raise, never a re-spelling of them
+// and never a raw `Error` serialized onto the wire:
+//   • `tag_resolve_failed` — `DomainOperationError`'s own code (`domain/tag/verbs/attach-card-tag-by-name`):
+//     the resolve-or-create found no row after a unique-insert conflict, an unreachable-in-practice race.
+//   • `unexpected` — anything else a per-item `Promise.allSettled` rejection could be (a raw driver/DB
+//     failure) — named honestly as "not one of the typed refusals" rather than fabricated into the code
+//     above.
+
+export const CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE = "tag_resolve_failed" as const;
+export const CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE = "unexpected" as const;
+export const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
+
+export const characterBulkTagFailureSchema = z.object({
+  id: brandedId<CharacterId>(),
+  error: z.object({
+    code: z.enum(CHARACTER_BULK_TAG_FAILURE_CODES),
+    message: z.string(),
+  }),
+});
+export type CharacterBulkTagFailure = z.infer<typeof characterBulkTagFailureSchema>;
+
+/** The per-item batch result both bulk card-tag verbs return: `applied` names every character the write
+ *  actually landed on; `failed` names every one it did not, and why. A character in neither array was
+ *  skipped as a silent no-op exactly as before this row (unowned/missing, or the tag was already in the
+ *  target state) — that degrade is unchanged, only the REJECTED half is now legible. */
+export const characterBulkTagResultSchema = z.object({
+  applied: z.array(brandedId<CharacterId>()),
+  failed: z.array(characterBulkTagFailureSchema),
+});
+export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;
