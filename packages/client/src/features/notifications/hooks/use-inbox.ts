@@ -23,6 +23,14 @@ export interface InboxRead {
    *  and a client that guessed from the row's TYPE would keep the dot lit on decisions that no longer exist.
    *  Reading the inbox does not move this number; only acting on a row does. */
   readonly pendingCount: number;
+  /** The UNION of the two above — how many rows are waiting for this reader at all (#1815). A row that is
+   *  both new and undecided counts ONCE, which is why it is derived here rather than added at a call site:
+   *  `unreadCount + pendingCount` would double the commonest row in the inbox (a freshly-arrived invite).
+   *
+   *  It exists because the phone's tell is a SINGLE number for a SINGLE mark. The bell needs the halves
+   *  apart (`unreadCount` is also the mark-read trigger); the You tab's badge needs the whole, and both
+   *  must be one derivation over one read or the two surfaces disagree about whether anything is waiting. */
+  readonly waitingCount: number;
 }
 
 /** The bell's inbox read — non-suspense (topbar chrome degrades to an empty inbox, never a fallback). */
@@ -34,6 +42,7 @@ export function useInbox(): InboxRead {
     items,
     unreadCount: items.filter((item) => item.readAt === null).length,
     pendingCount: items.filter((item) => item.actionable).length,
+    waitingCount: items.filter((item) => item.readAt === null || item.actionable).length,
   };
 }
 
