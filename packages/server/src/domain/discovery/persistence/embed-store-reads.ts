@@ -555,10 +555,7 @@ async function sharedAvatarAssetIds(db: Db, ownerId: UserId): Promise<AssetId[]>
 }
 
 // notInArray([]) is invalid, so only apply the exclusion when there IS a shared avatar.
-// @nullable-cmp-ok(characters.avatarAssetId): the column is nullable, but all three consumers below reach
-// `characters` through `innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))` — a
-// NULL avatar can never satisfy that join, so no row this predicate could drop is in the set to begin with.
-// Ends the day a consumer LEFT-joins the avatar (then the NULLs are live and this needs `or(isNull(…), …)`).
+// @orb-waive nullable-column-inequality(characters.avatarAssetId): the column is nullable, but all three consumers below reach `characters` through `innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))` — a NULL avatar can never satisfy that join, so no row this predicate could drop is in the set to begin with. Ends the day a consumer LEFT-joins the avatar (then the NULLs are live and this needs `or(isNull(…), …)`).
 function excludeShared(shared: readonly AssetId[]): SQL | undefined {
   return shared.length === 0 ? undefined : notInArray(characters.avatarAssetId, [...shared]);
 }
