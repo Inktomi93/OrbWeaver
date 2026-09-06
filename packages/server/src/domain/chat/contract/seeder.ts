@@ -155,6 +155,12 @@ export interface DemoChatSeederDeps {
   /** Reads `onboarding.demoChatsPackVersion` — the EXAMPLE pack this library's copies were last dressed to. */
   readonly readPackVersion: (principal: Principal) => Promise<number>;
   readonly markPackVersion: (principal: Principal, version: number) => Promise<void>;
+  /** Reads `onboarding.demoChatsSkipped` — the slugs a previous seed pass could not write (#1550). Empty is
+   *  the overwhelming case AND the fail-closed default: no recorded skip ⇒ nothing is retried. */
+  readonly readSkippedSlugs: (principal: Principal) => Promise<readonly string[]>;
+  /** Replaces `onboarding.demoChatsSkipped` WHOLE (never a merge): the seeder computes the new set from the
+   *  pass it just ran, and a slug that landed must LEAVE the list — a merge could never remove one. */
+  readonly markSkippedSlugs: (principal: Principal, slugs: readonly string[]) => Promise<void>;
   /** The pack-bump HEAL's read: this library's copy of one example (by its stable `importHash`) with the
    *  dressing fields the heal fills, or `null` when the user has no such example (deleted / never seeded —
    *  the heal never re-creates one; the latch owns deletion-respect). */

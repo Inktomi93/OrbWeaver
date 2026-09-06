@@ -1110,6 +1110,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         input: { section: "onboarding", patch: { demoChatsPackVersion: version } },
       });
     },
+    // #1550's per-example evidence — WHOLE-set replace, never a merge (a slug that finally landed has to be
+    // able to leave). The seeder owns what goes in it; this pair is only the settings door.
+    readSkippedSlugs: async (principal): Promise<readonly string[]> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSkipped,
+    markSkippedSlugs: async (principal, slugs): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { demoChatsSkipped: [...slugs] } },
+      });
+    },
     // ── the pack-bump HEAL's doors (only-if-unset; the seeder owns that policy) ──
     readSeededChat: async ({ principal, importHash }) => (await loadSeededChatDressing(db, principal.userId, importHash)) ?? null,
     // BOTH halves of the persona binding the fresh bulk write does in one shot: the host seat's own
