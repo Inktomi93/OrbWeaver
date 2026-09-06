@@ -1,6 +1,7 @@
 // Invocation-scoped Drizzle schema query built only from the policy's already-loaded source population.
 import type { CallExpression, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { defineFact } from "../contract/fact.ts";
 import type { ReferenceFact, UnresolvedReferenceFact } from "../contract/reference-fact.ts";
 import type {
   SchemaColumn,
@@ -384,7 +385,12 @@ function receipt(status: SchemaFactReceipt["status"], paths: readonly string[], 
   };
 }
 
-function buildSchema(options: SchemaQueryOptions, paths: readonly string[], canonicalPath: (sourceFile: SourceFile) => string): SchemaFact<SchemaModel> {
+function buildSchema(
+  options: SchemaQueryOptions,
+  paths: readonly string[],
+  canonicalPath: (sourceFile: SourceFile) => string,
+  calls: readonly { readonly declaration: VariableDeclaration; readonly call: CallExpression }[],
+): SchemaFact<SchemaModel> {
   const unsupported = paths.find((path) => !(path.endsWith(".ts") || path.endsWith(".tsx")));
   if (unsupported !== undefined) {
     return {
@@ -397,7 +403,6 @@ function buildSchema(options: SchemaQueryOptions, paths: readonly string[], cano
     return { status: "missing", reason: "schema source population is missing", receipt: receipt("missing", paths, []) };
   }
   try {
-    const calls = schemaTableCalls(options.files);
     if (calls.length === 0) {
       return { status: "empty", reason: "schema source population declares no Drizzle SQLite tables", receipt: receipt("empty", paths, []) };
     }
@@ -429,10 +434,7 @@ function buildSchema(options: SchemaQueryOptions, paths: readonly string[], cano
   }
 }
 
-/** Eagerly derive one immutable schema fact for this policy invocation; no Project or cross-run cache exists. */
-export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
-  const paths = [...new Set(options.files.map(options.relativePath))].toSorted();
-  const schema = buildSchema(options, paths, canonicalPathResolver(options));
+function queryForSchema(schema: SchemaFact<SchemaModel>): SchemaQuery {
   const tables = schema.status === "ready" ? schema.value.tables : [];
   const byDeclaration = new Map(tables.map((table) => [schemaDeclarationKey(table.declaration), table]));
   const byColumn = new Map(tables.flatMap((table) => table.columns.map((column) => [column.identity.key, column] as const)));
@@ -448,3 +450,75 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
     column: (node: MorphNode) => (schema.status === "ready" ? columnFromReference(node, byDeclaration, byColumn) : unavailable(node)),
   });
 }
+
+function unresolvedDiscovery(options: SchemaQueryOptions, error: unknown): SchemaQuery {
+  const paths = [...new Set(options.files.map(options.relativePath))].toSorted();
+  let reason: string;
+  if (error instanceof SchemaRefusal) {
+    reason = error.fact.detail;
+  } else if (error instanceof Error) {
+    reason = error.message;
+  } else {
+    reason = String(error);
+  }
+  return queryForSchema({ status: "unresolved", reason, receipt: receipt("unresolved", paths, []) });
+}
+
+function queryForCalls(
+  options: SchemaQueryOptions,
+  calls: readonly { readonly declaration: VariableDeclaration; readonly call: CallExpression }[],
+): SchemaQuery {
+  const paths = [...new Set(options.files.map(options.relativePath))].toSorted();
+  return queryForSchema(buildSchema(options, paths, canonicalPathResolver(options), calls));
+}
+
+/** Direct test/query helper. Production policies consume `drizzleSchemaFact` through the shared dispatcher. */
+export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
+  try {
+    return queryForCalls(options, schemaTableCalls(options.files));
+  } catch (error) {
+    return unresolvedDiscovery(options, error);
+  }
+}
+
+export const drizzleSchemaFact = defineFact({
+  id: "drizzle-schema",
+  population: { in: ["@db"], under: ["packages/db/src/schema/**"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  resources: [],
+  create: (ctx) => {
+    const calls: { declaration: VariableDeclaration; call: CallExpression }[] = [];
+    let discoveryError: unknown;
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node, sourceFile) => {
+            if (!Node.isVariableDeclaration(node) || discoveryError !== undefined) {
+              return;
+            }
+            try {
+              const call = schemaTableCall(node, sourceFile);
+              if (call !== null) {
+                calls.push({ declaration: node, call });
+              }
+            } catch (error) {
+              discoveryError = error;
+            }
+          },
+        },
+      ],
+      finish: (): SchemaQuery => {
+        const query = discoveryError === undefined ? queryForCalls(ctx, calls) : unresolvedDiscovery(ctx, discoveryError);
+        const fact = query.schema();
+        ctx.receipt({
+          kind: "population",
+          source: fact.receipt.source,
+          members: fact.receipt.members,
+          unresolved: fact.status === "unresolved" || fact.status === "missing" ? 1 : 0,
+        });
+        return query;
+      },
+    };
+  },
+});

@@ -1,9 +1,12 @@
 // The final schema query proves Drizzle identity and refuses every lossy population shape.
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { ReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import type { SchemaFact, SchemaModel, SchemaQuery } from "../../../../tooling/src/verify/contract/schema-fact.ts";
-import { createSchemaQuery } from "../../../../tooling/src/verify/lib/schema-fact.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { createSchemaQuery, drizzleSchemaFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo/";
@@ -62,6 +65,47 @@ function member(project: Project, path: string, text: string): Node {
     source
   );
 }
+
+test("the first-class schema provider uses dispatcher declarations once and exposes its independent population", () => {
+  const project = projectOf({
+    "packages/db/src/schema/x.ts":
+      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const x = sqliteTable("x", { id: text("id").primaryKey() });',
+    "packages/db/src/other.ts": "export const unrelated = true;\n",
+  });
+  let captured: SchemaQuery | undefined;
+  const policy: GatePolicy = defineGate({
+    id: "schema-provider-control",
+    family: "schema-provider-control",
+    authority: "hard",
+    severity: "error",
+    population: "@db",
+    analysis: "types",
+    execution: "entire-population",
+    facts: [drizzleSchemaFact],
+    resources: [],
+    message: "schema provider control",
+    create: (ctx) => ({
+      evaluate: () => {
+        captured = ctx.fact(drizzleSchemaFact);
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/db/src/schema/flag.ts": "export const flag = true;\n" }, why: "provider control" }],
+    mustPass: [{ mode: "types", files: { "packages/db/src/schema/pass.ts": "export const pass = true;\n" }, why: "provider control" }],
+  });
+  const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT.slice(0, -1), project, reviewedGrants: [], failOnWarnings: false });
+
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.facts).toMatchObject([
+    {
+      id: "drizzle-schema",
+      status: "success",
+      population: { effectiveSourcePaths: ["packages/db/src/schema/x.ts"] },
+      receipts: [{ source: "drizzle-schema", members: 2, unresolved: 0 }],
+    },
+  ]);
+  expect(captured?.schema()).toMatchObject({ status: "ready", receipt: { tables: 1, columns: 1, members: 2 } });
+});
 
 test("derives canonical tables, columns, FK, indexes, and open JSON through aliases and namespaces", () => {
   const { project, query } = queryOf({
