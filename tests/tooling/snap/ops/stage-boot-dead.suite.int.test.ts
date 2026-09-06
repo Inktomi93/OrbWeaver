@@ -25,6 +25,7 @@ import { __resetStageRunBinding, markStageBootDead, registerStageRunBinding } fr
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import { tearDownBootDeadStage } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -88,8 +89,10 @@ function plantRow(input: { readonly dir: string; readonly port: number; readonly
     vitePort: input.port + 1,
     checkout: input.checkout,
     ownerPid: null,
-    startedAt: new Date().toISOString(),
-    lastUsedAt: new Date().toISOString(),
+    // The frozen clock, not the ambient one (test-determinism): a boot-dead row's timestamps are inputs the
+    // teardown arm never compares against wall time, so the fixture's value is arbitrary but must be injected.
+    startedAt: new Date(FROZEN_AT_MS).toISOString(),
+    lastUsedAt: new Date(FROZEN_AT_MS).toISOString(),
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
