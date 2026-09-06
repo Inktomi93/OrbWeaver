@@ -28,6 +28,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "../../support/ct/accessible-names.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/ct/chat-and-inbox-reads-empty.ts";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
 import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx";
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
@@ -178,10 +179,12 @@ test("the app shell is navigable by name", async ({ mount, page }) => {
   // The topbar-trail inbox bell (#1627 retired its `multiHumanCapable` gate, so it mounts for every authed
   // principal now) brings its own `useInbox` read into the shell tree — FED empty rather than left on
   // routeTrpc's null fulfil, so the bell this suite must name renders its real empty-inbox lens (#1663).
+  // `chat.listChats` (the rail's library roster / the masthead recents reader) is fed the same way (#1817
+  // — the #1797 whole-tree census caught this file's shell mount leaving it unstubbed and INERT).
   await routeTrpc(page, {
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     ...VIEWER_IDENTITY_ROUTES,
-    "notifications.list": { items: [], nextCursor: null },
+    ...CHAT_AND_INBOX_READS_EMPTY,
   });
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByRole("main")).toBeVisible();
