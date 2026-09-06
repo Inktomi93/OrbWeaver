@@ -1,5 +1,5 @@
 // Closed Drizzle schema facts. Missing, empty, and unresolved are verdicts, never `undefined`.
-import type { CallExpression, Node, SourceFile, TypeChecker, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Node, SourceFile, Type, TypeChecker, VariableDeclaration } from "ts-morph";
 import type { GatePolicyContext } from "./policy.ts";
 import type { ReferenceFact } from "./reference-fact.ts";
 
@@ -51,6 +51,15 @@ export interface SchemaColumnBuilder {
   readonly call: CallExpression;
 }
 
+/** The semantic type supplied through one authored Drizzle `.$type<T>()` operation. */
+export interface SchemaColumnTypeOverride {
+  readonly node: Node;
+  readonly type: Type;
+  readonly display: string;
+  /** Literal phantom carried by the canonical `@orb/kit/ids` brand, or null for a non-id `$type`. */
+  readonly idBrand: string | null;
+}
+
 export type SchemaJsonShape =
   | { readonly kind: "open"; readonly typeNode: Node | null }
   | { readonly kind: "closed"; readonly keys: readonly string[]; readonly typeNode: Node }
@@ -83,6 +92,7 @@ export interface SchemaColumn {
   readonly expression: Node;
   readonly sqlName: string;
   readonly builder: SchemaColumnBuilder;
+  readonly typeOverride: SchemaColumnTypeOverride | null;
   readonly primaryKey: boolean;
   readonly unique: boolean;
   readonly notNull: boolean;

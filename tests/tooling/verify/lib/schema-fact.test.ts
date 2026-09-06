@@ -157,6 +157,24 @@ export const posts = table("posts", { id: text("id"), userId: text("user_id").no
   expect(queriedColumn.identity.key).toContain("#posts.userId");
 });
 
+test("derives canonical kit id brands without treating arbitrary type overrides as ids", () => {
+  const { query } = queryOf({
+    "packages/kit/src/ids/index.ts":
+      'declare const brand: unique symbol;\nexport type Branded<B extends string> = string & { readonly [brand]: B };\nexport type TypeIdOf<P extends string> = Branded<P>;\nexport type ChatId = TypeIdOf<"chat">;\nexport type UserId = Branded<"UserId">;\n',
+    "packages/db/src/schema/x.ts":
+      'import type { ChatId, UserId } from "../../../kit/src/ids/index";\n' +
+      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const chats = sqliteTable("chats", { id: text("id").primaryKey().$type<ChatId>(), ownerId: text("owner_id").$type<UserId>(), note: text("note").$type<string>() });\n',
+  });
+  const columns = ready(query.schema()).tables[0]?.columns ?? [];
+
+  expect(columns.map(({ identity, typeOverride }) => [identity.propertyName, typeOverride?.idBrand ?? null])).toEqual([
+    ["id", '"chat"'],
+    ["ownerId", '"UserId"'],
+    ["note", null],
+  ]);
+});
+
 test("selected-file schema facts retain canonical FK identity outside the effective population", () => {
   const project = projectOf({
     "packages/db/src/schema/users.ts":

@@ -134,11 +134,30 @@ legacy descriptors retired eleven authoring violations, while the new health pol
 The production structure front door remains legacy until atomic cutover and correctly refuses final policy
 descriptors; no compatibility adapter is planned.
 
+## Identity integrity
+
+`schema-branding` now consumes the same schema fact. A column `.$type<T>()` carries its compiler `Type`,
+authored display, and the literal phantom value of the canonical `packages/kit/src/ids/index.ts` `[brand]`
+property. A same-spelled local alias or arbitrary `$type<string>()` therefore supplies no id brand. The
+policy requires a primary-key `id` to carry a canonical brand and requires every FK to a branded parent to
+carry the exact same brand value. This strengthens the legacy presence-only string check: a `UserId` child
+cannot satisfy a `ChatId` parent merely because both are strings.
+
+The final ordinary waiver is the one `@orb-waive <policy>(<position>): <reason>` grammar, attached to the
+exact column occurrence. The legacy `plain-id:` spelling is retired; no live product marker used it. Policy
+proofs explicitly provide their kit-id declaration rather than loading undeclared live-tree files. A real
+30-file schema pass derived all 1,287 members and produced zero missing-brand or mismatched-brand findings,
+with no policy, fact, authority, or waiver alarms.
+
+The owner expanded this slice to the wider identity-flow family rather than leaving follow-up debt. Next
+consumers are `brand-in-name-position`, `no-raw-id`, `no-mint-via-cast`, `no-loose-id-cast`, and
+`no-fake-disabled-id`. Their final policies must share canonical kit brand/call facts and the central waiver
+plane; they must not preserve `@foreign-id-ok`, textual `castId` recognition, or gate-local stale tables.
+
 ## Conversion eligibility at checkpoint
 
-The following three policies remain in the next self-contained conversion slice:
+The following two policies remain in the next schema conversion slice:
 
-- `schema-branding`;
 - `asset-refs-fk-coverage`;
 - `schema-banned-shapes`.
 
