@@ -1632,7 +1632,7 @@
     {
       "siteId": "packages/kit/src/macro/registry.ts::default:err::1",
       "path": "packages/kit/src/macro/registry.ts",
-      "line": 355,
+      "line": 364,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1640,7 +1640,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "documented — macros never throw into assembly;",
-      "markerLine": 351
+      "markerLine": 360
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",
@@ -1918,7 +1918,7 @@
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::empty:err::1",
       "path": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts",
-      "line": 160,
+      "line": 161,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -1926,7 +1926,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the file header states the contract:",
-      "markerLine": 153
+      "markerLine": 154
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/resolve-stream-authority.ts::empty:catch::1",
@@ -2490,7 +2490,7 @@
     {
       "siteId": "packages/server/src/domain/refinery/persistence/queries.ts::empty:catch::1",
       "path": "packages/server/src/domain/refinery/persistence/queries.ts",
-      "line": 248,
+      "line": 276,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2498,7 +2498,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.",
-      "markerLine": 245
+      "markerLine": 273
     },
     {
       "siteId": "packages/server/src/domain/refinery/substrate/schema-forge.ts::default:catch::1",
