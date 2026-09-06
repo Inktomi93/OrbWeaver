@@ -41,27 +41,45 @@ test("an EMPTY selection still forces assets (the surface disables the button in
   expect(buildLibraryExportHref(new Set<PortableKind>())).toBe("/api/export/library?kinds=assets");
 });
 
-test("asBundleCounts narrows the `unknown` workload result, defaulting missing/garbage fields to 0", () => {
+test("asBundleCounts narrows the `unknown` workload result, defaulting missing/garbage fields to 0/empty", () => {
   expect(asBundleCounts({ imported: 3, skipped: 1, failed: 2 })).toEqual({
     imported: 3,
     skipped: 1,
     failed: 2,
+    notes: [],
   });
-  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0 });
-  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0 });
-  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0 });
+  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [] });
+  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
+  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
 });
 
-test("summarizeBundleCounts carries the counts with an empty per-file list", () => {
-  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1 });
-  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, outcomes: [] });
+// #1710 — the flattened per-file notes a bundle import's workload result carries. A garbage/non-string
+// entry in the array is dropped rather than surfacing `[object Object]` to the reader.
+test("asBundleCounts carries the flattened `notes` array through, filtering out non-string entries", () => {
+  expect(asBundleCounts({ imported: 2, skipped: 0, failed: 0, notes: ["book kept: primary already exists"] })).toEqual({
+    imported: 2,
+    skipped: 0,
+    failed: 0,
+    notes: ["book kept: primary already exists"],
+  });
+  expect(asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: ["ok", 7, null] })).toEqual({
+    imported: 1,
+    skipped: 0,
+    failed: 0,
+    notes: ["ok"],
+  });
+});
+
+test("summarizeBundleCounts carries the counts + notes with an empty per-file list", () => {
+  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"] });
+  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], outcomes: [] });
 });
 
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
   const summary = summarizeCardImport({
     imported: [
-      { filename: "elara.png", created: true },
-      { filename: "kai.json", created: false },
+      { filename: "elara.png", created: true, notes: [] },
+      { filename: "kai.json", created: false, notes: [] },
     ],
     failed: [],
   });
@@ -69,11 +87,29 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
     imported: 1,
     skipped: 1,
     failed: 0,
+    notes: [],
     outcomes: [
       { path: "elara.png", ok: true, detail: "Character card" },
       { path: "kai.json", ok: true, detail: "Already imported" },
     ],
   });
+});
+
+// #1598/#1709 — a card's `notes` (the server's `skippedOverlays`) rides its OWN outcome, on both the
+// created AND deduped arm — a re-import that reconciled overlays against an existing character can skip
+// the same planes a fresh import can.
+test("summarizeCardImport carries each card's own notes onto its outcome — created and deduped alike", () => {
+  const summary = summarizeCardImport({
+    imported: [
+      { filename: "elara.png", created: true, notes: ["book kept: primary already exists"] },
+      { filename: "kai.json", created: false, notes: ["book kept: primary already exists"] },
+    ],
+    failed: [],
+  });
+  expect(summary.outcomes).toEqual([
+    { path: "elara.png", ok: true, detail: "Character card", notes: ["book kept: primary already exists"] },
+    { path: "kai.json", ok: true, detail: "Already imported", notes: ["book kept: primary already exists"] },
+  ]);
 });
 
 test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its reason (no fake ✓)", () => {
@@ -92,6 +128,6 @@ test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its
 });
 
 test("summaryCaption shows only the non-zero tallies", () => {
-  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [] })).toBe("3 imported");
-  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [] })).toBe("3 imported · 1 skipped · 2 failed");
+  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [] })).toBe("3 imported");
+  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [] })).toBe("3 imported · 1 skipped · 2 failed");
 });
