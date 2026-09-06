@@ -13,8 +13,8 @@ import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements } from "../persistence/canon-write.ts";
-import { loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 
 /** The alt text stamped on each generated-image ref (one home — no scattered magic string). */
@@ -47,7 +47,7 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
   return {
     generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
-      const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+      const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
       if (hostUserId === null) {
         throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
       }

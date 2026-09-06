@@ -135,7 +135,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       runAsUserId: castId("user_host"),
       triggeredBy: castId("user_host"),
       chatId: castId<ChatId>("chat_a"),
-      roster: null,
+      participants: null,
       turnId: castId<ChatTurnId>("chat_turn_a"),
     },
     ...over,
@@ -1663,7 +1663,13 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
       tools: fakeToolOps([], undefined, drivers),
       attachedToolNames: ["tick_clock"],
       runChatTurn: scriptedDepths([[doneFinal("ok")]], []),
-      toolExecFrame: { runAsUserId: host, triggeredBy: member, chatId: castId<ChatId>("chat_a"), roster: null, turnId: castId<ChatTurnId>("chat_turn_a") },
+      toolExecFrame: {
+        runAsUserId: host,
+        triggeredBy: member,
+        chatId: castId<ChatId>("chat_a"),
+        participants: null,
+        turnId: castId<ChatTurnId>("chat_turn_a"),
+      },
     });
     await runTurnPipeline(args);
     expect(drivers).toEqual([host]);

@@ -21,7 +21,7 @@
 
 import type { ChatContext } from "../context.ts";
 import type { ResolveViewerVisibility } from "../contract/context.ts";
-import { loadPresentVisibilityRow } from "../persistence/roster.ts";
+import { loadPresentVisibilityRow } from "../persistence/participants-read.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 

@@ -132,7 +132,7 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
       runAsUserId: FIXTURE_HUMAN,
       triggeredBy: FIXTURE_HUMAN,
       chatId: CHAT_ID,
-      roster: null,
+      participants: null,
       turnId: castId<ChatTurnId>("chat_turn_recovery"),
     },
     terminalTools: [TERMINAL_TOOL],

@@ -1,7 +1,7 @@
 // The roster / group-config / room-override / membership-lifecycle verbs (chat.md Part III §1/§9/§11). Proves
 // against a real libSQL db: the host-authority gate (member denied with `not_host`), the persistence effect,
 // the emitted `chatUpdated` bus event, and the kick `kicked` notification — with the REAL admin `can()`. The
-// verbs are reached through the grouped-file BUNDLE (`createRoster(ctx, { emit, claimChat: noClaim })`).
+// verbs are reached through the grouped-file BUNDLE (`createParticipants(ctx, { emit, claimChat: noClaim })`).
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatMetadata, DurableChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
@@ -35,7 +35,7 @@ import { deleteAssetRowIfUnreferenced } from "../../../../../packages/server/src
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { getToolRecurseLimit } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
-import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { createParticipants, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "../../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -87,7 +87,7 @@ const METADATA_WRITERS = [
 ] as const;
 type MetadataWriter = (typeof METADATA_WRITERS)[number];
 
-function runMetadataWriter(kind: MetadataWriter, roster: ReturnType<typeof createRoster>, host: UserId, chatId: ChatId): Promise<unknown> {
+function runMetadataWriter(kind: MetadataWriter, roster: ReturnType<typeof createParticipants>, host: UserId, chatId: ChatId): Promise<unknown> {
   switch (kind) {
     case "group":
       return roster.setGroupConfig({ principal: principal(host), chatId, config: { output: "per-speaker", policy: "natural" } });
@@ -134,7 +134,7 @@ describe("chatMetadata writers — concurrent knobs do not erase each other (#14
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "meta-race");
     await seedParticipant(db, { chatId, key: "mr", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     // Both verbs read the row, merge their own key, and write. Under the old whole-blob write each one
     // re-asserted its OWN stale copy of the other's key, so the later commit silently discarded the earlier.
@@ -152,7 +152,7 @@ describe("chatMetadata writers — concurrent knobs do not erase each other (#14
     const host = await seedUser(db, castId<Handle>("host2"));
     const chatId = await seedChat(db, "meta-stale");
     await seedParticipant(db, { chatId, key: "ms", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
     // A writer whose read of the room happened BEFORE the flip below must not carry the pre-flip value back.
@@ -170,7 +170,7 @@ describe("chatMetadata writers — concurrent knobs do not erase each other (#14
     const host = await seedUser(db, castId<Handle>("host3"));
     const chatId = await seedChat(db, "meta-fresh");
     await seedParticipant(db, { chatId, key: "mf", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true });
     await roster.setCharactersCanReact({ principal: principal(host), chatId, enabled: true });
@@ -193,7 +193,7 @@ describe("setRegexAllow — the room's regex levers (host-only)", () => {
     const host = await seedUser(db, castId<Handle>("rx-host"));
     const chatId = await seedChat(db, "rx-a");
     await seedParticipant(db, { chatId, key: "rxa", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     expect(await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "master", enabled: false } })).toEqual({
       enabled: false,
@@ -213,7 +213,7 @@ describe("setRegexAllow — the room's regex levers (host-only)", () => {
     const host = await seedUser(db, castId<Handle>("rx-host2"));
     const chatId = await seedChat(db, "rx-b");
     await seedParticipant(db, { chatId, key: "rxb", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "global", enabled: false } });
     await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "chat", enabled: false } });
@@ -230,7 +230,7 @@ describe("setRegexAllow — the room's regex levers (host-only)", () => {
     const chatId = await seedChat(db, "rx-c");
     await seedParticipant(db, { chatId, key: "rxc-h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "rxc-m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await expect(roster.setRegexAllow({ principal: principal(member), chatId, lever: { kind: "master", enabled: false } })).rejects.toThrow();
     expect((await metadataOf(chatId)).regexEnabled).toBeUndefined();
@@ -242,7 +242,7 @@ describe("setGroupConfig — host-only metadata write", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const result = await roster.setGroupConfig({
       principal: principal(host),
@@ -264,7 +264,7 @@ describe("setGroupConfig — host-only metadata write", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       .setGroupConfig({
@@ -284,7 +284,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const result = await roster.setRoomOverrides({
       principal: principal(host),
@@ -300,7 +300,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       .setRoomOverrides({
@@ -320,7 +320,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     const docA = mintTypeId(ID_PREFIX.document);
     const docB = mintTypeId(ID_PREFIX.document);
 
@@ -340,7 +340,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "a tavern" } });
     const docA = mintTypeId(ID_PREFIX.document);
 
@@ -356,7 +356,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setChatDocumentVisibility({ principal: principal(member), chatId, visibility: { hidden: [] } }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -368,7 +368,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       // FABRICATION-OK: a malformed (non-TypeID) hidden id is exactly the invalid input the verb must reject.
@@ -399,7 +399,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const url = "https://cdn.example/bg.jpg";
     const storedAssetId = await seedAsset(db, host, "external-background");
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         // The compose op fetches → magic-belts → stores the URL under the host; the stub returns the stored asset.
         materializeBackground: () => Promise.resolve({ ok: true, asset: { assetId: storedAssetId, assetHash: "hash_ext", mime: "image/png" } }),
@@ -429,7 +429,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "not-image" }) }), {
+    const roster = createParticipants(makeChatContext(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "not-image" }) }), {
       emit,
       claimChat: noClaim,
     });
@@ -448,7 +448,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "a tavern" } });
 
     await roster.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "seeded", seededId: "dusk" }) });
@@ -464,7 +464,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setChatBackground({ principal: principal(member), chatId, background: bg({ kind: "none" }) }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -477,7 +477,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // The default `filterOwnedAssetIds` stub owns nothing → the asset-ownership gate refuses.
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     const assetId = mintTypeId(ID_PREFIX.asset);
 
     const err = await roster
@@ -493,7 +493,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const assetId = await seedAsset(db, host, "ownedbackground");
-    const roster = createRoster(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
 
     const result = await roster.setChatBackground({
       principal: principal(host),
@@ -510,7 +510,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const assetId = await seedAsset(db, host, "removedbackground");
-    const roster = createRoster(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([assetId]) }), { emit, claimChat: noClaim });
     await db.delete(assets).where(eq(assets.id, assetId));
 
     const err = await roster
@@ -537,7 +537,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const release = new Promise<void>((resolve) => {
       releaseResolve = resolve;
     });
-    const staleRoster = createRoster(makeChatContext(db), {
+    const staleRoster = createParticipants(makeChatContext(db), {
       emit,
       claimChat: async () => {
         reachedResolve?.();
@@ -546,7 +546,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     });
     const writing = runMetadataWriter(writer, staleRoster, host, chatId);
     await reached;
-    const clearingRoster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const clearingRoster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await clearingRoster.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "none" }) });
     expect(await deleteAssetRowIfUnreferenced(db, host, assetId)).toBe(true);
     releaseResolve?.();
@@ -566,7 +566,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     // gate, so the write SUCCEEDS with a clean shape and the persisted assetId is "" — never GC-rooting the
     // smuggled (potentially foreign) id through `chats.metadata.background.assetId`.
     const foreign = mintTypeId(ID_PREFIX.asset);
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const result = await roster.setChatBackground({
       principal: principal(host),
@@ -585,7 +585,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const result = await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 12 });
     expect(result).toBe(12);
@@ -598,7 +598,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "a tavern" } });
     await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 3 });
@@ -611,7 +611,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setToolRecurseLimit({ principal: principal(host), chatId, limit: 999 }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -626,7 +626,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setToolRecurseLimit({ principal: principal(member), chatId, limit: 5 }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -640,7 +640,7 @@ describe("get group config for chat — member read", () => {
     const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const cfg = await roster.getGroupConfigForChat({ principal: principal(member), chatId });
     expect(cfg.output).toBe("per-speaker");
@@ -654,7 +654,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
     emitted.length = 0; // ignore the add emit
 
@@ -675,7 +675,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
     emitted.length = 0;
 
@@ -692,7 +692,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
 
     await roster.removeCharacterFromChat({ principal: principal(host), chatId, characterId: castId<CharacterId>("character_absent") });
     expect(emitted).toEqual([]);
@@ -704,7 +704,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
     const brann = await seedCharacter(db, host, "brann");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard() }), { emit, claimChat: noClaim });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: aria });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
@@ -724,7 +724,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit,
     });
@@ -752,7 +752,10 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(null) }), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(null) }), {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit,
+    });
 
     await expect(
       roster.addCharacterToChat({
@@ -771,7 +774,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
 
     const first = await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
     const second = await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
@@ -790,7 +793,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
 
     const seat = await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId });
@@ -812,7 +815,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         getCard: () => Promise.resolve(card("Aria")),
         applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
@@ -862,7 +865,10 @@ describe("add character to chat — the F6 in-window join greeting", () => {
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 0 });
     // The founding greeting — an assistant row, so the window is still OPEN (no USER row).
     await seedMessage(db, chatId, 1, { role: "assistant", characterId: aria, content: "Aria's opener" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), {
+      emit,
+      claimChat: noClaim,
+    });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
@@ -885,7 +891,10 @@ describe("add character to chat — the F6 in-window join greeting", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), {
+      emit,
+      claimChat: noClaim,
+    });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
@@ -898,7 +907,7 @@ describe("add character to chat — the F6 in-window join greeting", () => {
     const brann = await seedCharacter(db, host, "brann");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann")) }), { emit, claimChat: noClaim });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
@@ -911,7 +920,10 @@ describe("add character to chat — the F6 in-window join greeting", () => {
     const brann = await seedCharacter(db, host, "brann");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Brann", ["Brann strides in."])) }), {
+      emit,
+      claimChat: noClaim,
+    });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
@@ -936,7 +948,7 @@ describe("add character to chat — the F6 in-window join greeting", () => {
         });
       },
     });
-    const roster = createRoster(ctx, { emit, claimChat: noClaim });
+    const roster = createParticipants(ctx, { emit, claimChat: noClaim });
 
     await roster.addCharacterToChat({ principal: principal(host), chatId, characterId: brann });
 
@@ -957,7 +969,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const participantId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
 
     const view = await roster.setSeatKnobs({ principal: principal(host), chatId, participantId, patch: { disabled: true } });
     expect(view.disabled).toBe(true);
@@ -973,7 +985,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const participantId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
 
     const view = await roster.setSeatKnobs({ principal: principal(host), chatId, participantId, patch: { talkativeness: 0.8 } });
     expect(view.talkativeness).toBe(0.8);
@@ -987,7 +999,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const participantId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member", disabled: true });
-    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), { emit, claimChat: noClaim });
 
     const view = await roster.setSeatKnobs({ principal: principal(host), chatId, participantId, patch: {} });
     expect(view.disabled).toBe(true); // unchanged
@@ -1002,7 +1014,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const participantId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await expect(roster.setSeatKnobs({ principal: principal(member), chatId, participantId, patch: { disabled: true } })).rejects.toMatchObject({
       code: "not_host",
@@ -1014,7 +1026,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       .setSeatKnobs({ principal: principal(host), chatId, participantId: castId<ChatParticipantId>("chat_participant_ghost"), patch: { disabled: true } })
@@ -1030,7 +1042,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const memberSeatId = await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       .setSeatKnobs({ principal: principal(host), chatId, participantId: memberSeatId, patch: { disabled: true } })
@@ -1053,7 +1065,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinSeq: 4 });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" });
 
@@ -1070,7 +1082,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" });
 
@@ -1084,7 +1096,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setMemberHistoryVisibility({ principal: principal(member), chatId, userId: member, visibility: "full" }).catch((e: unknown) => e);
 
@@ -1105,7 +1117,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const characterId = await seedCharacter(db, host, "Aria");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const seatId = await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       // A participant id is forged through castId into the userId slot; no assertion cast is involved here.
@@ -1125,7 +1137,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", leftSeq: 2 });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster
       .setMemberHistoryVisibility({ principal: principal(host), chatId, userId: member, visibility: "from-join" })
@@ -1144,7 +1156,7 @@ describe("kick — host removes a member", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         emitNotification: recordingEmit(notes),
       }),
@@ -1165,7 +1177,7 @@ describe("selfLeave — a sole-host self-leave archives the room", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.selfLeave({ principal: principal(host), chatId });
 
@@ -1184,7 +1196,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         emitNotification: recordingEmit(notes),
       }),
@@ -1210,7 +1222,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.nominateHostHandoff({ principal: principal(member), chatId, userId: other }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -1225,7 +1237,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: stranger }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
@@ -1263,7 +1275,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       return true;
     };
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), {
+    const roster = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes) }), {
       emit: emitThroughRealBus,
       claimChat: noClaim,
     });
@@ -1327,7 +1339,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       const logged = claimStatement === undefined ? await bus.emit(event) : await bus.emitAfterClaim(event, claimStatement);
       return logged !== null;
     };
-    const roster = createRoster(makeChatContext(db, { rpg }), { emit: emitAtomic, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { rpg }), { emit: emitAtomic, claimChat: noClaim });
 
     await Promise.all([roster.acceptHostHandoff({ principal: principal(member), chatId }), roster.acceptHostHandoff({ principal: principal(member), chatId })]);
 
@@ -1345,7 +1357,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         emitNotification: recordingEmit(notes),
       }),
@@ -1381,7 +1393,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "x", userId: attacker, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     emitted.length = 0;
 
@@ -1403,7 +1415,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.acceptHostHandoff({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -1426,7 +1438,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "ca", characterId: aria, role: "member" });
     await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(
+    const roster = createParticipants(
       makeChatContext(db, {
         getCard: ownedCard(),
         emitNotification: recordingEmit(notes),
@@ -1480,7 +1492,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { rpg, emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { rpg, emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -1506,7 +1518,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -1529,7 +1541,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -1548,7 +1560,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }), { emit, claimChat: noClaim });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -1584,7 +1596,10 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const rows: RecordedAudit[] = [];
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), {
+      emit,
+      claimChat: noClaim,
+    });
 
     await roster.kick({ principal: principal(host), chatId, userId: member });
 
@@ -1608,7 +1623,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const rows: RecordedAudit[] = [];
-    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
 
     await roster.kick({ principal: principal(host), chatId, userId: ghost });
 
@@ -1623,7 +1638,10 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const rows: RecordedAudit[] = [];
     const notes: NotificationEvent[] = [];
-    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }), {
+      emit,
+      claimChat: noClaim,
+    });
 
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -1650,7 +1668,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const rows: RecordedAudit[] = [];
-    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
 
     await roster.setGroupConfig({
       principal: principal(host),
@@ -1678,7 +1696,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const rows: RecordedAudit[] = [];
-    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db, { audit: auditRecorder(rows) }), { emit, claimChat: noClaim });
 
     await roster.kick({ principal: principal(member), chatId, userId: host }).catch((e: unknown) => e);
 
@@ -1784,7 +1802,7 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     // Seed a sibling sub-blob first — the write must not eat it.
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
@@ -1803,7 +1821,7 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true });
     expect(await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: false })).toBe(false);
@@ -1818,7 +1836,7 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setHostDisplayScripts({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -1840,7 +1858,7 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
     emitted.length = 0;
@@ -1861,7 +1879,7 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setOfferChoices({ principal: principal(host), chatId, enabled: true });
     expect(await roster.setOfferChoices({ principal: principal(host), chatId, enabled: false })).toBe(false);
@@ -1876,7 +1894,7 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await roster.setOfferChoices({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -1897,7 +1915,7 @@ describe("setCharactersCanReact / setReactionsEnabled — the B7 reaction postur
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
     emitted.length = 0;
@@ -1924,7 +1942,7 @@ describe("setCharactersCanReact / setReactionsEnabled — the B7 reaction postur
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const roster = createRoster(makeChatContext(db), { emit, claimChat: noClaim });
+    const roster = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     // One knob reaches the PROMPT (the react-tool attach), the other every member's write path — both are
     // room-wide behavior, so host is the floor for each.

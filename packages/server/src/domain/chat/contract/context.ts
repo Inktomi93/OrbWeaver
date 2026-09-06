@@ -109,7 +109,7 @@ export interface ChatToolExecFrame {
   readonly runAsUserId: UserId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
-  readonly roster: ChatMembership | null;
+  readonly participants: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
    *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
   readonly turnId: ChatTurnId;
@@ -457,7 +457,7 @@ export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => 
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
  *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgRosterActor` (rpg declares its
  *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
-export interface RpgRosterActor {
+export interface RpgParticipantActor {
   readonly actorRef: RpgActorRef;
   readonly name: string;
   readonly avatar?: string;
@@ -466,7 +466,7 @@ export interface RpgRosterActor {
 /** The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
  *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
  *  injected-op precedent). Wired into `RpgContext.resolveRoster` at the composition root (W1c-b). */
-export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
+export type ResolveRpgParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** The DEEP canon-window read op (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed).
  *  STANDALONE + principal-free (the `ResolveRpgRoster` precedent — the rpg resync verb gated its host caller
@@ -553,7 +553,7 @@ type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
  *  an admin disable propagates the very next round. Chat never reads `users` itself — see
  *  {@link ResolveHandleOp}. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
  *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
- *  `substrate/roster-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
+ *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
  *  set the same way a departed member's already does. */
 type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
 

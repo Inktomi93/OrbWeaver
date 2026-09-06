@@ -1383,7 +1383,7 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
 
   // The DIVERGENCE the bug exploited: the roster projection (join order) puts the MEMBER first — the old
   // `find(kind==="user")` would have picked it. Prove the two answers differ here.
-  const rosterFirstHuman = (await app.chatRpgOps.resolveRpgRoster(chatId)).find((a) => a.actorRef.kind === "user");
+  const rosterFirstHuman = (await app.chatRpgOps.resolveRpgParticipants(chatId)).find((a) => a.actorRef.kind === "user");
   expect(rosterFirstHuman?.actorRef.kind === "user" && rosterFirstHuman.actorRef.userId).toBe(member);
 
   // The composed chat-side host resolver (what the rpg extraction + capability verdict read) resolves the

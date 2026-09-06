@@ -48,7 +48,7 @@ interface ParticipantRowShape {
  *
  *  THE ONE HOME for the `kind === "human" && userId !== null`-shaped narrowing every roster-derived read
  *  needs — 29 call sites across the domain re-spelled this inline before the 2026-08-15 consolidation
- *  (`loadRoster`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
+ *  (`loadParticipants`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
  *  semantics are preserved by discarding a `null` classification exactly the way the inline guard already
  *  discarded a failed condition — zero behavior change was the whole point of splitting this off
  *  {@link parseParticipant}, which keeps the throwing contract for callers that want the loud belt). */
@@ -103,7 +103,7 @@ export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly
 }
 
 /** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled
- *  2026-08-15) through `substrate/roster-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
+ *  2026-08-15) through `substrate/participants-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
  *  narrowing every consent-set consumer (`verbs/turn.ts`'s `loadRoom`, `setChatAnchorPersona`'s pin
  *  validation, `edit.ts`'s runOnEdit re-apply + greeting re-bake) routes through, so a disabled human's
  *  backing `users.enabled` drops their persona from EVERY reader of the room's foreign-input consent set the

@@ -256,7 +256,7 @@ export interface ParticipantView {
   talkativeness: number;
   disabled: boolean;
   joinedAt: number;
-  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single authority (read.ts:342, persistence/roster.ts:30) — the server returns seats already ordered by it, so a client read would be a second clamp authority. Ends if a join-history affordance renders the seq itself.
+  // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single authority (read.ts:342, persistence/participants-read.ts:30) — the server returns seats already ordered by it, so a client read would be a second clamp authority. Ends if a join-history affordance renders the seq itself.
   joinSeq: number;
   leftSeq: number | null;
   joinHistoryVisibility: JoinHistoryVisibility;

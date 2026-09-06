@@ -1,4 +1,5 @@
-// substrate/roster-humans — THE human-seat lens over an already-loaded roster (the `roster-host.ts` twin:
+// substrate/participants-humans — THE human-seat lens over an already-loaded seat list (the
+// `participants-host.ts` twin:
 // zero I/O, zero Principal, it only reads rows the caller already has). It answers ONE question — WHOSE
 // PERSONAS may this room resolve — and that answer is a law, not a convenience:
 //
@@ -24,7 +25,7 @@ import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
 
-/** The columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadRoster`)
+/** The columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadParticipants`)
  *  passes unchanged (the row shape is never re-spelled here). */
 interface HumanSeat {
   readonly kind: ParticipantKind;
@@ -35,15 +36,15 @@ interface HumanSeat {
 /** The room's PERSONA CONSENT SET: every human seat's `userId`, deduped (see the file header). Routes
  *  through {@link classifyParticipant} — the one-home XOR discriminator (2026-08-15 consolidation).
  *
- *  Pass a PRESENT roster (`loadRoster`'s default, `leftSeq IS NULL`) — presence IS the consent, so a departed
+ *  Pass a PRESENT roster (`loadParticipants`'s default, `leftSeq IS NULL`) — presence IS the consent, so a departed
  *  member's persona stops resolving and a stale pin heals downward to the active persona (the HEAL
  *  precedent) instead of being copied or resurrected. Deliberately NOT online-filtered like the turn's
  *  `personaIds`: an OFFLINE member is still a member, and the anchor's owner is routinely offline (presence
  *  gates which persona BOOKS join the world-info pool, never whose identity the room may render). PURE. */
-function presentHumanUserIdsOf(roster: readonly HumanSeat[]): readonly UserId[] {
+function presentHumanUserIdsOf(participants: readonly HumanSeat[]): readonly UserId[] {
   return [
     ...new Set(
-      roster.flatMap((seat) => {
+      participants.flatMap((seat) => {
         const actor = classifyParticipant(seat);
         return actor?.kind === "human" ? [actor.userId] : [];
       }),
@@ -57,8 +58,8 @@ function presentHumanUserIdsOf(roster: readonly HumanSeat[]): readonly UserId[] 
  *  route through — `verbs/turn.ts`'s `loadRoom` inlined this once and nowhere else, which is exactly the
  *  silently-dead-pin disagreement this file's header warns about, reintroduced for a second axis. Read fresh
  *  per call (never cached), mirroring `sessions.validate`'s per-request re-check. */
-export async function presentAndEnabledHumanUserIdsOf(ctx: ChatContext, roster: readonly HumanSeat[]): Promise<readonly UserId[]> {
-  const present = presentHumanUserIdsOf(roster);
+export async function presentAndEnabledHumanUserIdsOf(ctx: ChatContext, participants: readonly HumanSeat[]): Promise<readonly UserId[]> {
+  const present = presentHumanUserIdsOf(participants);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
 }
@@ -82,8 +83,8 @@ interface PersonaSeat extends HumanSeat {
  *  members who were not online, and the honesty instrument reported a prompt the next real turn would not
  *  send. Same class as the consent set's own history recorded in this file's header: a second copy of a
  *  membership rule drifts from the first. */
-export async function onlinePersonaIdsOf(ctx: ChatContext, roster: readonly PersonaSeat[]): Promise<readonly PersonaId[]> {
-  const seats = roster.flatMap((seat) => {
+export async function onlinePersonaIdsOf(ctx: ChatContext, participants: readonly PersonaSeat[]): Promise<readonly PersonaId[]> {
+  const seats = participants.flatMap((seat) => {
     const actor = classifyParticipant(seat);
     return actor?.kind === "human" && seat.activePersonaId !== null ? [{ userId: actor.userId, personaId: seat.activePersonaId }] : [];
   });

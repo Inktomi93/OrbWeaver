@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { presentAndEnabledHumanUserIdsOf } from "../../../../../packages/server/src/domain/chat/substrate/roster-humans.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../../../../../packages/server/src/domain/chat/substrate/participants-humans.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext } from "../_support.ts";

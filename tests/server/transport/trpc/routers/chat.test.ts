@@ -735,7 +735,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
 });
 
 // The CONTEXT-panel cluster (task #28 — room-overrides · preview-request · manual injections): all were
-// fully implemented in domain/chat (verbs/roster.ts, verbs/read.ts, verbs/chat-lifecycle.ts) — host/member
+// fully implemented in domain/chat (verbs/participants.ts, verbs/read.ts, verbs/chat-lifecycle.ts) — host/member
 // gated via substrate/auth/matrix.ts — but never exposed on this router (the same MISSING-API shape the
 // clusters above were in). Thin pass-throughs; the leak-free NOT_FOUND collapse is the verb's own gate.
 
@@ -1056,7 +1056,7 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
 });
 
 // The group-roster-controls cluster (task #29 — the cast bar + per-member controls): the two per-member
-// setters + forceCharacterTurn were fully implemented in domain/chat (verbs/roster.ts + verbs/turn.ts),
+// setters + forceCharacterTurn were fully implemented in domain/chat (verbs/participants.ts + verbs/turn.ts),
 // host-gated via substrate/auth/matrix.ts, but never exposed on this router (the same MISSING-API shape
 // the #28 cluster was in). Thin pass-throughs; the leak-free NOT_FOUND collapse is the verb's own gate.
 

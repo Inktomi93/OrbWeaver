@@ -109,6 +109,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import {
   countMemberChats,
   listMemberChats,
@@ -127,7 +128,6 @@ import {
   loadStreamReplay,
   loadVariantWire,
 } from "../persistence/queries.ts";
-import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import {
   buildAssemblyBudget,
@@ -149,9 +149,9 @@ import {
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
@@ -415,8 +415,8 @@ async function resolvePreviewInputs(
   },
 ): Promise<PreviewInputs> {
   const { anchorPersonaId, speakerCharacterId } = opts;
-  const roster = await loadRoster(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(roster);
+  const participants = await loadParticipants(ctx.db, chatId);
+  const hostUserId = hostUserIdOf(participants);
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
@@ -424,22 +424,22 @@ async function resolvePreviewInputs(
   // so the SHAPE peek renders the shape the next turn will send, not a pinned `per-speaker` guess.
   const chatRow = await loadChatRow(ctx.db, chatId);
   const group = chatRow?.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const rosterCharacterIds = roster.flatMap((r) => {
+  const participantCharacterIds = participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const characterIds =
-    speakerCharacterId !== null && speakerCharacterId !== undefined && rosterCharacterIds.includes(speakerCharacterId)
-      ? [speakerCharacterId, ...rosterCharacterIds.filter((id) => id !== speakerCharacterId)]
-      : rosterCharacterIds;
+    speakerCharacterId !== null && speakerCharacterId !== undefined && participantCharacterIds.includes(speakerCharacterId)
+      ? [speakerCharacterId, ...participantCharacterIds.filter((id) => id !== speakerCharacterId)]
+      : participantCharacterIds;
   // #1401 — the SAME derivation the live turn runs (`verbs/turn.ts::loadRoom`), through the one substrate
   // lens. This used to take every present human's active persona with no filter at all, so a preview
   // assembled the persona-scope world-info of members who were not in the room — an honesty instrument
   // reporting a prompt the next real turn would not send. Presence is the axis here (not the enabled
   // consent gate `previewPresentHumanUserIds` applies below); the two answer different questions.
-  const personaIds = await onlinePersonaIdsOf(ctx, roster);
+  const personaIds = await onlinePersonaIdsOf(ctx, participants);
   const hostPersonaId =
-    roster.find((r) => {
+    participants.find((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "human" && actor.userId === hostUserId;
     })?.activePersonaId ?? null;
@@ -460,7 +460,7 @@ async function resolvePreviewInputs(
   const presetOverride = explicitPreset ?? gmPreset ?? undefined;
   // A preview is an HONESTY INSTRUMENT (see the file doc above) — it must not overstate what a live turn would
   // actually resolve, so the enabled axis narrows this exactly like `verbs/turn.ts`'s `loadRoom` (2026-08-15).
-  const previewPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
+  const previewPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
@@ -739,8 +739,8 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
   return async ({ principal, chatId }: GetChatParams): Promise<ChatSendAvailability> => {
     await requireParticipant(ctx, principal, chatId);
-    const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(roster);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(participants);
     if (hostUserId === null) {
       throw new ChatNotFoundError(chatId);
     }
@@ -831,9 +831,9 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const membership = await requireParticipant(ctx, principal, chatId);
     // Belt 2 + the host owner: resolve the room's present roster ONCE — the host (card owner for every load
     // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
-    const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(roster);
-    const seated = roster.some((r) => {
+    const participants = await loadParticipants(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(participants);
+    const seated = participants.some((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
@@ -849,7 +849,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
     // Same enabled-axis narrowing as `resolvePreviewInputs` above — a member card render is also an honesty
     // instrument about who the room would actually resolve a persona for.
-    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, roster);
+    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
     const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),

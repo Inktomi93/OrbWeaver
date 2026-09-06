@@ -2,7 +2,7 @@
 // Proves: a CHARACTER seat resolves its card under the HOST's ownership (the getCard ownerId = the room host,
 // D18/D19); a HUMAN seat resolves its publics (displayName ?? handle ?? ""); a seat that resolves to neither
 // ref (a gone card) is DROPPED; the read is `WHERE chatId`-scoped (no cross-chat leak); a LEFT seat is not
-// projected (loadRoster present-only). Deterministic (frozen clock, seeded ids); assert the projected shape.
+// projected (loadParticipants present-only). Deterministic (frozen clock, seeded ids); assert the projected shape.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardSchema } from "@orb/contracts/character";
@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { createResolveRpgRoster } from "../../../../../packages/server/src/domain/chat/verbs/resolve-rpg-roster.ts";
+import { createResolveRpgParticipants } from "../../../../../packages/server/src/domain/chat/verbs/resolve-rpg-participants.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
@@ -79,7 +79,7 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgRoster(ctx)(chatId);
+    const roster = await createResolveRpgParticipants(ctx)(chatId);
 
     // The character resolves under the HOST's ownership (never the seat's own — a character has no user owner).
     expect(cardCalls).toEqual([{ ownerId: host, characterId: charId }]);
@@ -105,7 +105,7 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: (assetId) => Promise.resolve(assetId === avatar ? "hash_x" : null),
     });
 
-    const roster = await createResolveRpgRoster(ctx)(chatId);
+    const roster = await createResolveRpgParticipants(ctx)(chatId);
     expect(roster).toEqual([
       { actorRef: { kind: "user", userId: host }, name: "The Host" },
       { actorRef: { kind: "user", userId: withHandle }, name: "handled_one", avatar: "hash_x" },
@@ -126,7 +126,7 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgRoster(ctx)(chatId);
+    const roster = await createResolveRpgParticipants(ctx)(chatId);
     // Only the human host survives — the ghost character is dropped.
     expect(roster).toEqual([{ actorRef: { kind: "user", userId: host }, name: "Host" }]);
   });
@@ -148,7 +148,7 @@ describe("resolveRpgRoster", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const roster = await createResolveRpgRoster(ctx)(chatA);
+    const roster = await createResolveRpgParticipants(ctx)(chatA);
     // Only chat A's PRESENT host — the left member and chat B's stranger are both absent.
     expect(roster).toEqual([{ actorRef: { kind: "user", userId: host }, name: host }]);
   });

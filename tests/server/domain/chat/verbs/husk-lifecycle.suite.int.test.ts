@@ -35,8 +35,8 @@ import { createActiveTurns } from "../../../../../packages/server/src/domain/cha
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { insertChatEventStatement } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
+import { characterSeatedInAnotherChat } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { characterSeatedInAnotherChat } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";

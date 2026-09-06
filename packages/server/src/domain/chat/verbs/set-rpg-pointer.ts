@@ -26,9 +26,9 @@ import type { SetRpgPointer } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
 
 /** The metadata a DETACH leaves behind — the `rpg` sub-blob stripped so the chat reads byte-identically to a
  *  never-a-game chat (the takeover gate reads PRESENCE, never `rpg === null`). Used only to compute the
@@ -51,7 +51,7 @@ export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
     // / `chatMetadataDropStatement` touch `$.rpg` alone; the guard still reads the effective metadata because
     // the background predicate is about what will be in force after the write.
     const effective: typeof chat.metadata = pointer === null ? dropRpgPointer(chat.metadata) : { ...chat.metadata, rpg: pointer };
-    const hostUserId = hostUserIdOf(await loadRoster(ctx.db, chatId));
+    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
     const guard = carriedBackgroundAvailable(ctx.db, effective);
     const now = ctx.now();
     const statement =

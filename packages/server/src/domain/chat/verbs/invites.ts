@@ -46,7 +46,7 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { hostSeatOf } from "../substrate/roster-host.ts";
+import { hostSeatOf } from "../substrate/participants-host.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
