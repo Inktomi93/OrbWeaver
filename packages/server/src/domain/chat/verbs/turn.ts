@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
+import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
@@ -90,6 +90,7 @@ import {
 } from "../persistence/queries.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
+import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
@@ -362,6 +363,65 @@ interface BuiltTurnContext {
    *  card rides the wire whole), `0` for a game whose host kept the rpg default (every card stubs). This used
    *  to floor to `0`, which gave a chat with no game the strictest setting of a feature it never opted into. */
   readonly cardKeepLastX: number | undefined;
+}
+
+/** The `TurnPrep` fields EVERY generating kind carries IDENTICALLY — one home for the block that was spelled
+ *  out at seven call sites (send / force / swipe / continue / generate / the deferred-drain base / the
+ *  auto-chain base). Fold rather than record (#1767): the sites do not merely look alike, they CHANGE
+ *  TOGETHER — `terminalTools`, `cardKeepLastX` and the recurse patch each arrived at all seven at once, and
+ *  the next such field is why this exists.
+ *
+ *  WHAT DELIBERATELY STAYS AT THE CALL SITE: `kind`, `persist`, `speakerCharacterId`, `lockFree`, `signal`,
+ *  the automation origin stamps, `slotAccepted`, and the two fields only SOME kinds own —
+ *  `respondsToLatestUserTurn` (a swipe/send/drain fact, absent on continue/generate) and the macro-registry
+ *  spread (absent on the two drain bases). Folding those in would let a site silently acquire a field it
+ *  deliberately lacks, which is the failure mode a shared builder invites; the split is exactly the line
+ *  between "every kind, same value" and "this kind's own answer".
+ *
+ *  Derived `Pick`, never a re-spelled shape — a `TurnPrep` field rename lands here as a tsc error. */
+type SharedTurnPrepFields = Pick<
+  TurnPrep,
+  | "assembleContext"
+  | "connection"
+  | "triggeredBy"
+  | "runAsUserId"
+  | "intent"
+  | "extraStopSequences"
+  | "memoryConfig"
+  | "memoryRecall"
+  | "attachedToolNames"
+  | "terminalTools"
+  | "cardKeepLastX"
+  | "toolRecurseLimit"
+>;
+
+/** Build {@link SharedTurnPrepFields} from the turn's already-resolved bundle. `built` is structural: both
+ *  `commitUserTurn`'s `built` and `resolveTurnBase`'s flattened result satisfy {@link BuiltTurnContext}. */
+function sharedTurnPrepFields(env: {
+  readonly built: BuiltTurnContext;
+  /** The turn's resolved identity pair — taken WHOLE (never as two fields) so the call stays one line: the
+   *  multi-line argument literal an unpacked signature forces is itself a duplicated block, which is this
+   *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred-drain `row` both satisfy it. */
+  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+  readonly connection: ResolvedConnection;
+  readonly intent: UserIntent | undefined;
+  readonly toolRecurseLimit: number | undefined;
+}): SharedTurnPrepFields {
+  const { built, identity, connection, intent } = env;
+  return {
+    assembleContext: built.assembleContext,
+    connection,
+    triggeredBy: identity.triggeredBy,
+    runAsUserId: identity.runAsUserId,
+    intent: intent ?? {},
+    extraStopSequences: built.chatBehavior.customStoppingStrings,
+    memoryConfig: built.memoryConfig,
+    ...(built.memoryRecall !== null ? { memoryRecall: built.memoryRecall } : {}),
+    attachedToolNames: built.attachedToolNames,
+    terminalTools: built.terminalTools,
+    cardKeepLastX: built.cardKeepLastX,
+    ...recursePatch(env.toolRecurseLimit),
+  };
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -899,6 +959,11 @@ async function runChain(
       const chainIntent = KIND_TO_INTENT.auto;
       await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
       const facts = await canonFacts(ctx, args.base.chatId);
+      // RECORDED TWIN (#1767), not a fold: `runAiRound`'s own arbitrate call below shares this room plumbing
+      // and then DIVERGES on the fields that decide the answer — that one passes the caller's `forcedIds` and
+      // an origin `lastSpeaker`, this chain pass deliberately passes neither (a chained beat has no forced
+      // pick, and it re-reads `facts` because the previous beat just committed). Two sites, and the shared
+      // half is the room's candidate lists — a builder for them would hide exactly the arguments that differ.
       const arbitration = await arbitrate(ctx, deps, {
         chatId: args.base.chatId,
         group: args.group,
@@ -1131,11 +1196,13 @@ async function freezeGreetingVolatiles(
   });
   if (stmts.length > 0) {
     const chatId = priorCanon[0]?.chatId;
-    const hostUserId = chatId === undefined ? null : hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    if (hostUserId !== null) {
-      ctx.bumpStatsCanonVersion(stmts, ctx.db, hostUserId);
+    // A canon list with no chatId cannot name a room to fence against, so it commits UNBUMPED — the one
+    // arm `commitHostFencedWrite` cannot express (it takes a chatId by construction).
+    if (chatId === undefined) {
+      await ctx.db.batch(batchMany(stmts));
+    } else {
+      await commitHostFencedWrite(ctx, chatId, stmts);
     }
-    await ctx.db.batch(batchMany(stmts));
   }
 }
 
@@ -1398,6 +1465,10 @@ async function commitUserTurn(
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
+  // RECORDED TWIN (#1767): `resolveTurnBase` opens with the same three resolves, and the difference is the
+  // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
+  // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
+  // whose name cannot carry it, which is the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
@@ -1483,18 +1554,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       attachmentAssetIds,
       guided,
     });
-    const {
-      assembleContext,
-      memoryConfig,
-      memoryRecall,
-      chatBehavior,
-      attachedToolNames,
-      terminalTools,
-      respondsToLatestUserTurn,
-      macroRegistry,
-      userMacroDraws,
-      cardKeepLastX,
-    } = built;
+    // Only what this body still reads on its own — the shared prep block comes off `built` itself now.
+    const { chatBehavior, respondsToLatestUserTurn, macroRegistry, userMacroDraws } = built;
 
     // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
     // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
@@ -1517,19 +1578,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "send",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       // WAVE MU: the per-turn user-macro registry + the fresh draw record — shared across the round's speakers
       // (buildSpeakerPrep spreads the base), so every committed variant persists the same draws.
@@ -1624,24 +1674,12 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
         }),
       };
     });
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, cardKeepLastX } = built;
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "force",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
       // The accept above opened the client's slot, so the engine's PRE-START refusals owe it a `turnAborted`
       // (`closePreStartRefusal`) instead of the historical bus-silent throw.
@@ -1921,6 +1959,10 @@ async function withAcceptedSlot<T>(
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
   return async ({ principal, chatId, messageId, intent, guided }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // RECORDED TWIN (#1767): `continueTurn` opens with the same guard. Two sites, and each one's COMMENT is
+    // the point — the leak-free NOT_FOUND means something different per verb (swipe-append vs extend-in-place)
+    // and the two other `role !== "assistant"` guards in this file check a different shape entirely. A
+    // `requireAssistantSlot` helper would be one line of savings and one lost explanation apiece.
     // Chat-scoped load: a messageId from another chat matches nothing, so a member can't swipe-append another room's canon.
     const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined || target.role !== "assistant") {
@@ -1933,20 +1975,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     // ACCEPTED: the target is real and the caller is a member, so this swipe IS happening — open the client's
     // ghost slot on `messageId` NOW, before the multi-second `resolveTurnBase`. Ordered AFTER the NOT_FOUND
     // throw above so a bad slot id never opens a slot at all.
-    const {
-      room,
-      identity,
-      connection,
-      assembleContext,
-      memoryConfig,
-      memoryRecall,
-      chatBehavior,
-      attachedToolNames,
-      terminalTools,
-      macroRegistry,
-      userMacroDraws,
-      cardKeepLastX,
-    } = await withAcceptedSlot(deps, { chatId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+    const built = await withAcceptedSlot(deps, { chatId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -1960,25 +1989,18 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
         regenSlotMessageId: messageId,
         guided,
         // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
+        // RECORDED TWIN (#1767): continue's gather ends on the same spread + closing punctuation. That is a
+        // FORMATTING coincidence of two independent argument lists, not a shared decision — the six lines
+        // jscpd pairs here carry different `kind`, different trigger and a different regen field above them.
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
       }),
     );
+    const { room, identity, connection, macroRegistry, userMacroDraws } = built;
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "swipe",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
@@ -2002,20 +2024,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     }
     // ACCEPTED (same instant as swipe's): the target is real, so the client's ghost slot for `messageId` opens
     // before `resolveTurnBase`, not after. A bad slot id threw above and never opened one.
-    const {
-      room,
-      identity,
-      connection,
-      assembleContext,
-      memoryConfig,
-      memoryRecall,
-      chatBehavior,
-      attachedToolNames,
-      terminalTools,
-      macroRegistry,
-      userMacroDraws,
-      cardKeepLastX,
-    } = await withAcceptedSlot(deps, { chatId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+    const built = await withAcceptedSlot(deps, { chatId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -2028,22 +2037,12 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
       }),
     );
+    const { room, identity, connection, assembleContext, macroRegistry, userMacroDraws } = built;
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "continue",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
       // RENDERED (macro path parity): continue carries no `{{person}}` today; the registry render is a safe no-op
@@ -2313,36 +2312,12 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       });
       return { base: resolved, speaker: resolveGenerateSpeaker(resolved.room, chatId, speakerCharacterId) };
     });
-    const {
-      room,
-      identity,
-      connection,
-      assembleContext,
-      memoryConfig,
-      memoryRecall,
-      chatBehavior,
-      attachedToolNames,
-      terminalTools,
-      macroRegistry,
-      userMacroDraws,
-      cardKeepLastX,
-    } = base;
+    const { room, identity, connection, assembleContext, macroRegistry, userMacroDraws } = base;
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(ctx, deps, membership, {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built: base, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "generate",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: speaker,
       lockFree: true,
@@ -2379,12 +2354,7 @@ async function restoreContinue(
   }
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  const statements = [setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)];
-  const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-  if (hostUserId !== null) {
-    ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
-  }
-  await ctx.db.batch(batchMany(statements));
+  await commitHostFencedWrite(ctx, chatId, [setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]);
   const view = await loadMessageView(ctx.db, messageId);
   if (view === undefined) {
     throw new ChatNotFoundError(chatId);
@@ -2447,44 +2417,34 @@ async function runDeferredRound(
     chatId: row.chatId,
   });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, respondsToLatestUserTurn, cardKeepLastX } =
-    await buildTurnContext(ctx, deps, {
-      chatId: row.chatId,
-      runAsUserId: row.runAsUserId,
-      model: connection.model,
-      kind: "send",
-      characterIds: room.characterIds,
+  const built = await buildTurnContext(ctx, deps, {
+    chatId: row.chatId,
+    runAsUserId: row.runAsUserId,
+    model: connection.model,
+    kind: "send",
+    characterIds: room.characterIds,
 
-      mutedSpeakerKeys: room.mutedSpeakerKeys,
-      personaIds: room.personaIds,
-      presentHumanUserIds: room.presentHumanUserIds,
-      anchorPersonaId: chat.anchorPersonaId,
-      // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
-      trigger: { kind: "none" },
-      // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
-      // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
-      respondsToLatestUserTurn: true,
-      // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
-      candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
-      chatMetadata: chat.metadata,
-    });
+    mutedSpeakerKeys: room.mutedSpeakerKeys,
+    personaIds: room.personaIds,
+    presentHumanUserIds: room.presentHumanUserIds,
+    anchorPersonaId: chat.anchorPersonaId,
+    // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
+    trigger: { kind: "none" },
+    // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
+    // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
+    respondsToLatestUserTurn: true,
+    // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+    candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
+    chatMetadata: chat.metadata,
+  });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
+  // `row` IS the identity pair here (the queued turn's frozen triggeredBy/runAsUserId) — no `identity`
+  // resolve happens on a drain, which is why the shared block takes the pair rather than the resolver.
   const base: RoundBase = {
     chatId: row.chatId,
-    assembleContext,
-    connection,
-    triggeredBy: row.triggeredBy,
-    runAsUserId: row.runAsUserId,
+    ...sharedTurnPrepFields({ built, identity: row, connection, intent: undefined, toolRecurseLimit: chat.metadata.toolRecurseLimit }),
     kind: "send",
-    intent: {},
-    extraStopSequences: chatBehavior.customStoppingStrings,
-    memoryConfig,
-    ...(memoryRecall !== null ? { memoryRecall } : {}),
-    attachedToolNames,
-    terminalTools,
-    cardKeepLastX,
-    ...recursePatch(chat.metadata.toolRecurseLimit),
-    respondsToLatestUserTurn,
+    respondsToLatestUserTurn: built.respondsToLatestUserTurn,
     signal: handle.signal,
   };
   await runAiRound(ctx, deps, { base, group, room, signal: handle.signal });
@@ -2641,46 +2601,34 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
     const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
     const group = speakerCharacterId !== undefined ? asPerSpeaker(baseGroup) : baseGroup;
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, respondsToLatestUserTurn, cardKeepLastX } =
-      await buildTurnContext(ctx, deps, {
-        chatId,
-        runAsUserId: identity.runAsUserId,
-        model: connection.model,
-        kind: "auto",
-        characterIds: room.characterIds,
+    const built = await buildTurnContext(ctx, deps, {
+      chatId,
+      runAsUserId: identity.runAsUserId,
+      model: connection.model,
+      kind: "auto",
+      characterIds: room.characterIds,
 
-        mutedSpeakerKeys: room.mutedSpeakerKeys,
-        personaIds: room.personaIds,
-        presentHumanUserIds: room.presentHumanUserIds,
-        anchorPersonaId: chat.anchorPersonaId,
-        // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
-        trigger: { kind: "none" },
-        ...(guided !== undefined ? { guided } : {}),
-        // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
-        candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
-        chatMetadata: chat.metadata,
-      });
+      mutedSpeakerKeys: room.mutedSpeakerKeys,
+      personaIds: room.personaIds,
+      presentHumanUserIds: room.presentHumanUserIds,
+      anchorPersonaId: chat.anchorPersonaId,
+      // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
+      trigger: { kind: "none" },
+      ...(guided !== undefined ? { guided } : {}),
+      // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+      candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
+      chatMetadata: chat.metadata,
+    });
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
+      ...sharedTurnPrepFields({ built, identity, connection, intent: undefined, toolRecurseLimit: chat.metadata.toolRecurseLimit }),
       kind: "auto",
       // The turn origin — the engine stamps both onto the new-slot reply; `getTurnOrigin` reads them
       // back for the cascade guard. NEVER a bus-event field (the D19/D50 allowlist).
       initiator,
       automationDepth,
-      intent: {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      terminalTools,
-      cardKeepLastX,
-      ...recursePatch(chat.metadata.toolRecurseLimit),
-      respondsToLatestUserTurn,
+      respondsToLatestUserTurn: built.respondsToLatestUserTurn,
       signal: handle.signal,
     };
     return await runAiRound(ctx, deps, {

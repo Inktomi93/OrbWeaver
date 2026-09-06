@@ -75,7 +75,7 @@ import { requireHost, requireParticipant } from "../guard.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 import { resolveChoiceVariables } from "../substrate/variables.ts";
@@ -122,14 +122,11 @@ type ChatLifecycleVerbs = Pick<
   | "deleteChatInjection"
 >;
 
-/** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. */
+/** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. The trio itself
+ *  lives in `substrate/host-fenced-write` (#1767 — four verbs had spelled it out); this stays as the
+ *  single-statement shape this file's callers pass. */
 async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
-  const statements = [statement];
-  const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-  if (hostUserId !== null) {
-    ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);
-  }
-  await ctx.db.batch(batchMany(statements));
+  await commitHostFencedWrite(ctx, chatId, [statement]);
 }
 
 /** Map a persisted `chat_injections` row → the `ChatInjectionView` wire shape (`order` omitted when null). */
