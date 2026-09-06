@@ -6,7 +6,7 @@ updated: 2026-09-05
 
 # Gate-runtime emergency fold checkpoint
 
-Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current resume tip after local integration repairs and the first resource conversion pair: `96e103fe4`. The worktree is clean. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
+Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current implementation tip after local resource and bus conversion work: `90905786b`. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
 
 This checkpoint deliberately preserves incomplete and red work. A committed WIP is not conversion credit or verification evidence.
 
@@ -46,10 +46,14 @@ Cold review then refuted missing-resource waiver collection, Markdown multi-comm
 
 Commit `96e103fe4` re-derived and converted `feature-owns-definition` and `package-layout` from the formerly blocked resource family. Direct feature directories and definition owners match 25/25; package loose-module subjects match exactly at zero; current legacy/final findings are 0/0 for both. The sixteen credited final policies pass 95/95 proofs. Structural permissions use hard or exact reviewed-grant authority rather than inline path exclusions.
 
+Commits `05e595f33`, `d59803f7f`, and `70a944751` convert `ui-exports-map-complete`, `server-layout`, and the two component-size policies. The resource-family total is six converted legacy policies; the overall credited total before bus work is twenty policies with 112/112 proofs. Exact populations and differentials are in `resource-layout-size-inventory.md`.
+
+Commit `bb6c76fde` adds a pass-local shared-fact registry: one object-keyed collector per exact effective population, population-mismatch refusal, and fresh state on re-entry. Commit `90905786b` repairs and shares the bus producer fact, converts four legacy producer policies, and adds the hard fact-health policy. The four policies have 15/15 final proofs, their legacy replay agrees on every fixture, and the current differential is 1,570 exact contracts/server files with 0/0 findings and zero tool errors. The shared fact reports 66 members and zero unresolved identities. The isolated final command measured 22.32 s wall and 3.01 GB peak RSS versus legacy 9.37 s and 1.67 GB; composed runtime performance remains open. The credited legacy-policy total is now twenty-four with 127/127 proofs, plus two support-policy proofs.
+
 ## Resume order
 
 1. Continue re-deriving the eleven remaining layout/size/resource candidates against the folded resource declarations; convert only complete rows.
-2. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
+2. Convert `bus-definition-belts` without its hand-maintained exemption/reach/coverage-file tables, then resolve `user-bus-coverage` through a real warning work item or exact reviewed grant.
 3. Finish registry fact tests/review, then convert its closed gate set.
 4. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
 5. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
@@ -57,6 +61,6 @@ Commit `96e103fe4` re-derived and converted `feature-owns-definition` and `packa
 ## Known red state
 
 - Legacy all-corpus gate tests and graph sites still assume every module is a `GateDescriptor`; no compatibility adapter exists.
-- Bus and CSS checkpoint code is explicitly unverified WIP.
+- The four bus producer conversions are verified; `user-bus-coverage` and `bus-definition-belts` remain legacy, and composed bus performance is still open. CSS/static-class checkpoint code remains WIP.
 - Global test-baseline and documentation-catalog surfaces are stale by design and were not regenerated during the fold.
 - No full structure, broad test, performance/RSS acceptance, or final old/new differential applies to checkpoint tip `b32797507`.

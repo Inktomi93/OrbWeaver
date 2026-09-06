@@ -89,6 +89,7 @@ Every Orb gate gets the same behavior without implementing it itself:
 - hard unsuppressible policy, exact ordinary occurrence waivers, and exact reviewed subject/operation grants;
 - missing/empty/unresolved population refusal and failed-owner reconciliation withholding;
 - per-gate files/members/resources/timing receipts;
+- one pass-local shared-fact registry, with one collector over an exact population and read-only sibling consumers;
 - the same fixture runtime for `mustFlag`/`mustPass`, with an explicit fixture mode instead of fake real-tree anchors.
 
 The historical six-case marker probe becomes a central authority proof rather than six copied cases per gate. The ordinary-waiver engine proves unmarked, exact-position, stale/dead-position, malformed, over-broad, and consumption-order behavior once. Each ordinary policy proves that its own report supplies the correct policy and position identity. Hard policies have no waiver arm; reviewed-grant policies prove subject/operation identity while central grant tests own malformed/stale reconciliation. Every policy still carries its founding `mustFlag`, legitimate near-miss and declared-limit `mustPass` rows, and empty/unresolved-subject controls wherever its verdict depends on a derived population.
@@ -96,6 +97,8 @@ The historical six-case marker probe becomes a central authority proof rather th
 ## Shared query boundary
 
 Gate modules may inspect the node delivered to a visitor, iterate their resolved `ctx.files`, request a canonical source file, request the shared checker, and call shared readers. They may not call `Project#getSourceFiles`, `SourceFile#getDescendants*`, `forEachDescendant`, `new Project`, or maintain their own workspace cache.
+
+Shared fact modules acquire an object-keyed value through `ctx.sharedFact`. The first consumer over one exact effective source/resource population owns its collection hooks; sibling policies receive the same value without registering another visitor. A population mismatch refuses, and every `runPolicyPass` starts with an empty registry. This is command-local reuse of the one loaded workspace, not a module cache or cross-command daemon. Gate modules do not call `sharedFact` directly; their shared reader owns the key, collector, failure state, and query surface.
 
 The shared reader layer owns:
 
@@ -166,7 +169,9 @@ The symbol-aware first-wave subset is 86 policies: 17 A-M and 69 N-Z have `visit
 
 Within the 86 first-wave policies, exactly 14 were immediately mechanical source edits: four A-M rows and ten N-Z rows labelled `codemod-mechanical` in those reports. The earlier “15/69” handoff was wrong: 69 is only the N-Z visitor intersection, and the apparent fifteenth policy requires both a codemod-shaped edit and reviewed-grant migration. The rejected converter also proved that shallow visitor shape cannot establish semantic eligibility. Those 14 policies are now direct final descriptors; [mechanical-gates-1584.md](../reviews/gate-runtime/mechanical-gates-1584.md) records 89 passing proofs, exact old/new population equality over 7,006 files, zero current-corpus finding deltas, and the ruled kebab rename of `bus-on-data-no-store-write`.
 
-The first re-derived resource wave adds `feature-owns-definition` and `package-layout`, bringing the credited total to sixteen final policies with 95/95 proofs. Their exact population and finding differentials are appended to [resource-layout-size-inventory.md](../reviews/gate-runtime/resource-layout-size-inventory.md); the other eleven candidates remain uncredited until individually re-derived.
+The re-derived resource waves add `feature-owns-definition`, `package-layout`, `ui-exports-map-complete`, `server-layout`, `component-size`, and `component-size-ui`, bringing the credited total to twenty final legacy policies with 112/112 proofs. Their exact population and finding differentials are appended to [resource-layout-size-inventory.md](../reviews/gate-runtime/resource-layout-size-inventory.md); the remaining candidates stay uncredited until individually re-derived.
+
+The bus producer wave adds four converted legacy policies on one pass-shared fact, bringing the credited total to twenty-four with 127/127 migrated-policy proofs; the new hard `bus-fact-health` support policy adds two fact-health proofs. The raw legacy harness admitted 7,048 files while the semantic subject is the exact 1,570 contracts/server files declared by the final policies. Current old/new findings are 0/0 for all four. The isolated final run is still slower than legacy, so composed command performance/RSS remains a cutover requirement. Exact evidence and rejected designs are in [bus-family-1584.md](../reviews/gate-runtime/bus-family-1584.md).
 
 `pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,489 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 345 symbol-proven direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 14 baseline-path expressions. After the 14 mechanical conversions and final `defineGate` provenance repair, it reports 1,447 findings: 28 legacy-field sites and 14 false wrapper findings are gone. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
 
