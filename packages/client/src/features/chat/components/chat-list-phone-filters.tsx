@@ -12,6 +12,19 @@
 // derivation from the two trigger texts this replaces, and the four-state table are stated once at
 // `phoneFiltersLabel` (`../lib/chat-list-scope.ts`) — never re-spelled here.
 //
+// THE RULING SURVIVES AGAIN, ITS INPUT CHANGED A SECOND TIME (#1735, side-eye 2026-09-05). Arm A's own
+// "never hides state" reasoning was written for a bound with NO OTHER visible carrier — true of the month
+// bound, false of the character axis: the `ChatListFilterChip` below (`Filtered: <name> ✕`) is ALWAYS on
+// screen whenever a character filter is set, on this viewport exactly as much as on desktop (it lives
+// outside this component's own applicability fence). So a trigger that ALSO spelled "with <name>" was not
+// preventing a hidden state — it was a second sentence for a fact already on screen, the same one-fact-
+// two-carriers shape #490 already ruled the ✕ belongs to. This component therefore passes `null` for the
+// character half of `phoneFiltersLabel`: the trigger states only what has no other visible carrier (the
+// month bound), and the chip keeps sole ownership of the character axis's name AND its only ✕.
+// `phoneFiltersLabel` itself is UNCHANGED — its four-state grammar is a general "compose these clauses"
+// contract, still exercised by `chat-list-scope.test.ts`; this is a call-site decision about which facts
+// this ONE caller feeds it, not a rewrite of the function's own rule.
+//
 // NO NEW GRAMMAR INSIDE. The panel holds the SAME two components the desktop column holds, in the order the
 // desktop shows them: the faces strip first (side-eye P2b — "the faces are the shortcut you arrive for"),
 // the month bound under it. Neither knows it is in a panel; both were made viewport-agnostic again when
@@ -44,7 +57,9 @@ export function ChatListPhoneFilters({ characterFilter }: { readonly characterFi
     // commit on purpose: setting a filter INSIDE the panel must not re-open a panel the reader just closed,
     // and the trigger says what is in force either way.
     <Collapsible defaultOpen={monthLabel !== null || characterFilter !== null}>
-      <CollapsibleTrigger>{phoneFiltersLabel(characterFilter?.name ?? null, monthLabel)}</CollapsibleTrigger>
+      {/* `null` for the character half (#1735) — the `ChatListFilterChip` beside this row already
+          carries `Filtered: <name> ✕`, so restating it here is a second sentence for one on-screen fact. */}
+      <CollapsibleTrigger>{phoneFiltersLabel(null, monthLabel)}</CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="row">
           <ChatListFacesStrip characterFilter={characterFilter} />
