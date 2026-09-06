@@ -56,3 +56,14 @@ export type CopyHandoffRegexScripts = (args: {
   readonly toOwnerId: UserId;
   readonly chatId: ChatId;
 }) => Promise<readonly BatchStmt[]>;
+
+/** How many script rows {@link CopyHandoffRegexScripts} would MINT for `toOwnerId` — the NOMINATE-side
+ *  disclosure the `handoff-nominated` notification carries (#1762). A regex is the one class in the offer
+ *  that EXECUTES on the recipient's own text, so it is also the one the nominee most needs counted before
+ *  they press Accept.
+ *
+ *  READ-ONLY BY CONSTRUCTION (a second op, never a `dryRun` flag on the copy): it answers at NOMINATE, where
+ *  nobody has consented yet, and it shares the copy's own plan resolver — so the dedup rule that turns three
+ *  attachments into one new row decides the disclosed number and the landed rows identically. An attachment
+ *  that converges on a row the nominee already owns is NOT counted: nothing new enters their library. */
+export type CountHandoffRegexScripts = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;

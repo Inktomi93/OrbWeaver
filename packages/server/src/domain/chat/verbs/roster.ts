@@ -83,7 +83,7 @@ import {
 import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
 import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
-import { resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
+import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
@@ -1024,7 +1024,19 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
     const parsedOffer = handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(offer ?? NO_HANDOFF_OFFER);
     const statements: BatchStmt[] = [setPendingHostStatement(ctx.db, { chatId, nomineeUserId: userId, offer: parsedOffer, now: ctx.now() })];
     ctx.bumpStatsCanonVersion(statements, ctx.db, principal.userId);
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, statements);
+    // THE NOMINATION DISCLOSES WHAT IT GIVES (#1762). The nominee decides from one inbox row, and accepting
+    // lands characters, lore, the GM voice and this room's EXECUTABLE regex scripts in THEIR library — so the
+    // counts ride the notification and their client confirms against them. Resolved from the copy's own
+    // planners (`previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`) over the roster already loaded
+    // above; the departing host is the principal, who `requireHost` has just proven holds the room.
+    const disclosure = await previewHandoffCopyPlan(ctx, {
+      chatId,
+      oldHostUserId: principal.userId,
+      nomineeUserId: userId,
+      offer: parsedOffer,
+      roster,
+    });
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId, offer: disclosure }, statements);
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {

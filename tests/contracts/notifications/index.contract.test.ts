@@ -33,6 +33,8 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     type: "handoff-nominated",
     recipientUserId: SAMPLE_RECIPIENT,
     chatId: SAMPLE_CHAT_ID,
+    // The #1762 disclosure: what accepting would copy into the recipient's library, counted at nominate.
+    offer: { characters: 2, worldBooks: 1, regexScripts: 1, gmPreset: true },
   },
   "handoff-accepted": {
     type: "handoff-accepted",

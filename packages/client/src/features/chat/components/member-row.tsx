@@ -298,8 +298,8 @@ function HandoffConfirm({
       description={`${row.displayName} becomes the host once they accept. You stay in the chat as a member.`}
       body={
         <SettingCheckboxRow
-          label="Also give copies of your characters, worldbooks & regex scripts used in this room"
-          description="They get their own point-in-time copies when they accept. You keep yours, and editing or deleting them later won't change this room."
+          label="Also give copies of your characters, world books, regex scripts & GM voice used in this room"
+          description="They get their own point-in-time copies when they accept, and their invitation lists exactly what that is. You keep yours, and editing or deleting them later won't change this room."
           checked={copyCharacters}
           onChange={setCopyCharacters}
         />
@@ -310,8 +310,13 @@ function HandoffConfirm({
         // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host
         // brought to the room, and a room whose preset silently reverts is the same broken gift as a room
         // whose characters silently vanish. A non-game room has no preset for it to reach. The room's regex
-        // scripts ride `copyCharacters` server-side for the same reason and ARE named in the label (#1739):
-        // unlike the GM voice they are an EXECUTABLE transform, so what the giver is handing over is stated.
+        // scripts ride `copyCharacters` server-side for the same reason.
+        //
+        // ALL FOUR CLASSES ARE NAMED HERE (#1762). The label used to say three and quietly carried the GM
+        // voice as well — one flag, four kinds of property, and the box named the ones that were easy to
+        // say. "world books" rather than "worldbooks" is this app's own spelling for the noun everywhere
+        // else it is shown. The RECEIVING side now states the same four with counts (the nomination's
+        // `offer` disclosure), so both ends of the transfer describe it in one vocabulary.
         actions.onNominateHost?.(row.userId, { copyCharacters, copyGmPreset: copyCharacters });
         setCopyCharacters(false);
         setConfirm(null);

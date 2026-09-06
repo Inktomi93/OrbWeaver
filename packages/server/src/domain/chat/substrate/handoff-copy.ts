@@ -19,7 +19,8 @@
 // world-info's, the room's regex scripts are the regex domain's. Chat composes the plan and owns only the
 // room-side statements.
 
-import type { HandoffOffer } from "@orb/contracts/chat";
+import type { HandoffOffer, HandoffOfferContents } from "@orb/contracts/chat";
+import { NO_HANDOFF_OFFER_CONTENTS } from "@orb/contracts/chat";
 import type { chatParticipants } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
@@ -115,6 +116,50 @@ async function executeHandoffCopy(
     bookRepoint,
     regexRepoint,
   };
+}
+
+/** THE DISCLOSURE (#1762) — what the offer would copy, resolved AT NOMINATE so the nominee's inbox row can
+ *  say it before they press Accept. The receiving side used to render a bare Accept for a press that lands
+ *  four classes of the departing host's property in the accepter's own library, one of which EXECUTES on
+ *  their text (the room's regex scripts, #1739).
+ *
+ *  IT IS THE COPY'S OWN RESOLUTION, ASKED WITHOUT WRITING, and every branch below is the accept's branch:
+ *  the same `copyCharacters` gate, the same {@link resolveOfferedSeats} (both ownership axes — theirs to
+ *  give, not already the nominee's), the owning domains' own count ops over their own copy plans, and rpg's
+ *  own knob/ownership gate. Nothing here re-derives a rule, because a disclosure derived separately is a
+ *  number that can disagree with the rows that arrive.
+ *
+ *  A CEILING, NOT A CONTRACT. Acceptance is what freezes the point in time (§5), so the host may edit or
+ *  delete between nominate and accept and the accept copies what is there THEN. The disclosure can therefore
+ *  over-state and never under-state — the honest direction: nobody receives property they were not told
+ *  about, and someone may receive less than they were offered.
+ *
+ *  `gmPreset` rides its OWN offer flag, exactly as the accept does (the heal takes `offer.copyGmPreset`
+ *  whatever the card arm decided), so a preset-only offer discloses the preset and zero of everything else. */
+export async function previewHandoffCopyPlan(
+  ctx: ChatContext,
+  params: {
+    readonly chatId: ChatId;
+    readonly oldHostUserId: UserId;
+    readonly nomineeUserId: UserId;
+    readonly offer: HandoffOffer;
+    readonly roster: readonly (typeof chatParticipants.$inferSelect)[];
+  },
+): Promise<HandoffOfferContents> {
+  const { chatId, oldHostUserId, nomineeUserId, offer, roster } = params;
+  if (oldHostUserId === nomineeUserId) {
+    return NO_HANDOFF_OFFER_CONTENTS;
+  }
+  const gmPreset = offer.copyGmPreset ? ((await ctx.rpg?.handoffWouldCopyGmPreset(chatId, nomineeUserId)) ?? false) : false;
+  if (!offer.copyCharacters) {
+    return { ...NO_HANDOFF_OFFER_CONTENTS, gmPreset };
+  }
+  const seats = await resolveOfferedSeats(ctx, oldHostUserId, nomineeUserId, roster);
+  const [worldBooks, regexScripts] = await Promise.all([
+    ctx.countHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, characterIds: seats.map((seat) => seat.characterId) }),
+    ctx.countHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId }),
+  ]);
+  return { characters: seats.length, worldBooks, regexScripts, gmPreset };
 }
 
 /** The ONE door the accept calls: decide whether the offer applies at all, resolve the candidate seats, and

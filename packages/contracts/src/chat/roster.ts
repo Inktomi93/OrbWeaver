@@ -490,6 +490,44 @@ export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
  *  `{ copyCharacters: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
 export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPreset: false };
 
+/** WHAT AN ACCEPTED OFFER WOULD LAND IN THE NOMINEE'S LIBRARY — the DISCLOSURE half of the offer (#1762),
+ *  frozen at NOMINATE and carried by the `handoff-nominated` notification so the nominee can read what they
+ *  are accepting before they accept it. The receiving side used to render a bare Accept for a press that
+ *  copied four classes of someone else's property — including the room's REGEX SCRIPTS, which are executable
+ *  transforms over the accepter's own chats (#1739).
+ *
+ *  COUNTS, NEVER IDS. A nominee cannot resolve the departing host's character/book/script ids (they own
+ *  none of those rows yet), so an id here would be an unreadable pointer AND a disclosure of another user's
+ *  library keys beyond what the offer already implies. The count is the whole decision input; the rows
+ *  themselves arrive as ordinary library rows the moment they accept, theirs to inspect and delete.
+ *
+ *  A POINT-IN-TIME PREVIEW, resolved from the SAME resolvers the accept executes (chat's
+ *  `previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`), never a second count of its own. It can still
+ *  differ from what finally lands: the offer is executed at ACCEPT (§5 — acceptance is what freezes the
+ *  point in time), so a card the host deletes in between is disclosed and then absent. That direction is the
+ *  honest one — the disclosure is a ceiling on what the accept can copy, never a floor.
+ *
+ *  ZEROS ARE SENT, NOT OMITTED: "this gives you nothing" is a fact the nominee needs, and an absent field
+ *  would make the confirm's silence ambiguous between "nothing" and "unknown". */
+export const handoffOfferContentsSchema = z.object({
+  /** Seated characters that would be copied — the old host's cards the nominee does not already own. */
+  characters: z.number().int().min(0),
+  /** Distinct world books that would be copied: the copied cards' attached lore plus the room's own books. */
+  worldBooks: z.number().int().min(0),
+  /** Chat-tier regex scripts that would be copied — EXECUTABLE find/replace over this room's text. */
+  regexScripts: z.number().int().min(0),
+  /** Would the game's GM voice preset be copied? False for a non-game room, an unset knob, an un-offered
+   *  preset, or one the nominee can already read (that knob is left alone rather than duplicated). */
+  gmPreset: z.boolean(),
+});
+/** Type twin of {@link handoffOfferContentsSchema} — the `handoff-nominated` notification payload's
+ *  `offer` field and the client confirm's read model. */
+export type HandoffOfferContents = z.infer<typeof handoffOfferContentsSchema>;
+
+/** The disclosure of an offer that copies nothing — the value every offer-less nomination sends, spelled
+ *  once so no producer re-spells the zeros. */
+export const NO_HANDOFF_OFFER_CONTENTS: HandoffOfferContents = { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false };
+
 // ── Invites & the membership chokepoint (Part III §2; D16) ──
 const INVITE_MAX_USES_MIN = 1;
 const INVITE_MAX_USES_MAX = 10_000;

@@ -1196,7 +1196,10 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.pendingHostUserId).toBe(member);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
-    expect(notes).toEqual([{ type: "handoff-nominated", recipientUserId: member, chatId }]);
+    // The nomination carries its DISCLOSURE (#1762) — an offer-less nomination gives nothing, and says so.
+    expect(notes).toEqual([
+      { type: "handoff-nominated", recipientUserId: member, chatId, offer: { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false } },
+    ]);
   });
 
   test("a plain member nominating is refused with not_host (no nomination written)", async () => {

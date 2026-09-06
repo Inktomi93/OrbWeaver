@@ -707,6 +707,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
     forkGame: (args) => rpgOps().forkGame(args),
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
+    handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
     handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
   };
   // #250 — the memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains

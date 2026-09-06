@@ -361,8 +361,16 @@ test.describe("the phone's inbox block", () => {
   });
 });
 
-/** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). */
-function handoffRow(): Record<string, unknown> {
+// ── THE HANDOFF NOMINATION × ITS DISCLOSURE (#1762) ─────────────────────────────────────────────────────
+// Accepting a nomination lands FOUR classes of the departing host's property in the nominee's own library —
+// characters, world books, the game's GM voice and the room's REGEX SCRIPTS, which are executable transforms
+// over their chats. A bare Accept disclosed none of it, so the payload now carries the frozen counts and the
+// button opens a confirm that reads them out. The arms below are the whole contract: the confirm lists what
+// lands, NOTHING fires until it is confirmed, cancelling fires nothing at all, and a zero offer says so.
+
+/** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). `offer` is the nominate
+ *  verb's frozen disclosure — what an accept would copy. */
+function handoffRow(offer: Record<string, unknown> = { characters: 2, worldBooks: 1, regexScripts: 1, gmPreset: true }): Record<string, unknown> {
   return {
     id: "ntf_ct_handoff",
     type: "handoff-nominated",
@@ -370,6 +378,7 @@ function handoffRow(): Record<string, unknown> {
       type: "handoff-nominated",
       recipientUserId: "user_ct_nominee",
       chatId: "chat_ct_target",
+      offer,
     },
     seq: 2,
     readAt: null,
@@ -378,7 +387,7 @@ function handoffRow(): Record<string, unknown> {
   };
 }
 
-test("a handoff-nominated row carries Accept — fires acceptHostHandoff with the chatId, then dismisses", async ({ mount, page }) => {
+test("Accept opens a confirm that reads out what the offer copies — and fires nothing until it is confirmed", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
     "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
@@ -392,12 +401,67 @@ test("a handoff-nominated row carries Accept — fires acceptHostHandoff with th
   await component.getByRole("button", { name: "Notifications (1 unread)" }).click();
 
   await expect(page.getByText("You've been nominated to host a chat")).toBeVisible();
-  await page.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("button", { name: "Accept the host handoff" }).click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  // Every class the accept would land, in the nominee's own terms — and the regex scripts say what they DO.
+  await expect(dialog.getByText("2 characters")).toBeVisible();
+  await expect(dialog.getByText("1 world book")).toBeVisible();
+  await expect(dialog.getByText(/1 regex script/u)).toBeVisible();
+  await expect(dialog.getByText(/runs on this chat/u)).toBeVisible();
+  await expect(dialog.getByText(/GM voice/u)).toBeVisible();
+  // NOTHING has fired: the disclosure is the decision point, not a receipt of one already taken. Polled
+  // rather than sampled once — "still zero" is a claim about a window, not an instant.
+  await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBe(0);
+
+  await dialog.getByRole("button", { name: "Accept", exact: true }).click();
 
   await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(async () => (trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown }).chatId).toBe("chat_ct_target");
   // Acting on the nomination clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("cancelling the confirm accepts nothing and dismisses nothing", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
+    "notifications.markAllRead": () => null,
+    "notifications.dismiss": () => null,
+    "invites.acceptHostHandoff": () => null,
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellStory />);
+  await component.getByRole("button", { name: "Notifications (1 unread)" }).click();
+  await page.getByRole("button", { name: "Accept the host handoff" }).click();
+
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBe(0);
+  await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+test("an offer of NOTHING says so — the confirm still runs, and it does not list an empty gift", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [handoffRow({ characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false })], unreadCount: 1 }),
+    "notifications.markAllRead": () => null,
+    "notifications.dismiss": () => null,
+    "invites.acceptHostHandoff": () => null,
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellStory />);
+  await component.getByRole("button", { name: "Notifications (1 unread)" }).click();
+  await page.getByRole("button", { name: "Accept the host handoff" }).click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog.getByText(/Nothing is copied/u)).toBeVisible();
+  await expect(dialog.getByText(/regex script/u)).toBeHidden();
 });
 
 test("the inbox rides the tab's ONE socket — one connect, one attach, zero extra connections", async ({ mount, page }) => {
