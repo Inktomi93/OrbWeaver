@@ -196,6 +196,12 @@ lane's own suites and type programs ran between measurements). Per-fact wall tim
 | producer family, after (4 samples) | 12.9–26.6 s | — | — | 35–51 s | 3.00–3.11 GB |
 | both families, first cut | 3.4 s | 46.2 s | 35.6 s | 1:54 | 4.18 GB |
 | both families, after the prefilters | 4.6 s | 24.4 s | 9.0 s | 1:11 | 3.55 GB |
+| **both families, QUIET tree (final)** | **3.4 s** | **11.8 s** | **7.3 s** | **37.6 s** | **3.58 GB** |
+
+The final row is the one to carry forward: 11 policies over 7,213 loaded sources, 11/11 owners success,
+nothing withheld, zero fact/tool/authority errors, zero alarms, 0 raw / 0 waived / 0 granted / 0 effective,
+7.4 s workspace + 22.4 s providers + 0.12 s policy evaluation, 0 swaps and 0 major page faults. Every
+earlier row was taken while this lane's own suites and type programs were running.
 
 Two things are load-bearing in that table and neither is the algorithm:
 
