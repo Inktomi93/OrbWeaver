@@ -2,9 +2,51 @@
 // ── §8 ─ File operations ─────────────────────────────────────────────────────
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, posix } from "node:path";
+import type { Project, SourceFile } from "ts-morph";
 import type { CodemodContext, OperationOptions, Plan } from "../contract/types.ts";
 import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
+
+/** A relative module specifier (`./x`, `../x`) — the only kind `SourceFile.move()` recomputes. */
+const RELATIVE_SPECIFIER = /^\.{1,2}\//u;
+/** A specifier that already states a module file extension. */
+const HAS_MODULE_EXTENSION = /\.([cm]?[jt]sx?|json)$/u;
+/** The extensions a rewritten relative specifier may be pointing at, in resolution order. */
+const SOURCE_EXTENSIONS = [".ts", ".tsx"] as const;
+
+/** Every module-specifier literal in `sf`, by its current text. */
+function specifierTexts(sf: SourceFile): Set<string> {
+  return new Set(sf.getImportStringLiterals().map((literal) => literal.getLiteralText()));
+}
+
+/**
+ * Put the file extension back on every specifier `SourceFile.move()` just rewrote (#1781).
+ *
+ * ts-morph recomputes a moved module's relative specifiers WITHOUT one (`"./verbs/participants"`), and
+ * this repo imports with explicit extensions. The result is GREEN under the root program (bundler
+ * resolution — what `types:graph` runs) and RED under the per-package `node16` program (TS2835) plus
+ * biome's `useImportExtensions`, so a lane whose floor named only one type program ships it.
+ *
+ * Scoped to specifiers whose TEXT CHANGED across the move (`before`), never every extensionless
+ * specifier in the file: a codebase that imports extensionlessly on purpose must not be "fixed" by a
+ * move, and the plan only declared the blast radius of the move itself.
+ */
+function restoreRewrittenSpecifierExtensions(project: Project, before: ReadonlyMap<SourceFile, ReadonlySet<string>>): void {
+  for (const [sf, priorTexts] of before) {
+    const fromDir = posix.dirname(sf.getFilePath());
+    for (const literal of sf.getImportStringLiterals()) {
+      const spec = literal.getLiteralText();
+      if (priorTexts.has(spec) || !RELATIVE_SPECIFIER.test(spec) || HAS_MODULE_EXTENSION.test(spec)) {
+        continue;
+      }
+      const target = posix.resolve(fromDir, spec);
+      const ext = SOURCE_EXTENSIONS.find((candidate) => project.getSourceFile(`${target}${candidate}`) !== undefined);
+      if (ext !== undefined) {
+        literal.setLiteralValue(`${spec}${ext}`);
+      }
+    }
+  }
+}
 
 /**
  * Move source files. Wraps `SourceFile.move()` (which auto-recomputes
@@ -22,6 +64,12 @@ import { absolutePath, assert, noteSuffix, repoRelative } from "./plans.ts";
  * Quirks: ts-morph's move() keeps the SourceFile object alive at its NEW
  * path. Don't hold the source path around after planning a move — look it
  * up by the new path if you need to access it again.
+ *
+ * Two ts-morph behaviours this helper NORMALISES, so no codemod has to hand-roll them again (both were
+ * paid for by the #1010 roster rename, which spent three dry-run iterations on them):
+ *   - #1778 the phantom left at the vacated path is forgotten, so it cannot feed the harness's
+ *     pre-emit diagnostics check stale errors and refuse the apply;
+ *   - #1781 every specifier the move rewrote keeps its explicit file extension.
  */
 export function moveFiles(ctx: CodemodContext, moves: ReadonlyArray<readonly [from: string, to: string]>, opts: OperationOptions = {}): Plan {
   assert(moves.length > 0, "moveFiles called with empty moves list", "Skip the call or pass at least one move.");
@@ -59,17 +107,36 @@ export function moveFiles(ctx: CodemodContext, moves: ReadonlyArray<readonly [fr
     description: `Move ${moves.length} file(s)${noteSuffix(opts)}`,
     touchedFiles: [...touched],
     transform(innerCtx): void {
-      for (const { sf, toAbs } of resolved) {
+      // Every file whose specifiers move() may rewrite — the movers themselves plus their importers —
+      // paired with the specifier texts they carried BEFORE the moves. That pairing is what scopes the
+      // extension restore below to the rewrites this plan caused.
+      const before = new Map<SourceFile, ReadonlySet<string>>();
+      for (const { sf, fromAbs, toAbs } of resolved) {
         // move() rewrites the relative specifier in every importer too. Declare that set here —
         // it's only knowable at transform time (an earlier plan may have added or dropped an
         // importer), and an undeclared rewrite would be missing from the preview.
-        for (const referencing of sf.getReferencingSourceFiles()) {
+        for (const referencing of [sf, ...sf.getReferencingSourceFiles()]) {
           innerCtx.snapshot(referencing);
+          if (!before.has(referencing)) {
+            before.set(referencing, specifierTexts(referencing));
+          }
         }
         // SourceFile.move() returns the same SourceFile at the new path AND
         // updates every importer of the old path within the project graph.
         sf.move(toAbs);
+        // …and at REAL repo scale it leaves a PHANTOM behind (#1778, reproduced on a 6,147-file project
+        // and NOT at fixture scale): `getSourceFile(<old path>)` keeps answering with a distinct
+        // SourceFile carrying the pre-move text, re-read from the disk copy `saveSync` has not deleted
+        // yet. The old path is declared, so the harness's pre-emit diagnostics check scans the phantom
+        // and its now-genuinely-stale errors REFUSE the apply — a codemod that can never be applied and
+        // no hint why. `forget()` detaches the wrapper only; the queued move/delete still runs on save.
+        const phantom = innerCtx.project.getSourceFile(fromAbs);
+        if (phantom !== undefined && phantom !== sf) {
+          before.delete(phantom);
+          phantom.forget();
+        }
       }
+      restoreRewrittenSpecifierExtensions(innerCtx.project, before);
     },
   };
 }

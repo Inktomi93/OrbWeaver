@@ -14,89 +14,19 @@
 // and the rendered preview text — never through harness internals.
 //
 // Fixtures are REAL temp trees (the harness bootstraps a real ts-morph Project from a tsconfig and
-// saveSync()s to disk on --apply), rooted outside the repo and removed in `finally`.
+// saveSync()s to disk on --apply), rooted outside the repo and removed in `finally`. That tree harness
+// moved to `_kit-tree.ts` when the move-primitive pins (#1778/#1781) needed the same fixtures with the
+// pre-emit diagnostics check ON.
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
-import { describe, vi } from "vitest";
-import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../../tooling/src/codemod/index.ts";
-import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../../tooling/src/codemod/index.ts";
+import { describe } from "vitest";
+import type { Plan } from "../../../tooling/src/codemod/index.ts";
+import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol } from "../../../tooling/src/codemod/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
-
-const TRAILING_NEWLINE_RE = /\n$/u;
-
-const TSCONFIG = JSON.stringify({
-  compilerOptions: { target: "es2022", module: "esnext", moduleResolution: "bundler", strict: true, noEmit: true },
-});
-
-interface Harness {
-  readonly root: string;
-  /** Run the codemod against this tree. Dry-run unless `apply` is set. Returns the result plus every
-   *  line the harness printed — the preview IS the operator-visible surface. */
-  readonly run: (
-    codemod: (ctx: CodemodContext) => void,
-    opts?: { readonly apply?: boolean },
-  ) => Promise<{ readonly result: CodemodResult; readonly output: string }>;
-  /** Current on-disk text (to prove a refusal wrote nothing). */
-  readonly read: (rel: string) => string;
-}
-
-/** Materialize `files` into a fresh temp tree with a tsconfig, hand a harness to `fn`, then remove it. */
-async function withTree(files: Record<string, string>, fn: (h: Harness) => Promise<void>): Promise<void> {
-  // realpath: macOS/Linux tmpdir can be a symlink, and the kit's `absolutePath` repo-escape guard
-  // compares resolved paths — an unresolved root makes every fixture path look like it escapes.
-  const root = mkdtempSync(join(realpathSync(tmpdir()), "orb-codemod-kit-"));
-  try {
-    writeFileSync(join(root, "tsconfig.json"), TSCONFIG);
-    for (const [rel, text] of Object.entries(files)) {
-      const abs = join(root, rel);
-      mkdirSync(dirname(abs), { recursive: true });
-      writeFileSync(abs, text);
-    }
-    const options: RunCodemodOptions = {
-      // The kit no longer reads the global process.argv (#971): a caller states its own argv, and the
-      // apply/dry-run decision rides `forceApply` per run below.
-      argv: [],
-      setup: { tsConfigFilePath: join(root, "tsconfig.json"), replaceGlobs: [`${root}/**/*.ts`] },
-      repoRoot: root,
-      // The fixtures are deliberately tiny and sometimes mid-refactor; the pre-emit check is a
-      // different guard with its own behaviour, and it would drown this one's signal.
-      skipDiagnosticsCheck: true,
-      maxOutputLines: 10_000,
-    };
-    await fn({
-      root,
-      read: (rel) => readFileSync(join(root, rel), "utf-8"),
-      async run(codemod, runOpts = {}) {
-        const lines: string[] = [];
-        // The kit's output door is _shared/artifacts print (process.stdout.write) + _shared/log warn
-        // (process.stderr.write) since the P4 move — the capture spies the REAL sink, not console.
-        const collect = (chunk: unknown): boolean => {
-          lines.push(String(chunk).replace(TRAILING_NEWLINE_RE, ""));
-          return true;
-        };
-        const out = vi.spyOn(process.stdout, "write").mockImplementation(collect as never);
-        const err = vi.spyOn(process.stderr, "write").mockImplementation(collect as never);
-        try {
-          const result = await runCodemod("preview-integrity-fixture", codemod, {
-            ...options,
-            ...(runOpts.apply === true ? { forceApply: true } : {}),
-          });
-          return { result, output: lines.join("\n") };
-        } finally {
-          out.mockRestore();
-          err.mockRestore();
-        }
-      },
-    });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
+import { withTree } from "./_kit-tree.ts";
 
 /** A hand-written plan in the shape a codemod author writes one: declares `declares`, edits `edits`. */
 function handPlan(opts: { description: string; declares: readonly string[]; edits: readonly string[]; text?: string }): Plan {
