@@ -18,11 +18,19 @@
 // interface with a `toLocaleString` method was the offense. Both are resolved now: the ambient global
 // through `resolveGlobalMemberOrigin`, and the `.toLocale*` method through the property symbol's declaration
 // home — TypeScript's own bundled `lib.*.d.ts`, which is what makes the call the ECMAScript formatter at all.
+//
+// BOTH ARMS ALSO ASK THE RECEIVER, because a cast hides a property's declaration: `(d as { toLocaleString():
+// string }).toLocaleString()` and `(globalThis as { Intl: … }).Intl.DateTimeFormat` declare their members in
+// the cast's own type literal, which the shared refusal classifier then reads as a proven different identity.
+// The receiver cannot be cast away — a `Date` is still a `Date`, and a member chain rooted in the ambient
+// global is still the ECMAScript api — so the shared readers judge the UNCAST receiver as well
+// (`lib/project-home-origin.ts`). DECLARED LIMIT with its own row: a value that has no real type behind the
+// cast (`JSON.parse(s) as { toLocaleString(): string }`) carries no evidence and stays out of subject.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { classifyPackageMemberOrigin } from "../lib/project-home-origin.ts";
+import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
 import { resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
@@ -63,12 +71,22 @@ function memberName(node: MorphNode): string | null {
 
 type IntlVerdict = "intl" | "other" | "unreadable";
 
+/** The global objects `Intl` hangs off when it is reached through one. */
+const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
+
 /** Is this member read `Intl.<Formatter>` — the AMBIENT global, under any receiver spelling? */
-function intlVerdict(node: MorphNode): IntlVerdict {
+function intlVerdict(node: MorphNode, formatter: string): IntlVerdict {
   const global = resolveGlobalMemberOrigin(node);
   if (global.kind === "resolved") {
     const { globalName, memberPath } = global.value;
     return globalName === INTL && memberPath.length === 1 ? "intl" : "other";
+  }
+  // THE CAST AXIS (shared with `no-raw-matchmedia`): `(globalThis as { Intl: … }).Intl.DateTimeFormat` gives
+  // the property symbols declarations inside the cast's own type literal, so the value reader refuses and the
+  // refusal classifier calls it a proven different binding — a one-line dodge for the whole law. The chain's
+  // ROOT cannot be cast away: read off a proven ambient global, `Intl.<Formatter>` is the ECMAScript api.
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [INTL, formatter])) {
+    return "intl";
   }
   return classifyOriginRefusal(global.reason, node);
 }
@@ -126,7 +144,7 @@ export const gate = defineGate({
             if (name === null || !FORMATTERS.has(name)) {
               return;
             }
-            const verdict = intlVerdict(node);
+            const verdict = intlVerdict(node, name);
             if (verdict !== "other") {
               push({ node, sourceFile, operation: OPERATIONS.intlFormatter, token: name, unreadable: verdict === "unreadable" });
             }
@@ -197,6 +215,32 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: two `.toLocale*` calls in one file are ONE `(subject, operation)` finding, because a row matching both would be OVER-BROAD and would license neither",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/cast-locale.ts": "export function f(d: Date): string {\n  return (d as { toLocaleString(): string }).toLocaleString();\n}\n",
+      },
+      expect: { count: 1, token: "toLocaleString" },
+      why: "THE CAST DODGE on the tolocale arm: the cast declares `toLocaleString` in its own type literal, so the property-symbol reader answered 'a proven different identity' and the call PASSED while its uncast twin reported. The receiver is still a `Date`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/cast-intl.ts":
+          'const g = globalThis as { Intl: { DateTimeFormat: new (locale: string) => unknown } };\nexport const f = (): unknown => new g.Intl.DateTimeFormat("en");\n',
+      },
+      expect: { count: 1 },
+      why: "THE CAST DODGE on the intl arm, through a const hop: the members declare inside the cast's type literal, but the chain's ROOT is the ambient global and that cannot be cast away",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/cast-intl-inline.ts":
+          'export const f = (): unknown => new (globalThis as { Intl: { DateTimeFormat: new (locale: string) => unknown } }).Intl.DateTimeFormat("en");\n',
+      },
+      expect: { count: 1 },
+      why: "the same dodge written inline, with no binding to follow — the chain reader strips the cast at every step",
+    },
   ],
   mustPass: [
     {
@@ -220,6 +264,14 @@ export const gate = defineGate({
         "packages/client/src/shadow.ts": "const Intl = {\n  DateTimeFormat: class {},\n};\nexport const f = (): unknown => new Intl.DateTimeFormat();\n",
       },
       why: "A LOCAL BINDING named `Intl` proves a DIFFERENT identity (case (a) of the refusal classifier) — the legacy receiver-text check red exactly this",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/typeless-cast.ts":
+          "export function f(raw: string): string {\n  return (JSON.parse(raw) as { toLocaleString(): string }).toLocaleString();\n}\n",
+      },
+      why: "THE DECLARED LIMIT of the cast axis: a value with NO real type behind the cast (`JSON.parse` returns `any`) carries no evidence that the call is the ECMAScript formatter — the uncast receiver declares nothing, so the finding would be a guess",
     },
     {
       mode: "types",

@@ -22,7 +22,7 @@ and licenses nothing.
 | `chat-stream-writes-in-bus-only` | reviewed-grant | singleton | entire-population | the `chatStream` declared by `state/chat-stream.ts` | 2 | 0 | 2 / 2 / 0 |
 | `client-cache-surgery-only-in-data` | reviewed-grant | `tanstack-query-origin` | entire-population | the six cache METHODS declared by `@tanstack/query-core` | 9 | 0 | 9 / 9 / 0 |
 | `no-direct-useform` | reviewed-grant | singleton | entire-population | the three mints declared by `@tanstack/react-form` | 2 | 0 | 2 / 2 / 0 |
-| `no-effect-on-shared-selection` | reviewed-grant | `react-origin` | entire-population | pointer exports declared under `client/src/state/` + React's effect exports | 0 | 0 | 0 / 0 / 0 |
+| `no-effect-on-shared-selection` | reviewed-grant (no rows) | `react-origin` | entire-population | pointer exports declared under `client/src/state/` + React's effect exports | 0 | 0 | 0 / 0 / 0 |
 | `no-inline-invalidate-outside-seam` | reviewed-grant | `tanstack-query-origin` | entire-population | `invalidateQueries` declared by `@tanstack/query-core` | 1 | 0 | 1 / 1 / 0 |
 | `no-raw-intl-time` | reviewed-grant | singleton | entire-population | the ambient `Intl` global + `.toLocale*` declared by TypeScript's `lib.*.d.ts` | 1 | 0 | 1 / 1 / 0 |
 | `no-raw-matchmedia` | reviewed-grant | singleton | entire-population | the ambient global, judged by the RECEIVER (`globalThis`/`window`/`self`) | 4 | 0 | 4 / 4 / 0 |
@@ -39,14 +39,17 @@ the two reviewed-grant policies already on the branch.
 
 ## Four rulings this conversion made rather than took silently
 
-**1. An UNEXERCISED permission is not representable, so none was invented.** `no-untrusted-html-in-main-dom`
-and `theme-override-only-via-scope` each carried two structural home rows whose own `why` said the permission
-stands "whether or not it spells the injection today" — and on this tree neither home spells it (the markdown
-seal renders through Streamdown's sanitizer, the sandbox frame through `srcdoc`; the theme clamp hands
-`style` a computed `CSSProperties` and the srcdoc host sets no color token). A row consumed zero times is
-STALE by contract. The homes are therefore SCANNED and clean, and what preserves the law is the AUTHORITY: an
-exception to a D44 rule is a reviewed row, never an inline marker one author can write. The day a seal
-injects, it reds and the review mints the row.
+**1. An UNEXERCISED permission is not representable, so none was invented.** THREE policies are
+reviewed-grant with ZERO rows. `no-untrusted-html-in-main-dom` and `theme-override-only-via-scope` each
+carried two structural home rows whose own `why` said the permission stands "whether or not it spells the
+injection today" — and on this tree neither home spells it (the markdown seal renders through Streamdown's
+sanitizer, the sandbox frame through `srcdoc`; the theme clamp hands `style` a computed `CSSProperties` and
+the srcdoc host sets no color token). `no-effect-on-shared-selection` is the third: its legacy
+`SANCTIONED_HOMES` row named `features/app-shell/`, and the shell chases nothing on this tree — the whole
+population produces zero findings. A row consumed zero times is STALE by contract. All three homes are
+therefore SCANNED and clean, and what preserves the law is the AUTHORITY: an exception is a reviewed row,
+never an inline marker one author can write. The day a seal injects — or the shell needs an effect — it reds
+and the review mints the row.
 
 **2. A detector artifact is DELETED, not translated** (the wave-3 precedent). Two of the legacy exclusions
 licensed nothing once the question was asked by identity: `registry-context-via-mint`'s mint home types its
@@ -64,10 +67,14 @@ produces no finding and a row for it would be stale — the legacy mode-A sweep 
 only asked whether the file still had a `renderError` at all), and the rpg context pane's TWO custom arms are
 ONE `(subject, operation)` row rather than a file-wide licence.
 
-**4. The `@orb-gate-ignore` on `media-grid.tsx` became a GRANT, not a deletion.** Its stated reason — a
-pointer-capability query with no coarse-pointer one-home on the tree — is a standing state of the repository,
-not a per-occurrence slip, and a reviewed-grant policy has no inline door. The row carries that reason and an
-`endsWhen` naming the missing home (the #1182 fork). It is the only live marker any of the fourteen had.
+**4. The `@orb-gate-ignore` on `media-grid.tsx` became a GRANT, and the marker itself is DELETED.** Its stated
+reason — a pointer-capability query with no coarse-pointer one-home on the tree — is a standing state of the
+repository, not a per-occurrence slip, and a reviewed-grant policy has no inline door. The row
+(`no-raw-matchmedia:media-grid`) carries that reason and an `endsWhen` naming the missing home (the #1182
+fork); `packages/ui/src/primitives/media-grid/media-grid.tsx:30` keeps the ENGINEERING note and loses the
+marker, because a marker for a policy with no inline door suppresses nothing and nothing alarms about it
+(review caught it still on the tree after the first pass). It is the only live marker any of the fourteen had.
+`packages/ui` typechecks clean after the edit.
 
 ## Finding granularity equals grant granularity
 
@@ -111,7 +118,9 @@ candidate list, diffed both ways:
   `no-direct-useform`, `no-raw-intl-time` and `chat-stream-writes-in-bus-only` — the standing classified delta
   every wave has recorded (`@authored` names the six cake packages plus tooling/tests/scripts; guest showcase
   code is not one of them).
-- **ONLY-FINAL, 22 paths total:** every one is either a sanctioned home that is now SCANNED instead of
+- **ONLY-FINAL, 21 paths total** (the eleven `data/bus/**` modules plus `main.tsx`; `data/invalidation.ts`;
+  the three matchMedia homes; `use-bound-field.ts` and `contexts.ts`; `create-registry-context.tsx`;
+  `create-gated-store.ts`; `state/index.ts`): every one is either a sanctioned home that is now SCANNED instead of
   subtracted (`data/bus/**` + `main.tsx`, `data/invalidation.ts`, the three matchMedia homes,
   `use-bound-field.ts`, `create-registry-context.tsx`) or a deliberately added RECEIPT ANCHOR — the two
   policies whose verdict depends on locating a home add exactly that home to their population
@@ -144,22 +153,39 @@ toolErrors=0 factErrors=0 authorityToolErrors=0 alarms=0 withheld=[]
 raw=30 waived=0 granted=30 effective=0
 ```
 
-`/usr/bin/time -v`: **35.54 s wall, 5,350,632 KB peak RSS**, 0 swaps, 0 major page faults (a quieter earlier
-run of the same pass measured 23.47 s / 5,379,644 KB — the wall moves with box load, the RSS does not). Every
-grant row was consumed exactly once — zero stale, zero over-broad. Per-policy cost is concentrated in `no-raw-zustand-persist`
+`/usr/bin/time -v`: **35.54 s wall, 5,350,632 KB peak RSS**, 0 swaps, 0 major page faults. The same pass has
+been measured three times on this branch — 23.47 s, 35.54 s and 94.19 s — while peak RSS stayed inside
+5.33–5.38 GB every time: the wall tracks box load (the 94 s run's WORKSPACE build alone took 18.9 s against
+4.3 s in the quiet run), the footprint does not. The post-review run at 94 s carries the receiver axis and
+reports the identical 30/30/0, so the axis costs no findings and no measurable memory. Every grant row was
+consumed exactly once — zero stale, zero over-broad. Per-policy cost is concentrated in `no-raw-zustand-persist`
 (4.9 s over 1,311 files: its `setState`/`reset`/`setOptions` prefilter resolves a type member per candidate),
 `client-cache-surgery-only-in-data` (1.2 s) and `no-effect-on-shared-selection` (1.0 s over 1,001 files,
 including its identifier index); the other eleven total under 2 s combined.
 
 ## Two identity defects the real pass caught
 
-- **The cast dodge (fail-open, closed).** `no-raw-matchmedia` first judged the MEMBER, and both reduced-motion
-  homes read the api as `(globalThis as { matchMedia?: … }).matchMedia` — a cast gives the property symbol a
-  declaration in the cast's own type literal, which the shared refusal classifier correctly calls "a proven
-  different identity". The homes therefore PASSED, and any feature could have left the law the same way. The
-  verdict now asks the RECEIVER, whose identity cannot be cast away; that also turns a DOM-less analysis
-  program's "unreadable" into the precise finding it should be. Both live homes became findings (and rows), and
-  the dodge is a committed `mustFlag` row.
+- **The cast dodge — a SHARED-READER class, not one policy's bug.** `no-raw-matchmedia` first judged the
+  MEMBER, and both reduced-motion homes read the api as `(globalThis as { matchMedia?: … }).matchMedia`: a
+  cast gives the property symbol a declaration in the cast's own type literal, which the shared refusal
+  classifier correctly calls "a proven different identity", so the read PASSED. Review then reproduced the
+  same one-line dodge in **five more policies** through the same reader —
+  `client-cache-surgery-only-in-data`, `no-inline-invalidate-outside-seam`, both arms of `no-raw-intl-time`,
+  `no-raw-zustand-persist`'s #837 ARM B, and wave 3's `no-inline-optimistic-in-surface`. The fix is in the
+  SHARED reader (`lib/project-home-origin.ts`), on the receiver axis: `classifyPackageMemberOrigin` now also
+  looks the member up on the UNCAST receiver (casts stripped, immutable `const` hops followed — deliberately
+  not `resolveStableExpression`, which refuses the `useQueryClient()`/`create()` call that IS the receiver),
+  and `readsAmbientGlobalPath` judges a member CHAIN by its root so `(globalThis as { Intl: … }).Intl.DateTimeFormat`
+  is the ECMAScript api again. Each affected policy carries its own cast-dodge `mustFlag` row, and the limit
+  is written down: a value with no real type behind the cast (`JSON.parse(s) as { … }`) carries no evidence
+  and stays out of subject, with a `mustPass` row.
+- **The receiver rule's real reach**, corrected from the first draft of this doc: it is PRECISE only where the
+  root itself resolves, which on this tree means `globalThis` (declared in the base lib). `window.matchMedia`,
+  `self.matchMedia`, a bare `matchMedia(q)` and a destructured `const { matchMedia } = window` are DOM-lib
+  declarations the analysis program does not load, so they land on the FAIL-CLOSED unreadable finding —
+  reported either way, never silently passed, and pinned by their own rows.
+  `Reflect.get(globalThis, "matchMedia")` names the api in a string ARGUMENT and is a written limit with a
+  `mustPass` row.
 - **A barrel is not the registry.** `no-raw-zustand-persist`'s ARM C receipt first counted two "registry"
   files, because `state/index.ts` re-exports `registerDurableLocalStore`. The file must DECLARE it — the
   registry's `RegisteredStore` is file-private, which is exactly what makes that one file the whole reachable
@@ -169,7 +195,8 @@ including its identifier index); the other eleven total under 2 s combined.
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/home-client-family.test.ts`) | green — 14 policies, 121 proofs, 12 tests |
+| family conformance (`tests/tooling/verify/gates/home-client-family.test.ts`) | green — 14 policies, 131 proofs (10 of them the cast-dodge/limit rows added at review), 12 tests |
+| wave 3's `no-inline-optimistic-in-surface` (same reader, same leak) | green — routed through `classifyPackageMemberOrigin` with its own cast-dodge row |
 | fixture-specifier resolution control (every relative import in every row of the family) | green — 51 relative specifiers checked, 0 unresolved |
 | receipt-refusal pins (7 policies, through `runPolicyPass`) | green — each REFUSES and is withheld when its home/vocabulary is gone |
 | grant-liveness pins (granted-once, stale, wrong-operation) | green |

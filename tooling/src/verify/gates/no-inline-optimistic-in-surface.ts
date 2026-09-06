@@ -12,8 +12,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { classifyPackageMemberOrigin } from "../lib/project-home-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
 const OPTIMISTIC_METHODS: ReadonlySet<string> = new Set(["cancelQueries", "setQueryData"]);
@@ -62,16 +61,17 @@ export const gate = defineGate({
           if (name === undefined || !OPTIMISTIC_METHODS.has(name)) {
             return;
           }
-          const origin = resolveTypeMemberOrigin(callee);
-          if (origin.kind === "unresolved") {
-            if (classifyOriginRefusal(origin.reason, callee) === "unreadable") {
-              ctx.report.node(callee, { message: UNREADABLE, token: name, offset: Math.max(callee.getText().lastIndexOf(name), 0) });
-            }
+          // THE CAST AXIS is why this goes through the shared reader rather than asking the property symbol
+          // directly: a cast declares the method in its OWN type literal, so
+          // `(useQueryClient() as { setQueryData(…): void }).setQueryData(…)` read as a proven different
+          // identity and passed. `classifyPackageMemberOrigin` asks the UNCAST receiver as well, which the
+          // cast cannot change (`lib/project-home-origin.ts`, shared with the sanctioned-home client family).
+          const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE]);
+          if (verdict === "other") {
             return;
           }
-          if (declaredByPackage(origin.value.declarations, QUERY_CORE)) {
-            ctx.report.node(callee, { token: name, offset: Math.max(callee.getText().lastIndexOf(name), 0) });
-          }
+          const offset = Math.max(callee.getText().lastIndexOf(name), 0);
+          ctx.report.node(callee, { ...(verdict === "unreadable" ? { message: UNREADABLE } : {}), token: name, offset });
         },
       },
     ],
@@ -106,6 +106,16 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the COMPUTED-LITERAL spelling of the same method — an ElementAccess callee is not a PropertyAccess, so the legacy `getName()` check was offered nothing it recognised (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/cast-surface.tsx":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function Surface(): void {\n  (useQueryClient() as { setQueryData(key: unknown, value: unknown): void }).setQueryData(["key"], 1);\n}\n',
+      },
+      expect: { count: 1, token: "setQueryData" },
+      why: "THE CAST DODGE: a cast declares the method in its own type literal, so asking the property symbol alone answered 'a proven different identity' and this surface passed while its uncast twin reported. The receiver is still `useQueryClient()` — the shared reader asks it (found by the #1584 sanctioned-home client family's review, which shares this reader)",
     },
   ],
   mustPass: [

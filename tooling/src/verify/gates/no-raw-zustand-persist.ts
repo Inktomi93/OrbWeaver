@@ -24,6 +24,11 @@
 // subjects are now zustand's own declarations, the registry's own `RegisteredStore.reset`, and the registry's
 // own `setOptions` — and the registry file is still located by the DECLARATION it exports, never by a path
 // constant, which is the legacy module's own recorded ruling.
+//
+// ARM B ALSO ASKS THE UNCAST RECEIVER. A cast declares `setState`/`getInitialState` in its own type literal
+// (`raw as unknown as { setState: …; getInitialState: … }`), which the property-symbol reader reads as a
+// proven different identity — so the #837 shape could be written past this policy in one line. The store
+// behind the cast is still zustand's; the shared reader (`lib/project-home-origin.ts`) judges both axes.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -399,6 +404,17 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: RESET },
       why: "ARM C: a SECOND caller of a registered store's `reset()` inside the registry, outside the function that installs the storage blindfold — #837 one layer up. The blindfolded caller in the same file passes, so the arm is not merely counting `reset()` calls",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/cast-reset.ts":
+          'import { create } from "zustand";\nconst raw = create<{ a: number }>(() => ({ a: 1 }));\nconst gStore = raw as unknown as { setState: (state: unknown, replace: boolean) => void; getInitialState: () => unknown };\nexport function wipe(): void {\n  gStore.setState(gStore.getInitialState(), true);\n}\n',
+      },
+      expect: { count: 1, token: GET_INITIAL_STATE },
+      why: "THE CAST DODGE on ARM B: the cast declares both methods in its own type literal, so the property-symbol reader called it a different identity and the #837 persist-through reset PASSED while the uncast twin reported. The store behind the cast is still zustand's",
     },
   ],
   mustPass: [
