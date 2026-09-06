@@ -188,19 +188,15 @@ The wave-4 resume converted the two sanctioned-home families as exact reviewed g
 
 The wave-5 resume closed the shared-reader row three families were waiting on and consolidated the producer
 family. `resolveModuleMemberOrigin` used to refuse any multiply-declared export as `ambiguous`; a FUNCTION
-overload set (same kind, same source file, at most one implementation body) now resolves to one home with the
-declaration count carried in the verdict, while a value/type merge, a `function`+`namespace` merge, an
-`export *` fan-in and a two-file split still refuse. 557 live import specifiers gained a precise verdict
+overload set (same kind, same source file, at most one implementation body) now resolves to one home (the declaration count is NOT carried — a review round dropped the field as consumerless), while a value/type merge, a `function`+`namespace` merge, an
+`export *` fan-in and a two-file split still refuse. 775 import specifiers across the authored tree (557 of them in `packages/{server,client}/src`) gained a precise verdict
 (React's `useState`/`useRef`, query's `useQuery`, drizzle's `inArray`, our own `defineBusChannel` and
-`createAutosaveEntityForm`), 88 correctly still refuse, two gate-local trace-declaration workarounds were
+`createAutosaveEntityForm`), 180 correctly still refuse (88 in server+client; the `node:` builtins split per importing package), two gate-local trace-declaration workarounds were
 deleted as superseded, and the composed pre/post over the same corpus moved NOTHING — no per-policy count, no
 finding, no waiver or grant consumption — which is evidence rather than a false clean because the arm is
 proven reached by that census. The five per-union bus coverage policies then became one
 `bus-producer-coverage` quantified over the belted roster, retiring `bus-coverage-owner` (its guarantee is now
-the policy's own denominator plus two refusals) and its 270-module provider; all 21 proof rows moved verbatim
-and the 66-member/271-anchor producer census is set-identical. At the lane tip the corpus is 259 modules, 104
-final and 155 legacy, and the composed pass over all 104 is 237 raw = 157 waived + 78 granted + 2 effective
-with zero alarms on 5 providers. Evidence: [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md)
+the policy's own denominator plus two refusals) and its 270-module provider; all 21 proof rows' fixture maps moved byte-identical (messages and fix strings replaced by the generic policy's) and the 66-member/271-anchor producer census is set-identical; the review rounds pinned the three guarantees the retired owner gate used to carry (roster cross-check, zero-roster refusal, every-union quantification), reached the same-file overload guard through a `declare module` augmentation, and made the `(union, member)` deferral key injectable so it can be proven. At the lane tip the corpus was 259 modules, 104 final and 155 legacy; folded with the ordinary-visitors lane (ten gates into fifteen policies) it is 264 modules, 119 final and 145 legacy at `1470e7701`, `gate:contract` reports 1,015 findings, and the composed pass over all 119 is recorded in the checkpoint's wave-5 fold closeout. Evidence: [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md)
 §"Resume 2026-09-06, wave 5" and [bus-pair-1584.md](../reviews/gate-runtime/bus-pair-1584.md) §5.
 
 Work proceeds in dependency order:
