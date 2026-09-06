@@ -1950,6 +1950,7 @@
     "tests/server/kit/post-process.test.ts",
     "tests/server/kit/reasoning.test.ts",
     "tests/server/kit/regex.test.ts",
+    "tests/server/kit/secret-redaction/index.test.ts",
     "tests/server/kit/serde/card/index.test.ts",
     "tests/server/kit/serde/chat-bundle/index.test.ts",
     "tests/server/kit/serde/chat/index.test.ts",
