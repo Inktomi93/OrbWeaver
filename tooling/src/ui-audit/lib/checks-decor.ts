@@ -79,8 +79,8 @@ export function classifyAccentBorder(input: AccentBorderInput, rule: AccentBorde
   if (input.statusContext) {
     return { kind: "excluded", reason: "statusRegionAccent" };
   }
-  if (input.listRowSelected) {
-    return { kind: "excluded", reason: "ratifiedListRowSelection" };
+  if (input.selectionRail) {
+    return { kind: "excluded", reason: "ratifiedSelectionRail" };
   }
   if (input.artPane) {
     return { kind: "excluded", reason: "illustratedPickerArt" };
@@ -101,7 +101,7 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
   // left edge, stay judged — that is what keeps this exemption from widening into the rule's real target.
   // The carrier set is the FRAGMENT's, not one primitive's: #1823 gave the config band the same pair, which
   // is why the walker's selector is `SELECTION_RAIL_SEL` rather than a list-row-only one.
-  if (input.listRowSelected) {
+  if (input.selectionRail) {
     return [];
   }
   // THE PICTURE IS NOT THE PRODUCT (#1642). Inside an illustrated picker's art aperture

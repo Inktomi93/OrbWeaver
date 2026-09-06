@@ -105,3 +105,44 @@ auditRuleTest(
     }
   },
 );
+
+// ── #1834: the RENAMED `selectionRail` field still recognizes BOTH ratified carriers ────────────────
+// `AccentBorderInput.listRowSelected` → `selectionRail` (and the disposition reason
+// `ratifiedListRowSelection` → `ratifiedSelectionRail`) is a pure rename — the walker's selector
+// (`SELECTION_RAIL_SEL`, lib/selection-rail-sel.ts) already covers `[data-slot='list-row-root']`,
+// `[data-slot='list-row-body']` and `[data-slot='config-band']` since #1823. This plant proves the
+// rename did not silently narrow the population back to one carrier, and that the exemption still keys
+// on BOTH halves of the predicate — an unselected band with the identical geometry stays judged.
+auditRuleTest(
+  [
+    {
+      rule: "side-tab",
+      kind: "silent",
+      reason: "a selected list-row-root wears the ratified selection rail and is exempt",
+    },
+    {
+      rule: "side-tab",
+      kind: "silent",
+      reason: "a selected config-band wears the identical ratified rail (#1823) and is exempt too",
+    },
+    {
+      rule: "side-tab",
+      kind: "fires",
+      reason: "the SAME geometry on an UNSELECTED config-band is not exempt — the state half of the predicate",
+    },
+  ],
+  "selectionRail recognizes both ratified carriers post-rename, and an unselected band stays judged",
+  async ({ runCli, scratch }) => {
+    const railStyle = "border-left:2px solid #dc2828;border-radius:8px;padding:8px;width:200px";
+    const body = `<div id="rail-row" data-slot="list-row-root" data-selected style="${railStyle}">selected list row</div>
+<div id="rail-band" data-slot="config-band" data-selected style="${railStyle}">selected config band</div>
+<div id="rail-band-off" data-slot="config-band" style="${railStyle}">unselected config band</div>`;
+    await writeFile(join(scratch, "selection-rail-rename.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "selection-rail-rename.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+    const selectors = findingSelectors(res.stdout, "side-tab");
+    expect(selectors, "a selected list-row-root wears the rail and must stay exempt").not.toContain("#rail-row");
+    expect(selectors, "a selected config-band wears the identical rail and must stay exempt").not.toContain("#rail-band");
+    expect(selectors, "an UNSELECTED band is not exempt — it must still fire").toContain("#rail-band-off");
+  },
+);

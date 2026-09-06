@@ -126,7 +126,7 @@ const ACCENT_BASE = {
   badgeLike: false,
   tabContext: false,
   statusContext: false,
-  listRowSelected: false,
+  selectionRail: false,
   artPane: false,
 };
 
@@ -136,7 +136,7 @@ test("both accent-border rules share ONE census and both COUNT every ratified ex
   const rows = rowsFor({
     accentBorders: [
       ACCENT_BASE,
-      { ...ACCENT_BASE, selector: "div.row", listRowSelected: true },
+      { ...ACCENT_BASE, selector: "div.row", selectionRail: true },
       { ...ACCENT_BASE, selector: "div.alert", statusContext: true },
       { ...ACCENT_BASE, selector: "div.skin-diagram", artPane: true },
     ],
@@ -146,7 +146,7 @@ test("both accent-border rules share ONE census and both COUNT every ratified ex
       candidates: 4,
       judged: 1,
       affected: 1,
-      excluded: { ratifiedListRowSelection: 1, statusRegionAccent: 1, illustratedPickerArt: 1 },
+      excluded: { ratifiedSelectionRail: 1, statusRegionAccent: 1, illustratedPickerArt: 1 },
     });
   }
 });
