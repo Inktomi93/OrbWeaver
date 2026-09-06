@@ -2291,6 +2291,7 @@
     "tests/tooling/verify/gates/message-kind-policy-coverage.test.ts",
     "tests/tooling/verify/gates/no-blanket-suppression.int.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
+    "tests/tooling/verify/gates/open-json-column-key-parity.test.ts",
     "tests/tooling/verify/gates/over-art-plate-arm.int.test.ts",
     "tests/tooling/verify/gates/owner-scoped-reads.test.ts",
     "tests/tooling/verify/gates/owner-scoped-upserts.test.ts",
