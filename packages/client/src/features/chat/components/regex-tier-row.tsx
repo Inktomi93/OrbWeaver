@@ -63,9 +63,13 @@ export interface RegexTierRowProps {
   readonly notYours: boolean;
   /** The disambiguator this row's action names carry when two rows share a name + stamp (`rowQualifiers`). */
   readonly qualifier: string | undefined;
+  /** #1755 — how many rows run in this room at all (`listEffectiveRegex`'s `effective.length`), the `m` of
+   *  the spoken `Runs <n> of <m>`. NULL for a viewer whose read carries no run order (a member), which is
+   *  the same condition that makes every `runsAt` null. */
+  readonly effectiveCount: number | null;
 }
 
-export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qualifier }: RegexTierRowProps): ReactElement {
+export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
@@ -115,7 +119,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
           {rankLabel(row.runsAt, isHost)}
         </Text>
       }
-      markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} />}
+      markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
       subtitle={patternOf(script.findRegex)}
       subtitleLead={<StageGlyphs placement={script.placement} />}
       subtitlePlacement="inline"
@@ -136,18 +140,35 @@ function rankLabel(runsAt: number | null, isHost: boolean): string {
 
 /** The title-line marks: the `+N` chip (also attached at N other tiers of this room), the `OFF` state, and
  *  the not-yours mark. All three ride `markers` — the title line — so they never steal the subtitle's width
- *  from the pattern, which is the datum that tells two similarly-named scripts apart. */
+ *  from the pattern, which is the datum that tells two similarly-named scripts apart.
+ *
+ *  AND THE RANK, IN WORDS (#1755). The visible numeral sits in `ListRow`'s `leading` slot, which the
+ *  primitive marks `aria-hidden` by contract (`primitives/list-row/parts.tsx` — the slot backs no name), so
+ *  the rank reached a screen reader as nothing at all. `markers` is the nearest lane that is NOT hidden, and
+ *  an `sr-only` line there is the shipped shape for "the compressed glyph is for the eye, the sentence is
+ *  the datum" (`preset/components/prompt-assembly/section-row.tsx:162`). Spoken on EVERY arm — including the
+ *  room's own tier, whose `<li>` comes from the sortable seal and counts the REORDERABLE tier rather than
+ *  the run order — which is why the readable line is not merely a duplicate of `aria-posinset`. */
 function RowMarkers({
   alsoAt,
   enabled,
   notYours,
+  runsAt,
+  effectiveCount,
 }: {
   readonly alsoAt: readonly string[];
   readonly enabled: boolean;
   readonly notYours: boolean;
+  readonly runsAt: number | null;
+  readonly effectiveCount: number | null;
 }): ReactElement {
   return (
     <Row align="center" gap="tight">
+      {runsAt === null || effectiveCount === null ? null : (
+        <Text as="span" className="sr-only">
+          {`Runs ${runsAt} of ${effectiveCount}`}
+        </Text>
+      )}
       {alsoAt.length === 0 ? null : (
         <Badge intent="neutral" size="inline" title={`also attached: ${alsoAt.join(" · ")}`} tone="soft">
           +{alsoAt.length}
