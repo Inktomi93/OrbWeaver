@@ -213,12 +213,15 @@ export function mediaFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const buriedRasters = checkBuriedRasterPopulations(samples.buriedRasters ?? []);
   const distorted = partitionedFindings("distorted-image", samples.images, classifyImageDistortion);
+  // Accounting-only (#1079): canvas ink is EXCLUDED, never a silent zero (census-collision.ts's count).
+  const canvasInk = accountedFindings<never>("canvas-ink", [], () => null, { census: samples.relationalAccounting?.["canvas-ink"], samplesAreJudged: false });
   runArray(state, () => distorted.findings);
   runArray(state, () => samples.brokenImages.map(checkBrokenImage));
   runArray(state, () => buriedRasters.findings);
+  runArray(state, () => canvasInk.findings);
   return {
     ...state,
-    populationAccounting: { "buried-raster": buriedRasters.accounting, "distorted-image": distorted.accounting },
+    populationAccounting: { "buried-raster": buriedRasters.accounting, "canvas-ink": canvasInk.accounting, "distorted-image": distorted.accounting },
   };
 }
 

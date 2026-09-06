@@ -38,6 +38,9 @@ interface CensusCapRow {
 export type CensusCapAccountingInput = Readonly<Partial<Record<CensusCapFamily, CensusCapRow>>>;
 
 interface RelationalPopulationAccountingInput {
+  /** Present ONLY when a visible canvas exists (#1079) — the same "absence is absence" shape as
+   *  `reveal-coverage`, never a zeroed row. */
+  readonly "canvas-ink"?: RelationalCensusAccountingInput;
   readonly "cohort-anatomy": RelationalCensusAccountingInput;
   readonly "double-empty-state"?: RelationalCensusAccountingInput;
   readonly "headline-overhang"?: RelationalCensusAccountingInput;

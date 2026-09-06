@@ -36,6 +36,10 @@ export const DESIGN_AUDIT_RULES = [
   { id: "side-tab", family: "decor", severity: ["P3"] },
   { id: "glow-shadow", family: "decor", severity: ["P3"] },
   { id: "distorted-image", family: "media", severity: ["P1", "P2"] },
+  // Accounting-only (#1079, orb-ui audit F7): never emits a Finding — every ECharts canvas is EXCLUDED
+  // by name (no DOM census can read pixels a canvas paints; no OCR), rather than a silent zero that
+  // reads as "no visual content here" on a chart-heavy pane.
+  { id: "canvas-ink", family: "media", severity: ["P3"] },
   { id: "broken-image", family: "media", severity: ["P1"] },
   { id: "radial-halo", family: "ornament", severity: ["P2"] },
   { id: "radial-spotlight-glow", family: "ornament", severity: ["P3"] },
