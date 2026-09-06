@@ -23,12 +23,18 @@
 //     readable and their ranks null — a host cannot switch back on what the read stopped mentioning.
 //   • RANK COMES ONLY FROM THE EFFECTIVE HALF (`DESIGN.md` §7.1). The client never re-unions and never
 //     re-ranks; a numeral on a row is that row's index in the run order the turn will actually apply.
+//
+// WHAT #1754 ADDED — THE NAMING. `RegexTierLabels` is a second, REQUIRED parameter: the tier that resolved
+// the preset is the one that names it, because the wire key is the bare word `preset` and the only preset
+// name a CLIENT can reach is the viewer's own active one, which the rpg GM redirect makes wrong. It is a
+// parameter rather than a source field so the turn path (`resolveHostTierRegexScripts`, which throws the
+// listing away) never has to carry a name it does not render.
 
 import type { CharacterRegexSlice, EffectiveRegexEntry, EffectiveRegexView, RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import { characterRegexTierKey, isRegexEnabledInChat, isRegexTierAllowed } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatMetadata } from "../contract/metadata.ts";
-import type { HostTierRegexAllow, HostTierRegexSources } from "../contract/regex.ts";
+import type { HostTierRegexAllow, HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
 
 /** The room's REGEX LEVERS (#1742), lifted off the parsed metadata blob for the pure resolver below — which
  *  must not know what a chat row looks like. Both members pass through VERBATIM: the absent-⇒-allowed rule
@@ -68,7 +74,7 @@ function tierSlices(sources: HostTierRegexSources): TierSlice[] {
  * half entirely: every row still lists, every rank is null. `enabled` on the returned view is what the
  * section's kicker prints `off` for.
  */
-export function resolveRegexTiers(sources: HostTierRegexSources): EffectiveRegexView {
+export function resolveRegexTiers(sources: HostTierRegexSources, labels: RegexTierLabels): EffectiveRegexView {
   const enabled = isRegexEnabledInChat(sources.allow.enabled);
   const slices = tierSlices(sources);
   const effective: EffectiveRegexEntry[] = [];
@@ -107,6 +113,11 @@ export function resolveRegexTiers(sources: HostTierRegexSources): EffectiveRegex
     (slice): RegexTierGroupView => ({
       scope: slice.scope,
       allowed: isRegexTierAllowed(sources.allow.tiers, slice.scope),
+      // THE NAME, only where the KEY does not already carry one (#1754). `global`/`chat` ARE their words and
+      // `character:<id>` carries the seat, so the preset tier is the only arm a caller can name — and an
+      // unresolved preset stays UNNAMED (the key is omitted, not set to a placeholder): the section prints
+      // the bare `From the preset` rather than a name that might be the wrong preset's.
+      ...(slice.scope === "preset" && labels.preset !== null ? { label: labels.preset } : {}),
       rows: slice.scripts.map((script, position): RegexTierRowView => {
         // A rank belongs to the occurrence that CLAIMED it: a deduped script draws its numeral at its
         // earliest allowed tier and a bare `+1` chip at the later one, never the same numeral twice.
@@ -133,7 +144,9 @@ export function resolveHostTierRegexScripts(sources: HostTierRegexSources): Rege
   // the first occurrence in source order. The two differ exactly when the earliest tier holding the script is
   // switched OFF: taking the first occurrence there would run the disallowed tier's copy of the row, which is
   // the "drop before dedup" rule leaking back in through the projection (caught by that pin, 2026-09-05).
-  return resolveRegexTiers(sources)
+  // The TURN names nothing — it consumes the effective half only, so it hands the resolver the one honest
+  // label it has (`null` ⇒ unnamed) rather than a preset name it would never render (#1754).
+  return resolveRegexTiers(sources, { preset: null })
     .tiers.flatMap((tier) => tier.rows.filter((row) => row.runsAt !== null))
     .sort((a, b) => (a.runsAt ?? 0) - (b.runsAt ?? 0))
     .map((row) => row.script);

@@ -127,6 +127,22 @@ export interface RegexTierGroupView {
   readonly scope: RegexTierKey;
   /** FALSE when the room switched this tier off. Independent of the master: the section shows both states. */
   readonly allowed: boolean;
+  /**
+   * THE IDENTITY THE TIER KEY DOES NOT CARRY (#1754) — a NAME the server resolved, which the client renders
+   * into the tier's label (`From the preset · <name>`, `DESIGN.md` §3). Absent ⇒ the client says the bare
+   * word (`From the preset`), never a guess.
+   *
+   * WHY IT IS OPTIONAL AND WHY ONLY ONE ARM EVER FILLS IT. Three of the four keys already carry their own
+   * identity: `global` and `chat` ARE their words (`Everywhere` / `This chat` — a fixed vocabulary the
+   * client owns, `docs/design/vocabulary-map.md`), and `character:<id>` carries the seat id, which the
+   * section resolves by an EXACT id match against the roster it already holds (`chat.getChat`). The bare
+   * word `preset` carries nothing — and the only preset name a client can reach is the VIEWER's active one
+   * (`chat-context-band.tsx`), which is NOT the preset this room assembles whenever the rpg GM redirect
+   * fires (`domain/chat/verbs/read.ts::resolvePreviewInputs`). So the one tier whose name the client cannot
+   * derive is the one the read carries a name for: the resolver that picked the preset is the one that
+   * names it. Any future tier in the same position (an identity-less key) fills this same field.
+   */
+  readonly label?: string | undefined;
   readonly rows: readonly RegexTierRowView[];
 }
 

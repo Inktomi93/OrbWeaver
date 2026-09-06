@@ -999,15 +999,22 @@ function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService
   return async ({ principal, chatId }: ListEffectiveRegexParams): Promise<EffectiveRegexView> => {
     const { chat } = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
-    return resolveRegexTiers({
-      ...(await ctx.resolveRegexSources({
-        ownerId: inputs.hostUserId,
-        presetId: inputs.foreign.presetId ?? null,
-        characterIds: inputs.characterIds,
-        chatId,
-      })),
-      allow: regexAllowOf(inputs.metadata),
-    });
+    return resolveRegexTiers(
+      {
+        ...(await ctx.resolveRegexSources({
+          ownerId: inputs.hostUserId,
+          presetId: inputs.foreign.presetId ?? null,
+          characterIds: inputs.characterIds,
+          chatId,
+        })),
+        allow: regexAllowOf(inputs.metadata),
+      },
+      // THE PRESET TIER'S NAME (#1754) comes off the SAME resolution the sources' `presetId` does, which is
+      // the preview preamble's — the GM redirect included. Naming it here rather than client-side is the
+      // whole point: the section's only other route to a preset name is the viewer's own active preset,
+      // which on a game chat is not the preset this room assembles.
+      { preset: inputs.foreign.presetName ?? null },
+    );
   };
 }
 

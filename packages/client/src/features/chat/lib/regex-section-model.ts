@@ -19,6 +19,10 @@
 // So: the occurrence that earned the rank wins, and only when NOTHING claimed a rank (the master is off, or
 // every holding tier is off, or the library row is disabled) does the earliest listing tier draw it.
 
+// WHAT THE TIERS ARE CALLED lands here too (#1754) — `regexTierLabels` below — because the naming has two
+// sources (the wire's server-resolved preset name, the roster's seat names) and four readers (lever, kicker,
+// provenance, `+N` chip), and a per-reader join would be that decision spelled four times.
+
 import type { RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import { parseCharacterRegexTierKey } from "@orb/contracts/chat";
 import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
@@ -73,54 +77,84 @@ export function regexTierLeverCount(rows: readonly RegexTierRowView[]): number {
   return rows.filter((row) => row.script.enabled).length;
 }
 
-/** ONE seat's name, for the three tier labels below. Absent only if a seat left the room between the two
- *  reads; naming it honestly beats printing a raw id (R10 — no surface ever shows one). */
-function characterLabel(scope: RegexTierKey, names: ReadonlyMap<CharacterId, string>): string {
-  const characterId = parseCharacterRegexTierKey(scope);
-  return (characterId === null ? undefined : names.get(characterId)) ?? "a character";
+/**
+ * WHAT EACH TIER IS CALLED — one lookup, built once per read, consulted by the lever, the group kicker, the
+ * provenance line AND the `+N` chip's naming (which names OTHER tiers and therefore cannot take a scope's
+ * name from the group it is rendering in).
+ *
+ * TWO SOURCES, ONE MAP, AND THE SPLIT IS THE POINT (#1754). The PRESET tier's name can only come off the
+ * WIRE (`RegexTierGroupView.label`): its key is the bare word `preset`, and the only preset name reachable
+ * here is the viewer's own active one (`chat-context-band.tsx`), which is NOT the preset this room's turn
+ * assembles whenever the rpg GM redirect fires — naming the wrong preset on the one surface built to say
+ * what runs here is worse than not naming it. A CHARACTER tier's name comes off the ROSTER, by an EXACT
+ * match on the seat id its own key carries (`chat.getChat`, already loaded for this tab): the key carries
+ * the identity, so there is nothing for the server to disambiguate and no second read to pay for.
+ *
+ * A missing entry is a real state, not a bug: no preset resolved, or a seat that left between the two reads.
+ * The label functions below say the bare word there — never a raw id (R10), never a guess.
+ */
+export function regexTierLabels(tiers: readonly RegexTierGroupView[], seatNames: ReadonlyMap<CharacterId, string>): ReadonlyMap<RegexTierKey, string> {
+  const labels = new Map<RegexTierKey, string>();
+  for (const tier of tiers) {
+    const characterId = parseCharacterRegexTierKey(tier.scope);
+    const name = characterId === null ? tier.label : seatNames.get(characterId);
+    if (name !== undefined) {
+      labels.set(tier.scope, name);
+    }
+  }
+  return labels;
+}
+
+/** ONE seat's name for the three tier labels below — the fallback is a WORD, because no surface ever shows
+ *  a raw id (R10) and a seat can leave the room between the two reads. */
+function characterLabel(scope: RegexTierKey, labels: ReadonlyMap<RegexTierKey, string>): string {
+  return labels.get(scope) ?? "a character";
 }
 
 /**
  * The LEVER's label — the switch in the strip (`DESIGN.md` §3: `Everywhere` · `Preset · <name>` ·
  * `<character name>` · `This chat`).
  *
- * THE PRESET LEVER CARRIES NO NAME on this build, and that is a refusal rather than an omission: the wire
- * says `preset` and nothing else, and the only client-side way to a name is the viewer's own active preset
- * (`chat-context-band.tsx`'s chip) — which is NOT necessarily the preset this room's turn assembles (the rpg
- * GM redirect resolves a different one, `verbs/read.ts::resolvePreviewInputs`). A section whose whole job is
- * telling a host what runs here must not name the wrong preset; it says `Preset` until the read carries the
- * label. `Everywhere` / `This chat` are the Documents rack's own scope words in the same pane (§4).
+ * The preset arm degrades to the bare `Preset` when the read carried no name (a preset-less room), which is
+ * the same refusal the unnamed build made for every room — just no longer the only answer.
+ * `Everywhere` / `This chat` are the Documents rack's own scope words in the same pane (§4).
  */
-export function regexTierLever(scope: RegexTierKey, names: ReadonlyMap<CharacterId, string>): string {
+export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTierKey, string>): string {
   switch (scope) {
     case "global":
       return "Everywhere";
     case "preset":
-      return "Preset";
+      return named("Preset", labels.get("preset"));
     case "chat":
       return "This chat";
     default:
-      return characterLabel(scope, names);
+      return characterLabel(scope, labels);
   }
 }
 
 /** The GROUP kicker — the same tier said as a provenance heading (§3's run-order groups). */
-export function regexTierKicker(scope: RegexTierKey, names: ReadonlyMap<CharacterId, string>): string {
+export function regexTierKicker(scope: RegexTierKey, labels: ReadonlyMap<RegexTierKey, string>): string {
   switch (scope) {
     case "global":
       return "Everywhere";
     case "preset":
-      return "From the preset";
+      return named("From the preset", labels.get("preset"));
     case "chat":
       return "This chat";
     default:
-      return `From ${characterLabel(scope, names)}`;
+      return `From ${characterLabel(scope, labels)}`;
   }
+}
+
+/** The design's `· <name>` suffix (§3, and the vocabulary-map row) — one home, so the kicker and the lever
+ *  cannot spell the separator differently. */
+function named(word: string, name: string | undefined): string {
+  return name === undefined ? word : `${word} · ${name}`;
 }
 
 /** The group's one-line provenance — where these rows CAME FROM, which is what tells a host why a script
  *  they never attached here is running (§3). */
-export function regexTierProvenance(scope: RegexTierKey, names: ReadonlyMap<CharacterId, string>): string {
+export function regexTierProvenance(scope: RegexTierKey, labels: ReadonlyMap<RegexTierKey, string>): string {
   switch (scope) {
     case "global":
       return "Your global scripts.";
@@ -129,6 +163,6 @@ export function regexTierProvenance(scope: RegexTierKey, names: ReadonlyMap<Char
     case "chat":
       return "Attached here. Drag to reorder.";
     default:
-      return `Came with ${characterLabel(scope, names)}’s card.`;
+      return `Came with ${characterLabel(scope, labels)}’s card.`;
   }
 }

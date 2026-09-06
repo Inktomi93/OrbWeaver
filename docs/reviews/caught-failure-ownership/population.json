@@ -2906,7 +2906,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1191,
+      "line": 1196,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,12 +2914,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1187
+      "markerLine": 1192
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1224,
+      "line": 1229,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2927,12 +2927,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1213
+      "markerLine": 1218
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1261,
+      "line": 1266,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2940,12 +2940,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1253
+      "markerLine": 1258
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 975,
+      "line": 980,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2953,7 +2953,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 970
+      "markerLine": 974
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",

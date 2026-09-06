@@ -187,6 +187,84 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     expect(view.tiers.find((t) => t.scope === "preset")?.rows.map((r) => r.runsAt)).toEqual([null]);
     expect(view.effective).toHaveLength(3);
   });
+
+  // ── #1754 — THE PRESET TIER'S NAME ────────────────────────────────────────────────────────────────
+  // The tier KEY is the bare word `preset`, so the client has no way to a name except the VIEWER's own
+  // active preset chip (`chat-context-band.tsx`) — which is NOT the preset this room assembles whenever the
+  // rpg GM redirect fires. The name therefore has to come from the read, which already resolves through
+  // `resolvePreviewInputs` (the redirect included). These three pin the three answers it can give.
+
+  /** `resolveForeignInputs` as the composition root behaves: the RESOLVED preset's name travels beside its
+   *  id, so the redirected arm and the host-default arm are two different strings, never one shared fake. */
+  function namingDeps(names: { readonly redirected: string | null; readonly hostDefault: string | null }): Parameters<typeof createRead>[1] {
+    return makeDeps({
+      resolveForeignInputs: (params) =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          presetId: params.presetOverride ?? null,
+          presetName: params.presetOverride === undefined ? names.hostDefault : names.redirected,
+          personas: { anchor: null, active: null },
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    });
+  }
+
+  test("the preset tier is named by the preset THIS ROOM assembles — the GM redirect's, not the host default's", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-gm"));
+    const chatId = await seedChat(db, "rx-label-gm");
+    const character = await seedCharacter(db, host, "rx-label-gm-char");
+    await seedParticipant(db, { chatId, key: "rxlg_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxlg_c", characterId: character });
+    // FABRICATION-OK: minimal ChatRpgOps stub — the read path reaches only these three ops.
+    const rpg = {
+      resolvePresetOverride: () => Promise.resolve(castId<PresetId>("preset_gm_voice_rx")),
+      resolveUserMacros: () => Promise.resolve([]),
+      gatherTurnContext: () => Promise.resolve(null),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const ctx = makeChatContext(db, { rpg, resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBe("Grimdark GM");
+    // Only the preset tier is named from the wire — the other three keys carry their own identity.
+    expect(view.tiers.filter((t) => t.scope !== "preset").map((t) => t.label)).toEqual([undefined, undefined, undefined]);
+  });
+
+  test("a plain room names the preset the host's own turn assembles", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-plain"));
+    const chatId = await seedChat(db, "rx-label-plain");
+    const character = await seedCharacter(db, host, "rx-label-plain-char");
+    await seedParticipant(db, { chatId, key: "rxlp_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxlp_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBe("House default");
+  });
+
+  test("a preset-less room names NOTHING rather than the wrong thing", async () => {
+    const host = await seedUser(db, castId<Handle>("rx-label-none"));
+    const chatId = await seedChat(db, "rx-label-none");
+    const character = await seedCharacter(db, host, "rx-label-none-char");
+    await seedParticipant(db, { chatId, key: "rxln_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "rxln_c", characterId: character });
+    const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
+
+    const view = await createRead(ctx, namingDeps({ redirected: null, hostDefault: null })).listEffectiveRegex({
+      principal: principal(host),
+      chatId,
+    });
+
+    expect(view.tiers.find((t) => t.scope === "preset")?.label).toBeUndefined();
+  });
 });
 
 describe("read — listings (membership-scoped, D18)", () => {
