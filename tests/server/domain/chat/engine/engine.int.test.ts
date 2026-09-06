@@ -1534,6 +1534,118 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
   });
 });
 
+// ── #1461: EVERY post-turn hook reports its own failure ────────────────────────────────────────────────
+// `fireRpgTurnCompleted` logs on catch and the memory build logs + emits + rethrows for the span; the
+// expressions classify and the rpg turn-abort clear used `.catch(() => undefined)`, so a rejecting injected
+// op left NO log line and NO durable trace of stale derived state (expressions runs on every committed
+// turn; the abort clear runs on every abort path — a failed clear leaks staged writes into the NEXT turn).
+// Each pin ships its own PLANTED CONTROL: the resolving arm of the same op must produce no line at all.
+const HOOK_WARN_TIMEOUT = 2000;
+
+/** The warn messages the two hooks emit — spelled once so a reword breaks the pins, not the reader. */
+const EXPR_HOOK_WARN = "expressions: post-turn classify failed (reply already committed)";
+const RPG_ABORT_HOOK_WARN = "rpg: turn-abort staging clear failed (the turn is still aborted)";
+
+/** Every `getLog().warn` MESSAGE the spy saw (the second positional — the first is the fields object). */
+function warnMessages(spy: ReturnType<typeof vi.spyOn>): string[] {
+  return spy.mock.calls.flatMap((call) => (typeof call[1] === "string" ? [call[1]] : []));
+}
+
+describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never swallowed", () => {
+  test("a REJECTING expressions classify warns with the chat + turn ids", async () => {
+    const chatId = await seedChat(db, "expr-hook-warn");
+    const expressions: NonNullable<ChatContext["expressions"]> = {
+      onTurnCompleted: () => Promise.reject(new Error("classify backend down")),
+    };
+    const h = harness(db, { expressions });
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      const outcome = await h.engine.runTurn(prepOf(chatId));
+      // The happy path is UNCHANGED: the reply still committed (the hook is fire-and-forget).
+      expect(outcome.aborted).toBe(false);
+      await vi.waitFor(() => expect(warnMessages(warnSpy)).toContain(EXPR_HOOK_WARN), { timeout: HOOK_WARN_TIMEOUT, interval: 5 });
+      const [fields] = warnSpy.mock.calls.find((call) => call[1] === EXPR_HOOK_WARN) ?? [];
+      expect(fields).toMatchObject({ chatId });
+      expect((fields as { turnId?: string } | undefined)?.turnId).toBeDefined();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("…PLANTED CONTROL: a RESOLVING expressions classify logs nothing", async () => {
+    const chatId = await seedChat(db, "expr-hook-quiet");
+    let classifyDone: () => void = () => undefined;
+    const classified = new Promise<void>((resolve) => {
+      classifyDone = resolve;
+    });
+    const expressions: NonNullable<ChatContext["expressions"]> = {
+      onTurnCompleted: async () => {
+        await Promise.resolve();
+        classifyDone();
+      },
+    };
+    const h = harness(db, { expressions });
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      await h.engine.runTurn(prepOf(chatId));
+      await classified;
+      expect(warnMessages(warnSpy)).not.toContain(EXPR_HOOK_WARN);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a REJECTING rpg turn-abort clear warns with the chat + turn ids", async () => {
+    const chatId = await seedChat(db, "rpg-abort-hook-warn");
+    // FABRICATION-OK: instrumentation double — the abort path reaches only `onTurnAborted` (the I-7
+    // abort-trace pin above establishes that).
+    const rpg = {
+      onTurnAborted: () => Promise.reject(new Error("staging clear failed")),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const h = harness(db, { runChatTurn: honorsAbort, rpg });
+    const controller = new AbortController();
+    controller.abort();
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      const outcome = await h.engine.runTurn(prepOf(chatId, { signal: controller.signal }));
+      // The abort is still the OUTCOME the caller sees — a failed clear never changes it.
+      expect(outcome.aborted).toBe(true);
+      await vi.waitFor(() => expect(warnMessages(warnSpy)).toContain(RPG_ABORT_HOOK_WARN), { timeout: HOOK_WARN_TIMEOUT, interval: 5 });
+      const [fields] = warnSpy.mock.calls.find((call) => call[1] === RPG_ABORT_HOOK_WARN) ?? [];
+      expect(fields).toMatchObject({ chatId });
+      expect((fields as { turnId?: string } | undefined)?.turnId).toBeDefined();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("…PLANTED CONTROL: a RESOLVING rpg turn-abort clear logs nothing", async () => {
+    const chatId = await seedChat(db, "rpg-abort-hook-quiet");
+    let clearDone: () => void = () => undefined;
+    const cleared = new Promise<void>((resolve) => {
+      clearDone = resolve;
+    });
+    // FABRICATION-OK: instrumentation double — see above.
+    const rpg = {
+      onTurnAborted: async () => {
+        await Promise.resolve();
+        clearDone();
+      },
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const h = harness(db, { runChatTurn: honorsAbort, rpg });
+    const controller = new AbortController();
+    controller.abort();
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      await h.engine.runTurn(prepOf(chatId, { signal: controller.signal }));
+      await cleared;
+      expect(warnMessages(warnSpy)).not.toContain(RPG_ABORT_HOOK_WARN);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
 // The capability-drop warning emitter (D79). image_dropped rides an end-to-end turn above; tools + structured
 // output have no engine INPUT path yet (no chat consumer sets `responseFormat`/tools on a TurnPrep), so their
 // The turn-lock heartbeat: `runTurn` refreshes its own lock on a TTL/3 cadence so a turn that outruns the TTL
