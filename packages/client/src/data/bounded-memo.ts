@@ -20,8 +20,6 @@
  * Insert `value` under `key` in a bounded LRU map: an existing key is re-inserted at the tail (a touch), and
  * once the map holds `cap` entries the OLDEST evicts before a new key lands — so the map can never grow past
  * `cap`. Mutates `map` in place (Map preserves insertion order, which IS the LRU order here).
- *
- * @public Test-anchored module surface — the bounding is invisible through every one of its callers.
  */
 export function rememberBounded<K, V>(map: Map<K, V>, key: K, value: V, cap: number): void {
   if (map.has(key)) {
@@ -42,8 +40,6 @@ export function rememberBounded<K, V>(map: Map<K, V>, key: K, value: V, cap: num
  * by the time that settlement runs some later caller may already have replaced the entry with a fresh attempt
  * for the same key. Deleting unconditionally would throw away that in-flight attempt and every caller waiting
  * on it, and the next reader would start a THIRD one.
- *
- * @public Test-anchored module surface.
  */
 export function forgetIfCurrent<K, V>(map: Map<K, V>, key: K, value: V): void {
   if (map.get(key) === value) {

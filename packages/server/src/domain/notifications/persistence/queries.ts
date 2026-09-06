@@ -79,7 +79,6 @@ function buildDismissActiveOfType(
  *  the reader already looked at. Returns the rows it changed: EMPTY means the reader has no active row of
  *  that type, which is a legitimate settled state (they dismissed it) and never a reason to insert one —
  *  resurrecting a dismissed ask is the re-prompt loop the aggregate exists to avoid.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function updateActivePayloadOfType(
   db: Db,
