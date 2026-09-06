@@ -12,11 +12,11 @@ import type {
   RpgActorEntry,
   RpgActorOp,
   RpgActorRef,
-  RpgCastRef,
   RpgDateMode,
   RpgExtractionContext,
   RpgGameFeatures,
   RpgJournalType,
+  RpgNpcRef,
   RpgQuestStatus,
   RpgRuleset,
   RpgSnapshotState,
@@ -113,7 +113,7 @@ export interface StagedPatch {
  *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
  *  apply from the resolved roster (`tools/apply.ts::buildActorRefIndex`). A tool write on a roster member
  *  then lands under `character:<id>`/`user:<id>` — the SAME key `buildTrackerView` + the steering reminder
- *  read, never an orphan `cast:<name>` the panel can't render. */
+ *  read, never an orphan `npc:<name>` the panel can't render. */
 export type ActorRefIndex = ReadonlyMap<string, RpgActorRef>;
 
 /** The state patch `update_scene` produces — an ambient/presence/identity/beat overlay under the [merge-clear]
@@ -287,12 +287,12 @@ export interface DismissActorParams {
 }
 
 /** `promoteActor` — THE promotion doorway (R4; host): a scene NPC earns a durable roster card + a chat seat,
- *  and her actor row is RE-KEYED `cast:<slug>` → `character:<id>` in the same gesture. `targetRef` is the CAST
+ *  and her actor row is RE-KEYED `npc:<slug>` → `character:<id>` in the same gesture. `targetRef` is the CAST
  *  arm only — promoting a roster actor is meaningless, so the type cannot express it. */
 export interface PromoteActorParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly targetRef: RpgCastRef;
+  readonly targetRef: RpgNpcRef;
 }
 
 /** `upsertQuest` — the hand arm of the quest plane (host). Writes the `quests` array on the current resolved
@@ -415,7 +415,7 @@ export interface ResyncFromStoryParams {
 /** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling). Chat- +
  *  actor-scoped; the verb resolves the HOST floor (`resolveHost`) so a member can never trigger the
  *  host-principal model call, then resolves the card corpus under the room host. `actorRef` names WHICH roster
- *  character the round fills — a `user`/`cast` ref carries no card and is refused (the honest applicability
+ *  character the round fills — a `user`/`npc` ref carries no card and is refused (the honest applicability
  *  arm the client's disabled button mirrors). No corpus arg: the card + opening are server-resolved, so a
  *  caller can never feed the round its own prose. */
 export interface PopulateFromCharacterParams {

@@ -108,7 +108,7 @@ export async function handoffWouldCopyGmPreset(ctx: RpgContext, chatId: ChatId, 
  *  onto `character:<new>` (the `promoteActor` mechanism, aimed at a transfer instead of a promotion).
  *
  *  Per-actor refusals are SWALLOWED on purpose: `rekeyActor` refuses when the head carries no row for `from`
- *  (a cast member the game never tracked, or an already-completed re-key on a retried accept) and when the
+ *  (a npc the game never tracked, or an already-completed re-key on a retried accept) and when the
  *  destination key is already occupied. Neither is an error here — the room has already changed hands, and
  *  raising would turn a completed transfer into a failed call. A no-game chat / an empty pair list writes
  *  nothing at all. */

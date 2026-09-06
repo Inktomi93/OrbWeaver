@@ -1,7 +1,7 @@
 // The Scene tab's CAST section — the on-stage cards AND the R2 "Known characters" disclosure. Split out of
 // `rpg-scene-tab.tsx` for the component-size gate; the two lists are ONE anatomy, so they live together.
 //
-// R2 — THE OFFSTAGE NPC IS FINALLY A PERSON THE HOST CAN SEE. A departure used to DESTROY a cast NPC's
+// R2 — THE OFFSTAGE NPC IS FINALLY A PERSON THE HOST CAN SEE. A departure used to DESTROY an npc's
 // identity row (name, emoji, mood, relationship, the standing guides) while her tracked state survived on a
 // plane NO surface projected: the host could not read her, edit her or remove her, and the model could still
 // be told to wound her. Departure is a PRESENCE drop now, and everything is retained — so the disclosure
@@ -10,18 +10,18 @@
 // never had).
 //
 // Every edit here is an OP on the actor's own row — identity and volatile alike. It used to be a whole-
-// `presentCharacters` IMAGE rebuilt from the live cast on every keystroke, which pinned the ENTIRE plane on
+// `presentCharacters` IMAGE rebuilt from the live npcs on every keystroke, which pinned the ENTIRE plane on
 // one NPC's mood edit and could only ever author the members this client could see.
 
-import type { RpgActorRef, RpgActorView, RpgCastGuideField, RpgCastRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
-import { RPG_CAST_GUIDE_FIELDS, trackerCeiling, trackerNumber, trackerReading } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgActorView, RpgNpcGuideField, RpgNpcRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
+import { RPG_NPC_GUIDE_FIELDS, trackerCeiling, trackerNumber, trackerReading } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { CastCard, MeterRow } from "#components";
+import { MeterRow, NpcCard } from "#components";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
@@ -31,9 +31,9 @@ import { Kicker } from "./rpg-kicker.tsx";
 /** The standing guides this actor actually carries (RV-11) — spread onto the card so an UNWRITTEN guide is
  *  simply absent (no line, never a "none" placeholder). The story authors them; the host may correct what is
  *  there, and there is nothing honest to show for one nobody has written. */
-function guideProps(identity: NonNullable<RpgActorView["identity"]>): Partial<Record<RpgCastGuideField, string>> {
-  const out: Partial<Record<RpgCastGuideField, string>> = {};
-  for (const field of RPG_CAST_GUIDE_FIELDS) {
+function guideProps(identity: NonNullable<RpgActorView["identity"]>): Partial<Record<RpgNpcGuideField, string>> {
+  const out: Partial<Record<RpgNpcGuideField, string>> = {};
+  for (const field of RPG_NPC_GUIDE_FIELDS) {
     const text = identity[field]?.trim() ?? "";
     if (text !== "") {
       out[field] = text;
@@ -42,15 +42,15 @@ function guideProps(identity: NonNullable<RpgActorView["identity"]>): Partial<Re
   return out;
 }
 
-/** The host's writers for ONE cast actor's row (R2) — every one an OP against the actor's own ref, identity
+/** The host's writers for ONE npc's row (R2) — every one an OP against the actor's own ref, identity
  *  and volatile alike. The retired shape rebuilt the whole `presentCharacters` array on every keystroke. */
-export interface SceneCastEdit {
+export interface SceneNpcEdit {
   /** Write one identity TEXT field (`mood`, a standing guide, the display `name` — the rename R2's slug key
    *  exists to make safe). The server pins the FINE `…identity.<field>` path, so pinning one NPC's mood no
-   *  longer freezes the whole cast the way the plane-level `presentCharacters` lock did. */
-  readonly onEditIdentityText: (targetRef: RpgActorRef, field: "name" | "mood" | RpgCastGuideField, text: string) => void;
+   *  longer freezes every npc the way the plane-level `presentCharacters` lock did. */
+  readonly onEditIdentityText: (targetRef: RpgActorRef, field: "name" | "mood" | RpgNpcGuideField, text: string) => void;
   readonly onEditRelationship: (targetRef: RpgActorRef, relationship: RpgRelationship) => void;
-  /** Write ONE tracked value on a cast actor. The CURRENT reading is not passed: `patchActor`'s `setTracker`
+  /** Write ONE tracked value on an npc. The CURRENT reading is not passed: `patchActor`'s `setTracker`
    *  merges onto whatever the true head carries, so the panel never hands back a value it read a beat ago. */
   readonly onEditTracker: (targetRef: RpgActorRef, def: RpgTrackerDef, next: string | number) => void;
   /** Drop this actor from the game entirely — state, presence and locks (`rpg.dismissActor`). */
@@ -58,12 +58,12 @@ export interface SceneCastEdit {
   /** PROMOTE this known character to the roster (`rpg.promoteActor`, R4) — mint her a character card + a seat
    *  in the room and re-key her tracked row onto that identity. Takes the CAST arm only: promoting a roster
    *  actor is meaningless, and the wire cannot express it either. */
-  readonly onPromote: (targetRef: RpgCastRef) => void;
+  readonly onPromote: (targetRef: RpgNpcRef) => void;
 }
 
-/** ONE cast actor's card — identity, its carried trackers, its readings. Shared by the on-stage list and the
+/** ONE npc's card — identity, its carried trackers, its readings. Shared by the on-stage list and the
  *  Known-characters disclosure, because they are two views of ONE row (R2), never two shapes. */
-function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly edit?: SceneCastEdit }): ReactElement | null {
+function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly edit?: SceneNpcEdit }): ReactElement | null {
   const identity = actor.identity;
   if (identity === null) {
     return null;
@@ -82,7 +82,7 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
       ? {}
       : {
           onEditMood: (next: string): void => edit.onEditIdentityText(ref, "mood", next),
-          onEditGuide: (field: RpgCastGuideField, next: string): void => edit.onEditIdentityText(ref, field, next),
+          onEditGuide: (field: RpgNpcGuideField, next: string): void => edit.onEditIdentityText(ref, field, next),
           onEditRelationshipKind: (next: RpgRelationship["kind"]): void =>
             edit.onEditRelationship(ref, { kind: next, label: next === "custom" ? identity.relationship.label : "" }),
           onEditField: (label: string, next: string): void => {
@@ -93,7 +93,7 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
           },
         };
   return (
-    <CastCard
+    <NpcCard
       name={actor.name}
       {...(identity.emoji === "" ? {} : { emoji: identity.emoji })}
       {...(identity.mood === "" ? {} : { mood: identity.mood })}
@@ -110,7 +110,7 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
               <MeterRow
                 key={m.def.key}
                 label={m.def.label}
-                // WHOSE meter — two cast cards on one tab otherwise offer two "Vitality value" buttons.
+                // WHOSE meter — two npc cards on one tab otherwise offer two "Vitality value" buttons.
                 subject={actor.name}
                 // NULL stays null (side-eye 08-01): `?? 0` published "0/0" as this NPC's reading.
                 value={trackerNumber(m.value ?? undefined)}
@@ -127,32 +127,32 @@ function SceneCastCard({ actor, edit }: { readonly actor: RpgActorView; readonly
   );
 }
 
-export function SceneCast({
-  cast,
+export function SceneNpcs({
+  npcs,
   edit,
   lockPin,
 }: {
-  readonly cast: readonly RpgActorView[];
-  readonly edit?: SceneCastEdit;
+  readonly npcs: readonly RpgActorView[];
+  readonly edit?: SceneNpcEdit;
   /** The section-scoped presence hand-lock pin — `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement {
-  if (cast.length === 0) {
-    // The honest empty-cast doorway: the scene fills from the story; nothing to author by hand here.
+  if (npcs.length === 0) {
+    // The honest empty-npc doorway: the scene fills from the story; nothing to author by hand here.
     return <RpgDoorwayLine>No NPCs on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
 
   return (
     <Stack gap="field">
-      <Kicker trailing={lockPin}>On stage — {cast.length}</Kicker>
-      {cast.map((actor) => (
-        <SceneCastCard key={actorKey(actor)} actor={actor} {...(edit === undefined ? {} : { edit })} />
+      <Kicker trailing={lockPin}>On stage — {npcs.length}</Kicker>
+      {npcs.map((actor) => (
+        <SceneNpcCard key={actorKey(actor)} actor={actor} {...(edit === undefined ? {} : { edit })} />
       ))}
     </Stack>
   );
 }
 
-/** THE KNOWN-CHARACTERS DISCLOSURE (R2) — every cast actor the game has met who is NOT on stage.
+/** THE KNOWN-CHARACTERS DISCLOSURE (R2) — every npc the game has met who is NOT on stage.
  *
  *  This section is the visible half of the reshape. Departure used to DESTROY an NPC's identity while keeping
  *  her tracked state in a plane no surface projected, so the state was simultaneously permanent and invisible:
@@ -165,7 +165,7 @@ export function SceneCast({
  *
  *  Collapsed by default: it is a memory, not the scene. The count rides the summary so a host knows there is
  *  something behind it without opening it. */
-export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: readonly RpgActorView[]; readonly edit?: SceneCastEdit }): ReactElement | null {
+export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: readonly RpgActorView[]; readonly edit?: SceneNpcEdit }): ReactElement | null {
   const [open, setOpen] = useState(false);
   if (offstage.length === 0) {
     return null;
@@ -190,7 +190,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
         <Stack gap="field">
           {offstage.map((actor) => (
             <Stack key={actorKey(actor)} gap="field">
-              <SceneCastCard actor={actor} {...(edit === undefined ? {} : { edit })} />
+              <SceneNpcCard actor={actor} {...(edit === undefined ? {} : { edit })} />
               {edit === undefined ? null : <KnownCharacterDoorways actor={actor} edit={edit} />}
             </Stack>
           ))}
@@ -210,7 +210,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
  *  two open confirmations is a row where the wrong button is one mis-aim away. Every control is NAMED BY WHOSE
  *  IT IS (the side-eye 08-01 rule) — a disclosure of N characters would otherwise offer N buttons all called
  *  "Dismiss", with the name in the DOM and not in the control's accessible name. */
-function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView; readonly edit: SceneCastEdit }): ReactElement {
+function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView; readonly edit: SceneNpcEdit }): ReactElement {
   const [pending, setPending] = useState<"dismiss" | "promote" | null>(null);
   const ref = actor.actorRef;
 
@@ -229,12 +229,12 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
       </Row>
     );
   }
-  if (pending === "promote" && ref.kind === "cast") {
+  if (pending === "promote" && ref.kind === "npc") {
     return (
       <Row gap="field" align="center" justify="end">
         {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
-            home on a roster member (a stance is a cast actor's datum), so they end here. A host who discovers
+            home on a roster member (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
         <Text as="span" voice="gloss">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
@@ -252,7 +252,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     <Row gap="field" align="center" justify="end">
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a roster actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
-      {ref.kind === "cast" ? (
+      {ref.kind === "npc" ? (
         <Button
           intent="ghost"
           size="sm"

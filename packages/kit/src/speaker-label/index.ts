@@ -339,7 +339,7 @@ function inlineLabelRe(name: string): RegExp {
   //     is ASCII-only (a CJK or Cyrillic name would still splice mid-word) — and it carries the MARKS
   //     because without them a DECOMPOSED letter ends the word for this test: `caféAnn:` written as
   //     `cafe`+U+0301+`Ann` put a combining mark immediately before the name, the lookbehind passed, and the
-  //     stripper ate `Ann: ` out of the middle of the word again. Same reasoning `rpgCastSlug` uses: in many
+  //     stripper ate `Ann: ` out of the middle of the word again. Same reasoning `rpgNpcSlug` uses: in many
   //     scripts a mark IS part of the letter. That class is SHARED with the mention/arbitration matchers
   //     (#1439) so all three ask the same question of the same bytes; the EMPHASIS bytes are added HERE and
   //     only here, or the boundary would be satisfied by the inner `*` of a `**` pair.

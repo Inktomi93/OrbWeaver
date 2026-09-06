@@ -9,7 +9,7 @@
 // read-back (the gap that let two write↔read bugs ship). F1 — a negative pool delta on a fresh pool must NOT
 // mint `max <= 0` (the contract belt `pools[].max >= 1`), and a contract-INVALID assembled state is DROPPED at
 // the write boundary (canon uncorrupted). F2 — a party-member write (addressed by NAME) lands under the roster
-// ref key, not an orphan `cast:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
+// ref key, not an orphan `npc:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
 import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
@@ -276,7 +276,7 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   // The persisted row is CONTRACT-VALID — the tracker value is TOTAL (`{value,items}` whole), so a partial
   // write can never strand a sibling on it, and the ceiling lives on the def where nothing can drift from it.
   const snap = await findSnapshotByVariant(db, variantId);
-  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "wizard");
+  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "wizard");
   expect(wizard?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
   await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).resolves.toBeDefined();
@@ -295,7 +295,7 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
     recentEvents: [],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "broken" },
+        actorRef: { kind: "npc", npcKey: "broken" },
         // A `max: 0` meter ceiling violates the contract belt (`max >= 1`) — parse-on-read would throw AFTER
         // the insert commits, so the backstop must refuse it at the write boundary.
         volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
@@ -466,11 +466,11 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
 
   const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
-  // The write SURFACES under the roster character's key — not an orphan cast:Kael the panel never reads.
+  // The write SURFACES under the roster character's key — not an orphan npc:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
   expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null, max: null });
-  // And there is NO orphan cast:Kael entry.
-  expect(view.actors.some((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Kael")).toBe(false);
+  // And there is NO orphan npc:Kael entry.
+  expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "Kael")).toBe(false);
 });
 
 test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster key", async () => {
@@ -811,7 +811,7 @@ test("the record survives a REFUSED write — the turn a user most needs to see 
     ...defaultSnapshotState(),
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "broken" },
+        actorRef: { kind: "npc", npcKey: "broken" },
         volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
       },
     ],
@@ -887,15 +887,15 @@ test("LOCK TRAIL (fold): a hand edit landing MID-FLIGHT suppresses the replay �
 // Both collectors get a case (the accumulator and the fold), per the two-sites rule that #77 minted.
 
 const HOST_P = principal(castId<Handle>("host"));
-const MIRA = { kind: "cast", castKey: "mira" } as const;
+const MIRA = { kind: "npc", npcKey: "mira" } as const;
 
-/** The pack the projection carries for `cast:mira` (the panel's own read). */
+/** The pack the projection carries for `npc:mira` (the panel's own read). */
 async function miraPack(
   h: Awaited<ReturnType<typeof seedLiteGame>>["h"],
   chatId: ChatId,
 ): Promise<readonly { readonly id: string; readonly name: string; readonly location: string }[]> {
   const view = await h.service.getTrackerView({ principal: HOST_P, chatId });
-  const mira = view.actors.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+  const mira = view.actors.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
   return mira?.volatile?.inventory ?? [];
 }
 

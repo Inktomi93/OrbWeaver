@@ -89,7 +89,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
     lockedPaths: [],
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "kestrel" },
+        actorRef: { kind: "npc", npcKey: "kestrel" },
         name: "Kestrel",
         // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
         sheet: { className: "courier", attributes: {}, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
@@ -110,7 +110,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
       },
       // R2 — the scene NPC is an ACTOR row beside the roster: her identity half and her readings on ONE row.
       {
-        actorRef: { kind: "cast", castKey: "wren" },
+        actorRef: { kind: "npc", npcKey: "wren" },
         name: "Wren",
         presence: true,
         identity: { name: "Wren", emoji: "🗝️", mood: "alert", relationship: { kind: "custom", label: "travelling companion" } },
@@ -129,7 +129,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
         },
       },
     ],
-    cast: ["cast:wren"],
+    cast: ["npc:wren"],
     trackerDefs: [...WREN_TRACKERS],
     gameTrackers: [],
     quests: [],

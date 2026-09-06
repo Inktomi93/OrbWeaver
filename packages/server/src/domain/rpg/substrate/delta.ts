@@ -72,7 +72,7 @@ function volatileKey(row: ActorState[number]): string {
   if (ref.kind === "user") {
     return `user:${ref.userId}`;
   }
-  return `cast:${ref.castKey}`;
+  return `npc:${ref.npcKey}`;
 }
 
 /** A per-actor renderer's shared body: correlate prev↔cur volatile rows by actor key, name each actor, and let
@@ -95,14 +95,14 @@ function perActor(
 }
 
 /** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
- *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); a `cast` NPC
+ *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); an `npc` actor
  *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
  *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
  *  roster map has no name for the key (a gone member — never a crash). */
 function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   const ref = row.actorRef;
-  if (ref.kind === "cast") {
-    return row.identity?.name ?? ref.castKey;
+  if (ref.kind === "npc") {
+    return row.identity?.name ?? ref.npcKey;
   }
   const named = ctx.rosterNames[volatileKey(row)];
   if (named !== undefined && named !== "") {
@@ -404,7 +404,7 @@ function relationshipDisplay(rel: NonNullable<ActorState[number]["identity"]>["r
   return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
 }
 
-/** Relationship (feature 1, §2.1) — a per-cast stance TRANSITION (`Mari: friend → wary`), matched by the
+/** Relationship (feature 1, §2.1) — a per-npc stance TRANSITION (`Mari: friend → wary`), matched by the
  *  ACTOR's ref key. Since R2 the stance rides the actor row, so it survives departure: a returning NPC's turn
  *  is a real transition line instead of the silent reset-from-blank the destroyed presence row produced. This
  *  line IS the steering loop's closed signal (the delta block's referent for "let the change land"). A

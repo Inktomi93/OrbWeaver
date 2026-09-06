@@ -13,6 +13,12 @@
 // one-shot migration (#906: "does that involve nuking the db? if so idgaf"); these pins are the receipt for
 // WHAT the wipe is buying, so a future reader who finds a pre-#906 database does not have to re-derive it.
 //
+// THIS FILE IS EXEMPT FROM `scripts/codemods/rename-rpg-cast-npc.ts` (its `REWRITE_EXEMPT`), and any future
+// mechanical sweep over the rpg register must exempt it too: its `cast` literals are the OLD spelling ON
+// PURPOSE. The first run of that codemod rewrote them, which turned all three pins into tautologies about
+// the CURRENT spelling — a green suite asserting nothing. A fixture whose whole value is that it is stale
+// is invisible to a rename that reads only syntax.
+//
 // EVERY STALE SHAPE HERE IS WRITTEN AS RAW JSON through a `db.update`, never through a typed literal: the old
 // spelling is one the live type system has already forgotten (the `migrate-prose-slot-vocab` posture — "a
 // migration's whole job is to name a spelling the live type system has already forgotten"), and a pin that
@@ -25,7 +31,7 @@ import type { ChatId, ChatTurnId, MessageVariantId, RpgGameId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { buildTrackerView } from "../../../../packages/server/src/domain/rpg/chat-ops/tracker-view.ts";
-import type { RpgContext } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
+import type { RpgContext, RpgGameRow } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
 import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
@@ -105,8 +111,9 @@ async function poison(
     .where(eq(rpgSnapshots.variantId, variantId));
 }
 
-/** Resolve the game row the tracker view projects against. */
-async function gameFor(db: Db, chatId: ChatId): ReturnType<typeof findGameByChat> {
+/** Resolve the game row the tracker view projects against — NARROWED, so the `| undefined` this function
+ *  exists to discharge cannot leak back into every call site. */
+async function gameFor(db: Db, chatId: ChatId): Promise<RpgGameRow> {
   const game = await findGameByChat(db, chatId);
   if (game === undefined) {
     throw new Error("game not found");

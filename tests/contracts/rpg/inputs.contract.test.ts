@@ -117,13 +117,13 @@ test("listTurnToolCalls: the OLD `limit` spelling no longer binds the window", (
 test("patchActor: the target rides the DERIVED actor union and an EMPTY op list is refused at the wire", () => {
   const ok = rpgPatchActorInputSchema.safeParse({
     chatId: CHAT_ID,
-    targetRef: { kind: "cast", castKey: "mira" },
+    targetRef: { kind: "npc", npcKey: "mira" },
     ops: [{ op: "setTracker", key: "trust", value: { value: 4 } }],
   });
   expect(ok.success).toBe(true);
   // A call that names no op is a write that means nothing — refused here rather than committing a no-op
   // snapshot (which on a committed head would mint a blank state-anchor slot for an unchanged state).
-  expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" }, ops: [] }).success).toBe(false);
+  expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "mira" }, ops: [] }).success).toBe(false);
   // The reserved, unbuilt cross-game library arm (#906) — unrepresentable until `rpg_npcs` lands.
   expect(
     rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "libraryNpc", libraryNpcId: "x" }, ops: [{ op: "setStatus", status: "" }] })
@@ -132,23 +132,23 @@ test("patchActor: the target rides the DERIVED actor union and an EMPTY op list 
 });
 
 test("dismissActor: chatId + the derived actor ref, nothing else", () => {
-  expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" } }).success).toBe(true);
+  expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "mira" } }).success).toBe(true);
   expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(false);
 });
 
 // ── R4: the promotion doorway ────────────────────────────────────────────────────────────────────────────
 
 test("promoteActor: the target is the CAST ARM ONLY, and the card content is not on the wire at all", () => {
-  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" } }).success).toBe(true);
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "mira" } }).success).toBe(true);
   // Promoting a roster actor is not "refused", it is MEANINGLESS — she already has a card. The wire cannot
   // express it, so no verb has to carry a branch for the case.
   expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "character", characterId: CHARACTER_ID } }).success).toBe(false);
   expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "user", userId: "user_a" } }).success).toBe(false);
-  // The cast key must ALREADY be its slug here too (the shared refine) — a raw caller cannot promote a
+  // The npc key must ALREADY be its slug here too (the shared refine) — a raw caller cannot promote a
   // non-canonical sibling key into a card.
-  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "Sister Vesna" } }).success).toBe(false);
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "Sister Vesna" } }).success).toBe(false);
   // The card's name/handle/description are the SERVER's derivation off the actor's identity row — a client
   // that could only ever see the plane in projections must not author what lands in it (the R1 lesson).
-  const parsed = rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" }, name: "Not Mira", handle: "hijack" });
+  const parsed = rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "mira" }, name: "Not Mira", handle: "hijack" });
   expect(parsed.success && Object.keys(parsed.data)).toEqual(["chatId", "targetRef"]);
 });

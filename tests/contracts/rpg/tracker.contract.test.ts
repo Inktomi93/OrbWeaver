@@ -32,7 +32,7 @@ function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" 
 
 /** A carrier (an actor a tracker may land on), with no sheet exceptions unless given. */
 function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
-  return { actorKey: `${kind === "npcs" ? "cast" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+  return { actorKey: `${kind === "npcs" ? "npc" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
 }
 
 test("the def parses its axes and defaults the rest (a minimal def is legal — the add flow supplies four fields)", () => {
@@ -52,7 +52,7 @@ test("the def's axes are CLOSED vocabularies (an off-axis token never parses)", 
   expect(rpgTrackerDefSchema.safeParse({ ...base, subject: "scene" }).success).toBe(false);
   expect(rpgTrackerDefSchema.safeParse({ ...base, appliesTo: "villains" }).success).toBe(false);
   // The explicit arm is an ACTOR-REF KEY list (the one string projection every map/lock already keys on).
-  expect(rpgTrackerDefSchema.parse({ ...base, appliesTo: ["cast:demon"] }).appliesTo).toEqual(["cast:demon"]);
+  expect(rpgTrackerDefSchema.parse({ ...base, appliesTo: ["npc:demon"] }).appliesTo).toEqual(["npc:demon"]);
 });
 
 test("a stored color must pass the strict hex/OKLCH grammar (never raw CSS reaching a style attribute)", () => {
@@ -100,7 +100,7 @@ test("resolveTrackerMaxOverride is the ANTI-DRIFT rule: equal-to-default CLEARS,
 
 // ── THE CARRIER MATRIX (the one predicate every consumer derives from) ─────────────────────────────────
 
-test("carrier CLASSES: party covers roster actors, npcs covers scene cast, everyone covers both", () => {
+test("carrier CLASSES: party covers roster actors, npcs covers scene npcs, everyone covers both", () => {
   const kael = carrier("Kael", "party");
   const mira = carrier("Mira", "npcs");
   const party = def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party" });
@@ -112,10 +112,10 @@ test("carrier CLASSES: party covers roster actors, npcs covers scene cast, every
 });
 
 test("an EXPLICIT appliesTo list matches by actor-ref KEY, never by display name (a rename never orphans it)", () => {
-  const bound = def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: ["cast:demon"] });
+  const bound = def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: ["npc:demon"] });
   expect(carriesTracker(bound, carrier("demon", "npcs"))).toBe(true);
   // Same DISPLAY name, different ref key ⇒ not a carrier (the key is the identity).
-  expect(carriesTracker(bound, { ...carrier("demon", "npcs"), actorKey: "cast:demon_2" })).toBe(false);
+  expect(carriesTracker(bound, { ...carrier("demon", "npcs"), actorKey: "npc:demon_2" })).toBe(false);
 });
 
 test("a GRANT reaches an actor the class missed; a REVOKE beats the class AND a grant", () => {

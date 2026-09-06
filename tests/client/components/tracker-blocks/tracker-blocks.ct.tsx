@@ -10,7 +10,7 @@
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
 // (via ctSnapPath, into THIS run's own slot — docs/design/1208-instrument-substrate.md §3.7) — the
 // structure/density/hierarchy receipt against the committed mockup.
-import { AddRow, AmbientStrip, BeatLine, CastCard, GoalLine, HintEditor, MeterRow, StatCell, TrackerChip } from "@orb/client/components";
+import { AddRow, AmbientStrip, BeatLine, GoalLine, HintEditor, MeterRow, NpcCard, StatCell, TrackerChip } from "@orb/client/components";
 import { RPG_WEATHER_TYPES } from "@orb/contracts/rpg";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -311,11 +311,11 @@ test("TrackerChip editable: display-at-rest → click reveals the field; commit 
   expect(committed).toBe("hostile");
 });
 
-// ── CastCard ──────────────────────────────────────────────────────────────────────────────────────
+// ── NpcCard ──────────────────────────────────────────────────────────────────────────────────────
 
-test("CastCard: name + mood line + customFields as chip rows", async ({ mount }) => {
+test("NpcCard: name + mood line + customFields as chip rows", async ({ mount }) => {
   const component = await mount(
-    <CastCard
+    <NpcCard
       name="Sera"
       mood="guarded"
       fields={[
@@ -348,14 +348,14 @@ test("BeatLine: long model-authored content WRAPS — no horizontal overflow (ow
   await expect.poll(async () => (await line.boundingBox())?.height ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(30);
 });
 
-test("CastCard: a long model-authored mood WRAPS instead of overflowing the card (owner jank report 08-01)", async ({ mount, page }) => {
+test("NpcCard: a long model-authored mood WRAPS instead of overflowing the card (owner jank report 08-01)", async ({ mount, page }) => {
   // Model-authored free text has no length contract — the mood slot must wrap inside a narrow card, never
   // widen it. Geometry assertion (a string assertion stays green through the overflow this pins against).
   const longMood = "quietly furious but hiding it behind a practiced diplomatic smile while counting exits";
   const edits: string[] = [];
   await mount(
     <div style={{ width: 280 }}>
-      <CastCard
+      <NpcCard
         name="Sera"
         mood={longMood}
         fields={[]}
@@ -395,8 +395,8 @@ test("CastCard: a long model-authored mood WRAPS instead of overflowing the card
 // RV-11 — the standing guides. They were written richly by the extraction round every beat and rendered
 // NOWHERE; these pin the three contracts of the read side: shown when written, ABSENT when not, and the
 // unspoken one reads in its own (italic) voice.
-test("CastCard guides: appearance/outfit/thoughts render as quiet lines, and an unwritten one is ABSENT", async ({ mount }) => {
-  const component = await mount(<CastCard name="Sera" emoji="🕯️" mood="guarded" appearance="tall, silver-haired" thoughts="weighing whether to trust you" />);
+test("NpcCard guides: appearance/outfit/thoughts render as quiet lines, and an unwritten one is ABSENT", async ({ mount }) => {
+  const component = await mount(<NpcCard name="Sera" emoji="🕯️" mood="guarded" appearance="tall, silver-haired" thoughts="weighing whether to trust you" />);
   // The model-written cast emoji leads the name (same written-never-rendered class as the guides).
   await expect(component).toContainText("🕯️");
   await expect(component).toContainText("tall, silver-haired");
@@ -408,13 +408,13 @@ test("CastCard guides: appearance/outfit/thoughts render as quiet lines, and an 
   await expect(component.getByText("tall, silver-haired")).toHaveCSS("font-style", "normal");
 });
 
-test("CastCard guides: long model-authored guide prose WRAPS instead of widening the card", async ({ mount, page }) => {
+test("NpcCard guides: long model-authored guide prose WRAPS instead of widening the card", async ({ mount, page }) => {
   // Same class as the mood/beat overflow (owner scrollbar report 08-01): guides are model prose with no
   // length contract. Geometry assertion — a text assertion stays green straight through an overflow.
   const longOutfit = "a burnt-hem travelling coat stitched with cooling runes over a mail shirt she has not taken off in nine days";
   await mount(
     <div style={{ width: 280 }}>
-      <CastCard name="Sera" outfit={longOutfit} />
+      <NpcCard name="Sera" outfit={longOutfit} />
     </div>,
   );
   await expect.poll(async () => await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth)).toBe(0);
@@ -425,10 +425,10 @@ test("CastCard guides: long model-authored guide prose WRAPS instead of widening
   await expect.poll(async () => (await page.getByText(longOutfit).boundingBox())?.height ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(30); // wrapped past a single ~20px line
 });
 
-test("CastCard guides editable: click-to-edit commits with (field, value)", async ({ mount, page }) => {
+test("NpcCard guides editable: click-to-edit commits with (field, value)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(
-    <CastCard
+    <NpcCard
       name="Sera"
       appearance="tall, silver-haired"
       onEditGuide={(guide, next): void => {
@@ -445,10 +445,10 @@ test("CastCard guides editable: click-to-edit commits with (field, value)", asyn
   expect(captured).toEqual(["appearance", "shaven-headed, a fresh scar"]);
 });
 
-test("CastCard editable: clicking a field's rest value reveals the editor; onEditField fires with (name, value)", async ({ mount, page }) => {
+test("NpcCard editable: clicking a field's rest value reveals the editor; onEditField fires with (name, value)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(
-    <CastCard
+    <NpcCard
       name="Sera"
       fields={[{ name: "Trust", value: "low" }]}
       onEditField={(fieldName, next): void => {
@@ -465,24 +465,24 @@ test("CastCard editable: clicking a field's rest value reveals the editor; onEdi
   expect(captured).toEqual(["Trust", "high"]);
 });
 
-test("CastCard: a known relationship kind badges with its label (feature 1, §2.1)", async ({ mount }) => {
-  const component = await mount(<CastCard name="Mari" relationship={{ kind: "enemy", label: "" }} />);
+test("NpcCard: a known relationship kind badges with its label (feature 1, §2.1)", async ({ mount }) => {
+  const component = await mount(<NpcCard name="Mari" relationship={{ kind: "enemy", label: "" }} />);
   await expect(component).toContainText("Mari");
   await expect(component).toContainText("enemy"); // the badge label is the accessible datum (tracker-kit a11y)
 });
 
-test("CastCard: a custom relationship renders its label chip", async ({ mount }) => {
-  const component = await mount(<CastCard name="Kade" relationship={{ kind: "custom", label: "vassal" }} />);
+test("NpcCard: a custom relationship renders its label chip", async ({ mount }) => {
+  const component = await mount(<NpcCard name="Kade" relationship={{ kind: "custom", label: "vassal" }} />);
   await expect(component).toContainText("vassal");
 });
 
-test("CastCard: a LONG custom relationship label truncates + titles, and the NAME keeps non-zero width (FIX 2)", async ({ mount }) => {
+test("NpcCard: a LONG custom relationship label truncates + titles, and the NAME keeps non-zero width (FIX 2)", async ({ mount }) => {
   // The regression: a realistic free-text label grew the badge to ~236px and starved the name to 0px. The name
   // must retain width (it's `shrink-0`); the badge label truncates and carries the full text on `title` for hover.
   const longLabel = "disgraced former lieutenant of the crown"; // 40 chars — the untested long case
   const component = await mount(
     <div style={{ width: "17rem" }}>
-      <CastCard name="Aldric" relationship={{ kind: "custom", label: longLabel }} />
+      <NpcCard name="Aldric" relationship={{ kind: "custom", label: longLabel }} />
     </div>,
   );
   const name = component.getByText("Aldric");
@@ -494,20 +494,20 @@ test("CastCard: a LONG custom relationship label truncates + titles, and the NAM
   await expect(badge.locator("span")).toHaveCSS("text-overflow", "ellipsis"); // the label truncates
 });
 
-test("CastCard: a neutral relationship badges NOTHING (no clutter)", async ({ mount }) => {
-  const component = await mount(<CastCard name="Bob" relationship={{ kind: "neutral", label: "" }} />);
+test("NpcCard: a neutral relationship badges NOTHING (no clutter)", async ({ mount }) => {
+  const component = await mount(<NpcCard name="Bob" relationship={{ kind: "neutral", label: "" }} />);
   await expect(component).toContainText("Bob");
   await expect(component).not.toContainText("neutral");
 });
 
-test("CastCard editable relationship names the current value", async ({ mount, page }) => {
-  await mount(<CastCard name="Sera" relationship={{ kind: "friend", label: "" }} onEditRelationshipKind={(): void => undefined} />);
+test("NpcCard editable relationship names the current value", async ({ mount, page }) => {
+  await mount(<NpcCard name="Sera" relationship={{ kind: "friend", label: "" }} onEditRelationshipKind={(): void => undefined} />);
   await expect(page.getByRole("button", { name: "Sera relationship: friend" })).toBeVisible();
 });
 
-test("CastCard: numeric cast-field meters render above the text chips (feature C, §2.8)", async ({ mount }) => {
+test("NpcCard: numeric cast-field meters render above the text chips (feature C, §2.8)", async ({ mount }) => {
   const component = await mount(
-    <CastCard
+    <NpcCard
       name="Mari"
       relationship={{ kind: "friend", label: "" }}
       meters={<MeterRow label="Suspicion" value={7} max={10} color={1} />}
@@ -867,12 +867,12 @@ test("CP-3 Trackers-tab region — meters → guides → text trackers (mockup R
   await component.screenshot({ path: ctSnapPath("tracker-kit-trackers-tab") });
 });
 
-test("Scene region — ambient strip → cast card w/ per-NPC meter → beats (mockup lite Scene)", async ({ mount }) => {
+test("Scene region — ambient strip → npc card w/ per-NPC meter → beats (mockup lite Scene)", async ({ mount }) => {
   const component = await mount(
     <Stack gap="block" className="w-panel bg-sidebar p-block">
       <AmbientStrip location="The Rusted Lantern — Common Room" date="day 3" timeOfDay="night" weather="rain" />
       {sectionLabel("On stage — 1")}
-      <CastCard
+      <NpcCard
         name="Sera"
         mood="guarded"
         meters={<MeterRow label="Corruption" value={70} max={100} color={4} />}

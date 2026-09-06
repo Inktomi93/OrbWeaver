@@ -131,10 +131,10 @@ export function quest(key: string, over: Partial<RpgQuest> = {}): RpgQuest {
 }
 
 /** A minimal actor-volatile with a wallet + a `focus` tracker reading (for the swipe-consistency drives). */
-export function actorWithWallet(castKey: string, walletAmount: number, poolValue: number): RpgActorEntry {
+export function actorWithWallet(npcKey: string, walletAmount: number, poolValue: number): RpgActorEntry {
   return {
-    actorRef: { kind: "cast", castKey },
-    identity: { name: castKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+    actorRef: { kind: "npc", npcKey },
+    identity: { name: npcKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
     volatile: {
       trackerValues: { focus: { value: poolValue, items: null, max: null } },
       conditions: [],

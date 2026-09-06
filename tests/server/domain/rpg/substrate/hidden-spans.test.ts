@@ -17,7 +17,7 @@ describe("stripHiddenDeep", () => {
     const payload = {
       location: `The docks ${HIDDEN}`,
       quests: [{ name: `Find the key ${HIDDEN}`, objectives: [{ text: `open the ${HIDDEN}vault` }] }],
-      actors: { "cast:mara": { volatile: { inventory: [{ description: `taken from ${HIDDEN}` }] } } },
+      actors: { "npc:mara": { volatile: { inventory: [{ description: `taken from ${HIDDEN}` }] } } },
     };
 
     const stripped = stripHiddenDeep(payload);
@@ -28,7 +28,7 @@ describe("stripHiddenDeep", () => {
     expect(stripped).toEqual({
       location: "The docks ",
       quests: [{ name: "Find the key ", objectives: [{ text: "open the vault" }] }],
-      actors: { "cast:mara": { volatile: { inventory: [{ description: "taken from " }] } } },
+      actors: { "npc:mara": { volatile: { inventory: [{ description: "taken from " }] } } },
     });
     // The input is never mutated — a live snapshot read and a cloned row both depend on that.
     expect(payload.location).toBe(`The docks ${HIDDEN}`);
@@ -36,9 +36,9 @@ describe("stripHiddenDeep", () => {
 
   test("object KEYS are never rewritten — a lock path survives the walk verbatim", () => {
     // `fieldLocks` keys are ADDRESSES. A key mangled by the strip would silently release a hand-locked field.
-    const locks = { [`actorState.cast:mara.mood${HIDDEN}`]: 1, "quests.q1": 1 };
+    const locks = { [`actorState.npc:mara.mood${HIDDEN}`]: 1, "quests.q1": 1 };
 
-    expect(Object.keys(stripHiddenDeep(locks))).toEqual([`actorState.cast:mara.mood${HIDDEN}`, "quests.q1"]);
+    expect(Object.keys(stripHiddenDeep(locks))).toEqual([`actorState.npc:mara.mood${HIDDEN}`, "quests.q1"]);
   });
 
   test("non-strings pass through untouched (ids, numbers, booleans, null)", () => {

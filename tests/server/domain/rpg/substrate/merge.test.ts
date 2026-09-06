@@ -107,7 +107,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
     const patched = { ...patchRow, volatile: { ...patchRow.volatile, status: "tool-set" } };
     // The `volatile` segment is a REAL path segment (R2) — the merge walks the stored JSON, so a lock path
     // that skipped it would pin nothing at all.
-    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.volatile.status": true });
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.npc:mari.volatile.status": true });
     const actors = out.actorState as { volatile: { status: string; trackerValues: Record<string, { value: number }> } }[];
     expect(actors[0]?.volatile.status).toBe(""); // locked — the hand value (empty) survives
     expect(actors[0]?.volatile.trackerValues["focus"]?.value).toBe(2); // unlocked sibling field took the patch
@@ -124,7 +124,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
     const out = applyLockedPatch(
       { actorState: [withTrackers(5, 8)] },
       { actorState: [withTrackers(1, 0)] },
-      { "actorState.cast:mari.volatile.trackerValues.mana": true },
+      { "actorState.npc:mari.volatile.trackerValues.mana": true },
     );
     const values = (out.actorState as { volatile: { trackerValues: Record<string, { value: number }> } }[])[0]?.volatile.trackerValues ?? {};
     expect(values["mana"]?.value).toBe(8); // pinned
@@ -134,8 +134,8 @@ describe("lock-honoring (manual-edit-wins)", () => {
   test("an actor carrying a sub-field lock survives a tool that drops the actor (removal defense)", () => {
     const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
     const patch = { actorState: [actorWithWallet("zan", 3, 1)] }; // mari dropped
-    const out = applyLockedPatch(base, patch, { "actorState.cast:mari.volatile.wallet.gold": true });
-    const keys = (out.actorState as { actorRef: { castKey: string } }[]).map((a) => a.actorRef.castKey);
+    const out = applyLockedPatch(base, patch, { "actorState.npc:mari.volatile.wallet.gold": true });
+    const keys = (out.actorState as { actorRef: { npcKey: string } }[]).map((a) => a.actorRef.npcKey);
     expect(keys).toContain("mari"); // re-inserted — the pinned wallet never silently dies with its row
     expect(keys).toContain("zan");
   });
@@ -147,10 +147,10 @@ describe("lock-honoring (manual-edit-wins)", () => {
     // deleted the first actor's whole volatile row (the e2e-caught hand-plane loss).
     const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
     const out = applyLockedPatch(base, { actorState: [actorWithWallet("zan", 3, 9)] }, null);
-    const actors = out.actorState as { actorRef: { castKey: string }; volatile: { trackerValues: Record<string, { value: number }> } }[];
-    expect(actors.map((a) => a.actorRef.castKey).sort()).toEqual(["mari", "zan"]);
-    expect(actors.find((a) => a.actorRef.castKey === "mari")?.volatile.trackerValues["focus"]?.value).toBe(5); // untouched
-    expect(actors.find((a) => a.actorRef.castKey === "zan")?.volatile.trackerValues["focus"]?.value).toBe(9); // took the patch
+    const actors = out.actorState as { actorRef: { npcKey: string }; volatile: { trackerValues: Record<string, { value: number }> } }[];
+    expect(actors.map((a) => a.actorRef.npcKey).sort()).toEqual(["mari", "zan"]);
+    expect(actors.find((a) => a.actorRef.npcKey === "mari")?.volatile.trackerValues["focus"]?.value).toBe(5); // untouched
+    expect(actors.find((a) => a.actorRef.npcKey === "zan")?.volatile.trackerValues["focus"]?.value).toBe(9); // took the patch
   });
 
   test("every OTHER keyed plane still removes by omission — an unlocked dropped quest is gone [the contrast]", () => {
@@ -182,7 +182,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
         { name: "silver", amount: 9 },
       ],
     };
-    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.wallet.gold": true });
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.npc:mari.wallet.gold": true });
     const wallet = (out.actorState as { wallet: { name: string; amount: number }[] }[])[0]?.wallet ?? [];
     expect(wallet.find((w) => w.name === "gold")?.amount).toBe(10); // pinned
     expect(wallet.find((w) => w.name === "silver")?.amount).toBe(9); // took the patch
@@ -205,7 +205,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
         { ...rope, quantity: 4 },
         { id: "itm-new", name: "Torch", description: "", quantity: 1, location: "", type: "" },
       ]),
-      { "actorState.cast:mari.volatile.inventory.itm-key.name": true },
+      { "actorState.npc:mari.volatile.inventory.itm-key.name": true },
     );
     const pack = (out.state["actorState"] as { volatile: { inventory: { id: string; name: string; location: string; quantity: number }[] } }[])[0]?.volatile
       .inventory;
@@ -213,7 +213,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
     expect(pack?.find((it) => it.id === "itm-key")?.location).toBe("belt pouch"); // the same item's unclaimed field
     expect(pack?.find((it) => it.id === "itm-rope")?.quantity).toBe(4); // a sibling item
     expect(pack?.map((it) => it.id)).toContain("itm-new"); // and the array still grows
-    expect(out.suppressed).toEqual(["actorState.cast:mari.volatile.inventory.itm-key.name"]);
+    expect(out.suppressed).toEqual(["actorState.npc:mari.volatile.inventory.itm-key.name"]);
   });
 
   test("#78: a LEGACY plane-wide pack lock still drops the whole inventory patch (stored locks are never rewritten)", () => {
@@ -232,12 +232,12 @@ describe("lock-honoring (manual-edit-wins)", () => {
         { id: "itm-new", name: "Torch" },
       ]),
       {
-        "actorState.cast:mari.volatile.inventory": true,
+        "actorState.npc:mari.volatile.inventory": true,
       },
     );
     const pack = (out.state["actorState"] as { volatile: { inventory: { id: string; location: string }[] } }[])[0]?.volatile.inventory;
     expect(pack).toEqual([key]); // nothing landed: not the field, not the new item
-    expect(out.suppressed).toEqual(["actorState.cast:mari.volatile.inventory"]);
+    expect(out.suppressed).toEqual(["actorState.npc:mari.volatile.inventory"]);
   });
 
   test("keyed-element locks generalize — an inventory item lock (inventory.<id>) survives removal too", () => {
@@ -262,24 +262,24 @@ describe("rebasePatchOntoHead — replaying an applier's patch onto a head it wa
   // merely carried, or a hand removal made after the base was read is silently undone.
 
   test("a CARRIED element the head no longer has is dropped (the resurrection class)", () => {
-    const base = { presentCharacters: ["cast:mara", "cast:ilya"] };
-    const patch = { presentCharacters: ["cast:mara", "cast:ilya"] }; // byte-identical carry
-    const head = { presentCharacters: ["cast:ilya"] }; // the host dismissed mara after the base was read
-    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:ilya"] });
+    const base = { presentCharacters: ["npc:mara", "npc:ilya"] };
+    const patch = { presentCharacters: ["npc:mara", "npc:ilya"] }; // byte-identical carry
+    const head = { presentCharacters: ["npc:ilya"] }; // the host dismissed mara after the base was read
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:ilya"] });
   });
 
   test("a genuine ADD still lands (absent from the round's base)", () => {
-    const base = { presentCharacters: ["cast:mara"] };
-    const patch = { presentCharacters: ["cast:mara", "cast:new"] };
+    const base = { presentCharacters: ["npc:mara"] };
+    const patch = { presentCharacters: ["npc:mara", "npc:new"] };
     const head = { presentCharacters: [] }; // mara dismissed meanwhile
-    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:new"] });
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:new"] });
   });
 
   test("a genuine REMOVE by the round is honored against the head too", () => {
-    const base = { presentCharacters: ["cast:mara", "cast:ilya"] };
-    const patch = { presentCharacters: ["cast:ilya"] }; // the round walked mara off-stage
-    const head = { presentCharacters: ["cast:mara", "cast:ilya", "cast:late"] };
-    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:ilya", "cast:late"] });
+    const base = { presentCharacters: ["npc:mara", "npc:ilya"] };
+    const patch = { presentCharacters: ["npc:ilya"] }; // the round walked mara off-stage
+    const head = { presentCharacters: ["npc:mara", "npc:ilya", "npc:late"] };
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:ilya", "npc:late"] });
   });
 
   test("a CHANGED keyed element wins even when the head dropped it (the boarded tombstone boundary)", () => {
@@ -317,16 +317,16 @@ describe("rebasePatchOntoHead — replaying an applier's patch onto a head it wa
     // that beat as a fresh ADD and appends it twice. The integration pin in `hand-edit-vs-flush.suite` is the
     // defect proof; this one is what stops a future caller from reintroducing it.
     const seed: Record<string, unknown> = { recentEvents: ["opening beat"], presentCharacters: [] };
-    const p1 = { recentEvents: ["opening beat", "she drew her blade"], presentCharacters: ["cast:mari"] };
+    const p1 = { recentEvents: ["opening beat", "she drew her blade"], presentCharacters: ["npc:mari"] };
     const afterP1 = { recentEvents: p1.recentEvents, presentCharacters: p1.presentCharacters };
-    const p2 = { recentEvents: ["opening beat", "she drew her blade", "the door slammed"], presentCharacters: ["cast:mari", "cast:kai"] };
+    const p2 = { recentEvents: ["opening beat", "she drew her blade", "the door slammed"], presentCharacters: ["npc:mari", "npc:kai"] };
 
     let head: Record<string, unknown> = { ...seed };
     head = applyLockedPatch(head, rebasePatchOntoHead(p1, seed, head), null);
     head = applyLockedPatch(head, rebasePatchOntoHead(p2, afterP1, head), null);
 
     expect(head["recentEvents"]).toEqual(["opening beat", "she drew her blade", "the door slammed"]);
-    expect(head["presentCharacters"]).toEqual(["cast:mari", "cast:kai"]);
+    expect(head["presentCharacters"]).toEqual(["npc:mari", "npc:kai"]);
   });
 
   test("records and scalars pass through untouched (they are the lock grammar's business, not the rebase's)", () => {
@@ -359,8 +359,8 @@ describe("the suppression report (#77)", () => {
   test("a SUB-FIELD pin names the deep path, not the plane (the #10 grammar, reported at its own depth)", () => {
     const base = { actorState: [actorWithWallet("gorak", 100, 30)] };
     const patch = { actorState: [actorWithWallet("gorak", 5, 30)] };
-    const out = applyLockedPatchTracked(base, patch, { "actorState.cast:gorak.volatile.wallet.gold": true });
-    expect(out.suppressed).toEqual(["actorState.cast:gorak.volatile.wallet.gold"]);
+    const out = applyLockedPatchTracked(base, patch, { "actorState.npc:gorak.volatile.wallet.gold": true });
+    expect(out.suppressed).toEqual(["actorState.npc:gorak.volatile.wallet.gold"]);
   });
 
   test("a pinned element the patch REMOVED is a suppressed write too (the removal defense reports)", () => {

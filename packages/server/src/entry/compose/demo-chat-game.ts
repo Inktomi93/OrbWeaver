@@ -89,8 +89,8 @@ function resolveSeat(seat: DemoChatActorSeat, principal: Principal, seats: reado
   if (seat.kind === "player") {
     return { kind: "user", userId: principal.userId };
   }
-  if (seat.kind === "cast") {
-    return { kind: "cast", castKey: seat.slug };
+  if (seat.kind === "npc") {
+    return { kind: "npc", npcKey: seat.slug };
   }
   const seated = seats.find((s) => s.handle === seat.handle);
   return seated === undefined ? undefined : { kind: "character", characterId: seated.characterId };

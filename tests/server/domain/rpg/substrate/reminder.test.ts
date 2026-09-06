@@ -44,11 +44,11 @@ function actor(over: Partial<RpgActorView> & Pick<RpgActorView, "actorRef" | "na
   return { presence: false, identity: null, sheet: sheet(), volatile: null, trackers: [], ...over };
 }
 
-/** A CAST actor with its identity half + the trackers it carries. `presence` defaults ON (the on-stage case);
+/** A NPC actor with its identity half + the trackers it carries. `presence` defaults ON (the on-stage case);
  *  the offstage roster's own test flips it. The tracker ENTRIES are split into the def list the row carries and
  *  the readings on its volatile half — one row, exactly as the view builds it. */
 function castActor(
-  castKey: string,
+  npcKey: string,
   identity: Partial<NonNullable<RpgActorView["identity"]>> & { name: string },
   entries: readonly RpgTrackerEntry[] = [],
   volatile: Partial<RpgActorVolatile> | null = null,
@@ -61,7 +61,7 @@ function castActor(
   }
   const hasVolatile = volatile !== null || Object.keys(values).length > 0;
   return actor({
-    actorRef: { kind: "cast", castKey },
+    actorRef: { kind: "npc", npcKey },
     name: identity.name,
     presence: true,
     identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity },
@@ -73,7 +73,7 @@ function castActor(
 /** The `{actors, cast}` pair a view carries for a set of actors — the presence echo is DERIVED from the rows,
  *  never spelled twice (the view builds it the same way). */
 function withActors(...rows: readonly RpgActorView[]): Pick<RpgTrackerView, "actors" | "cast"> {
-  return { actors: rows, cast: rows.filter((r) => r.presence).map((r) => (r.actorRef.kind === "cast" ? `cast:${r.actorRef.castKey}` : r.name)) };
+  return { actors: rows, cast: rows.filter((r) => r.presence).map((r) => (r.actorRef.kind === "npc" ? `npc:${r.actorRef.npcKey}` : r.name)) };
 }
 
 /** The condition-list shape a volatile row carries (lite writes only the `name`). */
@@ -225,7 +225,7 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
   const view = emptyView({
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "k" },
+        actorRef: { kind: "npc", npcKey: "k" },
         name: "K",
         presence: false,
         identity: null,
@@ -336,11 +336,11 @@ test("the cast line renders relationship + the member's TRACKERS shape-aware", (
 });
 
 // The cast VOLATILE gap: `update_party`/`update_inventory` write hp, status, conditions, inventory and wallet
-// onto a cast NPC's `cast:<key>` volatile row exactly as they do a roster member's, but the reminder rendered
+// onto an npc's `npc:<key>` volatile row exactly as they do a roster member's, but the reminder rendered
 // that plane for roster actors ONLY — so an NPC the tool round had just poisoned, wounded or paid was
 // model-INVISIBLE, and the model could neither play it nor retire it. (Pre-F4 the constraint enums leaked the
 // condition names in by accident; that channel is correctly gone.) ONE builder now serves both surfaces.
-test("a cast NPC's WHOLE volatile plane rides its line in the same grammar a party line uses", () => {
+test("an npc's WHOLE volatile plane rides its line in the same grammar a party line uses", () => {
   const view = emptyView({
     ...withActors(
       castActor(
@@ -362,7 +362,7 @@ test("a cast NPC's WHOLE volatile plane rides its line in the same grammar a par
   expect(out).toContain("- Mari — wary — trust: guarded — 40 gold — carrying: dagger ×2 — favouring one leg — conditions: poisoned, bleeding");
 });
 
-test("a cast NPC with an EMPTY volatile row adds no segs (no dangling `conditions:`/`carrying:` labels)", () => {
+test("an npc with an EMPTY volatile row adds no segs (no dangling `conditions:`/`carrying:` labels)", () => {
   const view = emptyView({
     ...withActors(castActor("mari", { name: "Mari", mood: "wary" }, [], {})),
   });
@@ -526,7 +526,7 @@ test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () =>
 // RV-11 — the persistent per-character GUIDES. The extraction round is asked for appearance/outfit/thoughts on
 // every beat and wrote them richly; NOTHING read them back, so the character turn re-invented a face it had
 // already fixed. They ride CONTINUATION lines under the member's one-liner, taught once on the section header.
-test("a cast member's appearance/outfit/thoughts ride continuation lines under its one-liner", () => {
+test("a npc's appearance/outfit/thoughts ride continuation lines under its one-liner", () => {
   const view = emptyView({
     ...withActors(
       castActor("vesna", {
@@ -577,7 +577,7 @@ test("a neutral relationship is silent in the cast line (no steering signal)", (
 // R2 — the OFFSTAGE roster. Retention without visibility steers nothing: before the reshape a departed NPC's
 // identity was DESTROYED outright, so the model had no way to bring her back consistently and no line saying
 // she existed. She is retained now, and this block is how the turn hears about her.
-test("a tracked cast actor who is NOT on stage rides the terse `Known, offstage` roster", () => {
+test("a tracked npc who is NOT on stage rides the terse `Known, offstage` roster", () => {
   const trust = def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" });
   const onStage = castActor("bran", { name: "Bran" });
   const gone = {
@@ -661,7 +661,7 @@ test("the DELTA block renders BETWEEN the state block and the license (§2.7 pla
     location: "The Docks",
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "kael" },
+        actorRef: { kind: "npc", npcKey: "kael" },
         volatile: { trackerValues: { hp: value(reading) }, conditions: [], inventory: [], wallet: [], status: "" },
       },
     ],

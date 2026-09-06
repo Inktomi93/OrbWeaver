@@ -20,7 +20,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const MIRA = { kind: "cast", castKey: "mira" } as const;
+const MIRA = { kind: "npc", npcKey: "mira" } as const;
 const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
@@ -46,7 +46,7 @@ test("drops the state row AND the presence row AND every lock at/below the actor
   await service.editSnapshot({
     principal: HOST,
     chatId,
-    patch: { presentCharacters: ["cast:mira"] },
+    patch: { presentCharacters: ["npc:mira"] },
   });
   await service.patchActor({
     principal: HOST,
@@ -57,37 +57,37 @@ test("drops the state row AND the presence row AND every lock at/below the actor
       { op: "setTracker", key: "trust", value: { value: 4 } },
     ],
   });
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
   const before = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(before?.fieldLocks?.["actorState.cast:mira.volatile.status"]).toBe(true);
+  expect(before?.fieldLocks?.["actorState.npc:mira.volatile.status"]).toBe(true);
 
   expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["thorn"]);
+  expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "npc" ? a.actorRef.npcKey : ""))).toEqual(["thorn"]);
   expect(after?.presentCharacters ?? []).toEqual([]);
   // The symmetric lock release: mira's pins are gone, thorn's survive (a dismissal is scoped to its actor).
-  expect(after?.fieldLocks?.["actorState.cast:mira.volatile.status"]).toBeUndefined();
-  expect(after?.fieldLocks?.["actorState.cast:mira.volatile.trackerValues.trust"]).toBeUndefined();
-  expect(after?.fieldLocks?.["actorState.cast:thorn.volatile.status"]).toBe(true);
+  expect(after?.fieldLocks?.["actorState.npc:mira.volatile.status"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.npc:mira.volatile.trackerValues.trust"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.npc:thorn.volatile.status"]).toBe(true);
 });
 
 test("a dismissed actor STAYS gone through a later hand write on another actor (the additive plane can't resurrect her)", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
   await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA });
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["thorn"]);
+  expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "npc" ? a.actorRef.npcKey : ""))).toEqual(["thorn"]);
 });
 
-test("dismissing a PRESENCE-ONLY cast member (no state row yet) still clears her from the scene", async () => {
+test("dismissing a PRESENCE-ONLY npc (no state row yet) still clears her from the scene", async () => {
   const { chatId, game, service } = await seedGame();
   await service.editSnapshot({
     principal: HOST,
     chatId,
-    patch: { presentCharacters: ["cast:mira"] },
+    patch: { presentCharacters: ["npc:mira"] },
   });
 
   expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
@@ -97,13 +97,13 @@ test("dismissing a PRESENCE-ONLY cast member (no state row yet) still clears her
 
 test("dismissing an actor the game does not carry is ERRORS-AS-DATA — no write, no slot, no bus event", async () => {
   const { chatId, game, service, fakes } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
   const slotsBefore = fakes.narratorPosts.length;
   const eventsBefore = fakes.busEvents.length;
 
   const refused = await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA });
   expect(refused.ok).toBe(false);
-  expect(refused.ok === false && refused.reason).toContain("cast:mira");
+  expect(refused.ok === false && refused.reason).toContain("npc:mira");
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(after?.actorState ?? []).toHaveLength(1);

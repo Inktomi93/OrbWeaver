@@ -91,7 +91,7 @@ async function effectiveState(ctx: RpgContext, game: RpgGameRow, turnId: ChatTur
 
 /** The name→roster-ref index for the actor-targeting tools (F2): resolve the chat's roster once and index it by
  *  name, so `update_party`/`update_inventory` land a party-member write under its roster key — the SAME key the
- *  tracker view + reminder read (never an orphan `cast:<name>`). */
+ *  tracker view + reminder read (never an orphan `npc:<name>`). */
 async function rosterIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<ActorRefIndex> {
   return buildActorRefIndex(await ctx.resolveRoster(game.chatId));
 }

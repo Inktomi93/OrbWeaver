@@ -6,7 +6,7 @@
 //
 // AN ACTOR'S KEY IS ADDRESSED FROM THREE PLACES, AND MISSING ONE IS A GHOST — the same three couplings
 // `dismissActor` owns, which is why the review called promotion and dismissal "the same op family":
-//   • the `actorState` ROW — re-keyed IN PLACE (position preserved: the roster/cast projections and the band's
+//   • the `actorState` ROW — re-keyed IN PLACE (position preserved: the roster/npc projections and the band's
 //     first-actor-with-state derivation read this array in order, so re-appending would silently reorder the
 //     panel);
 //   • the scene PRESENCE entry — re-keyed if present, left absent if not (presence is a flat `actorRefKey`
@@ -21,7 +21,7 @@
 // actors and absent for roster ones — a roster member's name is the chat roster's and her standing prose is the
 // sheet's, and `applyActorOps`' identity arms REFUSE on a row that carries none. A re-keyed row that kept its
 // identity would be a second name home beside the card AND dead data: `applyPresencePatch` writes identity only
-// for `cast` refs, so the story could never update it again. The caller carries its DURABLE content onto the
+// for `npc` refs, so the story could never update it again. The caller carries its DURABLE content onto the
 // minted card first (`rpgPromotedCardDescription`); what is left (`mood`, `relationship`) has no roster home.
 
 import type { RpgActorRef, RpgSnapshotState } from "@orb/contracts/rpg";

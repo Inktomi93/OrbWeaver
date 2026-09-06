@@ -9,7 +9,7 @@ import { newId } from "@orb/kit/ids";
 import { applyActorOps, emptyActorEntry } from "../../../../../packages/server/src/domain/rpg/substrate/actor-ops.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const MIRA = { kind: "cast", castKey: "mira" } as const;
+const MIRA = { kind: "npc", npcKey: "mira" } as const;
 const USER_ID = newId<UserId>();
 const MINTED_ITEM_ID_RE = /^item_/u;
 let itemSeq = 0;
@@ -94,17 +94,17 @@ test("each op earns ONE fine lock path under its HALF's base, de-duplicated in f
   // skipped it would pin nothing at all. R2's identity pins are also FINE — pinning one NPC's mood used to
   // require the plane-wide `presentCharacters` lock, which froze the entire cast.
   expect(out.ok && out.lockPaths).toEqual([
-    "actorState.cast:mira.volatile.status",
-    "actorState.cast:mira.volatile.trackerValues.trust",
+    "actorState.npc:mira.volatile.status",
+    "actorState.npc:mira.volatile.trackerValues.trust",
     // The two condition ops share ONE plane-level pin — the panel's Release affordance for this plane is the
     // section, so a per-element lock here would be a pin the host can see but cannot release.
-    "actorState.cast:mira.volatile.conditions",
+    "actorState.npc:mira.volatile.conditions",
     // …and INVENTORY is the plane that grew that per-element affordance (#78), so its pin is per ITEM, per
     // CLAIMED field. `{ name: "Rope" }` claims the name and nothing else: the story keeps quantity/location.
-    `actorState.cast:mira.volatile.inventory.${out.ok ? out.actor.volatile.inventory[1]?.id : ""}.name`,
-    "actorState.cast:mira.volatile.wallet.gold",
-    "actorState.cast:mira.identity.mood",
-    "actorState.cast:mira.identity.relationship",
+    `actorState.npc:mira.volatile.inventory.${out.ok ? out.actor.volatile.inventory[1]?.id : ""}.name`,
+    "actorState.npc:mira.volatile.wallet.gold",
+    "actorState.npc:mira.identity.mood",
+    "actorState.npc:mira.identity.relationship",
   ]);
   expect(out.ok && out.lockReleases).toEqual([]);
 });
@@ -117,18 +117,18 @@ test("#78: an inventory op pins ONLY the fields the hand authored, addressed at 
   // `quantity`/`description`/`type` came from the SERVER's defaults, not from the hand — unpinned by design,
   // so a story that counts the coils or says where they ended up still lands.
   expect(added.ok && added.lockPaths).toEqual([
-    `actorState.cast:mira.volatile.inventory.${addedId}.name`,
-    `actorState.cast:mira.volatile.inventory.${addedId}.location`,
+    `actorState.npc:mira.volatile.inventory.${addedId}.name`,
+    `actorState.npc:mira.volatile.inventory.${addedId}.location`,
   ]);
 
   const patched = apply(seeded(), [{ op: "patchItem", id: "itm-key", patch: { quantity: 3 } }]);
-  expect(patched.ok && patched.lockPaths).toEqual(["actorState.cast:mira.volatile.inventory.itm-key.quantity"]);
+  expect(patched.ok && patched.lockPaths).toEqual(["actorState.npc:mira.volatile.inventory.itm-key.quantity"]);
 });
 
 test("#78: a REMOVAL pins nothing and releases the dropped item's prefix (the symmetric grammar)", () => {
   const out = apply(seeded(), [{ op: "removeItem", id: "itm-key" }]);
   expect(out.ok && out.lockPaths).toEqual([]);
-  expect(out.ok && out.lockReleases).toEqual(["actorState.cast:mira.volatile.inventory.itm-key"]);
+  expect(out.ok && out.lockReleases).toEqual(["actorState.npc:mira.volatile.inventory.itm-key"]);
 });
 
 test("#78: an add-then-drop batch releases the pin it just stamped (the verb applies `clear` after `lock`)", () => {
@@ -144,14 +144,14 @@ test("#78: an add-then-drop batch releases the pin it just stamped (the verb app
     () => id,
   );
   expect(out.ok && out.actor.volatile.inventory).toEqual([]);
-  expect(out.ok && out.lockPaths).toEqual([`actorState.cast:mira.volatile.inventory.${id}.name`]);
-  expect(out.ok && out.lockReleases).toEqual([`actorState.cast:mira.volatile.inventory.${id}`]);
+  expect(out.ok && out.lockPaths).toEqual([`actorState.npc:mira.volatile.inventory.${id}.name`]);
+  expect(out.ok && out.lockReleases).toEqual([`actorState.npc:mira.volatile.inventory.${id}`]);
 });
 
 // ── R2: the identity half ─────────────────────────────────────────────────────────────────────────────────
 
-test("a cast actor is BORN with an identity (slug-named); a roster actor is born without one", () => {
-  // A cast actor IS an identity-bearing person by construction — born without one, the very first
+test("an npc is BORN with an identity (slug-named); a roster actor is born without one", () => {
+  // An npc IS an identity-bearing person by construction — born without one, the very first
   // `presentUpsert`/`setIdentityText` would have nothing to write onto. A roster member's name is the chat
   // roster's and her standing prose is the sheet's, which is what makes the refusal below meaningful.
   expect(emptyActorEntry(MIRA).identity).toEqual({ name: "mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } });

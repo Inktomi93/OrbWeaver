@@ -33,10 +33,10 @@ import {
  *  block only renders it when the GAME defines it, which is the whole point of the demotion). */
 const HP = trackerDef({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone", max: 20, sort: 0 });
 
-/** One cast actor's row carrying an HP reading (the delta block's numeric plane). */
+/** One npc's row carrying an HP reading (the delta block's numeric plane). */
 function kael(hp: number): RpgActorEntry {
   return {
-    actorRef: { kind: "cast", castKey: "kael" },
+    actorRef: { kind: "npc", npcKey: "kael" },
     identity: { name: "Kael", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
     volatile: { trackerValues: { hp: { value: hp, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
   };
@@ -53,7 +53,7 @@ async function seedBeat(
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `beat${opts.seq}` }),
     ...emptyState(),
     actorState: [kael(opts.hp)],
-    presentCharacters: ["cast:kael"],
+    presentCharacters: ["npc:kael"],
     fieldLocks: null,
     committed: 1,
   });
@@ -69,7 +69,7 @@ async function seedVariantSnapshot(
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId: opts.variantId, key: opts.key }),
     ...emptyState(),
     actorState: [kael(opts.hp)],
-    presentCharacters: ["cast:kael"],
+    presentCharacters: ["npc:kael"],
     fieldLocks: null,
     committed: 1,
   });
@@ -224,20 +224,20 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
 });
 
 // The WHOLE path (snapshot → tracker view → injection) for an NPC's affliction. `update_party` writes conditions
-// onto a cast NPC's `cast:<key>` row exactly as it does a roster member's, but the reminder rendered
+// onto an npc's `npc:<key>` row exactly as it does a roster member's, but the reminder rendered
 // `conditions:` for ROSTER actors only — so a poisoned NPC was model-INVISIBLE and the model could neither play
 // the affliction nor retire it (the reminder is the model's knowledge, D113 #4).
-test("a scene-cast NPC's CONDITIONS reach the reminder injection (snapshot → view → wire)", async () => {
+test("a scene-npc's CONDITIONS reach the reminder injection (snapshot → view → wire)", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
     ...target({ gameId, chatId, seq: 1, variantId, key: "castcond" }),
     ...emptyState(),
-    presentCharacters: ["cast:mari"],
+    presentCharacters: ["npc:mari"],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "mari" },
+        actorRef: { kind: "npc", npcKey: "mari" },
         identity: { name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } },
         volatile: {
           trackerValues: {},
@@ -334,7 +334,7 @@ test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gat
   await h.service.patchActor({
     principal: principal(castId<Handle>("host")),
     chatId,
-    targetRef: { kind: "cast", castKey: "kael" },
+    targetRef: { kind: "npc", npcKey: "kael" },
     ops: [{ op: "setTracker", key: "hp", value: { value: 18 } }],
   });
   const text = await reminderText(h, chatId);
@@ -353,10 +353,10 @@ async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq:
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `scene${opts.seq}` }),
     ...emptyState(),
     location: "Village of Dunmoor",
-    presentCharacters: ["cast:mari"],
+    presentCharacters: ["npc:mari"],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "mari" },
+        actorRef: { kind: "npc", npcKey: "mari" },
         identity: { name: "Mari", emoji: "", mood: "wary", relationship: { kind: "enemy", label: "" } },
         volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
       },
@@ -522,18 +522,18 @@ function reading(value: number | string): RpgTrackerValue {
   return { value, items: null, max: null };
 }
 
-/** An actor row carrying ONLY tracker readings (the plane under test). A `cast` ref gets its identity half
- *  (R2 — a cast actor is a person, and the display name is what every reader prints). */
+/** An actor row carrying ONLY tracker readings (the plane under test). A `npc` ref gets its identity half
+ *  (R2 — an npc is a person, and the display name is what every reader prints). */
 function withTrackers(
   actorRef: RpgActorEntry["actorRef"],
   trackerValues: Record<string, RpgTrackerValue>,
   identity: { name: string; mood?: string } | null = null,
 ): RpgActorEntry {
   const volatile = { trackerValues, conditions: [], inventory: [], wallet: [], status: "" };
-  if (actorRef.kind !== "cast") {
+  if (actorRef.kind !== "npc") {
     return { actorRef, volatile };
   }
-  const named = identity ?? { name: actorRef.castKey };
+  const named = identity ?? { name: actorRef.npcKey };
   return { actorRef, identity: { name: named.name, emoji: "", mood: named.mood ?? "", relationship: { kind: "neutral", label: "" } }, volatile };
 }
 
@@ -552,7 +552,7 @@ const CORRUPTION = trackerDef({
 const ALARM = trackerDef({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game", max: 5, hint: "how alerted the guards are", sort: 1 });
 
 /** Seed the live-shaped game: an `everyone` actor tracker + a game tracker, a roster of a USER and a
- *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-cast
+ *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-npc
  *  member (the three carrier homes) plus the game-subject value. */
 async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness }> {
   const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "You"), rosterCharacter(NIKO, "Niko")] });
@@ -562,12 +562,12 @@ async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness 
     ...target({ gameId, chatId, seq: 2, variantId, key: "trk" }),
     ...emptyState(),
     location: "Konbini",
-    presentCharacters: ["cast:mari"],
+    presentCharacters: ["npc:mari"],
     actorState: [
       // ZERO is state, not absence — a 0/100 meter must reach the model exactly like a 12/100 one.
       withTrackers({ kind: "user", userId: castId("user_host") }, { corruption: reading(0) }),
       withTrackers({ kind: "character", characterId: castId(`character_${NIKO}`) }, { corruption: reading(12) }),
-      withTrackers({ kind: "cast", castKey: "mari" }, { corruption: reading(5) }, { name: "Mari", mood: "wary" }),
+      withTrackers({ kind: "npc", npcKey: "mari" }, { corruption: reading(5) }, { name: "Mari", mood: "wary" }),
     ],
     trackerValues: { alarm: reading(3) },
     fieldLocks: null,
@@ -586,7 +586,7 @@ test("every FILLED tracker reaches the reminder — user + character + cast carr
   expect(text).toContain("Trackers: Corruption (how corrupted someone is) · Alarm (how alerted the guards are)");
   expect(text.match(/how corrupted someone is/g)).toHaveLength(1);
   // Every carrier's reading, under the same labels: the user actor (0 — present, not swallowed), the
-  // character actor, and the scene-cast member the `everyone` class reaches.
+  // character actor, and the scene-npc the `everyone` class reaches.
   expect(text).toContain("- You — Corruption 0/100");
   expect(text).toContain("- Niko — Corruption 12/100");
   expect(text).toContain("- Mari — wary — Corruption 5/100");

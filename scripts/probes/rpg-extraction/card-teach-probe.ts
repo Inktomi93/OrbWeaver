@@ -173,7 +173,7 @@ function armReminder(teach: string, beats: readonly string[]): string {
     lockedPaths: [],
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "vex" },
+        actorRef: { kind: "npc", npcKey: "vex" },
         name: "Vex",
         // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
         sheet: { className: "scavenger", attributes: {}, flavor: "", level: 2, trackerGrants: [], trackerRevokes: [] },
@@ -197,7 +197,7 @@ function armReminder(teach: string, beats: readonly string[]): string {
       },
       // R2 — the scene NPC is an ACTOR row beside the roster, identity and all.
       {
-        actorRef: { kind: "cast", castKey: "marrow" },
+        actorRef: { kind: "npc", npcKey: "marrow" },
         name: "Marrow",
         presence: true,
         identity: { name: "Marrow", emoji: "🩶", mood: "wary", relationship: { kind: "custom", label: "fixer" } },
@@ -206,7 +206,7 @@ function armReminder(teach: string, beats: readonly string[]): string {
         volatile: { trackerValues: { corruption: { value: 55, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
       },
     ],
-    cast: ["cast:marrow"],
+    cast: ["npc:marrow"],
     trackerDefs: [...TRACKERS],
     gameTrackers: [],
     quests: [],

@@ -8,7 +8,7 @@
 //   1. the DURABLE half (`ctx.promoteToRoster`, an injected compose op over the character + chat front doors —
 //      rpg owns neither table): resolve-or-mint the marked card, ensure its roster seat, hand back the `CharacterId`;
 //   2. the SNAPSHOT half (`writeHandState` + `rekeyActor`): move the actor's row, presence and hand PINS from
-//      `cast:<slug>` onto `character:<id>` against the TRUE head, clone-forwarding like every hand door.
+//      `npc:<slug>` onto `character:<id>` against the TRUE head, clone-forwarding like every hand door.
 // Every REFUSAL that can be decided is decided before a NEW card write — an untracked target, an actor with no
 // identity, or a name the roster already carries. Step (1) carries a stable promotion marker and each half is
 // idempotent, so an interruption after card or seat creation resumes those same rows and reaches the re-key.
@@ -56,7 +56,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     const identity = entry.identity;
     if (identity === undefined) {
       // Unreachable through the wire today (the cast arm is always born with an identity), but a row is only a
-      // parsed blob: an identity-less cast row would otherwise mint a nameless card.
+      // parsed blob: an identity-less npc row would otherwise mint a nameless card.
       return { ok: false, reason: `"${fromKey}" carries no identity of its own — there is nothing to mint a card from` };
     }
     const rawName = identity.name.trim();
@@ -77,14 +77,14 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       sourceActorKey: fromKey,
       roster,
       name,
-      // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT (#1386). `rpgCastSlug` is the
+      // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT (#1386). `rpgNpcSlug` is the
       // ACTOR-KEY engine — its whole job is "never merge two people", so it is NFC-preserving, keeps every
       // mark and NEVER truncates. A card handle answers to different law: the per-owner
       // `characters_owner_handle_unique` index and the 200-char wire cap on `createCharacterSchema.handle`,
       // which is what `slugifyHandle` (the handle namespace's one home) folds and bounds for. Minting with
       // the actor engine let a model-authored NPC name — `rpgActorIdentitySchema.name` carries NO max —
       // produce a handle the character namespace's own create schema refuses, i.e. a row no import could
-      // ever re-create. The two engines deliberately stay separate (`rpgCastSlug`'s header states why);
+      // ever re-create. The two engines deliberately stay separate (`rpgNpcSlug`'s header states why);
       // what crosses here is the VALUE, minted on the receiving side's terms. Minted from `rawName`, never the
       // display-clamped `name`: `slugifyHandle` folds + bounds independently (its own `MAX_FOLDED_POINTS`), so
       // truncating twice would only shorten the handle's disambiguator for no reason.

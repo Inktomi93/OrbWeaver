@@ -2,7 +2,7 @@
 // chip. TEXT is the accessible datum (the tracker-kit a11y model): the badge carries
 // a visible label, the color + icon are decoration. A NEUTRAL default renders nothing (no steering signal to
 // badge). Extracted from tracker-blocks.tsx (component-size cap) — the badge sits ON the name line of BOTH
-// the Scene cast card AND the Status roster card (the §6 relationship re-home — one anatomy, two homes).
+// the Scene npcs card AND the Status roster card (the §6 relationship re-home — one anatomy, two homes).
 
 import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
@@ -23,14 +23,14 @@ const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">
   enemy: { intent: "danger", glyph: UserX },
 };
 
-/** A cast member's relationship badge (§2.1). The five known kinds get a color + icon; a `custom` kind
+/** A npc's relationship badge (§2.1). The five known kinds get a color + icon; a `custom` kind
  *  renders its `label` as a neutral chip. A neutral default is silent (returns null — no badge to clutter). */
 export function RelationshipBadge({ relationship }: { readonly relationship: RpgRelationship }): ReactElement | null {
   if (relationship.kind === "custom") {
     const label = relationship.label !== "" ? relationship.label : "custom";
     // A free-text custom label can be arbitrarily long ("disgraced former lieutenant of the crown"); left
     // unbounded it grew the badge to ~236px and starved the character NAME to 0px. Cap + truncate the label
-    // so the badge yields width to the name (which is `shrink-0` in CastCard), and carry the full text on
+    // so the badge yields width to the name (which is `shrink-0` in NpcCard), and carry the full text on
     // `title` for hover. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
       <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="min-w-0 max-w-(--width-control-col)" title={label}>

@@ -62,7 +62,7 @@ function propKey(prop: string): ElementKeyResolver {
 }
 
 /** The `actorState` element key — the COMPUTED `actorRefKey` projection over the element's `actorRef`
- *  (`user:<id>` / `character:<id>` / `cast:<key>`), the SAME string every other actor-addressed surface
+ *  (`user:<id>` / `character:<id>` / `npc:<key>`), the SAME string every other actor-addressed surface
  *  uses (the Map/lock/find key, contracts/rpg/actor.ts). A malformed ref resolves no key (unaddressable). */
 function actorStateKey(element: unknown): string | undefined {
   const ref = isPlainObject(element) ? element["actorRef"] : undefined;

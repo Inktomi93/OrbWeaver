@@ -16,7 +16,7 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { rpgActorOpSchema, rpgActorRefSchema, rpgCastRefSchema } from "./actor.ts";
+import { rpgActorOpSchema, rpgActorRefSchema, rpgNpcRefSchema } from "./actor.ts";
 import {
   RPG_DATE_MODES,
   RPG_EXTRACTION_CONTEXTS,
@@ -194,19 +194,19 @@ export const rpgDismissActorInputSchema = z.object({
 /** `promoteActor` — THE promotion doorway (R4; host): a scene NPC the story kept coming back to EARNS a roster
  *  card. It is `dismissActor`'s opposite — dismissal forgets the person, promotion keeps her forever — and the
  *  only rpg verb whose write reaches outside the game (it mints a durable character card + a chat roster seat
- *  through ONE injected op, then re-keys the actor row `cast:<slug>` → `character:<id>` on the snapshot plane).
+ *  through ONE injected op, then re-keys the actor row `npc:<slug>` → `character:<id>` on the snapshot plane).
  *
  *  The payload is the TARGET AND NOTHING ELSE. The card's name and handle are the SERVER's derivation off the
- *  actor's own identity row (`rpgPromotedCardDescription` + `rpgCastSlug`), never client-authored: this door
+ *  actor's own identity row (`rpgPromotedCardDescription` + `rpgNpcSlug`), never client-authored: this door
  *  inherits R1's lesson that a client which can only see the plane in projections must not author what lands in
- *  it. `targetRef` rides {@link rpgCastRefSchema}, not the whole actor union — promoting a `character`/`user`
+ *  it. `targetRef` rides {@link rpgNpcRefSchema}, not the whole actor union — promoting a `character`/`user`
  *  actor is not a refusal, it is meaningless, so the wire cannot express it.
  *
  *  Refusals are DATA (`HandDoorResult`): an untracked target, an actor with no identity row, and — the ruled
  *  collision — a chat roster that already carries that NAME. */
 export const rpgPromoteActorInputSchema = z.object({
   chatId: chatIdField,
-  targetRef: rpgCastRefSchema,
+  targetRef: rpgNpcRefSchema,
 });
 
 /** `upsertQuest` — the hand arm of the quest plane (host). `questId` present ⇒ update, absent ⇒ create.

@@ -31,7 +31,7 @@
 // and then READS the reminder off the real `gatherTurnContext`. Int-tier because the projection that produced
 // three of the four bugs (`buildTrackerView`) is a db read.
 //
-// THE MATRIX: carrier kind (roster user · roster character · scene-cast NPC) × field state (set/empty) × lock
+// THE MATRIX: carrier kind (roster user · roster character · scene-npc) × field state (set/empty) × lock
 // state (a `locked` def and a `fieldLocks` pin must still RENDER — D113 #4: the reminder is the model's
 // KNOWLEDGE, the tools are its permissions) × pin state (the band is a panel concern; the reminder is
 // pin-blind) × the config arms that gate rendering (`engaged`, `dateMode`, `recentBeatsKeepLast`,
@@ -73,10 +73,10 @@ const REMINDER_UNRENDERED: Readonly<Record<string, string>> = {
   "state.weather.visibility": "a full-engine storage field, unwritable in lite (see state.weather.temperatureC).",
   "state.actorState[].identity.characterId":
     "the promotion JOIN to a roster character row (the R4 doorway) — an id is never model-facing (projection-clean law, contracts/rpg/tools header).",
-  "state.actorState[].actorRef.kind": "the actor-ref plane is ADDRESSING: the reminder prints the actor's NAME (roster projection / cast key), never its ref.",
+  "state.actorState[].actorRef.kind": "the actor-ref plane is ADDRESSING: the reminder prints the actor's NAME (roster projection / npc key), never its ref.",
   "state.actorState[].actorRef.characterId": "addressing (see actorRef.kind) — and an id is never model-facing.",
   "state.actorState[].actorRef.userId": "addressing (see actorRef.kind) — and an id is never model-facing.",
-  "state.actorState[].actorRef.castKey": "addressing (see actorRef.kind); the cast row's `name` is what the Present line prints.",
+  "state.actorState[].actorRef.npcKey": "addressing (see actorRef.kind); the npc row's `name` is what the Present line prints.",
   "state.actorState[].volatile.conditions[].stat":
     "a full-ENGINE condition slot born whole (contracts/rpg/actor header) — lite writes only `name` (`update_party.addCondition`), so the modifier triple has no lite value to state.",
   "state.actorState[].volatile.conditions[].modifier": "full-engine slot, unwritable in lite (see conditions[].stat).",
@@ -124,10 +124,10 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "state.recentEvents[]":
     "EXCLUDED BY CONSTRUCTION (`PLANE_DIFF_RENDERERS` header): a beat is an APPEND, not a mutation — the reminder's Recent-beats block is the whole record.",
   "state.actorState[].actorRef.kind":
-    "addressing — the per-actor renderers LABEL a line through `rosterNames`/the cast key (`actorLabel`), never by printing the ref.",
+    "addressing — the per-actor renderers LABEL a line through `rosterNames`/the npc key (`actorLabel`), never by printing the ref.",
   "state.actorState[].actorRef.characterId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.userId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
-  "state.actorState[].actorRef.castKey": "addressing (see actorRef.kind) — it IS the cast line's label, which the reminder probe covers.",
+  "state.actorState[].actorRef.npcKey": "addressing (see actorRef.kind) — it IS the cast line's label, which the reminder probe covers.",
   "state.actorState[].volatile.conditions[].stat": "full-engine slot, unwritable in lite (reminder cite); the conditions diff matches by NAME.",
   "state.actorState[].volatile.conditions[].modifier": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
   "state.actorState[].volatile.conditions[].turnsLeft": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
@@ -175,10 +175,10 @@ const MACRO_UNRENDERED: Readonly<Record<string, string>> = {
   "state.presentCharacters[]":
     "the PRESENCE plane is a list of ADDRESSING keys (`actorRefKey`) since R2 — it decides WHICH actors the feed's `Present:` block carries. Printed nowhere; each actor's `identity.name` is the datum.",
   "state.actorState[].identity.characterId": "the promotion JOIN id to a roster character row — an id is never model-facing (projection-clean law).",
-  "state.actorState[].actorRef.kind": "addressing — a line is LABELLED by the roster projection / cast key, never by printing the ref (see the reminder cite).",
+  "state.actorState[].actorRef.kind": "addressing — a line is LABELLED by the roster projection / npc key, never by printing the ref (see the reminder cite).",
   "state.actorState[].actorRef.characterId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.userId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
-  "state.actorState[].actorRef.castKey": "addressing — it joins the volatile row to its cast member; the member's `name` is what the line prints.",
+  "state.actorState[].actorRef.npcKey": "addressing — it joins the volatile row to its npc; the member's `name` is what the line prints.",
   "state.actorState[].volatile.conditions[].stat":
     "a full-ENGINE condition slot lite never writes (`update_party.addCondition` carries `name` only — the reminder cite).",
   "state.actorState[].volatile.conditions[].modifier": "full-engine slot, unwritable in lite (see state.actorState[].conditions[].stat).",
@@ -214,10 +214,10 @@ const STATE_HEADING = "# Game state";
 /** The CARRIER axis — the three kinds of actor the per-actor planes can hang on. Declared ONCE as a tuple and
  *  derived (the string-union dispatch discipline): the `CARRIERS` record below is mapped over it, so a fourth
  *  kind (full's `npc` ref arm) fails `tsc` here until the matrix runs it too. */
-const CARRIER_KINDS = ["user", "character", "cast"] as const;
+const CARRIER_KINDS = ["user", "character", "npc"] as const;
 type CarrierKind = (typeof CARRIER_KINDS)[number];
 
-/** One CARRIER of the per-actor planes: a roster human (`user`), a roster character, or a scene-cast NPC.
+/** One CARRIER of the per-actor planes: a roster human (`user`), a roster character, or a scene-npc.
  *  `targetRef` is what the model writes; `label` is what BOTH read surfaces must name the carrier. */
 interface Carrier {
   readonly kind: CarrierKind;
@@ -225,7 +225,7 @@ interface Carrier {
   readonly targetRef: string;
   readonly roster: readonly RpgRosterActor[];
   readonly actorRef: RpgActorRef;
-  /** A cast NPC must be ON STAGE before a party/inventory write may name it (the R5 ghost guard). */
+  /** An npc must be ON STAGE before a party/inventory write may name it (the R5 ghost guard). */
   readonly onStage: boolean;
 }
 
@@ -251,12 +251,12 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     actorRef: { kind: "character", characterId: CHARACTER_ID },
     onStage: false,
   },
-  cast: {
-    kind: "cast",
+  npc: {
+    kind: "npc",
     label: "Mari",
     targetRef: "Mari",
     roster: [],
-    actorRef: { kind: "cast", castKey: "mari" },
+    actorRef: { kind: "npc", npcKey: "mari" },
     onStage: true,
   },
 };
@@ -271,9 +271,9 @@ function refKeyNeedles(carrier: Carrier): readonly string[] {
   if (ref.kind === "user") {
     return [`user:${ref.userId}`, ref.userId];
   }
-  // A CAST actor's slug key is not an id — it is a legitimate (if ugly) fallback label, and the display name
+  // A NPC actor's slug key is not an id — it is a legitimate (if ugly) fallback label, and the display name
   // is what must win. Assert the key form only.
-  return [`cast:${ref.castKey}`];
+  return [`npc:${ref.npcKey}`];
 }
 
 interface Fixture {
@@ -693,7 +693,7 @@ const PROBES: readonly FieldProbe[] = [
   },
   // ── the SCENE-CAST identity plane ────────────────────────────────────────────────────────────────────────
   {
-    name: "cast identity — name, emoji, mood and the three standing guides reach the model",
+    name: "npc identity — name, emoji, mood and the three standing guides reach the model",
     reminderPaths: [
       "state.actorState[].identity.name",
       "state.actorState[].identity.emoji",
@@ -921,7 +921,7 @@ const PROBES: readonly FieldProbe[] = [
     },
     reminder: () => ["Game trackers:", "- Alarm 3/5", "- Rumours: a body in the weir, the ferryman lies"],
     delta: () => ["Alarm 1→3 (+2) — how close the watch is", "Rumours: a body in the weir → a body in the weir, the ferryman lies"],
-    // A game-subject reading belongs to NO actor, so it fell through the feed's party/cast split entirely —
+    // A game-subject reading belongs to NO actor, so it fell through the feed's party/npc split entirely —
     // `{{rpgSceneState}}` now carries the block (the scene's own state, not anybody's sheet).
     macro: () => [{ key: "rpgSceneState", text: "Game trackers:\n- Alarm 3/5\n- Rumours: a body in the weir, the ferryman lies" }],
   },
@@ -1275,7 +1275,7 @@ test("the roster/cast SPLIT is total: the same write reaches the model on a rost
 
 test("actorRefKey is the ONE join: a tool write on a roster NAME lands under the ref the view reads", async () => {
   // The addressing cite's proof — the reason `actorRef.*` is exempt from the read surfaces is that the NAME is
-  // the datum and the ref is the join; if that join broke, every probe above would still pass on `cast:` rows.
+  // the datum and the ref is the join; if that join broke, every probe above would still pass on `npc:` rows.
   const f = await openGame({ carrier: CARRIERS.user });
   await f.beat({ party: [{ targetRef: "player", status: "winded" }] }); // a self-alias, not the roster name
   const view = await f.h.service.getTrackerView({ principal: HOST, chatId: f.chatId });
