@@ -1,0 +1,45 @@
+// Shared isolated-project React surface for the React-19 migration policies' self-proofs.
+//
+// The proofs run on an in-memory workspace, so `react` must be a RESOLVABLE package door there or every
+// identity claim would be proved only against an unresolved external door — the weaker half of the fact.
+// A file at `node_modules/@types/react/index.d.ts` is resolved by the same node module walk the real tree
+// uses, and it puts the declaration in the same `/node_modules/@types/react/` home the live checker
+// reports, so `declaredByAnyPackage` is exercised for real rather than stubbed.
+export const REACT_TYPES_HOME = "node_modules/@types/react/index.d.ts";
+
+/** A second package that also exports `forwardRef`/`useContext`/a `Provider`-bearing context — the
+ *  same-SPELLING/different-ORIGIN twin every React policy owes. */
+export const REACT_LOOKALIKE_HOME = "node_modules/not-react/index.d.ts";
+
+const SURFACE = [
+  "export interface Provider<T> {",
+  "  (props: { value: T; children?: unknown }): unknown;",
+  "}",
+  "export interface Context<T> {",
+  "  Provider: Provider<T>;",
+  "  displayName?: string;",
+  "}",
+  "export declare function createContext<T>(value: T): Context<T>;",
+  "export declare function forwardRef<T, P>(render: (props: P, ref: T) => unknown): unknown;",
+  "export declare function useContext<T>(context: Context<T>): T;",
+  "export declare function use<T>(context: Context<T>): T;",
+  "declare const surface: {",
+  "  createContext: typeof createContext;",
+  "  forwardRef: typeof forwardRef;",
+  "  useContext: typeof useContext;",
+  "  use: typeof use;",
+  "};",
+  "export default surface;",
+  "",
+].join("\n");
+
+/** React's public surface as the policies read it: named exports, a namespace-importable module, and a
+ *  default object so `React.forwardRef` resolves through the default door too. */
+export function reactProofModule(): string {
+  return SURFACE;
+}
+
+/** A DIFFERENT package exporting the same names. Nothing but the resolved origin separates the two. */
+export function reactLookalikeProofModule(): string {
+  return SURFACE;
+}
