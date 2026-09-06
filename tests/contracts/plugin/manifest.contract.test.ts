@@ -3,7 +3,16 @@
 // typed — bad slug, unserved hostVersion, bad semver, wrong entry, the netHosts ⟺ net.fetch biconditional,
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.
 
-import { NET_HOSTS_MAX, PLUGIN_CAPABILITIES, pluginManifestSchema } from "@orb/contracts/plugin";
+import {
+  NET_HOSTS_MAX,
+  PLUGIN_CAPABILITIES,
+  PLUGIN_SLUG_MAX,
+  PLUGIN_TOOL_NAME_LOCAL_MAX,
+  PLUGIN_TOOL_NAME_RE,
+  PLUGIN_TOOL_WIRE_NAME_MAX,
+  pluginManifestSchema,
+  pluginToolWireName,
+} from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
 const BASE = {
@@ -126,6 +135,39 @@ test("manifest matrix — bad slug is refused (uppercase, leading dash, single c
   expect(pluginManifestSchema.safeParse({ ...BASE, id: "a" }).success).toBe(false);
   expect(pluginManifestSchema.safeParse({ ...BASE, id: "a".repeat(65) }).success).toBe(false);
   expect(pluginManifestSchema.safeParse({ ...BASE, id: "under_score" }).success).toBe(false);
+});
+
+// #1803 — the slug cap is judged against the CONSTANT, never a literal (the same discipline the netHosts
+// cap test above already applies): at-cap is the accepted control, one-over is refused. A literal `20`
+// here would silently stop tracking `PLUGIN_SLUG_MAX` if the budget ever moved.
+test("manifest matrix — the slug is capped at PLUGIN_SLUG_MAX (#1803 wire-mint budget), at-cap accepted", () => {
+  const atCap = `a${"a".repeat(PLUGIN_SLUG_MAX - 1)}`;
+  const overCap = `a${"a".repeat(PLUGIN_SLUG_MAX)}`;
+  expect(atCap).toHaveLength(PLUGIN_SLUG_MAX);
+  expect(pluginManifestSchema.safeParse({ ...BASE, id: atCap }).success).toBe(true);
+  expect(pluginManifestSchema.safeParse({ ...BASE, id: overCap }).success).toBe(false);
+});
+
+// #1803 — the whole point of the budget: no combination of an admitted slug (≤ PLUGIN_SLUG_MAX, hyphens
+// DOUBLED by the mint) and an admitted guest-local tool name (≤ PLUGIN_TOOL_NAME_LOCAL_MAX,
+// `PLUGIN_TOOL_NAME_RE`, the membrane's own trust-boundary grammar) can ever mint a wire name past
+// `PLUGIN_TOOL_WIRE_NAME_MAX` — the registry's `TOOL_NAME_RE` bound this is pinned to
+// (`domain/tool-use/contract/params.ts`, verified by exact-value equality below since contracts cannot
+// import server). The adversarial worst case (an all-hyphen slug at the cap + a name at the cap) lands
+// EXACTLY on the ceiling, never over it.
+test("#1803: an admitted slug + an admitted tool name can never mint past the registry's 64-byte cap", () => {
+  expect(PLUGIN_TOOL_WIRE_NAME_MAX).toBe(64); // the server TOOL_NAME_RE tie this constant exists to pin
+  const worstSlug = `a${"-".repeat(PLUGIN_SLUG_MAX - 1)}`; // max length, all hyphens after the first char
+  expect(worstSlug).toHaveLength(PLUGIN_SLUG_MAX);
+  expect(pluginManifestSchema.safeParse({ ...BASE, id: worstSlug }).success).toBe(true);
+  const worstName = `a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX - 1)}`; // max length
+  expect(worstName).toHaveLength(PLUGIN_TOOL_NAME_LOCAL_MAX);
+  expect(PLUGIN_TOOL_NAME_RE.test(worstName)).toBe(true);
+  const mint = pluginToolWireName(worstSlug, worstName);
+  expect(mint).toHaveLength(PLUGIN_TOOL_WIRE_NAME_MAX);
+  // One byte over EITHER input busts the mint past the ceiling — proving the split is exact, not padded.
+  const oneByteOverName = `${worstName}a`;
+  expect(pluginToolWireName(worstSlug, oneByteOverName)).toHaveLength(PLUGIN_TOOL_WIRE_NAME_MAX + 1);
 });
 
 test("manifest matrix — an unserved hostVersion is refused before any code runs (01 §3)", () => {

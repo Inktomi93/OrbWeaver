@@ -3478,7 +3478,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1848,
+      "line": 1851,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3486,12 +3486,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1847
+      "markerLine": 1850
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1844,
+      "line": 1847,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3499,7 +3499,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1843
+      "markerLine": 1846
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",

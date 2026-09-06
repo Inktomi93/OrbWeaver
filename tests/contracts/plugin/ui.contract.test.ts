@@ -37,6 +37,7 @@ import {
   PLUGIN_TIER_REGISTRARS,
   PLUGIN_TILE_TAGS_MAX,
   PLUGIN_TOAST_LEVELS,
+  PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_NAME_PREFIX,
   PLUGIN_TOOL_NAME_RE,
   pluginBoundGridTileSchema,
@@ -594,6 +595,18 @@ test("a tool-card surface MUST name its tool, and only a tool-card surface may n
   // the server derives from one is itself well-formed in the same charset (nothing here re-derives it).
   expect(pluginSurfaceRegistrationMetaSchema.safeParse({ ...base, anchor: "tool-card", toolName: "Draw Card" }).success).toBe(false);
   expect(PLUGIN_TOOL_NAME_RE.test("draw")).toBe(true);
+});
+
+// #1803 — the guest-local tool name's length is the OTHER half of the wire-mint budget (`manifest.ts`
+// PLUGIN_SLUG_MAX is the other). Judged against the constant, never a literal: at-cap accepted, one over
+// refused — this is the SAME grammar the membrane's `tools.register` trust boundary enforces on raw guest
+// input, so a name failing this test at that boundary is refused for LENGTH, before activation collects it.
+test("PLUGIN_TOOL_NAME_RE caps the guest-local tool name at PLUGIN_TOOL_NAME_LOCAL_MAX (#1803), at-cap accepted", () => {
+  const atCap = `a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX - 1)}`;
+  const overCap = `a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX)}`;
+  expect(atCap).toHaveLength(PLUGIN_TOOL_NAME_LOCAL_MAX);
+  expect(PLUGIN_TOOL_NAME_RE.test(atCap)).toBe(true);
+  expect(PLUGIN_TOOL_NAME_RE.test(overCap)).toBe(false);
 });
 
 // ── U5: the BROWSE-GENRE vocabulary + the host-mediated affordance grammar (§4.5a/§4.5b, seam 16) ──────────
