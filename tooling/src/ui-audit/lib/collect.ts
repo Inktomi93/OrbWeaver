@@ -48,6 +48,10 @@
 //   tabindex-positive         every censused tabindex attribute is judged
 //   z-index-escalation        every censused positive z-index is judged
 //   icon-tile-stack           every heading with a visible previous sibling is judged
+//   reveal-coverage           accounting-only, no items/checker — census-interactive.ts's rest-hidden-
+//                             reveal count is the whole rule (#1077)
+//   canvas-ink                accounting-only, no items/checker — census-collision.ts's visible-canvas
+//                             count is the whole rule (#1079)
 //
 // RUNG 2b · partitionedFindings — the checker itself names each candidate's disposition, because `null`
 // meant two different things and a bare zero conflated them:
