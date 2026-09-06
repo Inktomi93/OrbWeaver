@@ -153,10 +153,14 @@ async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Pr
 }
 
 /** The one attempt-exhausted append the report below classifies: the id the whole retry re-used, the stamped
- *  event it tried to write, the last attempt's error, and how many attempts were spent. */
+ *  event it tried to write, the last attempt's error, and how many attempts were spent.
+ *
+ *  `ChatBusEvent`, not the emit door's `DurableChatBusEvent`: this holds the STAMPED copy (`stamper.stamp`
+ *  widens back to the whole union), and the classification only ever reads `chatId`/`type` off it plus
+ *  compares it to the stored payload. */
 interface TerminalDrop {
   readonly id: ChatEventId;
-  readonly event: DurableChatBusEvent;
+  readonly event: ChatBusEvent;
   readonly err: unknown;
   readonly attempts: number;
 }
