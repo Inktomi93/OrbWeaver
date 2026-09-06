@@ -15,7 +15,9 @@
 // with one of them — a local cache helper, a test double, another library's client — was the offense, and
 // `client["setQueryData"](…)` was invisible. The subject is the METHOD DECLARED BY `@tanstack/query-core`,
 // resolved off the receiver's type (the receiver is minted by `useQueryClient()`, which the value walk
-// correctly refuses as a dynamic terminal).
+// correctly refuses as a dynamic terminal) — and, because a CAST replaces that declaration with one in the
+// cast's own type literal, off the UNCAST receiver as well. Both axes live in `lib/project-home-origin.ts`
+// so the whole family is fixed at once; a value with no real type behind the cast is the declared limit.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -152,6 +154,16 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the other half of grant granularity: the SAME operation twice in one file is ONE finding, because a row matching two would be OVER-BROAD and would license neither call",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/cast.tsx":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function Surface(): void {\n  (useQueryClient() as { setQueryData(key: unknown, value: unknown): void }).setQueryData(["k"], 1);\n}\n',
+      },
+      expect: { count: 1, token: "setQueryData" },
+      why: "THE CAST DODGE: a cast declares the method in its OWN type literal, so the property-symbol reader answered 'a proven different identity' and this passed while the uncast twin reported. The RECEIVER is still `useQueryClient()`, and the shared reader now asks it (`lib/project-home-origin.ts`)",
     },
   ],
   mustPass: [

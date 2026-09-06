@@ -4,11 +4,16 @@
 // shared-selection pointer is a surface reacting to ambient selection with side effects — the neo
 // `this_chid` chase reborn. Derive in render, or use `useEffectEvent` for a non-reactive read.
 //
-// AUTHORITY IS reviewed-grant: `features/app-shell/` OWNS the shared-selection pointers (routing, panels and
-// modal state are the shell's own lifecycle), which is a recurring repository PERMISSION and therefore an
-// exact `(subject, operation)` row in `lib/reviewed-grants.ts` — SCANNED, not subtracted from the corpus as
-// the legacy `SANCTIONED_HOMES` directory row was. The row carries the rename liveness the old shape could
-// not: "app-shell" is exactly the kind of feature directory that gets restructured.
+// AUTHORITY IS reviewed-grant, WITH NO ROW TODAY. `features/app-shell/` OWNS the shared-selection pointers
+// (routing, panels and modal state are the shell's own lifecycle), which is why the legacy module carried it
+// as a `SANCTIONED_HOMES` directory row — but on this tree the shell chases NOTHING: the whole population
+// produces zero findings, so a grant row for it would be consumed zero times and is STALE by contract. An
+// unexercised permission is not representable and must not be invented; the shell is SCANNED and clean.
+// What survives is the AUTHORITY: the day the shell (or anything else) needs to react to selection with an
+// effect, it reds and the decision is a REVIEWED row in `lib/reviewed-grants.ts` with a `why` and an
+// `endsWhen`, never an inline marker one author writes. That is strictly stronger than the directory
+// exclusion, which carried its exemption silently through a rename of exactly the kind of feature directory
+// that gets restructured.
 //
 // IDENTITY, NOT SPELLING, on both halves. The pointer vocabulary was a `SELECTION_HOOK_RE` REGEX kept in
 // sync with `state/index.ts` "by a fixture", and the effect vocabulary was a second regex. The pointers are
@@ -302,7 +307,7 @@ export const gate = defineGate({
           'import { useEffect } from "react";\nimport { useActiveChatId } from "../../state/index.ts";\nexport function Shell(): void {\n  const chatId = useActiveChatId();\n  useEffect(() => {}, [chatId]);\n}\n',
       },
       expect: { count: 1 },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the shell OWNS the pointers, reds like any other feature, and is licensed by an exact grant row — so a SECOND feature claiming the shell's lifecycle is a finding until someone reviews it",
+      why: "THE HOME IS NOT A CARVE-OUT IN THE RULE: the shell OWNS the pointers and still reds like any other feature. It holds NO grant row, because it chases nothing on this tree and a row consumed zero times is stale — this row proves what the shell would have to bring to review if that changed",
     },
     {
       mode: "types",

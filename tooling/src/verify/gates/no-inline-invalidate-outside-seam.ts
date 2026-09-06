@@ -16,7 +16,9 @@
 //
 // IDENTITY, NOT SPELLING: the legacy check was `getName() === "invalidateQueries"` on any receiver, so any
 // object with that method name was the offense and `client["invalidateQueries"]()` was invisible. The
-// subject is the METHOD DECLARED BY `@tanstack/query-core`.
+// subject is the METHOD DECLARED BY `@tanstack/query-core`, judged on the receiver's type AND on the UNCAST
+// receiver — a cast declares the method in its own type literal and would otherwise read as a different
+// identity (`lib/project-home-origin.ts`, shared with the rest of the family).
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -129,6 +131,16 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the COMPUTED-LITERAL spelling of the same method, invisible to the legacy PropertyAccess-only check (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/cast.ts":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function run(): void {\n  (useQueryClient() as { invalidateQueries(): void }).invalidateQueries();\n}\n',
+      },
+      expect: { count: 1 },
+      why: "THE CAST DODGE: the cast declares `invalidateQueries` in its own type literal, which the property-symbol reader read as a proven different identity — a one-line escape from the seam until the shared reader started asking the UNCAST receiver too",
     },
   ],
   mustPass: [

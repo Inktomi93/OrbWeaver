@@ -8,9 +8,9 @@
 // exclusions, and the media-grid's pointer-capability read carried a permanent `@orb-gate-ignore` whose
 // stated reason ("no coarse-pointer home exists") is a standing state of the tree, not a per-occurrence
 // slip. All four are now exact `(subject, operation)` rows in `lib/reviewed-grants.ts` with `why` and
-// `endsWhen`; the marker is DELETED because a reviewed-grant policy has no inline door and because a
-// permanent marker is exactly the shape the central table exists to replace. A home that moves now reds at
-// its row instead of carrying its exemption into the void.
+// `endsWhen`; the marker is DELETED from `media-grid.tsx` in the same change, because a reviewed-grant policy
+// has no inline door and a marker that suppresses nothing is the shape the central table exists to replace.
+// A home that moves now reds at its row instead of carrying its exemption into the void.
 //
 // IDENTITY, NOT SPELLING. The legacy check was a PropertyAccess callee named `matchMedia`, so a bare
 // `matchMedia(q)`, a computed `globalThis["matchMedia"](q)` and a stored alias were all invisible, while a
@@ -19,11 +19,16 @@
 //
 // DECLARED NARROWING (its own mustPass row): a bare `typeof x.matchMedia` CAPABILITY PROBE is not plumbing —
 // it reads whether the environment has the api at all, which every one-home does before using it.
+//
+// DECLARED LIMIT (its own mustPass row): `Reflect.get(globalThis, "matchMedia")` names the api in a STRING
+// ARGUMENT rather than in a member read, so there is no member node to judge; closing it needs a reflective
+// access fact no shared reader supplies today.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
@@ -76,28 +81,19 @@ type MediaVerdict = "global" | "other" | "unreadable";
 /** The global objects a browser api hangs off. */
 const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
 
-/** Is this member read taken off `globalThis`/`window`/`self` ITSELF? Asked of the RECEIVER, deliberately.
- *
- *  WHY THE RECEIVER AND NOT THE MEMBER: the two reduced-motion homes read the api as
- *  `(globalThis as { matchMedia?: (q: string) => … }).matchMedia`, and a cast gives the property symbol a
- *  declaration in the CAST'S OWN type literal — a proven non-module binding, which the shared refusal
- *  classifier correctly calls "a different identity". Judging the member alone therefore PASSES that
- *  spelling, and any feature could dodge this law by casting `globalThis`. The receiver's identity cannot be
- *  cast away: whatever the property is annotated as, the object it is read off is the ambient global, and
- *  that is what "a raw matchMedia read" means. This also keeps the verdict PRECISE where the analysis
- *  program has no DOM lib — the property has no ambient declaration there at all, which would otherwise be
- *  reported as the fail-closed "unreadable" rather than as the real finding it is. */
-function isGlobalReceiverRead(node: MorphNode): boolean {
-  const read = readMemberReference(node);
-  if (read.kind === "unresolved") {
-    return false;
-  }
-  const receiver = resolveGlobalMemberOrigin(read.value.receiver);
-  return receiver.kind === "resolved" && receiver.value.memberPath.length === 0 && GLOBAL_RECEIVERS.has(receiver.value.globalName);
-}
-
 function classify(node: MorphNode): MediaVerdict {
-  if (isGlobalReceiverRead(node)) {
+  // THE CAST AXIS, asked of the RECEIVER (shared with `no-raw-intl-time` through the same reader): the two
+  // reduced-motion homes read the api as `(globalThis as { matchMedia?: … }).matchMedia`, and a cast gives
+  // the property symbol a declaration in the CAST'S OWN type literal — a proven non-module binding, which
+  // the shared refusal classifier correctly calls "a different identity". Judging the member alone PASSED
+  // that spelling, so any feature could have left this law by casting `globalThis`. Whatever the property is
+  // annotated as, the object it is read off cannot be cast away.
+  //
+  // PRECISE ONLY WHERE THE ROOT RESOLVES, which on this tree means `globalThis` — it is declared in the base
+  // lib, while `window`/`self` and a bare `matchMedia` are DOM-lib declarations the analysis program does not
+  // load. Those spellings fall through to the fail-closed UNREADABLE finding below: still reported, never
+  // silently passed, and each carries its own proof row.
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [MATCH_MEDIA])) {
     return "global";
   }
   const global = resolveGlobalMemberOrigin(node);
@@ -197,7 +193,23 @@ export const gate = defineGate({
           'const globals = globalThis as { matchMedia?: (query: string) => { matches: boolean } };\nexport const G = (): boolean => globals.matchMedia?.("(pointer: coarse)").matches === true;\n',
       },
       expect: { count: 1 },
-      why: "THE CAST DODGE, measured on the real tree and closed here: a structural cast of `globalThis` gives the property symbol a declaration in the CAST'S OWN type literal, which the shared refusal classifier reads as a proven different identity — so judging the member alone PASSED this spelling, and any feature could have left the law that way. The RECEIVER's identity cannot be cast away, and that is what the verdict asks",
+      why: "THE CAST DODGE, measured on the real tree and closed here (shared with `no-raw-intl-time` through the same reader): a structural cast of `globalThis` gives the property symbol a declaration in the CAST'S OWN type literal, which the shared refusal classifier reads as a proven different identity — so judging the member alone PASSED this spelling, and any feature could have left the law that way. The RECEIVER's identity cannot be cast away, and that is what the verdict asks",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/bare.ts": 'export const G = (): unknown => matchMedia("(pointer: coarse)");\n',
+      },
+      expect: { count: 1 },
+      why: "THE ROOT-SPELLING MATRIX, and the honest limit: `window.matchMedia` / `self.matchMedia` / a bare `matchMedia(q)` are the SAME api, but `window` and `self` are DOM-lib declarations the analysis program does not load, so the receiver rule cannot name them and they land on the FAIL-CLOSED unreadable finding instead. Reported either way — which is what this row pins — but only the `globalThis` root gets the precise message",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/window.ts": 'export const G = (): unknown => window.matchMedia("(prefers-reduced-motion: reduce)");\n',
+      },
+      expect: { count: 1 },
+      why: "the second spelling of that matrix, pinned separately so a future DOM-aware program (or a precise `window` reader) shows up here as a message change rather than as a silent one",
     },
     {
       mode: "types",
@@ -241,6 +253,14 @@ export const gate = defineGate({
           'export function read(matchMedia: (q: string) => { matches: boolean }): boolean {\n  return matchMedia("(pointer: fine)").matches;\n}\n',
       },
       why: "A PARAMETER named `matchMedia` shadows the global — an injected reader is the testable shape, not a fork",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/reflect.ts":
+          'export const G = (): unknown => (Reflect.get(globalThis, "matchMedia") as (query: string) => unknown)("(pointer: coarse)");\n',
+      },
+      why: 'THE DECLARED LIMIT of the reflective escape: `Reflect.get(globalThis, "matchMedia")` names the api in a STRING ARGUMENT, not in a member read, so there is no member node for this policy\'s subject to be. Catching it needs a reflective-access fact no shared reader supplies today; written down rather than left as a silent hole',
     },
   ],
 });

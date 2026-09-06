@@ -27,7 +27,10 @@ function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
     return;
   }
   // Fine-pointer only + honor reduced-motion, so a touch/reduced-motion user never installs the listener.
-  // @orb-gate-ignore no-raw-matchmedia: `(pointer: fine)` is pointer-CAPABILITY detection, not reduced-motion — the gate's usePrefersReducedMotion/prefersReducedMotionNow helpers don't cover pointer queries (same rationale as the use-is-mobile-viewport.ts exemption).
+  // `(pointer: fine)` is pointer-CAPABILITY detection, which the reduced-motion one-homes do not cover and
+  // for which no coarse-pointer home exists yet. `no-raw-matchmedia` is a reviewed-grant policy with no
+  // inline door, so that standing permission lives in `REVIEWED_GRANTS` as `no-raw-matchmedia:media-grid`
+  // (with the `endsWhen` naming the missing home) rather than in a marker here.
   if (!globalThis.matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
     return;
   }
