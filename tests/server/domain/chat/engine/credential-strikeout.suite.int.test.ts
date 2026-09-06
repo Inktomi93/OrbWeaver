@@ -123,7 +123,7 @@ let strikeImpl: (params: StrikeCall) => Promise<void>;
  *  group turn voiced by a real seated character, with the round's recall inputs staged. Any gate off and the
  *  round-level memory passes through untouched — i.e. the side-role call never happens and the arm below
  *  would prove nothing. */
-function scopedRecallPrep(): Partial<TurnPrep> {
+function scopedRecallPrep(): Partial<TurnPrep> & { memoryRecall: NonNullable<TurnPrep["memoryRecall"]> } {
   const speaker = castId<CharacterId>("character_speaker");
   return {
     speakerCharacterId: speaker,
@@ -346,9 +346,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     );
 
     const prep = scopedRecallPrep();
-    const err = await engine
-      .runTurn(prepOf(chatId, { ...prep, memoryRecall: { ...prep.memoryRecall, recent } as NonNullable<TurnPrep["memoryRecall"]> }))
-      .catch((e: unknown) => e);
+    const err = await engine.runTurn(prepOf(chatId, { ...prep, memoryRecall: { ...prep.memoryRecall, recent } })).catch((e: unknown) => e);
 
     // The role is NAMED to the human who has to fix a key — and the PLANTED message deliberately does not
     // contain that word, so this can only pass if the verb put it there.
