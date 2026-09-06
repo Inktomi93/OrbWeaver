@@ -96,7 +96,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   default self-cap is \~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
   carries it — that is the whole tool family, not a list of two** — and neither does a bare
   `node tooling/src/<tool>/cli.ts`.
-- **eslint owns `packages/{ui,client}/src`, `tooling/src/**`, and the test trees
+- **eslint owns `packages/{ui,client}/src`, `tooling/src/**`, the test trees, AND — with a REDUCED rule set (tsdoc + the shared block; `TSDOC_SURFACE` in `eslint.config.js`, truth-repaired 2026-09-06 by a planted `tsdoc/syntax` control in #1800) — `packages/server/src/**/*.ts`; lint server src too, do not skip it as unowned:
   `tests/{tooling,server,kit,db,contracts,support,e2e,client,ui}/**/*.ts` plus the CT surface (`*.ct.tsx`,
   `*.fixtures.tsx` under `tests/ui`, `_ct-stories.tsx`)** (#1574, 2026-09-05). A file outside those globs answers
   "File ignored because no matching configuration was supplied" — RED under `--max-warnings 0` and SILENT under
