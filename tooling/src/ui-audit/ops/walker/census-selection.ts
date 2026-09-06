@@ -105,6 +105,32 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     return left.r === right.r && left.g === right.g && left.b === right.b && left.a === right.a;
   }
 
+  // TOP-LEVEL-COMMA SPLIT (not a bare \`.split(",")\`): a serialized shadow colour can itself carry a
+  // comma (\`rgb(220, 38, 38)\`), which a naive split would cut mid-layer.
+  function boxShadowLayers(value) {
+    if (!value || value === "none") return [];
+    var layers = [];
+    var depth = 0;
+    var start = 0;
+    for (var bi = 0; bi < value.length; bi += 1) {
+      var bc = value.charAt(bi);
+      if (bc === "(") depth += 1;
+      else if (bc === ")") depth -= 1;
+      else if (bc === "," && depth === 0) {
+        layers.push(value.slice(start, bi).trim());
+        start = bi + 1;
+      }
+    }
+    layers.push(value.slice(start).trim());
+    return layers;
+  }
+  var SHADOW_INSET_RE = /(^|\\s)inset(\\s|$)/;
+  function boxShadowPart(value, wantInset) {
+    return boxShadowLayers(value)
+      .filter(function (layer) { return SHADOW_INSET_RE.test(layer) === wantInset; })
+      .join(",");
+  }
+
   function selectionDeltaSignature(selectedEl, baseEl) {
     var st = getComputedStyle(selectedEl);
     var base = getComputedStyle(baseEl);
@@ -113,7 +139,20 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     var outlineChanged =
       st.outlineWidth !== base.outlineWidth || st.outlineStyle !== base.outlineStyle || !samePaintColor(st.outlineColor, base.outlineColor);
     if (!Number.isNaN(outline) && outline >= SELECT_RING_MIN_PX && st.outlineStyle !== "none" && outlineChanged) channels.push("ring");
-    if (st.boxShadow && st.boxShadow !== "none" && st.boxShadow.indexOf("inset") === -1 && st.boxShadow !== base.boxShadow) channels.push("shadow");
+    // THE RATIFIED PERSISTENT-STATE RING IS INSET (#1076, orb-ui audit F4): \`data-pressed:inset-ring-2
+    // inset-ring-ring\` (toggle/variants.ts:19) is a box-shadow layer carrying the literal substring
+    // \`inset\`, which the old single test vetoed WHOLESALE — a control offering only an inset ring, or a
+    // mixed inset+outer box-shadow (the ratified ring composes alongside the outer focus-visible
+    // \`ring-*\`), never registered any shadow channel at all. Inset and outer shadow layers are now two
+    // INDEPENDENT channels, each firing only on ITS OWN part changing — an outer ring unchanged between
+    // the selected and base sample (e.g. an identical at-rest focus placeholder on both) is not
+    // double-counted just because the inset part changed alongside it.
+    var stInset = boxShadowPart(st.boxShadow, true);
+    var baseInset = boxShadowPart(base.boxShadow, true);
+    if (stInset !== "" && stInset !== baseInset) channels.push("inset-ring");
+    var stOuterShadow = boxShadowPart(st.boxShadow, false);
+    var baseOuterShadow = boxShadowPart(base.boxShadow, false);
+    if (stOuterShadow !== "" && stOuterShadow !== baseOuterShadow) channels.push("shadow");
     var bg = parseRgb(st.backgroundColor);
     if (bg !== null && bg.a > 0 && !samePaintColor(st.backgroundColor, base.backgroundColor)) channels.push("fill");
     var sides = ["Top", "Right", "Bottom", "Left"];
