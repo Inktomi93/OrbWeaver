@@ -35,7 +35,7 @@ import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { AutomationFireId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ArmOutcome, DispatchFrame, DispatchOptions, DispatchSummary, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
+import type { ArmOutcome, ArmsResult, DispatchFrame, DispatchOptions, DispatchSummary, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
 import { commitReservedFire, finalizeReservedFire, insertFire, releaseFireReservation, reserveFireBudget } from "../persistence/fires.ts";
 import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules.ts";
@@ -271,15 +271,6 @@ async function reserveForArms(rc: RuleCtx, actions: readonly AutomationAction[])
   return { ok: false, result: ended("budget_refused") };
 }
 
-/** A rule's arm run: the aborting arm's `arm_error` detail (`null` = no arm errored), plus the two terminal
- *  MODIFIERS an arm can raise — `suggested` (the S4 stash: the arm ASKED instead of acting) and `paused`
- *  (D146-d: the arm's contributor vanished mid-dispatch). Each changes the rule's TERMINAL and nothing else. */
-interface ArmsResult {
-  readonly detail: Record<string, unknown> | null;
-  readonly suggested: boolean;
-  readonly paused: boolean;
-}
-
 /** The recursion's seed — the accumulator rides as ONE param (the 4-param bar). */
 const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: false, paused: false };
 
@@ -300,10 +291,15 @@ const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: 
  *  rule — it is a different rule, run without the yes.
  *
  *  WHAT THIS DOES NOT CHANGE: an arm BEFORE the confirm-first one has already acted, and the rule still lands
- *  on the `suggested` terminal for it (`finalizeRule` states why that is the honest terminal). The confirm
- *  itself runs exactly ONE arm — the stashed one (`verbs/confirm-suggestion.ts`) — so the trailing arms are
- *  dropped for this event rather than deferred; the next event dispatches the rule whole. */
-async function runArms(
+ *  on the `suggested` terminal for it (`finalizeRule` states why that is the honest terminal). THE ARMS
+ *  BEHIND THE RAISED ONE are no longer dropped, though (#1553, OWNER RULING: STASH the continuation,
+ *  superseding the two paragraphs' "dropped"/"next event dispatches the rule whole" — d11a0f6e9's #1419 fix
+ *  survives, its CONTINUATION-lands-nowhere residue does not): `ctx.runArm` receives `actions.slice(i + 1)`
+ *  on every call, so a confirm-first arm can stash them onto the pending ask
+ *  ({@link StashedArm.continuation}) and `verbs/confirm-suggestion.ts::executeStashedArm` runs them, in
+ *  order, once the host confirms — through this SAME function, so a nested confirm-first arm inside the
+ *  continuation stashes ITS OWN remaining tail exactly the same way. */
+export async function runArms(
   ctx: AutomationContext,
   actions: readonly AutomationAction[],
   frame: DispatchFrame,
@@ -313,7 +309,7 @@ async function runArms(
   if (arm === undefined) {
     return { detail: null, suggested: from.suggested, paused: false }; // past the last arm — every arm succeeded.
   }
-  const outcome: ArmOutcome = await ctx.runArm(arm, frame);
+  const outcome: ArmOutcome = await ctx.runArm(arm, frame, actions.slice(from.i + 1));
   if (!outcome.ok) {
     return outcome.kind === "paused"
       ? { detail: null, suggested: from.suggested, paused: true }

@@ -13,6 +13,7 @@
 // It drives the REAL dispatch with the REAL arm executors over a real db: the only fake is the injected
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
 
+import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationBudgets, automationFires, chatParticipants } from "@orb/db";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -44,6 +45,37 @@ function capturingOps(base: AutomationOps): { ops: AutomationOps; turns: Automat
         requestTurn: (req): Promise<{ messageCount: number }> => {
           turns.push(req);
           return Promise.resolve({ messageCount: 1 });
+        },
+      },
+    },
+  };
+}
+
+/** #1553's capturing bundle — BOTH `requestTurn` (the confirmed arm) and `applyVariableOps` (the
+ *  continuation's `set_variable` arms) recorded, so a mixed `[set_variable, trigger_turn(confirmFirst),
+ *  set_variable]` rule's confirm proves ALL THREE arms ran, in order, and the two `set_variable`s ran at the
+ *  right TIMES (the first at fire time, the second only after the confirm). */
+function capturingContinuationOps(base: AutomationOps): { ops: AutomationOps; turns: AutomationTurnRequest[]; varWrites: string[] } {
+  const turns: AutomationTurnRequest[] = [];
+  const varWrites: string[] = [];
+  return {
+    turns,
+    varWrites,
+    ops: {
+      ...base,
+      chat: {
+        ...base.chat,
+        requestTurn: (req): Promise<{ messageCount: number }> => {
+          turns.push(req);
+          return Promise.resolve({ messageCount: 1 });
+        },
+        applyVariableOps: (_chatId, varOps): Promise<VariableWriteResult> => {
+          for (const op of varOps) {
+            if (op.op === "set") {
+              varWrites.push(`${op.key}=${op.value}`);
+            }
+          }
+          return Promise.resolve({ outcome: "applied" });
         },
       },
     },
@@ -85,6 +117,48 @@ async function enableConfirmFirstRule(fx: Awaited<ReturnType<typeof ruleFixture>
     name: "recap",
     trigger: { bus: "chat", type: "chatOpened" },
     actions: [{ type: "trigger_turn", guidedTemplate: "Recap the scene.", confirmFirst: true }],
+  });
+  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.ctx.enabled.reload();
+  return rule.id;
+}
+
+/** #1553 — the STASH-the-continuation fixture: `capturingContinuationOps` wired in place of `capturingOps`. */
+async function continuationFixture(): Promise<{
+  fixture: Awaited<ReturnType<typeof ruleFixture>>;
+  turns: AutomationTurnRequest[];
+  varWrites: string[];
+}> {
+  const base = await ruleFixture();
+  const { ops, turns, varWrites } = capturingContinuationOps(base.ctx.ops);
+  const ctx: AutomationContext = {
+    ...base.ctx,
+    ops,
+    runArm: createArmExecutors({
+      db: base.db,
+      ops,
+      prng: () => 0.42,
+      notify: base.ctx.notify,
+      suggestions: base.ctx.suggestions,
+      newSuggestionId: base.ctx.newSuggestionId,
+    }),
+  };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns, varWrites };
+}
+
+/** Mint + enable a MIXED rule: a direct `set_variable`, a confirm-first `trigger_turn`, and a second
+ *  direct `set_variable` behind it — #1553's own worked example. */
+async function enableMixedRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
+  const rule = await fx.svc.createRule({
+    principal: principal(fx.host),
+    chatId: fx.chatId,
+    name: "mixed",
+    trigger: { bus: "chat", type: "chatOpened" },
+    actions: [
+      { type: "set_variable", scope: "chat", key: "before", op: "set", value: "1" },
+      { type: "trigger_turn", guidedTemplate: "Recap the scene.", confirmFirst: true },
+      { type: "set_variable", scope: "chat", key: "after", op: "set", value: "2" },
+    ],
   });
   await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
@@ -168,6 +242,34 @@ describe("the confirm-first card", () => {
     const statuses = [first?.status, second?.status].toSorted();
     expect(statuses).toEqual(["fulfilled", "rejected"]);
     expect(turns).toHaveLength(1);
+  });
+
+  test("#1553 (OWNER RULING: STASH the continuation) — a mixed rule runs arm 1, raises, and on confirm runs BOTH remaining arms in order", async () => {
+    const { fixture, turns, varWrites } = await continuationFixture();
+    const ruleId = await enableMixedRule(fixture);
+    await fireChatOpened(fixture);
+
+    // Arm 1 (the direct `set_variable`) already ran at fire time; arm 2 raised the ask and arm 3 never ran
+    // for this event — it is STASHED on the ask, not dropped and not run yet.
+    expect(varWrites).toEqual(["before=1"]);
+    expect(turns).toEqual([]);
+    const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
+    expect(ask).toBeDefined();
+
+    const result = await fixture.svc.confirmSuggestion({
+      principal: principal(fixture.host),
+      suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+    });
+
+    // BOTH remaining arms ran, IN ORDER: the confirmed trigger_turn, then the continuation's set_variable.
+    expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
+    expect(turns).toEqual([{ authorUserId: fixture.host, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);
+    expect(varWrites).toEqual(["before=1", "after=2"]);
+    // ONE fire row for the confirm, naming the CONFIRMED arm (the continuation shares its terminal, exactly
+    // as a fresh dispatch's `finalizeRule` writes one row for a whole rule's arm sequence).
+    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) });
+    expect(fires).toHaveLength(1);
+    expect(fires[0]?.outcome).toBe("fired");
   });
 
   test("DISMISS takes the ask and runs nothing; a second dismiss refuses", async () => {
