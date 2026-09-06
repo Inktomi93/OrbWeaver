@@ -22,7 +22,9 @@ export function SectionPlaceholder({
   weave = false,
 }: SectionPlaceholderProps): ReactElement {
   if (weave) {
+    // @orb-waive empty-state-has-action(EmptyState): the generic unbuilt-section placeholder (the SectionPlaceholder sibling of modal-body-not-placeholder) — it has no section-specific next step to offer, and the flag belongs on the eventual real section body. This is the WEAVE arm. Ends when the placeholder is deleted with the last unbuilt section.
     return <EmptyState decoration={<WeaveGlyph size={48} />} title={title} description={description} />;
   }
+  // @orb-waive empty-state-has-action(EmptyState): the same generic unbuilt-section placeholder, ICON arm — same reasoning: no section-specific next step exists here, and the flag belongs on the eventual real section body. Ends when the placeholder is deleted with the last unbuilt section.
   return <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />;
 }

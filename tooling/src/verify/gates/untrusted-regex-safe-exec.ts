@@ -1,105 +1,141 @@
-// Gate: untrusted-regex-safe-exec — the server world-info regex-key execution seam must be composed with
-// the node:vm watchdog. This judges the canonical `testRegexKey` property only; dynamic RegExp construction
-// elsewhere is not evidence that user-authored input runs without a deadline.
-import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// Policy: untrusted-regex-safe-exec (Core-Path-Registry.md D53; the world-info regex-key watchdog,
+// docs/history/design/issue-712-gate-family.md) — the chat composition seam's `testRegexKey` must be the
+// `createRegexTest()` watchdog. A world-info KEY is user-authored, so a hand-rolled native `.test` at this
+// boundary lets a catastrophic pattern run on the server event loop with no deadline.
+//
+// AUTHORITY IS hard and the module is NOT split, a deliberate deviation from the census row ("split
+// unsafe-regex policy and subject-health"). Both arms are `hard`/`error`; what forced the split under the
+// legacy runtime was the EXECUTION axis, and the health arm is no longer a finding at all: zero measured
+// composition seams is a POPULATION RECEIPT of zero, which the runtime refuses as a tool error. A gate that
+// has lost its subject now fails the run rather than emitting a finding someone can shrug at.
+//
+// IDENTITY, NOT SPELLING: the watchdog factory is the EXPORTED DECLARATION in `server/src/kit/regex`,
+// resolved through the shared sealed-origin reader, so an alias, a namespace member or a re-export all
+// prove the same composition while a same-named local helper does not. Legacy asked two text questions —
+// is the initializer's callee text `createRegexTest`, and does this file carry an import declaration whose
+// specifier is literally `#kit/regex` with that named import — either of which a rename or a barrel hop
+// would have answered wrongly in both directions.
+//
+// DELIBERATELY NARROW (its own mustPass row): dynamic `RegExp` construction elsewhere is not evidence that
+// user-authored input runs without a deadline, and it is not this policy's subject.
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { readSealedOrigin } from "../lib/sealed-origin.ts";
 
 const COMPOSE_DIR = "packages/server/src/entry/compose/";
 const COMPOSE_ANCHOR = `${COMPOSE_DIR}chat.ts`;
-const GATE_SELF = "tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 const PROPERTY = "testRegexKey";
 const FACTORY = "createRegexTest";
-let canonicalSeen = 0;
+const SEAM_POPULATION = "world-info regex-key composition seam";
+/** The watchdog's implementation home — an absolute-path infix, because the declaration lives OUTSIDE this
+ *  policy's population (`entry/compose/**`), where `ctx.relativePath` refuses by contract. */
+const REGEX_KIT_HOME = { pathInfix: "/packages/server/src/kit/regex/", exportedNames: new Set([FACTORY]) };
 
-function isCanonicalComposeSource(path: string): boolean {
-  const normalized = path.replaceAll("\\", "/");
-  return normalized.endsWith(COMPOSE_ANCHOR) || normalized.endsWith(`${COMPOSE_DIR}__g_chat.ts`);
-}
+const MESSAGE =
+  "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from the " +
+  "server regex kit — a user-authored key can then execute on the server event loop with no node:vm " +
+  "deadline. See docs/history/design/issue-712-gate-family.md and Core-Path-Registry.md D53.";
+const FIX = `compose \`${PROPERTY}: ${FACTORY}()\` from the server regex kit; never hand-roll a native \`.test\` at this boundary.`;
 
-function importsFactory(sf: SourceFile): boolean {
-  return sf
-    .getImportDeclarations()
-    .some(
-      (declaration) =>
-        declaration.getModuleSpecifierValue() === "#kit/regex" && declaration.getNamedImports().some((specifier) => specifier.getName() === FACTORY),
-    );
-}
-
-export const gate: GateDescriptor = {
-  name: "untrusted-regex-safe-exec",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — Core-Path-Registry.md D53; world-info regex-key watchdog",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from `#kit/regex` — a user-authored key can execute on the server event loop without the node:vm deadline. See docs/history/design/issue-712-gate-family.md",
-  fix: "import `createRegexTest` from `#kit/regex` and compose `testRegexKey: createRegexTest()`; do not hand-roll native `.test` at this boundary. See docs/history/design/issue-712-gate-family.md",
-  scanRoot: (path) => path.includes(COMPOSE_DIR),
-  kinds: [SyntaxKind.PropertyAssignment],
-  begin: () => {
-    canonicalSeen = 0;
-  },
-  visit: (node, sf, ctx) => {
-    if (!isCanonicalComposeSource(sf.getFilePath())) {
-      return;
-    }
-    if (!node.isKind(SyntaxKind.PropertyAssignment) || node.getName() !== PROPERTY) {
-      return;
-    }
-    canonicalSeen += 1;
-    const initializer = node.getInitializer();
-    const safe =
-      initializer?.isKind(SyntaxKind.CallExpression) === true &&
-      initializer.getExpression().isKind(SyntaxKind.Identifier) &&
-      initializer.getExpression().getText() === FACTORY &&
-      importsFactory(sf);
-    if (!safe) {
-      ctx.report(node, { token: PROPERTY, offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind === "project" && fileLoaded(ctx, COMPOSE_ANCHOR) && canonicalSeen === 0) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `the canonical ${PROPERTY} composition property was not found — the gate has no execution boundary to judge. See docs/history/design/issue-712-gate-family.md`,
-      });
-    }
+export const gate = defineGate({
+  id: "untrusted-regex-safe-exec",
+  family: "untrusted-regex-safe-exec",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@server"], under: [`${COMPOSE_DIR}**`] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    let seams = 0;
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.PropertyAssignment],
+          visit: (node, sourceFile): void => {
+            if (!Node.isPropertyAssignment(node) || node.getName() !== PROPERTY || ctx.relativePath(sourceFile) !== COMPOSE_ANCHOR) {
+              return;
+            }
+            seams += 1;
+            const initializer = node.getInitializer();
+            const callee = initializer !== undefined && Node.isCallExpression(initializer) ? initializer.getExpression() : undefined;
+            const safe = callee !== undefined && readSealedOrigin(callee, REGEX_KIT_HOME).kind === "sealed";
+            if (!safe) {
+              ctx.report.node(node, { token: PROPERTY, offset: 0, message: MESSAGE, fix: FIX });
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        // THE BLINDNESS ARM, as a receipt rather than a finding: the canonical property disappearing means
+        // this policy has no execution boundary left to judge, and a zero-member receipt REFUSES the run.
+        ctx.receipt({ kind: "population", source: SEAM_POPULATION, members: seams, unresolved: 0 });
+      },
+    };
   },
   mustFlag: [
     {
-      files: "const ctx = { testRegexKey: (regex: RegExp, haystack: string): boolean => regex.test(haystack) };\n",
-      at: "packages/server/src/entry/compose/__g_chat.ts",
-      expect: { count: 1, token: PROPERTY },
-      why: "the founding regression: the live composition seam falls back to native `.test` with no deadline",
-    },
-    {
-      files: "export const unrelated = 1;\n",
-      at: COMPOSE_ANCHOR,
-      expect: { count: 1, messageIncludes: "no execution boundary" },
-      why: "fail loud when the canonical property disappears; zero measured seams is not a clean result",
-    },
-    {
+      mode: "types",
       files: {
-        [COMPOSE_ANCHOR]: "export const unrelated = 1;\n",
-        [`${COMPOSE_DIR}other.ts`]: 'import { createRegexTest } from "#kit/regex";\nexport const other = { testRegexKey: createRegexTest() };\n',
+        [COMPOSE_ANCHOR]: "export const chat = { testRegexKey: (regex: RegExp, haystack: string): boolean => regex.test(haystack) };\n",
       },
-      expect: { count: 1, messageIncludes: "no execution boundary" },
-      why: "a safe property in another compose file cannot launder disappearance of the canonical chat execution seam",
+      expect: { count: 1, token: PROPERTY },
+      why: "the founding regression: the live composition seam falls back to a native `.test` with no deadline",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        "packages/server/src/entry/compose/local-regex.ts":
+          "export function createRegexTest(): (regex: RegExp, haystack: string) => boolean {\n  return (regex, haystack) => regex.test(haystack);\n}\n",
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "./local-regex.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+      },
+      expect: { count: 1, token: PROPERTY },
+      why: "THE COUNTERFACTUAL: a LOCAL function with the watchdog's name, composed at the canonical property. The text is identical to the safe shape — the legacy check compared exactly that text plus an import-specifier string — and it runs with no deadline at all",
     },
   ],
   mustPass: [
     {
-      files: 'import { createRegexTest } from "#kit/regex";\nexport const ctx = { testRegexKey: createRegexTest() };\n',
-      at: "packages/server/src/entry/compose/__g_chat.ts",
-      why: "the canonical watchdog factory at the canonical property is the safe execution boundary",
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+      },
+      why: "the live shape: the canonical watchdog factory at the canonical property is the safe execution boundary",
     },
     {
-      files: 'export const matcher = (pattern: string): RegExp => new RegExp(pattern, "u");\n',
-      at: "packages/server/src/domain/example.ts",
-      why: "dynamic RegExp construction outside the canonical world-info execution seam is deliberately out of scope",
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        [COMPOSE_ANCHOR]: 'import { createRegexTest as guarded } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: guarded() };\n',
+      },
+      why: "THE ALIAS: the same declaration under another local name is the same watchdog. The legacy reader required the callee text AND an import declaration naming `#kit/regex` with that exact named import, so this safe composition would have RED",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        "packages/server/src/kit/regex/barrel.ts": 'export { createRegexTest } from "./index.ts";\n',
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/barrel.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+      },
+      why: "a name-preserving RE-EXPORT resolves to the same canonical declaration — a barrel hop is not a different watchdog",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        [COMPOSE_ANCHOR]: 'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: createRegexTest() };\n',
+        [`${COMPOSE_DIR}other.ts`]: 'export const matcher = (pattern: string): RegExp => new RegExp(pattern, "u");\n',
+      },
+      why: "DELIBERATELY NARROW: dynamic RegExp construction outside the canonical seam is not evidence that user-authored input runs without a deadline",
     },
   ],
-};
+});

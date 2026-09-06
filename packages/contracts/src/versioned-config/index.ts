@@ -153,7 +153,6 @@ function startVersion(raw: Record<string, unknown>, storedVersion: number | unde
 /** The first zod issue off a failed `safeParse`, in this contract's own (dot-path) shape — `undefined` only
  *  when zod reports success (never called on that arm) or, defensively, an empty issue list. */
 function firstIssue(parsed: z.ZodSafeParseError<unknown>): VersionedParseIssue | undefined {
-  // @orb-gate-ignore zod-modern-spellings(error-issues): the structured FIRST issue (path + message) is this contract's parse-outcome payload (#1592) — the import refusal needs the PATH to name the offending field, which `z.prettifyError` flattens into prose; nothing here prints a raw message
   const issue = parsed.error.issues[0];
   return issue === undefined ? undefined : { path: issue.path.join("."), message: issue.message };
 }

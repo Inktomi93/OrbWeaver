@@ -90,9 +90,7 @@ export interface GpuShortfall {
   readonly tenants: readonly GpuTenant[];
 }
 
-// @orb-gate-ignore no-inline-types: an engine-internal discriminated RESULT verdict — a union (not an
-// interface), co-located with its decider `decideWakeBudget` below exactly like this file's sibling result
-// interfaces (GpuTenant/GpuShortfall/EngineVramNeed); the engine dir has no cross-boundary contract home.
+// @orb-waive no-inline-types(WakeBudgetVerdict): an engine-internal discriminated RESULT verdict — a union (not an interface), co-located with its decider `decideWakeBudget` below exactly like this file's sibling result interfaces (GpuTenant/GpuShortfall/EngineVramNeed); the engine dir has no cross-boundary contract home. Ends when the engine subsystem gains a contract/ slot, or this verdict crosses a boundary and moves into it.
 export type WakeBudgetVerdict = { readonly ok: true } | { readonly ok: false; readonly shortfalls: readonly GpuShortfall[]; readonly message: string };
 
 function gib(bytes: number): string {

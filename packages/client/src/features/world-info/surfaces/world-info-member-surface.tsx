@@ -43,6 +43,7 @@ export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemb
   if (book === undefined) {
     // The EXIT rides the gone arm too (#1747) — the drill row is this surface's, so dropping it here would
     // strand a drilled reader on a book another device deleted.
+    // @orb-waive empty-state-has-action(EmptyState): the world-info member editor's GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the roster refetches under the editor). The next step is picking another row in the sibling roster, which is on screen. Ends if this surface can be reached without its sibling roster.
     return (
       <Stack gap="block">
         <MemberDrillHeader back={back} />

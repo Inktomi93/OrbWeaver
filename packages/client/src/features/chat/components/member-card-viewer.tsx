@@ -89,6 +89,7 @@ function MemberCardBody({
   readonly onRetry: () => void;
 }): ReactElement {
   if (isError) {
+    // @orb-waive empty-state-has-action(EmptyState): the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
     if (isNotFound(error)) {
       return (
         <>

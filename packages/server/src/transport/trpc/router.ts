@@ -95,7 +95,7 @@ export const appRouter = t.router({
   worldInfo: worldInfoRouter,
 });
 
-// @orb-gate-ignore no-inline-types: AppRouter is the client's type-import contract — `typeof` the root router has no other home (a package below `server` in the cake cannot reference this server value).
+// @orb-waive no-inline-types(AppRouter): AppRouter is the client's type-import contract — `typeof` the root router has no other home, because a package below `server` in the cake cannot reference this server value. Ends if the router type is ever derived from a shape @orb/contracts owns rather than from the composed value.
 export type AppRouter = typeof appRouter;
 
 /** Invokes a procedure through the full middleware ladder without HTTP. */

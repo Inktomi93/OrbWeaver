@@ -1,298 +1,214 @@
-// Gate: persistence-boundary (UI-Theming-and-Content.md §12.1, UI-Arch §5, UI-Gates-and-Lessons.md
-// §11.5) — the device-local-vs-synced belt: synced prefs live in the server `user_settings` blob;
-// browser storage is for DEVICE-LOCAL transient state only, minted ONLY through the two persist
-// factories. Two arms: (1) RAW-STORAGE — a bare localStorage/sessionStorage/indexedDB identifier in
-// packages/client/src outside ALLOWLIST is RED. (2) REGISTRY — a ratchet: every persist-factory call site must name a DEVICE_LOCAL_REGISTRY entry.
+// Policy: persistence-boundary (UI-Theming-and-Content.md §12.1, UI-Gates-and-Lessons.md §11.5) — the
+// device-local-vs-synced belt, RAW-STORAGE half. Synced preferences live in the server `user_settings`
+// blob; device-local state is minted only through the two persist factories, which force
+// version/partialize/migrate. A bare `localStorage` / `sessionStorage` / `indexedDB` in client source is
+// the door around both.
+//
+// AUTHORITY IS reviewed-grant. The legacy `RAW_STORAGE_ALLOWLIST` was six FILES, each with a written
+// standing reason: the two factories are the doors themselves, `durable-local.ts` is their shared
+// per-user namespace, `probe-mode.ts` is a pre-boot dev flag, `session-resume.ts` is a tab-scoped OIDC
+// round trip that cannot ride a store door, and `main.tsx` is the composition root's reload-once guard.
+// Every one is a recurring repository PERMISSION rather than a per-occurrence slip, so each is an exact
+// `(subject, operation)` row in `lib/reviewed-grants.ts` — keyed on the STORAGE it touches, so a file
+// licensed for `sessionStorage` does not silently acquire `localStorage`.
+//
+// THE REGISTRY HALF IS ITS OWN POLICY. `DEVICE_LOCAL_REGISTRY` is not an exception table at all — the
+// exception census classifies it as authoritative data (which persisted-store names the tree has decided
+// are legitimately device-local), and its arms are HARD. It is `persisted-store-registry`, same family;
+// one descriptor cannot carry two authorities.
+//
+// IDENTITY, NOT SPELLING. Legacy matched an Identifier whose text was one of the three api names, so a
+// `globalThis.localStorage`, a `globalThis["localStorage"]` and a stored alias were invisible, while any
+// project object with a `localStorage` property would have matched had it been spelled bare. The subject
+// is the ambient global, resolved through the shared readers; a member read off any other receiver is NOT
+// A SUBJECT (an injected storage port is the testable shape), which is a different answer from "unproven".
+//
+// DECLARED LIMIT (its own mustPass row): the analysis program is DOM-less, so a BARE `localStorage` is
+// not resolvable precisely and lands on the fail-closed unreadable finding. Still reported — the bare
+// spelling is the one the law was written against — but only an ambient-root read gets the precise
+// message.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
+import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
+import { resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const CLIENT_SRC = "/packages/client/src/";
+/** The three raw browser stores the belt is about. */
+const STORAGE_NAMES: readonly string[] = ["localStorage", "sessionStorage", "indexedDB"];
+const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
 
-/** Files that may touch raw browser storage (each with its reason — keep this list SHORT). */
-const RAW_STORAGE_ALLOWLIST = new Set([
-  // the two persistence factories — the doors themselves
-  "packages/client/src/state/create-persisted-store.ts",
-  "packages/client/src/state/create-entity-draft-store.ts",
-  // the doors' SHARED half: the per-user durable-local namespace. Its only raw-storage touch is the
-  // last-bound-userId POINTER a cold boot mints keys against (store blobs move through each store's own
-  // persist storage, never through this) — boot machinery, the same carve-out as main.tsx
-  "packages/client/src/state/durable-local.ts",
-  // dev-only probe flag seeded by `pnpm snap --probe` BEFORE the app boots — not app state
-  "packages/client/src/lib/probe-mode.ts",
-  // the OIDC re-auth resume snapshot: TAB-scoped by requirement (a sibling tab must not inherit another
-  // tab's redirect round trip) and written across a full-document navigation, so it cannot ride a store
-  // door — session machinery, not a device-local preference
-  "packages/client/src/data/session-resume.ts",
-  // the composition root's vite:preloadError reload-once guard — boot machinery, not app state
-  "packages/client/src/main.tsx",
-]);
+const MESSAGE =
+  "raw browser storage outside the persistence doors (UI-Theming-and-Content.md §12.1): synced " +
+  "preferences belong in the server `user_settings` blob, and device-local state is minted through " +
+  "`createPersistedStore` / `createEntityDraftStore`, which force version/partialize/migrate. A boot or " +
+  "dev-tooling home that must touch the api directly takes an exact reviewed grant naming the store.";
+const UNREADABLE =
+  "this reference is spelled like a raw browser store but the shared readers cannot place its binding, so whether it is the storage api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+const FIX =
+  "mint the state through createPersistedStore/createEntityDraftStore, or home the preference in the synced user_settings blob; a boot/dev-tooling home takes an exact reviewed grant.";
 
-const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
-
-/** Every persisted-store NAME → why it is legitimately DEVICE-local (not synced). A new
- *  `createPersistedStore`/`createEntityDraftStore` name lands here IN THE SAME COMMIT, with the
- *  rationale reviewed against §12.1 (would a user expect this to follow them across devices? then
- *  it belongs in the synced `user_settings` blob instead, and this is the wrong tool). */
-const DEVICE_LOCAL_REGISTRY: ExemptionTable = {
-  shell: { why: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)" },
-  "active-chat": {
-    why:
-      "the room currently open in this browser — per-device navigation continuity across reloads, never " +
-      "shared chat state or a preference that should move another device's screen",
-  },
-  "composer-draft": {
-    why:
-      "unsent composer text per room, so a refresh/crash/tab-restore does not eat a message the user typed " +
-      "(owner pick 2026-08-09). DEVICE-local on purpose: a half-written line is a THIS-tab artifact, and " +
-      "syncing it would make two open devices fight over one composer — the user_settings blob is for " +
-      "settled preferences, not for keystrokes (it also writes on every keypress, traffic that blob must " +
-      "never carry). Bounded + sanitized at the persist seam (empty drafts dropped, MRU-capped) because a " +
-      "scopeKey→text map is unbounded by construction",
-  },
-  "character-library": {
-    why:
-      "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
-      "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
-      "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
-  },
-  "surface-box": {
-    why:
-      "the last SETTLED body height of each SURFACE (home's tiles first, the rpg HUD's waystone band since " +
-      "#149 — it was keyed `home-tile-box` until #258 renamed it to what it holds), so a loading skeleton " +
-      "reserves the box its content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a " +
-      "fixed 3-row skeleton and pushed the grid down +189px). A measurement of THIS device's viewport, " +
-      "never a user preference — syncing one device's pixel heights to another would reserve the wrong " +
-      "box (§12.1)",
-  },
-  "appearance-boot": {
-    why:
-      "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +
-      "(#188 N-1), `appearance.fontScale`, `appearance.density` and the selected theme's `[data-theme]` value " +
-      "(#231). A CACHE over the confirmed server rows, the `character-card`/`preset-config` precedent, never " +
-      "their home: the prefs stay in the user_settings blob and the server value always wins. It exists only " +
-      "because none of them can be stamped until `getUserSettings` (and, for the theme, the CHAINED " +
-      "`getTheme`) resolves, while the boot veil animates (two over-budget frames) and the shell takes its " +
-      "first layout ~1.2s earlier — measured: the veil drops frames the motion pref would have silenced, " +
-      "`--font-scale` re-flows every rem-derived shell dimension for a boot CLS of 0.20-0.34 at scale 1.25, " +
-      "and a Light user cold-loads the dark palette then swaps. Read synchronously before React mounts, " +
-      "written back only from the authoritative read, and an axis this device has never been told stamps " +
-      "NOTHING (a fresh device boots exactly as it does today)",
-  },
-  "deployment-boot": {
-    why:
-      "the BOOT HINT for the deployment CAPABILITIES a first paint must answer — `multiHumanCapable` today " +
-      "(#476). Device-local because it is not a preference at all: it is this browser's memory of what THIS " +
-      "deployment last served at `/api/auth/config`, a CACHE over a server-derived per-request value (the " +
-      "`appearance-boot` precedent), and it could not live in the synced user_settings blob even in " +
-      "principle — that blob is read through tRPC, strictly later than the fetch this hint exists to cover. " +
-      "It exists because `/api/auth/config` is fetched at app-root MOUNT, so a capability-gated slot reads " +
-      "FALSE for the first frames of every boot and then mounts INTO the layout (measured on the topbar-trail " +
-      "bell: 0.00015 layout shift, under the `[cls]` flagger's own reporting floor — that bell lost its gate " +
-      "with #1627, and its two surviving readers are the /join dialog and the cast bar's People section). " +
-      "A RENDER hint only, never an " +
-      "authorization input: it decides whether a slot is drawn, while every read and verb behind that slot " +
-      "still answers to the real config and the server's gates. The server value always wins the instant it " +
-      "lands (so a capability flip corrects rather than being masked), and a device that has never been told " +
-      "holds null — the pre-existing floor, i.e. exactly today's first-ever-visit behavior",
-  },
-  "config-group-open": {
-    why: "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
-  },
-  "chat-context-sections": {
-    why:
-      "which sections of the 'This chat' CONTEXT tab are expanded (#830) — a per-device working posture " +
-      "on THIS screen, exactly the `config-group-open` precedent (§12.1): a phone's fold is 300px shorter " +
-      "than a desktop's, so 'Lorebooks open, Host controls closed' must not follow a user across devices. " +
-      "Sparse by construction (only sections the user explicitly toggled), so an absent entry is the " +
-      "section's own default, not a lost setting",
-  },
-  "tag-library": {
-    why:
-      "the tag roster's SORT MODE (most-used / A–Z / manual) in the Configuration workspace — a browse " +
-      "posture on THIS screen, the `character-library` browse-prefs precedent (§12.1). It is not a synced " +
-      "preference: 'I'm scanning alphabetically right now' does not follow a user to another device, and it " +
-      "writes on every dropdown change, which is traffic the user_settings blob should not carry",
-  },
-  "recent-models": {
-    why:
-      "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
-      "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
-      "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
-  },
-  "character-card": {
-    why:
-      "the character-card editor's crash-survival draft (#73, CRITICAL tier) — an in-progress edit to " +
-      "long free-text prose is THIS device's unsaved keystrokes, never a synced preference; it is CACHE " +
-      "over the confirmed server row (baseline-hash-gated, cleared on save), not settled state",
-  },
-  "preset-config": {
-    why:
-      "the preset editor's crash-survival draft (#73, HIGH tier) — an in-progress multi-section prompt " +
-      "edit is THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed " +
-      "server row (baseline-hash-gated, cleared on save), not settled state",
-  },
-  "world-info-entry": {
-    why:
-      "the lorebook entry editor's crash-survival draft (#73, HIGH tier) — an in-progress entry edit is " +
-      "THIS device's unsaved keystrokes, never a synced preference; CACHE over the confirmed server row " +
-      "(baseline-hash-gated, cleared on save), not settled state",
-  },
-};
-
-// THE ONE REASON, carrying BOTH source arms by token. The REGISTRY arm's own message folded in here when it
-// stopped riding the Finding overload (which bypasses `hasGateIgnore` — GATE-AUTHORING §1 — so a marker
-// worked on the raw-storage arm and silently did nothing on this one). The stale-registry arm in `finalize`
-// keeps its message: it anchors on the GATE FILE, the sanctioned Finding-overload use.
-const RAW_STORAGE_MESSAGE =
-  "persistence outside the doors (UI-Theming-and-Content.md §12.1: synced prefs → the server user_settings " +
-  "blob; device-local state → createPersistedStore/createEntityDraftStore, which force " +
-  "version/partialize/migrate). A `localStorage`/`sessionStorage` token: raw browser storage outside the " +
-  "persistence doors — add the file to persistence-boundary.ts's allowlist ONLY with a boot/dev-tooling " +
-  'reason. An `unregistered persist "<name>"` token: a persisted store name not in DEVICE_LOCAL_REGISTRY — ' +
-  "a new device-local persist is a deliberate act, so register the name with its why-device-local " +
-  "rationale, or home the pref in the synced user_settings blob.";
-
-const STALE_REGISTRY_MESSAGE_PREFIX =
-  "DEVICE_LOCAL_REGISTRY entry has NO createPersistedStore/createEntityDraftStore call site — delete the stale row in persistence-boundary.ts: ";
-
-function clientRel(path: string): string | undefined {
-  const idx = path.indexOf(CLIENT_SRC);
-  if (idx === -1) {
+/** The store this reference could name — a bare identifier, or any member read whose leaf is one. */
+function storageCandidateName(node: MorphNode): string | undefined {
+  if (Node.isIdentifier(node)) {
+    return STORAGE_NAMES.find((name) => name === node.getText());
+  }
+  if (Node.isPropertyAccessExpression(node)) {
+    return STORAGE_NAMES.find((name) => name === node.getName());
+  }
+  if (!Node.isElementAccessExpression(node)) {
     return;
   }
-  return `packages/client/src/${path.slice(idx + CLIENT_SRC.length)}`;
+  const argument = node.getArgumentExpression();
+  const literal = argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : "";
+  return STORAGE_NAMES.find((name) => name === literal);
 }
 
-/** `createPersistedStore("<name>", …)` → the name literal (through any as/satisfies/paren wrapper). */
-function nameFromPersistedStore(arg: Node | undefined): string | undefined {
-  return arg === undefined ? undefined : readStringValue(arg);
+/** A `typeof globals.localStorage` capability probe, or a TYPE QUERY naming the api's type, is not a use. */
+function isCapabilityProbe(node: MorphNode): boolean {
+  const parent = node.getParent();
+  return Node.isTypeOfExpression(parent) || Node.isTypeQuery(parent);
 }
 
-/** `createEntityDraftStore({ name: "<name>", … })` → the name literal. */
-function nameFromDraftStore(arg: Node | undefined): string | undefined {
-  if (arg === undefined || !Node.isObjectLiteralExpression(arg)) {
-    return;
-  }
-  const nameProp = arg.getProperty("name");
-  if (nameProp === undefined || !Node.isPropertyAssignment(nameProp)) {
-    return;
-  }
-  const value = nameProp.getInitializer();
-  return value === undefined ? undefined : readStringValue(value);
+/** An identifier that merely NAMES the member in a property position is not a reference to the global. */
+function isExpressionReference(node: MorphNode): boolean {
+  const parent = node.getParent();
+  const named = Node.isPropertyAccessExpression(parent) && parent.getNameNode() === node;
+  return !(named || Node.isPropertySignature(parent) || Node.isPropertyAssignment(parent) || Node.isMethodSignature(parent));
 }
 
-/** The literal name a factory call persists under, or undefined if `call` isn't a factory call. */
-function persistedNameOf(call: Node): string | undefined {
-  if (!Node.isCallExpression(call)) {
-    return;
+type StorageVerdict = "raw" | "other" | "unreadable";
+
+function classify(node: MorphNode, name: string): StorageVerdict {
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [name])) {
+    return "raw";
   }
-  const callee = call.getExpression();
-  if (!Node.isIdentifier(callee)) {
-    return;
+  const member = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node);
+  if (member) {
+    // A member read whose ROOT is not an ambient global is an injected storage port, not the api.
+    return "other";
   }
-  const first = call.getArguments()[0];
-  if (callee.getText() === "createPersistedStore") {
-    return nameFromPersistedStore(first);
+  const global = resolveGlobalMemberOrigin(node);
+  if (global.kind === "resolved") {
+    return global.value.globalName === name && global.value.memberPath.length === 0 ? "raw" : "other";
   }
-  if (callee.getText() !== "createEntityDraftStore") {
-    return;
-  }
-  return nameFromDraftStore(first);
+  return classifyOriginRefusal(global.reason, node);
 }
 
-// TWO arms. RAW-STORAGE (per-Identifier, file-allowlist-scoped) is incremental-safe. REGISTRY (collect
-// every persist-factory call site in `visit`, judge in `finalize`): an unregistered name is per-site; a
-// stale registry entry (registered but no call site) is a whole-tree claim → finalize, guarded on (a)
-// project scope and (b) the persist-factory door file being loaded — a synthetic tree that omits the
-// real call sites must not fire the stale arm. The door file is loaded on every real full-tree run.
-const PERSIST_DOOR_FILE = "packages/client/src/state/create-persisted-store.ts";
-const seenPersistNames = new Set<string>();
-
-export const gate: GateDescriptor = {
-  name: "persistence-boundary",
-  docRow: "UI-Theming-and-Content.md §12.1 (UI-Gates-and-Lessons.md §11.5)",
-  status: "active",
-  scopeSafety: "whole-project", // the registry stale arm needs the full tree
-  message: RAW_STORAGE_MESSAGE,
-  fix: "synced prefs → the server user_settings blob; device-local state → createPersistedStore/createEntityDraftStore (which force version/partialize/migrate).",
-  scanRoot: (p) => p.includes("packages/client/src/"),
-  kinds: [SyntaxKind.Identifier, SyntaxKind.CallExpression],
-  begin: () => {
-    seenPersistNames.clear();
-  },
-  visit: (node, sf, ctx) => {
-    const rel = clientRel(sf.getFilePath());
-    if (rel === undefined) {
-      return;
-    }
-    // RAW-STORAGE arm: a storage identifier outside the file allowlist.
-    if (node.isKind(SyntaxKind.Identifier) && STORAGE_IDENTIFIER_RE.test(node.getText()) && !RAW_STORAGE_ALLOWLIST.has(rel)) {
-      ctx.report(node, { token: node.getText(), offset: 0 });
-      return;
-    }
-    // REGISTRY arm — collect the factory call site; an unregistered name fires here (per-site).
-    if (node.isKind(SyntaxKind.CallExpression)) {
-      const name = persistedNameOf(node);
-      if (name === undefined) {
-        return;
-      }
-      seenPersistNames.add(name);
-      if (!(name in DEVICE_LOCAL_REGISTRY)) {
-        // The store NAME rides the TOKEN, not a per-finding message: `render.ts` prints the token and
-        // never the message when both are present, so the name was already the only rendered half.
-        ctx.report(node, { token: `unregistered persist "${name}"`, offset: 0 });
-      }
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, PERSIST_DOOR_FILE)) {
-      return; // not the real full client tree — the name-keyed stale arm would misfire (§4.4)
-    }
-    // THE SANCTIONED Finding overload (§1): anchored on the GATE FILE, no source node, and a stale registry
-    // row must not be suppressible.
-    for (const registered of Object.keys(DEVICE_LOCAL_REGISTRY)) {
-      if (!seenPersistNames.has(registered)) {
-        ctx.report({
-          file: "tooling/src/verify/gates/persistence-boundary.ts",
-          line: 1,
-          column: 0,
-          message: `${STALE_REGISTRY_MESSAGE_PREFIX}"${registered}" — tooling/src/verify/gates/persistence-boundary.ts`,
-        });
-      }
-    }
+export const gate = defineGate({
+  id: "persistence-boundary",
+  family: "persistence-boundary",
+  authority: "reviewed-grant",
+  severity: "error",
+  // Legacy scanned all client source and subtracted six files; those files are grants now, so nothing is
+  // subtracted. `entire-population` because grant liveness is a whole-population verdict.
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile): void => {
+            const name = storageCandidateName(node);
+            if (name === undefined || isCapabilityProbe(node) || !isExpressionReference(node)) {
+              return;
+            }
+            const verdict = classify(node, name);
+            if (verdict === "other") {
+              return;
+            }
+            candidates.push({
+              node,
+              subject: ctx.relativePath(sourceFile),
+              operation: `raw-storage:${name}`,
+              unreadable: verdict === "unreadable",
+              token: name,
+              offset: Math.max(node.getText().lastIndexOf(name), 0),
+            });
+          },
+        },
+      ],
+      evaluate: (): void => {
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'export const x = localStorage.getItem("k");\n',
-      at: "packages/client/src/features/x/x.ts",
-      expect: { token: "localStorage" },
-      why: "a raw localStorage identifier outside the persistence doors (§12.1)",
+      mode: "types",
+      files: { "packages/client/src/features/x/x.ts": 'export const read = (): string | null => localStorage.getItem("k");\n' },
+      expect: { count: 1, token: "localStorage" },
+      why: "the founding shape — a raw localStorage read in a feature, outside both persistence doors",
     },
     {
-      files: 'export const s = createPersistedStore("unregistered-name", () => ({}));\n',
-      at: "packages/client/src/state/x.ts",
-      expect: { token: 'unregistered persist "unregistered-name"' },
-      why: "a persisted store name not in the registry — a new device-local persist is a reviewed act",
+      mode: "types",
+      files: { "packages/client/src/features/x/global.ts": 'export const read = (): string | null => globalThis.sessionStorage.getItem("k");\n' },
+      expect: { count: 1, token: "sessionStorage" },
+      why: "the AMBIENT-ROOT member spelling of the same api — invisible to the legacy bare-identifier check",
     },
     {
-      files: 'export const s = createPersistedStore("unregistered-name" as string, () => ({}));\n',
-      at: "packages/client/src/state/x.ts",
-      expect: { token: 'unregistered persist "unregistered-name"' },
-      why: 'the same unregistered name written `"unregistered-name" as string` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED (skipping the ratchet) before hardening',
+      mode: "types",
+      files: { "packages/client/src/features/x/computed.ts": 'export const read = (): string | null => globalThis["localStorage"].getItem("k");\n' },
+      expect: { count: 1 },
+      why: "the COMPUTED-LITERAL member spelling — a third respelling of one identity",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/cast.ts":
+          "const globals = globalThis as { indexedDB?: { open: (name: string) => unknown } };\nexport const open = (): unknown => globals.indexedDB?.open('db');\n",
+      },
+      expect: { count: 1 },
+      why: "THE CAST DODGE: a structural cast of `globalThis` moves the property symbol into the cast's own type literal, which a member-axis read calls a different identity. The receiver cannot be cast away",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/state/durable-local.ts": 'export const read = (): string | null => localStorage.getItem("orb.user");\n' },
+      expect: { count: 1 },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a licensed boot home reds like any other file and is licensed by its exact grant row, so a SECOND raw-storage touch in that file — or a new file beside it — is a finding until someone reviews it",
     },
   ],
   mustPass: [
     {
-      files: 'export const x = localStorage.getItem("k");\n',
-      at: "packages/client/src/main.tsx",
-      why: "the composition root — allowlisted for raw storage (boot machinery, not app state)",
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/port.ts":
+          'export const read = (ports: { localStorage: { getItem: (key: string) => string | null } }): string | null => ports.localStorage.getItem("k");\n',
+      },
+      why: "AN INJECTED PORT IS NOT A SUBJECT: a member read whose root is not an ambient global is the testable shape. Fail-closure belongs to the bare/ambient arm; applying it here would accuse every `deps.localStorage` in the tree",
     },
     {
-      files: 'export const s = createPersistedStore("shell", () => ({}));\n',
-      at: "packages/client/src/state/shell-store.ts",
-      why: "a REGISTERED persisted store name (shell) — a reviewed device-local persist, passes",
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/probe.ts":
+          'export const has = (globals: { localStorage?: unknown }): boolean => typeof globals.localStorage === "object";\n',
+      },
+      why: "a `typeof` CAPABILITY PROBE reads whether the environment has the api at all; it stores nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/local.ts":
+          "class Cache {\n  localStorage(key: string): string {\n    return key;\n  }\n  run(): string {\n    return this.localStorage('k');\n  }\n}\nexport const cache = new Cache();\n",
+      },
+      why: "SAME NAME, LOCAL METHOD: a project class with a `localStorage` method is a proven different binding",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/shadow.ts":
+          "export const read = (localStorage: { getItem: (key: string) => string | null }): string | null => localStorage.getItem('k');\n",
+      },
+      why: "A PARAMETER named `localStorage` shadows the global — an injected store is the testable shape, not a fork of the api",
     },
   ],
-};
+});

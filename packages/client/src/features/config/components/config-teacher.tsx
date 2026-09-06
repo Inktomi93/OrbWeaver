@@ -211,6 +211,7 @@ export interface CollectionMemberContextProps {
  *  attach — a generic "nothing selected" would be a lie). */
 export function CollectionMemberContext({ context, icon, memberId }: CollectionMemberContextProps): ReactElement {
   if (context.kind === "none") {
+    // @orb-waive empty-state-has-action(EmptyState): the TEACHER's member arm for a collection that declares context {kind:"none"} ("Nothing to attach" — a tag applies wherever you put it, so there is genuinely nothing to manage here). The copy is the COLLECTION's own, not a host generic. Ends when a kind:"none" collection gains an attachable surface, at which point this arm stops being reachable.
     return <EmptyState description={context.description} icon={<Icon icon={icon} size="lg" />} title={context.title} />;
   }
   return (

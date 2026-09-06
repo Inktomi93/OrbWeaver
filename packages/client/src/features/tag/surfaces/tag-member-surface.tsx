@@ -51,6 +51,7 @@ export function TagMemberSurface({ view }: { readonly view: CollectionMemberView
     // bus-driven, so the list refetches under the editor). Say so instead of rendering a dead form — and
     // KEEP THE EXIT (#1747): the drill row is this surface's now, so a gone-member arm that dropped it
     // would strand a drilled reader with no way back to the library.
+    // @orb-waive empty-state-has-action(EmptyState): the tag member editor's GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches under the editor). The next step is picking another row in the sibling roster, which is on screen; the member-card-viewer NOT_FOUND precedent. Ends if this surface can be reached without its sibling roster.
     return (
       <Stack gap="block">
         <MemberDrillHeader back={back} />

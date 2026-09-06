@@ -311,6 +311,7 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: Own
     // with a hundred images that every one of them was already in this gallery.
     body = <QueryErrorState label="your images" onRetry={(): void => void owned.refetch()} />;
   } else if (candidates.length === 0) {
+    // @orb-waive empty-state-has-action(EmptyState): the "Nothing left to add" state — every owned image is already in this gallery, so there is genuinely nothing to do here. Ends when uploading a new image becomes reachable from inside this dialog, which would be the next step this state is missing.
     body = <EmptyState icon={<Icon icon={Images} size="lg" />} title="Nothing left to add" description="Every image you own is already in this gallery." />;
   } else {
     body = <MediaGrid items={gridItems} ariaLabel="Your images" gapToken="row" selection={{ selectedIds: selected, onToggle: toggle }} className="max-h-96" />;

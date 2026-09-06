@@ -17,6 +17,7 @@ export function WorldInfoContextBody({ memberId }: { readonly memberId: string }
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
   const book = books.find((row) => row.id === memberId);
   if (book === undefined) {
+    // @orb-waive empty-state-has-action(EmptyState): the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on screen. The next step is picking another row in the sibling roster, which is on screen; the regex-context-body twin, same species. Ends if the context pane can be shown without its sibling roster.
     return <EmptyState description="This book was deleted. Pick another from the list." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />;
   }
   return <BookAttachments bookId={book.id} />;

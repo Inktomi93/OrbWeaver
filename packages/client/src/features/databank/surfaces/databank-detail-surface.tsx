@@ -141,6 +141,7 @@ function DatabankWelcome(): ReactElement | null {
   }
   if (census.data.total === 0) {
     return listMode === "collapsed" ? (
+      // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT teaching state for an EMPTY bank, whose copy already names the affordance that fixes it (Show list panel opens the library, which carries both create doors). The next step lives in the sibling list, so this state legitimately carries none of its own — the preset-library-welcome precedent. Ends if the library stops carrying a create door.
       <EmptyState
         description="Nothing is indexed yet. Show list panel in the top bar opens the library, where a document gets added."
         icon={<Icon icon={FileText} size="lg" />}
@@ -149,6 +150,7 @@ function DatabankWelcome(): ReactElement | null {
     ) : null;
   }
   return (
+    // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT pick-a-document nudge shown alongside the library list, which itself carries both create doors (the band's Add primary and the empty bank's own CTA). The next step lives in the sibling list — the preset-library-welcome precedent, same species. Ends if the library stops carrying a create door.
     <EmptyState
       description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT}
       icon={<Icon icon={FileText} size="lg" />}

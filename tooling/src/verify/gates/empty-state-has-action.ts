@@ -1,229 +1,180 @@
-// Gate: empty-state-has-action (design-enforcement.md §3.2, D62 — rule-1 "no dead ends"). A JSX
-// `<EmptyState>` render in packages/client/src/features/** must pass an `action` prop (a next-step CTA)
-// OR appear in ALLOWLIST — without one an empty state strands the user. `action={…}` or a spread
-// attribute (a conditional CTA the gate can't statically resolve) counts as satisfied. ALLOWLIST is a
-// both-directions ratchet (no-interactive-role-in-features precedent).
-import type { JsxAttributeLike, JsxSelfClosingElement } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// Policy: empty-state-has-action (design-enforcement.md §3.2, D62 — rule 1, "no dead ends") — an
+// `<EmptyState>` rendered in a feature must offer a next step. Without one the user reaches a screen that
+// states a fact and gives them nowhere to go.
+//
+// AUTHORITY IS ordinary, and the sixteen path rows are GONE. The exception census rules that a path-only
+// file allowlist cannot be copied verbatim, because a file row suppresses every matching occurrence in
+// that file — including the dead end someone adds tomorrow — and offers the two honest replacements: one
+// exact grant per justified OCCURRENCE, or the central ordinary marker. There is no stable per-occurrence
+// SUBJECT to key a grant on (a title is often an expression, and an index moves on the next edit), so the
+// marker is the exact instrument: it lives AT the occurrence, consumes exactly one finding, and carries
+// its own reason. Each of the sixteen rows' rationales was translated to the site it was written about,
+// and a second dead end in the same file is now its own decision instead of riding a neighbour's row.
+//
+// THE STALE ARM IS GONE WITH THE TABLE. Legacy re-implemented liveness by hand — a `finalize` sweep over
+// the allowlist keys, anchored on a real-tree file so a synthetic fileset could not call every row stale.
+// The central engine owns both halves for markers: an unused marker, a marker at a dead position and a
+// marker covering more than one finding are all reconciliation findings, on the same run.
+//
+// IDENTITY, NOT SPELLING. The legacy check compared the tag's TEXT to `EmptyState`, so an aliased import,
+// a namespace member and a re-export were invisible while any same-named local component matched. The
+// subject is the canonical declaration in the `@orb/ui` empty-state primitive, resolved through the shared
+// sealed-origin reader; an unreadable door is reported (fail-closed) rather than silently passed.
+//
+// WIDENED, deliberately: legacy subscribed only to `JsxSelfClosingElement`, so the PAIRED spelling
+// `<EmptyState …></EmptyState>` was outside its subject entirely. Both tag kinds are judged here.
+//
+// UNCHANGED: a SPREAD attribute is treated as satisfying the rule. It may carry a conditional `action`
+// this policy cannot statically resolve, and accusing it would demand a fix for something that may
+// already be correct.
+import type { JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { referenceNamesExport } from "../lib/origin-verdict.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
-const TAG_NAME = "EmptyState";
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope alone cannot gate the stale arm. Deliberately NOT any ALLOWLIST
- *  row's own path — gating a row's staleness on THAT row's own file being loaded is the mode-(B) blind
- *  spot (a deleted/renamed survivor is never loaded, so a self-referential guard skips it forever instead
- *  of flagging it — 14 rpg/preset ALLOWLIST rows here rotted this way after the rpg client flattening). */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
-
-/** Current dead-end files → reason. See no-interactive-role-in-features.ts for the ratchet contract. */
-const ALLOWLIST: ExemptionTable = {
-  "packages/client/src/features/app-shell/components/section-placeholder.tsx": {
-    why:
-      "the generic unbuilt-section placeholder (modal-body-not-placeholder's SectionPlaceholder sibling) " +
-      "— has no section-specific next step to offer; the flag is on the eventual real section body, not here.",
-  },
-  "packages/client/src/features/config/components/config-group-placeholder.tsx": {
-    why: "the config-group equivalent of section-placeholder.tsx — same reasoning (the settings-pane placeholder, re-homed by the config revamp #866 S1).",
-  },
-  "packages/client/src/features/preset/components/preset-library-welcome.tsx": {
-    why:
-      'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
-      "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
-      "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
-  },
-  "packages/client/src/features/character/components/character-library-body.tsx": {
-    why:
-      "the EMPTY-LIBRARY arm (#532) — the preset-library-welcome precedent one pane over, and the STRONGER " +
-      "form of it: this body renders INSIDE the list panel, and `PanelChrome` renders the " +
-      "`.shell-panel-header` band with every panel that has a body (D66 A1), so the band's New is " +
-      "unconditionally ~200px directly above this state. Its own New was therefore never a rescue from a " +
-      "dead end — it was the THIRD New on the Characters plane (the CONTENT hero's was the second, closed " +
-      "by #520 with the same de-duplication), which `duplicate-action-doors` is the sibling gate for. The " +
-      "state is not thinned to pay for it: the invitation survives verbatim and NAMES the surviving door by " +
-      "its visible label ('use New at the top of this pane', WCAG 2.5.3). This file's OTHER empty arms keep " +
-      "their own actions — Clear search / Clear filters are exits only this body can offer.",
-  },
-  "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx": {
-    why:
-      "the GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the " +
-      "roster refetches under the editor). The next step is picking another row in the sibling roster, which is " +
-      "on screen; the tag/regex member-editor twins above, same species. (The retired World Info CONTENT " +
-      "welcome's row died with the rail section at R2 — the workspace's own welcome is the config host's now.)",
-  },
-  "packages/client/src/features/config/components/config-teacher.tsx": {
-    why:
-      'the TEACHER\'s member arm for a collection that declares `context: {kind:"none"}` ("Nothing to attach" — a tag ' +
-      "applies wherever you put it; there is genuinely nothing to manage here, and the copy is the COLLECTION's own, not a " +
-      "host generic). Re-keyed from the retired config-context-body.tsx (#866 S3 — the single-context pane became the " +
-      "teacher's Applies tab); the old no-selection arm now rides the shell's own empty placeholder, not an EmptyState here.",
-  },
-  "packages/client/src/features/tag/surfaces/tag-member-surface.tsx": {
-    why:
-      "the GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches " +
-      "under the editor). The next step is picking another row in the sibling roster, which is on screen; the " +
-      "member-card-viewer NOT_FOUND precedent, same species.",
-  },
-  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx": {
-    why: "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
-  },
-  "packages/client/src/features/regex/components/regex-context-body.tsx": {
-    why: "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
-  },
-  "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": {
-    why: 'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
-  },
-  "packages/client/src/features/chat/components/member-card-viewer.tsx": {
-    why:
-      'the D22 NOT_FOUND gone-arm ("This card isn\'t available" — the character left the chat / no access) has no next step; the ' +
-      "dialog's own Close is the only affordance, so this state legitimately carries no action of its own.",
-  },
-  "packages/client/src/features/chat/components/variant-wire-viewer.tsx": {
-    why:
-      "the RAWVIEW inspector's two statements of FACT — a variant that captured no prompt (an authored/imported/seeded row never ran " +
-      "one) and the NOT_FOUND gone-arm (the message was deleted). Neither has a next step the host could take; the dialog's own Close " +
-      "is the only affordance (the member-card-viewer precedent, same species).",
-  },
-  "packages/client/src/features/world-info/components/world-info-context-body.tsx": {
-    why:
-      "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
-      "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
-      '`{kind:"body"}` collection arm is only ever called WITH a member, and the no-selection copy is the ' +
-      "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
-      "on screen; the regex-context-body twin above, same species.",
-  },
-  "packages/client/src/features/databank/components/databank-context-body.tsx": {
-    why:
-      "the databank CONTEXT pane's two no-next-step arms: the NO-SELECTION arm (a `single` context body is " +
-      "mounted unconditionally and must render the section's own `context.empty` copy itself — the next step " +
-      "is picking a row in the sibling LIST, which is on screen whenever this is; the config-context-body " +
-      "precedent) and the GONE arm (the open document was deleted while its activation panel was up — the " +
-      "world-info/tag/regex context twins above, same species).",
-  },
-  "packages/client/src/features/databank/surfaces/databank-detail-surface.tsx": {
-    why:
-      "the Databank CONTENT teaching state — a 'pick a document on the left, or add one' nudge shown alongside " +
-      "the library list, which itself carries BOTH create doors (the band's Add primary and the empty bank's " +
-      "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
-      "the preset-library-welcome.tsx precedent, same species, same reasoning.",
-  },
-  "packages/client/src/features/plugin/components/plugin-browse-nodes.tsx": {
-    why:
-      "the plugin GRID's empty state (card-atlas-hub-polish, stickler 2026-08-29 F4). The renderer STRUCTURALLY " +
-      "cannot mint an action here: a CTA would need a plugin `actionId`, and inventing one the plugin never " +
-      "declared is the impersonation wall the closed vocabulary exists to hold — while the copy itself is the " +
-      "plugin's own teaching line, whose next step is the affordance the SAME surface renders above it (the " +
-      "atlas's searchBar; the preset-library-welcome sibling-control species). Deletable the day the vocabulary " +
-      "grows a plugin-authored empty-action arm (e.g. `grid.emptyAction`), which would let the renderer pass a " +
-      "real CTA through instead.",
-  },
-};
+const TAG = "EmptyState";
+const ACTION = "action";
+/** The primitive's implementation home — an absolute-path infix, because the declaration lives OUTSIDE this
+ *  policy's population (`@client` features), where `ctx.relativePath` refuses by contract. */
+const EMPTY_STATE_HOME = { pathInfix: "/packages/ui/src/primitives/empty-state/", exportedNames: new Set([TAG]) };
 
 const MESSAGE =
-  "<EmptyState> with no `action` CTA (design-enforcement.md §3.2) — every empty-state render must offer " +
-  "a next-action affordance (an @orb/ui Button, typically) so the user isn't stranded at a dead end.";
+  "an <EmptyState> with no `action` CTA (design-enforcement.md §3.2, D62 rule 1) — every empty state must " +
+  "offer a next-step affordance so the user is not stranded at a dead end. A state that genuinely has no " +
+  "next step (the affordance lives in a sibling pane, or the dialog's own Close is the only move) takes an " +
+  "`@orb-waive empty-state-has-action(EmptyState): <reason and end condition>` at the occurrence.";
+const FIX = "pass an `action` prop (an @orb/ui Button, typically), or waive the occurrence with the reason it has no next step.";
 
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "ALLOWLIST entry has NO dead-end <EmptyState> any more — every render in it now passes `action` " +
-  "(ratchet down): delete the stale row in empty-state-has-action.ts: ";
-
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
-
-/** Does this `<EmptyState .../>` carry an `action` prop, or a spread that MIGHT (a conditional CTA the
- *  gate can't statically resolve, so it's given the benefit of the doubt)? */
-function hasAction(el: JsxSelfClosingElement): boolean {
-  return el.getAttributes().some((attr: JsxAttributeLike) => {
-    if (attr.getKind() === SyntaxKind.JsxSpreadAttribute) {
+/** Does this tag carry an `action` prop, or a SPREAD that might (a conditional CTA no static read resolves)? */
+function hasAction(element: JsxOpeningElement | JsxSelfClosingElement): boolean {
+  return element.getAttributes().some((attribute) => {
+    if (Node.isJsxSpreadAttribute(attribute)) {
       return true;
     }
-    return attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "action";
+    return Node.isJsxAttribute(attribute) && attribute.getNameNode().getText() === ACTION;
   });
 }
 
-// An `<EmptyState … />` in features/**.tsx with no `action` prop (and no spread that might carry one).
-// The live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope.
-const GATE_SELF = "tooling/src/verify/gates/empty-state-has-action.ts";
-const passSeenAllowlisted = new Set<string>();
+/** The JSX tag delivered to the visitor, in either spelling. */
+function jsxElement(node: MorphNode): JsxOpeningElement | JsxSelfClosingElement | undefined {
+  return Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node) ? node : undefined;
+}
 
-export const gate: GateDescriptor = {
-  name: "empty-state-has-action",
-  docRow: "design-enforcement.md §3.2 (D62)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "empty-state-has-action",
+  family: "empty-state-has-action",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@client"], under: ["packages/client/src/features/**"], ext: ["tsx"] },
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "pass an `action` prop (a next-step CTA — an @orb/ui Button, typically) so the empty state isn't a dead end.",
-  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
-  kinds: [SyntaxKind.JsxSelfClosingElement],
-  begin: () => {
-    passSeenAllowlisted.clear();
-  },
-  visit: (node, sf, ctx) => {
-    const el = node.asKind(SyntaxKind.JsxSelfClosingElement);
-    if (el === undefined || el.getTagNameNode().getText() !== TAG_NAME || hasAction(el)) {
-      return;
-    }
-    const rel = clientRel(sf.getFilePath());
-    if (rel in ALLOWLIST) {
-      passSeenAllowlisted.add(rel);
-      return;
-    }
-    ctx.report(node, { token: `<${TAG_NAME}>`, offset: 0 });
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return; // the stale arm is a whole-tree claim — never fire it below project scope or off the anchor (§4.5)
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      // NOT gated on the row's own file being loaded — that is precisely the mode-(B) blind spot (a
-      // deleted/renamed file is never loaded, so it would never be judged stale). `passSeenAllowlisted`
-      // is only ever set by a live `visit` hit, so "never seen" already covers both a fixed file (A) and
-      // a gone one (B).
-      if (!passSeenAllowlisted.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/empty-state-has-action.ts`,
-        });
-      }
-    }
-  },
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
+        visit: (node): void => {
+          const element = jsxElement(node);
+          if (element === undefined || hasAction(element)) {
+            return;
+          }
+          const tagName = element.getTagNameNode();
+          // The NAME PREFILTER that keeps fail-closure honest: only a tag that could name the primitive is
+          // ever resolved, so an unreadable verdict accuses a candidate rather than every opaque tag.
+          if (!referenceNamesExport(tagName, TAG)) {
+            return;
+          }
+          if (sealedOriginReports(readSealedOrigin(tagName, EMPTY_STATE_HOME), tagName)) {
+            ctx.report.node(tagName, { token: tagName.getText(), offset: 0, message: MESSAGE, fix: FIX });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const G = <EmptyState title="Nothing here" />;\n',
-      at: "packages/client/src/features/demo/thing.tsx",
-      why: "an <EmptyState> with no action CTA — a dead end that strands the user (§3.2)",
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/thing.tsx":
+          'import { EmptyState } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\nexport const G = (): unknown => <EmptyState title="Nothing here" />;\n',
+      },
+      expect: { count: 1, token: TAG },
+      why: "the founding shape — an empty state with no next-step CTA, which strands the user (§3.2)",
     },
     {
-      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
-      // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's
-      // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
-      // this one (which never loads any ALLOWLIST path) silently reported nothing; 14 rpg/preset rows
-      // rotted this way after the rpg client flattening.
-      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
-      expect: { messageIncludes: "ALLOWLIST entry has NO dead-end" },
-      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/paired.tsx":
+          'import { EmptyState } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\nexport const G = (): unknown => <EmptyState title="Nothing here"></EmptyState>;\n',
+      },
+      expect: { count: 1, token: TAG },
+      why: "THE PAIRED SPELLING, newly in subject: legacy subscribed only to self-closing tags, so writing the same dead end with a closing tag left the rule with nothing to judge",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/alias.tsx":
+          'import { EmptyState as Empty } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\nexport const G = (): unknown => <Empty title="Nothing here" />;\n',
+      },
+      expect: { count: 1, token: "Empty" },
+      why: "THE ALIAS RED: the same primitive under another local name is the same dead end, and the token the finding carries is the AUTHORED tag — which is what an `@orb-waive` position must name",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/ui/src/primitives/empty-state/index.ts": 'export { EmptyState } from "./empty-state.tsx";\n',
+        "packages/client/src/features/demo/barrel.tsx":
+          'import { EmptyState } from "../../../../ui/src/primitives/empty-state/index.ts";\nexport const G = (): unknown => <EmptyState title="Nothing here" />;\n',
+      },
+      expect: { count: 1, token: TAG },
+      why: "a name-preserving RE-EXPORT resolves to the same canonical declaration — a barrel hop is not a different component",
     },
   ],
   mustPass: [
     {
-      files: 'export const G = <EmptyState title="Nothing here" action={<Button>Go</Button>} />;\n',
-      at: "packages/client/src/features/demo/ok.tsx",
-      why: "an <EmptyState> WITH an action prop — the next-step affordance is present",
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/ok.tsx":
+          'import { EmptyState } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\nexport const G = (): unknown => <EmptyState action={<button type="button">Go</button>} title="Nothing here" />;\n',
+      },
+      why: "the fix: the empty state carries its next-step affordance",
     },
     {
-      files: 'export const G = <EmptyState title="Nothing here" {...(cond ? { action: 1 } : {})} />;\n',
-      at: "packages/client/src/features/demo/spread.tsx",
-      why: "a spread attribute might carry action (a conditional CTA the gate can't statically resolve) — treated as present",
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/spread.tsx":
+          'import { EmptyState } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\nexport const G = (cond: boolean): unknown => <EmptyState title="x" {...(cond ? { action: 1 } : {})} />;\n',
+      },
+      why: "UNCHANGED BY DESIGN: a spread MIGHT carry a conditional `action` no static read can resolve, so accusing it would demand a fix for something that may already be correct",
     },
     {
-      files: 'export const G = <EmptyState title="x" />;\n',
-      at: "packages/ui/src/primitives/empty-state/demo.tsx",
-      why: "scope: an <EmptyState> outside features/** is not scanned — passes",
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/local.tsx":
+          'function EmptyState(props: { title: string }): unknown {\n  return props.title;\n}\nexport const G = (): unknown => <EmptyState title="Nothing here" />;\n',
+      },
+      why: "THE COUNTERFACTUAL: a LOCAL component with the primitive's name is a different identity — the legacy tag-text check accused it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
+        "packages/client/src/features/demo/anchor.tsx": "export const G = (): unknown => null;\n",
+        "packages/ui/src/primitives/empty-state/demo.tsx":
+          'import { EmptyState } from "./empty-state.tsx";\nexport const G = (): unknown => <EmptyState title="x" />;\n',
+      },
+      why: "SCOPE: an `<EmptyState>` outside `features/**` is the primitive's own surface, not a feature dead end — it is not in the population at all",
     },
   ],
-};
+});

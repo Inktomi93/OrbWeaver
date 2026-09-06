@@ -34,6 +34,7 @@ export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceh
           root ignores its contents, so shrink-to-fit centering resolved it to width 0. The floor now lives in
           the PRIMITIVE (`empty-state/variants.ts` root `w-full`, gap-audit 2026-08-08 fence #2) so no consumer
           has to remember it; align="center" just centers the Badge below. */}
+      {/* @orb-waive empty-state-has-action(EmptyState): the config-group equivalent of the app-shell section-placeholder — the settings-pane placeholder re-homed by the config revamp (#866 S1), with no group-specific next step to offer. Ends when the placeholder is deleted with the last unbuilt config group. */}
       <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
       {/* ONE SPELLING, TWO SURFACES (#925 ruling 2): the LIST row that opens this body wears the same phrase
           from the same home, so the map and the pane cannot drift into two claims about one arm. */}

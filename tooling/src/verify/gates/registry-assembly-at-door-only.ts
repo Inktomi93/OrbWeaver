@@ -1,86 +1,154 @@
-// Gate: registry-assembly-at-door-only (client-architecture-lockdown.md §16 G8) — `createRegistry`/
-// `createContributorRegistry` may be CALLED only at the composition root (`main.tsx`) or a `compose/`
-// module it imports; a call anywhere else is a feature/lib smuggling in its own private assembly. A
-// mutating `register(`-named function/method is banned outright (§5 rule 1) — side-effect
-// registration reintroduces import-order nondeterminism, wherever it's declared.
+// Policy: registry-assembly-at-door-only (client-architecture-lockdown.md §16 G8, §5/§7) — a registry is
+// ASSEMBLED at the composition root. `createRegistry` / `createContributorRegistry` may be CALLED only in
+// `main.tsx` or a `compose/` module it imports; a call anywhere else is a feature or lib smuggling in its
+// own private assembly, which reintroduces the import-order nondeterminism the one-door rule removes.
+//
+// THE DOOR IS POPULATION, NOT A GRANT. `main.tsx` plus any `compose/` module is a STRUCTURAL class the law
+// itself names — not an enumeration of files someone reviewed. Writing it as reviewed grants would red
+// every NEW compose module, which is the opposite of the law: a compose module is exactly where assembly
+// belongs. So the door is `notUnder` and this policy's population is "everywhere assembly is illegal",
+// which is the census's own reservation for population algebra ("where they define the policy's subject").
+//
+// THE `register()` BAN IS ITS OWN POLICY. Legacy carried it in the same module, and it is judged EVERYWHERE
+// in client source including the door files — a mutating registration API is banned wherever it is declared
+// (§5 rule 1). Subtracting the door from this policy's population would have made that arm blind inside
+// `main.tsx` and every `compose/` module, so it moved to `no-mutating-register-api` with the wider
+// population rather than losing coverage. Same family, same authority.
+//
+// IDENTITY, NOT SPELLING: the factories are the EXPORTED DECLARATIONS in `client/src/lib/registry.ts`,
+// resolved through the shared project-home reader, so an alias or a re-export is the same assembly while a
+// same-named local function is not. The home is bound through `ctx.files` and RECEIPTED: if the module
+// moves or stops exporting a factory, the receipt refuses the run instead of reporting a silent zero.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { referenceNamesExport } from "../lib/origin-verdict.ts";
+import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 
-const DOOR_FILE = "packages/client/src/main.tsx";
-const REGISTRY_FACTORY_NAMES = new Set(["createRegistry", "createContributorRegistry"]);
+const REGISTRY_HOME = { path: "packages/client/src/lib/registry.ts", names: ["createRegistry", "createContributorRegistry"] } as const;
+const FACTORY_POPULATION = "registry factories";
 
-function isDoorFile(repoRelPath: string): boolean {
-  return repoRelPath === DOOR_FILE || repoRelPath.includes("/compose/");
-}
+const MESSAGE =
+  "createRegistry()/createContributorRegistry() may be CALLED only at the composition root (main.tsx) or " +
+  "a compose/ module it imports — every other call site is a private assembly outside the ONE " +
+  "registration door (client-architecture-lockdown.md §5/§7/§16 G8).";
+const UNREADABLE =
+  "this call is spelled like a registry mint but the shared readers cannot place the callee's declaration, so whether it enters through the registry home CANNOT be established. Reported rather than passed: a door an unreadable barrel can walk through is not a door.";
+const FIX = "move the createRegistry()/createContributorRegistry() call into main.tsx (or a compose/ module main.tsx imports).";
 
-/** Function-VALUED declarations named exactly `register` — the banned mutating API, in every shape it
- *  could take (a class/object-literal method, or a const bound to a function/arrow). */
-function isBannedRegisterDecl(node: Node): boolean {
-  if (Node.isMethodDeclaration(node)) {
-    return node.getName() === "register";
-  }
-  if (Node.isFunctionDeclaration(node)) {
-    return node.getName() === "register";
-  }
-  if (Node.isVariableDeclaration(node)) {
-    const init = node.getInitializer();
-    return node.getName() === "register" && init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
-  }
-  return false;
-}
-
-export const gate: GateDescriptor = {
-  name: "registry-assembly-at-door-only",
-  docRow: "client-architecture-lockdown.md §16 (G8 row)",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "createRegistry()/createContributorRegistry() may be CALLED only at the composition root " +
-    "(main.tsx) or a compose/ module — every other call site is a private assembly outside the ONE " +
-    "registration door (client-architecture-lockdown.md §5/§7). A mutating register()-named " +
-    "function/method is banned outright (§5 rule 1) wherever it's declared.",
-  fix: "move the createRegistry()/createContributorRegistry() call into main.tsx (or a compose/ module main.tsx imports); replace a register() API with an exported definition value assembled at the door.",
-  scanRoot: (p) => p.startsWith("packages/client/src/"),
-  kinds: [SyntaxKind.CallExpression, SyntaxKind.MethodDeclaration, SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration],
-  visit: (node, sf, ctx) => {
-    if (Node.isCallExpression(node)) {
-      const callee = node.getExpression();
-      const isRegistryFactory = Node.isIdentifier(callee) && REGISTRY_FACTORY_NAMES.has(callee.getText());
-      if (!isRegistryFactory) {
-        return;
-      }
-      const clientRelIdx = sf.getFilePath().indexOf("packages/client/src/");
-      if (!isDoorFile(sf.getFilePath().slice(clientRelIdx))) {
-        ctx.report(node, { token: callee.getText(), offset: 0 });
-      }
-      return;
-    }
-    if (isBannedRegisterDecl(node)) {
-      ctx.report(node, { token: "register", offset: 0 });
-    }
+export const gate = defineGate({
+  id: "registry-assembly-at-door-only",
+  family: "registry-assembly-at-door-only",
+  authority: "ordinary",
+  severity: "error",
+  // Client source MINUS the door: the composition root and every compose/ module are where assembly is
+  // legal, so they are not part of the subject at all.
+  population: { in: ["@client"], notUnder: ["packages/client/src/main.tsx", "packages/client/src/**/compose/**"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const home = locateProjectHome(ctx.files, ctx.relativePath, REGISTRY_HOME);
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            const callee = node.getExpression();
+            // The NAME PREFILTER that makes fail-closure honest: only a reference that could name one of the
+            // two factories is ever resolved, so an unreadable verdict accuses a candidate rather than every
+            // opaque call in the client tree.
+            if (!REGISTRY_HOME.names.some((name) => referenceNamesExport(callee, name))) {
+              return;
+            }
+            const verdict = classifyProjectHomeOrigin(callee, home);
+            if (verdict !== "other") {
+              const token = callee.getText();
+              ctx.report.node(callee, {
+                token: token.slice(token.lastIndexOf(".") + 1),
+                offset: token.lastIndexOf(".") + 1,
+                message: verdict === "home" ? MESSAGE : UNREADABLE,
+                fix: FIX,
+              });
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        ctx.receipt({ kind: "population", source: FACTORY_POPULATION, members: home.members, unresolved: home.unresolved });
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-      at: "packages/client/src/features/x/lib/x-section.ts",
-      why: "a createRegistry( call in a feature file — a private assembly outside the door (§5/§7)",
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import { createRegistry } from "../../../lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      },
+      expect: { count: 1, token: "createRegistry" },
+      why: "the founding shape — a registry assembled inside a feature, outside the ONE door",
     },
     {
-      files: "export const registry = {\n  register(id: string): void {},\n};\n",
-      at: "packages/client/src/lib/x.ts",
-      why: "a mutating register()-named method — banned outright, wherever it's declared (§5 rule 1)",
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import { createRegistry as assemble } from "../../../lib/registry.ts";\nexport const x = assemble("t", ["a"], { a: 1 });\n',
+      },
+      expect: { count: 1, token: "assemble" },
+      why: "THE ALIAS RED: the same mint under another local name is the same private assembly, and the legacy callee-text check saw nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/lib/registry-barrel.ts": 'export { createContributorRegistry } from "./registry.ts";\n',
+        "packages/client/src/features/x/lib/x-list.ts":
+          'import { createContributorRegistry } from "../../../lib/registry-barrel.ts";\nexport const x = createContributorRegistry("t", []);\n',
+      },
+      expect: { count: 1, token: "createContributorRegistry" },
+      why: "a name-preserving RE-EXPORT resolves to the same canonical declaration — a barrel hop does not move the assembly to the door",
     },
   ],
   mustPass: [
     {
-      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-      at: "packages/client/src/main.tsx",
-      why: "the ONE sanctioned call site — the registration door itself, passes",
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/compose/sections.ts":
+          'import { createRegistry } from "../lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      },
+      why: "a compose/ module IS the door's own helper — outside the population by the structural clause the law names",
     },
     {
-      files: 'import { createRegistry } from "#lib";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-      at: "packages/client/src/compose/sections.ts",
-      why: "a compose/ module (the door's own helper) — passes",
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/main.tsx": 'import { createRegistry } from "./lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+      },
+      why: "the composition root itself — the ONE sanctioned call site",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/features/x/lib/local.ts":
+          'function createRegistry(name: string): string {\n  return name;\n}\nexport const x = createRegistry("t");\n',
+      },
+      why: "THE COUNTERFACTUAL: a LOCAL function with the factory's name assembles no registry, so its caller is not a private assembly. The legacy text compare accused it",
     },
   ],
-};
+});
