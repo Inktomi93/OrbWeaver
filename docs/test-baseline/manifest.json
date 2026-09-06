@@ -883,6 +883,7 @@
     "tests/server/domain/character/seeder/cards.contract.test.ts",
     "tests/server/domain/character/seeder/pack-v1.int.test.ts",
     "tests/server/domain/character/seeder/seed.int.test.ts",
+    "tests/server/domain/character/substrate/bulk-tag-result.test.ts",
     "tests/server/domain/character/substrate/card-merge.test.ts",
     "tests/server/domain/character/substrate/card-tokens.test.ts",
     "tests/server/domain/character/substrate/embed-text.test.ts",
