@@ -31,6 +31,13 @@ export type TupleVocabularyFact =
       readonly declarations: readonly Node[];
     };
 
+/** The finished provider view: one lazy read per exported tuple name, over one shared collection. */
+export interface TupleVocabularies {
+  readonly read: (exportedName: string) => TupleVocabularyFact;
+  /** Distinct exported variable names the shared walk indexed — the provider's own denominator. */
+  readonly indexed: number;
+}
+
 export interface TupleVocabularyReceipt {
   readonly source: string;
   readonly members: number;

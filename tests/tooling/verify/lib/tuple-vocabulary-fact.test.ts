@@ -3,11 +3,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { TupleVocabularyFact } from "../../../../tooling/src/verify/contract/tuple-vocabulary-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import {
-  createTupleVocabularyFacts,
-  TUPLE_VOCABULARY_VISITOR_KINDS,
-  tupleVocabularyReceipt,
-} from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
+import { tupleVocabularyFact, tupleVocabularyReceipt } from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/tuple-facts";
@@ -30,20 +26,16 @@ function tuplePolicy(capture: (fact: TupleVocabularyFact) => void): GatePolicy {
     population: "@client",
     analysis: "types",
     execution: "entire-population",
-    facts: [],
+    facts: [tupleVocabularyFact],
     resources: [],
     message: "tuple vocabulary fact control",
-    create: (ctx) => {
-      const facts = createTupleVocabularyFacts();
-      return {
-        visitors: [{ kinds: TUPLE_VOCABULARY_VISITOR_KINDS, visit: facts.visit }],
-        evaluate: () => {
-          const fact = facts.read(VOCAB);
-          capture(fact);
-          ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(fact) });
-        },
-      };
-    },
+    create: (ctx) => ({
+      evaluate: () => {
+        const fact = ctx.fact(tupleVocabularyFact).read(VOCAB);
+        capture(fact);
+        ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(fact) });
+      },
+    }),
     mustFlag: [{ mode: "types", files: { "packages/client/src/flag.ts": "export const flag = 1;" }, why: "descriptor proof control" }],
     mustPass: [{ mode: "types", files: { "packages/client/src/pass.ts": "export const pass = 1;" }, why: "descriptor proof control" }],
   });
@@ -131,4 +123,32 @@ test("absent, empty, missing-initializer, ambiguous, and non-exported shadows ar
       "packages/client/src/b.ts": "export const VOCAB = ['b'] as const;",
     }).fact,
   ).toMatchObject({ kind: "unresolved", reason: "ambiguous" });
+});
+
+test("the provider indexes once, receipts its own denominator, and refuses an empty index", () => {
+  const shared = runTuple({
+    "packages/client/src/vocab.ts": 'export const VOCAB = ["a"] as const;',
+    "packages/client/src/other.ts": "export const other = 1;",
+  });
+  expect(shared.result.factErrors).toEqual([]);
+  expect(shared.result.facts).toMatchObject([
+    { id: "tuple-vocabularies", status: "success", receipts: [{ kind: "population", source: "tuple-vocabularies", members: 2, unresolved: 0 }] },
+  ]);
+  expect(shared.result.policies[0]?.receipts).toEqual([{ kind: "population", source: VOCAB, members: 1, unresolved: 0 }]);
+
+  let captured: TupleVocabularyFact | undefined;
+  const blind = tuplePolicy((fact) => {
+    captured = fact;
+  });
+  const empty = runPolicyPass({
+    knownPolicies: [blind],
+    policies: [blind],
+    root: ROOT,
+    project: projectOf({ "packages/client/src/local.ts": 'const VOCAB = ["a"] as const;' }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(captured).toBeUndefined();
+  expect(empty.factErrors).toMatchObject([{ factId: "tuple-vocabularies", phase: "finish", message: expect.stringContaining("collected no exported") }]);
+  expect(empty.authority.withheldPolicyIds).toEqual(["tuple-vocabulary-control"]);
 });

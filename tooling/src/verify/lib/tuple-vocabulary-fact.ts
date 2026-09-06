@@ -1,7 +1,8 @@
 // Visitor-fed tuple facts built on the final static authored-value reader.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { TupleVocabularyEntry, TupleVocabularyFact, TupleVocabularyReceipt } from "../contract/tuple-vocabulary-fact.ts";
+import { defineFact } from "../contract/fact.ts";
+import type { TupleVocabularies, TupleVocabularyEntry, TupleVocabularyFact, TupleVocabularyReceipt } from "../contract/tuple-vocabulary-fact.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 export const TUPLE_VOCABULARY_VISITOR_KINDS = [SyntaxKind.VariableDeclaration] as const;
@@ -93,6 +94,7 @@ function readOne(exportedName: string, declarations: readonly VariableDeclaratio
 export function createTupleVocabularyFacts(): {
   readonly visit: (node: MorphNode) => void;
   readonly read: (exportedName: string) => TupleVocabularyFact;
+  readonly indexed: () => number;
 } {
   const declarations = new Map<string, VariableDeclaration[]>();
   return {
@@ -105,8 +107,42 @@ export function createTupleVocabularyFacts(): {
       declarations.set(node.getName(), existing);
     },
     read: (exportedName) => readOne(exportedName, declarations.get(exportedName) ?? []),
+    indexed: () => declarations.size,
   };
 }
+
+/** The exported-tuple index, shared by every policy that judges a derived vocabulary.
+ *
+ *  Its population is exactly the packages whose exported tuples the consuming policies read: `@client`
+ *  (`CHROME_ZONES`), `@server` (`WARNING_CODES`) and `@contracts` (`CHAT_WARNING_CODES`). A tuple name
+ *  claimed by two exported declarations anywhere in that population is an `ambiguous` refusal at read
+ *  time, never a silently narrowed vocabulary, and an index that collected nothing refuses outright
+ *  rather than answering `absent` for every name. */
+export const tupleVocabularyFact = defineFact({
+  id: "tuple-vocabularies",
+  population: { in: ["@client", "@server", "@contracts"], ext: ["ts", "tsx"] },
+  analysis: "types",
+  resources: [],
+  create: (ctx) => {
+    const collector = createTupleVocabularyFacts();
+    let result: TupleVocabularies | undefined;
+    return {
+      visitors: [{ kinds: TUPLE_VOCABULARY_VISITOR_KINDS, visit: collector.visit }],
+      finish: (): TupleVocabularies => {
+        if (result !== undefined) {
+          return result;
+        }
+        const indexed = collector.indexed();
+        if (indexed === 0) {
+          throw new Error("tuple vocabulary index collected no exported variable declaration in its effective population");
+        }
+        ctx.receipt({ kind: "population", source: "tuple-vocabularies", members: indexed, unresolved: 0 });
+        result = Object.freeze({ read: collector.read, indexed });
+        return result;
+      },
+    };
+  },
+});
 
 export function tupleVocabularyReceipt(fact: TupleVocabularyFact): TupleVocabularyReceipt {
   return {
