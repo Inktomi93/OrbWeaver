@@ -302,12 +302,21 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
       excludeRelational(relationalAccounting["selection-idiom"], "insufficientPopulation");
       return;
     }
+    // THE SUBJECT CARRIES THE COHORT'S CENSUS (#1840). #1704 made the refusal NAME what it could not judge,
+    // which stopped the fourth identical pass; it still did not say WHY the cohort is one-sided, and the
+    // two shapes need different operator actions. Measured on Backup & Restore (side-eye 2026-09-06):
+    // eleven checkboxes, ALL checked by default (\`export-library-section.tsx\` seeds every exportable kind
+    // selected), withheld \`unmatchedSelected=1\` — and the printed remedy read "a one-row list cannot
+    // answer this rule", so a reader went looking for a one-row list and found eleven. "N of M chosen" is
+    // the fact that tells a bulk-default group (11 of 11) from a genuinely single-member one (1 of 1), and
+    // it costs one string.
+    var cohortCensus = " (" + group.selected.length + " of " + (group.selected.length + group.unselected.length) + " chosen)";
     if (group.selected.length === 0) {
-      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected", describe(group.unselected[0]));
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected", describe(group.unselected[0]) + cohortCensus);
       return;
     }
     if (group.unselected.length === 0) {
-      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected", describe(group.selected[0]));
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected", describe(group.selected[0]) + cohortCensus);
       return;
     }
     relationalAccounting["selection-idiom"].judged += 1;

@@ -21,9 +21,17 @@
 // skin. The exemption is about the IDIOM, so its population follows the FRAGMENT's carriers rather than one
 // primitive's slots; the both-halves keying above is unchanged, which is what still keeps an unselected
 // band and any other rounded box with a left accent fully judged.
+// THE RULING SURVIVES — ITS INPUT GAINED A SECOND CARRIER (#1840). The E2 selection-idiom census found a
+// SELECTED TABLE ROW painted with a bare `data-selected:bg-accent` — byte-identical to the `ACCENT_HOVER`
+// fill every hovered row, menu item and card in the app wears — so "pointing at" and "chosen" were one
+// colour and accent-fill counted as a fifth idiom. The row took the ruled `SELECTION_RAIL` instead (a table
+// row IS a row), which is a collapse onto the exempt idiom rather than a sixth spelling. `<tr>` gained a
+// `data-slot="table-row"` for the same reason the band has one: the both-halves keying below needs a slot
+// identity to pair with the state.
+//
 // A new carrier of `SELECTION_RAIL` owes a clause here, or the audit reports an owner ruling as a tell.
 //
 // This module is the ONE home for that telling: `ops/walker/core.ts` and `contract/samples.ts` both sit
 // against the 450-line `tooling-size` cap, so they carry the ruling sentence and a pointer here.
 export const SELECTION_RAIL_SEL =
-  "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected]";
+  "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected],[data-slot='table-row'][data-selected]";
