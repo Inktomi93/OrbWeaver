@@ -29,7 +29,7 @@
 // test pins the PARTIAL half against the INDEX disposition and refuses a year or a quarter in either line.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Drama, ListChecks, MapIcon, SmilePlus, Swords, UserPlus } from "@orb/ui/icons";
+import { Drama, ListChecks, MapIcon, SmilePlus, Swords, Type, UserPlus } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 
 /** One committed-but-unrealized program, as home says it out loud + the provenance that proves it. */
@@ -108,6 +108,16 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     state: "Not started yet.",
     set: "spatial-maps-design-capture.md",
     sprint: 27,
+  },
+  {
+    id: "type-worlds",
+    title: "Type-world program",
+    icon: Type,
+    gloss:
+      "Which typecheck program a test file belongs to derived from where it lives, not kept by hand — so a moved or new file can't silently fall out of coverage.",
+    state: "Not started yet.",
+    set: "type-worlds-program.md",
+    sprint: 1351,
   },
 ];
 
