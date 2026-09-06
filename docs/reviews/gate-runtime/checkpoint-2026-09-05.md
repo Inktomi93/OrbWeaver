@@ -6,7 +6,7 @@ updated: 2026-09-05
 
 # Gate-runtime emergency fold checkpoint
 
-Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current implementation tip after local resource and bus conversion work: `90905786b`. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
+Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Integration branch: `codex/gate-tsmorph-standardization`. Emergency fold tip: `b32797507`; current implementation tip: `3d8abaf5b`. Every active Codex task and its subagents stopped, committed useful bytes, removed scratch artifacts, and returned a clean task worktree. No checkpoint was pushed or merged to `main`.
 
 This checkpoint deliberately preserves incomplete and red work. A committed WIP is not conversion credit or verification evidence.
 
@@ -49,6 +49,8 @@ Commit `96e103fe4` re-derived and converted `feature-owns-definition` and `packa
 Commits `05e595f33`, `d59803f7f`, and `70a944751` convert `ui-exports-map-complete`, `server-layout`, and the two component-size policies. The resource-family total is six converted legacy policies; the overall credited total before bus work is twenty policies with 112/112 proofs. Exact populations and differentials are in `resource-layout-size-inventory.md`.
 
 Commit `bb6c76fde` adds a pass-local shared-fact registry: one object-keyed collector per exact effective population, population-mismatch refusal, and fresh state on re-entry. Commit `90905786b` repairs and shares the bus producer fact, converts four legacy producer policies, and adds the hard fact-health policy. The four policies have 15/15 final proofs, their legacy replay agrees on every fixture, and the current differential is 1,570 exact contracts/server files with 0/0 findings and zero tool errors. The shared fact reports 66 members and zero unresolved identities. The isolated final command measured 22.32 s wall and 3.01 GB peak RSS versus legacy 9.37 s and 1.67 GB; composed runtime performance remains open. The credited legacy-policy total is now twenty-four with 127/127 proofs, plus two support-policy proofs.
+
+Commit `3d8abaf5b` replaces that prototype with first-class `defineFact` providers. Every final policy now has required `facts` (`[]` when none); providers own independent population/resource plans, run once in the shared walk, finish before evaluation, expose typed values through declared `ctx.fact` reads, and carry separate timing/errors. The runtime refuses duplicate/unbranded providers, selected-file consumers, early/undeclared/unused reads, empty populations, missing receipts, and unconsumed resources; one provider failure withholds all consumers. Bus and registry-definition facts exercise the contract. The focused provider foundation passed 114 tests plus 18 adjacent reader/resource/static-class/tuple tests. The bus provider measured 10.78 s fact / 12.78 s pass / 19.43 s wall / 3.02 GB RSS with 66 members and no findings/errors. `pnpm gate:contract` now reports 1,414 findings across 256 modules; it remains intentionally red.
 
 ## Resume order
 

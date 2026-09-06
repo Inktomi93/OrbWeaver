@@ -10,7 +10,7 @@ updated: 2026-09-05
 
 The legacy producer helper accepts a raw `Project`, performs its own source walks, identifies emitter doors through central name/path tables, and resolves only narrow local aliases. The replacement at `90905786b` is visitor-fed and receives no `Project`, filesystem, grant table, or private walker.
 
-`createBusFactQuery(ctx)` acquires one object-keyed fact through `ctx.sharedFact`. The first selected consumer over an exact effective source/resource population receives the collector hooks; sibling policies receive the same fact and no duplicate visitors. A different population refuses during `create`, and the registry is recreated for every `runPolicyPass`. A collector failure is retained and rethrown by `finish`, so every consumer withholds its verdict rather than reading a partial shared graph. Commit `bb6c76fde` owns the generic runtime capability and its re-entry/population-isolation tests.
+The object-keyed `ctx.sharedFact` prototype at `bb6c76fde` was measured, then removed. Commit `3d8abaf5b` makes `busProducerFact` a first-class `defineFact` provider. It owns the exact contracts/server population, analysis tier, collector hooks, finish result, receipt, timing, and errors. All five policies declare the same provider token and read it through `ctx.fact(busProducerFact)` after finish. The planner records the provider population before execution; the dispatcher instantiates and walks it once; one failure withholds every consumer. Duplicate ids, early/undeclared reads, selected-file consumers, unused dependencies, and resource/receipt drift refuse centrally.
 
 The fact is deliberately limited to producer coverage: exported bus unions, shaped `*_EVENT_TYPES` belts, declared members, proven emitters, and unresolved identities. The earlier WIP also collected client consumer maps and coverage-policy descriptors. Those unused future fields were deleted after they caused false `LIVE_ONLY_CHAT_EVENT_TYPES` refusals and added work to every producer run. `bus-definition-belts` will consume a separate definition fact instead of making producer checks pay for speculative data.
 
@@ -39,9 +39,9 @@ The legacy harness physically loaded all 7,048 current authored TS/TSX files for
 
 The four converted policies have 15 final proof rows. The final conformance runtime passes all 15, and an off-tree legacy replay over the same fixture maps agrees on every flag/pass arm. Added controls cover local same-typed functions, unrelated receivers, automation compose-only wiring, arbitrary typed yield relays, wrong-channel yields, literal chat synthesis, optional injected callbacks, and conditional bus-arm types. The separate health policy adds two passing missing/nonempty fact controls.
 
-The current typed workspace differential at `90905786b` is:
+The current typed workspace differential after `3d8abaf5b` is:
 
-- full loaded project: 7,048 TS/TSX files;
+- full loaded project: 7,049 TS/TSX files after the provider contract was added;
 - effective population per final bus policy: 1,570 files;
 - shared fact: 66 declared members, zero unresolved identities;
 - legacy findings for the four producer policies: 0/0/0/0;
@@ -56,10 +56,13 @@ Performance was measured with `/usr/bin/time -v` under the workspace-provided `N
 | rejected broad per-policy WIP | 185.60 s for one policy | 212.58 s | 6.09 GB | incomplete |
 | shared broad fact after correctness repair | 17.45 s policy | 33.91 s | 5.13 GB | clean |
 | final narrowed shared producer fact | 13.27 s policy; 15.64 s pass | 22.32 s | 3.01 GB | clean |
+| first-class `busProducerFact` | 10.78 s fact; 12.78 s pass | 19.43 s | 3.02 GB | clean |
 
 A proposed argument-first prefilter was discarded after it remained live beyond 3:51: resolving static/reference expressions for every call argument cost more than checking callee provenance. The retained optimization derives candidate injected door names from callable declarations, admits direct authored `{type: ...}` arguments, validates every candidate semantically, and makes `.publish` prove the canonical bus-channel origin.
 
-The new fact is still about 2.4 times the legacy process wall in isolation. The final runtime shares its typed Project, checker, physical source walk, and fact with the rest of the gate fleet; the atomic cutover performance/RSS battery must measure that composed command before acceptance. No compatibility adapter or second workspace loader was added.
+The provider run is still about twice the legacy process wall in isolation. The final runtime shares its typed Project, checker, physical source walk, and providers with the rest of the gate fleet; the atomic cutover performance/RSS battery must measure that composed command before acceptance. No compatibility adapter or second workspace loader was added.
+
+A no-grant generic-producer probe remains blocked: it correctly finds the intentional `UserBusEvent.connectionsChanged` debt but also misses the live `chatsChanged` relay through a conditional local event, `publishUserEvent`, and `defineBusChannel.publish`. The four policy modules are therefore not consolidated yet; typed callable-declaration/call-edge indexing must prove that relay before any retirement.
 
 ## Remaining bus work
 

@@ -56,6 +56,12 @@ Legacy `section-defs.ts` can delete only after both direct consumers convert. Fa
 
 No whole-tree structure/check, full test battery, current-corpus gate differential, performance/RSS run, global baseline, or catalog regeneration was run. The earlier `pnpm gate:contract` invocation completed without a retained readable result and is not evidence.
 
+## First-class provider integration
+
+Commit `3d8abaf5b` replaces policy-owned collector construction with `registryDefinitionFact`, a first-class `defineFact` provider over `@client`. The planner records its independent population, the dispatcher feeds it once in the shared walk, and policies read the completed per-kind view through declared `ctx.fact` access. Its provider receipt aggregates all seven definition kinds while each policy retains its own independent kind receipt and missing/empty/unresolved verdict. The five registry fact tests pass through the provider runtime; no registry policy conversion is credited yet.
+
+The same commit makes provider dependencies required descriptor data (`facts`, including explicit `[]`), validates their branded/direct shape, rejects duplicate ids and selected-file consumers, owns ResourceHost acquisition/receipts, and withholds every consumer on one provider failure. The focused provider foundation passed 114 tests plus 18 adjacent reader/resource/static-class/tuple tests. `pnpm gate:contract` now reports 1,414 findings across 256 modules; the remaining count is intentionally red migration work.
+
 ## Known limits
 
 - A function-valued registry field makes the complete JSON-like `authoredValue` unresolved while object-root provenance remains resolved; policies must read required scalar/object fields explicitly.
