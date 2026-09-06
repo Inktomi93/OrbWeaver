@@ -63,7 +63,7 @@
     "check:regkeys": "node tooling/src/ast/cli.ts regkeys",
     "check:chains": "node tooling/src/ast/cli.ts chains",
     "lint": "nice -n 19 biome check . --diagnostic-level=error --reporter=concise",
-    "lint:eslint": "nice -n 19 eslint packages/ui packages/client packages/server packages/kit packages/db packages/contracts tooling/src tests --max-warnings 0 --cache --cache-strategy content",
+    "lint:eslint": "nice -n 19 node scripts/eslint.cjs packages/ui packages/client packages/server packages/kit packages/db packages/contracts tooling/src tests --max-warnings 0 --cache --cache-strategy content",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:docs": "node tooling/src/doc-catalog/cli.ts format --write",

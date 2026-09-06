@@ -29,20 +29,28 @@
 // EXIT CONTRACT (§3.3): 0 clean · 1 violations · 2 tool error · 3 misuse. Run exit = max severity over
 // stages. A whole-only stage the scope can't run is DEFERRED with a printed notice, unless --strict-scope
 // makes it a refusal.
+//
+// A WHOLE RUN QUEUES HOST-WIDE (#1835) — see `enterWholeRunQueue` below. Artifact isolation already made
+// concurrent runs SAFE (#1029); the queue makes them SERIAL, because two CPU-saturating batteries on one
+// box is never faster than one after the other. Scoped runs are exempt (they are the inner loop).
 import { renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry } from "../contract/history.ts";
+import type { HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
 import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
+import type { HostSlotDeps } from "../lib/host-slots.ts";
+import { acquireHostSlot } from "../lib/host-slots.ts";
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
@@ -411,6 +419,54 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     printList();
     return EXIT.clean;
   }
+  const queue = await enterWholeRunQueue(root, parsed);
+  try {
+    return await runVerifyQueued(root, parsed);
+  } finally {
+    queue?.release();
+  }
+}
+
+/** THE HOST-WIDE WHOLE-RUN QUEUE (#1835). Two whole `pnpm check`/`pnpm verify` runs on one box is never
+ *  faster than one after the other — they are both CPU-saturating, and running them concurrently just
+ *  makes each one's wall clock the sum plus contention, while flaking the load-sensitive stages. So a
+ *  WHOLE run takes a host-wide slot and WAITS; the artifact isolation (#1029) is unchanged, so concurrent
+ *  runs remain SAFE — they are now also SERIAL.
+ *
+ *  A SCOPED run (`--changed`/`--scope`/`--file`/`--package`) does NOT queue: it is the fast inner loop, it
+ *  is what a lane runs while another lane's battery is live, and making it wait behind a 17-minute `--push`
+ *  would be the change that gets this whole mechanism switched off.
+ *
+ *  It NEVER refuses — a refused verify breaks a merge train (see the pool's own header). The queue applies
+ *  under `ORB_DEDICATED_BOX=1` too (`wholeVerifyQueue` is true in both profiles), because "the box is mine"
+ *  does not make two simultaneous batteries a good idea. */
+export async function enterWholeRunQueue(root: string, parsed: Parsed, deps: HostSlotDeps = {}): Promise<HostSlotLease | null> {
+  if (parsed.selection !== undefined || !readConcurrencyProfile().wholeVerifyQueue) {
+    return null;
+  }
+  const pool: HostSlotPool = {
+    name: "verify",
+    label: `${parsed.tier} ${checkoutName(root)}`,
+    slots: 1,
+    waitBaseMs: VERIFY_QUEUE_WAIT_BASE_MS,
+  };
+  const lease = await acquireHostSlot(pool, {
+    onQueued: (holder) => process.stderr.write(`[verify] verify: queued behind pid ${String(holder.pid)} since ${holder.startedAt} (${holder.label})\n`),
+    onNotice: (message) => process.stderr.write(`[verify] ${message}\n`),
+    // A test drives this with its own runtime dir and its own process table — never the REAL host pool,
+    // where a planted holder would block an operator's live `pnpm check`.
+    ...deps,
+  });
+  process.stderr.write("[verify] verify: lock held; starting\n");
+  return lease;
+}
+
+/** A whole `--push` run is ~17 minutes and `--full` is longer, so a second run legitimately waits a long
+ *  time. This QUIET-BOX base is load-scaled at acquire time; past it the pool degrades to uncapped rather
+ *  than refusing. */
+const VERIFY_QUEUE_WAIT_BASE_MS = 2_700_000; // 45 minutes
+
+async function runVerifyQueued(root: string, parsed: Parsed): Promise<number> {
   const slot = openRunSlot(root, INSTRUMENT);
   announceRacing(slot);
   const report = await runTier(root, slot, parsed);

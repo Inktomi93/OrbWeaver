@@ -64,7 +64,14 @@ const GATING_STAGES: readonly StageDef[] = [
       // --no-warn-ignored: an explicit path that eslint's config IGNORES (e.g. a generated tokens file)
       // must not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we
       // hand it the path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
-      return files.length === 0 ? "skip-empty" : ["eslint", "--max-warnings", "0", "--no-warn-ignored", "--cache", "--cache-strategy", "content", ...files];
+      // `node scripts/eslint.cjs`, never the bare `eslint` bin: the shim is the ONE place ESLint's
+      // `--concurrency` comes from (tooling/concurrency-profile.json, #1835 — ESLint's own default is
+      // `off`, i.e. single-threaded). The whole-scope row above reaches the same shim through
+      // `pnpm lint:eslint`; invoking the bin directly here would leave the scoped lane single-threaded
+      // while the whole lane was not, which is exactly the drift the shim exists to prevent.
+      return files.length === 0
+        ? "skip-empty"
+        : ["node", "scripts/eslint.cjs", "--max-warnings", "0", "--no-warn-ignored", "--cache", "--cache-strategy", "content", ...files];
     },
   },
 
