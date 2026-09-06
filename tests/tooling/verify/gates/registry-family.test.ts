@@ -5,6 +5,7 @@ import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
+import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -20,6 +21,7 @@ test("registry definition policies keep their founding and nearest-legal fixture
       modalRegistryCompleteness,
       placeholderCopyRegistry,
       sectionFactoryContributionBundle,
+      warningCodeCoverage,
     ]),
   ).toEqual([]);
   // Six policies' founding + nearest-legal fixtures are ~80 isolated typed passes; the default per-test
