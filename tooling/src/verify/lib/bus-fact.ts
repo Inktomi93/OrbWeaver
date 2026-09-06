@@ -408,7 +408,7 @@ function propagateRelay({ context, call, relay, relays, unresolved, visited }: P
   if (emission.kind === "values") {
     // THE PRODUCER FENCE IS SYMMETRIC. A relayed call credits its member only where a DIRECT call would:
     // a wrapper reached from `entry/` is composition wiring, and "a compose-only publisher is wiring, not a
-    // producer" is this family's own ruling (automation-bus-coverage mustFlag[1]). Crediting it through a
+    // producer" is this family's own ruling (`bus-producer-coverage`'s compose-publisher mustFlag row). Crediting it through a
     // relay while refusing it directly would make the tier fence depend on how many hops the event took.
     // The relay itself still propagates: a domain/transport caller further out is a real producer.
     if (isProducerPath(relay.bus, context.relativePath(call.getSourceFile()))) {
