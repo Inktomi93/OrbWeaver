@@ -140,10 +140,6 @@ export const variablePreconditionsSchema = z.array(variablePreconditionSchema);
  *  contended write and must not spend a crash strike. An unconditional write (no preconditions) can only ever
  *  answer `applied`. */
 export type VariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
-export const variableWriteResultSchema = z.discriminatedUnion("outcome", [
-  z.object({ outcome: z.literal("applied") }),
-  z.object({ outcome: z.literal("stale"), actual: z.record(z.string(), z.string().nullable()) }),
-]) satisfies z.ZodType<VariableWriteResult>;
 
 /** One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
  *  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into

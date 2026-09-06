@@ -109,7 +109,6 @@ export function automationTriggerFor(type: ChatTriggerType | DomainTriggerType):
 
 /** The two source buses — tied to the trigger union's discriminant. */
 export const AUTOMATION_TRIGGER_BUSES = ["chat", "domain"] as const satisfies readonly AutomationTrigger["bus"][];
-/** @public twin: AUTOMATION_TRIGGER_BUSES — drives the automation_rules enum + CHECK (cross-package PUBLIC). */
 export type AutomationTriggerBus = (typeof AUTOMATION_TRIGGER_BUSES)[number];
 
 /** Every terminal a dispatch can record for a rule×event: the fire log is the per-hour RATE-cap source

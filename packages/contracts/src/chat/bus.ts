@@ -129,7 +129,6 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // tuples so the map is a MATCH, never a re-spell. Dropped-and-loud (D41), never silently swallowed.
   "custom_parameters_ignored",
 ] as const;
-/** @public twin: PLAIN_CHAT_WARNING_CODES — the codes a notice can be written for without a payload. */
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
 
 /** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
