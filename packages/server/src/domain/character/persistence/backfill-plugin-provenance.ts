@@ -92,7 +92,10 @@ export async function backfillPluginProvenance(db: Db): Promise<BackfillPluginPr
     const updated = await db
       .update(characters)
       .set({ importedFrom: pluginImportedFrom(pluginId, candidate.importHash) })
-      .where(and(eq(characters.id, candidate.id), isNull(characters.importedFrom)))
+      // The owner rides the WHERE (owner-scoped-writes arm 1): the candidate row was read WITH its owner, so a
+      // stranger's row of the same id — impossible by the id mint, but the gate asks the statement to say so —
+      // moves 0 rows.
+      .where(and(eq(characters.id, candidate.id), eq(characters.ownerId, candidate.ownerId), isNull(characters.importedFrom)))
       .returning({ id: characters.id });
     if (updated.length > 0) {
       backfilled += 1;
