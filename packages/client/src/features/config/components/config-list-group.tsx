@@ -351,7 +351,9 @@ interface SubcategoryRowProps {
  *  is the fact the reader can act on and it already implies the section differs from what is stored. The
  *  row therefore grows ONE grammar, not two: `meta` is the primitive's trailing title-line datum, already
  *  the `Save failed` marker's home and already part of the row's `aria-describedby`, so the new mark is
- *  announced without touching the row's NAME.
+ *  announced without touching the row's NAME. #1712 re-affirmed this default against the "compose both
+ *  words" alternative — the divergence a failed save implies is discoverable at `SAVE_FAILED_MARKER`'s
+ *  doc (`lib/config-copy.ts`), never a second visible mark on this row.
  *
  *  A `Badge` IN `markers` WAS MEASURED AND REFUSED — with a PLANTED CONTROL, not an argument. `markers` is
  *  the peers' rest-visible-state slot (the chats row's `Archived` badge), and adopting it is what

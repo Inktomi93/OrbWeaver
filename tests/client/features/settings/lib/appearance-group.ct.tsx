@@ -261,8 +261,11 @@ test("a failing save lights the aggregate footer, an INLINE retry at the failing
   await expect(avatars.getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(page.locator('[data-slot="autosave-status"]')).toHaveCount(1);
 
-  // …and its nav row carries the locator marker.
-  await expect(page.getByRole("region", { name: "Settings groups" }).getByText("Save failed")).toBeVisible();
+  // …and its nav row carries the locator marker — EXACTLY this word, never composed with "Modified"
+  // (#1712, owner default: precedence stays). This section's picked value ("Large") already differs from
+  // its default ("md", `appearance.ts`'s `avatarSize` schema) — a save-failed row is definitionally also a
+  // modified one — and `{ exact: true }` is the receipt that the row states that ONE fact once, not both.
+  await expect(page.getByRole("region", { name: "Settings groups" }).getByText("Save failed", { exact: true })).toBeVisible();
 });
 
 // P5 — NAV/SEARCH PARITY (SET-SEAMS §7.2/§7.3). The pane's nav DERIVES from the contributions now; a leaf
