@@ -8,7 +8,8 @@
 // naming convention was invisible. The app mints every store through `createGatedStore` /
 // `createPersistedStore`, both of which return `GatedStoreHook<T>` — that alias, declared in its own home,
 // IS the store identity. zustand's own `UseBoundStore` is admitted as the second home for a store minted
-// outside the factories.
+// outside the factories. The whole declared alias CHAIN is walked, not just the name the checker kept: a
+// store re-aliased once (`type MyHook = GatedStoreHook<S>`) reports as `MyHook` in the consuming file.
 //
 // EXECUTION IS entire-population BECAUSE THE ANCHOR IS A PROJECT FILE. The hook-type home is located in the
 // effective population, so a narrowed selection that does not carry it DEFERS loudly rather than passing
@@ -24,8 +25,9 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import { referenceResolutionServices } from "../lib/reference-fact.ts";
-import { declaredByFile, declaredByPackage, resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
+import { declaredByFile, declaredByPackage, resolveTypeIdentityChain } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
 /** The app's ONE store-hook type; both store factories return it. */
@@ -62,14 +64,20 @@ function hookVerdict(callee: MorphNode, home: SourceFile): HookVerdict {
   if (type.isAny() || type.isUnknown()) {
     return "unreadable";
   }
-  const identity = resolveTypeIdentityOrigin(callee);
-  if (identity.kind === "unresolved") {
+  const chain = resolveTypeIdentityChain(callee);
+  if (chain.kind === "unresolved") {
     return "other";
   }
-  if (identity.value.name === STORE_HOOK_TYPE && declaredByFile(identity.value.declarations, home)) {
-    return "store";
-  }
-  return identity.value.name === ZUSTAND_HOOK_TYPE && declaredByPackage(identity.value.declarations, ZUSTAND) ? "store" : "other";
+  // THE WHOLE CHAIN, not just the outermost name: the checker keeps the alias the annotation used, so
+  // `type MyHook = GatedStoreHook<S>` reports as `MyHook` declared in the CONSUMING file and a home test
+  // against one name silently misses a re-aliased store — the alias positive twin this family owes.
+  return chain.value.some(isStoreHomeIdentity(home)) ? "store" : "other";
+}
+
+function isStoreHomeIdentity(home: SourceFile): (identity: TypeIdentityOrigin) => boolean {
+  return (identity) =>
+    (identity.name === STORE_HOOK_TYPE && declaredByFile(identity.declarations, home)) ||
+    (identity.name === ZUSTAND_HOOK_TYPE && declaredByPackage(identity.declarations, ZUSTAND));
 }
 
 /** Does this arrow SELECTOR return a FRESHLY BUILT object/array? Parenthesis, `as` and `satisfies` wrappers
@@ -202,6 +210,28 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "CANNOT be established" },
       why: "FAIL-CLOSED (#944): an `any`-typed callee has no TYPE NAME at all, so whether it is a store hook is UNKNOWN. Returning false here would make an untyped binding the one supported way past this law — the review's own reproduction",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/client/src/components/foo.tsx":
+          'import type { GatedStoreHook } from "../state/create-gated-store.ts";\ntype MyHook = GatedStoreHook<{ user: string }>;\ndeclare const useUserStore: MyHook;\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n',
+      },
+      expect: { count: 1, token: "useUserStore" },
+      why: "A ONE-HOP TYPE ALIAS: the checker keeps the OUTERMOST alias the annotation used, so this callee reports as `MyHook` declared in the CONSUMING file. Testing the outermost name alone missed a real store hook entirely — the alias positive twin, closed by walking the declared alias chain to its home",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/client/src/state/hooks.ts":
+          'import type { GatedStoreHook } from "./create-gated-store.ts";\nexport type UserHook = GatedStoreHook<{ user: string }>;\n',
+        "packages/client/src/components/foo.tsx":
+          'import type { UserHook } from "../state/hooks.ts";\ntype LocalHook = UserHook;\ndeclare const useUserStore: LocalHook;\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n',
+      },
+      expect: { count: 1 },
+      why: "THE ALIAS DECLARED IN ANOTHER MODULE: `useUserStore` is typed by `UserHook` from state/hooks.ts (the local `type LocalHook = UserHook` carries no type arguments, so TS collapses it and reports `UserHook`). The walk follows the alias symbol through the IMPORT DOOR to `GatedStoreHook` in its home — the cross-module half of the same twin",
     },
   ],
   mustPass: [

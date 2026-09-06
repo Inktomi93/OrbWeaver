@@ -27,7 +27,7 @@ and a same-named local or third-party lookalike red as the real thing.
 | `no-static-staletime` | ordinary | `tanstack-query-origin` | selected-files | the CONTEXTUAL `staleTime` property + `readStaticString` on the value |
 | `no-multiplexed-mutation-error` | ordinary | `tanstack-query-origin` | **entire-population** | `error` declared by `EntityMutationResult` or query-core |
 | `no-chat-trpc-in-surface` | ordinary | `trpc-proxy-origin` | selected-files | `mutationOptions` + the `TRPCOptionsProxy` chain root, both from `@trpc/tanstack-react-query` |
-| `zustand-selector-stability` | ordinary | singleton | **entire-population** | the callee's `GatedStoreHook` / `UseBoundStore` type home |
+| `zustand-selector-stability` | ordinary | singleton | **entire-population** | the callee type's declared ALIAS CHAIN, walked to `GatedStoreHook` / `UseBoundStore` |
 | `no-manual-autosave-flush` | ordinary | singleton | selected-files | the form members declared by `@tanstack/form-core`'s `FormApi` |
 
 All twelve are `ordinary` per the manifest and none needed a reviewed grant. **No `REVIEWED_GRANTS` rows were
@@ -81,13 +81,25 @@ axes need DIFFERENT rules — which is the durable lesson here:
 
 Each of the four measured states above is a committed proof row.
 
+The same policy's ADMITTING side needed one more step. `resolveTypeIdentityOrigin` reports the alias the
+checker kept, so a store hook re-aliased once (`type MyHook = GatedStoreHook<S>`) reports as `MyHook`
+declared in the CONSUMING file, and a home test against that one name missed a real store — the alias
+positive twin, with zero real-tree exposure today (every store is minted through `createGatedStore`) but a
+silent hole all the same. `resolveTypeIdentityChain` now walks the declared alias chain to its root,
+following an import specifier on each step and terminating on a visited declaration; the policy admits a
+store if ANY identity in the chain is one of the two homes. The one-hop and cross-module fixtures are
+committed `mustFlag` rows. Note the checker COLLAPSES a bare `type LocalHook = UserHook` (no type
+arguments) and reports `UserHook`, which is why the cross-module row is written against the exported alias
+rather than a local re-alias — recorded in the reader's own control so the next author does not expect a
+three-name chain from that shape.
+
 ## Shared readers added
 
 Three new `lib/` readers, each a pure function over delivered nodes — no walk, no Project, no cache beyond an
 invocation-local per-file index.
 
 - **`lib/type-member-origin.ts`** (+ `contract/type-member-origin.ts`): `resolveTypeMemberOrigin`,
-  `resolveContextualMemberOrigin`, `resolveTypeIdentityOrigin`, and the `declaredByPackage` /
+  `resolveContextualMemberOrigin`, `resolveTypeIdentityOrigin`, `resolveTypeIdentityChain`, and the `declaredByPackage` /
   `declaredByFile` / `declaredByAnyPackage` home matchers. This is the half `reference-fact.ts` cannot supply:
   every one of these policies has a receiver produced at runtime (`useTRPC()`, `useQueryClient()`, a store
   hook, a form api, a mutation result), which the value walk correctly refuses as a dynamic terminal. The
@@ -110,7 +122,7 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 
 ## Proofs
 
-115 policy proofs, plus 2 blindness-tripwire pins and 10 focused reader controls — all green
+117 policy proofs, plus 2 blindness-tripwire pins and 12 focused reader controls — all green
 (`tests/tooling/verify/gates/origin-client-family.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
 
 | Policy | mustFlag | mustPass | total |
@@ -126,7 +138,7 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 | `no-multiplexed-mutation-error` | 5 | 4 | 9 |
 | `no-static-staletime` | 5 | 5 | 10 |
 | `no-use-context` | 7 | 4 | 11 |
-| `zustand-selector-stability` | 5 | 7 | 12 |
+| `zustand-selector-stability` | 7 | 7 | 14 |
 
 Every policy carries the identity matrix its subject can take: an import alias, a namespace member, a
 computed-literal member, a re-export door, a const chain across modules, a local shadow, a parameter shadow,
@@ -153,7 +165,7 @@ deliberate and falls into two classes.
 | `no-manual-token-estimate` | an imported ratio, a const chain to the ratio, the bracket `t["length"]` spelling, and a file that self-exempted by exporting its own `estimateTokens` |
 | `no-multiplexed-mutation-error` | the computed-literal spelling of both operands, and an `any`-typed receiver on both sides |
 | `no-static-staletime` | a const alias of `"static"`, and the same alias one module away |
-| `zustand-selector-stability` | a store hook not matching `/^use[A-Z].*Store$/`, an `as`-wrapped literal, and an `any`-typed callee |
+| `zustand-selector-stability` | a store hook not matching `/^use[A-Z].*Store$/`, an `as`-wrapped literal, an `any`-typed callee, and a store re-aliased one hop or through another module |
 
 **Legacy ≥1 → new 0 (a lookalike the text check red), 16 rows:** a local `forwardRef`/`useContext` helper; a
 context.ts declaring its OWN `ReturnType`; a project type named `ReturnType`; a parameter named `fetch`; an

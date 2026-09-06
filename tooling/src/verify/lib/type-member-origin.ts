@@ -93,6 +93,63 @@ export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeId
     : resolved({ name: symbol.getName(), node, aliased: alias !== undefined, declarations: declarations.value }, node, declarations.value);
 }
 
+/** One step UP a declared type-alias chain: `type MyHook = GatedStoreHook<T>` steps from `MyHook` to
+ *  `GatedStoreHook`, following an import specifier to the real declaration on the way. */
+function aliasStep(origin: TypeIdentityOrigin): TypeIdentityOrigin | undefined {
+  let step: TypeIdentityOrigin | undefined;
+  for (const declaration of origin.declarations) {
+    if (step !== undefined || !Node.isTypeAliasDeclaration(declaration)) {
+      continue;
+    }
+    const typeNode = declaration.getTypeNode();
+    if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
+      continue;
+    }
+    const nameNode = typeNode.getTypeName();
+    const symbol = nameNode.getSymbol();
+    const target = symbol?.getAliasedSymbol() ?? symbol;
+    const declarations = target?.getDeclarations() ?? [];
+    if (target !== undefined && declarations.length > 0) {
+      step = { name: target.getName(), node: nameNode, aliased: true, declarations };
+    }
+  }
+  return step;
+}
+
+/** Every type identity a node's type resolves through, OUTERMOST FIRST, walking declared type aliases to
+ *  their root. Unresolved exactly when {@link resolveTypeIdentityOrigin} is, so a caller has one door.
+ *
+ *  WHY A CHAIN AND NOT ONE NAME: the checker keeps the OUTERMOST alias symbol, so a store hook re-aliased
+ *  one hop (`type MyHook = GatedStoreHook<S>; declare const useUserStore: MyHook`) reports as `MyHook`
+ *  declared in the CONSUMING file, and a home test against the outermost name alone silently misses it. That
+ *  is the same alias/re-export positive twin every policy in this family owes on its other axes; the walk is
+ *  bounded by a visited set over declaration identity, so a self-referential alias terminates. */
+export function resolveTypeIdentityChain(node: MorphNode): ReferenceFact<readonly TypeIdentityOrigin[]> {
+  const first = resolveTypeIdentityOrigin(node);
+  if (first.kind === "unresolved") {
+    return first;
+  }
+  const chain: TypeIdentityOrigin[] = [first.value];
+  const visited = new Set<object>(first.value.declarations.map((declaration) => declaration.compilerNode));
+  let current: TypeIdentityOrigin = first.value;
+  for (;;) {
+    const next: TypeIdentityOrigin | undefined = aliasStep(current);
+    if (next === undefined || next.declarations.some((declaration) => visited.has(declaration.compilerNode))) {
+      break;
+    }
+    for (const declaration of next.declarations) {
+      visited.add(declaration.compilerNode);
+    }
+    chain.push(next);
+    current = next;
+  }
+  return resolved(
+    chain,
+    node,
+    chain.flatMap((origin) => origin.declarations),
+  );
+}
+
 function normalizedPath(node: MorphNode): string {
   return node.getSourceFile().getFilePath().replaceAll("\\", "/");
 }
