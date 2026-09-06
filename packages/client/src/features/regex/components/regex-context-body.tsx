@@ -41,12 +41,11 @@ import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Code, Icon, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { RegexScopeOrder } from "#components";
+import { RegexScopeOrder, SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
@@ -100,18 +99,24 @@ function RegexScopePanel({
     // `padding="block"` — the same inset its sibling arm (`BookAttachments`) uses, so one context slot has
     // one edge (side-eye 2026-08-03 P3, the two-grammars finding).
     <Stack data-slot="regex-context-body" gap="block" padding="block">
-      <Row align="center" gap="field" justify="between">
-        <Text as="span" voice="label">
-          Runs in every chat
-        </Text>
-        <Switch
-          aria-label={`${regexScriptTitle(script)} runs in every chat`}
-          checked={isGlobal}
-          disabled={attach.isPending || detach.isPending}
-          onCheckedChange={onGlobalChange}
-        />
-      </Row>
-      <Text voice="gloss">The one scope this library owns — the other three attach this script from the thing it belongs to.</Text>
+      {/* THE HOUSE SWITCH ROW, NOT A FOURTH HAND-ROLL (#980 F22). This was a bare
+          `<Row justify="between">` + a sibling gloss paragraph — the same orientation `SettingSwitchRow`
+          ships (label left, control right) drawn a different way, which is mechanism drift rather than
+          visual drift and is exactly how two rows end up disagreeing later. Routing it through the shared
+          row buys three things it did not have: the label is a real `Field.Label`, so clicking the words
+          toggles the switch; the gloss becomes the `description`, which is `aria-describedby`-wired and
+          reading-measure capped instead of running the pane's full width; and the row answers to the same
+          `FieldLayout` an Appearance settings row does.
+          The accessible name loses the script's own title (it was "<script> runs in every chat"): a
+          `Field` label IS the control's name, this pane is that script's context arm, and the head band
+          above it states the subject — a name that repeats it is the name-and-mark weld #1214-1 records. */}
+      <SettingSwitchRow
+        checked={isGlobal}
+        description="The one scope this library owns — the other three attach this script from the thing it belongs to."
+        disabled={attach.isPending || detach.isPending}
+        label="Runs in every chat"
+        onChange={onGlobalChange}
+      />
       {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING (side-eye 2026-08-03 P2). This pane's entire job
           is "where does this script run", and with `placement: []` the honest answer is nowhere — no amount
           of attaching changes that. Said here as well as on the row and in the editor, because this is the

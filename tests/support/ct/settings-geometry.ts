@@ -129,6 +129,65 @@ export interface SettingsShellColumns {
   readonly rowWidth: number;
 }
 
+/** One switch row's LABEL/CONTROL relationship — the house orientation, measured. */
+export interface SwitchRowOrientation {
+  readonly label: string;
+  /** The label's ink starts left of the control's box. The `false` arm is the #980 F22 defect: the tag
+   *  member editor rendered switch x=561 / label x=615, a control-LEFT row in a pane of label-left ones. */
+  readonly labelLeadsControl: boolean;
+  /** Label and control share a LINE — their vertical spans overlap. Deliberately overlap and NOT centre
+   *  agreement: a row carrying a `description` is `multiline`, where `Field`'s ruled behaviour is
+   *  `items-start` so the control holds the FIRST line rather than floating to the middle of a two-line
+   *  block (side-eye 2026-08-06 P2). Centres disagree there by design; a label STACKED ABOVE its control —
+   *  the thing this is testing for — does not overlap at all. */
+  readonly onOneLine: boolean;
+  /** Clicking the label operates the control. A `<Text>` gloss beside a bare `<Switch>` looks identical and
+   *  does nothing, which is the half a geometry-only pin would pass. */
+  readonly labelIsLabel: boolean;
+}
+
+/**
+ * THE RULED SWITCH-ROW ORIENTATION, as ONE assertion shared by every surface that draws one (#980 F22).
+ *
+ * `SettingSwitchRow` is label-left / control-right (`Field orientation="horizontal"`), and three surfaces
+ * hand-rolled the same row three other ways — one of them INVERTED (the tag member editor's
+ * `<Row><Switch/><Text/></Row>`). A per-surface pin would have let each drift on its own; this helper is
+ * the single definition of "the same orientation as an Appearance settings row", asserted against the
+ * shared row's own CT and against each converted surface, so the three cannot disagree again.
+ *
+ * The `labelIsLabel` half is not decoration: the inverted row's gloss was a `<Text>`, so the words looked
+ * like a label and clicking them did nothing. Geometry alone would have called the conversion done.
+ */
+export function readSwitchRowOrientation(page: Page, accessibleName: string): Promise<SwitchRowOrientation> {
+  return page.evaluate((name: string): SwitchRowOrientation => {
+    const control = [...document.querySelectorAll<HTMLElement>('[role="switch"]')].find(
+      (el) => (el.getAttribute("aria-label") ?? document.getElementById(el.getAttribute("aria-labelledby") ?? "")?.textContent ?? "").trim() === name,
+    );
+    if (control === undefined) {
+      throw new Error(`readSwitchRowOrientation: no switch named "${name}"`);
+    }
+    const row = control.closest<HTMLElement>('[data-slot="field-root"]');
+    const label = row?.querySelector<HTMLElement>('[data-slot="field-label"]') ?? null;
+    if (row === null || label === null) {
+      throw new Error(`readSwitchRowOrientation: the switch named "${name}" is not inside a Field row`);
+    }
+    // RANGE, not the label's box: a block label's box can span the whole track while its glyphs stop early.
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    const ink = range.getBoundingClientRect();
+    const box = control.getBoundingClientRect();
+    return {
+      label: (label.textContent ?? "").trim(),
+      labelLeadsControl: ink.left < box.left,
+      onOneLine: Math.min(ink.bottom, box.bottom) - Math.max(ink.top, box.top) > 0,
+      // A real `<label for=…>` pointing INSIDE this row. Not `for === control.id`: Base UI's Switch is a
+      // `button[role=switch]` beside a hidden input, and the labelable id it mints is the input's — the
+      // association is still what makes the click work.
+      labelIsLabel: label.tagName === "LABEL" && row.contains(document.getElementById(label.getAttribute("for") ?? "")),
+    };
+  }, accessibleName);
+}
+
 export function readSettingsShellColumns(page: Page): Promise<SettingsShellColumns> {
   return page.evaluate((): SettingsShellColumns => {
     const nav = document.querySelector<HTMLElement>('[role="navigation"]');
