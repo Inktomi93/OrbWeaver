@@ -1992,6 +1992,7 @@
     "tests/server/transport/trpc/user-events-bus.test.ts",
     "tests/showcase-plugins/index.test.ts",
     "tests/support/chat/scenario.int.test.ts",
+    "tests/support/ct/contained-within.ct.tsx",
     "tests/support/ct/story-shot.test.ts",
     "tests/support/ct/touch-floor.ct.tsx",
     "tests/support/db.int.test.ts",
