@@ -33,6 +33,7 @@ import { runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
 import { missingLauncherRefusal, stageLauncherPath } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
+import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow } from "./stage-marker.ts";
 import { killProcessGroup, pidIsStageRooted, stageBandPortPid } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
@@ -62,6 +63,12 @@ export function stopStage(dir: string, ports: StagePorts): void {
  *  here (`git worktree remove` is repo-wide — the #108 rule). */
 export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm, nowMs: number = Date.now()): void {
   stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+  // The stage's stack dies by process group; a BROWSER never does (#1848 — playwright sessions it). Every
+  // arm that ends a stage therefore also reaps browsers whose own run is gone, which is the state a lane
+  // torn down mid-drive leaves behind.
+  for (const line of sweepStrandedBrowsers()) {
+    print(`[snap-stage] ${line}`);
+  }
   removeStageDir(row.checkout, row);
   clearRow(home, row.band);
   recordStageReap(home, row, arm, nowMs);

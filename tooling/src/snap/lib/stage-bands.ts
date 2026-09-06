@@ -48,12 +48,20 @@ const MINUTES_PER_HOUR = 60;
  *  to §7.1's IDLE class, and idle is not load. */
 export const DEFAULT_STAGE_TTL_MIN = 60;
 /** Live stages per box, across every checkout (F5). The band RANGE is 10; the CAP is what keeps ten
- *  full-priority stacks off a box that also serves the operator's dev stack and a co-hosted homelab. */
+ *  full-priority stacks off a box that also serves the operator's dev stack and a co-hosted homelab.
+ *
+ *  THIS IS THE FALLBACK, NOT THE ANSWER (#1848). The cap's base now comes from
+ *  `tooling/concurrency-profile.json` — THE ONE HOME for every cap since #1835, which this one was missed
+ *  by: `ORB_DEDICATED_BOX=1` retuned vitest and CT workers and left the stage cap at the shared-host 3, so
+ *  a box with no co-tenant still refused a fourth stage. A caller that supplies no base gets this number,
+ *  which keeps the pure function usable from a test without a profile file. */
 export const DEFAULT_STAGE_CAP = 3;
 
-/** Env \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a REFUSAL, never
- *  a silent default — a stage TTL that silently became 60 min is the strand class this table exists to end. */
-export function resolveStageLimits(input: { readonly ttlMinEnv: string | undefined; readonly capEnv: string | undefined }): {
+/** Env \> profile \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a
+ *  REFUSAL, never a silent default — a stage TTL that silently became 60 min is the strand class this table
+ *  exists to end. `capBase` is the PROFILE's cap (the imperative caller reads it); `ORB_STAGE_CAP` still
+ *  wins over both, because the contract text has always promised an env override. */
+export function resolveStageLimits(input: { readonly ttlMinEnv: string | undefined; readonly capEnv: string | undefined; readonly capBase?: number }): {
   readonly limits: StageLimits;
   readonly errors: readonly string[];
 } {
@@ -66,12 +74,14 @@ export function resolveStageLimits(input: { readonly ttlMinEnv: string | undefin
       ttlMin = DEFAULT_STAGE_TTL_MIN;
     }
   }
-  let cap = DEFAULT_STAGE_CAP;
+  let cap = input.capBase ?? DEFAULT_STAGE_CAP;
   if (input.capEnv !== undefined && input.capEnv !== "") {
     cap = Number(input.capEnv);
     if (!(Number.isInteger(cap) && cap >= 1)) {
       errors.push(`ORB_STAGE_CAP must be an integer >= 1, got ${JSON.stringify(input.capEnv)}`);
-      cap = DEFAULT_STAGE_CAP;
+      // Back to the PROFILE's cap, not the module default: a bad env value must not also discard the
+      // box's configured answer.
+      cap = input.capBase ?? DEFAULT_STAGE_CAP;
     }
   }
   return { limits: { ttlMs: Math.ceil(ttlMin * MS_PER_MINUTE), cap }, errors };

@@ -83,6 +83,20 @@ test("the stage TTL and cap default to the owner's ruling (60 min / 3), and the 
   expect(resolveStageLimits({ ttlMinEnv: "5", capEnv: "1" }).limits).toEqual({ ttlMs: 5 * MS_PER_MINUTE, cap: 1 });
 });
 
+// The cap's BASE is the box profile's since #1848 (tooling/concurrency-profile.json — the one home for
+// every cap since #1835, which this one was missed by: `ORB_DEDICATED_BOX=1` retuned the workers and left
+// the stage cap at the shared-host 3). The ORDER is the claim: env beats profile beats module default,
+// and a REFUSED env value falls back to the PROFILE, never past it to the default — a typo in the
+// override must not also discard the box's configured answer.
+test("the cap resolves env > profile > default, and a refused env value falls back to the PROFILE", () => {
+  expect(resolveStageLimits({ ttlMinEnv: undefined, capEnv: undefined, capBase: 5 }).limits.cap, "the profile's cap when no env names one").toBe(5);
+  expect(resolveStageLimits({ ttlMinEnv: undefined, capEnv: "2", capBase: 5 }).limits.cap, "the env still wins").toBe(2);
+  const refused = resolveStageLimits({ ttlMinEnv: undefined, capEnv: "nope", capBase: 5 });
+  expect(refused.errors[0]).toContain("ORB_STAGE_CAP");
+  expect(refused.limits.cap, "a bad override falls back to the profile, not to the module default").toBe(5);
+  expect(resolveStageLimits({ ttlMinEnv: undefined, capEnv: undefined }).limits.cap, "no profile supplied ⇒ the module default").toBe(DEFAULT_STAGE_CAP);
+});
+
 test("an unparseable TTL/cap is a NAMED refusal that falls back, never a silent default", () => {
   const bad = resolveStageLimits({ ttlMinEnv: "soon", capEnv: "0" });
   expect(bad.errors).toHaveLength(2);

@@ -7,6 +7,7 @@ import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
+import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -268,12 +269,13 @@ const GATING_STAGES: readonly StageDef[] = [
     name: "tests:node",
     group: "tests",
     tiers: ["changed", "push", "full"],
-    // `pnpm test` = the vitest projects && `pnpm test:ct --retries=2` (merged 2026-07-17 — the CT split
-    // existed only for the old single-thread constraint): ONE behavioral lane, so the green-to-commit
-    // ritual (`pnpm check` + `pnpm test`) exercises the CT suite too. The retries flag rides the compound
-    // VISIBLY (gate runs retry parallelism flakes; ad-hoc `pnpm test:ct` keeps the retries:0 config
-    // default for debugging — the CT_GATE env this used to ride was retired 2026-07-17).
-    argv: ["pnpm", "test"],
+    // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
+    // the two halves shared one 45-minute hang ceiling that the sum outgrew the moment #1835 put CT on the
+    // shared worker cap: `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that
+    // was still working. The composite is unchanged as the green-to-commit ritual (and keeps its own
+    // manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its own
+    // runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
+    argv: ["pnpm", "test:node"],
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit + integration + tooling lanes
     // (serial + contract are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
@@ -351,19 +353,24 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "browser:ct",
     group: "browser",
-    // The gate run rides tests:node (`pnpm test` composes `pnpm test:ct --retries=2` — merged 2026-07-17);
-    // a push/full tier row here would run the suite TWICE. It stays at `manual` (the CT-only whole-suite
-    // iteration lane) AND gains `changed` — the scoped inner loop runs only the changed set's CT view
-    // (mirrors + declared sweeps), never the whole suite (LANDED 2026-07-17). This row also keeps the
-    // CT-ONLY lane a named stage (verify-registry-parity arm 1) surfaced in `verify --list`.
-    tiers: ["changed", "manual"],
-    argv: ["pnpm", "test:ct"],
+    // THE WHOLE CT SUITE IS ITS OWN STAGE AGAIN (#1848) — it rode inside `tests:node` from 2026-07-17 (a
+    // merge made for the old single-thread constraint) and shared that stage's hang ceiling with the
+    // vitest projects. It is the ONE stage whose runtime is a function of a worker cap, so it is also the
+    // one that needs a DERIVED ceiling; sharing a constant with a 10-minute suite is what produced a false
+    // `[tool-error]`. `changed` keeps the scoped inner loop (mirrors + declared sweeps, never the whole
+    // suite — LANDED 2026-07-17); push/full run the whole suite, which remains the coverage verdict.
+    tiers: ["changed", "push", "full"],
+    // `--retries=2` rides the argv VISIBLY (parallelism flakes retry instead of blocking a push); ad-hoc
+    // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
+    // composite with the stage.
+    argv: ["pnpm", "test:ct", "--retries=2"],
     classify: asViolations,
+    // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
+    hangCeilingBaseMs: ctSuiteHangCeilingMs(),
     // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
     // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
     // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
     scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "ct:scoped", ...sel.ct.targets]),
-    manualReason: "runs inside tests:node (`pnpm test` composes it with --retries=2); direct lane kept for CT-only iteration at retries:0",
   },
   {
     name: "browser:e2e-smoke",

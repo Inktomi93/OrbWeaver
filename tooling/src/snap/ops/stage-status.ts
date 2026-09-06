@@ -23,9 +23,11 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
+import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import { processEnvValue } from "../../_shared/process-env.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandView, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
 import { describeStageBandRow, rowIsDangling, stageSweepVerdict } from "../lib/stage-bands.ts";
@@ -43,6 +45,7 @@ import {
   stageIdleMs,
   teardownConsent,
 } from "../lib/stage-plan.ts";
+import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { sessionStatusSummary } from "./session-registry.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
@@ -55,6 +58,15 @@ import { stopStage } from "./stage-teardown.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const MS_PER_MINUTE = 60_000;
+
+/** Which door decided the live-stage cap (#1848) — the profile's `stageCap`, or the env override. Read
+ *  fresh, because a status line is printed by a process whose env the operator may have just set. */
+function capSource(): string {
+  const override = processEnvValue("ORB_STAGE_CAP");
+  return override === undefined || override === ""
+    ? `tooling/concurrency-profile.json ${readConcurrencyProfile().name}.stageCap; ORB_STAGE_CAP overrides`
+    : `ORB_STAGE_CAP=${override}`;
+}
 /** How many ledger entries the status read shows. Ten bands, so half a table's turnover — enough to
  *  explain a stage that vanished under a lane without the line becoming a scroll. */
 const RECENT_REAPS_SHOWN = 5;
@@ -127,7 +139,9 @@ export function stageStatus(): string {
   const limits = stageLimits();
   const occupied = views.filter((view) => view.row !== null).length;
   const lines = [
-    `table       : ${occupied}/${STAGE_BANDS.length} band(s) occupied · cap ${limits.cap} live (ORB_STAGE_CAP) · idle TTL ${Math.round(limits.ttlMs / MS_PER_MINUTE)}m (ORB_STAGE_TTL_MIN)  (${join(home, BANDS_REL)})`,
+    // The cap NAMES ITS SOURCE (#1848): its base is the box profile's `stageCap`, and `ORB_STAGE_CAP` is
+    // the override. An operator reading "cap 3" needs to know which of the two answered.
+    `table       : ${occupied}/${STAGE_BANDS.length} band(s) occupied · cap ${limits.cap} live (${capSource()}) · idle TTL ${Math.round(limits.ttlMs / MS_PER_MINUTE)}m (ORB_STAGE_TTL_MIN)  (${join(home, BANDS_REL)})`,
     `this checkout: ${root}`,
   ];
   for (const view of views) {
@@ -171,6 +185,9 @@ export function sweepStages(): string {
       done.push(reconcileDanglingRow(root, home, view.row, nowMs));
     }
   }
+  // The fourth residue a strand leaves (#1848): a BROWSER whose snap run is gone. It survives every kill
+  // in this file, because playwright gives each browser its own session.
+  done.push(...sweepStrandedBrowsers());
   const orphanDirs = orphanStageDirs(stageDirs(root), { rowDirs: readBands(home).map((row) => row.dir), targetDir: null });
   for (const name of orphanDirs) {
     rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
@@ -239,6 +256,9 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   for (const view of views) {
     results.push(...teardownView({ root, home, view, verdict: verdicts.get(view.band) ?? "unbound", pids: pids.get(view.band) ?? [], selection, nowMs }));
   }
+  // Same fourth residue as the sweep's (#1848): a browser whose snap run is gone survives every kill above,
+  // because playwright gives each one its own session. `--stage-down` is a teardown too, so it reaps them.
+  results.push(...sweepStrandedBrowsers());
   const dirs = stageDirs(root);
   const orphanDirs = orphanStageDirs(dirs, { rowDirs: readBands(home).map((row) => row.dir), targetDir: null });
   for (const name of orphanDirs) {

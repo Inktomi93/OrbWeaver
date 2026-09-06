@@ -6,6 +6,7 @@ import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile
 import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/_shared/ct-run-slot";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
+import { inheritedRunMarker, runMarkerArg } from "@orb/tooling/_shared/run-marker";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -33,6 +34,8 @@ import tailwindcss from "@tailwindcss/vite";
 // The box profile in force (tooling/concurrency-profile.json — the ONE home for every worker cap in the
 // fleet, #1835). Read ONCE at config load, like the wall-clock bases below.
 const CONCURRENCY = readConcurrencyProfile();
+/** The run this CT invocation belongs to, if its launcher named one — read ONCE, like the caps above. */
+const CT_RUN_MARKER = inheritedRunMarker();
 
 const BASE_TEST_TIMEOUT_MS = 30_000;
 const BASE_EXPECT_TIMEOUT_MS = 5000;
@@ -114,6 +117,13 @@ export default defineConfig({
     timezoneId: "UTC",
     locale: "en-US",
 
+    // EVERY CT BROWSER CARRIES THE RUN MARKER (#1848). This is where the 72 orphaned `chrome-headless-shell`
+    // processes came from: playwright starts each browser in its OWN session, so a killed CT run's process
+    // group kill never reaches them. The launcher (`cli.ts scoped-test ct`) exports the marker into this
+    // config's environment; the ARG channel is what a chromium actually keeps (it wipes its own environ —
+    // `_shared/run-marker.ts` RUN_MARKER_ARG_PREFIX), and the runner's sweeps read it back from
+    // `/proc/<pid>/cmdline`. No marker (a bare `npx playwright test`) ⇒ no arg, exactly as before.
+    ...(CT_RUN_MARKER === null ? {} : { launchOptions: { args: [runMarkerArg(CT_RUN_MARKER)] } }),
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
     ctPort: Number(process.env.CT_PORT ?? CT_VITE_PORT),
     // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this

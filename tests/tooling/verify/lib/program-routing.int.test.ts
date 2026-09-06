@@ -10,7 +10,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { inheritedProcessEnv } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { vi } from "vitest";
 import { graphMembershipKey, programsFor, touchesGraph } from "../../../../tooling/src/verify/lib/program-routing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

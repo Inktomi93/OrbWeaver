@@ -22,6 +22,8 @@ import {
   parseConcurrencyProfile,
   profileNameFor,
   readConcurrencyProfile,
+  readStageBudgets,
+  stageBudgetsFor,
 } from "@orb/tooling/_shared/concurrency-profile";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -37,6 +39,7 @@ const POSITIVE_CAPS = [
   "hookPoolSlots",
   "hookTs7Checkers",
   "ctRunnersHostWide",
+  "stageCap",
 ] as const satisfies readonly (keyof ConcurrencyProfile)[];
 
 test("both committed profiles parse, and every cap is a usable positive integer", () => {
@@ -55,7 +58,13 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   // ("lanes pass no --maxWorkers/--workers; the defaults ARE the shared-host values"). Changing one here
   // without changing the prose makes the prose a lie, which is what this pin is for.
   expect(shared.vitestMaxWorkers, "vitest maxWorkers default").toBe(4);
-  expect(shared.ctWorkers, "playwright CT workers default").toBe(2);
+  // 2 -> 4 by OWNER RULING 2026-09-06 (#1848). The measured CT suite is ~160 WORKER-minutes (488 files /
+  // 5121 cases), so 2 workers made the push bar ~95 min and 4 makes it ~51; the box-wide bound is
+  // `ctRunnersHostWide` (<=8 Chromiums) plus the cpu-fence quota, not this per-run number.
+  // COUPLED PROSE, STILL STALE AT THIS COMMIT: .claude/rules/lane-standing-facts.md and
+  // .claude/agent-doctrine.md both quote "CT 2" by value. This lane may not edit `.claude/**` beyond the
+  // worktree-remove hook, so the prose edit is owed by the integrator — this comment is the receipt.
+  expect(shared.ctWorkers, "playwright CT workers default").toBe(4);
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
   // The ONE cap here that RAISES parallelism: ESLint ships `--concurrency off` (single-threaded), so this
@@ -64,6 +73,7 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its two file-scoped legs").toBe(4);
   expect(shared.hookTs7Checkers, "the edit hook's whole-program TS leg fires on every edit — it takes fewer checkers than a batch run").toBe(2);
   expect(shared.ctRunnersHostWide, "concurrent CT runners allowed across the whole host").toBe(2);
+  expect(shared.stageCap, "live snap stages per box — 3 on a host that also serves the dev stack and the homelab").toBe(3);
   // A ceiling of 0 would mean "no ceiling" — the shared profile MUST set one, or the cpu-fence hook
   // stands down on the very box it exists for.
   expect(shared.sessionCpuQuotaPct, "the per-session CPUQuota% the cpu-fence hook sets").toBeGreaterThan(0);
@@ -104,6 +114,44 @@ test(`${DEDICATED_BOX_ENV} selects the profile, and an unrecognised value REFUSE
 test("the env door reads the committed file end to end", () => {
   expect(readConcurrencyProfile({}), "no env = shared").toStrictEqual(parseConcurrencyProfile(BODY, "shared"));
   expect(readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" })).toStrictEqual(parseConcurrencyProfile(BODY, "dedicated"));
+});
+
+// ── the stage budgets (#1848): the ONE place a verify stage's hang ceiling comes from ─────────────────
+//
+// The point of these arms is that the ceiling is DERIVED. A 45-minute constant applied to every stage is
+// what made `verify --full` report `[tool-error] TIMED OUT` for a CT suite that was merely still working,
+// so the property under test is the RELATION between the caps and the ceilings — never a literal minute
+// count, which would just re-spell the JSON and go stale the same way.
+
+test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dips under the default", () => {
+  const shared = parseConcurrencyProfile(BODY, "shared");
+  const budgets = stageBudgetsFor(shared, BODY);
+  const halfTheWorkers = stageBudgetsFor({ ...shared, ctWorkers: Math.max(1, Math.floor(shared.ctWorkers / 2)) }, BODY);
+  expect(halfTheWorkers.ctSuiteMs, "half the workers ⇒ a strictly longer honest run ⇒ a longer ceiling").toBeGreaterThan(budgets.ctSuiteMs);
+  // A queued run spends the host-slot wait INSIDE the stage's wall clock, so the ceiling has to contain it
+  // (ct-runner-lock.ts reads `ctHostWaitMs` from this same row — one number, two readers).
+  expect(budgets.ctSuiteMs, "the ceiling must exceed the wait a run is allowed to spend queueing").toBeGreaterThan(budgets.ctHostWaitMs);
+  expect(budgets.ctSuiteMs, "…and the default floor").toBeGreaterThanOrEqual(budgets.defaultMs);
+  // An absurdly cheap suite must still not shrink a stage's ceiling below the default.
+  const cheap = BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": 1').replace(
+    /"ctHostSlotWaitMinutes": \d+/u,
+    '"ctHostSlotWaitMinutes": 1',
+  );
+  expect(stageBudgetsFor(shared, cheap).ctSuiteMs).toBe(stageBudgetsFor(shared, cheap).defaultMs);
+});
+
+test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", () => {
+  const shared = parseConcurrencyProfile(BODY, "shared");
+  expect(() => stageBudgetsFor(shared, '{"profiles":{}}')).toThrow(/has no "stageBudgets" object/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"defaultMinutes": \d+/u, '"defaultMinutes": 0'))).toThrow(/field "defaultMinutes" is 0/u);
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": "165"'))).toThrow(
+    /field "ctSuiteWorkerMinutes" is "165"/u,
+  );
+});
+
+test("the budget door reads the committed file end to end, per profile", () => {
+  expect(readStageBudgets({})).toStrictEqual(stageBudgetsFor(parseConcurrencyProfile(BODY, "shared"), BODY));
+  expect(readStageBudgets({ [DEDICATED_BOX_ENV]: "1" })).toStrictEqual(stageBudgetsFor(parseConcurrencyProfile(BODY, "dedicated"), BODY));
 });
 
 /** The committed shared row, with one field replaced or (when `value` is absent) DROPPED — the two ways an

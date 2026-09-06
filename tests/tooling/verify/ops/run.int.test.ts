@@ -276,22 +276,16 @@ test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the sc
   }
   // `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries related-tests
   // (tests:node, run over vitest's changed-file graph) that static omits by doctrine — static is the
-  // born-compliant TEST-FREE commit gate (the `bots run check and miss` line below). But everything the
-  // inner loop runs, the push tier also runs whole-tree, so the honest containment is changed ⊆ push —
-  // with ONE named exception: `browser:ct`. Its scoped mirror-mapping runs at `changed`; at push its
-  // coverage rides `tests:node` (the WHOLE CT suite) under a DIFFERENT stage name, not a same-named push
-  // row (a push browser:ct row would double-run it). So the behavioral containment holds (CT runs at push),
-  // the stage-NAME containment carves out browser:ct.
+  // born-compliant TEST-FREE commit gate (the `bots run check and miss` line below). Everything the inner
+  // loop runs, the push tier also runs whole-tree, so the containment is changed ⊆ push — with NO carve-out
+  // since #1848: `browser:ct` used to ride INSIDE `tests:node` at push (the composite `pnpm test`), which
+  // made the stage-NAME containment fail while the behaviour held. The CT suite is its own push stage now,
+  // so both containments are true at once.
   for (const n of changed) {
-    if (n === "browser:ct") {
-      continue;
-    }
     expect(push.has(n)).toBe(true);
   }
-  // The carve-out's behavioral half: CT's push coverage rides tests:node (the whole suite), not a push
-  // browser:ct row — so `changed`'s CT inner loop IS covered whole-tree at push.
   expect(changed.has("browser:ct")).toBe(true);
-  expect(push.has("browser:ct")).toBe(false);
+  expect(push.has("browser:ct")).toBe(true);
   expect(push.has("tests:node")).toBe(true);
 });
 
@@ -316,19 +310,21 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   const push = new Set(stagesForTier("push").map((s) => s.name));
   expect(push.has("tests:node")).toBe(true);
   expect(push.has("browser:e2e-smoke")).toBe(true);
-  // CT rides INSIDE tests:node since 2026-07-17 (`pnpm test` composes `pnpm test:ct --retries=2` — the
-  // split existed only for the retired single-thread constraint), so a push/full browser:ct row would
-  // run the suite TWICE; the stage survives at `manual` (CT-only whole-suite iteration) AND `changed` (the
-  // scoped mirror-mapping inner loop, LANDED 2026-07-17). It is deliberately NOT at push/full: the WHOLE
-  // suite runs at push INSIDE tests:node, so a push browser:ct row would double-run it.
-  expect(push.has("browser:ct")).toBe(false);
-  expect(stage("browser:ct").tiers).toEqual(["changed", "manual"]);
-  // The composition is the load-bearing half — if `test` stops composing test:ct, CT silently leaves
-  // EVERY tier. Pin the script itself, not just the tier layout.
+  // CT rode INSIDE tests:node from 2026-07-17 until #1848 (2026-09-06): the composite `pnpm test` carried
+  // both suites under ONE 45-minute hang ceiling, and once #1835 put CT on the shared worker cap the sum
+  // outgrew it — `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that was
+  // still working. The suite is its own push/full stage again, with a ceiling DERIVED from the profile
+  // (lib/stage-budget.ts), and `tests:node` is the vitest half alone. No double-run: the composite is a
+  // manual-only row (`tests:product-composite`) that no tier includes.
+  expect(push.has("browser:ct")).toBe(true);
+  expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full"]);
+  // The composition is still the load-bearing half of the green-to-commit RITUAL (`pnpm check` + `pnpm
+  // test`, constitution §4): if `test` stops composing test:ct, a commit stops exercising CT entirely.
   const rootPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
   expect(rootPkg.scripts["test"]).toContain("pnpm test:ct --retries=2");
+  expect(rootPkg.scripts["test"]).toContain("pnpm test:node");
   expect(rootPkg.scripts["test:ct"]).toContain("tooling/src/verify/cli.ts scoped-test ct");
   expect(rootPkg.scripts["test:ct"]).not.toContain("playwright test");
   // …and the static tier does NOT run behavioral suites (the core hole §2.1).
@@ -671,7 +667,7 @@ test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, order
   ]);
   // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
   // the runner broke. It must never carry the flag — that is what keeps PD-115 alive where it applies.
-  expect(stage("tests:node").argv).toEqual(["pnpm", "test"]);
+  expect(stage("tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stage("tests:node").argv).not.toContain("--passWithNoTests");
 });
 
