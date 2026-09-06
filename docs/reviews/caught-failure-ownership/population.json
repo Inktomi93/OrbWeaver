@@ -2607,7 +2607,7 @@
     {
       "siteId": "packages/server/src/domain/rpg/substrate/delta.ts::default:catch::1",
       "path": "packages/server/src/domain/rpg/substrate/delta.ts",
-      "line": 501,
+      "line": 542,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2615,7 +2615,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "§2.7.4 D79-heal DEFENSIVE arm (comment below) —",
-      "markerLine": 496
+      "markerLine": 537
     },
     {
       "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",

@@ -286,6 +286,37 @@ test("SCENE OPENS falls back to the GENERIC label when the roster map has no nam
   expect(out).not.toContain("usr_1");
 });
 
+// The row-LESS arm (#1468 item 6). The two tests above cover a presence key whose ACTOR ROW is present; the
+// hole was the key whose row is GONE — a rekey that lost it, a hand edit that dropped an actor still listed on
+// stage, a stale key surviving a restore. `presenceName` returned the key itself there, so the same two
+// model-facing surfaces the roster join was fixed for got `character:chr_…` after all.
+test("SCENE OPENS never leaks a key whose ACTOR ROW is missing — the roster map answers, else a WORD", () => {
+  const cur = state({
+    location: "The Ford",
+    actorState: [], // every row gone; the presence plane still lists them
+    presentCharacters: ["character:char_kael", "user:usr_1", "npc:mira"],
+  });
+  const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+
+  expect(out).toContain("Kael"); // the roster map is keyed by the SAME projection — it answers with no row
+  expect(out).toContain("you"); // the unnamed roster ref takes the generic word
+  expect(out).toContain("mira"); // an npc key's tail is its authored slug, not an id
+  expect(out).not.toContain("char_kael");
+  expect(out).not.toContain("usr_1");
+  expect(out).not.toContain("character:");
+  expect(out).not.toContain("user:");
+  expect(out).not.toContain("npc:");
+});
+
+test("the ENTERS/LEAVES lines take the same arm — the leak was in one helper, so both readers had it", () => {
+  const prev = state({ actorState: [], presentCharacters: [] });
+  const cur = state({ actorState: [], presentCharacters: ["character:char_kael"] });
+  const out = buildDeltaBlock(prev, cur, ctx());
+
+  expect(out).toContain("+character enters"); // no name anywhere for this ref — the generic word, never the id
+  expect(out).not.toContain("char_kael");
+});
+
 test("first snapshot with an empty born state → OMIT (null, no phantom SCENE OPENS)", () => {
   expect(buildDeltaBlock(null, state(), ctx())).toBeNull();
 });
