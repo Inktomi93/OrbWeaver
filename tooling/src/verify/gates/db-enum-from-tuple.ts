@@ -13,6 +13,7 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { effectiveObjectProperty, SchemaRefusal, unwrapSchemaExpression } from "../lib/schema-fact-value.ts";
+import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const ENUM_KEY = "enum";
 const MESSAGE =
@@ -37,13 +38,17 @@ function fromCanonicalModule(node: MorphNode): boolean {
   return CANONICAL_TUPLE_MODULES.some((home) => moduleSpecifier === home || moduleSpecifier.startsWith(`${home}/`));
 }
 
-/** Is the resolved terminal an array literal the author froze with `as const`? Walking UP from the terminal
- *  is what distinguishes a real tuple from a widened `string[]`: `const K = ["a"];` resolves to the same
- *  ArrayLiteralExpression, and only the `as const` wrapper makes it the union's one home. */
-function isAsConstTuple(terminal: MorphNode): boolean {
-  if (!Node.isArrayLiteralExpression(terminal)) {
-    return false;
-  }
+/** Did the author freeze this array literal with `as const`? Walking UP from the terminal is what
+ *  distinguishes a real tuple from a widened `string[]`: `const K = ["a"];` resolves to the same
+ *  ArrayLiteralExpression, and only the `as const` wrapper makes it a tuple at all.
+ *
+ *  THE PARAMETER TYPE IS LOAD-BEARING, do not widen it to `Node`. `ts.ArrayLiteralExpression` extends
+ *  `PrimaryExpression`, whose `parent` is non-optional, so ts-morph types this `getParent()` as `Node` and
+ *  the first hop needs no undefined check. Widened to `Node`, the parent becomes `Node | undefined` (TS7
+ *  reds TS2322) — and adding the undefined check back under the narrowed type is `no-unnecessary-condition`
+ *  under eslint, measured both ways in this lane. Narrowing once, at the parameter, is the shape that
+ *  satisfies both floors. */
+function isFrozen(terminal: import("ts-morph").ArrayLiteralExpression): boolean {
   let wrapper: MorphNode = terminal.getParent();
   while (Node.isParenthesizedExpression(wrapper) || Node.isAsExpression(wrapper) || Node.isSatisfiesExpression(wrapper)) {
     if (Node.isAsExpression(wrapper) && wrapper.getTypeNode()?.getText() === "const") {
@@ -54,14 +59,37 @@ function isAsConstTuple(terminal: MorphNode): boolean {
   return false;
 }
 
+/** Is every MEMBER of an admitted tuple accounted for?
+ *
+ *  `as const` freezes the ARRAY; it says nothing about where a SPREAD's members came from, so
+ *  `[...getKinds(), "x"] as const` is a frozen array over an unknowable vocabulary. Each spread source must
+ *  therefore satisfy the same proof recursively, and each ordinary element must be an authored literal. A
+ *  composed tuple whose base is proven (the live `AUTOMATION_FIRE_STORAGE_OUTCOMES` shape) still passes;
+ *  one whose base is a call result or a widened array does not. */
+function elementsProven(array: import("ts-morph").ArrayLiteralExpression, home: SourceFile, active: Set<object>): boolean {
+  for (const element of array.getElements()) {
+    if (Node.isSpreadElement(element)) {
+      if (!derivesFromTuple(element.getExpression(), home, active)) {
+        return false;
+      }
+      continue;
+    }
+    if (readStaticAuthoredScalar(element).kind !== "resolved") {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** A NAMED reference that genuinely derives from the union's one home. Anything else — a call result, a
- *  mutable binding, a plain (non-`as const`) array, ANOTHER module's tuple — is UNKNOWN, not a pass.
+ *  mutable binding, a plain (non-`as const`) array, ANOTHER module's tuple, or a frozen array composed over
+ *  an unproven source — is UNKNOWN, not a pass.
  *
  *  The local arm is fenced to the COLUMN'S OWN FILE deliberately. `resolveStableExpression` follows an
  *  import to its declaration, so without the fence a real `as const` tuple imported from a db-local
  *  `./local-vocab` would pass — a tuple that is nobody's one home, spelled exactly like one that is. The
  *  sanctioned local form is the co-located `as const` the db authors when no contracts home exists. */
-function derivesFromCanonicalTuple(value: MorphNode, home: SourceFile): boolean {
+function derivesFromTuple(value: MorphNode, home: SourceFile, active: Set<object>): boolean {
   if (fromCanonicalModule(value)) {
     return true;
   }
@@ -70,7 +98,20 @@ function derivesFromCanonicalTuple(value: MorphNode, home: SourceFile): boolean 
     return false;
   }
   const terminal = unwrapSchemaExpression(stable.value);
-  return terminal.getSourceFile() === home && isAsConstTuple(terminal);
+  if (!(Node.isArrayLiteralExpression(terminal) && terminal.getSourceFile() === home && isFrozen(terminal))) {
+    return false;
+  }
+  if (active.has(terminal.compilerNode)) {
+    return false;
+  }
+  active.add(terminal.compilerNode);
+  const proven = elementsProven(terminal, home, active);
+  active.delete(terminal.compilerNode);
+  return proven;
+}
+
+function derivesFromCanonicalTuple(value: MorphNode, home: SourceFile): boolean {
+  return derivesFromTuple(value, home, new Set<object>());
 }
 
 type EnumVerdict =
@@ -224,6 +265,30 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "CANNOT be established" },
       why: "A LOCAL ARRAY WITHOUT `as const` widens to `string[]` — it is a mutable list of strings, not a tuple, and the `as const` wrapper is the only thing that distinguishes it from the frozen form the law names",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          "declare function getKinds(): readonly string[];\n" +
+          'const KINDS = [...getKinds(), "x"] as const;\n' +
+          'export const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE COMPOSED TUPLE'S SOURCE MUST ITSELF BE PROVEN: `as const` freezes the ARRAY, it says nothing about where the spread's members came from. Trusting the outer wrapper would admit an unknowable vocabulary through the one shape D34 sanctions — the composition arm's own counterfactual",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const BASE = ["a", "b"];\n' +
+          'const KINDS = [...BASE, "x"] as const;\n' +
+          'export const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "the same hole one hop quieter: the spread source is a real local array, but a WIDENED one — an `as const` wrapper around it cannot retroactively make `string[]` a tuple with one home",
+    },
   ],
   mustPass: [
     {
@@ -270,6 +335,17 @@ export const gate = defineGate({
           'export const t = sqliteTable("t", { k: text("k", { enum: STORAGE_OUTCOMES }) });\n',
       },
       why: "THE LIVE COMPOSED SHAPE (`AUTOMATION_FIRE_STORAGE_OUTCOMES` in packages/db/src/schema/automation.ts): a frozen local tuple that SPREADS the contracts tuple and adds one storage-only member. It derives from the one home and adds to it, which is what D34 sanctions — this row is the written baseline that composition is not a re-spelling",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/local.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const BASE = ["a", "b"] as const;\n' +
+          'const KINDS = [...BASE, "x"] as const;\n' +
+          'export const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
+      },
+      why: "composition over a PROVEN local source: the spread reaches another co-located `as const` tuple, so the proof recurses and holds. This is the green twin of the two composition counterfactuals above",
     },
     {
       mode: "types",

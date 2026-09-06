@@ -263,9 +263,22 @@ findings, each with its own control. Red-first: with the old "any named referenc
 exactly the four new counterfactuals fail.
 
 The local arm is fenced to the column's own file deliberately — `resolveStableExpression` follows an import
-to its declaration, so without the fence a `./local-vocab` tuple would pass. The live composed shape
+to its declaration, so without the fence a `./local-vocab` tuple would pass.
+
+**A COMPOSED TUPLE'S SPREAD SOURCE IS PROVEN, NOT TRUSTED.** `as const` freezes the ARRAY and says nothing
+about where a spread's members came from, so an admitted frozen array has every element accounted for
+recursively: each spread source must satisfy the same proof (a canonical-module origin, or another
+co-located `as const` tuple), and each ordinary element must be an authored literal. Reproduced on the
+committed logic before the fix: `[...getKinds(), "x"] as const` and `[...WIDENED_ARRAY, "x"] as const` both
+PASSED — a frozen wrapper over an unknowable vocabulary, entering through the one shape D34 sanctions. Both
+are now findings, with `[...LOCAL_AS_CONST, "x"] as const` as the green twin. Red-first receipt: with only
+the proof logic reverted to its committed form, exactly those two rows fail.
+
+The live composed shape
 (`AUTOMATION_FIRE_STORAGE_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "reserved"] as const`) keeps its own
-`mustPass` row: deriving from the one home and adding a storage-only member is what D34 sanctions.
+`mustPass` row and was re-measured on the real tree after the tightening — still zero findings, because its
+spread source resolves to `@orb/contracts/automation`. Deriving from the one home and adding a storage-only
+member is what D34 sanctions; composing over a source nobody can name is not.
 
 ### `nullable-column-inequality` (D124)
 
@@ -371,10 +384,13 @@ The module count is unchanged because one module retired and one was added.
    policies therefore report and do not declare `unresolved`; the denominator receipt is the shared fact's
    1,287 members. If the runtime should instead distinguish "reported-and-unresolved" from "the run is not a
    verdict", that is a runtime-contract change and belongs to the runtime owner.
-2. **An ARRAY spread inside an `as const` tuple is a derive, not a re-spelling.** Fail-closing on "a spread"
-   would red `AUTOMATION_FIRE_STORAGE_OUTCOMES`, which composes the contracts tuple with one storage-only
-   member — the shape D34 exists to encourage. The fail-closed spread case is the OBJECT spread that
-   smuggles an inline array into a column config (`{ ...CONFIG }`), which is a finding and has its row.
+2. **An ARRAY spread inside an `as const` tuple is a derive, not a re-spelling — PROVIDED ITS SOURCE IS
+   ITSELF PROVEN.** Fail-closing on "a spread" outright would red `AUTOMATION_FIRE_STORAGE_OUTCOMES`, which
+   composes the contracts tuple with one storage-only member — the shape D34 exists to encourage. So the
+   admission is conditional and the condition is checked: the spread's source must resolve to a canonical
+   module or another co-located `as const` tuple, recursively. A spread of a call result or of a widened
+   array is a finding. The separately fail-closed spread case is the OBJECT spread that smuggles an inline
+   array into a column config (`{ ...CONFIG }`), which has its own row.
 
 ## Explicit blockers
 
