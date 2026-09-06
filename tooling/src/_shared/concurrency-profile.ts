@@ -26,7 +26,7 @@
 // PURE except for `readConcurrencyProfile`'s default env argument. Every judging function takes the raw env
 // VALUE, so a test drives both profiles and the refusal without touching process.env.
 import { readFileSync } from "node:fs";
-import process from "node:process";
+import { processEnvValue } from "./proc.ts";
 
 /** The committed data file — exported so the tests and the two bash readers agree on one path. */
 export const CONCURRENCY_PROFILE_PATH = new URL("../../concurrency-profile.json", import.meta.url);
@@ -142,7 +142,9 @@ function refuse(what: string): never {
 /** PURE: parse an already-read file body into one profile. The seam a test drives with a crafted body. */
 export function parseConcurrencyProfile(body: string, name: ConcurrencyProfileName): ConcurrencyProfile {
   let file: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed profile file is re-raised IMMEDIATELY as the named refusal below — the catch exists only to replace JSON.parse's positional message with one that names the file and its role. Nothing is swallowed. Ends if this ever returns instead of throwing.
+  // The catch RE-RAISES immediately as `refuse(...)`: it exists only to replace JSON.parse's positional
+  // message with one that names the file and its role. Nothing is swallowed, so there is no caught failure
+  // to own here.
   try {
     file = JSON.parse(body);
   } catch {
@@ -158,11 +160,9 @@ export function parseConcurrencyProfile(body: string, name: ConcurrencyProfileNa
  *
  *  Read at every call rather than memoized at module load — a config reads it once, but a long-lived tool
  *  spawning children may want the switch its caller set, and the file is a few hundred bytes. */
-export function readConcurrencyProfile(env: NodeJS.ProcessEnv = ambientEnv()): ConcurrencyProfile {
-  return parseConcurrencyProfile(readFileSync(CONCURRENCY_PROFILE_PATH, "utf8"), profileNameFor(env[DEDICATED_BOX_ENV]));
-}
-
-function ambientEnv(): NodeJS.ProcessEnv {
-  // biome-ignore lint/style/noProcessEnv: ORB_DEDICATED_BOX is an ambient TOOLING knob (the solo-box switch), the same class as this directory's ORB_BUDGET_CEILING_MS row — not app config, and the app's env door sits ABOVE @orb/tooling in the cake so it cannot be imported down here.
-  return process.env;
+export function readConcurrencyProfile(env?: NodeJS.ProcessEnv): ConcurrencyProfile {
+  // The ambient read goes through `proc.ts`'s `processEnvValue` — this directory's ONE door for an ambient
+  // tooling/test protocol value — rather than growing a second `process.env` policy site here.
+  const switchValue = env === undefined ? processEnvValue(DEDICATED_BOX_ENV) : env[DEDICATED_BOX_ENV];
+  return parseConcurrencyProfile(readFileSync(CONCURRENCY_PROFILE_PATH, "utf8"), profileNameFor(switchValue));
 }

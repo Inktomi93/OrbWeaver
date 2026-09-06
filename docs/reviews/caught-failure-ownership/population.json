@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 556,
-    "enforced": 551,
+    "sites": 559,
+    "enforced": 554,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 551,
+      "deliberate-absorb": 554,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 151,
-      "empty": 263
+      "default": 153,
+      "empty": 264
     }
   },
   "rows": [
@@ -6988,7 +6988,7 @@
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 60,
+      "line": 72,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6996,12 +6996,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as \"someone holds this\".",
-      "markerLine": 47
+      "markerLine": 59
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::2",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 77,
+      "line": 89,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7009,12 +7009,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.",
-      "markerLine": 73
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 118,
+      "line": 174,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7022,7 +7022,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"the lock is held\" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: \"busy\"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
-      "markerLine": 115
+      "markerLine": 171
     },
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::1",
@@ -7075,6 +7075,45 @@
       "verdict": "deliberate-absorb",
       "reason": "printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing.",
       "markerLine": 57
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::default:catch::1",
+      "path": "tooling/src/verify/lib/host-slots.ts",
+      "line": 78,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\".",
+      "markerLine": 62
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::default:catch::2",
+      "path": "tooling/src/verify/lib/host-slots.ts",
+      "line": 88,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH.",
+      "markerLine": 84
+    },
+    {
+      "siteId": "tooling/src/verify/lib/host-slots.ts::empty:catch::1",
+      "path": "tooling/src/verify/lib/host-slots.ts",
+      "line": 191,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
+      "markerLine": 187
     },
     {
       "siteId": "tooling/src/verify/lib/pass.ts::empty:err::1",

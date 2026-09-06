@@ -30,6 +30,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { budget } from "@orb/tooling/_shared/load-budget";
+import { processEnvValue } from "@orb/tooling/_shared/proc";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm ct:scoped <paths…>)");
@@ -40,14 +41,11 @@ export const HOST_POOL_ROOT_ENV = "XDG_RUNTIME_DIR";
 
 /** The host-wide pool root: per-USER, so every worktree and both accounts share it. `/tmp` is the fallback
  *  for a shell with no runtime dir (a cron/ssh context) and is host-wide too. */
-export function hostPoolRoot(env: NodeJS.ProcessEnv = ambientEnv()): string {
-  const runtime = env[HOST_POOL_ROOT_ENV];
+export function hostPoolRoot(env?: NodeJS.ProcessEnv): string {
+  // The ambient read goes through `_shared/proc.ts`'s `processEnvValue` — the fleet's ONE door for an
+  // ambient tooling value — rather than growing another `process.env` policy site here.
+  const runtime = env === undefined ? processEnvValue(HOST_POOL_ROOT_ENV) : env[HOST_POOL_ROOT_ENV];
   return runtime === undefined || runtime.trim() === "" ? "/tmp" : runtime;
-}
-
-function ambientEnv(): NodeJS.ProcessEnv {
-  // biome-ignore lint/style/noProcessEnv: XDG_RUNTIME_DIR is the OS's own per-user runtime directory, not app config, and the app's env door sits ABOVE @orb/tooling in the cake.
-  return process.env;
 }
 
 /** This pool's directory. Named `orb-<name>-slots` so an operator listing `/run/user/<uid>` can see at a
@@ -136,10 +134,20 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
   const startedMs = now().getTime();
   let announced = false;
 
+  let steals = 0;
   for (;;) {
-    const slot = takeAnySlot({ dir, slots: pool.slots, body, pid, alive }, deps.onNotice);
-    if (slot !== null) {
-      return lease(slotPath(dir, slot), slot, pid, now().getTime() - startedMs);
+    const swept = takeAnySlot({ dir, slots: pool.slots, body, pid, alive }, deps.onNotice);
+    if (typeof swept === "number") {
+      return lease(slotPath(dir, swept), swept, pid, now().getTime() - startedMs);
+    }
+    // A STEAL RE-SWEEPS IMMEDIATELY, and that is not an optimisation. Stealing only CLEARS the dead
+    // holder's file; the slot is taken on the next `wx`. Falling through to the wait/ceiling path here
+    // made a caller that had just freed a slot decide it was still full — measured as a flaky
+    // "the dead holder's slot is reused: expected null to be 1" whenever the steal cost ≥1ms of a
+    // 1ms-base ceiling. Bounded by `pool.slots` so a pathological re-creator cannot spin us forever.
+    if (swept === "stole" && steals < pool.slots) {
+      steals += 1;
+      continue;
     }
     const first = liveHolders(dir, pool.slots, alive)[0];
     if (!announced && first !== undefined) {
@@ -164,11 +172,14 @@ interface SweepInput {
   readonly alive: (pid: number) => boolean;
 }
 
-/** ONE sweep across the pool: the slot number taken, or `null` when every slot is held by a LIVE holder. A
- *  dead holder's slot is cleared here (with its notice) and re-attempted on the next sweep rather than
- *  written straight away — another waiter may have won the same steal, and a second `wx` is how we find
- *  that out without a second race. */
-function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | undefined): number | null {
+/** ONE sweep across the pool. Three outcomes: the slot number TAKEN · `"stole"` (nothing taken, but at
+ *  least one dead holder's file was cleared, so the caller must sweep again AT ONCE) · `null` (every slot
+ *  is held by a LIVE holder).
+ *
+ *  A stolen slot is re-attempted on the NEXT sweep rather than written straight away, because another
+ *  waiter may have won the same steal — a second `wx` is how we find that out without a second race. */
+function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | undefined): number | "stole" | null {
+  let stole = false;
   for (let slot = 1; slot <= input.slots; slot += 1) {
     const path = slotPath(input.dir, slot);
     // `wx` is the whole mechanism: an EXCLUSIVE create is atomic, so two runners racing this line cannot
@@ -185,9 +196,10 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
       const who = holder === null ? "an unreadable record" : `pid ${String(holder.pid)} (no such process)`;
       onNotice?.(`host slot ${String(slot)}/${String(input.slots)} in ${input.dir} was held by ${who} — stealing it; a dead holder must never wedge the box.`);
       rmSync(path, { force: true });
+      stole = true;
     }
   }
-  return null;
+  return stole ? "stole" : null;
 }
 
 /** Every slot's live holder, in slot order — the list a caller's "queued behind" sentence is built from. */
