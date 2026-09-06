@@ -149,7 +149,9 @@ export const gate = defineGate({
             if (!Node.isJsxAttribute(node) || node.getNameNode().getText() !== ATTRIBUTE) {
               return;
             }
-            const tag = tagNameOf(node.getParent().getParent());
+            // JsxAttribute → JsxAttributes → the opening/self-closing element that carries the prop.
+            const host = node.getParent().getParent();
+            const tag = host === undefined ? null : tagNameOf(host);
             if (tag !== null) {
               attributes.push({ attribute: node, tag, subject: ctx.relativePath(sourceFile) });
             }

@@ -23,7 +23,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
@@ -73,7 +73,33 @@ function isExpressionReference(node: MorphNode): boolean {
 
 type MediaVerdict = "global" | "other" | "unreadable";
 
+/** The global objects a browser api hangs off. */
+const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
+
+/** Is this member read taken off `globalThis`/`window`/`self` ITSELF? Asked of the RECEIVER, deliberately.
+ *
+ *  WHY THE RECEIVER AND NOT THE MEMBER: the two reduced-motion homes read the api as
+ *  `(globalThis as { matchMedia?: (q: string) => … }).matchMedia`, and a cast gives the property symbol a
+ *  declaration in the CAST'S OWN type literal — a proven non-module binding, which the shared refusal
+ *  classifier correctly calls "a different identity". Judging the member alone therefore PASSES that
+ *  spelling, and any feature could dodge this law by casting `globalThis`. The receiver's identity cannot be
+ *  cast away: whatever the property is annotated as, the object it is read off is the ambient global, and
+ *  that is what "a raw matchMedia read" means. This also keeps the verdict PRECISE where the analysis
+ *  program has no DOM lib — the property has no ambient declaration there at all, which would otherwise be
+ *  reported as the fail-closed "unreadable" rather than as the real finding it is. */
+function isGlobalReceiverRead(node: MorphNode): boolean {
+  const read = readMemberReference(node);
+  if (read.kind === "unresolved") {
+    return false;
+  }
+  const receiver = resolveGlobalMemberOrigin(read.value.receiver);
+  return receiver.kind === "resolved" && receiver.value.memberPath.length === 0 && GLOBAL_RECEIVERS.has(receiver.value.globalName);
+}
+
 function classify(node: MorphNode): MediaVerdict {
+  if (isGlobalReceiverRead(node)) {
+    return "global";
+  }
   const global = resolveGlobalMemberOrigin(node);
   if (global.kind === "resolved") {
     return global.value.globalName === MATCH_MEDIA && global.value.memberPath.length === 0 ? "global" : "other";
@@ -163,6 +189,15 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "A STORED ALIAS of the global is the same fork one binding away; the DECLARATION is the read the policy sees, and the aliased call site collapses into the same `(subject, operation)` finding",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/cast.ts":
+          'const globals = globalThis as { matchMedia?: (query: string) => { matches: boolean } };\nexport const G = (): boolean => globals.matchMedia?.("(pointer: coarse)").matches === true;\n',
+      },
+      expect: { count: 1 },
+      why: "THE CAST DODGE, measured on the real tree and closed here: a structural cast of `globalThis` gives the property symbol a declaration in the CAST'S OWN type literal, which the shared refusal classifier reads as a proven different identity — so judging the member alone PASSED this spelling, and any feature could have left the law that way. The RECEIVER's identity cannot be cast away, and that is what the verdict asks",
     },
     {
       mode: "types",
