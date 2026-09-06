@@ -1,6 +1,6 @@
 ---
 kind: design
-status: draft
+status: active
 updated: 2026-09-05
 ---
 
