@@ -10,7 +10,7 @@ import { toolCardState } from "../../../../../packages/client/src/features/plugi
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function record(over: Partial<ToolCallRecord> = {}): ToolCallRecord {
-  return { toolCallId: "call_1", name: "plugin_oracle_deck_draw", arguments: "{}", result: null, isError: false, durationMs: null, ...over };
+  return { toolCallId: "call_1", name: "plugin_oracle__deck_draw", arguments: "{}", result: null, isError: false, durationMs: null, ...over };
 }
 
 test("a JSON result is parsed, so `result.<field>` paths resolve", () => {

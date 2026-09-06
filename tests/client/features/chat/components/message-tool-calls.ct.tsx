@@ -76,11 +76,11 @@ test("a NON-matching tool name falls back to the generic block beside the specia
 test("a PREFIX renderer claims every name in its namespace, and nothing outside it", async ({ mount }) => {
   const component = await mount(
     <MessageToolCallsStory
-      records={[record({ name: "plugin_oracle_deck_draw" }), record({ toolCallId: "call_2", name: "roll_check" })]}
+      records={[record({ name: "plugin_oracle__deck_draw" }), record({ toolCallId: "call_2", name: "roll_check" })]}
       prefixToolName="plugin_"
     />,
   );
-  await expect(component.getByTestId("prefix-tool")).toHaveText("prefix:plugin_oracle_deck_draw");
+  await expect(component.getByTestId("prefix-tool")).toHaveText("prefix:plugin_oracle__deck_draw");
   // The name outside the namespace is untouched — it still lands on the generic block.
   const fallback = component.locator(BLOCK);
   await expect(fallback).toHaveCount(1);
@@ -92,9 +92,9 @@ test("an EXACT claim WINS over a prefix claim on the same name — a namespace n
   // resolution tries every exact claim before any prefix one. A first-party renderer that named a tool
   // outright can therefore never be swallowed by a namespace claim that happens to sit above it at the door.
   const component = await mount(
-    <MessageToolCallsStory records={[record({ name: "plugin_oracle_deck_draw" })]} customToolName="plugin_oracle_deck_draw" prefixToolName="plugin_" />,
+    <MessageToolCallsStory records={[record({ name: "plugin_oracle__deck_draw" })]} customToolName="plugin_oracle__deck_draw" prefixToolName="plugin_" />,
   );
-  await expect(component.getByTestId("custom-tool")).toHaveText("custom:plugin_oracle_deck_draw");
+  await expect(component.getByTestId("custom-tool")).toHaveText("custom:plugin_oracle__deck_draw");
   await expect(component.getByTestId("prefix-tool")).toHaveCount(0);
   await expect(component.locator(BLOCK)).toHaveCount(0);
 });
