@@ -9,7 +9,7 @@
 // WITH its plane: BOTH system prompts COMPOSE from this ONE table, so a plane can't be schema-writable but
 // prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
 //
-// THE ENFORCER (the D50 bus-coverage ratchet discipline): a contract test asserts every top-level
+// THE ENFORCER (the D50 producer-coverage ratchet discipline): a contract test asserts every top-level
 // `rpgExtractionSchema` key has a registry row — a new writable plane without a fragment is RED. The registry
 // is the standing anti-drift mechanism the audit's "prompt-drift, not model failure" diagnosis demanded.
 //

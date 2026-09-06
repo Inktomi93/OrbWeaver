@@ -26,6 +26,15 @@ export interface BusBeltIdentity extends BusDeclarationIdentity {
   readonly anchor: BusAnchor;
 }
 
+/** One owner-deferred `(union, member)` pair: a declared member with no producer that an owner decision
+ *  keeps declared. Keyed by the UNION as well as the name, so a same-named member of another bus is not
+ *  silently deferred with it. Declared by the warning-debt policy that owns the work item and read by the
+ *  producer-coverage policy, which must not double-report it. */
+export interface BusMemberDeferral {
+  readonly union: BusDeclarationIdentity;
+  readonly member: string;
+}
+
 export interface BusMemberIdentity {
   readonly bus: BusDeclarationIdentity;
   readonly name: string;

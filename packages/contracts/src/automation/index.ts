@@ -911,7 +911,7 @@ export type AutomationBusEventType = AutomationBusEvent["type"];
 
 /** The automation bus's PRODUCER-coverage belt. The `satisfies Record<AutomationBusEvent["type"], true>`
  *  makes `tsc` error the moment a member is added without an entry, and its existence is what puts the bus
- *  inside the coverage ratchets' quantifier — `bus-definition-belts` and the `automation-bus-coverage` spec
+ *  inside the coverage ratchets' quantifier — `bus-definition-belts` and the `bus-producer-coverage` spec
  *  both find the bus THROUGH this const. Minted 2026-08-14 with the G-B belt-existence arm: until then
  *  `AutomationBusEvent` had no belt at all, so no gate could see the bus, and `rulesChanged` sat declared
  *  and un-emitted for the life of the domain (event-bus coverage survey §2.3 — the newest bus already had

@@ -113,7 +113,7 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
       lane: "none",
       why: "no chat-anchored table FKs a connection table, and a member never reads a connection: the server resolves the room's connection per turn. Ends if a room ever renders which backend it is speaking to.",
     },
-    why: "the only writes are the model-CATALOG SNAPSHOT caches (persistence/catalog-snapshot.ts, agent-sdk-catalog-snapshot.ts) — a re-derivable cache of what a connection can list, not user canon. The user-facing member `connectionsChanged` is the one live DEFERRED row in tooling/src/verify/gates/user-bus-coverage.ts; this row flips to `user-bus:connectionsChanged` the day that DEFERRED is cleared.",
+    why: "the only writes are the model-CATALOG SNAPSHOT caches (persistence/catalog-snapshot.ts, agent-sdk-catalog-snapshot.ts) — a re-derivable cache of what a connection can list, not user canon. The user-facing member `connectionsChanged` is the one live owner deferral, declared in tooling/src/verify/gates/user-bus-deferred-member.ts (#1822); this row flips to `user-bus:connectionsChanged` the day that deferral is deleted.",
   },
   credentials: {
     plane: "user-bus:credentialsChanged",

@@ -309,12 +309,7 @@ Two things are load-bearing in that table and neither is the algorithm:
 
 ## 4. Follow-ups
 
-1. **The generic-producer consolidation is UNBLOCKED.** `bus-family-1584.md` blocked it on exactly this
-   relay ("typed callable-declaration/call-edge indexing must prove that relay before any retirement");
-   the fact now proves it, and the five per-union coverage policies differ only in their `UNION` constant.
-   Consolidating them into one policy quantified over every belted union in the fact would also make
-   `bus-coverage-owner` structurally unnecessary. Not taken in this lane: it would rewrite four policies
-   the wave just credited, and their conversion manifest, mid-train.
+1. ~~**The generic-producer consolidation is UNBLOCKED.**~~ **DONE 2026-09-06 — see §5 below.**
 2. The one-hop import-alias resolution is now a shared reader (`aliasResolvedDeclarations`), consumed by
    both `canonicalTypeAlias` and the descriptor-ownership read. The same gap appeared twice: a symbol read
    at a node in a CONSUMING module is the IMPORT's symbol, whose declarations are the `ImportSpecifier`, so
@@ -325,3 +320,61 @@ Two things are load-bearing in that table and neither is the algorithm:
    its declaring module wants the same helper rather than a third copy.
 3. The composed 78-policy baseline must be re-measured with these six policies and two providers added,
    on a quiesced tree, before cutover acceptance.
+
+## 5. The generic producer-coverage consolidation (2026-09-06, lane cb-runtime-origin)
+
+Five per-union coverage policies — `bus-coverage`, `rpg-bus-coverage`, `automation-bus-coverage`,
+`domain-events-coverage`, `user-bus-coverage` — differed only in a `UNION` constant. They are ONE policy now:
+`bus-producer-coverage` (ordinary/error, family `bus-fact`), quantified over the belted roster of
+`busDefinitionFact`, reading emitters from `busProducerFact`, with the finding anchored at the MEMBER
+declaration and the union named in the message (`… Union: ChatBusEvent. Member: opened`).
+
+**`bus-coverage-owner` is RETIRED with them, and so is its provider.** Its whole job was to notice a belted
+bus that no module named — a structural consequence of the per-union shape, not of the law. The belted roster
+IS the generic policy's denominator, so a new bus is covered the day its belt lands. What carries the old
+gate's guarantee, in the shape a fixture can actually prove:
+
+| The owner gate asked | Now |
+| - | - |
+| does some policy declare this union? | the belted roster is the denominator — no declaration to omit |
+| did I parse zero gate modules? (blindness) | a definition fact with ZERO belted unions REFUSES the run (`bus-fact-health.test.ts`, "a corpus with no BELTED bus REFUSES") |
+| is a warning-debt sibling laundering ownership? | severity/authority no longer decide ownership at all; the deferral is a `(union, member)` row the coverage policy imports and skips |
+| — | a belted union with no producer-fact record REFUSES at the join rather than passing |
+
+`busCoverageOwnerFact` (267–270 gate modules, 3.6–3.8 s of every composed pass) is deleted with it, along
+with `BusCoverageOwner`/`BusCoverageOwnerFact` and the two now-internal helpers it was the only outside caller
+of (`deliveredSourceIs`, `aliasResolvedDeclarations` — both still used inside `bus-fact-read.ts`).
+
+**Separate ids were considered and refused, per axis:** all five were ordinary/error with identical authority
+and identical suppression identity (no `@orb-waive bus-coverage(...)` marker exists anywhere on the tree —
+the family's real pass has been 0 raw since conversion), and their `fix` texts differed only in naming the
+union's own emit operation, which the generic `fix` states categorically. The ONE axis that genuinely differs
+is the owner deferral, and it was already a separate policy (`user-bus-deferred-member`, hard/warning,
+`workItem: 1822`) — its "must not double-report" contract moved onto the generic policy, and its export is now
+`BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[]`, keyed by `(union, member)`: a bare member NAME would have
+deferred a same-named member of any OTHER bus once the quantifier went generic.
+
+**Proof rows: none lost.** All 21 rows of the five retired modules moved onto the generic policy verbatim
+(12 mustFlag + 9 mustPass), plus one new mustFlag row that only the consolidated shape can express — two
+belted unions in one corpus, one produced and one not, judged by one policy. Conformance lives in
+`tests/tooling/verify/gates/bus-fact-health.test.ts` (that spec WAS the producer family's entry — the four
+coverage modules plus the health policy — so it stays the producer family's entry; `bus-pair.test.ts` keeps
+the definition family and the deferral pins, and imports the generic policy only for the two-policy deferral
+pin). It also carries the fixture-specifier resolution control and the two refusal pins above.
+
+Receipts (this lane, worktree `agent-a912318a1bec7bf0f`, base `0c7bc1eca`):
+
+| | before | after |
+| - | -: | -: |
+| final policies in the corpus | 109 | 104 |
+| providers in a composed pass | 6 | 5 |
+| bus family real pass (raw/waived/granted/effective) | 0/0/0/0 | 0/0/0/0 |
+| producer fact members / emitters / unresolved | 66 / 271 / 0 | 66 / 271 / 0 |
+| composed raw = waived + granted + effective | 237 = 157 + 78 + 2 | 237 = 157 + 78 + 2 |
+| composed alarms / tool errors / fact errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+The anchor set is a SET difference, not a count: the 66 declared members and the 271 emitter anchors are
+byte-identical between the two arms (dumped through a scratch probe policy over the real workspace and
+compared as sets). The composed classification lists exactly seven per-policy moves — the six retired ids
+going ABSENT at 0 raw and `bus-producer-coverage` arriving at 0 raw — with zero moved findings, zero moved
+waiver consumption and zero moved grant consumption.

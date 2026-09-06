@@ -24,7 +24,7 @@ import { settingsValueAtPath } from "#lib";
 import type { ConfigSectionContribution } from "./config-section-registry.ts";
 
 /** One cited exemption from the gap arm — a key inside a CLAIMED namespace that has no client editor.
- *  Self-cleaning in BOTH directions (the D50 bus-coverage DEFERRED discipline): a key that GAINS a section
+ *  Self-cleaning in BOTH directions (the D50 producer-coverage DEFERRED discipline): a key that GAINS a section
  *  REDs its stale entry, and a cite for a key that no longer exists (or for a namespace no section claims)
  *  REDs too. */
 export interface UnclaimedSettingsKey {

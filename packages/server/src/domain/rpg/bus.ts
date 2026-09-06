@@ -39,7 +39,7 @@ async function* liveEntries(source: AsyncIterable<unknown[]>): AsyncGenerator<Rp
 /** Publish an rpg-game live event to its `chatId` channel (the injected `EmitRpgEvent` op wires to this,
  *  `@orb/contracts/rpg`). Fire-and-forget — a dropped tick is healed by the client's reconnect blanket
  *  invalidate (LIVE-ONLY). Called by a verb/flush AFTER its durable write commits (compose wires it as the
- *  injected `RpgContext.emitBus`; the verbs/flush emit the five members — `rpg-bus-coverage` holds it). */
+ *  injected `RpgContext.emitBus`; the verbs/flush emit the five members — `bus-producer-coverage` holds it). */
 export function publishRpgEvent(event: RpgBusEvent): void {
   emitter.emit(channelFor(event.chatId), event);
 }

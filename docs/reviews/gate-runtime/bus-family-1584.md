@@ -24,11 +24,11 @@ Dynamic emitter arguments are not fact-health failures. They contribute no produ
 
 | Legacy id | Final disposition | Authority/severity | Final population |
 | - | - | - | - |
-| `automation-bus-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
-| `bus-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
-| `domain-events-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
-| `rpg-bus-coverage` | converted; shared missing-emitter policy | ordinary/error | contracts + server TS/TSX, entire population |
-| `user-bus-coverage` | CONVERTED 2026-09-06; split into the ordinary coverage policy plus the `user-bus-deferred-member` warning-debt sibling (#1822). Evidence: [bus-pair-1584.md](bus-pair-1584.md) | ordinary/error + hard/warning | contracts + server TS/TSX, entire population |
+| `automation-bus-coverage` | converted, then RETIRED 2026-09-06 into `bus-producer-coverage` | ordinary/error | contracts + server TS/TSX, entire population |
+| `bus-coverage` | converted, then RETIRED 2026-09-06 into `bus-producer-coverage` | ordinary/error | contracts + server TS/TSX, entire population |
+| `domain-events-coverage` | converted, then RETIRED 2026-09-06 into `bus-producer-coverage` | ordinary/error | contracts + server TS/TSX, entire population |
+| `rpg-bus-coverage` | converted, then RETIRED 2026-09-06 into `bus-producer-coverage` | ordinary/error | contracts + server TS/TSX, entire population |
+| `user-bus-coverage` | CONVERTED 2026-09-06, then RETIRED the same day into `bus-producer-coverage`; its `user-bus-deferred-member` warning-debt sibling (#1822) stays and the generic policy imports its exact `(union, member)` rows. Evidence: [bus-pair-1584.md](bus-pair-1584.md) §5 | ordinary/error + hard/warning | contracts + server TS/TSX, entire population |
 | `bus-definition-belts` | CONVERTED 2026-09-06; split into `bus-definition-belts` + `bus-belt-total` + `bus-consumer-belt` + `bus-coverage-owner` on a second `busDefinitionFact` provider, with all three name tables derived. Evidence: [bus-pair-1584.md](bus-pair-1584.md) | hard/error | contracts + client + server TS/TSX, entire population |
 
 `bus-fact-health` is a new hard/error support policy in family `bus-fact`. It shares the same collector and reports missing/empty/unresolved producer facts on the first delivered contracts/server source. Each ordinary producer policy also calls `recordReadyBusFact`, so selecting one without the health policy still withholds an incomplete fact.
@@ -71,8 +71,10 @@ OVERLOADED export, so `resolveModuleMemberOrigin` refused its minting call as `a
 `bus.publish(...)` fell through as a non-door, which in turn made the parameter forward above it
 unreachable. The door is now the `publish` METHOD's declaration home, and the argument ladder is
 authored syntax -> parameter relay -> republish relay -> checker flow type -> refusal. The four policy
-modules are still not consolidated: they differ only in their `UNION` constant, so the consolidation is
-now a live follow-up rather than a blocked one.
+modules were still not consolidated at that point — they differed only in their `UNION` constant — and the
+consolidation LANDED 2026-09-06: one `bus-producer-coverage` policy quantified over the belted roster,
+retiring all five per-union modules plus `bus-coverage-owner`. Receipts in
+[bus-pair-1584.md](bus-pair-1584.md) §5.
 
 ## The conditional publisher (2026-09-06)
 
@@ -103,6 +105,6 @@ producer" ruling), while the relay still propagates to a domain/transport caller
 
 ## Remaining bus work
 
-1. Convert `bus-definition-belts` with derived root/sub-union classification, shaped belt equality, and either client total-map or server exhaustive-consumer proof. Retire its `BELT_EXEMPT`, `SERVER_INTERNAL_REACH`, and coverage-file naming tables rather than porting them.
-2. Resolve `user-bus-coverage` as a shared producer consumer. The `connectionsChanged` absence must receive a real warning work item or one exact reviewed grant with liveness; no invented issue number or local deferred map is allowed.
-3. Run the bus family through the final loaded roster/command front door after that pair converts, then remeasure composed performance/RSS and obtain cold review before cutover.
+1. ~~Convert `bus-definition-belts` …~~ DONE 2026-09-06 ([bus-pair-1584.md](bus-pair-1584.md) §2): all three tables derived.
+2. ~~Resolve `user-bus-coverage` as a shared producer consumer …~~ DONE 2026-09-06: converted, then retired into the generic `bus-producer-coverage`; `connectionsChanged` is typed warning debt on #1822 in `user-bus-deferred-member` (§5).
+3. Run the whole bus family through the final loaded roster/command front door, then remeasure composed performance/RSS and obtain cold review before cutover. The composed pass is now five providers rather than six (`bus-coverage-owners` retired with its gate), and the family's isolated cost is unmeasured since the consolidation.

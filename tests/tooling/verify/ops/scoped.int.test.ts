@@ -8,7 +8,7 @@
 //      scoped run AND by the full run, for that exact file. Remove the violation → both go clean.
 //   2. SCOPE-ISOLATION — a violation OUTSIDE the scoped folder is INVISIBLE to the scoped run but caught
 //      by the full run. It is the fence's whole point: a scoped clean is only a claim about the scope.
-//   3. WHOLE-PROJECT-SAFETY — a whole-project ratchet (bus-coverage) that FIRES on the full tree does NOT
+//   3. WHOLE-PROJECT-SAFETY — a whole-project ratchet (bus-producer-coverage) that FIRES on the full tree does NOT
 //      fire on a scoped run: it is deferred, never run, so it emits zero findings.
 //   4. STALE-ARM ISOLATION — an INCREMENTAL-safe gate does run on a scoped pass, `finalize` included, so
 //      its exemption-table stale sweep must stay silent about rows whose files the run never visited.
@@ -17,7 +17,7 @@
 // path `pnpm check:structure` drives — so the scoped verdict is proven against the real full verdict, not
 // a hand-rolled expectation.
 import { Project } from "ts-morph";
-import { gate as busCoverageGate } from "../../../../tooling/src/verify/gates/bus-coverage.ts";
+import { gate as busProducerCoverageGate } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as noCallerUserIdGate } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as noManualMemoGate } from "../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import type { GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
@@ -59,7 +59,7 @@ function folderScope(folder: string): { scope: Scope; inScope: (rel: string) => 
 /** The full-run oracle for one gate: `runPass` over the whole project at scope=project — the site set. */
 function fullSites(base: Omit<GateRunCtx, "report" | "scan">, gateName: string): string[] {
   const result = runPass(
-    [noCallerUserIdGate, busCoverageGate].filter((g) => g.name === gateName),
+    [noCallerUserIdGate, busProducerCoverageGate].filter((g) => g.name === gateName),
     base,
   );
   const findings = result.gates.find((g) => g.name === gateName)?.findings ?? [];
@@ -68,7 +68,7 @@ function fullSites(base: Omit<GateRunCtx, "report" | "scan">, gateName: string):
 
 /** The scoped-run site set for one gate. */
 function scopedSites(base: Omit<GateRunCtx, "report" | "scan">, selection: { scope: Scope; inScope: (rel: string) => boolean }, gateName: string): string[] {
-  const { pass } = runScopedPass([noCallerUserIdGate, busCoverageGate], base, selection);
+  const { pass } = runScopedPass([noCallerUserIdGate, busProducerCoverageGate], base, selection);
   const findings = pass.gates.find((g) => g.name === gateName)?.findings ?? [];
   return findings.map((f) => `${f.file}:${f.line}`).sort();
 }
@@ -117,7 +117,7 @@ test("scope-isolation: an OUT-of-scope violation is invisible to the scoped run 
 });
 
 // ── 3. WHOLE-PROJECT-SAFETY ───────────────────────────────────────────────────────────────────────
-// bus-coverage FIRES when a CHAT_BUS_EVENT_TYPES member has no server emit site. On the full run it bites;
+// bus-producer-coverage FIRES when a CHAT_BUS_EVENT_TYPES member has no server emit site. On the full run it bites;
 // on a scoped run it is a whole-project gate → DEFERRED, never run → zero findings (even though the firing
 // condition is present in the project).
 const BUS_FIRING_TREE: Readonly<Record<string, string>> = {
@@ -128,19 +128,19 @@ const BUS_FIRING_TREE: Readonly<Record<string, string>> = {
 test("whole-project-safety: a whole-project ratchet fires on the FULL run", () => {
   // Establish the firing condition is real: the full run RED with the missing-emit finding.
   const base = baseFor(BUS_FIRING_TREE);
-  expect(fullSites(base, "bus-coverage")).toHaveLength(1);
+  expect(fullSites(base, "bus-producer-coverage")).toHaveLength(1);
 });
 
 test("whole-project-safety: on a scoped run the whole-project ratchet is DEFERRED — zero findings", () => {
   const base = baseFor(BUS_FIRING_TREE);
   const selection = folderScope("packages/contracts/src/chat");
-  const { pass, deferred } = runScopedPass([noCallerUserIdGate, busCoverageGate], base, selection);
+  const { pass, deferred } = runScopedPass([noCallerUserIdGate, busProducerCoverageGate], base, selection);
 
-  // bus-coverage did NOT run (it is in the deferred list), so it contributed zero findings...
-  expect(deferred.map((g) => g.name)).toContain("bus-coverage");
-  expect(pass.gates.some((g) => g.name === "bus-coverage")).toBe(false);
+  // bus-producer-coverage did NOT run (it is in the deferred list), so it contributed zero findings...
+  expect(deferred.map((g) => g.name)).toContain("bus-producer-coverage");
+  expect(pass.gates.some((g) => g.name === "bus-producer-coverage")).toBe(false);
   // ...and the scoped run is clean despite the firing condition being present in the project.
-  expect(scopedSites(base, selection, "bus-coverage")).toEqual([]);
+  expect(scopedSites(base, selection, "bus-producer-coverage")).toEqual([]);
 });
 
 // ── 4. STALE-ARM ISOLATION (#505) ──────────────────────────────────────────────────────────────────

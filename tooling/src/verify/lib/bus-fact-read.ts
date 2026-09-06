@@ -19,7 +19,7 @@ export const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 export const busIdentityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}\0${exportName}`;
 
 /** Compare a resolved declaration to one delivered source without probing foreign dependency files. */
-export function deliveredSourceIs(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
+function deliveredSourceIs(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
   const absolute = sourceFile.getFilePath().replaceAll("\\", "/");
   return (absolute === path || absolute.endsWith(`/${path}`)) && context.relativePath(sourceFile) === path;
 }
@@ -48,7 +48,7 @@ export function busDeclarationIdentity(context: GateFactContext, declaration: Ty
  *  callable a call resolves to. Merging it into this helper would answer the import specifier AND the
  *  function declaration for an imported wrapper, fail its exactly-one test, and silently break relay
  *  propagation. Two readers, two questions; do not consolidate them. */
-export function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly MorphNode[] {
+function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly MorphNode[] {
   const rows: MorphNode[] = [];
   for (const declaration of [...(symbol?.getDeclarations() ?? []), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])]) {
     if (!rows.some((existing) => existing.compilerNode === declaration.compilerNode)) {

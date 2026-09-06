@@ -8,8 +8,8 @@
 // live, and the client gap-heals on every (re)connect with a blanket invalidate.
 //
 // MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist TODAY. The
-// `user-bus-coverage` gate flags a declared-never-emitted member as dead wire (both directions) — so every
-// member below EITHER has a real server emit site OR is a cited DEFERRED entry in that gate.
+// `bus-producer-coverage` gate flags a declared-never-emitted member as dead wire — so every member below
+// EITHER has a real server emit site OR is the subject of the `user-bus-deferred-member` warning-debt policy.
 //   • `connection` is DEFERRED, not omitted: it has no per-user entity CRUD today (the model catalog is
 //     global/admin — `refreshCatalog`; a user's provider/role routing lives in USER SETTINGS →
 //     `settingsChanged`), so `connectionsChanged` is DECLARED but not yet emitted (the gate's DEFERRED
@@ -107,13 +107,13 @@ export type UserBusEvent =
   // coarse map nothing AND a raw plugin-local `surfaceId` string is not a branded id — the shape law this file
   // opens with. The blast radius is a handful of the installer's own surfaces.
   | { type: "pluginSurfaceStateChanged"; pluginId?: PluginId }
-  // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-coverage` DEFERRED allowlist): a
+  // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-deferred-member` policy, #1822): a
   // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
   // the ratchet track it for the day a per-user connection store lands.
   | { type: "connectionsChanged" };
 
 /** Valid discriminators, derived from the union. The `satisfies Record<UserBusEvent["type"], true>` makes
- *  `tsc` error if a member is added without a matching entry — the `user-bus-coverage` gate parses THIS object
+ *  `tsc` error if a member is added without a matching entry — the `bus-producer-coverage` gate parses THIS object
  *  literal (the one home) to check every member has a server emit site. */
 export const USER_BUS_EVENT_TYPES = {
   charactersChanged: true,
@@ -143,7 +143,7 @@ export const USER_BUS_EVENT_TYPES = {
  *
  * It lives HERE, beside the union and the belt, for two reasons. One home: "the id-less form of member X" is
  * a fact about the union, not about whichever consumer needs it. And the emit-coverage ratchet
- * (`user-bus-coverage`) reads a LITERAL CORPUS of every string in `server/src/{domain,transport}` — a
+ * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a
  * totality table parked in transport would have made every member, including the DEFERRED
  * `connectionsChanged`, read as emitted, turning the dead-wire belt permanently green (measured: it did,
  * the run before this const moved).

@@ -460,19 +460,13 @@ function writeFixtures(): void {
     "tests/tooling/__g_pseudoskip.test.ts",
     'import { test } from "support/test";\ntest("g", () => {\n  test.info().annotations.push({ type: "skipped" });\n  return;\n});\n',
   );
-  // bus-coverage / user-bus-coverage: NO fixture. Both are final `defineGate` policies on the shared bus
-  // producer fact (#1584); their DEFERRED maps are gone, and the retirement ratchet that the live
-  // `connectionsChanged` fixture used to drive is now `user-bus-deferred-member`, proven through the
-  // production dispatcher in tests/tooling/verify/gates/bus-pair.test.ts.
-  // rpg-bus-coverage: NO fixture — as of W1c-b its DEFERRED map is EMPTY (every RpgBusEvent member gained a real
-  // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
-  // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
-  // (the `bus-coverage` twin's exact posture); the retirement ratchet is proven by `user-bus-deferred-member`.
-  // automation-bus-coverage / domain-events-coverage: NO fixture — both DEFERRED maps are EMPTY at mint
-  // (every AutomationBusEvent and DomainEvent member has a real emit literal in domain scope), so neither
-  // STALE (needs a deferred member) nor MISSING (a `__g_` file cannot add a REAL member to the single-home
-  // union) is fixturable. They join UNFIXTURABLE_GATES on the `bus-coverage`/`rpg-bus-coverage` precedent;
-  // the retirement ratchet is proven by `user-bus-deferred-member` through the production dispatcher.
+  // bus-producer-coverage: NO fixture. The five per-union coverage modules (`bus-coverage`,
+  // `rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage`, `user-bus-coverage`) collapsed
+  // into this ONE final `defineGate` policy on the shared bus producer fact (#1584), quantified over every
+  // belted union; their DEFERRED maps are gone. MISSING needs an un-emitted REAL union member, which a
+  // throwaway `__g_` file cannot add to a single-home `*_EVENT_TYPES` belt, so it stays unfixturable and its
+  // bite is proven by its own conformance rows plus `user-bus-deferred-member`, both through the production
+  // dispatcher (tests/tooling/verify/gates/bus-fact-health.test.ts, bus-pair.test.ts).
   // domain-freshness-plane: a mutating domain with no DOMAIN_FRESHNESS row — the refinery arm, which is the
   // state the tree was actually in before 2026-08-14.
   fx(
@@ -994,10 +988,9 @@ function writeFixtures(): void {
 // alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
 // conformance mustFlag (a synthetic reach-back-include tree) + a real-tree break-confirm (misroute one
 // file → RED → restore byte-identical).
-// bus-coverage: its DEFERRED map is EMPTY (every ChatBusEvent member now emits — the E3 classify emit closed
-// the last deferral). STALE needs a deferred member (none); MISSING needs an un-emitted REAL union member,
-// which a throwaway `__g_` file can't add to the single-home `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by
-// its conformance mustFlag (a synthetic un-emitted member) in the final policy's own proof set.
+// bus-producer-coverage: MISSING needs an un-emitted REAL union member, which a throwaway `__g_` file can't
+// add to a single-home belt such as `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by its conformance
+// mustFlag rows (synthetic un-emitted members, one per belted bus) in the final policy's own proof set.
 // bus-payload-allowlist: scopes to 8 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
 // type identity, after #1024/#1025 added the open-key-space and imported-zod-schema arms, and after #1047
@@ -1081,11 +1074,8 @@ const UNFIXTURABLE_GATES = new Set([
   "verify-registry-parity",
   "enforcement-registry-parity",
   "tsconfig-routing-parity",
-  "bus-coverage",
-  "rpg-bus-coverage",
-  // Both minted 2026-08-14 with EMPTY deferred maps — see the note beside their fixture slot above.
-  "automation-bus-coverage",
-  "domain-events-coverage",
+  // The five per-union coverage modules are one policy since #1584 — see the note beside its fixture slot.
+  "bus-producer-coverage",
   "bus-payload-allowlist",
   "knob-wire-coverage",
   "message-kind-policy-coverage",

@@ -1,4 +1,4 @@
-// The owner-deferred half of UserBusEvent producer coverage, split off `user-bus-coverage` because
+// The owner-deferred half of UserBusEvent producer coverage, split off `bus-producer-coverage` because
 // authority and severity are per-policy: a member deferred by an owner decision is WARNING DEBT tied to a
 // positive Project issue, and an error policy cannot carry that owner (gate-runtime-standardization.md
 // §"Exceptions and debt"). The legacy DEFERRED allowlist — a citation string parked inside the gate — is
@@ -15,24 +15,27 @@
 // RUN must catch is the two ways this deferral can rot, and both are covered:
 //   • the member GAINS a producer -> this policy reports (warning, unsuppressible: `hard` authority), and
 //     the message is the exact retirement instruction. Its sibling then owns the member by construction,
-//     because `user-bus-coverage` imports the list below;
+//     because `bus-producer-coverage` imports the list below;
 //   • the member STOPS BEING DECLARED (renamed, deleted) -> this policy REFUSES. A silent pass over a
 //     vanished subject is how a standing exception becomes a loaded gun, so the run reports a tool error
 //     instead. A refusal cannot be expressed as a proof row, so it is pinned through `runPolicyPass` in
 //     `tests/tooling/verify/gates/bus-pair.test.ts`.
+import type { BusMemberDeferral } from "../contract/bus-fact.ts";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
 
 const UNION = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
 
-/** The ONE home for "which UserBusEvent members are owner-deferred". `user-bus-coverage` imports it, so
- *  deleting this module when #1822 lands is atomic: the sibling stops excluding the member in the same
- *  edit that removes the deferral, and `tsc` refuses any half of that removal. */
-export const USER_BUS_DEFERRED_MEMBERS: readonly string[] = Object.freeze(["connectionsChanged"]);
+/** The ONE home for "which bus members are owner-deferred", keyed by `(union, member)`.
+ *  `bus-producer-coverage` imports it, so deleting this module when #1822 lands is atomic: the sibling stops
+ *  excluding the member in the same edit that removes the deferral, and `tsc` refuses any half of that
+ *  removal. The union half is load-bearing since the coverage policy became generic over every belted bus —
+ *  a bare member NAME would defer a same-named member of any other bus with it. */
+export const BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[] = Object.freeze([{ union: UNION, member: "connectionsChanged" }]);
 
 const MESSAGE =
-  "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete tooling/src/verify/gates/user-bus-deferred-member.ts (its sibling `user-bus-coverage` then owns the member by construction) and close the work item.";
+  "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete tooling/src/verify/gates/user-bus-deferred-member.ts (its sibling `bus-producer-coverage` then owns the member by construction) and close the work item.";
 
 export const gate = defineGate({
   id: "user-bus-deferred-member",
@@ -46,7 +49,7 @@ export const gate = defineGate({
   facts: [busProducerFact],
   resources: [],
   message: MESSAGE,
-  fix: "delete the deferral policy and let user-bus-coverage own the member.",
+  fix: "delete the deferral policy and let bus-producer-coverage own the member.",
   create: (ctx) => ({
     evaluate: () => {
       const fact = ctx.fact(busProducerFact);
@@ -55,7 +58,7 @@ export const gate = defineGate({
       if (bus === undefined) {
         throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
       }
-      for (const deferred of USER_BUS_DEFERRED_MEMBERS) {
+      for (const { member: deferred } of BUS_MEMBER_DEFERRALS) {
         const member = bus.declaredMembers.find(({ name }) => name === deferred);
         if (member === undefined) {
           throw new Error(`deferred ${UNION.exportName} member ${deferred} is no longer declared — this deferral outlived its subject`);
@@ -88,7 +91,7 @@ export const gate = defineGate({
         "packages/server/src/domain/settings/verbs/update.ts":
           'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "settingsChanged" });\n}\n',
       },
-      why: "the standing tree state: the deferred member is declared with no producer while a sibling member has one — the deferral is live and honest, so this policy is silent and `user-bus-coverage` reports nothing either",
+      why: "the standing tree state: the deferred member is declared with no producer while a sibling member has one — the deferral is live and honest, so this policy is silent and `bus-producer-coverage` reports nothing either",
     },
     {
       mode: "types",
