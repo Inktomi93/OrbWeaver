@@ -11,8 +11,8 @@
   "// minLines": "5 lines minimum — below this it's coincidence.",
   "minLines": 5,
 
-  "// maxLines": "2000 — handle large generated files without bailing.",
-  "maxLines": 2000,
+  "// maxLines": "20000 — NOT a block cap, a whole-FILE SKIP threshold (jscpd never scans a file over this many lines at all; measured with planted 2500-line fixtures, #1330). Raised above the largest authored source file (packages/contracts/src/preset/index.ts, 3253 lines) so no scanned source file is invisible to the gate; the generated/oversized-file bail-out this comment used to describe is maxSize + gitignore + the migrations/snapshots/d.ts ignores below.",
+  "maxLines": 20000,
 
   "// maxSize": "Skip files over 200kb (fixtures, snapshots).",
   "maxSize": "200kb",
@@ -46,9 +46,6 @@
 
   "// reporters": "Console for interactive use; `pnpm cpd:report` emits the HTML to reports/cpd.",
   "reporters": ["console"],
-
-  "// skipComments": "Strip comments before tokenising — don't match comment boilerplate.",
-  "skipComments": true,
 
   "// noTips": "Suppress sponsor/AI tips in CI output.",
   "noTips": true
