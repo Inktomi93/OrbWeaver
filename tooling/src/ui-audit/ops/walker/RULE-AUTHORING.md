@@ -87,7 +87,7 @@ input object handed to the pure `checks-*.ts` function, which proves the THRESHO
 whether the census can see the shape on a real page. That is precisely the blindness this document
 exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an
 "owed" cell is a real gap in the mechanism axis, filed as such and not backfilled with an invented
-receipt. Of the 62 registered rules, 40 carry a planted rendered control, 21 are owed one, and
+receipt. Of the 62 registered rules, 46 carry a planted rendered control, 15 are owed one, and
 `off-grid-transform` is half-owed (its withheld arm is planted, its firing arm is not). One of the 22 —
 `buried-raster` — is owed BY OWNER RULING rather than by omission; its cell says so.
 
@@ -106,7 +106,7 @@ Finding at all and their control is the printed population row.
 | aria-name | presence of any accname source, keyed spec-order (`aria-labelledby` before `aria-label`, plus `el.labels`) | `w/accessible-name` + `w/census-interactive` | `lib/checks-a11y` | `T/…/census-interactive.int.test.ts` (four-arm, #1009) |
 | border-contrast | a control's DECLARED border colour vs `resolveBackdropUnder(el)` (WCAG 1.4.11) | `w/census-border` | `lib/checks-border` | `T/tooling/ui-audit/index.int.test.ts` (1.1:1 boundary + its 3:1 twin) |
 | landmark-missing | presence of a `<main>`/`role=main` landmark on the document | `w/census-interactive` (`mainLandmarkPresent`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
-| tabindex-positive | `[tabindex]` attribute values > 0 on visible elements | `w/census-interactive` | `lib/checks-a11y` | **none — owed** (checker-level only; the rendered suite asserts its ABSENCE on hidden nodes, never a plant) |
+| tabindex-positive | `[tabindex]` attribute values > 0 on visible elements | `w/census-interactive` | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | skipped-heading | the document's `h1…h6` order | `w/census-quality` | `lib/checks-a11y` | `T/…/census-quality.int.test.ts` |
 | text-over-art | text whose backdrop resolves to a gradient/image, judged at the WORST stop | `w/census-text` + `w/resolve` | `lib/checks-color` | walker CT (`oklch-gradient-bled`, P0 worst-stop) |
 | contrast | every text node's composited foreground vs `resolveBackdrop` (canvas-normalised, any colour space) | `w/census-text` + `w/resolve` | `lib/checks-color` | `T/tooling/ui-audit/index.int.test.ts` (planted 1:1) · `census-text.int.test.ts` · walker CT |
@@ -118,7 +118,7 @@ Finding at all and their control is the printed population row.
 | glow-shadow | chromatic box/text-shadow on the element AND its pseudo layers, at rest and under force | `w/census-glow` + `w/state-paint` | `lib/checks-decor` | `T/…/census-glow.int.test.ts` · `state-paint.int.test.ts` |
 | distorted-image | rendered box aspect vs natural raster aspect, gated on the `object-fit` keyword (`<img>`) or `background-size` disposition (background-image) | `w/census-text` (`images`) | `lib/checks-media` | `T/…/census-text.int.test.ts` (#1825, background-size auto vs. explicit-stretch) |
 | canvas-ink | visible `<canvas>` elements — accounting only, always `excluded(canvasPaint)` | `w/census-collision` | `lib/collect-families` (census row) | `T/…/census-collision.int.test.ts` (both directions) |
-| broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | **none — owed** (the rendered suite carries the SILENT arm only) |
+| broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
 | radial-halo | a radial-gradient wash's colour stops (canvas-normalised), fade-out shape + chroma | `w/census-glow` (`radialGlows`) | `lib/checks-ornament` | **none — owed** (checker-level: `T/…/lib/css-color.test.ts` proves the colour-space arm, not the census) |
 | radial-spotlight-glow | the same wash census, low-alpha flavour | `w/census-glow` | `lib/checks-ornament` | **none — owed** (as above) |
 | stripe-background | `repeating-linear-gradient` in `background-image` | `w/census-decor` (`bgPatterns`) | `lib/checks-ornament` | **none — owed** |
@@ -128,9 +128,9 @@ Finding at all and their control is the printed population row.
 | bounce-easing | `animation-name` / `cubic-bezier` control points outside 0..1 | `w/census-decor` | `lib/checks-ornament` | **none — owed** |
 | text-overflow | `scrollWidth > clientWidth` on the nearest CLIPPING ancestor-or-self, credited for a real affordance | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/index.int.test.ts` · walker CT (both directions, incl. the sr-only trap) |
 | truncated-to-nothing | text present in the DOM whose painted box is ~0px | `w/census-collision` | `lib/checks-quality` | `T/…/census-collision.int.test.ts` · `cli.int.test.ts` · walker CT |
-| repeated-container-text | the same literal string ≥3 times inside one decorated container | `w/census-quality` | `lib/checks-quality` | **none — owed** (rendered suite carries the SILENT arm only) |
+| repeated-container-text | the same literal string ≥3 times inside one decorated container | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
 | clipped-overflow | a positioned/in-flow child spilling its clipping box, per side, behind ONE paint fence | `w/census-quality` | `lib/checks-quality` | `T/…/census-quality.int.test.ts` · walker CT |
-| edge-flush-cards | cards touching a horizontal scroller's content edge at `scrollLeft ≈ 0` | `w/census-quality` | `lib/checks-quality` | **none — owed** (SILENT arm only) |
+| edge-flush-cards | cards touching a horizontal scroller's content edge at `scrollLeft ≈ 0` | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
 | script-error | uncaught page errors captured by the RUNNER — not a DOM census at all | `ops/run` (page events) | `lib/checks-quality` | **none — owed** (no fixture plants a page exception) |
 | duplicate-action-door | (role, accname) door HOMES, with the `role=toolbar` view-switch fence | `w/census-interactive` | `lib/checks-duplicate-door` | `T/…/census-interactive.int.test.ts` · walker CT |
 | headline-overhang | a display headline's painted rect clipped into an opaque neighbour | `w/census-occlusion` | `lib/checks-quality` | `T/…/census-occlusion.int.test.ts` (3 arms) |
@@ -149,8 +149,8 @@ Finding at all and their control is the printed population row.
 | undersized-ui-text | the same census against the FUNCTIONAL floor | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/index.int.test.ts` · walker CT |
 | line-length | measure in `ch`, from a MEASURED advance (not `fontSize × 0.5`) | `w/census-text` | `lib/checks-typography` | walker CT (Geist advance arms) |
 | tight-leading | computed `line-height` vs font-size, `normal` excluded | `w/census-text` | `lib/checks-typography` | **none — owed** |
-| justified-text | `text-align: justify` on an element with own text | `w/census-text` | `lib/checks-typography` | **none — owed** |
-| all-caps-body | `text-transform: uppercase` / typed caps on non-heading prose | `w/census-text` | `lib/checks-typography` | **none — owed** |
+| justified-text | `text-align: justify` on an element with own text | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
+| all-caps-body | `text-transform: uppercase` / typed caps on non-heading prose | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/cli.int.test.ts` (#1826, both directions) |
 | wide-tracking | `letter-spacing` above the band, with the ratified caps-voice exemption | `w/census-text` | `lib/checks-typography` | walker CT (caps kicker exempt + sentence-case fires) |
 | crushed-tracking | `letter-spacing` below the band | `w/census-text` | `lib/checks-typography` | **none — owed** |
 | caveat-outweighed | a sentence-shaped caveat set SMALLER than the endpoints it bounds | `w/census-text` | `lib/checks-caveat` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
