@@ -10,6 +10,7 @@ import type {
   GatePolicyFindingDetails,
   GatePolicyNodeFindingDetails,
   GatePolicyReceipt,
+  GateSharedFactLease,
 } from "../contract/policy.ts";
 import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
@@ -33,7 +34,16 @@ interface ContextInput {
   readonly resourceRequests: readonly GateResourceRequest[];
   readonly checker: () => TypeChecker;
   readonly findings: RawGateFinding[];
+  readonly sharedFacts: PolicySharedFactRegistry;
 }
+
+export interface PolicySharedFactEntry {
+  readonly sourcePaths: readonly string[];
+  readonly resourcePaths: readonly string[];
+  readonly value: unknown;
+}
+
+export type PolicySharedFactRegistry = Map<object, PolicySharedFactEntry>;
 
 export interface PolicyContextRuntime {
   readonly context: GatePolicyContext;
@@ -79,6 +89,10 @@ function appendDetails(base: { file: string; line: number; column: number }, det
     ...(details.subject === undefined ? {} : { subject: details.subject }),
     ...(details.operation === undefined ? {} : { operation: details.operation }),
   };
+}
+
+function samePaths(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((path, index) => path === right[index]);
 }
 
 function derivedNodePosition(node: Node): { readonly offset: number; readonly token: string } {
@@ -248,6 +262,19 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   };
   const report = Object.freeze({ node: reportNode, file: reportFile });
   const receipt = (value: GatePolicyReceipt): void => acceptReceipt(receipts, value);
+  const sourcePaths = [...paths.keys()];
+  const sharedFact = <Value>(key: object, create: () => Value): GateSharedFactLease<Value> => {
+    const existing = input.sharedFacts.get(key);
+    if (existing !== undefined) {
+      if (!(samePaths(existing.sourcePaths, sourcePaths) && samePaths(existing.resourcePaths, resourcePaths))) {
+        throw new Error("shared fact consumers must have identical effective source and resource populations");
+      }
+      return Object.freeze({ value: existing.value as Value, collect: false });
+    }
+    const value = create();
+    input.sharedFacts.set(key, { sourcePaths, resourcePaths, value });
+    return Object.freeze({ value, collect: true });
+  };
   const context: GatePolicyContext = Object.freeze({
     files,
     resourcePaths,
@@ -270,6 +297,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       }
       return input.checker();
     },
+    sharedFact,
     report,
     receipt,
   });

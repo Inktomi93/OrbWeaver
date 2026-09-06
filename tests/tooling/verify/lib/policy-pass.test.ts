@@ -584,6 +584,76 @@ test("create state is invocation-local across re-entry", () => {
   expect(second.policies[0]?.findings).toHaveLength(1);
 });
 
+test("shared facts collect once per pass and reset across re-entry", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const key = Object.freeze({ id: "fixture-fact" });
+  let constructions = 0;
+  let visits = 0;
+  const seen = new Set<object>();
+  const sharedPolicy = (id: string): GatePolicy =>
+    policy(id, {
+      create: (ctx) => {
+        const shared = ctx.sharedFact(key, () => {
+          constructions += 1;
+          return { visits: 0 };
+        });
+        seen.add(shared.value);
+        return {
+          ...(shared.collect
+            ? {
+                visitors: [
+                  {
+                    kinds: [SyntaxKind.VariableDeclaration],
+                    visit: () => {
+                      shared.value.visits += 1;
+                      visits += 1;
+                    },
+                  },
+                ],
+              }
+            : {}),
+          evaluate: () => {
+            if (shared.value.visits !== 1) {
+              throw new Error("shared fact did not observe the exact population once");
+            }
+          },
+        };
+      },
+    });
+  const policies = [sharedPolicy("shared-a"), sharedPolicy("shared-b")];
+
+  expect(run(policies, project).toolErrors).toEqual([]);
+  expect(constructions).toBe(1);
+  expect(visits).toBe(1);
+  expect(seen.size).toBe(1);
+
+  expect(run(policies, project).toolErrors).toEqual([]);
+  expect(constructions).toBe(2);
+  expect(visits).toBe(2);
+  expect(seen.size).toBe(2);
+});
+
+test("shared facts refuse consumers with different effective populations", () => {
+  const project = projectOf({
+    "packages/client/src/a.ts": "export const a = 1;\n",
+    "tooling/src/a.ts": "export const a = 1;\n",
+  });
+  const key = Object.freeze({ id: "population-bound-fact" });
+  const shared = (id: string, population: GatePolicy["population"]): GatePolicy =>
+    policy(id, {
+      population,
+      create: (ctx) => {
+        ctx.sharedFact(key, () => ({}));
+        return { evaluate: () => undefined };
+      },
+    });
+
+  const result = run([shared("client-shared", "@client"), shared("tooling-shared", "@tooling")], project);
+
+  expect(result.toolErrors).toMatchObject([{ policyId: "tooling-shared", phase: "create", message: expect.stringMatching(/identical.*populations/i) }]);
+  expect(result.authority.withheldPolicyIds).toEqual(["tooling-shared"]);
+});
+
 test("every hook throw withholds only its owner and siblings survive", () => {
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   const boom = (phase: string): never => {
@@ -1007,7 +1077,7 @@ test("the public context type and runtime surface expose neither Project nor roo
   run([gate], project);
 
   expect(noForbiddenKeys).toBe(true);
-  expect(keys).toEqual(["checker", "files", "receipt", "relativePath", "report", "resourcePaths", "resources", "sourceFile"]);
+  expect(keys).toEqual(["checker", "files", "receipt", "relativePath", "report", "resourcePaths", "resources", "sharedFact", "sourceFile"]);
   expect(frozen).toEqual([true, true, true, true]);
   expect(mutations).toEqual([false, false, true]);
 });

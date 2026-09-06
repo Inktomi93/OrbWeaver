@@ -24,6 +24,7 @@ import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
 import { ordinaryWaiverResourceFormat } from "./ordinary-waiver-source.ts";
+import type { PolicySharedFactRegistry } from "./policy-pass-context.ts";
 import { makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, assertGatePolicyHooks, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
@@ -316,9 +317,10 @@ interface CreateRunsInput {
   readonly resources: ResourceHost;
   readonly checker: () => TypeChecker;
   readonly errors: PolicyToolError[];
+  readonly sharedFacts: PolicySharedFactRegistry;
 }
 
-function createRuns({ runs, input, resources, checker, errors }: CreateRunsInput): void {
+function createRuns({ runs, input, resources, checker, errors, sharedFacts }: CreateRunsInput): void {
   for (const run of runs) {
     if (run.owner.status !== "success") {
       continue;
@@ -332,6 +334,7 @@ function createRuns({ runs, input, resources, checker, errors }: CreateRunsInput
       resourceRequests: run.resourceRequests,
       checker,
       findings: run.findings,
+      sharedFacts,
     });
     run.finishReceipts = runtime.finishReceipts;
     run.unconsumedResources = runtime.unconsumedResources;
@@ -489,7 +492,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     checker ??= input.project.getTypeChecker();
     return checker;
   };
-  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors });
+  createRuns({ runs, input, resources, checker: sharedChecker, errors: toolErrors, sharedFacts: new Map() });
   walkRuns(runs, sourceFiles, toolErrors);
   evaluateRuns(runs, toolErrors);
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
