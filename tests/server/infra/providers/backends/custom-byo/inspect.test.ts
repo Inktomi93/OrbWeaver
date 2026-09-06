@@ -359,3 +359,41 @@ describe("inspectCustomByoEndpoint — a QUOTE-bearing credential (#1785)", () =
     expect(preview).toContain("your request, reflected");
   });
 });
+
+// #1809 (SECURITY): the inspector's transport-error branch was `redactSecretsFromText(sanitizeApiError(…))`
+// — SANITIZE, then scrub. `sanitizeApiError` replaces every `<…>` span with a space (and caps at 500), so a
+// BYO credential holding markup was already fragmented when the by-value belt searched for it: neither the
+// raw nor the JSON-escaped spelling matched, and the remainder was rendered in the "Test endpoint" dialog.
+// Scrub first, mangle second.
+//
+// SHAPE-BLIND FIXTURE (#1760/#1785): assembled from parts, matching neither `sk-…` nor `Bearer …` — a
+// shape-shaped fixture is removed by `redactSecretsFromText`'s sweep whatever the by-value belt does and so
+// goes green against the broken source.
+describe("inspectCustomByoEndpoint — the by-value scrub runs BEFORE sanitize (#1809)", () => {
+  const lt = "<";
+  const gt = ">";
+  const angleKey = `byo${lt}tag${gt}cred4d8e1b6a2c90`;
+  const angleTail = "cred4d8e1b6a2c90";
+
+  test("a markup-bearing credential reflected in a thrown transport error is scrubbed whole (inspect:135)", async () => {
+    vi.stubGlobal("fetch", (): never => {
+      throw new Error(`transport rejected ${angleKey}`);
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: angleKey,
+      headers: null,
+      model: "m",
+      includeBody: null,
+      excludeBody: null,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).not.toContain(angleKey);
+    expect(result.error).not.toContain(angleTail);
+    expect(result.error).toContain("█");
+    // Non-vacuity: `redactKnownSecrets` fail-closes to "", which satisfies every not.toContain above.
+    expect(result.error).toContain("transport rejected");
+  });
+});
