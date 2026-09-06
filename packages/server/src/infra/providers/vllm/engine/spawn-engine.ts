@@ -12,9 +12,11 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import type { EngineLaunchMarker } from "../../contract/index.ts";
 import type { EngineLaunchConfig } from "./build-argv.ts";
 import { buildEngineArgv, engineCudaVisibleDevices } from "./build-argv.ts";
 import type { VLLM_ENGINES } from "./engines.ts";
+import { ENGINE_LAUNCH_MARKER_ENV } from "./process-identity.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
@@ -122,7 +124,7 @@ export function resolveEngineDeploymentFacts(opts: {
 export function buildEngineSpawnSpec(
   engine: VllmEngine,
   config: EngineLaunchConfig,
-  opts: { repoRoot: string; gpuCount: number; deployment: EngineDeploymentEnv; baseEnv: NodeJS.ProcessEnv },
+  opts: { repoRoot: string; gpuCount: number; deployment: EngineDeploymentEnv; baseEnv: NodeJS.ProcessEnv; launchMarker: EngineLaunchMarker },
 ): EngineSpawnSpec {
   const storeRoot = resolveStoreRoot(opts.repoRoot, opts.deployment.storeRoot);
   const { vllm, python } = resolveBinaries(storeRoot, opts.deployment);
@@ -141,6 +143,13 @@ export function buildEngineSpawnSpec(
       ...caches,
       ...(cuda !== null ? { CUDA_VISIBLE_DEVICES: cuda } : {}),
       ...(config.sleepMode ? { VLLM_SERVER_DEV_MODE: "1" } : {}),
+      // THE LAUNCH MARKER (#1756). It is exported into the spawn env — before the exec, where nothing can
+      // edit it afterwards — so every member of the engine's setsid group (the APIServer and its EngineCore
+      // workers) inherits it and `/proc/<pid>/environ` becomes proof of WHICH launch started a survivor.
+      // Without it, a dead leader left `engines:stop` refusing a live engine it had itself started, and the
+      // teardown ended in a hand-run `kill -TERM -<pgid>` — a negative-PGID kill with no authorization at
+      // all. Required + branded (`EngineLaunchMarker`) because the value's entropy IS the evidence.
+      [ENGINE_LAUNCH_MARKER_ENV]: opts.launchMarker,
     },
   };
 }

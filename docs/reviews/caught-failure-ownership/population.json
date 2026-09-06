@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 553,
-    "enforced": 548,
+    "sites": 555,
+    "enforced": 550,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 548,
+      "deliberate-absorb": 550,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 150,
-      "empty": 261
+      "default": 151,
+      "empty": 262
     }
   },
   "rows": [
@@ -3621,7 +3621,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts::promise:readBodyPreview::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/inspect.ts",
-      "line": 117,
+      "line": 121,
       "column": 24,
       "grammar": "promise",
       "position": "promise:readBodyPreview",
@@ -3629,7 +3629,7 @@
       "snippet": "const text = await readBodyPreview(res).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.",
-      "markerLine": 116
+      "markerLine": 120
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
@@ -3868,7 +3868,7 @@
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 142,
+      "line": 195,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3876,38 +3876,51 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict.",
-      "markerLine": 127
+      "markerLine": 180
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::2",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 168,
+      "line": 217,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.",
-      "markerLine": 164
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.",
+      "markerLine": 205
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::3",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 177,
+      "line": 257,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 3,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.",
+      "markerLine": 253
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::default:catch::4",
+      "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
+      "line": 266,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal.",
-      "markerLine": 174
+      "markerLine": 263
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::empty:error::1",
       "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
-      "line": 265,
+      "line": 354,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -3915,12 +3928,25 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified \"owned\" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification.",
-      "markerLine": 261
+      "markerLine": 350
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/vllm/engine/process-identity.ts::empty:error::2",
+      "path": "packages/server/src/infra/providers/vllm/engine/process-identity.ts",
+      "line": 473,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.",
+      "markerLine": 470
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/spawn-engine.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/spawn-engine.ts",
-      "line": 54,
+      "line": 56,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3928,7 +3954,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary.",
-      "markerLine": 48
+      "markerLine": 50
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/supervisor.ts::default:catch::1",
@@ -6676,7 +6702,7 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 79,
+      "line": 80,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6684,7 +6710,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
-      "markerLine": 75
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::empty:error::1",
