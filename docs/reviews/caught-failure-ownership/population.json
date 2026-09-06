@@ -1320,7 +1320,7 @@
     {
       "siteId": "packages/client/src/lib/bug-report-capture.ts::default:catch::1",
       "path": "packages/client/src/lib/bug-report-capture.ts",
-      "line": 212,
+      "line": 214,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1328,7 +1328,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
-      "markerLine": 206
+      "markerLine": 208
     },
     {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",

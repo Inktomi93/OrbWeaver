@@ -2,7 +2,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 
 const MESSAGE =
-  "raw matchMedia call outside the one-home reduced-motion lib — use `usePrefersReducedMotion()` (render, live-updating) or `prefersReducedMotionNow()` (imperative, point-in-time) from `@orb/ui`'s `#lib` instead of forking matchMedia plumbing. See docs/architecture/core/UI-Gates-and-Lessons.md §11.";
+  "raw matchMedia call outside the one-home media-query libs — use `usePrefersReducedMotion()` (render, live-updating), `prefersReducedMotionNow()` (imperative, point-in-time), or `coarsePointerNow()` (imperative, point-in-time pointer-coarseness) from `@orb/ui`'s `#lib` instead of forking matchMedia plumbing. See docs/architecture/core/UI-Gates-and-Lessons.md §11.";
 
 export const gate: GateDescriptor = {
   name: "no-raw-matchmedia",
@@ -19,6 +19,9 @@ export const gate: GateDescriptor = {
       return false;
     }
     if (p.includes("use-is-mobile-viewport.ts")) {
+      return false;
+    }
+    if (p.includes("packages/ui/src/lib/coarse-pointer-now.ts")) {
       return false;
     }
     return p.includes("packages/client/src/") || p.includes("packages/ui/src/");
@@ -52,6 +55,11 @@ export const gate: GateDescriptor = {
       files: 'export const G = window.matchMedia("(prefers-reduced-motion: reduce)");\n',
       at: "packages/ui/src/lib/use-prefers-reduced-motion.ts",
       why: "allowed in this file",
+    },
+    {
+      files: 'export const G = window.matchMedia("(pointer: coarse)");\n',
+      at: "packages/ui/src/lib/coarse-pointer-now.ts",
+      why: "allowed in this file — the coarsePointerNow() one-home",
     },
   ],
 };

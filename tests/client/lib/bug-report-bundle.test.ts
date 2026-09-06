@@ -47,6 +47,7 @@ test("an OAuth code/state/fragment token never reaches the serialized bundle", (
       viewport: { width: 1280, height: 800 },
       devicePixelRatio: 1,
       maxTouchPoints: 0,
+      pointerCoarse: false,
       prefersReducedMotion: false,
       appearance: {},
     },

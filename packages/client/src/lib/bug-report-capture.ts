@@ -20,7 +20,7 @@
 
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
-import { prefersReducedMotionNow } from "@orb/ui/lib";
+import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
 import { readAgentDebugHandle } from "./agent-bridge.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "./appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "./bug-report-bundle.ts";
@@ -84,17 +84,19 @@ function readAppearanceCarriers(): Readonly<Record<string, string | null>> {
 
 /** The browser facts a rendered defect is usually a function of.
  *
- *  POINTER COARSENESS IS REPORTED AS `maxTouchPoints`, NOT as a `(pointer: coarse)` read, and the name says so.
- *  `no-raw-matchmedia` keeps every media query in a declared one-home (`@orb/ui`'s reduced-motion pair, the
- *  shell's viewport hook) and no coarse-pointer home exists yet; inventing a second matchMedia site here would
- *  be the forked plumbing that gate exists to stop, and calling this field `pointerCoarse` while reading a
- *  different signal would be worse than either. `maxTouchPoints > 0` is the true fact this can read. */
+ *  POINTER COARSENESS IS REPORTED TWICE, HONESTLY NAMED (#1182). `maxTouchPoints` and `pointerCoarse` are
+ *  different signals — a touchscreen laptop can report touch points while its active pointer is a mouse —
+ *  and were conflated only while no sanctioned `(pointer: coarse)` read existed (#1095 shipped
+ *  `maxTouchPoints` alone rather than mislabel it). `coarsePointerNow()` is now the ONE `@orb/ui/lib`
+ *  one-home the `no-raw-matchmedia` gate allows for this query; both fields ship so a reader who sees the
+ *  two disagree learns something instead of the report silently picking one. */
 function readEnvironment(): BugReportEnvironment {
   return {
     userAgent: navigator.userAgent,
     viewport: { width: globalThis.innerWidth, height: globalThis.innerHeight },
     devicePixelRatio: globalThis.devicePixelRatio,
     maxTouchPoints: navigator.maxTouchPoints,
+    pointerCoarse: coarsePointerNow(),
     prefersReducedMotion: prefersReducedMotionNow(),
     appearance: readAppearanceCarriers(),
   };

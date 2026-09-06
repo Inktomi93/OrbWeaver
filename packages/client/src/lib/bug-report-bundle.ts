@@ -89,9 +89,14 @@ export interface BugReportEnvironment {
   readonly userAgent: string;
   readonly viewport: { readonly width: number; readonly height: number };
   readonly devicePixelRatio: number;
-  /** `navigator.maxTouchPoints` — see `readEnvironment`'s header for why this, and not a `(pointer: coarse)`
-   *  media query: the media-query one-home rule has no coarse-pointer member yet. `> 0` ⇒ a touch device. */
+  /** `navigator.maxTouchPoints` — a device can report touch points while its active input is a mouse
+   *  (touchscreen laptop), which is why this is reported ALONGSIDE `pointerCoarse` rather than instead of
+   *  it: the two are different signals and a reader who sees them disagree learns something. `> 0` ⇒ the
+   *  device has touch hardware. */
   readonly maxTouchPoints: number;
+  /** `(pointer: coarse)`, via `coarsePointerNow()` (#1182) — the CSS question itself: is the PRIMARY
+   *  pointer coarse right now. See `maxTouchPoints`'s doc for why both ship. */
+  readonly pointerCoarse: boolean;
   readonly prefersReducedMotion: boolean;
   /** The resolved appearance carriers ON `<html>` — theme/density/font-scale as they actually painted, which
    *  is the only appearance read that cannot disagree with the pixels the owner is reporting. */
