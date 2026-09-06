@@ -1,4 +1,4 @@
-// The per-chat LOREBOOKS rack — "which books this room carries", and the host's attach/detach over them
+// The per-chat WORLD BOOKS rack — "which books this room carries", and the host's attach/detach over them
 // (#640). The write half of `worldInfo.attachToChat` had no client affordance at all until this section:
 // `chat_books` rows were written only by the server (the ST import and the host-handoff repoint), so a room
 // could only ever carry the books someone else's code had put there.
@@ -49,7 +49,7 @@ export interface ChatBooksSectionProps {
   readonly isHost: boolean;
 }
 
-/** The "Lorebooks" section body — the books this room carries, one row each. */
+/** The "World books" section body — the books this room carries, one row each. */
 export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -72,8 +72,8 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
         // a failed load (empty states are load-bearing).
         <Text voice="gloss">
           {isHost
-            ? "No lorebooks are attached to this chat yet."
-            : "No lorebooks are attached to this chat yet — the host attaches the ones this room carries."}
+            ? "No world books are attached to this chat yet."
+            : "No world books are attached to this chat yet — the host attaches the ones this room carries."}
         </Text>
       ) : (
         <Stack gap="tight">
@@ -88,7 +88,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
       {isHost ? (
         <>
           <Button intent="secondary" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
-            Attach a lorebook
+            Attach a world book
           </Button>
           <AddChatBookDialog attachedIds={books.map((book) => book.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>

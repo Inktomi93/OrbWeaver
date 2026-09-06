@@ -394,19 +394,19 @@ const WELCOME_BACK_RECAP = defineRulePreset({
 const AUTO_ADD_LORE = defineRulePreset({
   id: "autoAddLore",
   title: "Auto-add lore entries",
-  summary: "Every so often, offer to write what has happened into one of this room's lorebooks.",
+  summary: "Every so often, offer to write what has happened into one of this room's world books.",
   ruleCount: 1,
   confirmFirst: true,
   knobs: {
     // AN ENTITY REFERENCE, and it carries NO DEFAULT — the recorded widening, now built (#630). A lore
     // rule without a book is not a rule, and no value is the right book, so there is nothing to default
     // TO: the picker renders this as a chooser over the books THIS CHAT has attached, and an absent
-    // choice refuses at the knob in the host's own noun ("choose a lorebook") rather than as a `""`
+    // choice refuses at the knob in the host's own noun ("choose a world book") rather than as a `""`
     // riding `resolveKnob`'s unvalidated-default path into a TypeID error deep inside the arm schema.
     // The mint still validates it twice — the axis schema parses the id here (which is what makes
     // `knobs.bookId` a `WorldBookId` below, no cast), and `createRule` refuses a book that is not
     // attached to this chat, which is a LIVE fact the picker cannot pre-empt.
-    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to write into — one of this room's own." },
     everyN: { kind: "number", label: "Every N messages", default: 10, min: CADENCE_MIN, max: CADENCE_MAX },
     entryKey: { kind: "text", label: "Entry name", default: "session notes", minLength: 1, maxLength: ENTRY_KEY_MAX },
     note: {
@@ -852,7 +852,7 @@ const DISTILL_LORE = defineRulePreset({
       min: CADENCE_MIN,
       max: CADENCE_MAX,
     },
-    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to distill into — one of this room's own." },
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to distill into — one of this room's own." },
   },
   rules: (knobs) => [
     {
@@ -893,7 +893,7 @@ const RUMOR_MILL = defineRulePreset({
       min: CADENCE_MIN,
       max: CADENCE_MAX,
     },
-    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to record rumours into — one of this room's own." },
+    bookId: { kind: "entityRef", entity: "worldInfoBook", label: "World book", help: "The book to record rumours into — one of this room's own." },
   },
   rules: (knobs) => [
     {

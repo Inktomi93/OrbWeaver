@@ -2,14 +2,14 @@
 // device (#830, the #821 residue).
 //
 // WHY IT EXISTS: with the injection rows collapsed (#821) the tab still settled at 2,836px desktop across
-// FOURTEEN sections — Host controls' eight alone are 1,880px — so Documents and Lorebooks were still below
+// FOURTEEN sections — Host controls' eight alone are 1,880px — so Documents and World books were still below
 // the fold and a host at the top of the pane had 14 competing destinations and no map of them (side-eye
 // `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §7: "a section index or a collapse-all is the missing
 // affordance"). Making every section a disclosure turns the closed pane INTO that index — each kicker keeps
-// its count chip, so the map carries "Documents 1 · Lorebooks 2" without spending a line of chrome on a
+// its count chip, so the map carries "Documents 1 · World books 2" without spending a line of chrome on a
 // second navigation element in a pane the same review praised as chrome-clean.
 //
-// WHY PER DEVICE: "Lorebooks open, Host controls closed" is a working posture on THIS screen, not a
+// WHY PER DEVICE: "World books open, Host controls closed" is a working posture on THIS screen, not a
 // preference that should follow a user to a phone whose fold is 300px shorter — the `config-group-open` /
 // `character-library` browse-prefs precedent (§12.1). Registered as device-local in
 // tooling/src/verify/gates/persistence-boundary.ts.

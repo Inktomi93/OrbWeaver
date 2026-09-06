@@ -1,4 +1,4 @@
-// The per-chat LOREBOOKS rack's two write verbs, each a module-scope `createEntityMutation` (§13.1 — the ONE
+// The per-chat WORLD BOOKS rack's two write verbs, each a module-scope `createEntityMutation` (§13.1 — the ONE
 // mutation home). Both carry HOST authority over the ROOM: `worldInfo.attachToChat` gates on the injected
 // `requireChatHost` AND on the caller owning the book (a host shares THEIR book); `detachFromChat` gates on
 // host alone and deliberately does NOT re-check ownership, so a host can clean a room a previous host left a
@@ -25,11 +25,11 @@ interface ChatBookAttachVars {
 export const useAttachBookToChat = createEntityMutation<ChatBookAttachVars, unknown>({
   options: (trpc) => trpc.worldInfo.attachToChat.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't attach the lorebook to this chat.",
+  errorToast: "Couldn't attach the world book to this chat.",
 });
 
 export const useDetachBookFromChat = createEntityMutation<ChatBookAttachVars, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromChat.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't remove the lorebook from this chat.",
+  errorToast: "Couldn't remove the world book from this chat.",
 });

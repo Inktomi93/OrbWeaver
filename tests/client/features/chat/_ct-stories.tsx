@@ -3227,9 +3227,9 @@ export function ChatDocumentsSectionStory({ isHost = true }: { readonly isHost?:
   );
 }
 
-/** The per-chat LOREBOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
+/** The per-chat WORLD BOOKS rack (chat-books-section.tsx, #640) at the REAL context-panel width — 320px is the
  *  pane floor the row grammar is stated at, and the width a `shrink-0` trailing cluster is proven at. Same
- *  `QueryBoundary` its production mount ("This chat" → Lorebooks) gives it. The tab's own `.ct.tsx` owns the
+ *  `QueryBoundary` its production mount ("This chat" → World books) gives it. The tab's own `.ct.tsx` owns the
  *  behavior pins (order, the write-reach copy, attach/detach payloads); this story exists for the geometry
  *  the 380px tab story cannot see. */
 export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
@@ -3237,8 +3237,8 @@ export function ChatBooksSectionStory({ isHost = true }: { readonly isHost?: boo
     <CtDataProviders>
       <div style={{ width: 320 }}>
         <QueryBoundary
-          fallback={<Text tone="muted">Loading lorebooks…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+          fallback={<Text tone="muted">Loading world books…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's world books" onRetry={retry} />}
         >
           <ChatBooksSection chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>

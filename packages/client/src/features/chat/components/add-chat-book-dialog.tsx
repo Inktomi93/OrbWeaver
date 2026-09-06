@@ -1,4 +1,4 @@
-// The "Attach a lorebook" PICKER (host only) — the caller's own books, minus the ones already attached to
+// The "Attach a world book" PICKER (host only) — the caller's own books, minus the ones already attached to
 // this room, each one a one-shot `worldInfo.attachToChat`.
 //
 // THE DIALOG IS THE CONSENT MOMENT, SO IT SPELLS THE WRITE REACH. Attaching is not "adding a reference":
@@ -68,7 +68,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
       await attach.mutateAsync({ chatId, bookId });
       onOpenChange(false);
     } catch {
-      setFailure("Couldn't attach the lorebook to this chat.");
+      setFailure("Couldn't attach the world book to this chat.");
     } finally {
       ownedRef.current = false;
     }
@@ -83,7 +83,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
         }
       }}
       open={open}
-      title="Attach a lorebook to this chat"
+      title="Attach a world book to this chat"
     >
       {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
@@ -123,10 +123,10 @@ function PickerBody({
         description={
           books.length === 0
             ? "Make one in World info — a book of entries that fire on the keywords you give them — and it can feed this chat."
-            : "Every lorebook you own is already attached to this chat."
+            : "Every world book you own is already attached to this chat."
         }
         icon={<Icon icon={BookOpen} size="lg" />}
-        title={books.length === 0 ? "You have no lorebooks yet" : "Nothing left to attach"}
+        title={books.length === 0 ? "You have no world books yet" : "Nothing left to attach"}
       />
     );
   }

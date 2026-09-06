@@ -33,13 +33,13 @@ export function createRestoreCharacterBook(ctx: ImportContext): Pick<ImportServi
     // parse takes the constant rather than deriving a name this verb would never use.
     const parsed = isPng(bytes) ? await parseCardPng(bytes, FALLBACK_NAME) : parseCardJson(bytes, FALLBACK_NAME);
     if (parsed === null) {
-      return { ok: false, error: "This file isn't a readable V2/V3 character card, so it carries no lorebook to restore" };
+      return { ok: false, error: "This file isn't a readable V2/V3 character card, so it carries no world book to restore" };
     }
     if (parsed.book === null) {
-      return { ok: false, error: "This character card carries no embedded lorebook — there is nothing to restore from it" };
+      return { ok: false, error: "This character card carries no embedded world book — there is nothing to restore from it" };
     }
     if (ctx.importLorebook === undefined) {
-      return { ok: false, error: "Lorebook writes are not wired into this import composition" };
+      return { ok: false, error: "World book writes are not wired into this import composition" };
     }
     const characterId = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: importFileHash(bytes) });
     if (characterId === null) {

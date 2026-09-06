@@ -97,7 +97,7 @@ export function ImportLibrarySection(): ReactElement {
   return (
     <Stack gap="block">
       <Text className="text-muted-foreground">
-        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, lorebooks — everything) or a single
+        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books — everything) or a single
         character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>
       <FileDropzone

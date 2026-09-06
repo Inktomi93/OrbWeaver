@@ -297,11 +297,11 @@ describe("applyToChat — the rules phase", () => {
     const { svc, owner, cast } = await ruledCast(db, h);
     // The planted consent-class refusal (the lore presets' book-attachment gate raises exactly this
     // class on the REAL graph — proven in tests/server/entry/compose/roster-preset.int.test.ts).
-    h.refuseMints.set("sceneVeil", "that lorebook is not attached to this chat");
+    h.refuseMints.set("sceneVeil", "that world book is not attached to this chat");
 
     const result = await svc.applyToChat({ principal: principal(owner), presetId: cast.id, chatId: CHAT });
 
-    expect(result.rulesSkipped).toEqual([{ rulePresetId: "sceneVeil", reason: "that lorebook is not attached to this chat" }]);
+    expect(result.rulesSkipped).toEqual([{ rulePresetId: "sceneVeil", reason: "that world book is not attached to this chat" }]);
     expect(result.rulesMinted).toEqual(["clockFires"]);
     expect(h.roomRules.filter((rule) => rule.rulePresetId === "clockFires")).toHaveLength(2);
     expect(h.roomRules.filter((rule) => rule.rulePresetId === "sceneVeil")).toHaveLength(0);
