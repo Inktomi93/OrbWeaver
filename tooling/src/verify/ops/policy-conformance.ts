@@ -97,6 +97,21 @@ function runExample(policy: GatePolicy, proof: GatePolicyProof, shared: Project,
   return proof.mode === "resource" ? runResourceExample(policy, proof) : runVirtualExample(policy, proof, shared, sequence);
 }
 
+function proofIdentities(proof: GatePolicyProof): ReadonlySet<string> {
+  const identities = new Set(Object.keys(proof.files));
+  if (proof.mode !== "resource") {
+    return identities;
+  }
+  for (const path of Object.keys(proof.files)) {
+    const segments = path.split("/");
+    while (segments.length > 1) {
+      segments.pop();
+      identities.add(segments.join("/"));
+    }
+  }
+  return identities;
+}
+
 function formatFindingMessages(findings: readonly CoordinatedGateFinding[], policyMessage: string): string {
   return findings.map((finding) => finding.message ?? policyMessage).join("; ");
 }
@@ -174,7 +189,7 @@ function proofFailure({ policy, arm, proof, exampleIndex, sequence, shared }: Pr
     detail = `PASS THREW ${run.thrown}`;
   } else {
     const result = run.result as PolicyPassResult;
-    detail = toolFailure(result, policy, new Set(Object.keys(proof.files)));
+    detail = toolFailure(result, policy, proofIdentities(proof));
     if (detail === null) {
       const findings = result.authority.effectiveFindings;
       if (arm === "mustFlag") {
