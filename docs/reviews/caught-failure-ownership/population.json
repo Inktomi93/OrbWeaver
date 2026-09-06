@@ -3140,7 +3140,7 @@
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-bundle-import.ts",
-      "line": 138,
+      "line": 146,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3148,7 +3148,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded as an",
-      "markerLine": 122
+      "markerLine": 130
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::1",

@@ -28,11 +28,15 @@ export interface MaintenanceResult {
   readonly reportPath?: string;
 }
 
-/** A portability bundle import's per-entity tallies. */
+/** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
+ *  left behind (a kept edited lorebook, a dropped overlay) — the same operator-facing notes the sync
+ *  descriptor-level report already carried (#1688), now surfaced on the BACKGROUND workload's own result so
+ *  a run driven off-request is not silently cleaner than the same import run through the sync door. */
 export interface BundleImportWorkloadResult {
   readonly imported: number;
   readonly skipped: number;
   readonly failed: number;
+  readonly notes: readonly string[];
 }
 
 /** The auditable terminal census for import's variant token catch-up. Every non-write has a named bucket. */
