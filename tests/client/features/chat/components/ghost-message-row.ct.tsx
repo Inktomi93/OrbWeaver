@@ -501,9 +501,12 @@ test("#1745 the ghost's avatar steps down to the phone size at a narrow width, m
   const avatar = component.locator(AVATAR_ROOT).first();
   await expect(avatar).toBeVisible();
   await expect.poll(async () => avatar.evaluate((el) => el.getBoundingClientRect().width)).toBe(24);
-  const gapPx = await component
-    .locator(ROW_BODY_SEL)
-    .first()
-    .evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).columnGap));
-  expect(gapPx).toBe(6);
+  await expect
+    .poll(() =>
+      component
+        .locator(ROW_BODY_SEL)
+        .first()
+        .evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).columnGap)),
+    )
+    .toBe(6);
 });

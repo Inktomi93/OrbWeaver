@@ -585,10 +585,10 @@ test("#844 P3 the token census datum carries no wide letter-spacing", async ({ m
 
   const census = component.getByText(TOKEN_TOTAL_RE).first();
   await expect(census).toBeVisible();
-  const letterSpacingPx = await census.evaluate((node) => Number.parseFloat(globalThis.getComputedStyle(node).letterSpacing) || 0);
   // `tracking-normal` resolves to `normal` (0px); the defect's `tracking-micro` at this font-size computes
-  // to 0.84px — assert well under that so a regression back to the label tracking reads red.
-  expect(letterSpacingPx).toBeLessThan(0.1);
+  // to 0.84px — assert well under that so a regression back to the label tracking reads red. Polled: the
+  // computed style settles with the font.
+  await expect.poll(() => census.evaluate((node) => Number.parseFloat(globalThis.getComputedStyle(node).letterSpacing) || 0)).toBeLessThan(0.1);
 });
 
 // F4 (the ruling: a CONTEXT panel that opens to "Open a field to inspect it" fails its instrument tier)
