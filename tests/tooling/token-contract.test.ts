@@ -182,7 +182,16 @@ test("the real vault is conformant and preserves the exact generated target surf
   // `cssTargets` moves +5, not +2: the two tokens emit their own `cssVar`s AND the vault's `orb.cssValues`
   // gained three runtime custom properties (--orb-grid-cell-fixed and its comfortable/compact density
   // aliases), each a target. 205 → 210; `scannedTokens` 303 → 305. Same-count controls below re-pinned.
-  expect(constituents).toEqual({ base: 199, light: 64, mocha: 42 });
+  //
+  // 2026-09-06 re-pin, 199/64/42 → 199/65/42. TWO landings, one of which had left this pin RED on main
+  // before the #1684 lane touched it (measured: base 200 / light 65 / targets 211 / scanned 307):
+  //   89514942d (#1641, D159)  base +1 · light +1  color.input-border — the opaque FORM-CONTROL edge, a
+  //                            `light-dark()` token, so it constitutes in BOTH arms; `cssTargets` +1.
+  //   this commit (#1684)      base −1             spacing.switch-thumb RETIRED (the Switch knob is
+  //                            derived from track-height − 2×border − 2×inset at the site;
+  //                            packages/ui/src/tokens/removed.json carries the row); `cssTargets` −1.
+  // Net: base back to 199, light 65, `cssTargets` back to 210, `scannedTokens` 305 → 306.
+  expect(constituents).toEqual({ base: 199, light: 65, mocha: 42 });
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
   expect(result.cssTargets.size).toBe(210);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
@@ -384,7 +393,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(305);
+    expect(result.scannedTokens).toBe(306);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 

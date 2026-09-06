@@ -1,9 +1,11 @@
 import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
-// FOUR DIMENSIONS, FOUR TOKENS, ALL POINTER-CONDITIONAL (#1109, owner ruling 2026-09-02). The track's
-// WIDTH is `--spacing-switch-track` (64 coarse / 48 fine), its HEIGHT is `--spacing-switch-track-height`
-// (44 / 32), the knob is `--spacing-switch-thumb` (24 / 18) — ~55% of the height at each pointer — and
-// the gap between them is `--spacing-switch-inset` (9 / 6).
+// FOUR DIMENSIONS, THREE TOKENS AND ONE DERIVED KNOB, ALL POINTER-CONDITIONAL (#1109, owner ruling
+// 2026-09-02; the knob became derived at #1684, owner ruling 2026-09-06 — the paragraph below the #424
+// one states why). The track's WIDTH is `--spacing-switch-track` (64 coarse / 48 fine), its HEIGHT is
+// `--spacing-switch-track-height` (44 / 32), the gap between track and knob is `--spacing-switch-inset`
+// (9 / 6), and the knob is what is LEFT — `track-height − 2×border − 2×inset` (24 / 18 at the 16px root,
+// ~55% of the height at each pointer, byte-identical to the values #1109 shipped as a token).
 // Until #1109 there were only TWO tokens, because `--spacing-switch-thumb` was doing two jobs: the
 // fine-pointer TRACK HEIGHT (`h-switch-thumb` on the root, with `pointer-coarse:h-touch-target` bolted on
 // for the coarse arm) AND the thumb size at every pointer. A token cannot be both, so the knob could not
@@ -27,15 +29,14 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // INPUT. The root is `border-box`, so its CONTENT box is 2× the border narrower than the track width, and
 // a travel of `track − thumb` parked the checked thumb one border-width PAST the right rim (measured
 // insetRight −1 at both pointers). #424 subtracted the border twice. The knob is now inset EQUALLY on all
-// four sides instead: the BLOCK inset falls out of `items-center` inside the content box, and the root
-// spends the SAME quantity as INLINE padding — `px-switch-inset`, which is
-// `(track-height − 2×border − thumb) / 2` = 9px coarse, 6px fine. That token is a LITERAL, not a calc
+// four sides instead: the root spends `--spacing-switch-inset` as INLINE padding — `px-switch-inset`,
+// 9px coarse / 6px fine — and the BLOCK inset is the same quantity because the knob's own height is what
+// the inset leaves (the #1684 paragraph below). That token is a LITERAL, not a calc
 // (the `--spacing-slider-inset` precedent: DTCG $values carry no references), and the first spelling here
 // WAS the calc — `no-raw-spacing-in-features` refused it, correctly: this repo spells spacing as intent
-// tokens. The sync a literal costs is bought back by the CT, which asserts the RENDERED inline gap EQUALS
-// the RENDERED block gap at both pointers, so an unmirrored retune of any of the other three tokens goes
-// red on geometry instead of drifting. Substitute the inset into `trackW − 2×border − 2×inset − thumb`
-// and both the border and the thumb cancel:
+// tokens. The CT asserts the RENDERED inline gap EQUALS the RENDERED block gap at both pointers, so an
+// unmirrored retune of any of the other tokens goes red on geometry instead of drifting. Substitute the
+// inset into `trackW − 2×border − 2×inset − thumb` and both the border and the thumb cancel:
 //
 //     travel = trackWidth − trackHeight        (20px coarse, 16px fine)
 //
@@ -45,6 +46,29 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // rendered boxes at both pointers in tests/ui/primitives/switch/switch.ct.tsx. The root's border COLOUR is
 // untouched: `border-border` and the `data-invalid:` / `data-checked:` colour variants ride the colour
 // axis, which the width spelling never names.
+//
+// THE KNOB IS DERIVED, NOT DECLARED (#1684, owner ruling 2026-09-06) — AND THAT RETIRES ONE HALF OF §2's
+// DECLARED RESIDUAL. `--spacing-switch-thumb` was a fourth belted token, so the knob, the track height and
+// the border were three INDEPENDENTLY rounded integers and `items-center` halved whatever
+// `(track-height − 2×border − thumb)` happened to be. Even at scale 1 by authorship; ODD wherever the belt
+// rounds them apart. At `--font-scale` 1.25 — the `reading` appearance preset, i.e. a shipping user state —
+// the fine arm resolved track-height 40, thumb round(up, 1.125rem × 1.25 = 22.5) = 23, border 1, so the
+// content box was 38 and the knob RESTED at 1 + (38−23)/2 = 8.5px: half a device pixel at DPR 1, which is
+// what design-audit's `off-grid-transform` filed as #1684 against `span[data-slot=switch-thumb]` on
+// settings:appearance. `docs/design/integer-line-boxes.md` §2 (the #1640 amendment) had DECLARED that
+// residual unreachable — "no authored value and no round() on a token can reach" the difference of two
+// belted lengths — and for a DECLARED thumb that is exactly right. It is reachable by making the knob a
+// FUNCTION of the other three: `h-[calc(track-height − 2×border − 2×inset)]`, so the centred difference is
+// `2×inset` by construction and the rest landing is exactly `border + inset` — whole at EVERY font scale
+// (fine: 1@1 → 7 · 0.875 → 7 · 1.15 → 8 · 1.25 → 9). The ruling survives; its INPUT changed. Consequences,
+// deliberately: the token is RETIRED from the vault (its #1109 ~55% ruling now lives on
+// `--spacing-switch-inset`, the primary of the pair); the knob is 24/18 at the 16px root exactly as #1109
+// shipped, and 14 at 0.875 / 22 at 1.25 rather than 16 / 23, all inside the CT's 0.45–0.65 share pins; the
+// travel identity above is UNCHANGED and now exact at every scale rather than at scale 1; and the calc is
+// token-driven, which is why `no-arbitrary-tw-values` (TOKEN_DRIVEN_RE) and `no-raw-spacing-in-features`
+// (no `h-` arm) both pass a spelling their `px-[calc(…)]` cousin was correctly refused for. NOT fixed here
+// and not this control's to fix: the element's ABSOLUTE landing, which is its ancestors' — #1684's 0.484
+// device px is this 0.5 plus ~0.984 inherited from the settings row stack.
 //
 // THE RESIDUAL THIS HEADER USED TO RECORD IS CLOSED. It read: "the thumb is exactly as tall as the root at
 // a fine pointer … inset-ing it vertically would mean shrinking the display thumb, a size decision this fix
@@ -113,7 +137,7 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-muted-foreground/80",
+      "group relative flex aspect-square h-[calc(var(--spacing-switch-track-height)_-_2_*_var(--border-width-control)_-_2_*_var(--spacing-switch-inset))] items-center justify-center rounded-full bg-muted-foreground/80",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-[calc(var(--spacing-switch-track)_-_var(--spacing-switch-track-height))]",
     ],

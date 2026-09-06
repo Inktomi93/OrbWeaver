@@ -207,20 +207,26 @@ test("the thumb is a PROPORTIONAL knob, inset equally on all four sides, at both
 // which is the whole claim — this file cannot set `deviceScaleFactor` (a browser-context option), and an
 // integer landing makes the DPR arm unnecessary rather than unmeasured.
 //
-// THE DECLARED RESIDUAL (docs/design/integer-line-boxes.md §2): the belt makes each LENGTH integer, never
-// the DIFFERENCE between two of them even. When (content height − thumb) is ODD, `items-center` still
-// centres on a half pixel — crisp at DPR 2, resampled at DPR 1 and 3. `1.25` is such a cell and is
-// asserted as the half-pixel it is, not tuned away.
-// blockOffset is measured from the root's BORDER-BOX top, so it is the 1px `--border-width-control`
-// plus the centred gap inside the content box: scale 1 → 1 + (30−18)/2 = 7 · 0.875 → 1 + (26−16)/2 = 6 ·
-// 1.15 → 1 + (35−21)/2 = 8. Every one a whole pixel BECAUSE both lengths were belted first.
+// THE RESIDUAL THIS BLOCK USED TO DECLARE IS GONE — #1684 (owner ruling 2026-09-06). It read: the belt
+// makes each LENGTH integer, never the DIFFERENCE between two of them even, so when (content − thumb) is
+// ODD `items-center` centres on a half pixel; `1.25` was such a cell and this file asserted the half pixel
+// "as the honest limit, not a wobble to be widened". That was true of a DECLARED thumb — and 1.25 is the
+// `reading` appearance preset, i.e. a shipping user state, where design-audit's `off-grid-transform` duly
+// filed the resting knob at half a device pixel (#1684). The knob is now DERIVED from the other three
+// dimensions (`track-height − 2×border − 2×inset`, variants.ts), so the centred difference is `2×inset` —
+// even by construction — and the rest landing is exactly `border + inset` at EVERY scale. 1.25 therefore
+// joins the whole-pixel table rather than sitting under it as a declared limit.
+//
+// blockOffset is measured from the root's BORDER-BOX top, so it is the 1px `--border-width-control` plus
+// the centred gap inside the content box, which is now the belted inset itself: scale 1 → 1 + 6 = 7 ·
+// 0.875 → 1 + ceil(5.25) = 7 · 1.15 → 1 + ceil(6.9) = 8 · 1.25 → 1 + ceil(7.5) = 9. Every one a whole
+// pixel because the knob is what the belted inset LEAVES, not a fourth independently belted length.
 const FRACTIONAL_ROOT_SCALES = [
   { scale: 1, blockOffsetPx: 7 },
-  { scale: 0.875, blockOffsetPx: 6 },
+  { scale: 0.875, blockOffsetPx: 7 },
   { scale: 1.15, blockOffsetPx: 8 },
+  { scale: 1.25, blockOffsetPx: 9 },
 ] as const;
-/** The `--font-scale` whose (content − thumb) difference is ODD: the §2 residual, half a pixel by arithmetic. */
-const HALF_PIXEL_RESIDUAL_SCALE = 1.25;
 
 async function switchBoxes(control: Locator): Promise<{ readonly track: number; readonly thumb: number; readonly blockOffset: number }> {
   return await control.evaluate((el) => {
@@ -258,22 +264,82 @@ for (const { scale, blockOffsetPx } of FRACTIONAL_ROOT_SCALES) {
   });
 }
 
-test(`--font-scale ${HALF_PIXEL_RESIDUAL_SCALE}: the DECLARED residual — belted lengths, a half-pixel centred gap (§2, crisp at DPR 2 only)`, async ({
-  mount,
-  page,
-}) => {
-  const control = page.getByRole("switch");
-  await mount(<Switch aria-label="Streaming" />);
-  await applyFontScale(page, HALF_PIXEL_RESIDUAL_SCALE);
-  await expect(control).toBeVisible();
+// ── #1684 (design-audit `off-grid-transform`, P3): THE RESTING KNOB LANDS ON WHOLE DEVICE PIXELS, IN
+// BOTH REST POSITIONS AND AT BOTH POINTER CLASSES.
+//
+// The rule judges the raster an element's REST transform produces (integer-line-boxes.md §9), and it fired
+// on `span[data-slot=switch-thumb]` at `--appearance-preset reading` (fontScale 1.25) with "translate: 20px
+// … lands top 0.484 / left 0.000 device px off the grid at DPR 1". Half of that fraction was this control's:
+// the pre-#1684 knob was a fourth independently belted token, so `items-center` halved an ODD
+// (content − thumb) at that scale and the knob rested at 8.5px. The other ~0.984 is the ancestor's landing
+// (`setting-row-group > setting-row > field-control-col` — inherited, and filed separately); a primitive
+// cannot fix an ancestor's landing, so what this pin owns is the knob's landing INSIDE its root, which is
+// the whole of the primitive's contribution and is now whole at every font scale.
+//
+// Stated in DEVICE pixels (`× devicePixelRatio`) rather than CSS px because that is the quantity the rule
+// judges, and read from `translate` — the individual property Tailwind v4's `translate-x-*` emits, which a
+// matcher reading `transform` would see as `none`.
+interface ThumbRestLanding {
+  readonly dpr: number;
+  readonly translate: string;
+  readonly translateDevicePx: number;
+  readonly blockDevicePx: number;
+  readonly inlineDevicePx: number;
+}
 
-  const boxes = await switchBoxes(control);
-  // The belt still does its half: both LENGTHS are whole pixels…
-  expect(Number.isInteger(boxes.thumb), `thumb resolved ${boxes.thumb}px`).toBe(true);
-  expect(Number.isInteger(boxes.track), `track resolved ${boxes.track}px`).toBe(true);
-  // …and the residual is EXACTLY half a pixel, which is the honest limit, not a wobble to be widened.
-  expect(boxes.blockOffset % 1, "the centred gap is the odd-difference half pixel §2 declares").toBe(0.5);
-});
+async function thumbRestLanding(control: Locator): Promise<ThumbRestLanding> {
+  return await control.evaluate((el) => {
+    const knob = el.querySelector('[data-slot="switch-thumb"]');
+    if (knob === null) {
+      throw new Error("no switch-thumb inside the switch root");
+    }
+    const root = el.getBoundingClientRect();
+    const rect = knob.getBoundingClientRect();
+    const declared = getComputedStyle(knob).translate;
+    const dpr = window.devicePixelRatio;
+    // UNROUNDED on purpose — the defect IS the fraction.
+    return {
+      dpr,
+      translate: declared,
+      translateDevicePx: (declared === "none" ? 0 : Number.parseFloat(declared)) * dpr,
+      blockDevicePx: (rect.top - root.top) * dpr,
+      inlineDevicePx: (rect.left - root.left) * dpr,
+    };
+  });
+}
+
+/** SETTLED first — the knob has a 130ms transform transition and a same-tick read reports a partial
+ *  translate, which is a fraction that means nothing about the REST landing. */
+async function expectWholePixelRest(control: Locator, when: string): Promise<void> {
+  await settledThumb(control);
+  const landing = await thumbRestLanding(control);
+  expect(landing.dpr, `[${when}] this pin is stated in DEVICE px, so a DPR of 0 would make every claim below vacuous`).toBeGreaterThan(0);
+  expect(
+    Number.isInteger(landing.translateDevicePx),
+    `[${when}] the resting translate is "${landing.translate}" = ${landing.translateDevicePx} device px`,
+  ).toBe(true);
+  expect(
+    Number.isInteger(landing.blockDevicePx),
+    `[${when}] the knob rests ${landing.blockDevicePx} device px below its root's top — a fraction here is the resampled raster #1684 filed`,
+  ).toBe(true);
+  expect(Number.isInteger(landing.inlineDevicePx), `[${when}] the knob rests ${landing.inlineDevicePx} device px from its root's left rim`).toBe(true);
+}
+
+/** The `reading` appearance preset's `fontScale`, and the exact cell #1684 was measured in. */
+const READING_PRESET_SCALE = 1.25;
+
+for (const scale of [1, READING_PRESET_SCALE] as const) {
+  for (const checked of [false, true] as const) {
+    const when = `fine · --font-scale ${scale} · ${checked ? "ON" : "OFF"}`;
+    test(`the resting knob lands on whole device pixels inside its root (#1684) — ${when}`, async ({ mount, page }) => {
+      await mount(<Switch aria-label="Streaming" defaultChecked={checked} />);
+      const control = page.getByRole("switch");
+      await applyFontScale(page, scale);
+      await expect(control).toBeVisible();
+      await expectWholePixelRest(control, when);
+    });
+  }
+}
 
 // ── THE COARSE-POINTER SHAPE PIN (side-eye #420, 2026-08-22). The two pins that existed before this
 // block — the aspect pin above (fine context) and the height floor in touch-target-floor.suite.ct.tsx:119
@@ -348,6 +414,18 @@ test.describe("at a COARSE pointer", () => {
     await expect(control).toHaveAttribute("aria-checked", "true");
     await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.top);
   });
+
+  // #1684's other pointer arm. The coarse triple (44 − 2×1 − 2×9 = 24) is a different set of belted
+  // lengths from the fine one, so a derivation that is whole only at a fine pointer ships half the fix.
+  for (const checked of [false, true] as const) {
+    const when = `coarse · ${checked ? "ON" : "OFF"}`;
+    test(`the resting knob lands on whole device pixels inside its root (#1684) — ${when}`, async ({ mount, page }) => {
+      await mount(<Switch aria-label="Streaming" defaultChecked={checked} />);
+      const control = page.getByRole("switch");
+      await expect(control).toBeVisible();
+      await expectWholePixelRest(control, when);
+    });
+  }
 });
 
 // ── tone axis (north-star §5 PP1 precedent; owner-sanctioned 2026-07-16). `accent` (default) keeps
