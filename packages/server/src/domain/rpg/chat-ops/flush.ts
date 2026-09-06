@@ -134,24 +134,46 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
 
 /** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
- *  terminal tools at all, whose wire would go MUTE if they rode (`terminalToolCalls === null`: a
- *  tools-incapable model, an unbuildable mount, or the fold-guarded local engine) — runs its dedicated post-commit
+ *  terminal tools at all, whose wire would go MUTE if they rode, or whose declarations collided with registry
+ *  tool names (`terminalToolCalls === null`: a tools-incapable model, an unbuildable mount, the fold-guarded
+ *  local engine, or #1617's withheld channel) — runs its dedicated post-commit
  *  round exactly as before. An EMPTY call array also falls back: a quiet folded beat must explicitly emit
  *  `no_changes`, otherwise zero calls is indistinguishable from a model that ignored its bookkeeping tools.
+ *
+ *  THE ARRAY MAY CARRY MORE THAN ONE RECURSION DEPTH'S CALLS (#1604, since #1404). The pipeline partitions each
+ *  depth's model-emitted calls by tool identity and ACCUMULATES the terminal half across the whole recurse loop
+ *  (`engine/pipeline.ts::runRecurseLoop`), rather than re-reading the final aggregate economics — which keeps
+ *  only the LAST depth's `toolCalls` and therefore ERASED a terminal call co-emitted with a registry call at
+ *  depth 0. So a folded game that also attaches registry tools hands this fold several depths' worth of calls,
+ *  in EMISSION ORDER (depth 0 first).
+ *
+ *  That is the right shape, and the fold needs no depth-awareness to honor it: `toolCallsToExtraction` folds
+ *  the array exactly as it folds one completion's PARALLEL calls — same-plane calls ACCUMULATE (three
+ *  `update_party` calls become three party entries) and the single-valued `scene` plane is LAST-WINS. Under
+ *  emission order that reads correctly for a recursion: a later depth saw the earlier depth's tool RESULTS, so
+ *  its scene supersedes, while every plane-array write from every depth survives. They are all genuine state
+ *  calls from ONE turn; nothing about the depth they were emitted at makes one less true than another, and the
+ *  depth itself is deliberately not carried — there is no rule here that would read it.
  *
  *  The resolution is ANNOUNCED on every flush (`onStateRoundPath`) — a fork that resolves silently would let a
  *  folded game quietly pay the second call forever with nothing in the trail to say so. */
 /** WHY this flush is not folding, read off the TURN's own connection (the wire that actually ran — never a
- *  re-resolve). `null` = nothing was downgraded (the knob got what it asked for). The two causes are distinct and
- *  both are the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
+ *  re-resolve). `null` = nothing was downgraded (the knob got what it asked for). The causes are distinct and
+ *  each is the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
  *  all; a wire that SILENCES prose under tool attachment was deliberately never mounted (D112's fold guard, gated
- *  PRE-commit at the gather off the same capability fact). Same round, same delta — different diagnosis. */
+ *  PRE-commit at the gather off the same capability fact); and a COLLIDED declaration means the wire was fine
+ *  and a contributor re-spelled a registry tool's name, so the channel was withheld on purpose (#1617 — read
+ *  FIRST, because a collision also arrives as a `null` channel and would otherwise be reported as the
+ *  wire's fault). Same round, same delta — different diagnosis, and they point at different people. */
 function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls: readonly unknown[] | null): RpgFoldFallbackReason | null {
   if (mode !== "folded") {
     return null;
   }
   if (calls !== null) {
     return calls.length === 0 ? "no-terminal-calls" : null;
+  }
+  if (turn.turnConnection.terminalToolsCollided.length > 0) {
+    return "terminal-declaration-collided";
   }
   return coEmitsProseWithTools(turn.turnConnection.connection.capability) ? "no-terminal-channel" : "local-engine-fold-guard";
 }

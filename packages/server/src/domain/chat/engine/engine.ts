@@ -1779,6 +1779,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
+      terminalToolsCollided: result.terminalToolsCollided,
       prose: turnProse(prep),
       // The round's cancellation inputs. `triggeredBy` is the OWNER it is scoped to (`cancelStateRounds` mirrors
       // `activeTurns.abort`'s owner-only rule); `signal` is this turn's own registration signal, which covers

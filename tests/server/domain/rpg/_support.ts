@@ -185,6 +185,9 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
     // R1: `null` = the folded tools did NOT ride this turn, so a `folded` game falls back to its post-commit
     // round. A fold test overrides it with the calls the character turn co-emitted (`[]` = a quiet beat).
     terminalToolCalls: null,
+    // #1617: the names a registry tool already owned, which is why the channel above is null. EMPTY here —
+    // an ordinary turn has no collision, and the collision arm overrides it explicitly.
+    terminalToolsCollided: [],
     // The turn OWNER — the cancellation scope `cancelStateRounds` matches on (mirrors `activeTurns.abort`'s
     // owner-only rule). Defaults to the harness's host user so a cancel test can name it without plumbing.
     triggeredBy: castId<UserId>("user_host"),
