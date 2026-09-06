@@ -1,111 +1,217 @@
-// Gate: no-direct-reports-write — a `.screenshot({ path })` call in tests/** whose `path` carries a
-// literal (string/template STATIC text) containing "reports/" is RED: that literal can name a PUBLISHED
-// `latest` pointer (`reports/snaps/…`), and an ordinary file write FOLLOWS the symlink into whichever run
-// currently owns it, rewriting a finished run's evidence invisibly (#1201, live collision at
-// tracker-blocks.ct.tsx:833). The sanctioned door is `tests/support/ct/snap-out.ts` `ctSnapPath(name)`,
-// which resolves at RUNTIME (never a literal at the call site) — see docs/design/1208-instrument-substrate.md §3.7.
+// #1201 / docs/design/1208-instrument-substrate.md §3.7 — a `.screenshot({ path })` in tests/** whose path
+// carries authored `reports/` text is RED: that literal can name a PUBLISHED `latest` pointer, and an
+// ordinary write FOLLOWS the symlink into whichever run currently owns it, rewriting a finished run's
+// evidence invisibly. The sanctioned door is `ctSnapPath(name)`, which resolves at RUNTIME. Every read here
+// is a shared one: the method and the `path` key through the member reader (so `page["screenshot"]` and
+// `{ ["path"]: … }` are the same shapes), and the value through the static-text reader, which follows a
+// const or an imported constant one hop the legacy literal-only arm could not. Limits are in mustPass.
+import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
+import { defineGate } from "../contract/policy.ts";
+import { readMemberReference, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
+import { readStaticTextOf } from "../lib/template-static-text.ts";
 
+const SCREENSHOT = "screenshot";
+const PATH_KEY = "path";
 const NEEDLE = "reports/";
 
-/** The STATIC text a template literal carries with `${…}` interpolations blanked — reading through the
- *  head/span literals so a needle inside an INTERPOLATED expression (a variable/call) never counts. Plain
- *  string / no-substitution templates go through `readStringValue` (LITERAL-SHAPE BLINDNESS, GATE-AUTHORING §5). */
-function literalTextOf(node: Node): string | undefined {
-  const plain = readStringValue(node);
-  if (plain !== undefined) {
-    return plain;
+const MESSAGE =
+  'a .screenshot({ path }) call in tests/** hands a "reports/"-carrying authored path — the write follows ' +
+  "whichever run currently owns that published pointer and rewrites its evidence invisibly " +
+  "(docs/design/1208-instrument-substrate.md §3.7).";
+
+const FIX = 'resolve the path through tests/support/ct/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.';
+
+/** Legacy `scanRoot` was `p.startsWith("tests/")` — the `@tests` root exactly. */
+const TESTS_POPULATION = { in: ["@tests"], ext: ["ts", "tsx"] } as const;
+
+/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. A
+ *  computed key resolves through the shared static-string reader, so `{ ["path"]: … }` is the same key. */
+function propertyName(property: MorphNode): string | null {
+  if (!Node.isPropertyAssignment(property)) {
+    return null;
   }
-  const n = unwrapExpression(node);
-  if (!Node.isTemplateExpression(n)) {
-    return;
+  const nameNode = property.getNameNode();
+  if (Node.isIdentifier(nameNode)) {
+    return nameNode.getText();
   }
-  const parts = [n.getHead().getLiteralText()];
-  for (const span of n.getTemplateSpans()) {
-    parts.push(span.getLiteral().getLiteralText());
+  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
+    return nameNode.getLiteralText();
   }
-  return parts.join("");
+  if (!Node.isComputedPropertyName(nameNode)) {
+    return null;
+  }
+  const computed = readStaticString(nameNode.getExpression());
+  return computed.kind === "resolved" ? computed.value : null;
 }
 
-// comment posture: comment-SAFE — this gate subscribes to CallExpression nodes and reads the `path`
-// property's value through `ast-read.ts` readers; it never scans raw/full file text, so a comment
-// mentioning "reports/" cannot change the verdict.
-export const gate: GateDescriptor = {
-  name: "no-direct-reports-write",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3, #1201/#1291)",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    `A .screenshot({ path }) call in tests/** hands a "${NEEDLE}"-carrying literal as the path — the write ` +
-    "follows whichever run currently owns that published pointer and rewrites its evidence invisibly. " +
-    "docs/design/1208-instrument-substrate.md §3.7",
-  fix: 'Resolve the path through tests/support/ct/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.',
-  scanRoot: (p) => p.startsWith("tests/"),
-  kinds: [SyntaxKind.CallExpression],
+/** The options object a call was handed, following a stable binding so a hoisted options const is the same
+ *  argument. Never a descendant sweep — one delivered node, resolved through the shared reader. */
+function optionsObject(argument: MorphNode): MorphNode | null {
+  const stable = resolveStableExpression(argument);
+  const terminal = stable.kind === "resolved" ? stable.value : argument;
+  return Node.isObjectLiteralExpression(terminal) ? terminal : null;
+}
 
-  visit: (node, _sf, ctx) => {
-    if (!Node.isCallExpression(node)) {
-      return;
+/** The `path` key nodes of one options object whose authored value carries the `reports/` needle. */
+function needlePathKeys(options: MorphNode): readonly MorphNode[] {
+  if (!Node.isObjectLiteralExpression(options)) {
+    return [];
+  }
+  const keys: MorphNode[] = [];
+  for (const property of options.getProperties()) {
+    if (!Node.isPropertyAssignment(property) || propertyName(property) !== PATH_KEY) {
+      continue;
     }
-    const callee = node.getExpression();
-    if (!Node.isPropertyAccessExpression(callee) || callee.getName() !== "screenshot") {
-      return;
+    const initializer = property.getInitializer();
+    const text = initializer === undefined ? null : readStaticTextOf(initializer);
+    if (text !== null && text.includes(NEEDLE)) {
+      keys.push(property.getNameNode());
     }
-    const [arg] = node.getArguments();
-    if (arg === undefined || !Node.isObjectLiteralExpression(unwrapExpression(arg))) {
-      return;
-    }
-    const obj = unwrapExpression(arg);
-    if (!Node.isObjectLiteralExpression(obj)) {
-      return;
-    }
-    for (const prop of obj.getProperties()) {
-      if (!Node.isPropertyAssignment(prop) || prop.getName() !== "path") {
-        continue;
-      }
-      const text = literalTextOf(prop.getInitializer() ?? prop);
-      if (text !== undefined && text.includes(NEEDLE)) {
-        ctx.report(prop, { token: text, offset: 0 });
-      }
-    }
-  },
+  }
+  return keys;
+}
 
+export const gate = defineGate({
+  id: "no-direct-reports-write",
+  family: "no-direct-reports-write",
+  authority: "ordinary",
+  severity: "error",
+  population: TESTS_POPULATION,
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.CallExpression],
+        visit: (node) => {
+          if (!Node.isCallExpression(node)) {
+            return;
+          }
+          const callee = readMemberReference(node.getExpression());
+          if (callee.kind !== "resolved" || callee.value.name !== SCREENSHOT) {
+            return;
+          }
+          const argument = node.getArguments()[0];
+          const options = argument === undefined ? null : optionsObject(argument);
+          if (options === null) {
+            return;
+          }
+          for (const key of needlePathKeys(options)) {
+            ctx.report.node(key, { token: PATH_KEY, offset: key.getText().indexOf(PATH_KEY) });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files:
-        'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/x.png" });\n}\n',
-      at: "tests/__g_reportswrite/plain.ct.tsx",
-      expect: { count: 1 },
-      why: 'the founding shape — a hand-spelled "reports/snaps/…" literal that followed a published symlink and rewrote a finished run (#1201)',
+      mode: "types",
+      files: {
+        "tests/ui/plain.ct.tsx":
+          'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/x.png" });\n}\n',
+      },
+      expect: { count: 1, token: "path" },
+      why: "the founding shape — a hand-spelled `reports/snaps/…` literal that followed a published symlink and rewrote a finished run (#1201, live at tracker-blocks.ct.tsx:833)",
     },
     {
-      files:
-        "export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }, name: string): Promise<void> {\n  await page.screenshot({ path: `reports/ct-shots/${name}.png` });\n}\n",
-      at: "tests/__g_reportswrite/template.ct.tsx",
-      expect: { count: 1 },
-      why: "the same defect spelled as a template literal — the STATIC quasis still carry the reports/ text even with a dynamic name segment",
+      mode: "types",
+      files: {
+        "tests/ui/template.ct.tsx":
+          "export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }, name: string): Promise<void> {\n  await page.screenshot({ path: `reports/ct-shots/${name}.png` });\n}\n",
+      },
+      expect: { count: 1, token: "path" },
+      why: "the same defect as a TEMPLATE — the quasis still carry the `reports/` text even though the filename segment is interpolated, and the interpolation itself is deliberately not read as authored text",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/indirect.ct.tsx":
+          'const OUT = "reports/snaps/x.png";\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: OUT });\n}\n',
+      },
+      expect: { count: 1, token: "path" },
+      why: "THE HELPER INDIRECTION the legacy reader declared out of reach: a `reports/…` value one binding hop away is the same write. The shared static reader follows the const, so hoisting the string is no longer an escape",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/computed.ct.tsx":
+          'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ ["path"]: "reports/snaps/x.png" });\n}\n',
+      },
+      expect: { count: 1, token: "path" },
+      why: 'a COMPUTED key names the same option — `prop.getName()` answered `["path"]` and the legacy comparison said no',
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/bracket-call.ct.tsx":
+          'export async function x(page: Record<string, (o: unknown) => Promise<unknown>>): Promise<void> {\n  await page["screenshot"]({ path: "reports/snaps/x.png" });\n}\n',
+      },
+      expect: { count: 1, token: "path" },
+      why: "the BRACKET spelling of the method is the same write — the legacy `callee.getName()` guard was offered an ElementAccessExpression and answered nothing (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/hoisted-options.ct.tsx":
+          'const OPTIONS = { path: "reports/snaps/x.png" };\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot(OPTIONS);\n}\n',
+      },
+      expect: { count: 1, token: "path" },
+      why: "the OPTIONS OBJECT held in a const — the legacy reader required an object literal AT the call site, so hoisting the whole options bag walked past it",
     },
   ],
   mustPass: [
     {
-      files:
-        'declare function ctSnapPath(name: string): string;\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: ctSnapPath("x") });\n}\n',
-      at: "tests/__g_reportswrite/via-helper.ct.tsx",
-      why: "ctSnapPath(name) resolves the path at RUNTIME (a CallExpression, not a literal) — the sanctioned door",
+      mode: "types",
+      files: {
+        "tests/ui/via-helper.ct.tsx":
+          'declare function ctSnapPath(name: string): string;\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: ctSnapPath("x") });\n}\n',
+      },
+      why: "the SANCTIONED door — `ctSnapPath(name)` resolves at runtime, so there is no authored path to follow into a published pointer",
     },
     {
-      files:
-        "export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ clip: { x: 0, y: 0, width: 1, height: 1 } });\n}\n",
-      at: "tests/__g_reportswrite/clip-only.ct.tsx",
-      why: "an in-memory clip screenshot with no `path` key at all never writes to disk — nothing to follow",
+      mode: "types",
+      files: {
+        "tests/ui/clip-only.ct.tsx":
+          "export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ clip: { x: 0, y: 0, width: 1, height: 1 } });\n}\n",
+      },
+      why: "an in-memory clip screenshot with no `path` key never writes to disk — nothing to follow",
     },
     {
-      files:
-        "declare const someVar: string;\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: someVar });\n}\n",
-      at: "tests/__g_reportswrite/via-variable.ct.tsx",
-      why: 'DECLARED LIMIT: a bare identifier/expression carrying a "reports/…" value one hop away (an imported constant, a variable) has no literal at the call site to read — this gate catches the literal shape only, not dataflow',
+      mode: "types",
+      files: {
+        "tests/ui/elsewhere.ct.tsx":
+          'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "artifacts/local/x.png" });\n}\n',
+      },
+      why: "a path OUTSIDE `reports/` writes nowhere a published pointer can reach — the subject is the evidence tree, not screenshots",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/via-variable.ct.tsx":
+          "declare const someVar: string;\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: someVar });\n}\n",
+      },
+      why: "DECLARED LIMIT — a path whose value is genuinely dynamic (a parameter, a call result) carries no authored text at all. The reader refuses rather than guessing, and this policy remains about the authored shape",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/interpolated-needle.ct.tsx":
+          "declare const dir: string;\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: `${dir}/x.png` });\n}\n",
+      },
+      why: "the needle inside an INTERPOLATION is not authored text — a `dir` that happens to hold `reports/` at runtime is a dataflow fact, and reading the hole as static text would be a confident false positive",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/waived.ct.tsx":
+          '// @orb-waive no-direct-reports-write(path): this spec writes the run-slot fixture the pointer publisher itself is tested against; ends when the publisher takes an injected root.\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/x.png" });\n}\n',
+      },
+      why: "the ONE central positioned waiver naming the exact reported key — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
     },
   ],
-};
+});

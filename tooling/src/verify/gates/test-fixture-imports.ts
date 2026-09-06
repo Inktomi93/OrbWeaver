@@ -1,93 +1,185 @@
-// Gate: test-fixture-imports (core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8)
-// Fixture doctrine: A test imports { test, expect } from support/fixtures, never directly from vitest or
-// @playwright/test. Under tests/tooling/ the door is support/tool-fixtures (which EXTENDS the house test):
-// entering through plain fixtures there skips the RESULT snapshot serializer, so inline snapshots bake
-// unnormalized output — a drift bomb. Exempt: e2e (own Playwright lane), support/ (the fixtures
-// themselves), and .test-d.ts (tsc-only, never touches the runtime fixture — core/Spine-Testing.md §1).
-import type { Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+// core/Spine-Testing.md §4 + Core-Tooling-Law.md §4.8 — fixture doctrine. A test enters `test`/`it`/`expect`
+// through the COMPOSED door, never a runner package directly; under `tests/tooling/` the door must be the
+// one that installs the RESULT snapshot serializer, because entering through the plain door bakes
+// unnormalized inline snapshots. Both halves are read structurally through `lib/test-runner-door.ts`: the
+// AUTHORED door (which canonical origin deliberately preserves — both composed doors re-export the same
+// vitest declaration, so origin cannot tell them apart) and the door's own serializer registration, so a
+// rename of either door is free. Exempt by population: e2e, the doors themselves, and `.test-d.ts`.
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import type { FixtureDoor } from "../lib/test-runner-door.ts";
+import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "../lib/test-runner-door.ts";
 
-// A `test`/`it`/`expect` named import from `vitest`/`@playwright/test` in a scanned test file. The
-// message names the symbol+module (varies).
-const BANNED_MODULES = new Set(["vitest", "@playwright/test"]);
-const FIXTURE_NAMES = new Set(["test", "it", "expect"]);
-const FIXTURE_MESSAGE =
-  "a test/it/expect import bypasses the composed fixture — import from 'support/fixtures' (or, under tests/tooling/, 'support/tool-fixtures' — the door that registers the RESULT serializer) (core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8).";
+const TOOLING_MIRROR = "tests/tooling/";
 
-// The plain-fixtures barrel, as a suffix of the (relative) module specifier.
-const PLAIN_FIXTURES_RE = /support\/fixtures(?:\.ts)?$/u;
+const MESSAGE =
+  "a test/it/expect binding bypasses the composed fixture — import from 'support/fixtures' (or, under " +
+  "tests/tooling/, 'support/tool-fixtures', the door that installs the RESULT snapshot serializer) " +
+  "(core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8).";
 
-/** The forbidden `{name, module}` of a fixture import through the wrong door, or undefined. */
-function directFixtureImport(node: Node): { name: string; module: string } | undefined {
-  if (!node.isKind(SyntaxKind.ImportSpecifier)) {
-    return;
+const FIX =
+  "import { test, expect } from the composed fixture door — 'support/fixtures' everywhere, " +
+  "'support/tool-fixtures' under tests/tooling/ — never from vitest or @playwright/test directly.";
+
+/** The legacy `scanRoot` admitted any path containing `tests/`, minus `tests/e2e/`, minus `tests/support/`,
+ *  minus every basename ending in `.test-d.ts`. The authored roots under any `tests/` tree, minus the e2e
+ *  lane and the fixture doors themselves, minus the tsc-only type projects, is the same admitted set. */
+const TEST_POPULATION = {
+  in: ["@authored"],
+  under: ["tests/**", "**/tests/**"],
+  notUnder: ["tests/e2e/**", "tests/support/**", "**/tests/e2e/**", "**/tests/support/**"],
+  notNamed: ["*.test-d.ts"],
+  ext: ["ts", "tsx"],
+} as const;
+
+/** A fixture binding entering this file: a named import specifier (whose `getName()` is the exported name
+ *  even under an alias) or a namespace member read. The NAME is the candidate gate; the DOOR is the verdict. */
+function fixtureCandidate(node: Node): { readonly name: string; readonly anchor: Node } | null {
+  if (Node.isImportSpecifier(node)) {
+    const name = node.getName();
+    return FIXTURE_NAMES.has(name) ? { name, anchor: node } : null;
   }
-  const name = node.getName();
-  if (!FIXTURE_NAMES.has(name)) {
-    return;
+  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return null;
   }
-  const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-  const mod = decl?.getModuleSpecifierValue();
-  if (mod === undefined) {
-    return;
-  }
-  if (BANNED_MODULES.has(mod)) {
-    return { name, module: mod };
-  }
-  // The §4.8 tooling arm: plain fixtures inside the tooling mirror — the serializer never registers.
-  const inTooling = node.getSourceFile().getFilePath().includes("tests/tooling/");
-  return inTooling && PLAIN_FIXTURES_RE.test(mod) ? { name, module: mod } : undefined;
+  const member = readMemberReference(node);
+  return member.kind === "resolved" && FIXTURE_NAMES.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
-export const gate: GateDescriptor = {
-  name: "test-fixture-imports",
-  docRow: "core/Spine-Testing.md §4",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: FIXTURE_MESSAGE,
-  fix: "import { test, expect } from 'support/fixtures' — the composed fixture (db, frozen clock, …), never directly from vitest/@playwright/test.",
-  scanRoot: (p) => p.includes("tests/") && !p.includes("tests/e2e/") && !p.includes("tests/support/") && !p.endsWith(".test-d.ts"),
-  kinds: [SyntaxKind.ImportSpecifier],
-  visit: (node, _sf, ctx) => {
-    const hit = directFixtureImport(node);
-    if (hit !== undefined) {
-      ctx.report(node, { token: `${hit.name} from ${hit.module}`, offset: 0 });
-    }
+function doorIsIllegal(door: FixtureDoor, inToolingMirror: boolean): boolean {
+  if (door.kind === "runner" || door.kind === "unresolved") {
+    return true;
+  }
+  return door.kind === "project" && inToolingMirror && !registersSnapshotSerializer(door.sourceFile);
+}
+
+export const gate = defineGate({
+  id: "test-fixture-imports",
+  family: "test-fixture-imports",
+  authority: "ordinary",
+  severity: "error",
+  population: TEST_POPULATION,
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    let inToolingMirror = false;
+    return {
+      visitFile: (sourceFile) => {
+        const path = ctx.relativePath(sourceFile);
+        inToolingMirror = path.startsWith(TOOLING_MIRROR) || path.includes(`/${TOOLING_MIRROR}`);
+      },
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node) => {
+            const candidate = fixtureCandidate(node);
+            if (candidate === null) {
+              return;
+            }
+            if (doorIsIllegal(readFixtureDoor(candidate.anchor), inToolingMirror)) {
+              ctx.report.node(candidate.anchor, { token: candidate.name, offset: candidate.anchor.getText().indexOf(candidate.name) });
+            }
+          },
+        },
+      ],
+    };
   },
   mustFlag: [
     {
-      files: 'import { test, expect } from "vitest";\n',
-      at: "tests/tooling/x.test.ts",
-      why: "test/expect imported directly from vitest — bypasses the composed fixture (§4)",
+      mode: "types",
+      files: { "tests/server/x.test.ts": 'import { expect, test } from "vitest";\nexport const t = [test, expect];\n' },
+      expect: { count: 2, token: "test" },
+      why: "the founding shape — `test`/`expect` taken straight from the runner, which skips the composed db/clock/ids fixture entirely (§4)",
     },
     {
-      files: 'import { test, expect } from "../../support/fixtures.ts";\n',
-      at: "tests/tooling/snapx/y.test.ts",
-      expect: { count: 2 },
-      why: "plain fixtures inside the tooling mirror — the tool door (tool-fixtures) registers the RESULT serializer; this skips it (§4.8)",
+      mode: "types",
+      files: { "tests/server/alias.test.ts": 'import { test as scenario } from "vitest";\nexport const t = scenario;\n' },
+      expect: { count: 1, token: "test" },
+      why: "AN IMPORT ALIAS enters the same door — the specifier's `getName()` is the exported name, so renaming the binding is not an escape",
+    },
+    {
+      mode: "types",
+      files: { "tests/server/ns.test.ts": 'import * as runner from "vitest";\nexport const t = runner.test;\n' },
+      expect: { count: 1, token: "test" },
+      why: "A NAMESPACE IMPORT produces no ImportSpecifier at all — the legacy specifier-keyed detector was offered no node whatsoever, a silent green (#1506)",
+    },
+    {
+      mode: "types",
+      files: { "tests/e2e-mirror/flow.test.ts": 'import { expect } from "@playwright/test";\nexport const e = expect;\n' },
+      expect: { count: 1, token: "expect" },
+      why: "the Playwright half of the same ban — only `tests/e2e/**` runs its own lane, and a Playwright import anywhere else is the doctrine's other founding case",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'export { expect, test } from "vitest";\n',
+        "tests/tooling/snapx/y.test.ts": 'import { expect, test } from "../../support/fixtures.ts";\nexport const t = [test, expect];\n',
+      },
+      expect: { count: 2, token: "test" },
+      why: "the §4.8 arm — the PLAIN composed door inside the tooling mirror. It is a legitimate door everywhere else; here it skips the RESULT serializer and bakes unnormalized inline snapshots",
+    },
+    {
+      mode: "types",
+      files: { "tests/tooling/unreadable.test.ts": 'import { test } from "./missing-door.ts";\nexport const t = test;\n' },
+      expect: { count: 1, token: "test" },
+      why: "FAIL-CLOSED — a relative door that resolves to no module cannot be shown to install the serializer, and an unreadable door is not a licence",
     },
   ],
   mustPass: [
     {
-      files: 'import { test, expect } from "../support/fixtures.ts";\n',
-      at: "tests/server/y.test.ts",
-      why: "imported from support/fixtures OUTSIDE tests/tooling — the sanctioned composed fixture, passes",
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'export { expect, test } from "vitest";\n',
+        "tests/server/y.test.ts": 'import { expect, test } from "../support/fixtures.ts";\nexport const t = [test, expect];\n',
+      },
+      why: "the sanctioned composed door OUTSIDE the tooling mirror — the ordinary case for the whole test tree",
     },
     {
-      files: 'import { test, expect } from "../../support/tool-fixtures.ts";\n',
-      at: "tests/tooling/snapx/z.test.ts",
-      why: "the tooling composed test (tool-fixtures) inside the tooling mirror — the §4.8 door, passes",
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'export { expect, test } from "vitest";\n',
+        "tests/support/tool-fixtures.ts":
+          'import { expect, test as houseTest } from "./fixtures.ts";\nexport const test = houseTest;\nexport { expect } from "./fixtures.ts";\nexpect.addSnapshotSerializer({ serialize: () => "" });\n',
+        "tests/tooling/snapx/z.test.ts": 'import { expect, test } from "../../support/tool-fixtures.ts";\nexport const t = [test, expect];\n',
+      },
+      why: "the §4.8 door, identified by the SERIALIZER REGISTRATION it performs rather than by its path — this is the whole reason a second door exists, and reading it structurally means the door may be renamed freely",
     },
     {
-      files: 'import { test, expect } from "vitest";\n',
-      at: "tests/tooling/types.test-d.ts",
-      why: "a direct vitest import in a .test-d.ts — the tsc-only typecheck project is scanRoot-excluded, passes",
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'export { expect, test } from "vitest";\n',
+        "tests/support/renamed-tool-door.ts":
+          'import { expect, test as houseTest } from "./fixtures.ts";\nexport const test = houseTest;\nexport { expect } from "./fixtures.ts";\nexpect.addSnapshotSerializer({ serialize: () => "" });\n',
+        "tests/tooling/snapx/renamed.test.ts": 'import { expect, test } from "../../support/renamed-tool-door.ts";\nexport const t = [test, expect];\n',
+      },
+      why: "THE RENAME CONTROL — the same door under a different filename still passes. A path regex (`support/fixtures$`) would have judged this by its spelling; the registration is what is actually being asked about",
     },
     {
-      files: 'import { test, expect } from "@playwright/test";\n',
-      at: "tests/e2e/flow.test.ts",
-      why: "a @playwright/test import in tests/e2e/ — its own Playwright lane is scanRoot-excluded, passes",
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'export { expect, test } from "vitest";\n',
+        "tests/tooling/types.test-d.ts": 'import { expect, test } from "vitest";\nexport const t = [test, expect];\n',
+        "tests/tooling/quiet.test.ts": "export const quiet = 1;\n",
+      },
+      why: "a `.test-d.ts` is a tsc-only type project that never touches the runtime fixture — outside the population by design (core/Spine-Testing.md §1)",
+    },
+    {
+      mode: "types",
+      files: { "tests/tooling/third-party.test.ts": 'import { expect } from "chai";\nexport const e = expect;\n' },
+      why: "DECLARED LIMIT — an `expect` from some OTHER package is not one of the two runner doors the doctrine names. The subject is the composed-fixture bypass, not every assertion helper in the ecosystem",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/server/waived.test.ts":
+          '// @orb-waive test-fixture-imports(test): this spec drives the fixture composition itself and must reach the bare runner; ends when the composition has a testable seam.\nimport { test } from "vitest";\nexport const t = test;\n',
+      },
+      why: "the ONE central positioned waiver naming the exact reported binding — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
     },
   ],
-};
+});
