@@ -25,12 +25,17 @@
 export const LIVE_WINDOW_FULL_HISTORY_CUTOFF = Number.NEGATIVE_INFINITY;
 
 /**
- * Whether a digest's span is STILL inside this turn's live history window (its scene is verbatim in the prompt)
- * → drop it from `{{memory}}`. `seqStart` = the digest's earliest message seq; `cutoff` = the seq below which
- * messages are NOT in the prompt. BOUNDARY (exact, "still in the window" semantics): a digest starting AT the
- * cutoff is still in the window (dropped); a digest starting STRICTLY BELOW the cutoff has aged out (surfaced).
- * A {@link LIVE_WINDOW_FULL_HISTORY_CUTOFF} (−∞) cutoff drops every digest (the whole history is in the prompt).
+ * Whether the digest-span endpoint `seq` is STILL inside this turn's live history window (that message is
+ * verbatim in the prompt) → drop the digest from `{{memory}}`. `cutoff` = the seq below which messages are NOT
+ * in the prompt. BOUNDARY (exact, "still in the window" semantics): a seq AT the cutoff is still in the window
+ * (dropped); STRICTLY BELOW has aged out (surfaced). A {@link LIVE_WINDOW_FULL_HISTORY_CUTOFF} (−∞) cutoff
+ * drops every digest (the whole history is in the prompt).
+ *
+ * WHICH endpoint is the CALLER's decision, and it is tier-dependent — `recall::filterPool` states the rule
+ * (#1518): a tier>0 digest is tested on its span END (any overlap drops it, because the pool still holds the
+ * finer digests that re-cover its aged-out half), a tier-0 digest on its span START (drop only when wholly
+ * inside, because nothing finer stands behind it).
  */
-export function inLiveWindow(seqStart: number, cutoff: number): boolean {
-  return seqStart >= cutoff;
+export function inLiveWindow(seq: number, cutoff: number): boolean {
+  return seq >= cutoff;
 }
