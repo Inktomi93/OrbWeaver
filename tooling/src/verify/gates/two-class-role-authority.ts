@@ -61,7 +61,7 @@ const SANCTIONED_HOMES: ExemptionTable = {
 /** Enforcement-shaped comparisons that are NOT a caller-privilege gate. Each carries the reason it survives.
  *  Same both-ways ratchet as the sanctioned homes. */
 const ALLOWLIST: ExemptionTable = {
-  "packages/server/src/domain/chat/verbs/roster.ts": {
+  "packages/server/src/domain/chat/verbs/participants.ts": {
     why: "the host compare is on the NOMINEE (`nominee.role === 'host'` → ChatNotFound) — a TARGET-VALIDITY check on the handoff candidate, not the caller's privilege (the caller's gate is the `requireHost` on the line above it).",
   },
 };
