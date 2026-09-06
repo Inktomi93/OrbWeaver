@@ -8,7 +8,10 @@
 //     that routes + closes the sheet, exactly like an overflow section — shown only while its EFFECTIVE
 //     curation is `"sheet"` (standing in it, it holds a bar slot and the row would be a duplicate door);
 //   · `rail.nav` sections whose EFFECTIVE curation is `"sheet"` → a row that routes + closes the sheet
-//     (effective, not declared: the bar swaps the current section in and the tab it displaces out, #484).
+//     (effective, not declared: the bar swaps the current section in and the tab it displaces out, #484);
+//   · `topbar.trail` entries curated `mobile:"sheet"` → split by KIND (#1789): a MODAL/SECTION trigger is a
+//     ROW and joins the row group (the ⌘K palette, desktop-shaped and shed off a 320px row), a WIDGET
+//     renders its `body("sheet")` LENS as its own block below it (the notifications inbox).
 // Add a chrome entry once at the door → desktop rail, mobile bar, AND this sheet all pick it up. The sheet
 // stays a REAL modal (the `you` Drawer slot — portal/focus-trap/scrim); CSS cannot fake that (§C).
 
@@ -18,7 +21,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry, MobileCuration } from "#state";
-import { closeModal, mobileBarCuration, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
+import { closeModal, mobileBarCuration, openModal, setActiveSection, sheetOverflowChrome, useActiveSection, useChromeRegistry } from "#state";
 
 /** The overflow group's heading id — the group points its `aria-labelledby` at it, so the heading names the
  *  block once instead of the group restating the word. Static: this sheet renders exactly one. */
@@ -73,29 +76,27 @@ export function YouSheet(): ReactElement {
   // its contents may not disagree about who is a tab, or a section becomes reachable from neither.
   const curation = mobileBarCuration(entries, activeSection);
   const overflowSections = entries.filter((e) => e.zone === "rail.nav" && curation.get(e.id) === "sheet");
-  // …and the TOPBAR widgets a phone's row cannot afford (the notifications inbox). They declare the same
-  // `mobile: "sheet"` curation the overflow sections do, and render their own sheet lens here. The filter
-  // is SHARED (`sheetOverflowChrome`, #state) because the mobile bar's You tab badges these same entries'
-  // `useBadge` counts — the door and its contents may never disagree about which widgets live here.
+  // …and the TOPBAR entries a phone's row cannot afford (the notifications inbox, the ⌘K palette). They
+  // declare the same `mobile: "sheet"` curation the overflow sections do. The filter is SHARED
+  // (`sheetOverflowChrome`, #state) because the mobile bar's You tab badges these same entries' `useBadge`
+  // counts — the door and its contents may never disagree about which entries live here.
+  //
+  // THE SPLIT IS BY BEHAVIOR KIND, NEVER BY ID (#1789). A ROW-shaped entry (a modal or section trigger:
+  // icon + label + tap) joins the row group above, beside the footer chrome it reads exactly like; a WIDGET
+  // renders its own `body("sheet")` LENS, which is a panel (the inbox), and panels get their own block
+  // below. Stating it as a kind rule is the difference between a projection and an escape path with a new
+  // hat: the ⌘K row used to be a hardcoded `useModalRegistry()` lookup for the one `topbar.trail`-placed
+  // modal, sitting beside a blind projection that could have listed the same modal a second time.
   const overflowChrome = sheetOverflowChrome(entries);
-  // The ⌘K chip is desktop-shaped and sheds from the phone topbar (its row budget, side-eye P1) — so its
-  // modal lands HERE, as a named row, DERIVED from the same `topbar.trail` trigger placement the chip reads.
-  // Nothing is hardcoded and nothing becomes unreachable: the sheet is where every other overflow lives.
-  const commandModal = useModalRegistry()
-    .list()
-    .find((m) => m.trigger.placement === "topbar.trail");
+  const overflowRows = overflowChrome.filter((e) => e.behavior.kind !== "widget");
+  const overflowLenses = overflowChrome.filter((e) => e.behavior.kind === "widget");
 
   return (
     <Stack data-slot="you-sheet" gap="section">
       <Stack gap="row" aria-label="Account and settings" role="group">
-        {commandModal === undefined ? null : (
-          <ListRow
-            clickable={true}
-            leading={<Icon icon={commandModal.trigger.icon} size="sm" />}
-            onClick={(): void => openModal(commandModal.id)}
-            title={commandModal.trigger.label}
-          />
-        )}
+        {overflowRows.map((entry) => (
+          <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile="sheet" />
+        ))}
         {footerEntries.map((entry) => (
           <SheetChromeEntry
             active={entry.behavior.kind === "section" && entry.behavior.sectionId === activeSection}
@@ -106,7 +107,7 @@ export function YouSheet(): ReactElement {
         ))}
       </Stack>
 
-      {overflowChrome.map((entry) => (
+      {overflowLenses.map((entry) => (
         <SheetChromeEntry active={false} entry={entry} key={entry.id} mobile={curation.get(entry.id) ?? "sheet"} />
       ))}
 

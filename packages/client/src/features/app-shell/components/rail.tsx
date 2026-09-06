@@ -185,6 +185,14 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
   const brandEntry = entries.find((e) => e.zone === "rail.brand");
   // The mobile-only "You" overflow tab (its projection is the You sheet, §E-5) — its trigger DERIVES from
   // the modal registry (no parallel id), the same mechanism the twin-DOM rail used.
+  //
+  // THIS LOOKUP IS NOT AN ESCAPE PATH, AND A CENSUS OF `useModalRegistry()` CALLERS MUST NOT RE-FILE IT AS
+  // ONE (owner ruling 2026-09-06, #1789). The You button is the INTRINSIC DOOR to the mobile projection of
+  // the chrome registry, exactly as a panel toggle is the intrinsic door to its panel — D73 keeps the
+  // frame's own grammar intrinsic, and making the projection's own door an entry INSIDE that projection
+  // would be circular (it would list itself, and the sheet would offer a row that opens the sheet). So
+  // `mobile-tab` stays unmapped in `assemble-chrome.ts` while `topbar.trail` (the ⌘K palette) became a real
+  // chrome entry in the same change, and this reads its own target the only place that target is declared.
   const youModal = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "mobile-tab");

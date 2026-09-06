@@ -1,7 +1,7 @@
 // assembleChrome (state/assemble-chrome.ts) — the PURE door assembly. Pins the three-source derivation
-// (rail sections → rail.nav · mapped modal triggers → rail.end · widgets pass through), the placement→zone
-// map (only rail.end maps; topbar.trail/surface/mobile-tab do NOT), the dupe-id and
-// zone-validation throws, and the canonical `(order, id)` per-zone order.
+// (rail sections → rail.nav · mapped modal triggers → rail.end/topbar.trail · widgets pass through), the
+// placement→zone map (`rail.end` + `topbar.trail` map, #1789; `surface`/`mobile-tab` do NOT), the dupe-id
+// and zone-validation throws, and the canonical `(order, id)` per-zone order.
 
 import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state";
@@ -61,14 +61,38 @@ describe("assembleChrome", () => {
     expect(entries[0]).toMatchObject({ id: "newChat", zone: "rail.end", behavior: { kind: "modal", modalId: "newChat" } });
   });
 
-  test("produces NO chrome entry for unmapped placements (topbar.trail/surface/mobile-tab)", () => {
+  // #1789 — the half of D73 the tree only half-projected: `topbar.trail` used to be DELIBERATELY unmapped
+  // (the topbar rendered a bespoke ⌘K chip off its own `useModalRegistry()` lookup), so the ONE registry had
+  // a lens that could not see the affordance it was supposed to own. The trigger now derives like any other.
+  test("maps a topbar.trail modal to a topbar.trail modal entry (the ⌘K trigger)", () => {
+    const entries = assembleChrome({ sections: [], modals: [modal("command", "topbar.trail")], widgets: [] });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ id: "command", label: "command", zone: "topbar.trail", behavior: { kind: "modal", modalId: "command" } });
+  });
+
+  // THE NEGATIVE THAT SURVIVES (owner ruling 2026-09-06, #1789). `surface` is a modal reached from inside a
+  // feature surface, and `mobile-tab` is the INTRINSIC DOOR to the mobile projection of the chrome registry
+  // — a door that is an entry inside the projection it opens would be circular. Neither is chrome.
+  test("produces NO chrome entry for unmapped placements (surface/mobile-tab)", () => {
     const entries = assembleChrome({
       sections: [],
       // `surface` repeats (new-chat + add-document, §E-7) — an unmapped placement, so still zero chrome entries.
-      modals: [modal("command", "topbar.trail"), modal("addDocument", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
+      modals: [modal("addDocument", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
       widgets: [],
     });
     expect(entries).toHaveLength(0);
+  });
+
+  // The trail's canonical position is REGISTRY data, never a lens's JSX order: the ⌘K chip has always been
+  // rendered ahead of the trail's widgets, and that fact now lives in the sort with everything else. `mobile`
+  // rides along for the same reason — the chip's phone fate (shed to the You sheet, the 320px row budget) is
+  // the same `MobileCuration` axis a widget declares, so one filter serves both.
+  test("carries a modal trigger's declared order + mobile curation onto the entry", () => {
+    const base = modal("command", "topbar.trail");
+    const command: ModalDefinition = { ...base, trigger: { ...base.trigger, order: -10, mobile: "sheet" } };
+    const entries = assembleChrome({ sections: [], modals: [command], widgets: [widget("bell", "topbar.trail")] });
+    expect(entries.map((e) => e.id)).toEqual(["command", "bell"]);
+    expect(entries[0]).toMatchObject({ order: -10, mobile: "sheet" });
   });
 
   test("passes widget entries through unchanged (by identity)", () => {
