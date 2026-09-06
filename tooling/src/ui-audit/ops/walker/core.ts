@@ -26,7 +26,11 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   // INSIDE a dialog body is a real nesting defect, and widening this to closest() would trade a false
   // positive for a false clean.
   var OVERLAY_SURFACE_SELECTOR = "dialog,[popover],[role=dialog],[role=alertdialog],[role=menu],[role=menubar],[role=listbox],[role=tooltip]";
-  var HOVER_TRANSFORM_RE = /transform\\s*:\\s*(scale|rotate|translate|skew|matrix)/i;
+  // TAILWIND V4 EMITS STANDALONE scale:/rotate:/translate: PROPERTIES, NOT transform: (#1075, orb-ui
+  // audit F3 — the house comment at packages/ui/src/primitives/button/variants.ts:28-29: "Tailwind v4
+  // \`scale-*\` sets the standalone \`scale\` CSS property, not the transform matrix"). A \`transform:\`-only
+  // test never matched \`group-hover:scale-105\`'s compiled \`scale: 1.05\` declaration.
+  var HOVER_TRANSFORM_RE = /\\b(?:transform\\s*:\\s*(scale|rotate|translate|skew|matrix)|(?:scale|rotate|translate)\\s*:\\s*\\S)/i;
   var TAILWIND_HOVER_TRANSFORM_RE = /^hover:(scale|rotate|translate-x|translate-y|skew-x|skew-y)-/;
   var BG_URL_RE = /url\\((['"]?)(.*?)\\1\\)/;
   var RGB_RE = /rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*(?:,\\s*([\\d.]+))?\\)/;

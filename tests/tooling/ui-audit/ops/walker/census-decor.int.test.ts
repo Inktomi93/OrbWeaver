@@ -120,3 +120,56 @@ auditRuleTest(
     }
   },
 );
+
+// ── #1075 (orb-ui audit F3): the house media-zoom idiom — group-hover on the WRAPPER, not the <img> ──
+//
+// media-tile-grid's cover span carries `group-hover:scale-105` (packages/ui/src/primitives/
+// media-tile-grid/variants.ts:43); the <img> inside it carries no transform class of its own. The
+// class arm read only the img's OWN class list with a bare `hover:` prefix, so this idiom — the one
+// this codebase actually authors — was invisible in all three ways the audit named: the wrapper class
+// was never read, `group-hover:` was never an accepted prefix, and the stylesheet arm's `/img/i`
+// selector-text test never matches a selector naming only the wrapper's class.
+
+auditRuleTest(
+  [
+    {
+      rule: "animated-img-hover",
+      kind: "fires",
+      reason:
+        "the house media-zoom idiom — `group-hover:scale-105` on the cover WRAPPER around the <img>, media-tile-grid's real shape — was invisible before #1075: the class arm read only the img's own classes with a bare `hover:` prefix",
+    },
+  ],
+  "an img zoomed by a group-hover class on its wrapper is now caught",
+  async ({ runCli, scratch }) => {
+    const body = `<div class="group" style="width:200px;height:120px">
+  <span class="relative overflow-hidden group-hover:scale-105" id="cover-wrap" style="display:block;width:100%;height:100%">
+    <img id="cover-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
+  </span>
+</div>`;
+    await writeFile(join(scratch, "media-zoom-wrapper.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(findingSelectors(res.stdout, "animated-img-hover").length, "the wrapper-hover zoom must be caught").toBeGreaterThan(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "animated-img-hover",
+      kind: "silent",
+      reason:
+        "a static image with no hover/group-hover transform anywhere in its wrapper chain is the negative control — the widened wrapper walk must not blanket-flag every image",
+    },
+  ],
+  "a static image with no hover transform in its wrapper chain is not flagged",
+  async ({ runCli, scratch }) => {
+    const body = `<div class="group" style="width:200px;height:120px">
+  <span class="relative overflow-hidden" id="cover-wrap-static" style="display:block;width:100%;height:100%">
+    <img id="cover-img-static" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
+  </span>
+</div>`;
+    await writeFile(join(scratch, "media-zoom-static.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
+  },
+);
