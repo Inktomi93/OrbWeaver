@@ -93,18 +93,29 @@ export const HOVER_CENSUS = `
   }
 
   // ── pair building ────────────────────────────────────────────────────────
-  // element -> the DEEPEST hover subject that repaints it (deepest wins: that is the rule a reader
-  // will go looking for); element -> per state-attribute subject. The withheld classes (pseudo-
-  // element paint, functional-pseudo state, unresolvable subject) mark hosts + descendants so the
-  // candidate loop can NAME them instead of filing a false noHoverPaint exclusion.
+  // element -> its hover subjects, keyed BY SUBJECT; element -> per state-attribute subject, keyed by
+  // STATE. The withheld classes (pseudo-element paint, functional-pseudo state, unresolvable subject)
+  // mark hosts + descendants so the candidate loop can NAME them instead of filing a false
+  // noHoverPaint exclusion.
+  //
+  // ONE QUESTION PER REACHABLE STATE, ON BOTH MECHANISMS (#1092). This map used to hold ONE subject per
+  // element, deepest-wins — so \`.row:hover .label\` and \`.card:hover .label\` (an ancestor pair) collapsed
+  // to a single candidate under \`.card\`, and the state a pointer produces inside \`.row\` but outside
+  // \`.card\` was never asked. Both states are reachable and they paint differently, which is exactly the
+  // definition the attribute side already used when it keyed by state. Deepest-wins was not a
+  // de-duplicator either: distinct subjects are distinct FORCES (a group's chain climb holds its own
+  // subject ancestors, so the deep group answers "both hovered" and the shallow group answers "only the
+  // outer one"), and identical (element, subject) pairs from two rules still collapse — the map key is
+  // the subject ELEMENT.
   var hoverPaintOf = new Map();
   var attrPaintOf = new Map();
   var pseudoPaintEls = new Map();
   var complexPaintEls = new Map();
   var unresolvedSubjectEls = new Map();
   function hoverConsider(el, subject) {
-    var prior = hoverPaintOf.get(el);
-    if (prior === undefined || prior.contains(subject)) hoverPaintOf.set(el, subject);
+    var entry = hoverPaintOf.get(el);
+    if (entry === undefined) { entry = new Map(); hoverPaintOf.set(el, entry); }
+    if (!entry.has(subject)) entry.set(subject, subject);
   }
   function forEachPaintedWithKids(pel, mark) {
     mark(pel);
@@ -319,12 +330,12 @@ export const HOVER_CENSUS = `
     var tel = allEls[ti];
     if (!isVisible(tel)) continue;
     if (directTextOf(tel) === "") continue;
-    var subjectForText = hoverPaintOf.get(tel);
+    var hoverEntry = hoverPaintOf.get(tel);
     var attrEntry = attrPaintOf.get(tel);
     var isPseudoPainted = pseudoPaintEls.get(tel) === true;
     var isComplexPainted = complexPaintEls.get(tel) === true;
     var isUnresolvedPainted = unresolvedSubjectEls.get(tel) === true;
-    if (subjectForText === undefined && attrEntry === undefined && !isPseudoPainted && !isComplexPainted && !isUnresolvedPainted) {
+    if (hoverEntry === undefined && attrEntry === undefined && !isPseudoPainted && !isComplexPainted && !isUnresolvedPainted) {
       hoverTextCandidates += 1;
       hoverNoPaint += 1;
       continue;
@@ -348,23 +359,27 @@ export const HOVER_CENSUS = `
       transitionCoversPaint: restTransition.covers,
       transitionDurationMs: restTransition.ms,
     };
-    if (subjectForText !== undefined) {
-      hoverTextCandidates += 1;
-      hoverCandidates.push({
-        el: tel,
-        subject: subjectForText,
-        stateAttr: null,
-        stateAttrValue: null,
-        selector: describe(tel),
-        subjectSelector: describe(subjectForText),
-        restColor: restFacts.restColor,
-        restBackdrop: restFacts.restBackdrop,
-        restKey: restFacts.restKey,
-        fontSizePx: restFacts.fontSizePx,
-        fontWeight: restFacts.fontWeight,
-        inactive: restFacts.inactive,
-        transitionCoversPaint: restFacts.transitionCoversPaint,
-        transitionDurationMs: restFacts.transitionDurationMs,
+    if (hoverEntry !== undefined) {
+      // Synchronous per outer iteration, so the \`tel\`/\`restFacts\` vars this callback closes over are
+      // this element's — the forEachPaintedWithKids precedent above.
+      hoverEntry.forEach(function (hoverSubject) {
+        hoverTextCandidates += 1;
+        hoverCandidates.push({
+          el: tel,
+          subject: hoverSubject,
+          stateAttr: null,
+          stateAttrValue: null,
+          selector: describe(tel),
+          subjectSelector: describe(hoverSubject),
+          restColor: restFacts.restColor,
+          restBackdrop: restFacts.restBackdrop,
+          restKey: restFacts.restKey,
+          fontSizePx: restFacts.fontSizePx,
+          fontWeight: restFacts.fontWeight,
+          inactive: restFacts.inactive,
+          transitionCoversPaint: restFacts.transitionCoversPaint,
+          transitionDurationMs: restFacts.transitionDurationMs,
+        });
       });
     }
     if (attrEntry !== undefined) {
