@@ -1852,14 +1852,15 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "c1269f0e5126d1f89b64ee2fbdc6e527cf2935760f9ce72e9731aa12634243d3",
+      "assignedSha256": "7dd1012ac78633032d6ea2a80086db5a970c778be7d6ec2c5acf502a4ae695ce",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c1269f0e5126d1f89b64ee2fbdc6e527cf2935760f9ce72e9731aa12634243d3",
-      "verifiedCommit": "b481e7debfd823e19f9a9e547e7212b7f9af3969",
+      "verifiedSha256": "7dd1012ac78633032d6ea2a80086db5a970c778be7d6ec2c5acf502a4ae695ce",
+      "verifiedCommit": "c68f32c3a1e6a793fc04aac871009b53305964b9",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "c68f32c3a (#1774: row 155 → LANDED FOR THE RPG DOMAIN; row 44 residue struck for the rpg family) — re-attested at the fold",
         "0c31b0905ccc0d35c8dfb87979ea12b8826301aa (#1774 map row: the rpg roster-family word ruling, DIVERGENT — word RULED) on 75d9a1176a9fffc879d05937f0d23a275bda3c9f (#1787: World-book row → landed, cross-ref fixed) — re-attested at the fold",
         "62d59caf2908adee3a963efd9b9a83a7f2a40c3a (#906): both rpg-register rows — scene extra = npc (cast:<slug> → npc:<slug> landed), reserved library arm = libraryNpc; union with #1777's GM-voice row at the fold",
         "54de51d47302fc95549db9ade5e8ec07f0904bc8 (#1777 three rows: Regex script, GM voice, World book — owner ruled World book 2026-09-06) on top of 031af3399 (#1755 'Runs <n> of <m>' regex-register row) — re-attested at the fold",

@@ -3264,6 +3264,29 @@
         }
       ],
       "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md",
+      "assignedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+      "verifiedCommit": "88d11f009708f33dcfaceabc2eaa5d3368f045c3",
+      "verifiedAt": "2026-09-06",
+      "evidence": ["landed by p-adjudication-1481 (c8013ed69, rebased 88d11f009) and read in full by the orchestrator at the fold"],
+      "claims": [
+        {
+          "claim": "Seven external-review claims were adjudicated against the tree: six REFUTED and one ALREADY FIXED by #1375, each with the path:line receipt re-derived on 2026-09-06 (two moved ranges re-cited; claims 6 and 7 gained receipts the issue body lacked); the record exists so the same mirror findings are not re-derived again.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1481"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
     }
   ]
 }
