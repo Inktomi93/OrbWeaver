@@ -186,7 +186,7 @@ axes even though the Codex model is uniform.
 1. Read `.claude/rules/orchestration.md`, the complete source role, and every skill it preloads.
 2. Edit the Claude source. Change the converter only when the host translation itself changes.
 3. Run `pnpm agents:sync`; inspect the generated TOML and model/effort routing.
-4. Run `pnpm check:agents` and `pnpm exec vitest run tests/tooling/codex-agent-config.int.test.ts`.
+4. Run `pnpm check:agents` and `pnpm test:scoped tests/tooling/agent-sync --maxWorkers=4` (the converter's suite lives under `tests/tooling/agent-sync/`; the old `codex-agent-config.int.test.ts` path is dead — #1082).
 5. Start a fresh Codex session when validating discovery; an existing session can retain its startup
    agent catalog.
 
