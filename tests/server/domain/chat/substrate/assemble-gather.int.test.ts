@@ -1,7 +1,7 @@
 // substrate/assemble-gather — the CHAT-INTERNAL gather (the impure shell before the pure BUILD core). Proves
 // against a real libSQL db: the chat-owned half (canon/injections/variables) is read + merged with the FOREIGN
 // DTO; `recallMemory` is invoked over the shared/merged bucket (the group char) with the right scope; the
-// host-tier regex union is global ∪ preset ∪ cast in order; the FOREIGN injection budget is applied; memory-off
+// host-tier regex union is global ∪ preset ∪ character in order; the FOREIGN injection budget is applied; memory-off
 // short-circuits with no search; and the SEND USER_INPUT regex still transforms through the gather (the sink).
 
 import type { CharacterCard } from "@orb/contracts/character";
@@ -31,7 +31,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-/** A full canonical card (D28 live read) carrying `regexScripts` (the host-tier cast source). */
+/** A full canonical card (D28 live read) carrying `regexScripts` (the host-tier character source). */
 function cardOf(name: string, regexScripts: RegexScriptRow[] = []): CharacterCard {
   return {
     name,
@@ -505,7 +505,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 describe("gatherAssembleContext — the host-tier regex union (D53 as amended by D121-E)", () => {
   // THE SOURCE-SET PIN. The gather no longer hand-assembles the union from three blobs — it calls the ONE
   // injected `resolveRegexSources` op with the turn's frozen `runAsUserId`, the resolved preset, the roster's
-  // cast, and the room, then unions what comes back. This test pins BOTH halves: that the gather passes the
+  // characters, and the room, then unions what comes back. This test pins BOTH halves: that the gather passes the
   // right scope keys, and that it preserves the resolver's tier order end-to-end.
   test("union = global ∪ preset ∪ character ∪ room, in that order, from the injected scope resolver", async () => {
     const { host, chatId, aria } = await seedRoom("regex");
@@ -518,7 +518,9 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
         return Promise.resolve({
           hostGlobal: [regexScript("global", "x", "y", "WORLD_INFO")],
           preset: [regexScript("preset", "p", "q", "WORLD_INFO")],
-          character: [regexScript("cast", "a", "b", "WORLD_INFO")],
+          // PER SEAT (#1742/F3) — one slice per seated character, so the gather can key a per-character
+          // allow off it. Concatenating the slices reproduces the flat list this used to be.
+          character: [{ characterId: aria, scripts: [regexScript("character", "a", "b", "WORLD_INFO")] }],
           chat: [regexScript("room", "r", "s", "WORLD_INFO")],
         });
       },
@@ -536,9 +538,9 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
       foreignOf(),
     );
 
-    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "cast", "room"]);
+    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "character", "room"]);
     // The scope keys the gather handed the resolver: the FROZEN host (D19 — never the calling member), the
-    // room, and the roster's cast in order. A drift here is a silently wrong (or cross-tenant) source set.
+    // room, and the roster's characters in order. A drift here is a silently wrong (or cross-tenant) source set.
     expect(seen.ownerId).toBe(host);
     expect(seen.chatId).toBe(chatId);
     expect(seen.characterIds).toEqual([aria]);

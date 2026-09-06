@@ -260,3 +260,113 @@ test("the row kebab's archive verb wears its second face on an archived row", as
 
   await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText(["Unarchive", "Duplicate", "Export card", "Delete"]);
 });
+
+// ── THE COARSE COLLAPSE (#1695, side-eye 2026-09-05 §"At a coarse pointer the character row still paints
+// three inline actions") ────────────────────────────────────────────────────────────────────────────
+// EVERY FENCE ABOVE IS A FINE-POINTER FENCE — `actionsFloat` is `pointer-fine:` gated, so at a coarse
+// pointer the cluster is IN FLOW and permanently visible (`ROW_REVEAL`'s `pointer-coarse:opacity-100`)
+// while every icon button sits at the 44-48px touch floor. Measured on the shipped tree at
+// `coarse:dpr3:430x740`: Star + Chat + ⋯ charged 156px of a 413px row and
+// `Calamity, Doomblade of the Ninth Epoch` clipped in a 195px title lane.
+//
+// `packages/client/src/components/row-reveal.ts` states the rule: a row's SECONDARY affordances collapse
+// into its ONE overflow control at coarse. The star toggle is that secondary — the Chat CTA is the row's
+// 1-click core loop (§9c, this row's own standing ruling) and stays a visible target at both pointer
+// classes, so the collapse takes the cluster from three boxes to two, not to one.
+//
+// `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium; `page.emulateMedia` has no
+// `pointer` feature and CANNOT drive this. The first assertion in each case PROVES the emulation landed
+// before any geometry is trusted.
+
+const ANY_STAR_VERB = /^(Star|Unstar) /;
+const LONG_NAME = "Calamity, Doomblade of the Ninth Epoch";
+const PHONE_WIDTHS = [320, 390, 430] as const;
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of PHONE_WIDTHS) {
+    test(`@${width}: the star toggle stands down into the kebab and the title lane gets its width back`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CharacterCardTileStory name={LONG_NAME} width={width} />);
+
+      // The collapsed control is GONE, not merely invisible (`display:none`, so it leaves the a11y tree too).
+      await expect(component.getByRole("button", { name: ANY_STAR_VERB })).toHaveCount(0);
+      // The two that survive: the core-loop CTA and the one overflow door.
+      await expect(component.getByRole("button", { name: `Chat with ${LONG_NAME}`, exact: true })).toBeVisible();
+      await expect(component.getByRole("button", { name: `Actions for ${LONG_NAME}`, exact: true })).toBeVisible();
+
+      // GEOMETRY, not classes. Two touch boxes (48px each) plus the cluster's own gap — never three.
+      await expect
+        .poll(() => component.locator('[data-slot="list-row-actions"]').evaluate((el: HTMLElement) => el.getBoundingClientRect().width))
+        .toBeLessThan(115);
+    });
+
+    // THE TITLE LANE'S SHARE, which is what the collapse actually buys. A FRACTION, not a pixel, so it
+    // survives a token retune of the avatar box or the row padding — and set BELOW the narrowest measured
+    // post-fix value rather than at it (the persona row's precedent): this fences the collapse, it does not
+    // pin the pixel.
+    //
+    // MEASURED on this tree, title width / row width, before → after:
+    //   320: 0.306 → 0.475 · 390: 0.431 → 0.569 · 430: 0.484 → 0.617
+    // The fraction RISES with width because the row's non-title cost (avatar + padding + the two surviving
+    // touch boxes) is fixed, which is exactly why one floor covers all three arms only if it sits under the
+    // 320 value. A single-width point measurement would have picked a floor that reds at the narrow end.
+    test(`@${width}: the title lane gets a real share of the row back`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CharacterCardTileStory name={LONG_NAME} width={width} />);
+      const title = component.locator('[data-slot="list-row-title"]');
+      const [titleWidth, rowWidth] = await title.evaluate((el: HTMLElement): readonly [number, number] => [
+        el.getBoundingClientRect().width,
+        (el.closest('[data-slot="list-row-root"]') as HTMLElement).getBoundingClientRect().width,
+      ]);
+      expect(titleWidth / rowWidth).toBeGreaterThan(0.45);
+    });
+
+    // …and the width it bought is READABLE, not merely reserved: a real library name must not ellipsis at a
+    // phone width. `truncate` clips by overflow, so the tell is scrollWidth vs clientWidth — polled, because
+    // the marker/glyph row beside it settles its own width a frame after the text paints.
+    //
+    // `LONG_NAME` is deliberately NOT the subject here: 38 characters cannot fit a 320px row at any cluster
+    // budget, and a fence that demanded it would be a wish. What the collapse owes is that an ORDINARY name
+    // stops paying for a control the phone row was not using.
+    test(`@${width}: an ordinary name does not clip`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CharacterCardTileStory name="Aria Nightshade" width={width} />);
+      const nameText = component.getByText("Aria Nightshade", { exact: true });
+      await expect(nameText).toBeVisible();
+      await expect.poll(() => nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
+    });
+
+    // THE MARKER SURVIVES THE COLLAPSE. `ROW_REVEAL_SWAP` computes `display:none` at coarse on the premise
+    // that the toggle carrying the same datum is permanently visible there — the collapse above DELETES that
+    // premise, and a plain `ROW_REVEAL_SWAP` would leave a STARRED row with no star anywhere (the exact bug
+    // `ROW_REVEAL_SWAP_COARSE_KEEP` was minted for on the chats row). VISIBLE, not merely attached.
+    test(`@${width}: a starred row still shows its ★ — the marker is the only telling left`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={true} width={width} />);
+      await expect(component.locator('[data-slot="list-row-markers"]').getByLabel("Starred")).toBeVisible();
+    });
+
+    // …and the VERB is still reachable: exactly one door, inside the kebab, wired to the same seam.
+    test(`@${width}: the collapsed star verb is reachable through the kebab, and fires the same seam`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} width={width} />);
+      await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+      const item = page.getByRole("menuitem", { name: "Star" });
+      await expect(item).toHaveCount(1);
+      await item.click();
+      await expect(component.getByTestId("starred-id")).toHaveText("char_ct_story");
+    });
+  }
+});
+
+// The FINE half of the same pair — the kebab's coarse-only twin must not double the star at a fine pointer,
+// where the inline toggle is the one door. This is the census test above restated for the pair: exactly ONE
+// telling per pointer class is what keeps the collapse from becoming double-telling.
+test("the coarse star twin is absent from the kebab at a fine pointer", async ({ mount, page }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Star" })).toHaveCount(0);
+});

@@ -79,6 +79,22 @@ export function TaggedTileGrid({ widthPx }: { readonly widthPx: number }): React
   );
 }
 
+/** A BADGED interactive grid — one owned tile, one not (#1698: the badge is a STATE and must be in the name).
+ *  The strings are the Card Atlas hub's own, because that is the surface the finding was measured on. */
+export function BadgedTileGrid({ widthPx }: { readonly widthPx: number }): ReactElement {
+  return (
+    <div style={{ overflow: "visible", width: widthPx }}>
+      <MediaTileGrid
+        items={[
+          { id: "owned", title: "Illyria", subtitle: "damagecontrol \u00b7 2.8k\u2193", badge: "in your library" },
+          { id: "unowned", title: "Rebecca", subtitle: "paradigme \u00b7 1.1k\u2193" },
+        ]}
+        onActivate={(): void => undefined}
+      />
+    </div>
+  );
+}
+
 /** The shape-matched loading state, at the SAME width + aspect as its real grid. */
 export function TileGridSkeleton({ widthPx, aspect = "portrait" }: { readonly widthPx: number; readonly aspect?: MediaTileAspect }): ReactElement {
   return (

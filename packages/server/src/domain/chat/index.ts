@@ -41,10 +41,10 @@ export type {
   PromptTransformRegistry,
   ResolveCanonWindow,
   ResolveRpgCardCorpus,
-  ResolveRpgRoster,
+  ResolveRpgParticipants,
   ResolveViewerVisibility,
   RpgCardCorpus,
-  RpgRosterActor,
+  RpgParticipantActor,
   RpgTurnContext,
   RpgTurnTranscriptMessage,
   SetRpgPointer,
@@ -90,12 +90,15 @@ export { resolveTier0Range } from "./memory/recall/bridge.ts";
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
+// The #1649 handoff-offer vocabulary data migration — a boot step (`entry/boot/migrate-handoff-offer-vocab`)
+// runs it; the SQL lives beside the offer's other writes.
+export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
+// The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
+// cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
+export { loadPresentRole } from "./persistence/participants-read.ts";
 // The expressions post-turn prose read (E3 — expressions-design/02 §3.1): the injected `readTurn` op is wired
 // over this at the composition root. A pure `(db, …)` read (needs no ChatContext) so it breaks no cycle.
 export { loadSeededChatDressing, loadTurnForClassify, loadTurnOrigin } from "./persistence/queries.ts";
-// The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
-// cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
-export { loadPresentRole } from "./persistence/roster.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
@@ -154,6 +157,7 @@ export { createClaimChat } from "./verbs/claim-chat.ts";
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
+export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
@@ -169,9 +173,8 @@ export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
 export { createResolveRpgCardCorpus } from "./verbs/resolve-rpg-card-corpus.ts";
-export { createResolveRpgRoster } from "./verbs/resolve-rpg-roster.ts";
+export { createResolveRpgParticipants } from "./verbs/resolve-rpg-participants.ts";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility.ts";
-export { setParticipantActivePersona } from "./verbs/roster.ts";
 // The opaque rpg-pointer WRITE op (rpg-design/05 §3.1) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";

@@ -2739,15 +2739,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
-      "assignedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
+      "assignedSha256": "c1df15c47dda10ff833e69f63e70ea34700b895c63b05298b7cdc96b76747043",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "2e8b99ce270e9805fde18ee1406d82ba01294fb23208c8241887490c3c7043d7",
-      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
-      "verifiedAt": "2026-09-04",
+      "verifiedSha256": "c1df15c47dda10ff833e69f63e70ea34700b895c63b05298b7cdc96b76747043",
+      "verifiedCommit": "3f0589e5631a4c849af23bcaddcd487bf630e541",
+      "verifiedAt": "2026-09-05",
       "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
       "evidence": [
+        "re-attested at 3f0589e56 by the orchestrator after reading the #1163 edit in full (cb-stage-ttl): the internal --stage-keeper row added; the surface count 129→130 / parser 116→117 (115 public + two internal child entries); updated 2026-09-05; the cli-truth suite asserts table equality against snapFlagDescriptors({includeInternal:true}).",
         "re-attested at b13a99f93 (delta read: one table row — `--atlas` added as a KEEP child of `--map`, the default being the one-line atlas summary, #1372; nothing else changed since 561ea5ec3)",
         "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 (full read by the primary orchestrator, session c61174c8, 2026-09-04; every retained finding re-checked against 561ea5ec3)",
         "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
@@ -3092,14 +3093,15 @@
     },
     {
       "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-      "assignedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
+      "assignedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "2a0903138996206b4b0f12e1698a78fac6f33737a7bbc09164144c921fff6341",
-      "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
+      "verifiedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 626a06121 by the orchestrator after reading the §8 amendment in full: the 'member rows in LIST' verdict is superseded by #1725 (owner ~16:40Z: collections move into CONTENT); every other axis stands.",
         "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
         "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
         "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
@@ -3239,6 +3241,29 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
+      "assignedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["landed by p-docs-batch (69f35bef5) and read in full by the orchestrator at e9ad555ac"],
+      "claims": [
+        {
+          "claim": "Fourteen external-review claims were adjudicated against the tree and REFUTED or narrowed — three of them in the synthesis's own highest-risk tier (client-002 'chat lag never heals canonical reads' among them) — each with the path:line receipt that changed the verdict; the record exists so nobody works the external synthesis as a to-do list.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1514"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
     }
   ]
 }

@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { configAnchorId } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -46,9 +46,12 @@ type PublishState =
 /** The section body — mounted at the Plugins pane's sections anchor, admin-gated by its contribution def. */
 export function PluginDistributeSection(): ReactElement {
   return (
+    // RESERVED (#1098) — a config section that settles into the published-plugin list; it sits above the
+    // rest of the Plugins pane, so its read landing moved every section below it.
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading what's published…</Text>}
+      fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the distribution list — it's available to administrators only" onRetry={retry} />}
+      reserveKey="config.plugins.distribute"
     >
       <PluginDistributeBody />
     </QueryBoundary>

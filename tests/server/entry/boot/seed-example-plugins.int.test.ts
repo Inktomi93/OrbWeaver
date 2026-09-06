@@ -1,5 +1,5 @@
 // The SHOWCASE PLUGIN examples, proven end to end on their REAL packed bytes — no hand-built bundle double.
-// `packSeedPluginBundle` zips the two source files exactly as the per-user seeder does, the real `install`
+// `packShowcaseBundle` zips the two source files exactly as the per-user seeder does, the real `install`
 // verb parses and stores them, the real `setGrant` records consent, the real `setEnabled` activates them in
 // the REAL `infra/plugin-host` sandbox, and the collected registrations are driven through the SAME
 // `invoke(handler, argsJson, chatScope)` closure the compose fan-out and the tool registrar call.
@@ -16,7 +16,9 @@
 // fetch — the attachment gate, the per-plugin entry cap and `neutralizeMacros` — is pinned by
 // `tests/server/domain/plugin/substrate/bridge.test.ts`.
 
+import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
@@ -28,8 +30,10 @@ import { createNotificationsService } from "@orb/server/domain/notifications";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
-import { packSeedPluginBundle } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
-import { createExamplePluginSeeder, EXAMPLE_PLUGIN_SLUGS } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { unzipSync, zipSync } from "fflate";
+import type { ExamplePluginSeederDeps } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -187,7 +191,7 @@ async function installGrantEnable(args: {
   readonly netHosts?: readonly string[];
 }): Promise<PluginId> {
   const { h, caller, slug, grant } = args;
-  const bundle = await packSeedPluginBundle(slug);
+  const bundle = await packShowcaseBundle(slug);
   expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
@@ -239,7 +243,7 @@ test("research familiar: the real bundle installs consent-first, and its message
 
   // THE SEEDED SEQUENCE, verbatim: install with an EMPTY grant, then the empty RE-GRANT that raises the
   // standing consent ask. The row can do nothing at all until a human answers it.
-  const bundle = await packSeedPluginBundle("research-familiar");
+  const bundle = await packShowcaseBundle("research-familiar");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
@@ -295,7 +299,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  const bundle = await packSeedPluginBundle("oracle-deck");
+  const bundle = await packShowcaseBundle("oracle-deck");
   expect(bundle).not.toBeNull();
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
@@ -510,29 +514,74 @@ test("scene chips: the real bundle offers chips on a long narrator beat, once pe
   expect(captured.chips[1]?.at(-1)?.sendText).toContain("The Storm");
 });
 
+/** The two `UserSettings.onboarding` fields the seeder owns, as one mutable object a test can hand to several
+ *  seeder INSTANCES in turn — which is what "the next boot" means here (the in-process memo makes a second
+ *  `ensureSeeded` on the SAME instance a no-op by design, so a re-run test needs a fresh instance over the
+ *  same persisted state). */
+interface SeedLatch {
+  seeded: boolean;
+  versions: Record<string, string>;
+}
+
+/** The compose wiring (`entry/compose/services.ts`), against the harness's REAL plugin service and an
+ *  in-memory settings latch. Every arm here mirrors a compose line; `overrides` is how one test narrows one
+ *  of them (a missing bundle, a bumped version) without re-spelling the other eight. */
+function seederDeps(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, overrides: Partial<ExamplePluginSeederDeps> = {}): ExamplePluginSeederDeps {
+  return {
+    packBundle: packShowcaseBundle,
+    bundledVersion: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
+    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
+    upgrade: async ({ caller: principal, pluginId, bundle }): Promise<void> => {
+      await h.service.upgrade({ caller: principal, pluginId, bundle });
+    },
+    requestConsent: async ({ caller: principal, pluginId }): Promise<void> => {
+      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
+    },
+    listHeld: async (principal) => (await h.service.list({ caller: principal })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version })),
+    isSeeded: (): Promise<boolean> => Promise.resolve(latch.seeded),
+    markSeeded: (): Promise<void> => {
+      latch.seeded = true;
+      return Promise.resolve();
+    },
+    readSeededVersions: (): Promise<Readonly<Record<string, string>>> => Promise.resolve(latch.versions),
+    writeSeededVersions: (_principal, versions): Promise<void> => {
+      latch.versions = { ...versions };
+      return Promise.resolve();
+    },
+    ...overrides,
+  };
+}
+
+/** A REAL shipped bundle with one field changed: its manifest `version`. Used to stand in for "a later release
+ *  of this showcase plugin" without committing a second copy of a bundle — the packer's fixed mtime is reused
+ *  so the forged bytes stay a pure function of their inputs, exactly like the shipped ones. */
+async function bundleAtVersion(slug: string, version: string): Promise<Uint8Array> {
+  const packed = await packShowcaseBundle(slug);
+  const entries = unzipSync(packed as Uint8Array);
+  const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as Record<string, unknown>;
+  manifest["version"] = version;
+  const rebuilt: Record<string, [Uint8Array, { mtime: number }]> = {};
+  for (const [name, bytes] of Object.entries(entries)) {
+    rebuilt[name] = [name === "manifest.json" ? new TextEncoder().encode(JSON.stringify(manifest)) : bytes, { mtime: FORGED_BUNDLE_MTIME_MS }];
+  }
+  return zipSync(rebuilt);
+}
+
+/** The packer's own fixed stamp (`@orb/showcase-plugins`) — re-stated here rather than exported, because a
+ *  TEST forging bytes is not a second packer and must not make the real one's constant part of an API. */
+const FORGED_BUNDLE_MTIME_MS = 331_257_600_000;
+
 test("the per-user seeder lands every example installed, disabled and UNGRANTED — and re-runs are a no-op", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(seederDeps(h, latch));
 
   await seeder.ensureSeeded(caller);
   const rows = await h.service.list({ caller });
-  expect(rows.map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].sort());
+  expect(rows.map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].sort());
   // THE CONSENT POSTURE, asserted on every row: present, off, allowed nothing, and standing an ask.
   for (const row of rows) {
     expect(row.status, row.slug).toBe("disabled");
@@ -540,12 +589,12 @@ test("the per-user seeder lands every example installed, disabled and UNGRANTED 
     expect(row.reconsentPending, row.slug).toBe(true);
     expect(row.declaredCapabilities.length, row.slug).toBeGreaterThan(0);
   }
-  expect(latched).toBe(true);
+  expect(latch.seeded).toBe(true);
 
   // The in-process memo makes a second call free; clearing it and re-running must still mint nothing (the
   // persisted latch is the DELETION-RESPECT guard — an example the user removed must not come back).
   await seeder.ensureSeeded(caller);
-  expect(await h.service.list({ caller })).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+  expect(await h.service.list({ caller })).toHaveLength(SHOWCASE_PLUGIN_SLUGS.length);
 });
 
 // #1411 — the LATCH IS A COMPLETENESS CLAIM, not a "the pass ran" claim. `seedOne` returning false for a
@@ -559,36 +608,26 @@ test("a MISSING bundle does not latch — the incomplete pass retries and comple
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
   // A MUTABLE HOLDER, not a bare `let`: biome narrows a `let x = true` initializer and then calls the guard
   // below "always truthy", while a property read is opaque to that narrowing. Same value, no suppression.
   const pack: { absent: boolean } = { absent: true };
   const missingSlug = "oracle-deck";
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packSeedPluginBundle(slug)),
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(
+    seederDeps(h, latch, { packBundle: async (slug) => (pack.absent && slug === missingSlug ? null : await packShowcaseBundle(slug)) }),
+  );
 
   await seeder.ensureSeeded(caller);
   // The pass did NOT fail: every other example is installed (the header's per-slug tolerance, preserved).
-  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].filter((s) => s !== missingSlug).sort());
   // …but it was INCOMPLETE, so it must stay retryable — both the persisted latch and the in-process memo.
-  expect(latched).toBe(false);
+  expect(latch.seeded).toBe(false);
 
   pack.absent = false;
   await seeder.ensureSeeded(caller);
-  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...EXAMPLE_PLUGIN_SLUGS].sort());
-  expect(latched).toBe(true);
+  expect((await h.service.list({ caller })).map((r) => r.slug).sort()).toEqual([...SHOWCASE_PLUGIN_SLUGS].sort());
+  expect(latch.seeded).toBe(true);
 });
 
 /** The install-time refusals a copied example must not trip: the packer emits only ADMITTED entries, and every
@@ -601,15 +640,31 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
   const ids: PluginId[] = [];
-  for (const slug of EXAMPLE_PLUGIN_SLUGS) {
-    const bundle = await packSeedPluginBundle(slug);
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    const bundle = await packShowcaseBundle(slug);
     expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
     const row = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
     expect(row.slug).toBe(slug);
     ids.push(row.id);
   }
-  expect(ids).toHaveLength(EXAMPLE_PLUGIN_SLUGS.length);
+  expect(ids).toHaveLength(SHOWCASE_PLUGIN_SLUGS.length);
 });
+
+/** The live value of one key in a room's variable store — `null` for an unset key, which is the reading a
+ *  `{ expected: null }` belief claims (and is NOT the same as the empty string). */
+function liveVar(vars: Record<string, string>, key: string): string | null {
+  return Object.hasOwn(vars, key) ? (vars[key] ?? null) : null;
+}
+
+/** The `stale` refusal for a belief set that no longer holds, or `null` when every belief still holds — the
+ *  compare-and-set half of the room-variable store (#1555), reproduced faithfully because a guest that retries
+ *  on a refusal is only exercised by a store that can REFUSE. */
+function casRefusal(vars: Record<string, string>, beliefs: readonly VariablePrecondition[]): VariableWriteResult | null {
+  if (beliefs.every((b) => liveVar(vars, b.key) === b.expected)) {
+    return null;
+  }
+  return { outcome: "stale", actual: Object.fromEntries(beliefs.map((b) => [b.key, liveVar(vars, b.key)])) };
+}
 
 test("story clocks: variables are the room-state plane, the tool ticks, and a human fill asks for a turn", async () => {
   const db = await freshDb();
@@ -618,13 +673,32 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   // a `requestTurn` capture — both riding the exact op signatures compose wires.
   const roomVars = new Map<string, Record<string, string>>();
   const turnRequests: { readonly chatId: ChatId; readonly guided?: string }[] = [];
+  /** A ONE-SHOT racing writer, fired inside the next CONDITIONAL write — the window between the guest's read
+   *  and its write, which is where the lost tick lives (#1555) and which nothing else in this harness can
+   *  reach. Armed by the compare-and-set arm at the bottom of this test. */
+  let interloper: (() => void) | null = null;
+  /** Fire the armed interloper (once) if this write carries beliefs — i.e. only on the CAS path under test. */
+  const raceOnce = (beliefs: readonly VariablePrecondition[] | undefined): void => {
+    if (interloper === null || (beliefs?.length ?? 0) === 0) {
+      return;
+    }
+    const fire = interloper;
+    interloper = null;
+    fire();
+  };
   const ops: PluginHostOps = {
     ...recorded,
     chat: {
       ...recorded.chat,
       getVariables: (chatId): Promise<Record<string, string>> => Promise.resolve({ ...(roomVars.get(chatId) ?? {}) }),
-      applyVariableOps: (chatId, varOps): Promise<void> => {
+      applyVariableOps: (chatId, varOps, beliefs): Promise<VariableWriteResult> => {
+        raceOnce(beliefs);
         const vars = roomVars.get(chatId) ?? {};
+        // A violated belief writes NOTHING and hands back what the keys actually read (see `casRefusal`).
+        const refusal = casRefusal(vars, beliefs ?? []);
+        if (refusal !== null) {
+          return Promise.resolve(refusal);
+        }
         for (const op of varOps) {
           if (op.op === "set") {
             vars[op.key] = op.value;
@@ -633,7 +707,7 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
           }
         }
         roomVars.set(chatId, vars);
-        return Promise.resolve();
+        return Promise.resolve({ outcome: "applied" });
       },
       requestTurn: (req): Promise<void> => {
         turnRequests.push({ chatId: req.chatId, ...(req.guided === undefined ? {} : { guided: req.guided }) });
@@ -713,6 +787,26 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   const state = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "clock_flank", chatId: CHAT });
   expect(String(state?.["line0"])).toContain("the ritual");
   expect(String(state?.["line0"])).toContain("4/4");
+
+  // THE LOST TICK, CLOSED (#1555). A tick is read-modify-write, and this plugin's two writers do not see each
+  // other: `advance_clock` rides the resident's serialized invoke queue, a panel button arrives on a fresh
+  // bridge that never touches it. `interloper` fires INSIDE the write — the window between the guest's read
+  // and its write, which no ordering of these two doors could otherwise reproduce.
+  const vars = roomVars.get(CHAT) ?? {};
+  vars["clock:the_ritual"] = "1/4";
+  roomVars.set(CHAT, vars);
+  interloper = (): void => {
+    // Somebody else ticked it to 2/4 while the guest was computing 2/4 from 1/4. Unconditionally, this write
+    // would land 2/4 and the interloper's tick would be gone.
+    (roomVars.get(CHAT) ?? {})["clock:the_ritual"] = "2/4";
+  };
+  const raced = await invoke(tool, JSON.stringify({ name: "the ritual" }), chatScope(CHAT, true));
+
+  // The guest's precondition ("I read 1/4") no longer held, the host refused AS DATA, and the guest re-derived
+  // from `actual` — so BOTH ticks are in the number: 1/4 → (interloper) 2/4 → (retry) 3/4.
+  expect(roomVars.get(CHAT)?.["clock:the_ritual"]).toBe("3/4");
+  expect(raced).toContain("3/4");
+  expect(interloper).toBeNull(); // the one-shot really fired — a planted control for the arm itself
 });
 
 test("pocket arcade: a one-capability frame plugin registers its document, and the bytes never reach the wire", async () => {
@@ -972,7 +1066,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  const scripted = await packSeedPluginBundle("affinity-tracker");
+  const scripted = await packShowcaseBundle("affinity-tracker");
   const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });
   const source = await h.service.getUiBundle({ caller, pluginId: installed.id });
   expect(source, "affinity-tracker ships a ui.js and it must survive the round trip").not.toBeNull();
@@ -981,7 +1075,7 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   expect(source).toContain("orb.ui(1)");
 
   // A Tier-S example answers `null` — an absence, not a failure.
-  const staticOnly = await packSeedPluginBundle("oracle-deck");
+  const staticOnly = await packShowcaseBundle("oracle-deck");
   const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
   expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
 });
@@ -1022,21 +1116,9 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  let latched = false;
+  const latch: SeedLatch = { seeded: false, versions: {} };
 
-  const seeder = createExamplePluginSeeder({
-    packBundle: packSeedPluginBundle,
-    install: async ({ caller: principal, bundle }) => await h.service.install({ caller: principal, bundle, grant: [] }),
-    requestConsent: async ({ caller: principal, pluginId }) => {
-      await h.service.setGrant({ caller: principal, pluginId, grant: [], acknowledgedNetHosts: [] });
-    },
-    alreadyInstalled: async (principal, slug) => (await h.service.list({ caller: principal })).some((row) => row.slug === slug),
-    isSeeded: (): Promise<boolean> => Promise.resolve(latched),
-    markSeeded: (): Promise<void> => {
-      latched = true;
-      return Promise.resolve();
-    },
-  });
+  const seeder = createExamplePluginSeeder(seederDeps(h, latch));
 
   await seeder.ensureSeeded(caller);
 
@@ -1045,7 +1127,7 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   expect(inbox.items[0]?.payload).toEqual({
     type: "plugins-awaiting-consent",
     recipientUserId: caller.userId,
-    pendingCount: EXAMPLE_PLUGIN_SLUGS.length,
+    pendingCount: SHOWCASE_PLUGIN_SLUGS.length,
   });
   // Unread: the whole point is that it reaches the bell as something new.
   expect(inbox.items[0]?.readAt).toBeNull();
@@ -1064,6 +1146,146 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
   expect(after.items[0]?.payload).toEqual({
     type: "plugins-awaiting-consent",
     recipientUserId: caller.userId,
-    pendingCount: EXAMPLE_PLUGIN_SLUGS.length - 1,
+    pendingCount: SHOWCASE_PLUGIN_SLUGS.length - 1,
   });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
+// #803 — THE AUTO-UPGRADE (owner-ruled 2026-09-05, arm (a)). The four arms of one decision, each with the
+// state that decides it. Before this, `examplePluginsSeeded` gated the WHOLE pass, so an improved bundle
+// (card-atlas 1.0.0 → 1.1.0) reached only a FRESH database and every existing install stayed on the old
+// version until someone dropped their db. The upgrade half now runs on every pass and touches a row only
+// when it is still exactly what this system last wrote.
+//
+// "The next boot" is a SECOND SEEDER INSTANCE over the SAME latch object, deliberately: the in-process memo
+// makes a repeat `ensureSeeded` on one instance a no-op by design, so re-running through the same instance
+// would prove nothing about the persisted state.
+// ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The slug these four use: Tier-S (no `ui.js`), so a forged bundle stays a two-entry zip. */
+const UPGRADE_SLUG = "draft-polish";
+
+async function seedOnce(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, caller: Principal): Promise<void> {
+  await createExamplePluginSeeder(seederDeps(h, latch)).ensureSeeded(caller);
+}
+
+type ListedPlugin = Awaited<ReturnType<ReturnType<typeof makePluginHarness>["service"]["list"]>>[number];
+
+/** One slug's row out of a `plugin.list` read, or `undefined` when the caller does not hold it — which is
+ *  itself an assertion subject here (the deleted arm). */
+function rowFor(rows: readonly ListedPlugin[], slug: string): ListedPlugin | undefined {
+  return rows.find((row) => row.slug === slug);
+}
+
+test("#803 a NEWER bundle reaches a PRISTINE seeded install — same row, upgraded in place", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const before = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  expect(before).toBeDefined();
+  // The install half recorded OUR provenance — that record is what makes the row recognisable as ours later.
+  expect(latch.versions[UPGRADE_SLUG]).toBe(before?.version);
+
+  // The next release of that showcase plugin.
+  const shipped = "9.9.9";
+  const nextBoot = createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  );
+  await nextBoot.ensureSeeded(caller);
+
+  const after = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  expect(after?.version).toBe(shipped);
+  // The SAME row, not a re-install: the plugin id is the FK every `plugin_kv` key and surface state hangs
+  // off, so a new id would silently orphan everything the user's copy had accumulated.
+  expect(after?.id).toBe(before?.id);
+  // The consent posture survives the upgrade untouched — still nothing granted, still off.
+  expect(after?.grantedCapabilities).toEqual([]);
+  expect(after?.status).toBe("disabled");
+  // …and the provenance advanced, so the NEXT release compares against what we actually wrote.
+  expect(latch.versions[UPGRADE_SLUG]).toBe(shipped);
+});
+
+test("#803 a DIVERGED install is left alone — the user has taken the plugin over", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  // The user replaces it with their own build, through the real upgrade verb — the row moves to a version
+  // this system never wrote, which is the plugin domain's own divergence oracle
+  // (`verbs/uninstall-for-all-users.ts`: a `version-diverged` row is one its owner has taken over).
+  await h.service.upgrade({ caller, pluginId: seeded?.id as PluginId, bundle: await bundleAtVersion(UPGRADE_SLUG, "5.0.0") });
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
+
+  const shipped = "9.9.9";
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  ).ensureSeeded(caller);
+
+  // Untouched: their fork stands, and our provenance record still names what WE last wrote.
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
+  expect(latch.versions[UPGRADE_SLUG]).toBe(seeded?.version);
+});
+
+test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
+  await h.service.uninstall({ caller, pluginId: seeded?.id as PluginId });
+
+  const shipped = "9.9.9";
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      packBundle: async (slug) => (slug === UPGRADE_SLUG ? await bundleAtVersion(slug, shipped) : await packShowcaseBundle(slug)),
+      bundledVersion: async (slug): Promise<string | null> => (slug === UPGRADE_SLUG ? shipped : ((await readShowcaseManifest(slug))?.version ?? null)),
+    }),
+  ).ensureSeeded(caller);
+
+  // DELETION-RESPECT is not a second rule in the upgrade half — a row the user removed is simply not in the
+  // held set, so there is nothing to upgrade and the latch still forbids re-installing it.
+  expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)).toBeUndefined();
+});
+
+test("#803 a settled boot at EQUAL versions writes nothing at all", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const latch: SeedLatch = { seeded: false, versions: {} };
+
+  await seedOnce(h, latch, caller);
+  const first = await h.service.list({ caller });
+  const recorded = { ...latch.versions };
+
+  // The next boot on the SAME shipped bundles: no install (latched), no upgrade (nothing is newer), and —
+  // the part a version compare alone would not give — no settings write either.
+  const writes: number[] = [];
+  await createExamplePluginSeeder(
+    seederDeps(h, latch, {
+      writeSeededVersions: (): Promise<void> => {
+        writes.push(1);
+        return Promise.resolve();
+      },
+    }),
+  ).ensureSeeded(caller);
+
+  expect(writes).toHaveLength(0);
+  expect(latch.versions).toEqual(recorded);
+  const second = await h.service.list({ caller });
+  expect(second.map((row) => `${row.slug}@${row.version}`).sort()).toEqual(first.map((row) => `${row.slug}@${row.version}`).sort());
+  expect(second.map((row) => row.updatedAt)).toEqual(first.map((row) => row.updatedAt));
 });

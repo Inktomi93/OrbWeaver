@@ -6,8 +6,16 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { interactiveTagSelector } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
+
+/** The island's role list is wider than the base vocabulary's — every ARIA composite a nested
+ *  interactive island can be — but the TAG portion is the one shared tuple (#1074), so textarea/summary
+ *  cannot drop out of this census while staying in the base one. */
+const INTERACTIVE_ISLAND_ROLES = ["button", "link", "menuitem", "option", "tab", "switch", "checkbox", "radio"];
+const INTERACTIVE_ISLAND_SELECTOR_VALUE = [...interactiveTagSelector(), ...INTERACTIVE_ISLAND_ROLES.map((role) => `[role=${role}]`)].join(",");
+const INTERACTIVE_ISLAND_SELECTOR_JS = JSON.stringify(INTERACTIVE_ISLAND_SELECTOR_VALUE);
 
 export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shadow||border) && (radius||bg)) ─────────
   // CARD-NESS IS MEASURED, NEVER NAMED (2026-08-23, issue #552). \`hasBorder\` used to OR in
@@ -41,7 +49,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // "a grid cell IS an interactive island", docs/architecture/core/UI-Density-Law.md:134). So a button/link/
   // input/[role=button] carrying a border and a radius inside a card is the house style, not a defect.
   // The rule keeps its real target: a decorative CARD PANEL nested inside another card panel.
-  var INTERACTIVE_ISLAND_SELECTOR = "a,button,input,select,textarea,summary,[role=button],[role=link],[role=menuitem],[role=option],[role=tab],[role=switch],[role=checkbox],[role=radio]";
+  var INTERACTIVE_ISLAND_SELECTOR = ${INTERACTIVE_ISLAND_SELECTOR_JS};
   function isInteractiveIsland(el) {
     if (el.matches(INTERACTIVE_ISLAND_SELECTOR)) return true;
     // ListRow's root owns the row's visual chrome but delegates the one offered action to its
@@ -184,11 +192,22 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // INSIDE an escaped Tailwind class name. Zero live img hovers ride the attribute channel today —
   // the owner's standing ruling is "we dont build things just for what we have today", and the
   // shared predicate (ops/walker/state-paint.ts) costs this scan nothing.
+  // THE HOUSE MEDIA-ZOOM IDIOM PUTS THE CLASS ON THE WRAPPER, NOT THE IMG (#1075, orb-ui audit F3).
+  // media-tile-grid's cover span carries \`group-hover:scale-105\`; the <img> inside it carries no
+  // transform class of its own. A same-element-only class read is blind to the idiom this codebase
+  // actually authors, so the scan walks the img's own class list AND its near ancestors — bounded, like
+  // the interactive-island wrapper walk (census-decor.ts's \`isInteractiveIsland\`), so a decorative
+  // grandparent far up the tree cannot false-positive an unrelated img.
+  var IMG_HOVER_WRAPPER_DEPTH = 3;
   var animatedImgHovers = [];
   for (var h = 0; h < imgEls.length; h += 1) {
     var himg = imgEls[h];
-    var hcls = typeof himg.className === "string" ? himg.className.split(/\\s+/) : [];
-    if (hcls.some(function (c) { return STATE_VARIANT_TRANSFORM_RE.test(c); })) {
+    var hoverAnimated = false;
+    for (var hanc = himg, hlevels = 0; hanc && hlevels <= IMG_HOVER_WRAPPER_DEPTH && !hoverAnimated; hanc = hanc.parentElement, hlevels += 1) {
+      var hcls = typeof hanc.className === "string" ? hanc.className.split(/\\s+/) : [];
+      if (hcls.some(function (c) { return STATE_VARIANT_TRANSFORM_RE.test(c); })) hoverAnimated = true;
+    }
+    if (hoverAnimated) {
       animatedImgHovers.push({ selector: describe(himg), hasHoverAnimation: true });
     }
   }
@@ -203,11 +222,22 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       for (var r = 0; r < rules.length; r += 1) {
         var rule = rules[r];
         if (!rule.selectorText) continue;
-        if (
-          (hasStateHover(rule.selectorText) || stateAttrAnywhere(rule.selectorText)) &&
-          /img/i.test(rule.selectorText) &&
-          HOVER_TRANSFORM_RE.test(rule.cssText)
-        ) {
+        if (!(hasStateHover(rule.selectorText) || stateAttrAnywhere(rule.selectorText))) continue;
+        if (!HOVER_TRANSFORM_RE.test(rule.cssText)) continue;
+        // THE SELECTOR TEXT NAMES THE WRAPPER, NOT THE IMG (#1075): a \`/img/i\` substring test over
+        // \`rule.selectorText\` never matched the media-tile idiom's compiled group-hover selector, which
+        // names only the wrapper's class. Bind the selector to the LIVE DOM instead: does it match an
+        // <img>, or does a matched element CONTAIN one — the exact wrapper-carries-the-class shape.
+        var matchesImg = false;
+        try {
+          var matched = document.querySelectorAll(rule.selectorText);
+          for (var mi = 0; mi < matched.length && !matchesImg; mi += 1) {
+            if (matched[mi].tagName === "IMG" || matched[mi].querySelector("img") !== null) matchesImg = true;
+          }
+        } catch (e3) {
+          continue; // unparseable selector text (an unescaped Tailwind variant colon, etc.)
+        }
+        if (matchesImg) {
           animatedImgHovers.push({ selector: rule.selectorText, hasHoverAnimation: true });
         }
       }
@@ -216,52 +246,12 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     /* cross-origin stylesheet — skip */
   }
 
-  // ── accent borders (impeccable side-tab / border-accent-on-rounded) ─────
-  // The 200-row bound is a REPRESENTATIVE bound, and the scan runs past it (#1038): \`capPush\` tallies
-  // what it dropped so the two rules over this census publish a complete \`candidates=\`.
-  var accentBorders = [];
-  var ACCENT_BORDER_CAP = 200;
-  for (var ab = 0; ab < allEls.length; ab += 1) {
-    var abel = allEls[ab];
-    if (!isVisible(abel)) continue;
-    var abTag = abel.tagName.toLowerCase();
-    var abStyle = getComputedStyle(abel);
-    var widths = {
-      top: Number.parseFloat(abStyle.borderTopWidth) || 0,
-      right: Number.parseFloat(abStyle.borderRightWidth) || 0,
-      bottom: Number.parseFloat(abStyle.borderBottomWidth) || 0,
-      left: Number.parseFloat(abStyle.borderLeftWidth) || 0,
-    };
-    var maxW = Math.max(widths.top, widths.right, widths.bottom, widths.left);
-    if (maxW < 2) continue;
-    var ownBg = parseRgb(abStyle.backgroundColor);
-    if (BORDER_SAFE_TAGS[abTag] === 1) continue;
-    if (abTag === "span" && !(ownBg && ownBg.a > 0.5)) continue;
-    capPush("accentBorders", accentBorders, ACCENT_BORDER_CAP, {
-      selector: describe(abel),
-      tag: abTag,
-      widths: widths,
-      colors: {
-        top: parseRgb(abStyle.borderTopColor),
-        right: parseRgb(abStyle.borderRightColor),
-        bottom: parseRgb(abStyle.borderBottomColor),
-        left: parseRgb(abStyle.borderLeftColor),
-      },
-      radius: Number.parseFloat(abStyle.borderTopLeftRadius) || 0,
-      badgeLike: abTag === "span" && !!(ownBg && ownBg.a > 0.5),
-      tabContext: !!(abel.closest("[role='tablist'],[role='tab'],nav") || abel.getAttribute("aria-selected") !== null),
-      statusContext: !!abel.closest("[role='status'],[role='alert'],[aria-live]"),
-      // The ratified ListRow selection accent (issue #485) — matches on the ELEMENT itself, never an
-      // ancestor: a decorative panel nested inside a selected row must keep being judged.
-      listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
-      // The illustrated-picker art aperture (#1642) — ANCESTOR-scoped on purpose, the inverse of the line
-      // above: every box inside the picture is part of the picture, and the tell the diagram draws is the
-      // very thing the cell exists to show. Keyed on the shared @orb/ui PickerCell slot, so all FOUR
-      // illustrated pickers — chat style, density, elevation, theme looks — are one exemption rather
-      // than four selectors.
-      artPane: !!(abel.closest && abel.closest(PICKER_ART_SEL)),
-    });
-  }
+  // ── accent borders MOVED to ops/walker/census-accent.ts (2026-09-05, #1103) ──
+  // The family grew a second collection channel — a \`::before\`/\`::after\` bar pinned to one edge, which
+  // is how this codebase actually paints an accent edge — and the pseudo sweep took this file past the
+  // tooling-size cap, exactly as the glow families did in 2026-09-01. WALKER_CENSUS_ACCENT declares
+  // \`accentBorders\` and runs immediately after this segment (ops/walker.ts), so the composed IIFE's
+  // scope is unchanged and WALKER_RETURNS still reads the one array.
 
   // ── decorative bg patterns: stripes + grid-line fields (impeccable
   //    repeating-stripes-gradient / codex-grid-background) ──────────────────

@@ -8,9 +8,13 @@ import base from "./vitest.config.ts";
 //  • Keeps the three RUNTIME lanes — unit + integration + contract. Integration is REQUIRED: the highest-
 //    stakes mutate targets (credentials/*, observability/audit) are covered ONLY by `.int.test.ts` against
 //    real libSQL. Verified safe under Stryker's forced `pool:'threads'` (the libSQL native binding passes).
-//  • Drops the `types` lane (typecheck-only — nothing to mutate at runtime, and it's redundant with
-//    Stryker's own TypeScript checker) and `parity` (the cross-repo differential oracle — slow, not a
-//    unit of mutation coverage).
+//  • Drops every other lane in `vitest.config.ts`, each with a STATED reason in `DROPPED_LANES` below — see
+//    #1340: the OLD shape here was an allowlist whose own comment named a lane that no longer existed
+//    (`parity`, purged 2026-08-22 with #428) while omitting BOTH lanes it silently dropped
+//    (`integration-serial` — 22 files; `live-drive` — 4 files), because an allowlist drops anything not
+//    named with zero signal. `assertEveryLaneClassified` below makes that structurally impossible now: a
+//    lane added to `vitest.config.ts` and never classified HERE throws at Stryker's own config load,
+//    across every worker, rather than silently vanishing from mutation coverage.
 //  • Excludes `tests/tooling/**` from every kept lane. Those are whole-tree META-tests (the structure
 //    gates, dependency-cruiser, grit plugins, schema-baseline parity) that run the real tooling over the
 //    source tree — against Stryker's mutant-INSTRUMENTED sandbox copy they fail by construction (the
@@ -19,7 +23,36 @@ import base from "./vitest.config.ts";
 // perTest coverage (set in the Stryker config) still ensures each mutant only runs the tests that cover
 // it — so a kit/macro mutant runs kit unit tests, a credentials mutant runs credentials int tests.
 
-const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
+// Exported (alongside `DROPPED_LANES` + `assertEveryLaneClassified` below) so the totality pin
+// (tests/tooling/vitest-stryker-lane-classification.test.ts) can assert directly against the REAL
+// classification rather than re-deriving a second copy of it.
+export const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
+// Every OTHER lane `vitest.config.ts` currently defines, with the reason it does not run under mutation.
+// COUPLED SITE (say so at both ends, per #1340's own hazard note): `vitest.config.ts`'s `test.projects`
+// list is the other half — a lane added there and not added HERE throws at config load (see
+// `assertEveryLaneClassified` below), it does not silently vanish.
+export const DROPPED_LANES = new Map([
+  [
+    "integration-serial",
+    "tree-writers + fixed-port/fixed-db-file suites (vitest.config.ts's SERIAL_INT) — Stryker's own " +
+      "`concurrency: 6` worker PROCESSES would collide on those fixed resources — this file's " +
+      "`fileParallelism:false`+`maxWorkers:1` only serializes WITHIN one Stryker worker, never ACROSS them.",
+  ],
+  [
+    "live-drive",
+    "real-browser measurement suites (vitest.config.ts's LIVE_DRIVE) — their verdict is a measured rate/" +
+      "duration a mutant-instrumented sandbox running under N concurrent Stryker workers would perturb, " +
+      "not a structural mutation-coverage signal.",
+  ],
+  [
+    "tooling",
+    "the instrument battery (tests/tooling/**, #1523) — same reason `TOOLING_GLOB` excludes it from every " +
+      "KEPT lane below: it runs the real tooling over the SOURCE tree, which fails by construction against " +
+      "Stryker's mutant-instrumented sandbox copy and would abort the dry run.",
+  ],
+  ["types-node", "typecheck-only (vitest.config.ts's `types-node`) — nothing to mutate at runtime, and redundant with Stryker's own TypeScript checker."],
+  ["types-browser", "typecheck-only (vitest.config.ts's `types-browser`, the DOM-having half of the #1313 split) — same reason as `types-node`."],
+]);
 const TOOLING_GLOB = "tests/tooling/**";
 // GENERATED-FILE FRESHNESS meta-tests: they regenerate a committed generated file and byte-compare it to
 // disk. Stryker's `disableTypeChecks` preprocessor INJECTS a `// @ts-nocheck` header into every .ts in the
@@ -55,6 +88,26 @@ const cfg = base as unknown as {
     maxWorkers?: number;
   };
 };
+
+/** The #1340 fix: `RUNTIME_LANES` is an ALLOWLIST, so on its own it drops any lane not named — silently,
+ *  with zero signal, exactly what let `integration-serial` (22 files) and `live-drive` (4 files) vanish
+ *  from mutation coverage while this file's own comment named a THIRD, already-dead lane (`parity`,
+ *  purged 2026-08-22 with #428) instead. Every project `vitest.config.ts` defines must land in EXACTLY
+ *  one of `RUNTIME_LANES` (kept) or `DROPPED_LANES` (dropped, with a reason) — an unclassified lane
+ *  throws HERE, at Stryker's own config load (every worker imports this file), rather than disappearing.
+ *  Exported for a proof test — never re-run at load with a mocked base; the REAL base config is the
+ *  subject a config-load throw must prove itself against. */
+export function assertEveryLaneClassified(projectNames: readonly string[]): void {
+  const unclassified = projectNames.filter((name) => !(RUNTIME_LANES.has(name) || DROPPED_LANES.has(name)));
+  if (unclassified.length > 0) {
+    throw new Error(
+      `vitest.stryker.config.ts: vitest.config.ts defines project(s) [${unclassified.join(", ")}] that neither ` +
+        "RUNTIME_LANES nor DROPPED_LANES classifies — add the lane to one of the two (with a reason for a drop) " +
+        "before Stryker can run; a lane must never silently vanish from mutation coverage.",
+    );
+  }
+}
+assertEveryLaneClassified(cfg.test.projects.map((p) => p.test.name ?? ""));
 
 cfg.test.projects = cfg.test.projects
   .filter((p) => RUNTIME_LANES.has(p.test.name ?? ""))

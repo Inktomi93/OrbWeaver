@@ -41,7 +41,6 @@ const CARD: CreateCharacterInput = createCharacterSchema.parse({ handle: "aria",
 
 interface Ports {
   readonly create: Mock<ImportCharacterPort["create"]>;
-  readonly update: Mock<ImportCharacterPort["update"]>;
   readonly findByImportHash: Mock<ImportCharacterPort["findByImportHash"]>;
   readonly findByHandle: Mock<ImportCharacterPort["findByHandle"]>;
   readonly storeAvatar: Mock<ImportAssetPort["store"]>;
@@ -51,7 +50,6 @@ interface Ports {
 function ports(): Ports {
   return {
     create: vi.fn<ImportCharacterPort["create"]>(() => Promise.resolve({ id: CHARACTER })),
-    update: vi.fn<ImportCharacterPort["update"]>(() => Promise.resolve({ id: CHARACTER })),
     findByImportHash: vi.fn<ImportCharacterPort["findByImportHash"]>(() => Promise.resolve({ characterId: CHARACTER })),
     findByHandle: vi.fn<ImportCharacterPort["findByHandle"]>(() => Promise.resolve(null)),
     storeAvatar: vi.fn<ImportAssetPort["store"]>(() => Promise.resolve({ assetId: ASSET })),
@@ -62,7 +60,7 @@ function ports(): Ports {
 function wiring(p: Ports): ImportContextWiring {
   return {
     principal: PRINCIPAL,
-    character: { create: p.create, update: p.update, findByImportHash: p.findByImportHash, findByHandle: p.findByHandle },
+    character: { create: p.create, findByImportHash: p.findByImportHash, findByHandle: p.findByHandle },
     storeAvatar: p.storeAvatar,
     attachCardTag: p.attachCardTag,
   };
@@ -104,16 +102,6 @@ describe("buildImportContext — owner scope is the PRINCIPAL's, never the argum
     expect(await ctx.findByImportHash({ ownerId: OWNER, importHash: "nope" })).toBeNull();
     expect(await ctx.findByHandle({ ownerId: OWNER, handle: castId<CharacterHandle>("nope") })).toBeNull();
     expect(await ctx.findByImportHash({ ownerId: OWNER, importHash: "h1" })).toBeNull();
-  });
-
-  test("updateCharacter edits in place under the principal and returns nothing (a write, not a read)", async () => {
-    const p = ports();
-    const ctx = buildImportContext(wiring(p));
-
-    const result = await ctx.updateCharacter({ ownerId: FOREIGN, characterId: CHARACTER, input: { name: "Aria II" } });
-
-    expect(result).toBeUndefined();
-    expect(p.update).toHaveBeenCalledWith({ principal: PRINCIPAL, characterId: CHARACTER, input: { name: "Aria II" } });
   });
 
   test("storeAsset binds kind:'avatar' + enforceMagic:false under the principal, and returns the id only", async () => {

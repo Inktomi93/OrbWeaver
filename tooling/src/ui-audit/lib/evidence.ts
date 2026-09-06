@@ -276,7 +276,7 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
   }
   return {
     evidence: "the app-readiness signal",
-    detail: `${url} never published html[data-app-ready] — the app did not mount, so the walk censused the shell around it and every check family folded a near-empty list into "no findings". On an isolated stage this is usually a COLD vite (re-run against the now-warm stage); on the dev stack it means the app is broken, which is a finding for a human, not a clean audit`,
+    detail: `${url} never published html[data-app-ready] — the app did not mount, so the walk censused the shell around it and every check family folded a near-empty list into "no findings". On an isolated stage the run has ALREADY re-navigated once against the cold vite itself (#1142), so a persisting absence means the stage's app does not mount — read the stage's stack log instead of re-running; on the dev stack it means the app is broken, which is a finding for a human, not a clean audit`,
   };
 }
 

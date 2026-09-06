@@ -377,7 +377,7 @@ describe("importCharacter", () => {
     expect(h.creates).toHaveLength(0);
   });
 
-  // ── PD-108 — re-import of an edited / second same-name card ─────────────────────────────────────────
+  // ── #1470 — a same-name card is never merged; a taken handle suffixes instead (never dedupe by name) ──
 
   test("a byte-NEW card whose name-slug is taken becomes a NEW character with a disambiguated HANDLE (name kept, never merged)", async () => {
     const h = makeHarness();
@@ -397,10 +397,10 @@ describe("importCharacter", () => {
       card: { bytes: encoder.encode(editedCard), filename: "Aria.json" },
     });
 
-    // A NEW character (own minted id), never the existing row; the existing character is untouched (no update).
+    // A NEW character (own minted id), never the existing row; the existing character is untouched — the
+    // context has no `updateCharacter` op left to call (#1470 dropped it, `ImportContext` has no such field).
     expect(result.created).toBe(true);
     expect(result.characterId).not.toBe(existingId);
-    expect(h.updates).toHaveLength(0);
     expect(h.creates).toHaveLength(1);
     const create = h.creates[0];
     if (create === undefined) {
@@ -453,7 +453,6 @@ describe("importCharacter", () => {
 
     expect(result.created).toBe(true);
     expect(h.creates).toHaveLength(1);
-    expect(h.updates).toHaveLength(0);
     expect(h.findsByHandle.at(-1)?.handle).toBe("bram");
   });
 });

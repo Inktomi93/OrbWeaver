@@ -29,7 +29,7 @@ import { recallMemory } from "../memory/recall/recall.ts";
 import { createMemoryRecallWarningEpisode } from "../memory/recall/rerank-warning.ts";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "../memory/recall/window.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
-import { resolveHostTierRegexScripts } from "./regex-tier.ts";
+import { regexAllowOf, resolveHostTierRegexScripts } from "./regex-tier.ts";
 import { foldChain } from "./runtime-variables.ts";
 import { resolveChoiceVariables } from "./variables.ts";
 
@@ -403,14 +403,17 @@ export async function gatherAssembleContext(
   // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op — the
   // three embed-by-value carriers this used to read (settings blob / preset blob / card column) are gone.
   // Resolved under `runAsUserId` (the frozen host, D19), so a member never widens the room's set.
-  const hostTierRegexScripts = resolveHostTierRegexScripts(
-    await ctx.resolveRegexSources({
+  const hostTierRegexScripts = resolveHostTierRegexScripts({
+    ...(await ctx.resolveRegexSources({
       ownerId: runAsUserId,
       presetId: foreign.presetId ?? null,
       characterIds,
       chatId,
-    }),
-  );
+    })),
+    // #1742 — what THIS room permits. Absent ⇒ everything runs, so a room that never touched the Regex
+    // section assembles byte-identically; a switched-off tier drops out of the union here, before the dedup.
+    allow: regexAllowOf(chatRow?.metadata),
+  });
 
   // {{idle_duration}} (§12, D6) — time-since-last-activity as human text; "" when there is no prior activity.
   const idleDuration = computeIdleDuration(canon, ctx.now(), args.pendingUserText !== undefined);

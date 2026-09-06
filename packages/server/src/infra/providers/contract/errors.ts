@@ -9,6 +9,25 @@
 // credential's key). The wire-level secret-sanitiser (`backends/kit/sanitize.ts`) is a backend concern;
 // the core never has plaintext to leak.
 
+declare const providerScrubSet: unique symbol;
+
+/**
+ * The by-value scrub set an HTTP boundary hands the error classifier: a `readonly string[]` with a phantom
+ * brand, so it flows INTO every plain-array consumer (`redactSecretsFromText`) while nothing flows into it.
+ * Homed here rather than beside its producers because this file is the providers TYPE HOME, and the two
+ * producers live in `backends/kit/sanitize.ts` — `providerCredentialSecretValues` (derive it from the
+ * credential) and `NO_PROVIDER_SECRETS` (the keyless boundary).
+ *
+ * SECURITY (#1599) — the brand exists to make "no scrub" UNWRITABLE BY ACCIDENT. `providerErrorFromHttp`'s
+ * message reaches a DURABLE sink: the #1373 post-generation strike-out puts it in
+ * `securityEvent("credential_revoked", { reason })`. While the scrub set was an OPTIONAL parameter
+ * (`secrets: readonly string[] = []`), a runner that forgot the third argument — or handed it a bare `[]` —
+ * silently shipped an unscrubbed upstream message into that trail, with no compile-time tell. A future
+ * runner now cannot reach the unscrubbed path without typing `NO_PROVIDER_SECRETS`, which greps in one line
+ * and shows up in review.
+ */
+export type ProviderScrubSet = readonly string[] & { readonly [providerScrubSet]: true };
+
 /** The normalized failure kinds every role/backend collapses its errors onto. A new kind is a member
  *  here + the consumers that branch on it — never an inline re-spelling (this is the one home). */
 export const PROVIDER_ERROR_KINDS = [

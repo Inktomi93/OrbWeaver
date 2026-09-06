@@ -1,7 +1,8 @@
 // plugin-row leaf components — the two sub-rows `PluginRow` composes, split out for `component-size` (the
 // `plugin-leaf-nodes.tsx` precedent). Both close over their OWN mutation hooks and local UI state, so they are
 // genuine leaves the parent only mounts:
-//   · UpdateCheckRow — the U8 2b auto update-check + one-click "Update to X" for a `url`-origin install.
+//   · UpdateCheckRow — the U8 2b auto update-check + one-click "Update to X", for either update source the
+//     server names on the row (`updateSource`: a remembered URL, or the showcase copy this build ships, #1740).
 //   · ReConsentNotice — the #650/#658 re-consent surface a reach-widening upgrade forces (rendered by the
 //     parent whenever `plugin.reconsentPending` is the server's own durable verdict).
 
@@ -25,7 +26,7 @@ import {
   UPDATE_UP_TO_DATE_LINE,
   updateAvailableLabel,
 } from "../lib/plugin-copy.ts";
-import { useCheckForUpdates, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
+import { useCheckForUpdates, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
 /** One projected row of `plugin.list` — the shape both leaves read (a private derived alias, mirrored by the
@@ -37,17 +38,26 @@ type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
  *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. */
 type UpdateVerdict = { readonly kind: "idle" | "up-to-date" | "unreachable" } | { readonly kind: "available"; readonly newVersion: string };
 
-/** The update-check + one-click upgrade affordance for a `url`-origin plugin (U8 2b — the thing ST's loader
- *  does). "Check for updates" runs the server batch check and shows this row's verdict; when a newer version is
- *  available, "Update to X" re-fetches the REMEMBERED source and upgrades in place through the SAME server
- *  upgrade verb the file upload uses — so a reach-widening update lands the row `disabled` and the parent's
- *  ReConsentNotice renders (never silent). The verdict resets after a successful one-click: the list refetch
- *  carries the new version/consent state, which is the durable truth. */
+/** The update-check + one-click upgrade affordance for a plugin SOMETHING can serve a newer version for (U8 2b —
+ *  the thing ST's loader does). "Check for updates" runs the server batch check and shows this row's verdict;
+ *  when a newer version is available, "Update to X" upgrades in place through the SAME server upgrade verb the
+ *  file upload uses — so a reach-widening update lands the row `disabled` and the parent's ReConsentNotice
+ *  renders (never silent). The verdict resets after a successful one-click: the list refetch carries the new
+ *  version/consent state, which is the durable truth.
+ *
+ *  ONE ROW, TWO SOURCES (#1740). `plugin.updateSource` is the SERVER's answer to "who can serve the next
+ *  version": `"url"` re-fetches the remembered source, `"showcase"` takes the copy this build ships (the only
+ *  path a DIVERGED seeded example has — the boot auto-upgrade passes those over on purpose). The parent mounts
+ *  this component only when that field is non-null, so there is no third arm here. Splitting it into two
+ *  components would duplicate the verdict machine, and the verdict is the same question either way. Both hooks
+ *  are called unconditionally (hooks rules) and only the one this row's source names is ever fired. */
 export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const check = useCheckForUpdates({ trpc, invalidation });
   const upgradeStored = useUpgradePluginFromStoredUrl({ trpc, invalidation });
+  const upgradeShowcase = useUpgradePluginFromShowcase({ trpc, invalidation });
+  const upgrade = plugin.updateSource === "showcase" ? upgradeShowcase : upgradeStored;
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
 
   const runCheck = async (): Promise<void> => {
@@ -59,9 +69,11 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       return;
     }
     const mine = results.find((result) => result.pluginId === plugin.id);
-    // A file-origin plugin (or a since-uninstalled one) is simply absent from the batch — treat that like
-    // "couldn't determine". `unreachable` is the leak-free arm the server hands back for a blocked/404/garbage
-    // source, and it carries no reason by design, so neither does this line.
+    // A plugin nothing can serve a version for (or a since-uninstalled one) is simply absent from the batch —
+    // treat that like "couldn't determine". `unreachable` is the leak-free arm the server hands back for a
+    // blocked/404/garbage source, and it carries no reason by design, so neither does this line. A showcase row
+    // reaches it only by falling out of the batch (a slug this build stopped shipping), which is the same
+    // honest "couldn't determine" — there is no fetch to have failed.
     if (mine === undefined || mine.status === "unreachable") {
       setVerdict({ kind: "unreachable" });
       return;
@@ -73,11 +85,11 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     setVerdict({ kind: "up-to-date" });
   };
 
-  const applyStoredUpgrade = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useUpgradePluginFromStoredUrl carries
-    // errorToast: serverReason("Couldn't update that plugin.") — the toast is the surface. Ends if that
+  const applyUpgrade = async (): Promise<void> => {
+    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): both upgrade mutations carry
+    // errorToast: serverReason("Couldn't update that plugin.") — the toast is the surface. Ends if either
     // mutation drops its errorToast.
-    const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
+    const updated = await upgrade.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
     if (updated === undefined) {
       return;
     }
@@ -112,12 +124,12 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         <Button
           aria-label={`Update ${plugin.name} to ${verdict.newVersion}`}
           intent="primary"
-          loading={upgradeStored.isPending}
+          loading={upgrade.isPending}
           onClick={(): void => {
-            // @orb-gate-ignore caught-failure-ownership(promise:applyStoredUpgrade): applyStoredUpgrade already
+            // @orb-gate-ignore caught-failure-ownership(promise:applyUpgrade): applyUpgrade already
             // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
-            // if applyStoredUpgrade stops catching internally.
-            void applyStoredUpgrade().catch(() => undefined);
+            // if applyUpgrade stops catching internally.
+            void applyUpgrade().catch(() => undefined);
           }}
           size="sm"
         >

@@ -260,7 +260,7 @@ export async function seedMessage(
  *  closes over the current test's db. */
 export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
   return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
-    // SEAT ORDER, like production's `loadRoster` (joinSeq, then id) — not insertion order. `ChatSummary`'s
+    // SEAT ORDER, like production's `loadParticipants` (joinSeq, then id) — not insertion order. `ChatSummary`'s
     // `participantPortraits` is rendered IN SEAT ORDER (#192), so a double that answered in insertion order
     // would let a real ordering regression pass.
     const rows = await db
@@ -444,6 +444,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // not a fake, since the whole arm is about what actually lands in the other domain's tables.
     copyHandoffCards: () => Promise.resolve([]),
     copyHandoffBooks: () => Promise.resolve([]),
+    copyHandoffRegexScripts: () => Promise.resolve([]),
+    // …and the #1762 disclosure twins the NOMINATE path calls on every offer: the no-offer answer is zero,
+    // so a pre-disclosure handoff test still emits a nomination that says "this gives you nothing".
+    countHandoffBooks: () => Promise.resolve(0),
+    countHandoffRegexScripts: () => Promise.resolve(0),
     restampHandoffDigests: () => Promise.resolve([]),
     // D22 member-card tags — default "no accepted tags" (safe floor); a member-card test overrides it.
     resolveCharacterTags: () => Promise.resolve([]),
@@ -487,7 +492,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       }
     },
     // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn — PD-70). This keeps the
-    // no-multi-human-presence tests byte-identical (no persona drops); a cast-gating test overrides with a
+    // no-multi-human-presence tests byte-identical (no persona drops); a presence-gating test overrides with a
     // fake that returns `online:false` for the away member.
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     // Default = everyone ENABLED (the disabled-account containment gate — `loadRoom` narrows

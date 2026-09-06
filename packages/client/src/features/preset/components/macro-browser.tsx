@@ -63,7 +63,10 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
         </Stack>
       </Section>
       <Section kicker="Flags">
-        <Text voice="gloss">A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.</Text>
+        {/* Same paragraph cap as the macro glosses below, and for the same reason (#859 T-3). */}
+        <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+          A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
+        </Text>
         <Stack gap="field">
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
             <Row key={def.key} gap="field" align="center">
@@ -71,7 +74,9 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
               <Badge intent={def.status === "implemented" ? "info" : "neutral"} size="sm">
                 {def.status}
               </Badge>
-              <Text voice="gloss">{def.description}</Text>
+              <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+                {def.description}
+              </Text>
             </Row>
           ))}
         </Stack>
@@ -115,7 +120,13 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
           </Badge>
         ) : null}
       </Row>
-      <Text voice="gloss">
+      {/* CAPPED ON THE PARAGRAPH (#859 T-3). These glosses used to be paid for only by a reader who opened
+          the browser; it is open by default now (`user-macros-tab.tsx`), so their measure became a
+          default-visible cost — audited at 105-119 characters (78 CSS ch) per line across the content pane,
+          past the 80-character ceiling, on eighteen rows at once. `--reading-measure-prose` is the house
+          TEACHING measure and the cap `Text`'s own `voice` doc prescribes (`ui/text/variants.ts`); a reading
+          line is capped on the paragraph, never on the pane. */}
+      <Text className="max-w-(--reading-measure-prose)" voice="gloss">
         {meta.description}
         {signature === "" ? "" : ` — args: ${signature}`}
       </Text>

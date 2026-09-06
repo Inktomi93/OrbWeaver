@@ -43,9 +43,10 @@ import type {
   AutosaveSaveState,
   AutosaveSession,
 } from "./create-autosave-entity-form-model.ts";
-import { foldSaveState, hasUnsavedEdits, takeDiscard } from "./create-autosave-entity-form-model.ts";
+import { foldSaveState, hasUnsavedEdits, skipTeardownFlush } from "./create-autosave-entity-form-model.ts";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
+import { useSaveUnwritable, useSaveUnwritableRef } from "./save-status-seam.ts";
 import { useAppForm } from "./use-app-form.ts";
 
 /**
@@ -106,6 +107,14 @@ export function createAutosaveEntityForm<TValues extends object>(
     // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
     // clean echo below; either path recomputes). `undefined` server (a create/loading) → an ungated read.
     const baselineHash = serverValues === undefined ? undefined : hashServerBaseline(serverValues);
+
+    // "No write from this subtree can land" (#1716) — a CONTEXT rather than a prop so the fact reaches every
+    // form under one provider (a settings pane stacks a dozen self-owned section forms and not one of them
+    // can save while `user_settings.config` is unreadable). Read here, at the Session, because that is where
+    // the driver and the teardown flush live — the two things that must not arm.
+    const unwritable = useSaveUnwritable();
+    // …and as a ref the teardown cleanup below may read without owning it as a dependency (see its TSDoc).
+    const unwritableRef = useSaveUnwritableRef();
 
     // Seed order (computed ONCE, this component only exists for one epoch): a pending reseed payload wins
     // outright; else defaults ⊕ serverValues ⊕ surviving draft — but the draft survives ONLY when it
@@ -201,10 +210,15 @@ export function createAutosaveEntityForm<TValues extends object>(
     // onFieldUnmount is gone: its job (don't lose a pending edit on field unmount) was always covered by
     // the form-level debounce — the FormApi + its timer outlive any field — and its real effect was F2.
     useEffect(() => {
-      if (readOnly) {
+      if (readOnly || unwritable) {
         // The DECLARED read-only arm (client-forms-01): no driver, no debounce, and no draft mirror — a
         // display-only mount must not write anywhere, and a crash draft it can never save is only a
         // future stale-draft heal. The status fold below keeps it from ever reading "Saved" over an edit.
+        //
+        // `unwritable` joins it (#1716) for the same three reasons and one more: the server REFUSES every
+        // write derived from an unreadable stored row, so arming the debounce would spend a request per
+        // keystroke-burst on a guaranteed 400, walk the circuit breaker toward a trip, and land the user on
+        // an `error` whose Retry cannot ever succeed. The status fold reports `unreadable` instead.
         return;
       }
       // The oscillation backstop (§11): a store-values change that came from a
@@ -263,7 +277,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       return (): void => subscription.unsubscribe();
       // `hasUnsavedEdits` is a plain function over `form` + a ref (D54 — no manual memo), so `form` already
       // IS its dependency; naming the callback identity would only re-arm on every render.
-    }, [form, entityId, baselineHash, readOnly]);
+    }, [form, entityId, baselineHash, readOnly, unwritable]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
     // (deep-compare vs the last-seen snapshot — identity is the mapper-fresh-object trap) and the form is
@@ -308,15 +322,18 @@ export function createAutosaveEntityForm<TValues extends object>(
           clearTimeout(timerRef.current);
           timerRef.current = undefined;
         }
-        if (takeDiscard(discardRef)) {
-          return; // this teardown was a reseed/discard — skip the flush
+        if (skipTeardownFlush(discardRef, unwritableRef)) {
+          return; // a staged reseed/discard, or an unwritable subtree (#1716) — see the predicate's TSDoc
         }
         if (form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
           // @orb-gate-ignore caught-failure-ownership(promise:handleSubmit): same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
           form.handleSubmit().catch(() => undefined);
         }
       };
-    }, [form, discardRef]);
+      // `unwritableRef` is a REF OBJECT, stable by construction exactly like `discardRef` — naming it here
+      // costs nothing and satisfies exhaustive-deps honestly. What must NEVER be named is the BOOLEAN it
+      // carries: this effect FLUSHES on every re-arm (the measured 31-write save loop).
+    }, [form, discardRef, unwritableRef]);
 
     // NOT covered here, deliberately (measured, 2026-08-01): a page RELOAD / tab close never unmounts React,
     // so nothing above runs and an armed debounce dies with the document. A `pagehide` flush was built and
@@ -376,6 +393,7 @@ export function createAutosaveEntityForm<TValues extends object>(
             isValid: state.isValid,
             readOnlyDirty: readOnly && state.isDirty,
             unsaved: hasUnsavedEdits(state.values, lastSavedRef.current),
+            unwritable,
           })
         }
       >

@@ -37,29 +37,17 @@ interface ShapeStages {
 }
 
 /**
- * Build the content-free SHAPE trace from shape()'s stage snapshots + the resolved breakpoint offset.
- * Pure. The `breakpointDecision` is DERIVED from observable stage facts (it never re-runs the breakpoint
- * logic — `computeHistoryBreakpoint` is the single source of the offset; this only labels the outcome):
- *   • offset present                  → "placed"
- *   • withTail ≤ 1                     → "no-stable-prefix"
- *   • a prefix-internal squash merged  → "in-prefix-injection-or-squash"
- *   • otherwise (a nudge/continuation appended a second tail) → "second-volatile-tail"
+ * Build the content-free SHAPE trace from shape()'s stage snapshots + its breakpoint call.
+ *
+ * `breakpointDecision` is CARRIED, never re-derived. It used to be reconstructed here from stage row counts,
+ * and that reconstruction was wrong for one whole arm: a depth ≥ 2 `in_chat` injection aborts the breakpoint
+ * while ADDING a row, so `named.length < withTail.length` reads false and the deep injection was reported as
+ * "second-volatile-tail" — pointing a host at a nudge that does not exist and away from the injection that
+ * actually cost them the cache. `shape()` now returns the decision the aborting branch made
+ * (`assembly/shape` computeHistoryBreakpoint), so the label cannot disagree with the call.
  */
-export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: number | undefined): ShapeTrace {
+export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: number | undefined, breakpointDecision: ShapeBreakpointDecision): ShapeTrace {
   const squashMerges = stages.injected.length - stages.squashed.length;
-  const stableCount = stages.withTail.length - 1;
-  let breakpointDecision: ShapeBreakpointDecision;
-  if (cacheBreakpointFromEnd !== undefined) {
-    breakpointDecision = "placed";
-  } else if (stableCount < 1) {
-    breakpointDecision = "no-stable-prefix";
-  } else if (stages.named.length < stages.withTail.length) {
-    // The shaped prefix is shorter than the stable canon → a prefix-internal squash (or a depth≥2
-    // injection mutating the prefix) collapsed it; either way the breakpoint can't pin a stable byte.
-    breakpointDecision = "in-prefix-injection-or-squash";
-  } else {
-    breakpointDecision = "second-volatile-tail";
-  }
   return {
     multiCharacter: stages.multiCharacter,
     stageCounts: {

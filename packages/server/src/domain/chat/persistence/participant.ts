@@ -8,6 +8,14 @@
 // server-forced `member`; the host role is only ever minted at chat creation / handoff. `joinSeq`/`leftSeq`
 // are stamped against messages.seq (the join/leave horizon), not the stream cursor, and `joinSeq` resolves
 // IN-BATCH (#1403).
+//
+// THE SEAT ID IS STABLE ACROSS A RE-JOIN (#1542, owner-ruled 2026-09-05, arm A). The DO UPDATE `set` does
+// NOT carry `id`: a human's membership is ONE row per (chatId,userId) that outlives every leave, so the PK
+// child rows point at (`message_reactions.reactor_participant_id` today) never moves under them. The
+// alternative — `ON UPDATE CASCADE` on that FK — was REJECTED: it would make the id churn survivable rather
+// than removing it, and every future seat-keyed child would owe the same clause. The caller's freshly-minted
+// `participantId` is therefore consumed by the INSERT arm only; a re-join discards it, and both invite doors
+// re-read the roster afterwards rather than trusting the id they minted.
 
 import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
@@ -40,7 +48,7 @@ interface ParticipantRowShape {
  *
  *  THE ONE HOME for the `kind === "human" && userId !== null`-shaped narrowing every roster-derived read
  *  needs — 29 call sites across the domain re-spelled this inline before the 2026-08-15 consolidation
- *  (`loadRoster`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
+ *  (`loadParticipants`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
  *  semantics are preserved by discarding a `null` classification exactly the way the inline guard already
  *  discarded a failed condition — zero behavior change was the whole point of splitting this off
  *  {@link parseParticipant}, which keeps the throwing contract for callers that want the loud belt). */
@@ -95,7 +103,7 @@ export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly
 }
 
 /** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled
- *  2026-08-15) through `substrate/roster-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
+ *  2026-08-15) through `substrate/participants-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
  *  narrowing every consent-set consumer (`verbs/turn.ts`'s `loadRoom`, `setChatAnchorPersona`'s pin
  *  validation, `edit.ts`'s runOnEdit re-apply + greeting re-bake) routes through, so a disabled human's
  *  backing `users.enabled` drops their persona from EVERY reader of the room's foreign-input consent set the
@@ -171,7 +179,12 @@ export function insertMemberAfterInviteClaimStatement(
     .onConflictDoUpdate({
       target: [chatParticipants.chatId, chatParticipants.userId],
       set: {
-        id: params.participantId,
+        // NO `id` HERE (#1542). The seat KEEPS ITS IDENTITY across a re-join: `params.participantId` is a
+        // freshly-minted id the INSERT arm consumes, and re-stamping it on the UPDATE arm moved a PK that
+        // `message_reactions.reactor_participant_id` FKs under SQLite's default NO ACTION on update — so the
+        // whole redeem batch failed ("cannot re-join") for any returning member who had ever reacted. Keeping
+        // the id is also what the deleted `upsertMemberOnJoin` did, and it is the semantics every seat-keyed
+        // child row already assumes: a membership is ONE row per (chatId,userId) across all its eras.
         activePersonaId: params.activePersonaId,
         joinedAt: params.now,
         // The re-add arm stamps the SAME in-batch head (`chatParticipants.chatId` is the conflicting row's
@@ -276,4 +289,49 @@ export function acceptHostHandoffSwapStatements(
       })
       .where(eq(chats.id, params.chatId)),
   ];
+}
+
+/** The `$.copyCast` → `$.copyCharacters` key rewrite over every `chats.pending_handoff_offer` blob written
+ *  before the #1649 vocabulary rename (owner-ruled 2026-09-05 arm (a): rename the wire field WITH a data
+ *  migration, no read-compat shim). Returns the number of rows rewritten.
+ *
+ *  WHY A DATA MIGRATION AND NOT A SHIM: the offer's read seam is
+ *  `handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(...)` (`persistence/queries.ts#loadPendingHandoff`), so an
+ *  un-migrated blob does not fail loudly — it degrades to the no-offer offer and the departing host's
+ *  recorded consent to hand over their characters is silently dropped at accept. The column is plain TEXT
+ *  (`pending_handoff_offer`), so this is a DATA rewrite with NO DDL: it does not touch `0000_baseline.sql`
+ *  and cannot be squashed into it (Tier-1-DB §"Regime 1" covers schema, and a baseline reset would not reach
+ *  an installed db anyway).
+ *
+ *  ONE statement, evaluated against the row under its own write lock — the `chat-metadata-write` json-path
+ *  posture, never a read-merge-write:
+ *   • IDEMPOTENT — the WHERE fires only on a blob that still carries `$.copyCast`, and the SET removes it, so
+ *     the second and every later boot match zero rows.
+ *   • VALUE-PRESERVING for the untouched half — `copyGmPreset` is never named by the statement, so its stored
+ *     value survives verbatim (SQLite's json functions re-serialize the object, so KEY ORDER is not preserved;
+ *     the blob is parsed by zod at every read seam and never compared as bytes).
+ *   • TOTAL — every row carrying the key is rewritten, including a corrupt one. `json_extract` of a JSON
+ *     boolean yields the INTEGER 0/1, which `z.boolean()` would reject, so the new value is re-minted as real
+ *     JSON `true`/`false` through `json(...)` (the `theme-queries` `json('null')` precedent). A non-boolean
+ *     `copyCast` therefore lands as `false` — exactly what the `.catch` seam already resolved it to.
+ *   • FAIL-OPEN ON GARBAGE — a blob that is not JSON at all is left alone for the read seam's `.catch`; see
+ *     the `json_valid` note on the predicate for why that guard is nested rather than a sibling AND term. */
+export async function migrateHandoffOfferVocab(db: Db): Promise<number> {
+  const rows = await db
+    .update(chats)
+    .set({
+      pendingHandoffOffer: sql`json_remove(json_set(${chats.pendingHandoffOffer}, '$.copyCharacters', json(CASE WHEN json_extract(${chats.pendingHandoffOffer}, '$.copyCast') THEN 'true' ELSE 'false' END)), '$.copyCast')`,
+    })
+    .where(
+      and(
+        isNotNull(chats.pendingHandoffOffer),
+        // The `json_valid` guard is INSIDE `json_type`'s first argument, not a sibling AND term: SQLite may
+        // reorder AND operands, and `json_type` on a non-JSON string RAISES — which at this call site would
+        // abort boot on one corrupt row. A blob that is not JSON resolves to `'{}'`, matches nothing, and is
+        // left for the read seam's `.catch`.
+        sql`json_type(CASE WHEN json_valid(${chats.pendingHandoffOffer}) THEN ${chats.pendingHandoffOffer} ELSE '{}' END, '$.copyCast') is not null`,
+      ),
+    )
+    .returning({ id: chats.id });
+  return rows.length;
 }

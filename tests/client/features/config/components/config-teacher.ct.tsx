@@ -259,8 +259,20 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const list = workspace.locator('[data-slot="config-list"]');
+  const content = workspace.locator('[data-slot="config-content"]');
   await list.getByRole("button", { name: TAGS_BAND }).click();
-  await list.getByText("tag-000").click();
+  // THE MEMBER ROWS ARE IN CONTENT SINCE #1725 — the band is the LIST's whole contribution now.
+  // THE ROWS ARE VIRTUALIZED at this fixture's 400 tags and ordered by USAGE, so the subject is addressed
+  // as "the first rendered row" and "the second" rather than by a name the window may never mount.
+  const rows = content.locator('[data-slot="list-row-root"]');
+  // BOTH NAMES ARE READ BEFORE THE FIRST CLICK: drilling swaps CONTENT to the member's editor, so the
+  // second row stops existing the moment the first is opened — reading it afterwards times out on a
+  // locator that can no longer resolve. Names, not indices, are what survives the swap.
+  await expect(rows.nth(1)).toBeVisible();
+  const firstName = (await rows.nth(0).locator('[data-slot="list-row-title"]').textContent()) ?? "";
+  const second = (await rows.nth(1).locator('[data-slot="list-row-title"]').textContent()) ?? "";
+  await rows.nth(0).click();
+  await expect(workspace.getByRole("heading", { name: firstName })).toBeVisible();
 
   const pane = workspace.locator(CONTEXT_PANE);
   // A MEMBER LANDS ON ABOUT (#926): the old `defaultTab` opened every member on Applies, which for a `none`
@@ -269,8 +281,10 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   await pane.getByRole("button", { name: "Applies" }).click();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 
-  await list.getByText("tag-001").click();
-  await expect(workspace.getByRole("heading", { name: "tag-001" })).toBeVisible();
+  // Back to the library, then the SECOND row — a member→member change through the same seam.
+  await content.getByRole("button", { name: /^Back to / }).click();
+  await content.getByRole("button", { name: second, exact: true }).click();
+  await expect(workspace.getByRole("heading", { name: second })).toBeVisible();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 });
 
@@ -280,7 +294,9 @@ test("an open member turns Applies into the collection's own arm — stated ONCE
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.locator('[data-slot="config-list"]').getByText("strip ooc").click();
+  // `exact` and by ROLE: the library's own insights sit above the rows and their doors are named after
+  // members ("Open strip ooc"), so a bare text match resolves two nodes.
+  await workspace.locator('[data-slot="config-content"]').getByRole("button", { name: "strip ooc", exact: true }).click();
 
   const pane = workspace.locator(CONTEXT_PANE);
   await pane.getByRole("button", { name: "Applies" }).click();
@@ -293,8 +309,10 @@ test("a member of a NONE collection renders that collection's copy, once", async
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.locator('[data-slot="config-list"]').getByText("tag-000").click();
-  await expect(workspace.getByRole("heading", { name: "tag-000" })).toBeVisible();
+  const firstRow = workspace.locator('[data-slot="config-content"]').locator('[data-slot="list-row-root"]').first();
+  const firstName = (await firstRow.locator('[data-slot="list-row-title"]').textContent()) ?? "";
+  await firstRow.click();
+  await expect(workspace.getByRole("heading", { name: firstName })).toBeVisible();
 
   const pane = workspace.locator(CONTEXT_PANE);
   await pane.getByRole("button", { name: "Applies" }).click();

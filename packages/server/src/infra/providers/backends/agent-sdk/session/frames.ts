@@ -5,11 +5,12 @@
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
+import type { AgentSeedBlock, AgentSeedTurn } from "../../../contract/index.ts";
 import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract/index.ts";
 
-export interface SeedTurn {
-  readonly role: "user" | "assistant";
-  readonly content: string;
+/** The contract's seed turn plus the assistant model this frame should claim — EXTENDED, never re-spelled, so
+ *  the two cannot drift into different content vocabularies. */
+export interface SeedTurn extends AgentSeedTurn {
   readonly model?: string | null;
 }
 
@@ -37,7 +38,7 @@ function deterministicId(seed: string): string {
   return `${h.slice(0, HEX_8)}-${h.slice(HEX_8, HEX_12)}-4${h.slice(HEX_13, HEX_16)}-8${h.slice(HEX_17, HEX_20)}-${h.slice(HEX_20, HEX_32)}`;
 }
 
-export function toSeedTurns(canon: readonly { role: string; content: string; model?: string | null }[]): SeedTurn[] {
+export function toSeedTurns(canon: readonly { role: string; content: readonly AgentSeedBlock[]; model?: string | null }[]): SeedTurn[] {
   const kept: SeedTurn[] = [];
   for (const m of canon) {
     if (m.role === "user" || m.role === "assistant") {
@@ -47,7 +48,7 @@ export function toSeedTurns(canon: readonly { role: string; content: string; mod
   if (kept.length === 0) {
     return [];
   }
-  return kept[0]?.role === "assistant" ? [{ role: "user", content: GREETING_USER_STUB }, ...kept] : kept;
+  return kept[0]?.role === "assistant" ? [{ role: "user", content: [{ type: "text", text: GREETING_USER_STUB }] }, ...kept] : kept;
 }
 
 interface FrameArgs {
@@ -59,10 +60,71 @@ interface FrameArgs {
   readonly common: Record<string, unknown>;
 }
 
+/** A tool result with no bytes still has to be a VALID block: the wire rejects an empty content body, and the
+ *  honest stand-in is a host marker saying the tool returned nothing — never a fabricated result. */
+const EMPTY_TOOL_RESULT = "[no output]";
+
+/**
+ * One seed block in the SDK's own spelling. The Anthropic vocabulary (`tool_use` / `tool_result`, `input`,
+ * `tool_use_id`) is minted HERE and nowhere else — the contract's {@link AgentSeedBlock} stays in the
+ * transcript's vocabulary, and this backend internalizes its own wire quirks (Tier-3b).
+ *
+ * An if-chain rather than a `switch` (biome's type service calls every case of a switch over a derived union
+ * unreachable), closed by the tool-result arm's PARAMETER TYPE rather than a `never` sink: after the two
+ * earlier returns `block` narrows to exactly {@link toSdkToolResult}'s member, so a new `AgentSeedBlock`
+ * member fails `tsc` at that call — and no arm re-compares a discriminant tsc has already decided, which is
+ * what eslint's `no-unnecessary-condition` reds on a third `if`.
+ *
+ * `input` MUST be a JSON object on the wire and `arguments` is the raw model-emitted string. An unparseable
+ * blob never reaches here — the seam that decides a pair is structural refuses it there, WITH its `tool_result`
+ * half, so nothing is orphaned — and if one ever did, an empty input keeps the PAIR valid: a dropped block
+ * would leave a `tool_result` answering nothing, which is a hard wire refusal for every later turn on that
+ * lineage, where a lost argument blob costs one turn's fidelity.
+ */
+function toSdkBlock(block: AgentSeedBlock): Record<string, unknown> {
+  if (block.type === "text") {
+    return { type: "text", text: block.text };
+  }
+  if (block.type === "tool-call") {
+    return { type: "tool_use", id: block.toolCallId, name: block.name, input: toToolInput(block.arguments) ?? {} };
+  }
+  return toSdkToolResult(block);
+}
+
+/** The tool-result arm, typed on its member: this parameter IS the exhaustiveness pin (see {@link toSdkBlock}). */
+function toSdkToolResult(block: Extract<AgentSeedBlock, { type: "tool-result" }>): Record<string, unknown> {
+  return {
+    type: "tool_result",
+    tool_use_id: block.toolCallId,
+    content: block.content.length > 0 ? block.content : EMPTY_TOOL_RESULT,
+    ...(block.isError === true ? { is_error: true } : {}),
+  };
+}
+
+/** The model-emitted `arguments` string as the wire's `input` object, or `null` when it is not one. Uses
+ *  `JSON.parse`, never an object literal: `parse` defines `__proto__` as an OWN property where a literal would
+ *  set the prototype. */
+function toToolInput(raw: string): Record<string, unknown> | null {
+  let parsed: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): CLASSIFIER, not a failure — the compose seam has already refused an unparseable blob WITH its result half (`isJsonObject`), so this is the belt: `null` becomes an empty `input`, which keeps the pair valid rather than orphaning a `tool_result`. Ends if this function ever becomes the only parseability gate.
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+}
+
+/** A turn's SDK content blocks — TOTAL: every seed block mints one, so a seed's pairing survives the mapping. */
+function toSdkBlocks(content: readonly AgentSeedBlock[]): Record<string, unknown>[] {
+  return content.map(toSdkBlock);
+}
+
 function buildFrame(args: FrameArgs): SessionStoreEntry {
   const { turn, index, sessionId, parentUuid, common } = args;
   const uuid = deterministicId(`${sessionId}:frame:${index}`);
   const timestamp = new Date(SEED_TS_BASE_MS + index * SEED_TS_STEP_MS).toISOString();
+  const content = toSdkBlocks(turn.content);
   if (turn.role === "user") {
     return {
       type: "user",
@@ -71,7 +133,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
       promptId: deterministicId(`${sessionId}:prompt:${index}`),
       timestamp,
       ...common,
-      message: { role: "user", content: [{ type: "text", text: turn.content }] },
+      message: { role: "user", content },
     };
   }
   return {
@@ -86,7 +148,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
       model: turn.model ?? SEED_FALLBACK_MODEL,
       id: `msg_seed_${index}`,
       type: "message",
-      content: [{ type: "text", text: turn.content }],
+      content,
       stop_reason: "end_turn",
     },
   };
@@ -112,10 +174,39 @@ export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: string): 
   return frames;
 }
 
+/**
+ * The comparison projection for ONE stored block. Text projects to its bytes; a tool block projects to a
+ * NUL-prefixed identity marker naming the exchange it belongs to.
+ *
+ * WHY A MARKER AND NOT A FILTER (#1605): the comparators below decide resume-vs-reseed by comparing projected
+ * text, and this projection used to keep `type === "text"` only. A `tool_result` block would then project to
+ * nothing — so a seeded tool exchange and a session that never held one would compare EQUAL, and the frames we
+ * wrote would fail to match themselves the moment a run held only tool blocks. The marker restores identity
+ * without needing the payload: a tool id is minted once per call and recorded with it, so the id IS the
+ * exchange's identity, and a NUL cannot occur in transcript text, so no content can forge a marker.
+ *
+ * Thinking blocks stay excluded on purpose (they are not transcript identity).
+ */
+const TOOL_USE_MARK = "\u0000tool_use:";
+const TOOL_RESULT_MARK = "\u0000tool_result:";
+
+function blockText(block: { type?: string; text?: string; id?: string; tool_use_id?: string }): string {
+  if (block.type === "text") {
+    return typeof block.text === "string" ? block.text : "";
+  }
+  if (block.type === "tool_use") {
+    return `${TOOL_USE_MARK}${block.id ?? ""}`;
+  }
+  if (block.type === "tool_result") {
+    return `${TOOL_RESULT_MARK}${block.tool_use_id ?? ""}`;
+  }
+  return "";
+}
+
 // Handles both content shapes a stored frame can carry: our synthesized block arrays and the SDK's own
-// appended frames, whose message.content may be a plain string. Thinking blocks are excluded on purpose.
+// appended frames, whose message.content may be a plain string.
 function frameText(entry: SessionStoreEntry): string {
-  const message = (entry as { message?: { content?: string | Array<{ type?: string; text?: string }> } }).message;
+  const message = (entry as { message?: { content?: string | Array<{ type?: string; text?: string; id?: string; tool_use_id?: string }> } }).message;
   const content = message?.content;
   if (typeof content === "string") {
     return content;
@@ -123,10 +214,13 @@ function frameText(entry: SessionStoreEntry): string {
   if (!Array.isArray(content)) {
     return "";
   }
-  return content
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text)
-    .join("");
+  return content.map(blockText).join("");
+}
+
+/** The SEED side of the same projection — routed through {@link toSdkBlocks} so both sides of every comparator
+ *  read the identical bytes, including the empty-result and unparseable-argument degrades. */
+function seedTurnText(turn: SeedTurn): string {
+  return toSdkBlocks(turn.content).map(blockText).join("");
 }
 
 interface TranscriptRun {
@@ -181,7 +275,7 @@ function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
 // The resume gate: exact match required — a session holding MORE than the seed (e.g. a swipe's rejected reply) must NOT be resumed.
 export function sessionMatchesSeed(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
-  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: seedTurnText(t) })));
   if (stored.length !== seedR.length) {
     return false;
   }
@@ -196,7 +290,7 @@ export function sessionMatchesSeed(entries: readonly SessionStoreEntry[], seed: 
 // swipe-back finds the lineage grown past the pre-turn seed — an exact-only compare would false-diverge and re-fork.
 export function sessionContainsSeedPrefix(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
-  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: seedTurnText(t) })));
   if (seedR.length === 0 || stored.length < seedR.length) {
     return false;
   }
@@ -210,7 +304,7 @@ export function sessionContainsSeedPrefix(entries: readonly SessionStoreEntry[],
 // transcript sharing nothing. "Non-trivial" = at least one fully-equal leading role-run in common.
 export function isBranchDivergence(entries: readonly SessionStoreEntry[], seed: readonly SeedTurn[]): boolean {
   const stored = sessionRuns(entries);
-  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: seedTurnText(t) })));
   const limit = Math.min(stored.length, seedR.length);
   let shared = 0;
   for (let i = 0; i < limit; i++) {
@@ -225,8 +319,13 @@ export function isBranchDivergence(entries: readonly SessionStoreEntry[], seed: 
 }
 
 export function seedSessionId(chatId: ChatId, seed: readonly SeedTurn[], salt = 0): string {
-  const body = seed.map((t) => `${t.role}\u0001${t.content}`).join("\u0002");
-  return deterministicId(`${chatId}\u0000${salt}\u0000${body}`);
+  return deterministicId(`${chatId}\u0000${salt}\u0000${seedBody(seed)}`);
+}
+
+/** The content-addressing body BOTH the lineage id and the staleness hash fold: role + the SAME projection the
+ *  comparators use, so an id and a match verdict can never disagree about what a seed IS. */
+function seedBody(seed: readonly SeedTurn[]): string {
+  return seed.map((t) => `${t.role}\u0001${seedTurnText(t)}`).join("\u0002");
 }
 
 // The D8/D25 persisted staleness-gate hash: sha256 over the SAME role+content body `seedSessionId`
@@ -234,6 +333,5 @@ export function seedSessionId(chatId: ChatId, seed: readonly SeedTurn[], salt = 
 // lineage of it). A future read-side re-hashes the live canon prefix the same way and compares against
 // the stored value to detect a diverged lineage without loading the session's own transcript.
 export function canonHashOf(seed: readonly SeedTurn[]): string {
-  const body = seed.map((t) => `${t.role}\u0001${t.content}`).join("\u0002");
-  return createHash("sha256").update(body).digest("hex");
+  return createHash("sha256").update(seedBody(seed)).digest("hex");
 }

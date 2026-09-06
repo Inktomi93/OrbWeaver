@@ -135,7 +135,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       runAsUserId: castId("user_host"),
       triggeredBy: castId("user_host"),
       chatId: castId<ChatId>("chat_a"),
-      roster: null,
+      participants: null,
       turnId: castId<ChatTurnId>("chat_turn_a"),
     },
     ...over,
@@ -839,7 +839,7 @@ const ZARA = castId<PersonaId>("persona_zara");
 describe("runTurnPipeline — history macro resolution", () => {
   test("a stored {{char}} in a history row resolves via the PRODUCER to that row's own speaker, not the current turn's", async () => {
     // Current turn speaker is Kai; a past assistant row STAMPED characterId=ARIA must resolve {{char}} to
-    // the producer's Aria — the row's own stamp, never the ctx's current speaker (`cast`/`characterIds`
+    // the producer's Aria — the row's own stamp, never the ctx's current speaker (`characters`/`characterIds`
     // no longer drive this resolution; only the producer does).
     const ctx = ctxOf({ character: { name: "Kai", description: "the rogue" } });
     const { args } = baseArgs({
@@ -1498,7 +1498,7 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
     expect(result.content).toBe("I attack the goblin and take cover.");
   });
 
-  // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and the WHOLE cast is
+  // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and EVERY CHARACTER is
   // foreign. An impersonate turn carries no `shape`, which is exactly why the pre-IMP-1 fallback (self = the
   // character) ran the inverted configuration on it.
   describe("impersonate — self is the persona, every character is foreign", () => {
@@ -1663,7 +1663,13 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
       tools: fakeToolOps([], undefined, drivers),
       attachedToolNames: ["tick_clock"],
       runChatTurn: scriptedDepths([[doneFinal("ok")]], []),
-      toolExecFrame: { runAsUserId: host, triggeredBy: member, chatId: castId<ChatId>("chat_a"), roster: null, turnId: castId<ChatTurnId>("chat_turn_a") },
+      toolExecFrame: {
+        runAsUserId: host,
+        triggeredBy: member,
+        chatId: castId<ChatId>("chat_a"),
+        participants: null,
+        turnId: castId<ChatTurnId>("chat_turn_a"),
+      },
     });
     await runTurnPipeline(args);
     expect(drivers).toEqual([host]);
@@ -2397,7 +2403,7 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
 });
 
 // NARRATOR ASSEMBLY — what an `output:"narrator"` round actually SENDS. A narrator round is ONE call voicing
-// the WHOLE cast, authored by the synthetic group character, which by construction is NOT in `speakerRefs`.
+// every seated character, authored by the synthetic group character, which by construction is NOT in `speakerRefs`.
 // These pin the two facts a live drive (2026-08-07, docs/history/reviews/misc/2026-08-07-narrator-live-drive.md)
 // found MISSING from the wire: the co-speakers' CARDS never reached the model (the system row named the
 // primary 7x and the co-speaker 0x), and `{{char}}` bound to the primary alone, so the shipped main-prompt
@@ -2409,7 +2415,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
   // BOTH descriptions carry `{{char}}` — ordinary card authoring, and the ONLY shape that catches the
   // card-binding defect. A macro-free description renders identically whichever ctx it is bound against, so
   // the first version of these pins was blind to a live regression: the primary's own card resolved `{{char}}`
-  // to the JOINED CAST ("Charlotte, JFC is a tired archivist") while co-speakers' cards resolved correctly,
+  // to the JOINED CHARACTER NAMES ("Charlotte, JFC is a tired archivist") while co-speakers' cards resolved correctly,
   // because only co-speakers were rebound to a single-character sub-ctx.
   const charlotte = { name: "Charlotte", description: "{{char}} is a tired archivist" };
   const jfc = { name: "JFC", description: "{{char}} is a foul-mouthed mechanic" };
@@ -2427,7 +2433,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
   }
 
   /** The prep `engine/round.ts` builds for a narrator round: the SYNTHETIC group character speaks, the
-   *  joined-cast name is the label, and the scope is merged (narrator has no scoped arm). */
+   *  joined character name is the label, and the scope is merged (narrator has no scoped arm). */
   const narratorShape = {
     output: "narrator",
     cardScope: "merged",
@@ -2444,7 +2450,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     // it had never been shown.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
     // …under the NARRATOR frame, not the per-speaker bystander frame: this call is voicing JFC, so calling
-    // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.castMember`).
+    // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.characterHeading`).
     expect(system).toContain("[Character — JFC]");
     expect(system).not.toContain("[Also present — JFC]");
   });
@@ -2456,7 +2462,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     const system = (await runTurnPipeline(args)).request.prompt.static;
     expect(system).toContain("Charlotte is a tired archivist");
     expect(system).toContain("JFC is a foul-mouthed mechanic");
-    // The precise failure the first pass shipped: the joined cast leaking into the primary's own card.
+    // The precise failure the first pass shipped: the joined character names leaking into the primary's own card.
     expect(system).not.toContain("Charlotte, JFC is a tired archivist");
   });
 
@@ -2465,7 +2471,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     const result = await runTurnPipeline(args);
     // The narrator arm resolves NARRATOR_MAIN_PROMPT_TEMPLATE ("…voicing {{char}} and the world around
     // them", `assembly/assemble` templateFor) — preset-authored framing, not card-derived text, so it keeps
-    // the TURN's speaker arm and `{{char}}` is the joined cast (the split `cardOwnerCtx` draws).
+    // the TURN's speaker arm and `{{char}}` is the joined character names (the split `cardOwnerCtx` draws).
     expect(result.request.prompt.static).toContain("voicing Charlotte, JFC and the world around them");
     // …and it never carries the per-speaker default's single-perspective clause on a round voicing both.
     expect(result.request.prompt.static).not.toContain("perspective only");
@@ -2473,7 +2479,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
 
   test("an EMPTY-but-defined character set floors `{{char}}` to the primary instead of shipping an empty name", async () => {
     // Reachable: `getCard` returning falsy for every seated id leaves `characters: []`/`speakerRefs: []` (both
-    // DEFINED, so the absent-cast early return does not fire) while a narrator round still runs. An unfloored
+    // DEFINED, so the absent-characters early return does not fire) while a narrator round still runs. An unfloored
     // members list joins to "" — the narrator framing would ship "voicing  and the world around them".
     const { args } = baseArgs({
       assembleContext: ctxOf({ character: charlotte, characters: [], speakerRefs: [] }),

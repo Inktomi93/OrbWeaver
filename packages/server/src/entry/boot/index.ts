@@ -2,8 +2,16 @@
 
 export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./apply-distributed-plugins.ts";
 export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
+export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-provenance.ts";
+export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
+export type { HealLegacyBackgroundPinsDeps } from "./heal-legacy-background-pins.ts";
+export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
 export type { MigrateDeps } from "./migrate.ts";
 export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
+export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";
+export { migrateHandoffOfferVocabOnBoot } from "./migrate-handoff-offer-vocab.ts";
+export type { MigrateProseSlotVocabDeps } from "./migrate-prose-slot-vocab.ts";
+export { migrateProseSlotVocabOnBoot } from "./migrate-prose-slot-vocab.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
 export { readSeedAvatar } from "./seed-assets/index.ts";
@@ -22,7 +30,7 @@ export { seedDefaultPreset } from "./seed-default-preset.ts";
 export type { SeedDemoChatsDeps } from "./seed-demo-chats.ts";
 export { seedDemoChats } from "./seed-demo-chats.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./seed-example-plugins.ts";
-export { createExamplePluginSeeder, EXAMPLE_PLUGIN_SLUGS } from "./seed-example-plugins.ts";
+export { createExamplePluginSeeder } from "./seed-example-plugins.ts";
 export type { SeedExamplePluginsDeps } from "./seed-example-plugins-step.ts";
 export { seedExamplePlugins } from "./seed-example-plugins-step.ts";
 export type { SeedOwnerDeps } from "./seed-owner.ts";

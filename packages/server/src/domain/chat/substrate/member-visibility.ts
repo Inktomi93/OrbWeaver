@@ -113,7 +113,7 @@ interface ViewerRole {
  *  as DATA), which is why it takes a bare `ViewerRole` and not a `Principal` + `can()`. Its counterpart is the
  *  ENFORCEMENT class, homed at `substrate/auth/decide.ts::permitsHost` / `assertHost`: any comparison that
  *  DECIDES whether an operation is permitted goes there, under spine invariant #6. The THIRD host-role shape
- *  is in neither class and has its own home — the roster LOOKUP (`substrate/roster-host.ts::hostUserIdOf`,
+ *  is in neither class and has its own home — the roster LOOKUP (`substrate/participants-host.ts::hostUserIdOf`,
  *  role → identity, D19): it asks "which seat is the host?", not "does this viewer hold host?". Three shapes,
  *  three homes, zero inline re-spellings. Deliberately NOT wired
  *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior

@@ -362,7 +362,7 @@ describe("startChat — lazy room creation + opening", () => {
   test("none: seeds nothing; opening is null; only chatCreated fires; metadata records the policy", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // getCard IS reached on every path now (the PD-21 founding-cast ownership validation) — but the `none`
+    // getCard IS reached on every path now (the PD-21 founding-character ownership validation) — but the `none`
     // policy still seeds nothing from it.
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 

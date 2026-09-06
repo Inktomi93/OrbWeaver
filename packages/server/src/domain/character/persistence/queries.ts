@@ -21,7 +21,7 @@ import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
 import type { CharacterListFilter } from "../contract/params.ts";
 import type { SnapshotSummary } from "../contract/results.ts";
-import type { CharacterDetail, CharacterSummary } from "../contract/views.ts";
+import type { CharacterDetail, CharacterSummary, CharacterTagGroupCensus } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 
@@ -450,6 +450,72 @@ export async function countOwnedCharacters(db: Db, ownerId: UserId, filter: Char
     .from(characters)
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
     .where(ownedCharacterScope(db, ownerId, filter));
+  return rows.at(0)?.total ?? 0;
+}
+
+/** A character carries at least one VISIBLE accepted tag — the predicate the categorized view's
+ *  "Uncategorized" bucket is the negation of. Visible, not merely accepted: `isHiddenOnCard` is a display
+ *  decision about the CARD, and the grouped view folds by exactly the tags a row paints
+ *  (`character-list-view.ts`'s `groupByTag`), so a row whose only tags are hidden IS uncategorized on
+ *  screen. One spelling, used by both halves of the census below, so the buckets cannot disagree about
+ *  which rows they are about. */
+function carriesVisibleTag(db: Db): SQL {
+  return exists(
+    db
+      .select({ tagged: sql`1` })
+      .from(characterTags)
+      .innerJoin(tags, eq(tags.id, characterTags.tagId))
+      .where(and(eq(characterTags.characterId, characters.id), eq(characterTags.status, "accepted"), eq(tags.isHiddenOnCard, false))),
+  );
+}
+
+/**
+ * THE GROUP-BY-TAG CENSUS, VISIBLE-TAG HALF (#1696) — per visible tag, how many of the owner's
+ * non-synthetic characters carry it WITHIN the given lens.
+ *
+ * ONE `GROUP BY` over the SAME `ownedCharacterScope` the page and `totalCount` use, which is the whole
+ * point: the categorized view's headers used to be an arithmetic over the ~30 rows the keyset happened to
+ * have paged in, presented as library facts. A census that is not the page's census is the defect wearing
+ * a bigger number.
+ *
+ * NOT `listOwnedTagFilterVocabulary`, which counts the same junction over the WHOLE library: a lens-blind
+ * count printed beside lens-filtered members is a second wrong answer with more authority than the first
+ * (the refusal recorded in `character-categorized-list.tsx`, whose two stated disqualifiers — no lens, no
+ * uncategorized — are exactly what this pair answers).
+ *
+ * ACCEPTED + VISIBLE only, matching the client fold: a pending suggestion is not a tag the row wears, and a
+ * hidden-on-card tag is not a group the row appears under. Zero-count tags never appear — a `GROUP BY` over
+ * the junction cannot produce one, and a header for a bucket with no members is not a fact worth a row.
+ *
+ * MOST-POPULATED FIRST, ties by name: the order is the SERVER's so the rendered header list has one author
+ * (`listOwnedTagFilterVocabulary`'s own rule), and the tie-break makes it a TOTAL order — a count sort alone
+ * reshuffles a user-visible list between identical calls.
+ */
+export async function countOwnedCharactersByVisibleTag(db: Db, ownerId: UserId, filter: CharacterListFilter): Promise<CharacterTagGroupCensus[]> {
+  const rows = await db
+    .select({ id: tags.id, name: tags.name, folderType: tags.folderType, characters: count() })
+    .from(characters)
+    .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
+    .innerJoin(characterTags, and(eq(characterTags.characterId, characters.id), eq(characterTags.status, "accepted")))
+    .innerJoin(tags, and(eq(tags.id, characterTags.tagId), eq(tags.isHiddenOnCard, false)))
+    .where(ownedCharacterScope(db, ownerId, filter))
+    .groupBy(tags.id);
+  return rows
+    .map((row) => ({ id: row.id, name: row.name, folderType: row.folderType, characters: row.characters }))
+    .sort((a, b) => b.characters - a.characters || a.name.localeCompare(b.name));
+}
+
+/** THE GROUP-BY-TAG CENSUS, UNCATEGORIZED HALF (#1696) — matching characters carrying NO visible tag.
+ *
+ *  A SEPARATE COUNT, never a subtraction: a character with two visible tags is counted in BOTH buckets
+ *  above, so `totalCount - sum(groups)` is not the uncategorized number and would go negative on a
+ *  well-tagged library. This is also the count the prior arm could not source at all. */
+export async function countOwnedCharactersWithoutVisibleTag(db: Db, ownerId: UserId, filter: CharacterListFilter): Promise<number> {
+  const rows = await db
+    .select({ total: count() })
+    .from(characters)
+    .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
+    .where(and(ownedCharacterScope(db, ownerId, filter), not(carriesVisibleTag(db))));
   return rows.at(0)?.total ?? 0;
 }
 

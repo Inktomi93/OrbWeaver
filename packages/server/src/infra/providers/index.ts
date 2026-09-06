@@ -170,6 +170,7 @@ export type {
   AgentMcpSseServer,
   AgentMcpStdioServer,
   AgentSdkChatRequest,
+  AgentSeedBlock,
   AgentSeedTurn,
   AgentToolServer,
   AgentTurnRequest,
@@ -215,6 +216,7 @@ export type {
   ProviderErrorKind,
   ProviderExecutor,
   ProviderRole,
+  ProviderScrubSet,
   RateLimitSnapshot,
   RerankHit,
   RerankRequest,
@@ -241,6 +243,7 @@ export type {
   WireTool,
 } from "./contract/index.ts";
 export {
+  AGENT_CONTINUATION_PROMPT_STUB,
   AGENT_DIALOG_KINDS,
   AGENT_PROMPT_TAIL_JOINER,
   BACKEND_KEYS,

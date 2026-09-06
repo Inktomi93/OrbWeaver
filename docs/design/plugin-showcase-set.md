@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-28
+updated: 2026-09-05
 ---
 
 # The plugin SHOWCASE set (#774) — nine seeded plugins, full capability coverage, developer teaching material
@@ -31,7 +31,7 @@ members, all 7 anchors, all 3 tiers, and every host-mediated affordance (the cov
 | `keepsake-camera` | the spender: `llm.quiet` **with `schema`** (structured output) → `imagery.generatePicture` → a real-media gallery page; typed-arg command | NEW |
 | `pocket-arcade` | the escape hatch: `ui.frame` ONLY — a complete self-contained game (2048) at `chat-flank`, themed by the injected `--sandbox-*` vars | NEW |
 
-Deliverables beside the plugins: the upgraded authoring guide (`seed-assets/plugins/README.md` — see §5),
+Deliverables beside the plugins: the upgraded authoring guide (`packages/showcase-plugins/bundles/README.md` — see §5),
 per-plugin READMEs, **`host-v1.d.ts`** + its conformance pin (§4), the extended
 `tests/server/entry/boot/seed-example-plugins.int.test.ts`, and (fork-gated, §6.1) the `grid` bound-tiles
 vocabulary arm.
@@ -86,7 +86,8 @@ client mount lands (`ui.ts:183-191`), not reachable by any plugin.
 
 ## §4 `host-v1.d.ts` — the published types, and how they cannot drift
 
-**Home: `packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts`** — beside the examples, for the
+**Home: `packages/showcase-plugins/bundles/host-v1.d.ts`** (moved out of the server package with the
+bundles, #1692) — beside the examples, for the
 same reason the examples live there (the deployed image copies `packages/*/src`; a `docs/` or repo-root home
 would not exist in a running container — the README's own placement rationale). A plugin author copies ONE
 file next to their `main.js`/`ui.js` and an editor gives them completion + checking in plain JS.
@@ -128,7 +129,7 @@ is a belt; the staleness itself is filed with the orchestrator as a fix-tools ro
 
 ## §5 The authoring guide + per-plugin READMEs
 
-**One home: the existing `seed-assets/plugins/README.md` IS the authoring guide** — it is already titled
+**One home: the existing `packages/showcase-plugins/bundles/README.md` IS the authoring guide** — it is already titled
 "Writing an Orbweaver plugin" and already carries the deployment-path rationale; a second guide under
 `docs/` would be a second home for the same concept (and invisible in a deployed image). It is STALE against
 U4–U8 and gets the full rewrite: the three-entry bundle (`ui.js`), all 20 capabilities with their postures,

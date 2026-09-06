@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 541,
-    "enforced": 536,
+    "sites": 553,
+    "enforced": 548,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 536,
+      "deliberate-absorb": 548,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 144,
-      "empty": 255
+      "default": 150,
+      "empty": 261
     }
   },
   "rows": [
@@ -189,7 +189,7 @@
     {
       "siteId": "packages/client/src/data/invalidation.ts::promise:invalidateQueries::1",
       "path": "packages/client/src/data/invalidation.ts",
-      "line": 408,
+      "line": 356,
       "column": 7,
       "grammar": "promise",
       "position": "promise:invalidateQueries",
@@ -197,7 +197,7 @@
       "snippet": "deps.queryClient.invalidateQueries(filter).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here.",
-      "markerLine": 407
+      "markerLine": 355
     },
     {
       "siteId": "packages/client/src/data/session-freshness.ts::promise:probe::1",
@@ -410,7 +410,7 @@
     {
       "siteId": "packages/client/src/features/character/surfaces/character-library-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/character/surfaces/character-library-surface.tsx",
-      "line": 219,
+      "line": 223,
       "column": 7,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -418,7 +418,7 @@
       "snippet": "startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.",
       "verdict": "deliberate-absorb",
       "reason": "useStartChat's mutation carries",
-      "markerLine": 217
+      "markerLine": 221
     },
     {
       "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::promise:promise::1",
@@ -540,7 +540,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/add-credential-dialog.tsx",
-      "line": 287,
+      "line": 290,
       "column": 10,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -548,7 +548,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "an advisory-only reachability check —",
-      "markerLine": 284
+      "markerLine": 287
     },
     {
       "siteId": "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx::promise:mutateAsync::1",
@@ -566,7 +566,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/role-slot-row.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/role-slot-row.tsx",
-      "line": 337,
+      "line": 345,
       "column": 26,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -574,7 +574,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below sets",
-      "markerLine": 334
+      "markerLine": 342
     },
     {
       "siteId": "packages/client/src/features/credentials/lib/add-credential-form-model.ts::default:catch::1",
@@ -631,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 248,
+      "line": 292,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 245
+      "markerLine": 290
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
@@ -657,7 +657,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 109,
+      "line": 112,
       "column": 5,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -665,12 +665,12 @@
       "snippet": "distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useDistributePlugin carries",
-      "markerLine": 106
+      "markerLine": 109
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::2",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 212,
+      "line": 215,
       "column": 23,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -678,7 +678,7 @@
       "snippet": "withdraw.mutateAsync({ slug: row.slug }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useWithdrawPlugin carries",
-      "markerLine": 209
+      "markerLine": 212
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::promise:hostCall::1",
@@ -720,22 +720,22 @@
       "markerLine": 240
     },
     {
-      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyStoredUpgrade::1",
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:applyUpgrade::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 120,
+      "line": 132,
       "column": 18,
       "grammar": "promise",
-      "position": "promise:applyStoredUpgrade",
+      "position": "promise:applyUpgrade",
       "ordinal": 1,
-      "snippet": "void applyStoredUpgrade().catch(() => undefined);",
+      "snippet": "void applyUpgrade().catch(() => undefined);",
       "verdict": "deliberate-absorb",
-      "reason": "applyStoredUpgrade already",
-      "markerLine": 117
+      "reason": "applyUpgrade already",
+      "markerLine": 129
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 57,
+      "line": 67,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -743,25 +743,25 @@
       "snippet": "const results = await check.mutateAsync(undefined).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "useCheckForUpdates carries",
-      "markerLine": 54
+      "markerLine": 64
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:mutateAsync::2",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 80,
+      "line": 92,
       "column": 27,
       "grammar": "promise",
       "position": "promise:mutateAsync",
       "ordinal": 2,
-      "snippet": "const updated = await upgradeStored.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);",
+      "snippet": "const updated = await upgrade.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
-      "reason": "useUpgradePluginFromStoredUrl carries",
-      "markerLine": 77
+      "reason": "both upgrade mutations carry",
+      "markerLine": 89
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::promise:runCheck::1",
       "path": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx",
-      "line": 105,
+      "line": 117,
       "column": 16,
       "grammar": "promise",
       "position": "promise:runCheck",
@@ -769,7 +769,7 @@
       "snippet": "void runCheck().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "runCheck already catches its own",
-      "markerLine": 102
+      "markerLine": 114
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row.tsx::promise:mutateAsync::1",
@@ -1073,7 +1073,7 @@
     {
       "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx",
-      "line": 135,
+      "line": 137,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -1081,7 +1081,7 @@
       "snippet": "startChat({",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 134
+      "markerLine": 136
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::empty:catch::1",
@@ -1242,7 +1242,7 @@
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::1",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 235,
+      "line": 249,
       "column": 9,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1250,12 +1250,12 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 232
+      "markerLine": 246
     },
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::2",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 316,
+      "line": 330,
       "column": 11,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1263,12 +1263,12 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 315
+      "markerLine": 329
     },
     {
       "siteId": "packages/client/src/forms/create-autosave-entity-form.tsx::promise:handleSubmit::3",
       "path": "packages/client/src/forms/create-autosave-entity-form.tsx",
-      "line": 331,
+      "line": 348,
       "column": 7,
       "grammar": "promise",
       "position": "promise:handleSubmit",
@@ -1276,7 +1276,7 @@
       "snippet": "form.handleSubmit().catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.",
-      "markerLine": 329
+      "markerLine": 346
     },
     {
       "siteId": "packages/client/src/lib/app-ready-signal.ts::promise:appReady::1",
@@ -1320,7 +1320,7 @@
     {
       "siteId": "packages/client/src/lib/bug-report-capture.ts::default:catch::1",
       "path": "packages/client/src/lib/bug-report-capture.ts",
-      "line": 210,
+      "line": 212,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1328,7 +1328,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
-      "markerLine": 204
+      "markerLine": 206
     },
     {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",
@@ -1515,7 +1515,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3106,
+      "line": 3120,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1523,7 +1523,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3101
+      "markerLine": 3115
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
@@ -1966,6 +1966,32 @@
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — only a handle-conflict",
       "markerLine": 99
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts::empty:failed::1",
+      "path": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts",
+      "line": 49,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:failed",
+      "ordinal": 1,
+      "snippet": "} catch (failed) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —",
+      "markerLine": 38
+    },
+    {
+      "siteId": "packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts::empty:failed::1",
+      "path": "packages/server/src/domain/character/verbs/bulk-remove-card-tag.ts",
+      "line": 44,
+      "column": 11,
+      "grammar": "empty",
+      "position": "empty:failed",
+      "ordinal": 1,
+      "snippet": "} catch (failed) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the owner IS this per-item result —",
+      "markerLine": 33
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
@@ -2579,19 +2605,6 @@
       "markerLine": 496
     },
     {
-      "siteId": "packages/server/src/domain/sessions/verbs/link-external-id.ts::empty:failure::1",
-      "path": "packages/server/src/domain/sessions/verbs/link-external-id.ts",
-      "line": 70,
-      "column": 7,
-      "grammar": "empty",
-      "position": "empty:failure",
-      "ordinal": 1,
-      "snippet": "} catch (failure) {",
-      "verdict": "deliberate-absorb",
-      "reason": "propagated — `settleMissedClaim` re-reads",
-      "markerLine": 64
-    },
-    {
       "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",
       "path": "packages/server/src/domain/sessions/verbs/revoke.ts",
       "line": 44,
@@ -2629,6 +2642,19 @@
       "verdict": "deliberate-absorb",
       "reason": "propagated — `next` is what this function",
       "markerLine": 17
+    },
+    {
+      "siteId": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts::empty:catch::1",
+      "path": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts",
+      "line": 93,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable row is #471's territory, not",
+      "markerLine": 84
     },
     {
       "siteId": "packages/server/src/domain/settings/verbs/add-external-background.ts::empty:catch::1",
@@ -2815,7 +2841,7 @@
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 33,
+      "line": 37,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2823,12 +2849,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a missing/unreadable",
-      "markerLine": 27
+      "markerLine": 31
     },
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::2",
       "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 74,
+      "line": 61,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2836,51 +2862,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 69
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::3",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 101,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 3,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — SCOPED to the read",
-      "markerLine": 96
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::4",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 140,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 4,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — an example with no",
-      "markerLine": 135
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::5",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 160,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 5,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 155
+      "markerLine": 56
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 536,
+      "line": 537,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2888,12 +2875,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 530
+      "markerLine": 531
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 555,
+      "line": 556,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2901,12 +2888,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 549
+      "markerLine": 550
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 575,
+      "line": 576,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,12 +2901,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 564
+      "markerLine": 565
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::default:catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 726,
+      "line": 727,
       "column": 11,
       "grammar": "default",
       "position": "default:catch",
@@ -2927,25 +2914,38 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 715
+      "markerLine": 716
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1021,
-      "column": 9,
+      "line": 388,
+      "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.",
+      "markerLine": 385
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::2",
+      "path": "packages/server/src/entry/compose/chat.ts",
+      "line": 1201,
+      "column": 9,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1017
+      "markerLine": 1197
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1054,
+      "line": 1234,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2953,12 +2953,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1043
+      "markerLine": 1223
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1091,
+      "line": 1271,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2966,12 +2966,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1083
+      "markerLine": 1263
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 811,
+      "line": 980,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2979,12 +2979,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 806
+      "markerLine": 974
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 730,
+      "line": 894,
       "column": 10,
       "grammar": "promise",
       "position": "promise:runChatTurn",
@@ -2992,7 +2992,7 @@
       "snippet": "void deps",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 727
+      "markerLine": 891
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::empty:catch::1",
@@ -3049,7 +3049,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 445,
+      "line": 446,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -3057,7 +3057,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 439
+      "markerLine": 440
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
@@ -3166,7 +3166,7 @@
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::empty:err::1",
       "path": "packages/server/src/entry/import/run-bundle-import.ts",
-      "line": 138,
+      "line": 146,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3174,7 +3174,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded as an",
-      "markerLine": 122
+      "markerLine": 130
     },
     {
       "siteId": "packages/server/src/entry/import/run-profile-dir-import.ts::empty:err::1",
@@ -3452,7 +3452,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::empty:err::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 599,
+      "line": 601,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3460,12 +3460,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.",
-      "markerLine": 590
+      "markerLine": 592
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:race::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1819,
+      "line": 1848,
       "column": 10,
       "grammar": "promise",
       "position": "promise:race",
@@ -3473,12 +3473,12 @@
       "snippet": "void Promise.race([running, timeout])",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.",
-      "markerLine": 1818
+      "markerLine": 1847
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::promise:running::1",
       "path": "packages/server/src/infra/plugin-host/membrane.ts",
-      "line": 1815,
+      "line": 1844,
       "column": 18,
       "grammar": "promise",
       "position": "promise:running",
@@ -3486,7 +3486,7 @@
       "snippet": "settlement = running.then(releaseSlot, releaseSlot);",
       "verdict": "deliberate-absorb",
       "reason": "BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.",
-      "markerLine": 1814
+      "markerLine": 1843
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/port.ts::promise:run::1",
@@ -3517,7 +3517,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/agent-runner.ts",
-      "line": 133,
+      "line": 139,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3525,12 +3525,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an MCP status-probe failure is a diagnostic miss that collapses to undefined (no health reported); it gates no auth/credential/turn decision. Ends if MCP health ever gates a turn.",
-      "markerLine": 130
+      "markerLine": 136
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/env.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/env.ts",
-      "line": 231,
+      "line": 273,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3538,7 +3538,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.",
-      "markerLine": 228
+      "markerLine": 270
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts::default:catch::1",
@@ -3569,7 +3569,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts::empty:catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
-      "line": 368,
+      "line": 376,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3577,7 +3577,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.",
-      "markerLine": 364
+      "markerLine": 372
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts::default:catch::1",
+      "path": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts",
+      "line": 112,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "CLASSIFIER, not a failure — the compose seam has already refused an unparseable blob WITH its result half (`isJsonObject`), so this is the belt: `null` becomes an empty `input`, which keeps the pair valid rather than orphaning a `tool_result`. Ends if this function ever becomes the only parseability gate.",
+      "markerLine": 109
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/terminal-tools.ts::empty:err::1",
@@ -3621,7 +3634,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts::promise:readErrorBody::1",
       "path": "packages/server/src/infra/providers/backends/custom-byo/runners/chat.ts",
-      "line": 452,
+      "line": 454,
       "column": 26,
       "grammar": "promise",
       "position": "promise:readErrorBody",
@@ -3629,7 +3642,7 @@
       "snippet": "const text = await readErrorBody(res).catch((): string => \"\");",
       "verdict": "deliberate-absorb",
       "reason": "an error-body read failure falls back to res.statusText and the failure is STILL thrown as a secret-scrubbed ProviderError (providerErrorFromHttp) — propagated, not dropped, and secrets redacted by value. Ends if the throw below is removed.",
-      "markerLine": 451
+      "markerLine": 453
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/kit/error-classify.ts::default:catch::1",
@@ -4059,6 +4072,58 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above — a DomainError becomes a",
       "markerLine": 31
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::1",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 95,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — the header states the",
+      "markerLine": 90
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::2",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 118,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a bundle with no",
+      "markerLine": 113
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::3",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 147,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — SCOPED to the read",
+      "markerLine": 142
+    },
+    {
+      "siteId": "packages/showcase-plugins/src/index.ts::default:catch::4",
+      "path": "packages/showcase-plugins/src/index.ts",
+      "line": 184,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — \"this package ships",
+      "markerLine": 179
     },
     {
       "siteId": "packages/ui/src/content/message-media/message-media.tsx::empty:catch::1",
@@ -5296,6 +5361,19 @@
       "markerLine": 25
     },
     {
+      "siteId": "tooling/src/snap/ops/appearance-surface-drive.ts::empty:catch::1",
+      "path": "tooling/src/snap/ops/appearance-surface-drive.ts",
+      "line": 45,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure is CONVERTED, never swallowed — a bare `Timeout 5000ms exceeded` reached the matrix loop as an unattributed throw and the drive reported NO VERDICT with nothing naming which row, surface or subject was missing (#1104). Ends when the wait stops being able to fail.",
+      "markerLine": 42
+    },
+    {
       "siteId": "tooling/src/snap/ops/arms/assert.ts::empty:error::1",
       "path": "tooling/src/snap/ops/arms/assert.ts",
       "line": 132,
@@ -5701,7 +5779,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/shot.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/arms/shot.ts",
-      "line": 85,
+      "line": 147,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5709,7 +5787,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.",
-      "markerLine": 52
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
@@ -5736,6 +5814,32 @@
       "verdict": "deliberate-absorb",
       "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.",
       "markerLine": 82
+    },
+    {
+      "siteId": "tooling/src/snap/ops/contrast-edge.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/contrast-edge.ts",
+      "line": 157,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).",
+      "markerLine": 154
+    },
+    {
+      "siteId": "tooling/src/snap/ops/contrast-fill.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/contrast-fill.ts",
+      "line": 67,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).",
+      "markerLine": 64
     },
     {
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::empty:catch::1",
@@ -5766,7 +5870,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 215,
+      "line": 242,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5774,12 +5878,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 210
+      "markerLine": 237
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 252,
+      "line": 279,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5787,12 +5891,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 245
+      "markerLine": 272
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 226,
+      "line": 253,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -5800,7 +5904,7 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 221
+      "markerLine": 248
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
@@ -5818,7 +5922,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 248,
+      "line": 275,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -5826,7 +5930,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 247
+      "markerLine": 274
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
@@ -5844,7 +5948,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 240,
+      "line": 267,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5852,12 +5956,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 239
+      "markerLine": 266
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 378,
+      "line": 405,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -5865,7 +5969,7 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 376
+      "markerLine": 403
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::promise:stopProtocol::1",
@@ -6130,7 +6234,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 48,
+      "line": 62,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6138,12 +6242,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.",
-      "markerLine": 41
+      "markerLine": 48
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-admin.ts",
-      "line": 129,
+      "line": 145,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6151,12 +6255,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
-      "markerLine": 125
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 70,
+      "line": 81,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -6164,12 +6268,12 @@
       "snippet": "(\"recover\" in state ? state.recover() : terminatePageExecution(state.session)).then(",
       "verdict": "deliberate-absorb",
       "reason": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.",
-      "markerLine": 69
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:reload::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 33,
+      "line": 44,
       "column": 11,
       "grammar": "promise",
       "position": "promise:reload",
@@ -6177,12 +6281,12 @@
       "snippet": "await session.page.reload({ waitUntil: \"commit\", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.",
-      "markerLine": 32
+      "markerLine": 43
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:resolve::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 50,
+      "line": 61,
       "column": 16,
       "grammar": "promise",
       "position": "promise:resolve",
@@ -6190,25 +6294,25 @@
       "snippet": "const work = Promise.resolve()",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.",
-      "markerLine": 49
+      "markerLine": 60
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::promise:send::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 31,
+      "line": 42,
       "column": 25,
       "grammar": "promise",
       "position": "promise:send",
       "ordinal": 1,
-      "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(TERMINATION_ACK_WAIT_MS)]);",
+      "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);",
       "verdict": "deliberate-absorb",
       "reason": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.",
-      "markerLine": 30
+      "markerLine": 41
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::default:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 112,
+      "line": 136,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6216,12 +6320,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.",
-      "markerLine": 109
+      "markerLine": 133
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 131,
+      "line": 155,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6229,12 +6333,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the log does not exist until the daemon's first write — an absent file is \"nothing to relay yet\" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.",
-      "markerLine": 120
+      "markerLine": 144
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-client.ts",
-      "line": 243,
+      "line": 272,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6242,7 +6346,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.",
-      "markerLine": 226
+      "markerLine": 250
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon-request.ts::empty:error::1",
@@ -6325,7 +6429,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 143,
+      "line": 165,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6333,12 +6437,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage legacy marker is treated as \"no legacy stage\", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.",
-      "markerLine": 134
+      "markerLine": 156
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 265,
+      "line": 299,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6346,12 +6450,25 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — an unreadable holder file means \"I cannot identify the holder\", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.",
-      "markerLine": 261
+      "markerLine": 295
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::3",
+      "path": "tooling/src/snap/ops/stage-marker.ts",
+      "line": 327,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the rename target is already gone — someone",
+      "markerLine": 322
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 164,
+      "line": 186,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6359,12 +6476,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as \"no stages\", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.",
-      "markerLine": 156
+      "markerLine": 178
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::empty:catch::2",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 301,
+      "line": 365,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6372,7 +6489,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.",
-      "markerLine": 296
+      "markerLine": 360
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-reap-log.ts::default:catch::1",
+      "path": "tooling/src/snap/ops/stage-reap-log.ts",
+      "line": 70,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a truncated/garbage ledger reads as \"no reaps recorded\", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back.",
+      "markerLine": 63
     },
     {
       "siteId": "tooling/src/snap/ops/stage-source.ts::empty:catch::1",
@@ -6390,7 +6520,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-status.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-status.ts",
-      "line": 195,
+      "line": 216,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6398,7 +6528,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.",
-      "markerLine": 192
+      "markerLine": 213
     },
     {
       "siteId": "tooling/src/snap/ops/watch.ts::promise:screenshot::1",
@@ -6416,7 +6546,7 @@
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::1",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 40,
+      "line": 80,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6424,12 +6554,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.",
-      "markerLine": 19
+      "markerLine": 56
     },
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::2",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 50,
+      "line": 90,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6437,7 +6567,33 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.",
-      "markerLine": 46
+      "markerLine": 86
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::3",
+      "path": "tooling/src/stack/lib/dev-process-identity.ts",
+      "line": 153,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.",
+      "markerLine": 141
+    },
+    {
+      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::empty:error::1",
+      "path": "tooling/src/stack/lib/dev-process-identity.ts",
+      "line": 301,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.",
+      "markerLine": 298
     },
     {
       "siteId": "tooling/src/stack/lib/port-health.ts::empty:error::1",
@@ -6507,7 +6663,7 @@
     {
       "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::empty:error::1",
       "path": "tooling/src/stack/ops/dev-identity-entry.ts",
-      "line": 76,
+      "line": 131,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -6515,7 +6671,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.",
-      "markerLine": 73
+      "markerLine": 128
     },
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
@@ -6910,7 +7066,7 @@
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 168,
+      "line": 188,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6918,12 +7074,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 163
+      "markerLine": 183
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::2",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 183,
+      "line": 203,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6931,12 +7087,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 180
+      "markerLine": 200
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::3",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 211,
+      "line": 231,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6944,7 +7100,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 208
+      "markerLine": 228
     },
     {
       "siteId": "tooling/src/verify/ops/ct-unfed-ratchet.ts::default:catch::1",

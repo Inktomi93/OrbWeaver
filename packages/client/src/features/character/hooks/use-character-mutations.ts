@@ -10,7 +10,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
-import { characterMutationToast } from "../lib/character-refusal-notice.ts";
+import { characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 
@@ -70,21 +70,32 @@ export const useBulkArchiveCharacters = createEntityMutation<inferInput<Trpc["ch
   errorToast: "Couldn't archive the selected characters.",
 });
 
-/** §4.6 bulk: attach a tag to many. `busDriven` — `charactersChanged` covers `character.list`. */
-export const useBulkAddCardTag = createEntityMutation<inferInput<Trpc["character"]["bulkAddCardTag"]>, unknown>({
+/** §4.6 bulk: attach a tag to many. `busDriven` — `charactersChanged` covers `character.list`.
+ *
+ *  THE PARTIAL BATCH IS ERRORS-AS-DATA (#1694): the verb RESOLVES `{applied, failed}` rather than
+ *  throwing on a partial batch (`character-refusal-notice.ts`'s header on the original defect this
+ *  mirrors), so a fire-and-forget `.mutate()` call site would otherwise drop a half-failed apply on the
+ *  floor — the siblings that committed refresh via the bus, and nothing ever says the rest did not. */
+export const useBulkAddCardTag = createEntityMutation<inferInput<Trpc["character"]["bulkAddCardTag"]>, inferOutput<Trpc["character"]["bulkAddCardTag"]>>({
   options: (trpc) => trpc.character.bulkAddCardTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't tag the selected characters.",
+  refusal: (data) => characterBulkTagRefusal("tag", data),
 });
 
 /** §6.2 tag chip remove: detach a tag by name from a character (the by-name mirror of `bulkAddCardTag`).
  *  `busDriven` — the verb emits `charactersChanged` (its OWN event family, unlike a generic tag detach which
  *  would leave the character chips stale), so the bus echo reconciles the acting + other devices; NOT an
- *  `invalidates` entry (the star-toggle precedent — a self-invalidate would double-refetch). */
-export const useBulkRemoveCardTag = createEntityMutation<inferInput<Trpc["character"]["bulkRemoveCardTag"]>, unknown>({
+ *  `invalidates` entry (the star-toggle precedent — a self-invalidate would double-refetch). Same
+ *  errors-as-data `refusal` as the attach (#1694). */
+export const useBulkRemoveCardTag = createEntityMutation<
+  inferInput<Trpc["character"]["bulkRemoveCardTag"]>,
+  inferOutput<Trpc["character"]["bulkRemoveCardTag"]>
+>({
   options: (trpc) => trpc.character.bulkRemoveCardTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't remove the tag.",
+  refusal: (data) => characterBulkTagRefusal("untag", data),
 });
 
 /** §4.6 bulk: delete many. `busDriven` — `charactersChanged` covers `character.list`. */

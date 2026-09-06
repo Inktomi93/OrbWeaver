@@ -130,12 +130,12 @@ const okAssets: UploadAssetsPort = {
   store: (): Promise<StoredAsset> => Promise.resolve(STORED),
 };
 
-// A character port that always creates a fresh row (the import-route happy path). PD-108's handle-match
-// edit-in-place is pinned in the run-profile-import + domain import-character suites; `update`/`findByHandle`
-// are unused no-op stubs here (findByHandle always misses, so create always fires).
+// A character port that always creates a fresh row (the import-route happy path). The handle-suffix
+// disambiguation loop is pinned in the run-profile-import + domain import-character suites; `findByHandle`
+// is an unused no-op stub here (it always misses, so create always fires — #1470 dropped the earlier
+// PD-108 handle-match edit-in-place, so `ImportCharacterPort` no longer carries an `update` op).
 const creatingCharacter: ImportCharacterPort = {
   create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
-  update: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
   findByImportHash: (): Promise<null> => Promise.resolve(null),
   findByHandle: (): Promise<null> => Promise.resolve(null),
 };

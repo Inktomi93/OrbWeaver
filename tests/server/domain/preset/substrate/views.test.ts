@@ -64,6 +64,40 @@ describe("toPresetDetail (lenient parse seam)", () => {
     expect(d.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
   });
 
+  // #1716 — the READ-TIME TWIN of the #1026 write refusal. `updatePresetRow` re-reads this same row through
+  // `promptConfigConfig.parseOutcome(config, schemaVersion)` and refuses a config write when it is not
+  // intact; before this field the editor learned that only AFTER the user typed, from a generic failure
+  // carrying a Retry that could never succeed. These pins are what make the two reads answer alike.
+  describe("configUnreadable", () => {
+    test("an intact stored blob reports null", () => {
+      expect(toPresetDetail(row()).configUnreadable).toBe(null);
+    });
+
+    test("a blob from a NEWER build reports version-from-future — and still serves its value", () => {
+      // No lift exists above the current version, so this build strips every field it has never heard of.
+      // The row is FINE on the build that wrote it; the value is served (the session stays usable) and the
+      // verdict is what stands the editor's saving down.
+      const d = toPresetDetail(row({ schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900 }));
+      expect(d.configUnreadable).toBe("version-from-future");
+      expect(d.config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
+    });
+
+    test("a blob the schema rejects reports schema-rejected", () => {
+      // FABRICATION-OK: deliberate corrupt-blob probe — `sections` must be an array, so the WHOLE blob
+      // fails and the value degrades to DEFAULT (unlike the bounded `params` case below).
+      const broken = { ...DEFAULT_PROMPT_CONFIG, sections: "not an array" } as unknown as PromptConfig;
+      expect(toPresetDetail(row({ config: broken })).configUnreadable).toBe("schema-rejected");
+    });
+
+    test("the VERSION COLUMN decides, exactly as the write guard's read does", () => {
+      // `startVersion` prefers the stored COLUMN over the in-blob probe, and `parsePromptConfig` cannot pass
+      // it — which is how a detail read and its own write guard could resolve different versions for the
+      // same bytes. The column is the tie-breaker on both sides now.
+      const d = toPresetDetail(row({ config: DEFAULT_PROMPT_CONFIG, schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 1 }));
+      expect(d.configUnreadable).toBe("version-from-future");
+    });
+  });
+
   test("a garbage params blob is bounded to {} while sections survive (the .catch({}) bound)", () => {
     // FABRICATION-OK: deliberate corrupt-params probe of the lenient parse-seam bound.
     const corruptParams = {

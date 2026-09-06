@@ -116,7 +116,16 @@ export function CorpusHomeSurface(): ReactElement {
       <Stack data-testid={testId("corpusHomeSurface")}>
         {/* The fallback is the surface's own SHAPE, not a sentence (§5 "loading is a naked sentence in a
             void") — `corpus-home-skeleton.tsx` carries the why. */}
-        <QueryBoundary fallback={<CorpusHomeSkeleton />} renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}>
+        {/* RESERVED (#1098). The skeleton already paints the surface's SHAPE; what it could not do is hold
+            the surface's HEIGHT — corpus home settles into five analytics blocks well past the skeleton's
+            own box, so returning here from the dossier jumped the CONTENT region. The custom skeleton is
+            not re-filled (declared limit: only `SkeletonRows` `line` inverts its pitch) — it simply paints
+            inside the box this device measured last time. */}
+        <QueryBoundary
+          fallback={<CorpusHomeSkeleton />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
+          reserveKey="corpus.home"
+        >
           <CorpusHomeBody />
         </QueryBoundary>
       </Stack>

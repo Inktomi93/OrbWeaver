@@ -31,6 +31,9 @@ const USER_SETTINGS_VIEW = {
   schemaVersion: 1,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 0,
+  // #1716: the server's read verdict on the stored blob. `null` everywhere but the unreadable-state pins at
+  // the bottom of this file, which override it with a failure kind.
+  configUnreadable: null,
 };
 
 /** The Distribute section's own dropzone input, addressed by its ACCESSIBLE NAME — the group hosts TWO
@@ -864,26 +867,33 @@ const POPULATED_SCRIPTS = [
 /** The regex group's own blurb, from its `ConfigGroupDefinition` — the landing draws the CONTRIBUTION's copy,
  *  never a host string, which is the claim this literal is here to hold. */
 const REGEX_BLURB = "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.";
-/** The HOST's one sentence about its own geometry (features/config/lib/config-copy.ts). */
-const LANDING_HINT = "Pick one from the list to open its editor.";
+// THE HOST'S ONE SENTENCE IS GONE (#1725). `LANDING_HINT` held "Pick one from the list to open its editor."
+// — the host's fact about where a library's members live, which every landing arm above asserted. The owner
+// moved the members onto this very pane, so the sentence became a direction to the pane the reader is
+// standing in and was deleted with its reader (`config-copy.ts`). Every arm that used it now asserts the
+// CONTROL ROW instead, which is the honest tell for "this pane is a library": a sentence can be true of a
+// pane that offers nothing, a control row cannot.
 
-test("a POPULATED collection band ENTERS its library in one act — rows open AND its landing takes CONTENT", async ({ mount, page }) => {
+// #1725 RETIRED THE DISCLOSE HALF OF #925's ENTER. The ruling was "select and disclose in ONE act" and this
+// test held both halves; the owner then moved the members into CONTENT, so there is nothing in the LIST to
+// disclose and `aria-expanded` is gone from the band. The ENTER half — one click, the location moves, CONTENT
+// is this library — is what the ruling was protecting, and it is asserted whole below, now including the rows
+// themselves, which are the thing that actually arrived.
+test("#1725: a collection band ENTERS its library in one act — the location moves AND CONTENT is the library", async ({ mount, page }) => {
   await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
   const component = await mount(<ConfigHostStory />);
 
   const band = component.locator(EMPTY_BAND);
-  await expect(band).toHaveAttribute("aria-expanded", "false");
+  // Nothing to unfold, so nothing claims to: the attribute is absent, not `false`.
+  await expect(band).not.toHaveAttribute("aria-expanded", /.*/);
   await band.click();
 
-  // The disclosure still happens — the rows are what a collection band opens…
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-  // …AND the reader's location moved with it: the band marks itself, and CONTENT is this library's landing,
-  // drawn from the contribution's own fields plus the host's one line about where the members are.
   await expect(band).toHaveAttribute("aria-current", "true");
   const content = component.getByRole("region", { name: "Settings", exact: true });
   await expect(content.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
   await expect(content.getByText(REGEX_BLURB)).toBeVisible();
-  await expect(content.getByText(LANDING_HINT)).toBeVisible();
+  // The MEMBERS are here now — the whole point of the ruling — and so is the library's own create verb.
+  await expect(content.locator('[data-slot="list-row-root"]').first()).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
   // The four-library launcher landing is NOT what a named library's landing shows — and since #1210 it is
   // not what ANYTHING shows.
@@ -974,22 +984,15 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
   expect(pageErrors, `the switch threw: ${pageErrors.join(" · ")}`).toEqual([]);
 });
 
-test("…and a second click folds the rows away WITHOUT leaving the library", async ({ mount, page }) => {
-  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
-  const component = await mount(<ConfigHostStory />);
-
-  const band = component.locator(EMPTY_BAND);
-  await band.click();
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-  await band.click();
-
-  // The one place this species diverges from a settings group, whose active band cannot collapse itself: a
-  // library's rows are its CONTENTS, and folding contents away is a thing a reader does.
-  await expect(band).toHaveAttribute("aria-expanded", "false");
-  // …and it costs nothing: the location, and therefore the pane, is untouched.
-  await expect(band).toHaveAttribute("aria-current", "true");
-  await expect(component.getByRole("region", { name: "Settings", exact: true }).getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
-});
+// ── RETIRED BY #1725 (owner ruling 2026-09-05) ───────────────────────────────────────────────────────
+// "…and a second click folds the rows away WITHOUT leaving the library" lived here. It pinned the ONE place
+// the collection species diverged from a settings group: an active collection band could collapse its own
+// rows, because a library's rows are its CONTENTS and folding contents away is a thing a reader does. That
+// divergence had a referent only while the rows were in the LIST. The owner moved them into CONTENT, so
+// there is no fold, no `aria-expanded`, and no second click whose meaning differs from the first — a
+// collection band is the same one-act door at every press. Nothing is weakened elsewhere: the band's
+// idempotent ENTER is the test above, and "the LIST holds no member rows" is pinned red-first in
+// `components/config-list-collection-group.ct.tsx`. Deleted with the behaviour it described.
 
 // ── THE LANDING STATES THE LIBRARY, IT DOES NOT RESTATE THE LIST (#1209, owner ruling 2026-09-02) ────
 // THE DEFECT, measured live: with Tags active, CONTENT's only interactive element was "New tag" — twelve
@@ -1050,10 +1053,15 @@ test("a populated library's landing states its own FACTS — and every affordanc
   await expect(facts.getByText("1 of 3")).toBeVisible();
   await expect(facts.getByText("In use")).toBeVisible();
 
-  // EVERY CONTROL ON THIS PANE IS A REAL DOOR. Two of them: the fact's door and the create verb — and the
-  // fact's door OPENS THE MEMBER it is about, which is the whole difference from the chip wall it replaced.
-  await expect(content.getByRole("button")).toHaveCount(2);
-  await content.getByRole("button", { name: "Open orphan-tag" }).click();
+  // EVERY CONTROL IN THE FACTS BLOCK IS A REAL DOOR — the claim #1209 minted, at the scope it was always
+  // about. It used to be spelled as the whole pane's button count (two: the fact's door and the create
+  // verb), which #1725 retired as a SPELLING: the pane now also holds the control row and the library's own
+  // rows, all of them real doors, so a pane-wide count would be counting the wrong thing and would drift on
+  // every control the library gains. The insights slot is the surface the ruling is about, and inside it the
+  // count is EXACT: one fact has a subject and opens it, the other is data and is not dressed as an
+  // affordance.
+  await expect(facts.getByRole("button")).toHaveCount(1);
+  await facts.getByRole("button", { name: "Open orphan-tag" }).click();
   await expect(component.getByRole("heading", { name: "orphan-tag" })).toBeVisible();
 });
 
@@ -1064,11 +1072,21 @@ test("…and the wall it replaced is gone: no chip census, no dead +N more", asy
   await component.locator(TAGS_BAND).click();
   const content = component.getByRole("region", { name: "Settings", exact: true });
   await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
-  // The two tells of the retired anatomy, asserted as absences: the ranked kicker and the remainder chip.
-  await expect(content.getByText("Most used")).toHaveCount(0);
+  // The two tells of the retired anatomy, asserted as absences INSIDE THE FACTS BLOCK — the surface the
+  // wall occupied. The pane-wide scope stopped discriminating at #1725: the tag library's own SORT control
+  // is legitimately labelled "Most used", so a pane-wide absence would now be red for a reason that has
+  // nothing to do with the chip wall. The facts block is where a ranked kicker would return.
+  const facts = content.locator('[data-slot="config-library-insights"]');
+  await expect(facts.getByText("Most used")).toHaveCount(0);
   await expect(content.getByText(/^\+\d+ more$/)).toHaveCount(0);
-  // …and no member NAME is restated on the pane except inside a real door's own label ("Open orphan-tag").
-  await expect(content.getByText("used-a", { exact: true })).toHaveCount(0);
+  // …and no member NAME is restated OUTSIDE a row or a real door's own label. The negative used to be
+  // absolute ("`used-a` appears nowhere on this pane") because the pane had no rows and any member name on
+  // it was necessarily a chip. #1725 put the rows here, so an absolute negative would now forbid the library
+  // itself. The ruling's substance is the DOUBLE rendering it forbade, so the claim is re-expressed as
+  // exactly that: the name appears in its ROW, and nowhere else on the pane.
+  await expect(content.locator('[data-slot="list-row-root"]').filter({ hasText: "used-a" })).toHaveCount(1);
+  await expect(content.locator('[data-slot="config-library-insights"]').getByText("used-a", { exact: true })).toHaveCount(0);
+  await expect(content.locator('[data-slot="collection-control-row"]').getByText("used-a", { exact: true })).toHaveCount(0);
 });
 
 // ── A LIBRARY WHOSE CENSUS FAILED IS NOT A LIBRARY THAT IS SETTLING (#1546) ──────────────────────────
@@ -1092,14 +1110,18 @@ test("a library whose census FAILED says so on the landing, and offers a retry t
   // The library still NAMES itself — the reader came here on purpose.
   await expect(landing.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
   await expect(landing.getByText("Couldn't load regex scripts.")).toBeVisible();
-  // …and the populated layout is NOT what a pane with no number draws.
-  await expect(landing.getByText(LANDING_HINT)).toHaveCount(0);
+  // …and the populated layout is NOT what a pane with no number draws. The tell used to be the host's hint
+  // sentence, which #1725 deleted with its reader; the CONTROL ROW is the tell now, and it is a better one —
+  // it is the thing a reader would try to press over a library that does not exist.
+  await expect(landing.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
   await expect(landing.getByRole("button", { name: "New script" })).toHaveCount(0);
 
   rows.push(POPULATED_SCRIPTS);
   await landing.getByRole("button", { name: "Retry" }).click();
-  // A real refetch, and the pane returns to the arm the answer earns.
-  await expect(landing.getByText(LANDING_HINT)).toBeVisible();
+  // A real refetch, and the pane returns to the arm the answer earns — control row, and the members it
+  // controls.
+  await expect(landing.locator('[data-slot="collection-control-row"]')).toBeVisible();
+  await expect(landing.locator('[data-slot="list-row-root"]').first()).toBeVisible();
   await expect(landing.getByText("Couldn't load regex scripts.")).toHaveCount(0);
 });
 
@@ -1116,4 +1138,119 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
   await expect(content.getByText(REGEX_BLURB), "the blurb the settling arm and the LIST both show").toBeVisible();
   await expect(content.getByText("No scripts yet.")).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// #1716/#1771 — THE UNREADABLE SETTINGS BLOB. When `user_settings.config` cannot be read, `getUserSettings`
+// serves schema DEFAULTS and every section's save is refused server-side (`stored_config_unreadable`, the
+// #471 guard). Before these pins the pane rendered those defaults as if they were the user's settings, the
+// aggregate footer said "Saved" over them, and the only feedback was a generic failure AFTER typing —
+// with a Retry that could never succeed.
+//
+// The state is stated ONCE by the gate that wraps the section-body arm, and its door is the only settings
+// repair that exists (`settings.resetUserConfig` — the per-leaf "Reset to its default" writes through the
+// refused verb, and would not even be rendered here because `modified` compares the DEGRADED read against
+// the defaults and finds every row equal).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The unreadable-blob read: same defaults on the wire, plus the server's verdict. */
+function unreadableSettings(failure: "schema-rejected" | "version-from-future"): Record<string, unknown> {
+  return { ...USER_SETTINGS_VIEW, configUnreadable: failure };
+}
+
+/** The Avatars section's first switch — a real settings leaf whose toggle normally autosaves. */
+const AVATARS_SWITCH = "Show avatars in chat";
+
+test("UNREADABLE SETTINGS — the pane says so once, the footer stops saying Saved, and no section can save", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("schema-rejected"),
+    "settings.listThemes": () => LOOKS_THEMES,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  // STATED ONCE, not per section — the condition belongs to the blob, and N banners is the smear the
+  // save-status seam exists to prevent.
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toHaveCount(1);
+  await expect(notice).toContainText("Your settings couldn't be read");
+
+  // The aggregate footer no longer claims success over a pane that cannot save.
+  await expect(component.locator('[data-slot="config-save-footer"]')).toContainText("your settings couldn't be read");
+
+  // THE WRITE IS DISARMED, not merely labelled: toggle a real leaf, wait past the whole debounce, and
+  // nothing reaches the wire.
+  const avatars = component.getByRole("switch", { name: AVATARS_SWITCH, exact: true });
+  await expect(avatars).toBeVisible();
+  const before = await avatars.getAttribute("aria-checked");
+  await avatars.click();
+  // BARRIER on the RENDERED settled edit — the switch's own state is the committed form value, and it is
+  // the instant the debounce would have armed from.
+  await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
+  // The negative-assertion WINDOW — a real-timer sleep evaluated in the page (`page.waitForTimeout` is
+  // biome-banned, `noPlaywrightWaitForTimeout`; this is the house idiom the prose-cap pin above uses).
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
+  // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
+  // plus the full debounce window, so the read IS settled at this line.
+  // ONESHOT-OK: a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
+  expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
+});
+
+test("UNREADABLE SETTINGS — the reset door is the ONE repair, and it is confirmed before it fires", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("schema-rejected"),
+    "settings.listThemes": () => LOOKS_THEMES,
+    "settings.resetUserConfig": () => USER_SETTINGS_VIEW,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  await component.getByRole("button", { name: "Reset my settings to the defaults" }).click();
+  // The confirm is a PAGE-level dialog (a portal), and it names what is destroyed before anything fires.
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Reset all your settings?");
+  // The confirm dialog's own rendered text is the barrier immediately above; this asserts the mutation has
+  // NOT fired yet, and a call that must not exist cannot be polled for.
+  // ONESHOT-OK: a NEGATIVE recorder read, taken after the confirm dialog's rendered text settled.
+  expect(trpc.count("settings.resetUserConfig")).toBe(0);
+  await confirm.getByRole("button", { name: "Reset settings" }).click();
+  await expect.poll(() => trpc.count("settings.resetUserConfig")).toBe(1);
+});
+
+test("UNREADABLE SETTINGS — a NEWER-version blob does not lead with reset, and its door says so", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => unreadableSettings("version-from-future"),
+    "settings.listThemes": () => LOOKS_THEMES,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  const notice = component.locator('[data-slot="stored-config-unreadable"]');
+  await expect(notice).toContainText("saved by a newer version of Orbweaver");
+  // The load-bearing difference: this blob is INTACT data an older build cannot represent, so the door is
+  // an explicit last resort rather than the fix, and the primary-repair wording must be absent.
+  await expect(component.getByRole("button", { name: "Reset my settings anyway" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Reset my settings to the defaults" })).toHaveCount(0);
+});
+
+test("READABLE SETTINGS — an intact blob is byte-identical to before: no state, and saving still works", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...HOST_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "settings.listThemes": () => LOOKS_THEMES,
+    "settings.updateUserSettingsSection": () => USER_SETTINGS_VIEW,
+  });
+  const component = await mount(<ConfigHostStory target="appearance" />);
+  await settledOnLanding(page, component, "Looks");
+
+  // THE CONTROL for the three pins above — without it they prove only that SOMETHING renders a band.
+  await expect(component.locator('[data-slot="stored-config-unreadable"]')).toHaveCount(0);
+  const avatars = component.getByRole("switch", { name: AVATARS_SWITCH, exact: true });
+  const before = await avatars.getAttribute("aria-checked");
+  await avatars.click();
+  await expect(avatars).not.toHaveAttribute("aria-checked", before ?? "");
+  await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBeGreaterThan(0);
 });

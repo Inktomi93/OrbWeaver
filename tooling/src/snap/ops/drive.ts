@@ -62,11 +62,38 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
  *  cannot be added without its reason. */
 const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
   absent:
-    "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app (a cold stage's first navigation is the usual cause; re-run against the now-warm stage)",
+    "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app. On `--isolated` the cold-stage warm-up navigation has ALREADY been retried inside this run (#1142), so reaching this line there means the stage's app does not mount at all: read the stage's stack log rather than re-running. Elsewhere (the dev stack, `--base`) this is the app itself failing to mount.",
   degraded: "data-app-ready came up DEGRADED — reads were still in flight at the readiness ceiling, so the capture is mid-hydration, not the settled app",
   dataless:
     "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the usual cause is the stage's vite still serving `/`'s lazy component chunk; check the stage's stack log and re-run against the now-warm stage.",
 };
+
+/** THE COLD-STAGE WARM-UP IS OURS TO PAY, NOT THE READER'S (#1142). A freshly created `--isolated` stage is
+ *  a vite that has never transformed this route: the FIRST navigation drives the on-demand build and the app
+ *  does not mount inside the readiness ceiling, so the run refused and told the reader to "re-run against the
+ *  now-warm stage". Reproduced at FOUR shas: that re-run refused the SAME way and only the THIRD invocation
+ *  measured — the message under-instructed by a whole run, which is the lying-instrument-message class.
+ *
+ *  The fix makes the promise TRUE rather than re-wording it: the warm-up navigation happens HERE, once,
+ *  inside the run that provoked it, and ONLY for a stage. A dev-stack or `--base` origin that never mounts is
+ *  a real app defect and still refuses on the first pass — retrying there would convert a finding into a
+ *  slower finding. Bounded by the same two ceilings, so the worst case for a genuinely dead stage app is one
+ *  extra nav+readiness ceiling paid once, instead of a third full CLI invocation paid by the caller. */
+async function readinessWithColdStageWarmup(
+  page: Page,
+  opts: Args,
+  url: string,
+  budgets: { readonly nav: number; readonly ready: number },
+): Promise<{ readonly readiness: AppReadiness; readonly httpError: string | null }> {
+  const first = await appReadiness(page, budgets.ready);
+  if (first !== "absent" || !opts.isolated) {
+    return { readiness: first, httpError: null };
+  }
+  print("[snap-stage] the stage's first navigation did not reach a mounted app (cold vite); re-navigating once before judging");
+  const retry = await page.goto(url, { waitUntil: "domcontentloaded", timeout: budgets.nav });
+  const httpError = retry !== null && !retry.ok() ? `HTTP ${String(retry.status())}` : null;
+  return { readiness: await appReadiness(page, budgets.ready), httpError };
+}
 
 export async function navigate(page: Page, opts: Args, url: string, failures?: DriveFailure[]): Promise<string | null> {
   // The ceilings are a function of the STAGE (a cold vite) AND of the declared LOAD ARM (#836) — see
@@ -94,9 +121,9 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   // ceiling fires with reads still in flight. Either shape is a nav error on a route we are serving,
   // because the capture below is NOT of the settled app and every downstream assertion about it is void.
   if (opts.file === null) {
-    const readiness = await appReadiness(page, budgets.ready);
-    if (readiness !== "settled" && navError === null) {
-      navError = UNSETTLED_REASON[readiness];
+    const settled = await readinessWithColdStageWarmup(page, opts, url, { nav: navTimeout, ready: budgets.ready });
+    if (navError === null) {
+      navError = settled.httpError ?? (settled.readiness === "settled" ? null : UNSETTLED_REASON[settled.readiness]);
     }
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).

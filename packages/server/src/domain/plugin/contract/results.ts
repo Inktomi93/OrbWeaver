@@ -39,6 +39,18 @@ export interface PluginView {
    *  `upload` install (the `origin ⟺ source_url` invariant: null exactly when `origin === "upload"`), which also
    *  tells a management surface whether to offer the "check for updates / update" affordance at all. */
   readonly sourceUrl: string | null;
+  /** WHERE a one-click update for this row would come from — `null` when nothing can serve one (#1740). ONE
+   *  question, answered once by the server, because the surface cannot answer half of it: `"url"` is derivable
+   *  from `origin`, but `"showcase"` is NOT — it means "this row is a SEEDED copy of a bundle this build ships"
+   *  (`@orb/showcase-plugins`), and the shipped slug set is server-side content the client must never re-spell.
+   *  A hand-uploaded plugin is `null` and keeps only the manual bundle upload.
+   *
+   *  IT IS NOT A SECOND HOME FOR `origin`. `origin` records HOW THE BYTES ARRIVED (an immutable provenance fact
+   *  the db CHECK pairs with `source_url`); this records WHO CAN SERVE THE NEXT VERSION, which for a seeded row
+   *  is the app itself even though its bytes arrived as an `upload`. Collapsing them would either need a new
+   *  origin member (breaking the `upload` ⟺ no-source-url invariant, and needing a backfill for every row seeded
+   *  before #1740) or leave the client guessing from the slug. */
+  readonly updateSource: PluginUpdateSource | null;
   readonly grantedCapabilities: readonly PluginCapability[];
   /** What the persisted manifest DECLARES (the ask). Always present — `capabilities` is a required manifest
    *  array — and possibly empty; `grantedCapabilities ⊆ this` is the standing invariant every grant write holds. */
@@ -210,10 +222,25 @@ export interface SnippetResult {
   readonly errorLine?: number;
 }
 
+/** The two things that can serve a NEWER bundle for an installed row (#1740) — the axis
+ *  {@link PluginView.updateSource} and the client's one-click affordance both dispatch on. ONE importable home
+ *  (§5.5): `"url"` = the remembered `source_url` the install rode, re-fetched through the egress guard;
+ *  `"showcase"` = the copy this build SHIPS (`@orb/showcase-plugins`), which is what makes a DIVERGED seeded
+ *  install updatable at all — the boot auto-upgrade deliberately passes over it, so the owner's own click is
+ *  the only path left.
+ *
+ *  It deliberately does NOT re-spell `PLUGIN_ORIGINS`: same-looking members, different axis (origin = how the
+ *  bytes arrived, this = who serves the next version), so it is its own tuple-free union rather than a subset
+ *  alias of one that would drift the moment a `catalog` origin lands. */
+type PluginUpdateSource = "url" | "showcase";
+
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
- *  on the arm that needs it nor invented on an arm that does not. A file-origin plugin (no `sourceUrl`) is never
- *  in a batch result at all — there is nothing to check, which is distinct from "unreachable". */
+ *  on the arm that needs it nor invented on an arm that does not. A row with NO {@link PluginUpdateSource} — a
+ *  hand-uploaded plugin nothing can serve a version for — is never in a batch result at all: there is nothing to
+ *  check, which is distinct from "unreachable". `unreachable` is the URL arm's leak-free collapse; a showcase row
+ *  cannot reach it (the bundle is on disk beside the server), and a slug this build no longer ships drops out of
+ *  the batch as un-checkable rather than reporting a source failure that did not happen. */
 export type PluginUpdateCheck =
   | { readonly pluginId: PluginId; readonly status: "up-to-date" }
   | { readonly pluginId: PluginId; readonly status: "update-available"; readonly newVersion: string }

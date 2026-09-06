@@ -109,7 +109,7 @@ export interface ChatToolExecFrame {
   readonly runAsUserId: UserId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
-  readonly roster: ChatMembership | null;
+  readonly participants: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
    *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
   readonly turnId: ChatTurnId;
@@ -191,6 +191,28 @@ type CopyHandoffBooksOp = (args: {
   readonly chatId: ChatId;
   readonly cardCopies: readonly HandoffCardCopy[];
 }) => Promise<readonly BatchStmt[]>;
+
+/** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
+ *  departing host's CHAT-TIER scripts into the nominee's library and returns the UNEXECUTED
+ *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
+ *  on its own, so unlike the lore arm it is not derived from what the seats did. */
+type CopyHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<readonly BatchStmt[]>;
+
+/** The host-handoff LORE copy's DISCLOSURE twin (world-info's `CountHandoffBooks`, declared structurally) —
+ *  how many DISTINCT books the copy above would mint for `toOwnerId`, resolved by the same owner-filtered
+ *  source reads and the same convergence rule, and writing nothing. `characterIds` are the SOURCE cards the
+ *  offer would copy (the card half); the room half needs no input. */
+type CountHandoffBooksOp = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+  readonly characterIds: readonly CharacterId[];
+}) => Promise<number>;
+
+/** The host-handoff REGEX copy's DISCLOSURE twin (regex's `CountHandoffRegexScripts`, declared
+ *  structurally) — how many scripts the copy above would MINT for `toOwnerId`, sharing the copy's own plan
+ *  resolver so a script the nominee already owns content-identically is disclosed as what it is: nothing new. */
+type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
@@ -435,7 +457,7 @@ export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => 
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
  *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgRosterActor` (rpg declares its
  *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
-export interface RpgRosterActor {
+export interface RpgParticipantActor {
   readonly actorRef: RpgActorRef;
   readonly name: string;
   readonly avatar?: string;
@@ -444,7 +466,7 @@ export interface RpgRosterActor {
 /** The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
  *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
  *  injected-op precedent). Wired into `RpgContext.resolveRoster` at the composition root (W1c-b). */
-export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
+export type ResolveRpgParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
 
 /** The DEEP canon-window read op (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed).
  *  STANDALONE + principal-free (the `ResolveRpgRoster` precedent — the rpg resync verb gated its host caller
@@ -531,7 +553,7 @@ type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
  *  an admin disable propagates the very next round. Chat never reads `users` itself — see
  *  {@link ResolveHandleOp}. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
  *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
- *  `substrate/roster-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
+ *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
  *  set the same way a departed member's already does. */
 type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
 
@@ -736,7 +758,7 @@ export interface ChatRpgOps {
    *  `steerIdentity` is chat's authoritative identity binding for the host-authored `steeringNote`, both values
    *  resolved CHAT-SIDE (chat owns `{{user}}`/`{{char}}` resolution): `user` = the triggering human's ACTIVE
    *  persona display name (`undefined` ⇒ no active persona → the "User" floor); `char` = the Ruling-B
-   *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CAST in a multi-character
+   *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CHARACTER NAMES in a multi-character
    *  room / the single character in solo). Threaded so rpg can render the steeringNote's identity macros
    *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces — rpg SPLICES
    *  chat's values, never re-deriving identity. Absent ⇒ the steeringNote ships verbatim (byte-identical).
@@ -827,6 +849,12 @@ export interface ChatRpgOps {
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
   readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly BatchStmt[]>;
+  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): WOULD an accepted `copyGmPreset` offer copy this
+   *  room's GM voice into `nomineeUserId`'s library? `true` only when the room is a game, its `gmPresetId` is
+   *  set, and the nominee cannot already read it — i.e. exactly the gate `handoffHealStatements` applies at
+   *  accept, asked without writing. A preset the nominee already owns answers FALSE and that is not a
+   *  degrade: the knob is left alone, so nothing lands in their library and nothing should be promised. */
+  readonly handoffWouldCopyGmPreset: (chatId: ChatId, nomineeUserId: UserId) => Promise<boolean>;
   /** HOST HANDOFF, POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from the
    *  source card's key onto the copy's (`rekeyActor` — the `promoteActor` mechanism). NOT statement-shaped and
    *  therefore NOT in the swap batch: it is a read-modify-write through rpg's hand door, which resolves the
@@ -875,6 +903,9 @@ export interface HandoffCopyPlan {
   readonly cardCopies: readonly HandoffCardCopy[];
   /** The UNEXECUTED `chat_books` detach-original/attach-copy statements world-info minted. */
   readonly bookRepoint: readonly BatchStmt[];
+  /** The UNEXECUTED `chat_regex_scripts` detach-original/attach-copy statements regex minted. Unlike the
+   *  book arm this does not ride on a card copy — a room's script attachment is room state of its own. */
+  readonly regexRepoint: readonly BatchStmt[];
 }
 
 /** The `handoffHealStatements` call args. Chat OWNS this shape (rpg satisfies it — the {@link ForkGameArgs}
@@ -1262,6 +1293,20 @@ export interface ChatContext {
    *  swap batch commits. Injected because the world-info tables are world-info's; a reference-carry would lose
    *  the lore silently (the character-book pool is owner-filtered). */
   readonly copyHandoffBooks: CopyHandoffBooksOp;
+  /** HOST HANDOFF, the accepted offer's REGEX arm: copy the departing host's chat-tier scripts into the
+   *  nominee's library, returning the UNEXECUTED `chat_regex_scripts` re-point the swap batch commits.
+   *  Injected because `regex_scripts` is the regex domain's. Without it the departed host keeps an EDITABLE
+   *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
+   *  except executable, and un-flippable by anyone still in the room (#1739). */
+  readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
+  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): how many books / scripts an accept would land in
+   *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
+   *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a
+   *  disclosure must be UNABLE to write: the nomination happens before consent, and an op that could mint is
+   *  an op that eventually will. Each lives in its copy's own file over its copy's own plan resolver, so
+   *  what the row promises and what the accept does cannot drift into two rules. */
+  readonly countHandoffBooks: CountHandoffBooksOp;
+  readonly countHandoffRegexScripts: CountHandoffRegexScriptsOp;
   /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
    *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
    *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */

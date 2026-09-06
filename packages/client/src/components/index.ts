@@ -17,10 +17,12 @@ export type { GreetingStudioProps } from "./greeting-studio.tsx";
 export { GreetingStudio } from "./greeting-studio.tsx";
 export type { LibraryRowActions, LibraryRowProps } from "./library-row.tsx";
 export { LibraryRow } from "./library-row.tsx";
-export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library-surface.tsx";
-export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface.tsx";
+export type { LibraryListFrameProps, LibraryListLayoutProps, LibraryListRowsProps, LibrarySurfaceShellProps } from "./library-surface.tsx";
+export { LibraryListFrame, LibraryListLayout, LibraryListRows, LibrarySurfaceShell } from "./library-surface.tsx";
 export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header.tsx";
 export { ListPaneHeader } from "./list-pane-header.tsx";
+export type { MemberDrillBack, MemberDrillHeaderProps } from "./member-drill-header.tsx";
+export { MemberDrillHeader } from "./member-drill-header.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
   CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,
@@ -53,6 +55,8 @@ export { SettingRowGroup } from "./setting-row-group.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
 export type { ConfigTeachScopeValue, SettingRowProps } from "./setting-teach-row.tsx";
 export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
+export type { StoredConfigUnreadableNoticeProps } from "./stored-config-unreadable-notice.tsx";
+export { StoredConfigUnreadableNotice } from "./stored-config-unreadable-notice.tsx";
 export type { TagPickerDialogProps } from "./tag-picker-dialog.tsx";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export type {

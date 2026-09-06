@@ -16,6 +16,7 @@ import { createListThemes } from "./verbs/list-themes.ts";
 import { createLoadUserSettings } from "./verbs/load-user-settings.ts";
 import { createPromoteTheme } from "./verbs/promote-theme.ts";
 import { createRemoveTheme } from "./verbs/remove-theme.ts";
+import { createResetUserConfig } from "./verbs/reset-user-config.ts";
 import { createUpdateTheme } from "./verbs/update-theme.ts";
 import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section.ts";
 
@@ -26,6 +27,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
   return {
     getUserSettings: createGetUserSettings(ctx),
     updateUserSettingsSection: createUpdateUserSettingsSection(ctx),
+    resetUserConfig: createResetUserConfig(ctx),
     addExternalBackground: createAddExternalBackground(ctx),
     loadUserSettings: createLoadUserSettings(ctx),
     getGlobalSetting: globalSettings.getGlobalSetting,

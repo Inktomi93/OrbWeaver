@@ -26,7 +26,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageBandsFile, StageDbProvenance, StageRow } from "../contract/stage.ts";
+import type { StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
 import { repoRoot } from "./stage-git.ts";
 
@@ -52,6 +52,16 @@ function readDeath(value: unknown): Pick<StageRow, "dead"> | Record<never, never
     : {};
 }
 
+/** The armed idle timer, when the row has one (#1163 arm b). Absent stays absent — a keeper is a fact
+ *  about a running process, never something to invent from a partial row. */
+function readKeeper(value: unknown): Pick<StageRow, "keeper"> | Record<never, never> {
+  if (!(isRecord(value) && typeof value["pid"] === "number" && typeof value["armedAt"] === "string")) {
+    return {};
+  }
+  const keeper: StageKeeper = { pid: value["pid"], armedAt: value["armedAt"] };
+  return { keeper };
+}
+
 function readDbProvenance(value: unknown): StageDbProvenance | null {
   if (!isRecord(value)) {
     return null;
@@ -64,7 +74,18 @@ function readDbProvenance(value: unknown): StageDbProvenance | null {
     : null;
 }
 
+/** THE table's env door, read once at module load because every consumer is a FRESH PROCESS (the snap cli,
+ *  the session daemon, the stage keeper, each spawned proof) — the same posture ops/session-registry.ts
+ *  states for `ORB_SNAP_SESSION_HOME`, and it exists for the same reason: a committed proof that wrote the
+ *  box's REAL `bands.json` would evict a live sibling lane's stage. It is also what lets a proof's SPAWNED
+ *  child (a keeper) agree with the parent about which table it is keeping, since the child inherits it. */
+// biome-ignore lint/style/noProcessEnv: the ambient TOOLING knob this file owns — the scratch band-table home the committed proofs plant, twin of ops/session-registry.ts's ORB_SNAP_SESSION_HOME. The env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
+const { ORB_SNAP_STAGE_HOME: HOME_OVERRIDE } = process.env;
+
 export function markerRoot(root: string): string {
+  if (HOME_OVERRIDE !== undefined && HOME_OVERRIDE !== "") {
+    return HOME_OVERRIDE;
+  }
   const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
   // No git answer at all ⇒ keep the table local: a per-checkout table is worse than none, but one
   // written to a guessed path would be invisible to every reader including this one.
@@ -108,6 +129,7 @@ function readRow(value: unknown): StageRow | null {
     dbProvenance: readDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
     ...readDeath(value["dead"]),
+    ...readKeeper(value["keeper"]),
   };
 }
 
@@ -213,6 +235,18 @@ export function touchRow(home: string, band: number, nowIso: string): void {
   });
 }
 
+/** Record the band's armed idle timer (#1163 arm b). Written by `armStageKeeper` alone, and read by the
+ *  keeper itself (to recognise that a rebuild replaced it) and by `--stage-status`. A missing row is a
+ *  no-op: there is no stage to keep. */
+export function setStageKeeper(home: string, band: number, keeper: StageKeeper): void {
+  withBandsLock(home, () => {
+    const row = readRowFor(home, band);
+    if (row !== null) {
+      writeRow(home, { ...row, keeper });
+    }
+  });
+}
+
 /** Persist the stage death a session observed; status/sweep read this same row. */
 export function markStageDead(home: string, band: number, detectedAt: string, op: string): void {
   withBandsLock(home, () => {
@@ -267,11 +301,41 @@ function lockHolderPid(path: string): number | null {
   }
 }
 
+/** Monotonic per-process tie-breaker so two releases of the same lock PATH inside one process (e.g.
+ *  successive test cases sharing a pid) never rename to the same `.releasing-*` name. */
+let releaseSeq = 0;
+
+/** Physically release a lock directory: RENAME it off its live name first, then remove the renamed copy.
+ *  The rename is the atomic step (#1732) — a concurrent `mkdirSync(path)` either lands on the fresh
+ *  (post-rename) name outright, or still sees the live directory and fails EEXIST; it can never observe
+ *  a half-removed directory. Before this, `rmSync(path, { recursive: true, force: true })` ran directly
+ *  against the LIVE name: its internal readdir→unlink→rmdir sequence is not atomic against a concurrent
+ *  write into that same still-live path, and a waiter that recreated `pid` in that window (a false-stale
+ *  break, or the "give up waiting" takeover below) made the rmdir see a non-empty directory and throw
+ *  ENOTEMPTY out of the holder's own release.
+ *  `onRenamed` is a TEST SEAM ONLY, firing after the rename and before the removal so a suite can plant
+ *  that exact race deterministically instead of chasing real OS-level timing — no production caller
+ *  passes it. */
+export function releaseLockDir(path: string, onRenamed?: () => void): void {
+  releaseSeq += 1;
+  const releasing = `${path}.releasing-${process.pid}-${releaseSeq}`;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the rename target is already gone — someone
+  // else's break or release beat us to it — which means there is nothing left for THIS caller to remove.
+  // Ends if this ever stops being a "someone else already finished the job" race.
+  try {
+    renameSync(path, releasing);
+  } catch {
+    return;
+  }
+  onRenamed?.();
+  rmSync(releasing, { recursive: true, force: true });
+}
+
 function breakStaleLock(path: string, startedMs: number): void {
   const pid = lockHolderPid(path);
   const dead = pid === null || !pidAlive(pid);
   if (dead || Date.now() - startedMs > LOCK_STALE_MS) {
-    rmSync(path, { recursive: true, force: true });
+    releaseLockDir(path);
   }
 }
 
@@ -303,7 +367,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     }
     breakStaleLock(path, Date.now());
     if (Date.now() > deadline) {
-      rmSync(path, { recursive: true, force: true });
+      releaseLockDir(path);
       mkdirSync(path, { recursive: true });
       writeFileSync(join(path, "pid"), `${process.pid}\n`);
       break;
@@ -315,7 +379,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     return fn();
   } finally {
     LOCK_DEPTH.delete(home);
-    rmSync(path, { recursive: true, force: true });
+    releaseLockDir(path);
   }
 }
 

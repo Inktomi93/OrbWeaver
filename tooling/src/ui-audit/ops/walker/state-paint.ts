@@ -101,8 +101,9 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
   ];
   var STATE_PAINT_ATTR_SET = {};
   for (var spa = 0; spa < STATE_PAINT_ATTRS.length; spa += 1) STATE_PAINT_ATTR_SET[STATE_PAINT_ATTRS[spa]] = 1;
-  // The Tailwind CLASS-name variant form of the same vocabulary (census-decor's img class arm).
-  var STATE_VARIANT_TRANSFORM_RE = new RegExp("^(?:hover|" + STATE_PAINT_ATTRS.join("|") + "):(scale|rotate|translate-x|translate-y|skew-x|skew-y)-");
+  // The Tailwind CLASS-name variant form (census-decor's img class arm). group-QUALIFIED too (#1075):
+  // \`group-hover:scale-105\` sits on a WRAPPER, never the <img> (media-tile-grid/variants.ts:43).
+  var STATE_VARIANT_TRANSFORM_RE = new RegExp("^(?:group-)?(?:hover|" + STATE_PAINT_ATTRS.join("|") + "):(scale|rotate|translate-x|translate-y|skew-x|skew-y)-");
 
   /** Every state-attribute occurrence in one selector string. An occurrence is an UNESCAPED
    *  \`[data-…]\` whose name is in the vocabulary; \`depth\` says whether it sits at the selector's

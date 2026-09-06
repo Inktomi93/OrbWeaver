@@ -11,7 +11,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { EntryPosition } from "@orb/kit/world-info";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
-import type { PromptTransformOutcome, PromptTransformPoint } from "#chat";
+import type { PromptTransformOutcome, PromptTransformPoint, VariablePrecondition, VariableWriteResult } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
@@ -59,6 +59,18 @@ export interface PluginCharacterView {
 /** The same `set`/`add`/`inc`/`dec`/`delete` op vocabulary the delta model defines — the ONE home is the kit
  *  `VarOp` (aliased, never re-spelled); a guest write rides the SAME delta seam actions use. */
 export type PluginVariableOp = VarOp;
+
+/** The OPTIONAL compare-and-set half of a guest variable write (#1555) — the ONE home is
+ *  `@orb/contracts/chat`'s {@link VariablePrecondition}, aliased here the way {@link PluginVariableOp} aliases
+ *  the kit op. A guest that read a value, computed from it and wants the write to land only if nothing moved
+ *  underneath passes its belief; the shape is deliberately NOT an op member (see the one home for why). */
+type PluginVariablePrecondition = VariablePrecondition;
+
+/** What `chat.applyVariableOps` answers (#1555) — `@orb/contracts/chat`'s {@link VariableWriteResult}, aliased.
+ *  A lost race is DATA the guest branches on (`outcome === "stale"` + the live values), never a throw: an
+ *  uncaught throw here would spend one of the three crash strikes that auto-disable a plugin, and losing a
+ *  contended write is a normal outcome, not a fault. */
+type PluginVariableWriteResult = VariableWriteResult;
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
  *  updatable, host-side idempotent. */
@@ -213,8 +225,17 @@ export interface PluginHostV1 {
      *  chat the caller isn't in — a non-member resolves to `[]` (the `listMessages` viewer choke, member-gated).
      *  capability: chat.read */
     listCharacters: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
-    /** Variable writes ride the SAME delta seam actions use — capability: chat.variables.write */
-    applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
+    /** Variable writes ride the SAME delta seam actions use — capability: chat.variables.write.
+     *  `expect` is the optional compare-and-set: the ops land only while EVERY precondition still holds against
+     *  the live fold, and a violated one refuses the whole call AS DATA (`{ outcome: "stale", actual }`) without
+     *  writing anything, so a read → compute → write guest (a clock tick, a counter) can retry against `actual`
+     *  instead of silently losing its update to a writer on the other side of the invoke queue. Omit `expect`
+     *  for an unconditional write — it can only answer `applied`. */
+    applyVariableOps: (
+      chat: ChatHandle,
+      ops: readonly PluginVariableOp[],
+      expect?: readonly PluginVariablePrecondition[],
+    ) => Promise<PluginVariableWriteResult>;
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the

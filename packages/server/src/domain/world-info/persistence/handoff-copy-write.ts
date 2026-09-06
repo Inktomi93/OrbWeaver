@@ -16,7 +16,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy.ts";
+import type { CopyHandoffBooks, CountHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy.ts";
 
 type BookRow = typeof worldBooks.$inferSelect;
 
@@ -103,6 +103,37 @@ export function createCopyHandoffBooks(ctx: WorldInfoHandoffCopyContext): CopyHa
       await db.batch(batchMany(mints));
     }
     return repoint;
+  };
+}
+
+/** THE DISCLOSURE (#1762) — the same two owner-filtered halves the copy above reads, counted instead of
+ *  minted. `db` only: a count opens no clock and mints no id, and giving it the write context would make it
+ *  look like one more writer in a file whose whole subject is writes.
+ *
+ *  The set arithmetic IS `copyBook`'s map, spelled once more in the small: every source book attached to the
+ *  offered cards, plus every chat-attached source book the recipient has no same-named book for on this chat,
+ *  DEDUPED BY SOURCE ID — a book attached to both a seated card and the room is one copy there and one here.
+ *  A recipient-converged room book is deliberately not counted: nothing new lands in their library for it.
+ *  (The card half has no convergence twin: `pendingCardCopies` skips copies that ALREADY carry junctions,
+ *  which cannot exist before the accept that mints them.) */
+export function createCountHandoffBooks(db: Db): CountHandoffBooks {
+  return async ({ fromOwnerId, toOwnerId, chatId, characterIds }): Promise<number> => {
+    if (fromOwnerId === toOwnerId) {
+      return 0;
+    }
+    const [cardHalf, roomHalf, alreadyOnChat] = await Promise.all([
+      ownedCharacterAttachments(db, fromOwnerId, characterIds),
+      ownedChatAttachments(db, fromOwnerId, chatId),
+      recipientBookNamesOnChat(db, toOwnerId, chatId),
+    ]);
+    // @orb-gate-ignore persistence-no-in-memory-state: call-local dedup of source book ids.
+    const minted = new Set<WorldBookId>(cardHalf.map((attachment) => attachment.book.id));
+    for (const source of roomHalf) {
+      if (!alreadyOnChat.has(source.name)) {
+        minted.add(source.id);
+      }
+    }
+    return minted.size;
   };
 }
 

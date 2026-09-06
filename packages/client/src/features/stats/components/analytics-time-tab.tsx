@@ -33,12 +33,18 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="gloss">Loading activity…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
-    >
-      <TimeBody />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1727, the #1133 hoist — the models tab's header carries
+    // the mechanism). Hoisted, the reservation's measuring wrapper sits INSIDE the scroller, where an
+    // auto-height child is exactly what a scroller wants, and the scroller survives the read.
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsTimeTab")}>
+      <QueryBoundary
+        fallback={<Text voice="gloss">Loading activity…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
+        reserveKey="analytics.time"
+      >
+        <TimeBody />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -51,7 +57,7 @@ function TimeBody(): ReactElement {
   const tokensOutProvenance = seriesTokenProvenance(points);
 
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsTimeTab")}>
+    <Stack gap="section">
       <LibraryScopeNotice reason="Daily activity is rolled up per day across every character, with no per-character breakdown to narrow to." />
 
       {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print

@@ -2,7 +2,7 @@
 // prints a bounded receipt card, and can be read browser-free by absolute path, exact id, or local latest.
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/_shared/artifact-out";
 import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/_shared/artifact-out";
 import type { BrowserDiagnostic } from "@orb/tooling/_shared/browser-diagnostics";
@@ -275,6 +275,12 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   const file = join(scratch, "bundle.html");
   await writeFile(file, '<!doctype html><html data-app-ready="settled"><body><main><button id="x">x</button></main></body></html>');
   const argv = ["--file", file, "--aria", "--map", "--json", "--no-deadcss", "--no-failure-evidence"];
+  // A LANE NAME UNIQUE TO THIS RUN (#1744). The listing below asks the reader to find THIS run, and
+  // `--reports` shows the newest 20 across EVERY registered worktree of the repo — measured on this box:
+  // 302 slots in one lane's checkout alone, `RUNS OMITTED valid=3761 total=3781` on main. A fixed lane
+  // name is not enough either (a sibling worktree running this same file mints one too), so the lane
+  // carries the scratch dir's mkdtemp suffix: one run, one lane, `matched=1`.
+  const lane = `bundle-lane-${basename(scratch)}`;
   // A PLANTED QUIET BOX (#1651). Every rate arm is labelled `load-suspect` above per-core loadavg 1.0
   // (≥ 24 on this 16c/24t box) and the run then carries a run-global `annotation` finding — correct
   // behaviour, and it made the "no findings" assertion below a reading of the HOST rather than of snap
@@ -283,7 +289,7 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   // and a receipt taken under it stamps `load=…(planted)` so no run can pretend to be quiet silently.
   const run = await runCli("snap", argv, {
     timeoutMs: CLI_TIMEOUT_MS,
-    env: { [RUN_LANE_ENV]: "bundle-lane", [RUN_AGENT_ENV]: "bundle-agent", [BOX_LOAD_ENV]: QUIET_BOX },
+    env: { [RUN_LANE_ENV]: lane, [RUN_AGENT_ENV]: "bundle-agent", [BOX_LOAD_ENV]: QUIET_BOX },
   });
   const path = indexPath(run.stdout);
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
@@ -373,9 +379,16 @@ test("a completed run writes a self-consistent index and its receipt READ comman
     expect(armReport.stdout).not.toMatch(/^DIAGNOSTIC\s+\[/gmu);
   }
 
-  const listing = await runCli("snap", ["--reports"]);
+  // NARROWED BY LANE, NEVER BY "THE NEWEST N" (#1744): an unfiltered `--reports` shows the newest 20 runs
+  // of every registered worktree, so this row's presence was really a claim about how many snap children
+  // the rest of the battery happened to finish in between — green alone, red under co-scheduling. The
+  // filter is the product's own answer (the omission line advertises it), and `matched=1 of N` proves the
+  // window contains exactly this run rather than a lucky ordering.
+  const listing = await runCli("snap", ["--reports", "--lane", lane]);
   await expect(listing).toExitWith(EXIT.clean);
   expect(listing.stdout).toContain(`RUN ${index.identity.runId} checkout=${index.identity.checkout}`);
+  expect(listing.stdout).toMatch(new RegExp(`^RUNS FILTERED lane=${lane} matched=1 of \\d+ valid run\\(s\\)$`, "mu"));
+  expect(listing.stdout).not.toContain("RUNS OMITTED");
   expect(listing.stdout).not.toMatch(/\bdirty=|\bdigest=|\bsource=(?:clean|working-tree|unknown)\b/u);
   expect(listing.stdout).not.toContain("RUN INDEX REFUSED");
   expect(listing.stdout).not.toContain("run slot");

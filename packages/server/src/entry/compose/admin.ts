@@ -31,7 +31,10 @@ export interface AdminComposeDeps {
   readonly newUserId: () => UserId;
   readonly hashPassword: (password: string) => Promise<string>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalId">;
+  readonly sessions: Pick<
+    SessionsService,
+    "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalIdStatement" | "settleUnclaimedLink"
+  >;
   /** W7a — the live-socket eviction edge for every admin revoke (see the wrapper below for the granularity
    *  ruling). Transport state, injected as a port: `domain/admin` may not import transport. */
   readonly sockets: SessionSocketEviction;
@@ -109,8 +112,11 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       evictUserSockets: (userId: UserId): void => {
         deps.sockets.evictUser(userId);
       },
-      // B5 — the bind-once linking capability (domain/sessions); admin gates + audits around it.
-      linkExternalId: (userId, externalId) => sessions.linkExternalId(userId, externalId),
+      // B5/#1707 — the bind-once linking capability (domain/sessions), SPLIT the same way the kick is: the
+      // identity bind rides the admin verb's audited batch unexecuted, and the settlement read explains a
+      // claim that bound nothing. admin gates + audits around both.
+      linkExternalIdStatement: sessions.linkExternalIdStatement,
+      settleUnclaimedLink: sessions.settleUnclaimedLink,
     },
     vllm: {
       // Merge the live lifecycle record with each engine's env-only DEPLOYMENT facts (port + store path)

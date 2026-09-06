@@ -38,6 +38,7 @@ function indeterminateFinding(selector: string, value: string, message: string):
 type ContrastOutcome =
   | { readonly kind: "dimmed" }
   | { readonly kind: "unresolvedBackdrop" }
+  | { readonly kind: "maskedForeground" }
   | { readonly kind: "inactive"; readonly unmeasurable: "imageIndeterminate" | "translucentBackdrop" | null; readonly finding: Finding | null }
   | { readonly kind: "image"; readonly finding: Finding }
   | { readonly kind: "gradient"; readonly finding: Finding | null }
@@ -48,10 +49,19 @@ type ContrastOutcome =
  *  background reports as "contrast" at P1. */
 export function checkContrast(input: ContrastInput): Finding | null {
   const outcome = contrastOutcome(input);
-  return outcome.kind === "dimmed" || outcome.kind === "unresolvedBackdrop" ? null : outcome.finding;
+  return outcome.kind === "dimmed" || outcome.kind === "unresolvedBackdrop" || outcome.kind === "maskedForeground" ? null : outcome.finding;
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
+  // A MASKED FOREGROUND IS UNRESOLVED, NEVER FLAT (#1078, orb-ui audit F6). `mask-image`
+  // (`.scroll-fade-x`/`.scroll-fade-y`) fades the PAINTED alpha toward transparent at a live scroll
+  // offset — `color`/`foregroundOpacity` still report the full-strength authored value, so resolving
+  // this sample as if it were opaque would be a fabricated ratio, and pixel-sampling it would measure
+  // whatever scroll position happened to be live when the walk ran, not a stable fact. WITHHELD, checked
+  // before every other branch so a masked sample can never fall through to a flat/gradient/image verdict.
+  if (input.foregroundMasked === true) {
+    return { kind: "maskedForeground" };
+  }
   const large = isLargeText(input.fontSizePx, input.fontWeight);
   const minRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
   const opacity = input.foregroundOpacity ?? 1;
@@ -346,7 +356,8 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
   const { contrast, overArt, inactive } = tallies;
   switch (outcome.kind) {
     case "dimmed":
-    case "unresolvedBackdrop": {
+    case "unresolvedBackdrop":
+    case "maskedForeground": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.withheld, outcome.kind);
       }

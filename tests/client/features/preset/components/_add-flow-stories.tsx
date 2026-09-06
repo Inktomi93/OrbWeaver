@@ -11,7 +11,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
 import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab.tsx";
 import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab.tsx";
@@ -28,11 +28,12 @@ function usePersistenceSpy(read: (config: PromptConfig) => number): {
 } {
   const [saves, setSaves] = useState(0);
   const [savedLen, setSavedLen] = useState(-1);
-  const readRef = useRef(read);
-  readRef.current = read;
+  // `save` closes over `read` DIRECTLY (never a ref-mirrored copy) — this function is recreated fresh
+  // every render, same as `read` itself, so there is no stale-closure risk a ref would guard against
+  // (react-hooks/refs bans mutating a ref during render).
   const save = (values: PromptConfig): Promise<void> => {
     setSaves((n) => n + 1);
-    setSavedLen(readRef.current(values));
+    setSavedLen(read(values));
     return Promise.resolve();
   };
   return { save, saves, savedLen };

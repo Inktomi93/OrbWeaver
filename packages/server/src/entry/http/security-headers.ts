@@ -97,6 +97,18 @@ const OWN_POLICY_DOC_PREFIXES = [CARD_FRAME_DOC_PREFIX, PLUGIN_FRAME_DOC_PREFIX]
  * SERVED by the frame route (its 404 arm returns `MISS_DOC` under that file's own frame headers), so it is a
  * response that carries its own policy and must stay exempt. "One more segment" is the honest predicate —
  * it is what the router itself will route.
+ *
+ * WHAT MAKES "what the router will route" TRUE, since this predicate re-derives a routing decision (#1611):
+ * `c.req.path` is not a second reading of the URL. hono's `#dispatch` computes the path ONCE
+ * (`const path = this.getPath(request, { env })`, `node_modules/hono/dist/hono-base.js`) and hands that same
+ * string to BOTH `router.match(method, path)` and the `Context`, so the segment count this function sees is
+ * by construction the segment count the router matched on. `getPath` decodes with `decodeURI`
+ * (`tryDecodeURI`, `dist/utils/url.js`), which PRESERVES `%2F` — so `<prefix>a%2Fb` is one segment to both,
+ * and the frame handler serves it under its own policy. If a hono upgrade ever switched that decoder to
+ * `decodeURIComponent`, both readings would move TOGETHER (`a/b` → two segments → not exempt → the app
+ * policy lands on the router's 404), which is the safe direction. The unsafe direction needs hono to stop
+ * sharing that one string, or an app-level `getPath` OPTION overriding it — we set neither, and
+ * `tests/server/entry/http/security-headers.test.ts` pins the observable so a regression is loud.
  */
 function servesOwnPolicy(path: string): boolean {
   return OWN_POLICY_DOC_PREFIXES.some((prefix) => {

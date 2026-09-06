@@ -230,7 +230,6 @@ function fakes(): Fakes {
       byHandle.set(input.handle, id);
       return Promise.resolve({ id });
     },
-    update: () => Promise.resolve({ id: castId<CharacterId>("chr_unused") }),
     findByImportHash: ({ importHash }) => {
       const id = byHash.get(importHash);
       return Promise.resolve(id === undefined ? null : { characterId: id });

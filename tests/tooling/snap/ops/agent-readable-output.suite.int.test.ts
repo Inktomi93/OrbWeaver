@@ -4,11 +4,13 @@
 // token among ~40 on the RESULT line, and ten run slots that could not be mapped back to the ten commands
 // that made them. They assert through STDOUT — the surface the reader actually has — never through a
 // printer's internals.
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
 import { beforeEach, vi } from "vitest";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -31,8 +33,29 @@ beforeEach(() => {
  *  truncated snap run loses its END CARD — the one block that carries the verdict and the findings.
  *  4 KB, not 8 (#1369): at 8 KB the four annotation rows of a real /chats run were 42% of the file,
  *  because each printed the run's absolute index path TWICE. The rows are unchanged; their citations
- *  are now the run id the reader can hand straight back to `--report`. */
+ *  are now the run id the reader can hand straight back to `--report`.
+ *
+ *  WHAT THE BUDGET MEASURES (ruled here, #1556 + #1675; recorded in
+ *  docs/design/1208-instrument-substrate.md §10.11): the AGENT-READABLE BODY — every line whose length is
+ *  a function of THIS run's own arms and findings. The two PROVENANCE lines below are excluded, because
+ *  their length is a function of HOW MANY OTHER RUNS happen to be live on this checkout, which is a
+ *  property of the box and not of snap's output contract: co-scheduled with another snap-spawning suite, a
+ *  run gains a `CONCURRENT` line plus its `concurrency=` twin (~230 bytes measured, #1675) and a budget
+ *  that counted them turned a green contract into a red one on load alone. They are not unmeasured — the
+ *  arm below pins them against a PLANTED racing slot, and the exclusion is proven to remove exactly those
+ *  two lines and nothing else. */
 const STDOUT_BUDGET_BYTES = 4096;
+/** The two provenance line prefixes the budget excludes. Both are run-identity plumbing addressed to a
+ *  reader reconstructing which slot produced what, and both carry the racing census. */
+const PROVENANCE_PREFIXES = ["CONCURRENT", "PROVENANCE"] as const;
+
+/** stdout minus the provenance lines — what {@link STDOUT_BUDGET_BYTES} is a budget for. */
+function agentReadableBody(stdout: string): string {
+  return stdout
+    .split("\n")
+    .filter((line) => !PROVENANCE_PREFIXES.some((prefix) => line.startsWith(prefix)))
+    .join("\n");
+}
 /** Where the answer to a one-action run has to be. Line 61 (measured, /chats `--eval`) is a scroll. */
 const ANSWER_LINE_CEILING = 12;
 
@@ -61,7 +84,8 @@ test("an eval-only run answers inside one screen and points at its console inste
   const run = await runCli("snap", ["--file", file, "--eval", "document.title", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(run).toExitWith(EXIT.clean);
-  expect(run.stdout.length, `stdout was ${String(run.stdout.length)} bytes:\n${run.stdout}`).toBeLessThan(STDOUT_BUDGET_BYTES);
+  const body = agentReadableBody(run.stdout);
+  expect(body.length, `the agent-readable body was ${String(body.length)} bytes:\n${run.stdout}`).toBeLessThan(STDOUT_BUDGET_BYTES);
   // THE ANSWER, on the first screen.
   const answer = lineIndexOf(run.stdout, (line) => line.includes('"agent readable"'));
   expect(answer, `the --eval value was at line ${String(answer + 1)}:\n${run.stdout}`).toBeGreaterThan(-1);
@@ -244,4 +268,50 @@ test("--out on a cheap-ladder run is not an ARG WARNING, and on a bare --no-shot
   // The control: nothing but `--out` and `--no-shot` — the case the warning was written for.
   const bare = await runCli("snap", ["--file", file, "--out", "agent-readable-bare", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(bare.stdout).toContain("NO IMAGE WILL BE WRITTEN");
+});
+
+test("#1556/#1675 — the 4 KB budget measures the agent-readable body; the racing census is excluded and pinned", async ({ repoRoot, runCli, scratch }) => {
+  const file = join(scratch, "agent-readable-concurrency.html");
+  await writeFile(file, FIXTURE);
+
+  // PLANTED RACING SLOT. The census in tooling/src/_shared/artifacts.ts calls a sibling slot live when its
+  // `.inflight` marker names a pid that answers signal 0 — so a directory naming THIS vitest process is a
+  // second live run as far as the next snap child is concerned, and it is deterministic where
+  // co-scheduling two suites is not. If that marker name ever changes, the CONCURRENT assertion below goes
+  // RED rather than silently measuring an uncontended run.
+  const racingId = `planted-racer-${String(process.pid)}`;
+  const racingDir = join(repoRoot, "reports", "runs", "snap", racingId);
+  await mkdir(racingDir, { recursive: true });
+  await writeFile(
+    join(racingDir, ".inflight"),
+    `${JSON.stringify({ runId: racingId, pid: process.pid, checkout: "planted", startedAt: new Date(FROZEN_AT_MS).toISOString() })}\n`,
+  );
+
+  try {
+    const run = await runCli("snap", ["--file", file, "--eval", "document.title", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+
+    await expect(run).toExitWith(EXIT.clean);
+    // The plant fired: this run really did see a racing sibling, so the two provenance lines really are
+    // carrying a census here.
+    // The planted racer must be IN the census — never that it is the only one or the first: this file runs
+    // beside its own siblings, each of which is a real live snap run, and pinning position made this arm
+    // fail under exactly the co-scheduling #1675 is about.
+    const concurrent = run.stdout.split("\n").find((line) => line.startsWith("CONCURRENT"));
+    expect(concurrent, `the planted racing slot did not reach the run's census:\n${run.stdout}`).toContain(racingId);
+    const provenance = run.stdout.split("\n").find((line) => line.startsWith("PROVENANCE"));
+    expect(provenance, "the census rides the PROVENANCE line too — that is why it is excluded twice").toContain("concurrency=");
+    expect(provenance).toContain(racingId);
+
+    // THE RULING: the body stays inside the budget while the census is live…
+    const body = agentReadableBody(run.stdout);
+    expect(body.length, `the agent-readable body was ${String(body.length)} bytes:\n${run.stdout}`).toBeLessThan(STDOUT_BUDGET_BYTES);
+    // …and the exclusion removes EXACTLY the two provenance lines, never a line of the body: what came off
+    // is byte-identical to those lines, so the budget cannot be widened by mislabelling something else as
+    // provenance.
+    const excluded = run.stdout.split("\n").filter((line) => PROVENANCE_PREFIXES.some((prefix) => line.startsWith(prefix)));
+    expect(excluded, "a run always states its provenance; both lines must be present to be excluded").toHaveLength(PROVENANCE_PREFIXES.length);
+    expect(run.stdout.length - body.length).toBe(excluded.reduce((total, line) => total + line.length + 1, 0));
+  } finally {
+    await rm(racingDir, { recursive: true, force: true });
+  }
 });

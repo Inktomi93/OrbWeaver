@@ -433,7 +433,7 @@ test("Hand off host… opens a confirm whose offer DEFAULTS OFF — confirming g
   await expect(offer).not.toBeChecked();
 
   await dialog.getByRole("button", { name: "Hand off" }).click();
-  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:cast=false:preset=false");
+  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:characters=false:preset=false");
 });
 
 test("checking the offer reaches the wire (both classes ride the one opt-in)", async ({ mount, page }) => {
@@ -447,7 +447,7 @@ test("checking the offer reaches the wire (both classes ride the one opt-in)", a
   await dialog.getByRole("checkbox", { name: OFFER_RE }).click();
   await dialog.getByRole("button", { name: "Hand off" }).click();
 
-  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:cast=true:preset=true");
+  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:characters=true:preset=true");
 });
 
 test("dismissing the confirm nominates NOBODY and forgets the box (a checked-then-cancelled offer cannot leak)", async ({ mount, page }) => {

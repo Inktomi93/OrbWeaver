@@ -62,6 +62,7 @@ import type {
   SetMessageHiddenParams,
   SetSeededGreetingParams,
 } from "../contract/params.ts";
+import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
@@ -80,6 +81,7 @@ import {
   shiftSeqRangeStatement,
 } from "../persistence/canon-write.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
   loadCanonStatRows,
@@ -93,14 +95,13 @@ import {
   loadVariantMessageId,
   loadVariantsByMessageIds,
 } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost } from "../substrate/auth/index.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
-import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
-import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { canonMessageDelta, editMessageDelta, editReasoningDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
@@ -207,12 +208,15 @@ async function applyRunOnEditRegex(
   args: {
     readonly chatId: ChatId;
     readonly slot: MessageView;
-    readonly roster: Awaited<ReturnType<typeof loadRoster>>;
+    readonly participants: Awaited<ReturnType<typeof loadParticipants>>;
     readonly hostUserId: UserId | null;
     readonly anchorPersonaId: PersonaId | null;
     readonly editorUserId: UserId;
     readonly editorPersonaId: PersonaId | null;
     readonly content: string;
+    /** #1742 — the room's regex levers, off the chat row the caller already holds. A runOnEdit re-apply must
+     *  run the SAME set a live turn would, so a tier this room switched off is switched off here too. */
+    readonly regexAllow: HostTierRegexAllow;
   },
 ): Promise<string> {
   const placement = editPlacementFor(args.slot.role);
@@ -221,7 +225,7 @@ async function applyRunOnEditRegex(
   }
   const { chatId, hostUserId } = args;
   const model = args.slot.model ?? "";
-  const characterIds = args.roster.flatMap((r) => {
+  const characterIds = args.participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
@@ -231,7 +235,7 @@ async function applyRunOnEditRegex(
   // presence-only `presentHumanUserIdsOf` (2026-08-15): a runOnEdit re-apply must agree with the live turn
   // path on the enabled axis too, or a disabled member's persona could re-resolve on every future edit even
   // after generation started refusing it (the same silently-dead-pin bug class, edit-triggered).
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.roster);
+  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
@@ -244,9 +248,10 @@ async function applyRunOnEditRegex(
     // because the list was built from this one persona.
     trigger: { kind: "human", userId: args.editorUserId, personaId: args.editorPersonaId },
   });
-  const scripts = resolveHostTierRegexScripts(
-    await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId }),
-  ).filter((script) => script.runOnEdit === true);
+  const scripts = resolveHostTierRegexScripts({
+    ...(await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId })),
+    allow: args.regexAllow,
+  }).filter((script) => script.runOnEdit === true);
   if (scripts.length === 0) {
     return args.content;
   }
@@ -267,8 +272,8 @@ async function resolveStatsOwner(
   chatId: ChatId,
   fallback: MessageView["authorUserId"] & {},
 ): Promise<NonNullable<MessageView["authorUserId"]>> {
-  const roster = await loadRoster(ctx.db, chatId);
-  return hostUserIdOf(roster) ?? fallback;
+  const participants = await loadParticipants(ctx.db, chatId);
+  return hostUserIdOf(participants) ?? fallback;
 }
 
 /** One raw message_variants row (a slot's stored variant — the selected one or a swipe). */
@@ -381,13 +386,13 @@ async function freezeSelectedVariant(
     readonly chatId: ChatId;
     readonly slot: MessageView;
     readonly variant: Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
-    readonly roster: Awaited<ReturnType<typeof loadRoster>>;
+    readonly participants: Awaited<ReturnType<typeof loadParticipants>>;
     readonly anchorPersonaId: PersonaId | null;
     readonly selectorUserId: UserId;
     readonly selectorPersonaId: PersonaId | null;
   },
 ): Promise<{ readonly statement: ReturnType<typeof freezeVariantContentStatement>; readonly content: string } | null> {
-  const hostUserId = hostUserIdOf(args.roster);
+  const hostUserId = hostUserIdOf(args.participants);
   // A user slot has exactly one variant (nothing to select between) and a hostless orphan cannot resolve the
   // room context the bake reads — both are the no-op arm, not a refusal.
   if (args.slot.role !== "assistant" || hostUserId === null) {
@@ -399,13 +404,13 @@ async function freezeSelectedVariant(
   const source = args.variant.rawContent ?? args.variant.content;
   const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
   const model = args.variant.model ?? "";
-  const characterIds = args.roster.flatMap((r) => {
+  const characterIds = args.participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   // Same enabled-axis narrowing as the runOnEdit re-apply above (2026-08-15) — the greeting re-bake must agree
   // with the live turn / edit paths on who's still a valid foreign-persona consent.
-  const presentHumanUserIdsForBake = await presentAndEnabledHumanUserIdsOf(ctx, args.roster);
+  const presentHumanUserIdsForBake = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: hostUserId,
@@ -464,7 +469,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
     const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
     const oldVariant = variants.find((v) => v.id === slot.selectedVariantId);
     const selected = variants.find((v) => v.id === variantId);
-    const roster = await loadRoster(ctx.db, chatId);
+    const participants = await loadParticipants(ctx.db, chatId);
     // D129-F: bake the incoming variant's volatiles BEFORE the stats swap is measured, so the word/byte
     // delta counts the bytes the room actually gains — a bake that landed after the delta would leave the
     // rollup describing a body that never existed.
@@ -475,7 +480,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
             chatId,
             slot,
             variant: selected,
-            roster,
+            participants,
             anchorPersonaId: membership.chat.anchorPersonaId,
             selectorUserId: principal.userId,
             selectorPersonaId: membership.activePersonaId,
@@ -520,18 +525,19 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
   return async ({ principal, chatId, messageId, content }: EditMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(roster);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(participants);
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
     const clean = await applyRunOnEditRegex(ctx, deps, {
       chatId,
       slot,
-      roster,
+      participants,
       hostUserId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       editorUserId: principal.userId,
       editorPersonaId: membership.activePersonaId,
       content: purified,
+      regexAllow: regexAllowOf(membership.chat.metadata),
     });
     const now = ctx.now();
     const statements = editMessageContentStatements(ctx.db, {
@@ -594,8 +600,8 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     if (await loadHasUserMessage(ctx.db, chatId)) {
       throw new ChatOperationError(CHAT_OP_CODES.greetingFrozen, `chat ${chatId}: the greeting froze at the first user turn`);
     }
-    const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(roster);
+    const participants = await loadParticipants(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(participants);
     if (hostUserId === null) {
       throw new ChatNotFoundError(chatId);
     }

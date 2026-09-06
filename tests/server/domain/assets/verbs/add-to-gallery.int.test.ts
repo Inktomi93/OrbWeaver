@@ -8,13 +8,21 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
+import { sql } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 const FROZEN_AT = 1_750_000_000_000;
+
+// The #1478.5 "reachable Unreachable" shape in a second home (#1576): `insertGalleryItem` and the
+// post-insert `galleryItemViewById` re-read are two SEPARATE statements with no transaction between them.
+// Holds the re-read's own SELECT (an inner join unique to `galleryItemViewById`, distinct from
+// `insertGalleryItem`'s own conflict-resolution reads) and lands a concurrent delete of THAT SAME row in
+// the gap — proving the branch reachable rather than assuming it "can't happen".
+const GALLERY_VIEW_JOIN = /^select .* from "gallery_items" inner join "assets"/i;
 
 describe("addToGallery", () => {
   test("curates an owned asset (with a subject character) into a full view", async () => {
@@ -170,5 +178,29 @@ describe("addToGallery", () => {
         subjectCharacterId: foreignChar,
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  // #1576 — the #1478.5 "reachable Unreachable" shape in a second home: `insertGalleryItem` and the
+  // post-insert `galleryItemViewById` re-read are two separate statements with no transaction between
+  // them, so a concurrent delete of the SAME just-created row lands in the gap. Real concurrency (a real
+  // held statement, a real concurrent delete against the same db) rather than a synthetic mock.
+  test("a concurrent delete of the just-inserted row surfaces the typed NOT_FOUND, not a raw 500 (#1576)", async () => {
+    const { db, hold } = await freshHeldDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(8), kind: "gallery", mime: PNG });
+
+    const view = hold(GALLERY_VIEW_JOIN);
+    const adding = svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    await view.reached;
+    // The concurrent writer: another request deletes the row addToGallery just inserted, in the gap
+    // between the insert and this re-read. Raw SQL so the plant itself is not held (it does not match
+    // GALLERY_VIEW_JOIN).
+    await db.run(sql`delete from gallery_items`);
+    view.release();
+
+    await expect(adding).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });

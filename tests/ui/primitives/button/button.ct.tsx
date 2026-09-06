@@ -463,9 +463,8 @@ test.describe("coarse pointer — the glyph hit area", () => {
 // original paint byte-for-byte — so the shipped ring IS --color-sheen. Every colour comes from the TOKENS
 // map; a colour spelled in a CT is gate-RED and would assert our authoring, not the pixels.
 test("the CTA ring's sheen stop resolves through --color-sheen (re-binding repaints it; the token's own value restores it)", async ({ mount }) => {
-  // `intent` EXPLICIT: `data-cta` (the ring's hook) is stamped from the prop, and the primary default is
-  // applied inside the variant factory — an omitted `intent` reads `undefined` at the attribute, so the
-  // default-primary button carries no ring at all today (flagged 2026-08-01, not this lane's fix).
+  // `intent` EXPLICIT so this pin is about the ring's COLOUR and nothing else — the bare-vs-explicit
+  // question is its own test below (#1242).
   const button = await mount(<Button intent="primary">Save</Button>);
   const paint = (override?: string): Promise<string> =>
     button.evaluate((el, value) => {
@@ -478,6 +477,33 @@ test("the CTA ring's sheen stop resolves through --color-sheen (re-binding repai
   expect(painted).not.toBe("none");
   expect(await paint(TOKENS["color.destructive"].value)).not.toBe(painted);
   expect(await paint(TOKENS["color.sheen"].value)).toBe(painted);
+});
+
+// #1242 — THE DEFAULT-PRIMARY BUTTON WEARS THE RING IT PAINTS. `intent` has always defaulted to
+// `primary` in the variant factory, so a bare <Button> paints the primary FILL; the ring's hook used to
+// be stamped off the RAW prop, so an omitted `intent` read `undefined` and nine live call sites (the
+// shared form submit chrome among them) rendered a primary fill with no CTA ring — a primary that did
+// not look like the primary. The hook now derives from the RESOLVED arm, i.e. the same
+// `defaultVariants` lookup that picked the classes, so paint and ring cannot disagree.
+//
+// Read off the PIXELS, not the attribute: `data-cta` is our own authoring, the ::after gradient is what
+// a reader sees. Asserted against the explicit-primary TWIN rather than a literal, so a retune of the
+// ring moves both arms together and this pin keeps proving the one thing it is about — that the two
+// spellings of "primary" paint the same button.
+test('a bare Button paints the same CTA ring as an explicit intent="primary" (#1242)', async ({ mount, page }) => {
+  await mount(
+    <div>
+      <Button>Bare</Button>
+      <Button intent="primary">Explicit</Button>
+      <Button intent="secondary">Secondary</Button>
+    </div>,
+  );
+  const ring = (name: string): Promise<string> => page.getByRole("button", { name }).evaluate((el) => getComputedStyle(el, "::after").backgroundImage);
+  const explicit = await ring("Explicit");
+  expect(explicit).not.toBe("none");
+  expect(await ring("Bare"), "the default-primary button must paint the CTA ring").toBe(explicit);
+  // The complement, so the pin fails on a ring stamped onto EVERY intent as loudly as on a missing one.
+  expect(await ring("Secondary"), "a non-primary intent stays ringless").toBe("none");
 });
 
 test("loading sets aria-busy and disables the button", async ({ mount }) => {

@@ -1,6 +1,6 @@
 ---
 kind: design
-status: draft
+status: active
 updated: 2026-09-05
 ---
 
@@ -171,10 +171,10 @@ Composed from existing primitives wherever one fits; a NEW `@orb/ui` primitive n
 
 | Owed | Tier / home | Why nothing existing fits (receipt) | Anatomy | A11y model | CT owed |
 | - | - | - | - | - | - |
-| `SettingRowFrame` | client tier 2 `components/setting-row-frame.tsx` | `SettingSwitchRow` is control-specific and knows no modified/reset/scope; `<Field>` is the identity/description layer, not the settings chrome; needs `#state` (`configFocus`) + `#data` (`useConfigLeaf`) so it is NOT `@orb/ui` (§13.9 homing rule). Truth-repair: `ui-package-design.md` §2 lists a `setting-row` primitive that does not exist on the tree — delete the listing | `Row`: modified rail (2px, `bg-primary`, `aria-hidden`; the modified fact is ALSO in the row's `aria-describedby` as text) · `<Field orientation="horizontal" label description>` wrapping the control · trailing `Badge` scope chip · `RowActionsMenu` (Reset · Copy id · Copy link) · the `HintTrigger` `i` (sibling of the label) | The control keeps its Field-minted label association; the chip and modified text join `aria-describedby`; the menu is the `#443` row-action grammar (`Actions for <label>`); focus-within publishes `configFocus` (no focus theft, no live region); hover publish is fine-pointer + delayed | `tests/client/components/setting-row-frame.ct.tsx`: modified rail on/off by derived flag (planted default vs changed), reset calls the section's `onReset` once, scope chip text, `configFocus` written on focus and on label click and NOT on coarse-pointer hover, `HighlightedText` ranges render `<mark>` when `configSearchMatch` names this row, the narrowest production mount (the pushed phone pane) |
+| `SettingRowFrame` | client tier 2, components/setting-row-frame.tsx (owed — not yet on the tree) | `SettingSwitchRow` is control-specific and knows no modified/reset/scope; `<Field>` is the identity/description layer, not the settings chrome; needs `#state` (`configFocus`) + `#data` (`useConfigLeaf`) so it is NOT `@orb/ui` (§13.9 homing rule). Truth-repair: `ui-package-design.md` §2 lists a `setting-row` primitive that does not exist on the tree — delete the listing | `Row`: modified rail (2px, `bg-primary`, `aria-hidden`; the modified fact is ALSO in the row's `aria-describedby` as text) · `<Field orientation="horizontal" label description>` wrapping the control · trailing `Badge` scope chip · `RowActionsMenu` (Reset · Copy id · Copy link) · the `HintTrigger` `i` (sibling of the label) | The control keeps its Field-minted label association; the chip and modified text join `aria-describedby`; the menu is the `#443` row-action grammar (`Actions for <label>`); focus-within publishes `configFocus` (no focus theft, no live region); hover publish is fine-pointer + delayed | tests/client/components/setting-row-frame.ct.tsx (owed with the component): modified rail on/off by derived flag (planted default vs changed), reset calls the section's `onReset` once, scope chip text, `configFocus` written on focus and on label click and NOT on coarse-pointer hover, `HighlightedText` ranges render `<mark>` when `configSearchMatch` names this row, the narrowest production mount (the pushed phone pane) |
 | `ConfigListGroup` | client `features/config/components/config-list-group.tsx` (generalises `collection-group.tsx`) | `collection-group.tsx` is collection-only; `settings-nav-column.tsx` is category-only; one frame must render both kinds under one band grammar | Band (`Button` disclosure with `aria-controls` · icon · `interactiveKicker` · `datum` count · trailing verbs by kind) · body (`ListRow` subcategory rows with `selected` = spy, or the owner's rows under the host filter) | The band's accessible name = label + count (the WCAG 2.5.3 whitespace rule from `collection-group.tsx`); `aria-expanded`; rows `aria-current="true"` for the spy'd row (the settings nav's token, ruled distinct from the rail's `page`); shelves are named groups | `config-list-group.ct.tsx`: both kinds render under one band; the active group cannot collapse; the spy'd row lights on a synthetic scroll of the content container (the settings-shell CT's mechanism); the 271px both-panes-open floor pins no clipped band |
 | `ConfigSearchInput` | client `features/config/components/config-search-input.tsx` | `CommandInput` has no token chips; `Combobox` chips are for VALUES not query grammar; the funnel + `@` token list is config-specific | `Command` + `CommandInput` (`expanded` tracks the list) · a funnel `Button` opening a `Menu` of tokens · the query rendered with `Kbd`-styled token spans · `CommandEmpty` with the honest "No settings match" | The input is the combobox; tokens are plain text in the value (a screen reader hears what is typed); the funnel menu is a labelled menu | `config-search-input.ct.tsx`: `@` opens the token list; a token narrows the index (planted rows); `@modified` shows only rows whose derived flag is true (planted default + changed); clearing restores every row; `aria-expanded` follows the list |
-| `ConfigTeacher` (context body) | client `features/config/components/config-teacher.tsx` + `lib/config-context.ts` (the `defineContextTabs<ConfigContextState>` mint) | Nothing renders a `SettingTeach`; the bracket's head/foot are the shell's (`ContextRegionHost` after #860), so this is only the three tab bodies + the head content | About: `Section kicker` blocks (Definition · Affects · Default vs current with a Reset door · Related as `ListRow` links) · Applies: door rows · Learn: `@orb/ui/markdown trust="trusted"` or the contribution's node | The head band names the setting (`Heading` level 2 in the pane); Related rows are buttons that focus + scroll (`flashAnchor`); tab roster obeys the #860 rail contract (icon + caption, one tab stop) | `config-context.ct.tsx`: nothing focused ⇒ group lesson, no group ⇒ `CONFIG_CONTEXT_EMPTY`; focusing a planted row swaps head + body and keeps the tab; a collection selection turns Applies into the collection's arm (the `none` arm renders that collection's copy); Learn is absent when `more` is absent |
+| `ConfigTeacher` (context body) | client `features/config/components/config-teacher.tsx` + `lib/config-context.ts` (the `defineContextTabs<ConfigContextState>` mint) | Nothing renders a `SettingTeach`; the bracket's head/foot are the shell's (`ContextRegionHost` after #860), so this is only the three tab bodies + the head content | About: `Section kicker` blocks (Definition · Affects · Default vs current with a Reset door · Related as `ListRow` links) · Applies: door rows · Learn: `@orb/ui/markdown` with `trust="trusted"` or the contribution's node | The head band names the setting (`Heading` level 2 in the pane); Related rows are buttons that focus + scroll (`flashAnchor`); tab roster obeys the #860 rail contract (icon + caption, one tab stop) | `config-context.ct.tsx`: nothing focused ⇒ group lesson, no group ⇒ `CONFIG_CONTEXT_EMPTY`; focusing a planted row swaps head + body and keeps the tab; a collection selection turns Applies into the collection's arm (the `none` arm renders that collection's copy); Learn is absent when `more` is absent |
 | `config-scroll-spy.ts` (re-home) | client `features/config/lib/` | Not new — `settings-scroll-spy.ts` moved verbatim; ONE home | — | — | The existing spy CT arms move with it (`settings-shell-surface.ct.tsx` → `config-content-surface.ct.tsx`) |
 | `config-search-tokens.ts` | client `lib/` (tier 4) | A pure parser with one consumer today (two with ⌘K, both in `features/config`) — `@orb/kit` only when a consumer outside the client appears (§13.9) | `parseConfigQuery(text) → { terms, tokens }` | — | `tests/client/lib/config-search-tokens.test.ts` — the grammar table + malformed tokens |
 
@@ -215,7 +215,7 @@ D-rows to mint (unnumbered here on purpose — the ledger mints): **R-A** the un
 | `lib/registry-contracts.ts` | publish `ConfigContextState` + `ConfigFocus` |
 | `state/config-focus-store.ts` (new G27 mint) | the focused-setting seam |
 | `compose/authed-app.tsx` | `createRegistry("config-groups", …)`; the `config-collections` assembly dies; the ⌘K `CommandPaletteSource` row |
-| CTs: `tests/client/features/settings/surfaces/settings-shell-surface.ct.tsx` + `_ct-stories.tsx` · `tests/client/state/settings-pane-registry-context.ct.tsx` · `tests/support/ct/ct-data-providers.tsx` (the door mirror) · `tests/client/state/settings-pane-registry.test.ts` (partition mirror) · `tests/client/features/app-shell/components/rail.ct.tsx:21` (the "Settings" pin) · `you-sheet.ct.tsx` · `tests/client/features/persona/**` (3 CTs + stories) · `tests/client/state/config-selection-store.ct.tsx` · `tests/e2e/live-settings-render-truth.spec.ts` | move/retarget; new CTs per §4; the test-baseline manifest regenerates in the lane |
+| CTs (the settings-era paths this row first named moved with the config rename — 2026-09-06 truth-repair): `tests/client/features/config/surfaces/config-content-surface.ct.tsx` + `config-list-surface.ct.tsx` + `tests/client/features/config/_ct-stories.tsx` · `tests/client/state/config-section-registry-context.ct.tsx` · `tests/support/ct/ct-data-providers.tsx` (the door mirror) · `tests/client/state/config-section-registry.test.ts` (partition mirror) · `tests/client/features/app-shell/components/rail.ct.tsx:21` (the "Settings" pin) · `you-sheet.ct.tsx` · `tests/client/features/persona/**` (3 CTs + stories) · `tests/client/state/config-selection-store.ct.tsx` · `tests/e2e/live-settings-render-truth.spec.ts` | move/retarget; new CTs per §4; the test-baseline manifest regenerates in the lane |
 | Docs: `UI-Architecture-and-Layout.md` §4.1 (the foot line "Theme · Settings · persona Identity") + §4.2 rows (settings overlay · identity widget · the Configuration grid row) · `client-architecture-lockdown.md` §5 rule 5 · §6d modal list · §8 (the settings host) · §16 G2/G4 · `config-rail-spec.md` (C-5 amendment, §4 superseded) · `config-ia-the-junk-drawer-problem.md` §6.1 · `ui-package-design.md` §2 (`setting-row` listing) · `plugin-ui-plane.md` §4.5 (`settings` anchor rides the Extensions GROUP) · side-eye §14 (rail FOOT count) · the catalog receipts | truth-repair in the landing commits |
 | Home tiles | NONE door into Settings (receipt §2) |
 
@@ -793,6 +793,62 @@ converged away — which is the outcome the amendment was for: the reasons are n
 inherited. The §8.3 table below is re-read the same way: each row's "Verdict" column is a structural claim
 about members-vs-body, and none of them says "species" as its reason.
 
+### 8.1b The members left the LIST (owner ruling 2026-09-05, #1725) — the ruling survives, its INPUT changed
+
+**Owner word, verbatim (Nate, \~16:40Z):** *"k but tag list under in list is kinda a no go that needs to move
+into content when clicking onto tags, same thing for regex and world info is what im trying to say right now
+its mixed and looks weird"* · seconds later: *"so that means content will need to be redesigned for those
+interfaces to properly be consistent"* · on the approved canvas, \~18:05Z: *"redesign approved it can be built
+to spec but must match the mockups"*.
+
+The spec is [`mocks/config-collections/DESIGN.md`](mocks/config-collections/DESIGN.md) (canvas source +
+22 true-size renders + the two v1–v2 reviews, all beside it). This section is the LANDING contract's home,
+so what the ruling did to §8.1's four rulings is recorded here and nowhere else:
+
+| #925 ruling | verdict under #1725 |
+| - | - |
+| 1 · must-WORK | INTACT. No dead ends, no capability lies — every control that left the band arrived in the library's control row rather than vanishing. |
+| 2 · landing / feature status is the LIST's | INTACT. The greyed unbuilt band still opens a coming-soon CONTENT body. |
+| 3 · classification | INTACT. Built-but-empty is a live row with an honest empty state — now drawn in CONTENT (F5 arm A, board 07). |
+| 4 · arrival default | INTACT, and it now has more to land on. |
+| **ENTER (select-and-disclose)** | **the ruling survives, its INPUT changed.** The owner ruled WHERE the members live. SELECT is untouched — one act, `selectConfigGroup`, never a select-then-toggle pair. DISCLOSE is RETIRED: there is nothing in the LIST to unfold, so the band carries no `aria-expanded` and no second-click fold. |
+
+Two more clauses this section owned are amended by the same ruling, both recorded at their code homes:
+`COLLECTION_LARGE_GROUP`'s FILTER half (the gate is gone — the library's pane makes the box always worth
+drawing) and `CONFIG_COLLECTION_LANDING.hint` (deleted with its reader: it pointed AT the LIST, and the
+members are on the pane the sentence was written on).
+
+**Commit 3 (the control row, the window's bound, and the drill header).** Commit 1 moved the rows and
+commit 2 built the band; this one finished DESIGN.md §3.2/§3.4 and closed the fork commit 1 recorded:
+
+- **`COLLECTION_WINDOW_MAX_HEIGHT` is DELETED, by RE-BIND rather than by removal (§5.4).** The constant
+  could not simply go: `@orb/ui/virtual-list` throws at mount on an unbounded scroll box
+  (`assertBoundedScrollHeight`), so deleting the cap without giving the window another bound would have
+  traded a wrong height for a crash. The bound is CONTENT's own `overflow-y-auto` box now, reached by flex —
+  the landing is `min-h-0 flex-1` in the pane, each library's windowed arm is `min-h-0 flex-1` in the
+  landing (`character-library-body.tsx`'s chain). The window is the pane's height at every width instead of
+  384px at all of them, and the row past the old fold is reachable. Receipt: the width matrix in
+  `tests/client/features/config/components/config-collection-landing.ct.tsx` at 752/1440/1920 over a 60-row
+  library, plus the phone snap.
+- **Two new `CollectionContribution` fields, both optional hooks under the #1203 keying law.** `sort` (the
+  library's reading order — the host draws the Select, the contribution owns the mode and the comparator)
+  and `actions` (library-level verbs, drawn in the control row's overflow beside `importFile`; a
+  contribution declaring neither gets NO kebab). Tags declare both: the sort moved out of
+  `tag-collection-rows.tsx`, and "Prune unused tags" moved out of it into the kebab while its CONFIRM
+  stayed with the rows, because the unused count and the cascade copy are the rows' knowledge.
+- **The order hint moved into the Manual option's own `description`.** The 2026-08-03 P1/P2 rulings survive
+  verbatim; board 02 draws no line beside the sort, and `SelectOption.description` is the primitive's own
+  slot for copy that must survive the popup opening over it.
+- **The drill header (§3.4)** — host-drawn, `← Back to <library>`, with NO lifecycle chrome (D121(D),
+  \#271: Delete stays on the row's kebab). TWO NAMED DELTAS against boards 03/05/06, and they are the same
+  deferred decision: the member's NAME and the member's own verbs (regex "Test against a sample", world info
+  "Edit details · Backfill · New entry", rosters "Start chat") stay on each member surface's own header one
+  row below, not on this row. The name is the load-bearing half — a host heading over four surfaces that
+  each already render the member's name as their `h2` prints it TWICE, measured as a strict-mode violation
+  that took `config-content-surface.ct` and `config-list-surface.ct` red. The merge (the member surface
+  owning the whole drill row through the `detail` it already renders) is the next commit's; the pin that
+  keeps the name single meanwhile is in the landing CT.
+
 ### 8.2 The classification receipt (ruling 3, re-derived against the tree)
 
 `ast-grep -p 'placeholder: true'` over `packages/client/src`, both languages (tsx `scannedFileCount=668`,
@@ -862,7 +918,21 @@ mutually exclusive. Receipts: review doc §8.
 | - | - | - |
 | Before this row (desktop) | **1** | The launcher landing (`ConfigWelcome`) held CONTENT; one band click landed the group AND its first section — the owner's "category then section" was measured against the pre-`fd85639f8` surface; the nav fold had already collapsed the second click. |
 | After (desktop) | **0** | The first group is active in the first painted frame; its band is expanded (the ACTIVE-group rule, unchanged) and its first section row is `aria-current`. |
-| After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. |
+| After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. **True since #1741 — see the repair below; the row described the code's intent for three eras while the phone did the opposite.** |
+
+**TRUTH REPAIR (#1741, 2026-09-05) — the phone row above was a WISH, not a behaviour, and the ruling is
+untouched: its INPUT changed.** The guard was written and shipped exactly as stated, and it was inert on
+every phone. `useMobileViewport()` reads the shell's PUBLISHED regime mirror in `#state` (a feature may not
+read matchMedia — `no-raw-matchmedia`), and `use-shell-layout.ts` published that mirror only from a PASSIVE
+effect. A passive effect runs after every layout effect in the same commit's subtree, and `/config` puts the
+LIST in the shell's FIRST commit (`router.tsx` sets the section in `beforeLoad`), so the arrival default's
+`useLayoutEffect` read the store's pre-mount `false` DEFAULT, took the desktop arm, and selected a group —
+after which the one-shell rule correctly pushed CONTENT over the LIST and the whole map was unreachable
+without a panel drive. The fix is at the publisher: the regime is now SEEDED during `useShellLayout`'s own
+render, so no reader in the shell's first commit ever sees the pre-mount default. Every other `#state`
+viewport reader was wrong for one frame by the same mechanism; only this one latched. The pin is the
+cold-arrival test in `tests/client/features/config/lib/config-section.ct.tsx`, which is red on the old
+publisher.
 
 Three conditions, each a real state: once per mount (a reader who backs out to the landing STAYS there —
 `clearActiveConfigGroup` is a door they walked through), never when a member or a deep-linked group is

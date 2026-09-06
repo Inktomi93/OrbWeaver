@@ -24,6 +24,7 @@ import type {
   OpenRouterChatRequest,
   ProbeRequest,
   ProviderBackend,
+  ProviderScrubSet,
   RerankRequest,
   RerankResult,
   StructuredRequest,
@@ -128,7 +129,7 @@ export interface OpenRouterBackendDeps {
 // role (`summarize` vs `structured` — owner ruling 2026-07-27) — a structured extraction is never a black hole.
 interface OrBatchDeps {
   readonly client: OrClient;
-  readonly secrets: readonly string[];
+  readonly secrets: ProviderScrubSet;
   readonly normalize: NormalizeImageBytes;
   readonly now: () => number;
   readonly captureWire?: WireCaptureSink | undefined;
@@ -312,7 +313,7 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
 // next hosted-structured failure is diagnosable instead of opaque (D-ARM8-2 / the `instruments-lie` class:
 // an upstream 404 was presenting as an internal validation error, which is exactly why the earlier probe
 // "couldn't get the response body").
-function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown, secrets: readonly string[]): ProviderError {
+function orBatchProviderError(role: "summarize" | "structured", index: number, err: unknown, secrets: ProviderScrubSet): ProviderError {
   const prefix = `openrouter ${role} item ${index} failed`;
   if (err instanceof ProviderError) {
     // `rewrap`, never a hand-rolled re-mint: the item coordinates are a message prefix, and a prefix is not a
@@ -338,7 +339,7 @@ function throwOrBatchFailure(args: {
   readonly durationMs: number;
   readonly hasResponseFormat: boolean;
   readonly err: unknown;
-  readonly secrets: readonly string[];
+  readonly secrets: ProviderScrubSet;
 }): never {
   const { role, model, index, durationMs, hasResponseFormat, err, secrets } = args;
   const providerError = orBatchProviderError(role, index, err, secrets);
@@ -493,13 +494,13 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     probe: async (req: ProbeRequest): Promise<CredentialHealth> =>
       await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now, providerCredentialSecretValues(req.credential)),
     accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>
-      await getOpenRouterCredits(clientFor(req.credential, "accountCredits"), req.signal, providerCredentialSecretValues(req.credential)),
+      await getOpenRouterCredits(clientFor(req.credential, "accountCredits"), providerCredentialSecretValues(req.credential), req.signal),
     generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> =>
       await getOpenRouterGenerationCost(
         clientFor(req.credential, "generationCost"),
         req.generationId,
-        req.signal,
         providerCredentialSecretValues(req.credential),
+        req.signal,
       ),
     fetchCatalog: async (req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => await fetchOrCatalog(getClient(""), req.signal),
   };

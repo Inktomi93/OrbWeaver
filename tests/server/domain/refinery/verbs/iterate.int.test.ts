@@ -1,11 +1,15 @@
 // .int tests for `iterate` — one refinement round: the precondition (an analyze to refine against), the
 // refine-system flip + analyze-feedback threading, guidance persist-then-thread, the counter as a
 // COMPLETED-rounds count (mid-round failure leaves the rewrite run + an unbumped counter — append-only
-// honesty).
+// honesty), and the LEASED round claim that serializes rounds (#1568) — refuse-while-claimed BEFORE any
+// spend, release on both the success and the failure arm, and a lapsed claim that lets the next round run.
 
-import { refineryRuns } from "@orb/db";
-import { RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
+import type { Db } from "@orb/db";
+import { refineryRuns, refinerySessions } from "@orb/db";
+import type { RefinerySessionId } from "@orb/kit/ids";
+import { RefineryRoundInFlightError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
+import { REFINERY_ROUND_LEASE_MS } from "../../../../../packages/server/src/domain/refinery/substrate/round-claim.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { analyzeReply, makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
@@ -27,6 +31,12 @@ async function seedFirstPass(
   await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" });
   h.advance(10);
   return session;
+}
+
+/** The session's live round claim (`null` = free) — read straight off the column, never through a verb. */
+async function inflightUntilOf(db: Db, sessionId: RefinerySessionId): Promise<number | null> {
+  const rows = await db.select({ at: refinerySessions.inflightUntil }).from(refinerySessions).where(eq(refinerySessions.id, sessionId));
+  return rows[0]?.at ?? null;
 }
 
 test("iterate before any analyze is the typed stage-order refusal", async () => {
@@ -93,28 +103,105 @@ test("a mid-round analyze failure leaves the rewrite run and an UNBUMPED counter
   expect(h.userEvents.slice(4)).toEqual([{ userId: owner, event: { type: "refineryChanged", sessionId: session.id } }]);
 });
 
-test("two CONCURRENT rounds count as TWO completed rounds, with distinct round numbers (#1445)", async () => {
+// The #1445 pin that used to live here asserted the UNSERIALIZED arm (two concurrent rounds both completing,
+// with distinct round numbers). That was never a preference — its own header called the missing claim "the
+// open half, deliberate" and named the leased claim as the work that would close it. #1568 IS that work, so
+// the arm below replaces it: the SQL-side increment is still what makes the tally honest, but a second
+// concurrent round no longer reaches it.
+test("two CONCURRENT rounds: one runs, the other is refused BEFORE it spends (#1568)", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_it_race" });
   const h = makeRefineryHarness(db);
   const session = await seedFirstPass(h, owner, "it-card-race");
+  const spendBefore = h.summarizeCalls.length;
 
-  // Four scripted replies in CONSUMPTION order: both rounds enter their rewrite half before either reaches
-  // its analyze half (the tape is one FIFO shared by both). Both also loaded the session row before either
-  // finished — exactly the stale snapshot a `row.iterationCount + 1` writes from.
-  h.queueReply(rewriteReply());
+  // Only the WINNER's two halves are scripted. That is the assertion, not a shortcut: an under-scripted tape
+  // throws LOUD at the call site, so if the loser reached a model call at all this test fails on the tape
+  // rather than on the count — the "refused before it spends" claim has its own tripwire.
   h.queueReply(rewriteReply());
   h.queueReply(analyzeReply());
-  h.queueReply(analyzeReply());
-  const rounds = await Promise.all([
+  const settled = await Promise.allSettled([
     h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
     h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
   ]);
 
-  // The counter counts COMPLETED ROUNDS (this file's header). Two rounds completed, so the tally is 2 and
-  // the two callers were handed DIFFERENT round numbers — reporting "1" twice while the ledger holds four
-  // new runs is the surface lying about its own history.
-  expect(rounds.map((round) => round.iterationCount).sort()).toEqual([1, 2]);
+  const fulfilled = settled.filter((r) => r.status === "fulfilled");
+  const rejected = settled.filter((r) => r.status === "rejected");
+  expect(fulfilled).toHaveLength(1);
+  expect(rejected).toHaveLength(1);
+  expect(rejected[0]?.reason).toBeInstanceOf(RefineryRoundInFlightError);
+  // ONE round completed, so the tally is 1 — and the loser's refusal did not consume a round number.
+  expect(fulfilled[0]?.value.iterationCount).toBe(1);
   const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
-  expect(updated.iterationCount).toBe(2);
+  expect(updated.iterationCount).toBe(1);
+  // The loser spent NOTHING: exactly the winner's two model calls happened.
+  expect(h.summarizeCalls.length - spendBefore).toBe(2);
+  // …and the winner released on its way out, so the session is immediately iterable again.
+  expect(await inflightUntilOf(db, session.id)).toBeNull();
+});
+
+test("a round REFUSED while claimed leaves the session byte-identical (no guidance write, no run, no tick)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_it_claimed" });
+  const h = makeRefineryHarness(db);
+  const session = await seedFirstPass(h, owner, "it-card-claimed");
+
+  // A round is in flight: stamp a LIVE claim the way a running round would have.
+  const held = h.ctx.now() + REFINERY_ROUND_LEASE_MS;
+  await db.update(refinerySessions).set({ inflightUntil: held }).where(eq(refinerySessions.id, session.id));
+  const runsBefore = await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id));
+  const ticksBefore = h.userEvents.length;
+
+  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id, guidance: "this must not persist" })).rejects.toBeInstanceOf(
+    RefineryRoundInFlightError,
+  );
+
+  // NOTHING moved: not the guidance (which would mutate the prompt the RUNNING round is about to read), not
+  // the run log, not the counter, not the claim, and not the event stream (a refusal is not a change).
+  const after = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  expect(after.guidance).toBeNull();
+  expect(after.iterationCount).toBe(0);
+  expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(runsBefore.length);
+  expect(await inflightUntilOf(db, session.id)).toBe(held);
+  expect(h.userEvents).toHaveLength(ticksBefore);
+});
+
+test("an EXPIRED claim does not wedge the session — the next round takes it and completes (#1568)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_it_expired" });
+  const h = makeRefineryHarness(db);
+  const session = await seedFirstPass(h, owner, "it-card-expired");
+
+  // A round that CRASHED: its claim is on the row and nothing released it. Nothing sweeps it either — the
+  // deadline is the whole mechanism, so a claim in the past must simply be takeable.
+  await db
+    .update(refinerySessions)
+    .set({ inflightUntil: h.ctx.now() - 1 })
+    .where(eq(refinerySessions.id, session.id));
+
+  h.queueReply(rewriteReply());
+  h.queueReply(analyzeReply());
+  const round = await h.svc.iterate({ principal: principal(owner), sessionId: session.id });
+  expect(round.iterationCount).toBe(1);
+  expect(await inflightUntilOf(db, session.id)).toBeNull();
+});
+
+test("a mid-round FAILURE releases the claim — the session is iterable again immediately, not after the lease", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_it_failrelease" });
+  const h = makeRefineryHarness(db);
+  const session = await seedFirstPass(h, owner, "it-card-failrelease");
+
+  h.queueReply(rewriteReply());
+  h.queueReply("garbage");
+  h.queueReply("more garbage");
+  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryRunFailedError);
+  // The `finally` released on the failure arm: waiting out a 15-minute lease after a failed round would be
+  // the claim making the product worse than the gap it closed.
+  expect(await inflightUntilOf(db, session.id)).toBeNull();
+
+  // Proven by USE, not just by the column: the very next round runs.
+  h.queueReply(rewriteReply());
+  h.queueReply(analyzeReply());
+  expect((await h.svc.iterate({ principal: principal(owner), sessionId: session.id })).iterationCount).toBe(1);
 });

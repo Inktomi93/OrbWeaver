@@ -30,6 +30,7 @@ import {
   effectiveProviderRouting,
   extractHttpErrorDiagnostic,
   logProviderSampling,
+  NO_PROVIDER_SECRETS,
 } from "../../../../backends/kit/index.ts";
 import type {
   ChatEvent,
@@ -402,7 +403,10 @@ export function withToolResultErrorDrop(warnings: readonly ResolvedWarning[], hi
 
 // True when the upstream 400 is a mandatory-reasoning endpoint rejecting reasoning.effort:"none" — drives the strip-and-replay-once recovery.
 export function isMandatoryReasoningRejection(error: unknown): boolean {
-  const diag = extractHttpErrorDiagnostic(error);
+  // NO_PROVIDER_SECRETS is honest here and is NOT a scrub waiver: the peeled strings never leave this
+  // function — they are concatenated into a local haystack, regex-tested, and dropped with the frame. There
+  // is no sink, so there is nothing to scrub for; the boolean is all that escapes.
+  const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
   const haystack = `${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`;
   return MANDATORY_REASONING_RE.test(haystack);
 }

@@ -176,9 +176,14 @@ test("real CDP Network evidence produces complete redacted HAR across redirects,
       selectNetworkBodies(pages, "/binary");
       selectNetworkBodies(pages, "/large");
       await session.page.goto(`${server.base}/start?api_key=${SECRET}&sig=${NETWORK_CANARIES.sig}&X-Amz-Credential=${NETWORK_CANARIES.amz}`);
-      await settle(session.page, 700);
+      // LOAD-SCALED (#1758): 700ms/50ms are the QUIET-BOX bases. Under contention the browser PROCESS
+      // itself is contention-starved, not just this node event loop — the popup's own `setTimeout(…, 100)`
+      // fetch (fired from a page window.open'd during the main settle) needs real wall-clock headroom to
+      // actually run, or its network activity never lands in the HAR and the `_orb.pageIndex === 1`
+      // assertion below reads an honest absence for a reason that has nothing to do with the HAR builder.
+      await settle(session.page, scaledBudget(700));
       for (const page of session.contexts.flatMap((context) => context.pages)) {
-        await settle(page, 50);
+        await settle(page, scaledBudget(50));
       }
       const har = await buildNetworkHar(session);
       assertCompleteNetworkHar(har);

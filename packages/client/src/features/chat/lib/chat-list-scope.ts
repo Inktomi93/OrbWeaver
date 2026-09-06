@@ -39,6 +39,51 @@ export function formatMonthLabel(value: string): string | null {
   return timeLib.formatMonthYear(Date.UTC(Number(match.groups["year"]), Number(match.groups["month"]) - 1, MID_MONTH_DAY, MIDDAY_UTC_HOUR));
 }
 
+/** The phone Filters row's NEUTRAL name — the house word for a group of narrowing controls, not a new one.
+ *  Two landed carriers already spell it exactly this way: the Characters pane's own narrowing group
+ *  (`features/character/components/character-filter-chips.tsx` — `role="group" aria-label="Filters"`, the
+ *  program #102 variant B naming, and the group #491's law is about) and the plugin browse rail's
+ *  disclosure trigger (`features/plugin/components/plugin-browse-nodes.tsx`). Recorded in
+ *  `docs/design/vocabulary-map.md`. */
+const FILTERS_LABEL = "Filters";
+
+/**
+ * ONE TRIGGER, BOTH FACTS (#1718 arm A, owner-ruled) — the accessible name of the phone Filters disclosure.
+ *
+ * #1350's PRINCIPLE SURVIVES, ITS INPUT CHANGED: "a disclosure whose TRIGGER carries the bound when one is
+ * set, so folding never hides state" was written when the month bound had a trigger of its own. It has not,
+ * since the two stacked disclosures (the month bound's and the faces strip's) became one row — a
+ * `--spacing-control-sm` trigger is 44px at a coarse pointer, so the pane was paying that twice for two
+ * facts. What changes is that ONE name now has to carry BOTH, and it still hides neither.
+ *
+ * THE GRAMMAR IS DERIVED FROM THE TWO TRIGGERS IT REPLACES, not invented. They read
+ * `Show chats up to June 2020` and `Filter by character · Aria Nightshade`, and the strip's own per-face
+ * verb is `Show chats with <name>`. Both facts are therefore already sentences about *chats*, so the shared
+ * noun is hoisted once and each axis contributes its own preposition:
+ *
+ *   | in force        | the name                                                |
+ *   | -               | -                                                       |
+ *   | nothing         | `Filters`                                               |
+ *   | month only      | `Filters: chats up to June 2020`                        |
+ *   | character only  | `Filters: chats with Aria Nightshade`                   |
+ *   | both            | `Filters: chats with Aria Nightshade, up to June 2020`  |
+ *
+ * THE CHARACTER LEADS because the panel behind the trigger puts the faces first (side-eye P2b — "the faces
+ * are the shortcut you arrive for"), so the name reads in the order the eye finds the controls.
+ *
+ * A COLON, NEVER AN EM-DASH: this codebase reads an em-dash in product copy as a copy tell
+ * (`character-library-welcome.tsx`'s week line states it), and the middle dot the faces trigger used is a
+ * SEPARATOR between two peers — wrong here, where the head names the group and the tail says what it is
+ * doing.
+ *
+ * Visible text AND accessible name, because the trigger renders exactly this string (its chevron is
+ * decorative) — WCAG 2.5.3: a voice-control user says what is written.
+ */
+export function phoneFiltersLabel(characterName: string | null, monthLabel: string | null): string {
+  const clauses = [...(characterName === null ? [] : [`with ${characterName}`]), ...(monthLabel === null ? [] : [`up to ${monthLabel}`])];
+  return clauses.length === 0 ? FILTERS_LABEL : `${FILTERS_LABEL}: chats ${clauses.join(", ")}`;
+}
+
 /**
  * The settled identity of EVERY narrowing axis — what `<VirtualList resetScrollKey>` lands index zero on.
  *

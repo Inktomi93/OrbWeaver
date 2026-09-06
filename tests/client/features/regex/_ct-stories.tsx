@@ -20,7 +20,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CollectionListGroup } from "../../../../packages/client/src/features/config/components/config-list-collection-group.tsx";
+import { ConfigCollectionLanding } from "../../../../packages/client/src/features/config/components/config-collection-landing.tsx";
 import { RegexBulkBar } from "../../../../packages/client/src/features/regex/components/regex-bulk-bar.tsx";
 import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
 import { regexGroup } from "../../../../packages/client/src/features/regex/lib/regex-group.tsx";
@@ -28,6 +28,11 @@ import { regexGroup } from "../../../../packages/client/src/features/regex/lib/r
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
+
+/** The narrow end of the real CONTENT pane: a 752px shell docks the LIST at its measured 307px default and
+ *  the pane pays its own `px-section` inset, leaving 397. Stated here so the bulk bar's reachability pin is
+ *  measured where the verbs are actually tight. */
+const REGEX_LIBRARY_PANE_PX = 397;
 
 /** The regex group NARROWED to its collection arm — the def is typed as the whole union (the gate's
  *  co-location arm keys on that annotation), and the band component takes the narrowed shape. */
@@ -53,7 +58,8 @@ export function RegexMemberStory({
     <CtDataProviders>
       <div style={{ height: 700, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <RegexMemberSurface memberId={memberId} />
+          {/* `library` is the host's own group label (`regex-group.tsx`) — the drill row's exit (#1747). */}
+          <RegexMemberSurface view={{ library: "Regex scripts", memberId }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
@@ -75,11 +81,26 @@ export function RegexMemberContentColumnStory(): ReactElement {
   );
 }
 
-/** The regex LIBRARY GROUP as the config host draws it (REGX2): the real `CollectionListGroup` over the real
- *  `regexGroup` def (whose `body.collection` is the `regexCollection` door), so the band's own affordances (bulk-select toggle · import · create) and the
- *  contribution's own rows (kebab · global switch · checkboxes · the selection bar) are exercised through the
- *  production seam, not a double. 330px — the config roster's real column, where the row cluster's width has
- *  to be paid for.
+/** The regex LIBRARY as the config host draws it (REGX2): the real `ConfigCollectionLanding` over the real
+ *  `regexGroup` def (whose `body.collection` is the `regexCollection` door), so the library's own control
+ *  row (filter · bulk-select toggle · create · the overflow's import) and the contribution's own rows
+ *  (kebab · global switch · checkboxes · the selection bar) are exercised through the production seam, not
+ *  a double.
+ *
+ *  ═══ IT MOUNTED THE LIST BAND UNTIL #1725 ════════════════════════════════════════════════════════════
+ *  The owner moved every collection's members and chrome out of the LIST into CONTENT, so
+ *  `CollectionListGroup` is one Button now — a door with nothing behind it in this pane — and this story
+ *  mounting it left all fourteen of this file's tests asserting a surface that no longer exists there. The
+ *  subject is the LANDING; the band's own pins live in `config-list-collection-group.ct.tsx`.
+ *
+ *  THE BOX IS A FLEX COLUMN WITH A DEFINITE HEIGHT because the pane is: since #1725 the windowed row arm
+ *  takes its bounded height from this chain (`min-h-0 flex-1` down to CONTENT's `overflow-y-auto` box)
+ *  rather than from a 384px cap, and a plain block here would render a zero-height scroller. The width is
+ *  the narrow end of the real CONTENT pane (a 752px shell docks the LIST at 307 and pays its own inset),
+ *  which is where the bulk bar's five verbs have to fit.
+ *
+ *  Mounting ONE collection's landing directly is legal under the #1203 keying law for the same reason the
+ *  host's `key={collection.id}` satisfies it: this fiber only ever serves one contribution.
  *
  *  The `reset` button is determinism, not product: the disclosure store is device-local (localStorage) and
  *  bulk mode is module state, so a CT that inherited another run's state would assert the wrong first frame. */
@@ -96,10 +117,8 @@ export function RegexLibraryGroupStory(): ReactElement {
       >
         reset
       </button>
-      <div style={{ overflow: "auto", width: 330 }}>
-        {/* Mounted OUTSIDE the config host, so nothing is the current location — the zero-member band's
-            `aria-current` arm (#1099 F5) is the host's verdict, not this story's subject. */}
-        <CollectionListGroup active={false} group={REGEX_COLLECTION_GROUP} />
+      <div style={{ display: "flex", flexDirection: "column", height: 620, overflow: "auto", width: REGEX_LIBRARY_PANE_PX }}>
+        <ConfigCollectionLanding group={REGEX_COLLECTION_GROUP} />
       </div>
     </CtDataProviders>
   );

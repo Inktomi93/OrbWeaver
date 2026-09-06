@@ -1111,6 +1111,12 @@
     "why": "ratified by rule: lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tests/server/infra/providers/backends/kit/error-classify.test-d.ts": {
+    "count": 4,
+    "ratified": 4,
+    "why": "ratified by rule: @ts-expect-error×4 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tests/server/infra/providers/backends/local-light/embed.int.test.ts": {
     "count": 1,
     "ratified": 1,
@@ -1255,6 +1261,12 @@
     "count": 4,
     "ratified": 3,
     "why": "ratified by rule: lint/style/noProcessEnv×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts) · burnable debt: lint/suspicious/useAwait×1 — no RATIFIED_RULES entry, so these are still a live population",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tests/tooling/_shared/proc.int.test.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
   "tests/tooling/agent-sync/contract/types.test-d.ts": {
@@ -1489,6 +1501,12 @@
     "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tooling/src/snap/ops/stage-marker.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tooling/src/snap/ops/stage-probe.ts": {
     "count": 1,
     "ratified": 1,
@@ -1496,6 +1514,12 @@
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
   "tooling/src/snap/ops/stage.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
+  "tooling/src/stack/lib/dev-process-identity.ts": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",

@@ -3,7 +3,8 @@
 // local vLLM was RETIRED 2026-07-27 (owner ruling — see the note where buildClaudeVllmEnv was). Ordering is
 // the security: host baseline → runtime knobs → escape hatch (ALLOWLISTED to the Claude runtime knob
 // namespace, then RESERVED_CLAUDE_ENV_KEYS filtered) → auth firewall applied LAST so nothing above can
-// override it. The hatch is spread OVER the host baseline, which is exactly why it may not name a host
+// override it. The knobs and the hatch merge in ONE place (`claudeRuntimeLayer`) because their COMBINATION is
+// judged there — the runtime refuses a context cap with auto-compaction off (#1541). The hatch is spread OVER the host baseline, which is exactly why it may not name a host
 // process variable: see `claudeUserEnv`.
 
 import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
@@ -153,18 +154,59 @@ export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
 const DISABLE_CLAUDE_MDS = "true";
 const OPENROUTER_ANTHROPIC_BASE_URL = "https://openrouter.ai/api";
 
+/** The two runtime knobs whose COMBINATION the bundled runtime refuses — named once so the writer below and
+ *  the guard cannot drift apart. Both spellings are the runtime's own (`DISABLE_AUTO_COMPACT` breaks the
+ *  `CLAUDE_CODE_*` prefix on purpose; it is verified in the bundled binary, not the JS wrapper). */
+const ENV_DISABLE_AUTO_COMPACT = "DISABLE_AUTO_COMPACT";
+const ENV_MAX_CONTEXT_TOKENS = "CLAUDE_CODE_MAX_CONTEXT_TOKENS";
+
 // Every knob set EXPLICITLY (value or undefined), never inherited from the host shell, so a stray
 // dev-session CLAUDE_EFFORT can't steer a turn.
 function claudeRuntimeEnv(overrides: ClaudeRuntimeOverrides): Record<string, string | undefined> {
   return {
     CLAUDE_CODE_DISABLE_THINKING: overrides.disableThinking === false ? undefined : "1",
-    CLAUDE_CODE_MAX_CONTEXT_TOKENS: overrides.maxContextTokens !== undefined ? String(overrides.maxContextTokens) : undefined,
+    [ENV_MAX_CONTEXT_TOKENS]: overrides.maxContextTokens !== undefined ? String(overrides.maxContextTokens) : undefined,
     CLAUDE_EFFORT: undefined,
     CLAUDE_CODE_MAX_OUTPUT_TOKENS: overrides.maxOutputTokens !== undefined ? String(overrides.maxOutputTokens) : undefined,
-    DISABLE_AUTO_COMPACT: overrides.disableAutoCompact === true ? "1" : undefined,
+    [ENV_DISABLE_AUTO_COMPACT]: overrides.disableAutoCompact === true ? "1" : undefined,
     CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: overrides.autoCompactPct !== undefined ? String(overrides.autoCompactPct) : undefined,
     ...ISOLATION_PINS,
   };
+}
+
+/**
+ * THE RUNTIME-KNOB LAYER: the host's per-turn knobs with the preset's escape hatch spread over them — the ONE
+ * place the final value of both is visible, and therefore the only place their COMBINATION can be judged.
+ *
+ * `CLAUDE_CODE_MAX_CONTEXT_TOKENS` together with `DISABLE_AUTO_COMPACT` is a hard SDK `is_error`
+ * (live-verified both ways, 2026-07-24): with auto-compaction disabled the runtime has no mechanism left to
+ * honour a context cap, so it fails the turn rather than ignoring one of them. `translate.ts` already refuses
+ * to MINT the pair from the typed knobs (it drops the cap under managed compaction) — but the hatch writes
+ * into this same env AFTERWARDS, so either half can still arrive from `advanced.claudeEnv` and produce a turn
+ * that always errors. This repo refuses at the boundary instead of documenting a footgun (#1541).
+ *
+ * NOT THE WRITE SCHEMA'S JOB, and that is a placement fact rather than a preference: the schema validates the
+ * hatch ALONE, so it cannot see the compaction mode that supplies the other half — a preset carrying only
+ * `CLAUDE_CODE_MAX_CONTEXT_TOKENS` is perfectly legal under `compaction.mode:"auto"` and fatal under
+ * `"managed"`. Only the builder sees both.
+ *
+ * The hatch may also CLEAR a knob (`null` ⇒ `undefined`), and that cures the pair — so the guard reads the
+ * merged VALUES, never the caller's intent.
+ */
+function claudeRuntimeLayer(overrides: ClaudeRuntimeOverrides): Record<string, string | undefined> {
+  const merged = { ...claudeRuntimeEnv(overrides), ...claudeUserEnv(overrides.userEnv) };
+  if (merged[ENV_DISABLE_AUTO_COMPACT] !== undefined && merged[ENV_MAX_CONTEXT_TOKENS] !== undefined) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message:
+        `agent-sdk env: ${ENV_DISABLE_AUTO_COMPACT} and ${ENV_MAX_CONTEXT_TOKENS} cannot both be set — the runtime honours a ` +
+        "context cap BY compacting, so with auto-compaction off it fails the turn instead. Set one: keep the cap and leave " +
+        "compaction on (preset compaction mode `auto`), or disable compaction and drop the cap. Both halves can come from " +
+        "the preset's `advanced.claudeEnv` hatch as well as from the compaction mode.",
+    });
+  }
+  return merged;
 }
 
 // The overlay is RESERVED-filtered, then ALLOWLISTED (#1472, #1536). Both belts are load-bearing and the
@@ -270,8 +312,7 @@ export function buildClaudeSdkEnv(overrides: ClaudeRuntimeOverrides = {}): Recor
     ...hostEnvForClaudeChild(),
     ...(isoDir !== undefined && { CLAUDE_CONFIG_DIR: isoDir, ANTHROPIC_CONFIG_DIR: isoDir }),
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
-    ...claudeRuntimeEnv(overrides),
-    ...claudeUserEnv(overrides.userEnv),
+    ...claudeRuntimeLayer(overrides),
     ANTHROPIC_API_KEY: undefined,
     ANTHROPIC_BASE_URL: undefined,
     ANTHROPIC_AUTH_TOKEN: undefined,
@@ -292,8 +333,7 @@ export function buildClaudeOpenRouterEnv(
   return {
     ...hostEnvForClaudeChild(),
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
-    ...claudeRuntimeEnv(overrides),
-    ...claudeUserEnv(overrides.userEnv),
+    ...claudeRuntimeLayer(overrides),
     ANTHROPIC_API_KEY: "",
     ANTHROPIC_BASE_URL: OPENROUTER_ANTHROPIC_BASE_URL,
     ANTHROPIC_AUTH_TOKEN: openRouterApiKey,
@@ -323,8 +363,7 @@ export function buildClaudeAnthEnv(anthropicApiKey: string, overrides: ClaudeRun
   return {
     ...hostEnvForClaudeChild(),
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
-    ...claudeRuntimeEnv(overrides),
-    ...claudeUserEnv(overrides.userEnv),
+    ...claudeRuntimeLayer(overrides),
     ANTHROPIC_API_KEY: anthropicApiKey,
     // ANTHROPIC_BASE_URL intentionally UNSET — the native default (api.anthropic.com). No Bearer/OAuth path.
     ANTHROPIC_AUTH_TOKEN: undefined,

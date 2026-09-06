@@ -23,14 +23,17 @@ test("Macros: Add persists one row (no phantom), the builtin-collision lint fire
   await page.getByLabel("Name", { exact: true }).fill("myGloss");
   await page.getByRole("button", { name: "Done" }).click();
 
-  await expect(page.getByText("{{myGloss}}")).toBeVisible();
+  // ADDRESSED BY ACCESSIBLE NAME, not raw text (#859 T-3): the Macro browser under this list is OPEN by
+  // default now and prints every user macro's `{{name}}` in a <code>, so a bare text match resolves to the
+  // row AND its catalogue entry. The row is the button; the catalogue echo is the browser working.
+  await expect(page.getByRole("button", { name: "{{myGloss}}", exact: true })).toBeVisible();
   await expect(page.getByText("new_macro")).toHaveCount(0);
   // CT-4: the store driver PERSISTED one macro (savedLen=1), no call-site flush needed.
   await expect(spy).toContainText("savedLen=1");
 
   // The deferred browser consumer's collision lint: re-open (click the row) and rename to a BUILTIN → the
   // refusal is shown. The ListRow title is the clickable edit affordance.
-  await probe.getByText("{{myGloss}}").click();
+  await probe.getByRole("button", { name: "{{myGloss}}", exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill("char");
   await expect(page.getByText(BUILTIN_LINT)).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();

@@ -269,3 +269,47 @@ auditRuleTest(
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
+
+// ── #1078 (orb-ui audit F6): mask paint is INVISIBLE to getComputedStyle, so a masked ancestor withholds ──
+//
+// SCROLL_FADE_X/Y (packages/ui/src/lib/scroll-fade.ts) put `mask-image` on the SCROLLING CONTAINER, not
+// on the text — CSS masking composites the whole subtree, so a descendant text node's PAINTED alpha fades
+// toward transparent while its own `color`/`opacity` still report full strength. `hasMaskedAncestor`
+// (census-text.ts) walks the ancestor chain for a live `mask-image`/`-webkit-mask-image`, mirroring the
+// authoring shape rather than any one component.
+const MASK = "mask-image:linear-gradient(to right, black, transparent);-webkit-mask-image:linear-gradient(to right, black, transparent)";
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason:
+        "a text node under a masked ancestor is withheld even at a failing ratio — resolving it flat would fabricate a ratio the mask never actually paints",
+    },
+  ],
+  "text under a masked ancestor is withheld, not resolved flat",
+  async ({ runCli, scratch }) => {
+    const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div>`;
+    const report = await auditFixture(scratch, runCli, "masked-ancestor", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    expect(report.populationAccounting?.["contrast"]?.withheld).toMatchObject({ maskedForeground: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason: "an UNMASKED sibling at the identical failing ratio is the control proving the walker does not blanket-withhold every text sample",
+    },
+  ],
+  "an unmasked sibling at the identical ratio still fires",
+  async ({ runCli, scratch }) => {
+    const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div><div style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Balance</span></div>`;
+    const report = await auditFixture(scratch, runCli, "masked-and-unmasked", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 2, judged: 1, withheld: { maskedForeground: 1 } });
+  },
+);

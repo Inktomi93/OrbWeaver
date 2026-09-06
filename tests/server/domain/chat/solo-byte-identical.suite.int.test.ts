@@ -1,6 +1,6 @@
 // PD-116 gate 7 — the D16 SOLO-BYTE-IDENTICAL property suite (cross-cutting, mirror-exempt).
 // D16: solo is not a mode — a solo chat IS a group of one, and the group machinery must be a
-// structural NO-OP at cast=1 (no `if (isGroup)` anywhere — the active no-if-is-group grit is the
+// structural NO-OP at one character (no `if (isGroup)` anywhere — the active no-if-is-group grit is the
 // static half; THIS suite is the behavioral half). Two identically-shaped chats drive ONE round each
 // through the REAL engine (chunk-9 `createTurnEngine` + libSQL + a scripted role runner capturing the
 // wire request): posture A is the untouched solo room (`DEFAULT_GROUP_CONFIG`), posture B is a fully
@@ -34,7 +34,7 @@ const ARIA = castId<CharacterId>("character_aria");
 
 const GROUP_CHAR = castId<CharacterId>("character_group");
 
-// The ctx MUST carry a real `cast`/`speakerRefs` or this whole suite is vacuous for the card-shape
+// The ctx MUST carry a real `characters`/`speakerRefs` or this whole suite is vacuous for the card-shape
 // (`shapeContextForSpeaker` returns the ctx UNTOUCHED when either is absent, so every posture would take
 // the same early return and the arms under test would never run). A roster of ONE is the D16 subject.
 const ASSEMBLE_CTX: AssembleContext = {
@@ -54,10 +54,10 @@ const GROUP_OF_ONE: GroupConfig = {
   cardScope: "scoped",
 };
 
-/** Posture C — the NARRATOR arm at cast=1. Its round is authored by the synthetic group character and its
- *  card shape takes a different branch entirely (`{kind:"multi-voice"}` speaker + whole-cast co-speakers), so it is
+/** Posture C — the NARRATOR arm at one character. Its round is authored by the synthetic group character and its
+ *  card shape takes a different branch entirely (`{kind:"multi-voice"}` speaker + all-characters co-speakers), so it is
  *  the posture most able to break D16 — and the one the suite could not see before, because the shared ctx
- *  carried no cast at all. `speakerTags` rides ON (its narrator default) to pin the config-carrying room. */
+ *  carried no characters at all. `speakerTags` rides ON (its narrator default) to pin the config-carrying room. */
 //  Spelled out rather than spread from the default: the narrator arm is `z.strictObject` and OMITS
 //  `cardScope` by construction (narrator ⇒ merged is unrepresentable, not merely unwritten).
 const NARRATOR_OF_ONE: GroupConfig = {
@@ -133,7 +133,7 @@ async function runPosture(
     // same label the per-speaker postures stamp, which is exactly what makes the byte comparison meaningful.
     groupCharacterId: group.output === "narrator" ? GROUP_CHAR : null,
     narratorSpeakerName: "Aria",
-    // The nudge's own cast-of-one guard: `narratorMemberNames.length <= 1` ⇒ no narrator nudge at all, the
+    // The nudge's own single-character guard: `narratorMemberNames.length <= 1` ⇒ no narrator nudge at all, the
     // twin of `multi` for the per-speaker fence. Passing the REAL one-member list drives that guard instead
     // of dodging it with `[]`.
     narratorMemberNames: ["Aria"],
@@ -202,10 +202,10 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
     expect(historyText(req)).not.toContain("Aria:");
   });
 
-  // The NARRATOR arm at cast=1. Added 2026-08-07 after a verifier found this suite VACUOUS for the card
-  // shape: the shared ctx carried no `cast`/`speakerRefs`, so both postures took `shapeContextForSpeaker`'s
-  // absent-cast early return and 3/3 green proved nothing about the arm. It now carries a real roster of one
-  // and drives the branch that most plausibly breaks D16 — a whole-cast speaker arm and whole-cast card merge.
+  // The NARRATOR arm at one character. Added 2026-08-07 after a verifier found this suite VACUOUS for the card
+  // shape: the shared ctx carried no `characters`/`speakerRefs`, so both postures took `shapeContextForSpeaker`'s
+  // absent-characters early return and 3/3 green proved nothing about the arm. It now carries a real roster of one
+  // and drives the branch that most plausibly breaks D16 — an all-characters speaker arm and all-characters card merge.
   //
   // AMENDED 2026-08-08 (C4, the mode-aware main_prompt default; ruled by the orchestrator 2026-08-08) —
   // READ THIS BEFORE "RESTORING" THE OLD FORM. The original assertion was
@@ -225,7 +225,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
   //      under the synthetic group character, which is why the canon test below compares only the
   //      per-speaker postures. The identity claim was always WIRE-ONLY, and this marker is now its one
   //      deliberate wire exception.
-  //   4. This does NOT touch the cast≤1 nudge suppression below, and the two are not in tension: the NUDGE
+  //   4. This does NOT touch the ≤1-character nudge suppression below, and the two are not in tension: the NUDGE
   //      teaches multi-SPEAKER mechanics (size-relevant, so it vanishes at one), while the MARKER states the
   //      round's IDENTITY (mode-relevant, so it holds at any size). Do not flatten them into one rule.
   test("the NARRATOR arm at one character degrades to the solo shape — byte-identical but for the mode's own framing", async () => {
@@ -247,7 +247,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
     expect(narratorFraming).toContain("You are the narrator of an immersive");
     expect(narratorFraming).not.toContain("perspective only");
 
-    // Non-vacuous: the cast-of-one card actually rendered, and neither cast-of-one fence fired.
+    // Non-vacuous: the single-character card actually rendered, and neither single-character fence fired.
     expect(narrator.req.prompt.static).toContain("a bold knight");
     expect(historyText(narrator.req)).not.toContain("Continue the scene, voicing the present characters");
     expect(narrator.req.prompt.static).not.toContain("[Character — Aria]");

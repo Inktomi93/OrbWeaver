@@ -4,8 +4,20 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
+import { interactiveTagSelector } from "../../lib/checks-interactive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
+
+/** A "substantive child" needs a real navigation target on an anchor (`a[href]`, not bare `a`), and
+ *  widens the role list to container roles a card body legitimately hosts — the TAG portion is still the
+ *  one shared tuple (#1074), so textarea/summary cannot drop out of this census either. */
+const CHILD_SUBSTANTIVE_ROLES = ["button", "dialog", "link", "listbox", "menu", "menuitem", "option", "tooltip"];
+const CHILD_SUBSTANTIVE_SEL_VALUE = [
+  ...interactiveTagSelector({ anchorRequiresHref: true }),
+  "[tabindex]:not([tabindex='-1'])",
+  ...CHILD_SUBSTANTIVE_ROLES.map((role) => `[role='${role}']`),
+].join(",");
+const CHILD_SUBSTANTIVE_SEL_JS = JSON.stringify(CHILD_SUBSTANTIVE_SEL_VALUE);
 
 export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skipped-heading; visible headings only so a
   //    hidden warm pane's outline can't fake a skip) ────────────────────────
@@ -227,7 +239,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // strings in packages/{ui,client} carry any word in this list. RULE-AUTHORING.md row 8's class, in
   // both directions at once. data-slot + id + aria-roledescription are the authored positions.
   var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
-  var CHILD_SUBSTANTIVE_SEL = "a[href],button,input,select,summary,textarea,[tabindex]:not([tabindex='-1']),[role='button'],[role='dialog'],[role='link'],[role='listbox'],[role='menu'],[role='menuitem'],[role='option'],[role='tooltip']";
+  var CHILD_SUBSTANTIVE_SEL = ${CHILD_SUBSTANTIVE_SEL_JS};
   for (var co = 0; co < allEls.length; co += 1) {
     var coel = allEls[co];
     var coStyle = getComputedStyle(coel);

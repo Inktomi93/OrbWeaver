@@ -11,6 +11,7 @@ import {
   formatMonthLabel,
   monthEmptyDescription,
   monthExclusiveUpperBound,
+  phoneFiltersLabel,
   searchEmptyDescription,
 } from "../../../../../packages/client/src/features/chat/lib/chat-list-scope.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -106,4 +107,27 @@ test("the empty sentences name every axis in force, and only those", () => {
   expect(monthEmptyDescription("Aria", "June 2020")).toBe("No chats with Aria found by June 2020.");
   // A month that failed to parse still yields a sentence rather than the raw `YYYY-MM` or an "undefined".
   expect(monthEmptyDescription(null, null)).toBe("No chats found by the selected month.");
+});
+
+// #1718 arm A — THE PHONE FILTERS TRIGGER'S FOUR STATES. #1350's principle is that a fold's TRIGGER carries
+// every bound in force, so this table IS that principle, made checkable at the tier the string is built in.
+// The rendered arm (that the ROW spends this name, and in this order) is pinned in
+// `tests/client/features/chat/surfaces/chat-list-surface.ct.tsx`.
+test("phoneFiltersLabel names every filter in force — none, one, or both — character first", () => {
+  expect(phoneFiltersLabel(null, null)).toBe("Filters");
+  expect(phoneFiltersLabel(null, "June 2020")).toBe("Filters: chats up to June 2020");
+  expect(phoneFiltersLabel("Aria Nightshade", null)).toBe("Filters: chats with Aria Nightshade");
+  expect(phoneFiltersLabel("Aria Nightshade", "June 2020")).toBe("Filters: chats with Aria Nightshade, up to June 2020");
+});
+
+// THE ONE-STATE ARMS ARE THE POINT, not padding: a name assembled by concatenating two fixed halves reads
+// correctly with BOTH set and lies with one — a stray comma, a dangling "up to", or a group head with a
+// colon and nothing after it. Each single-axis arm above is the shape that catches its own half; this pins
+// what all three of those failures have in common, which is punctuation the reader would have to parse.
+test("phoneFiltersLabel never trails a separator or a dangling preposition", () => {
+  for (const name of [phoneFiltersLabel(null, null), phoneFiltersLabel(null, "June 2020"), phoneFiltersLabel("Aria", null)]) {
+    expect(name).not.toMatch(/[,:]\s*$/u);
+    expect(name).not.toMatch(/\bwith\s*(?:,|$)/u);
+    expect(name).not.toMatch(/\bup to\s*(?:,|$)/u);
+  }
 });

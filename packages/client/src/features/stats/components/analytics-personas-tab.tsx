@@ -21,12 +21,18 @@ import { formatCompact, formatTokens, personaBarItems } from "../lib/analytics-v
 
 export function AnalyticsPersonasTab(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="gloss">Loading persona usage…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
-    >
-      <PersonasBody />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE TAB'S, NOT THE BODY'S (#1727, the #1133 hoist — the models tab's header carries
+    // the mechanism). Hoisted, the reservation's measuring wrapper sits INSIDE the scroller, where an
+    // auto-height child is exactly what a scroller wants, and the scroller survives the read.
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("analyticsPersonasTab")}>
+      <QueryBoundary
+        fallback={<Text voice="gloss">Loading persona usage…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
+        reserveKey="analytics.personas"
+      >
+        <PersonasBody />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -36,7 +42,7 @@ function PersonasBody(): ReactElement {
   const { data: personas } = useSuspenseQuery(trpc.stats.personaUsage.queryOptions(drilled === null ? {} : { characterId: drilled }));
 
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsPersonasTab")}>
+    <Stack gap="section">
       {/* The tab states which question it answered — the same duty the two unscopable tabs discharge with
           a library notice, discharged here by naming the narrower scope it actually applied. */}
       <Text voice="gloss" role="note" data-slot="analytics-scope">

@@ -435,12 +435,17 @@ test("#1348 the month bound's label states the direction its predicate runs — 
   await expect(component.getByText("No chats found by January 2020.")).toBeVisible();
 });
 
-// #1350 — THE PHONE FOLDS THE SECONDARY FILTER. Measured at 430×740 on live main 2026-09-04: 299 of 740px
-// (40% of the viewport) was filter chrome before the first chat row. The month bound is the secondary of the
-// two filters, so on the phone it becomes a disclosure — the character strip's own `+N More` posture. Two
-// claims, because a fold that hides state is worse than the chrome it saved: the field is NOT rendered while
-// folded, and the TRIGGER names the bound in force whenever one is set.
-test("#1350 @mobile: the month bound folds behind a disclosure, and the trigger carries the bound in force", async ({ mount, page }) => {
+// #1350 → #1718 arm A — THE PHONE FOLDS THE SECONDARY FILTERS, BEHIND ONE TRIGGER. #1350 measured 299 of
+// 740px of filter chrome at 430×740 and folded the month bound behind a disclosure of its own; #1361 item 3
+// did the same for the faces strip. Two `--spacing-control-sm` triggers is 88px at a coarse pointer to carry
+// two facts, so the owner ruled ONE row (#1718 arm A).
+//
+// #1350'S PRINCIPLE IS UNCHANGED AND STILL PINNED HERE: "a fold that hides state is worse than the chrome it
+// saved" — the field is NOT rendered while folded, and the TRIGGER names every bound in force. What moved is
+// that one name carries BOTH facts, so the exact pin is RE-SPELLED to the new grammar rather than deleted or
+// loosened: `Show chats up to June 2020` → `Filters: chats up to June 2020` (`phoneFiltersLabel`,
+// `features/chat/lib/chat-list-scope.ts`, which owns the four-state table). It stays `exact`.
+test("#1350/#1718 @mobile: the secondary filters fold behind ONE trigger, and the trigger carries the bound in force", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_ROOM_ROUTES,
     "chat.listChats": datedChatListResponder([ADVENTURE]),
@@ -453,23 +458,64 @@ test("#1350 @mobile: the month bound folds behind a disclosure, and the trigger 
   await expect(component.getByRole("textbox", { name: "Search chats" })).toBeVisible();
   await expect(component.getByLabel("Show chats up to")).toBeHidden();
 
-  // Opening it reveals the SAME control, named the same way.
-  const trigger = component.getByRole("button", { name: "Show chats up to", exact: true });
+  // ONE trigger, at its neutral name, and the two it replaced are gone rather than hiding somewhere.
+  await expect(component.getByRole("button", { name: "Show chats up to", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Filter by character", exact: true })).toHaveCount(0);
+  const trigger = component.getByRole("button", { name: "Filters", exact: true });
   await trigger.click();
+
+  // Opening it reveals the SAME control, named the same way it is named on a desktop.
   const month = component.getByLabel("Show chats up to");
   await expect(month).toBeVisible();
   await month.fill("2020-06");
 
   // …and the bound rides the TRIGGER, so folding it away never hides what is narrowing the list.
-  await expect(component.getByRole("button", { name: "Show chats up to June 2020", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
 });
 
-// The DESKTOP twin: the pane is a 300px column with vertical room to spare, so the same control renders
-// outright under its `<Field>` label. This is the arm that goes red if the fold leaks past its applicability.
-test("#1350 @desktop: the month bound renders as a plain labelled field, with no disclosure", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": { items: [], nextCursor: null } });
+// THE GRAMMAR, RENDERED (#1718 arm A → #1735, side-eye 2026-09-05). The table is unit-pinned at
+// `phoneFiltersLabel`; this is the arm that proves the ROW spends it. THE RULING SURVIVES, ITS INPUT
+// CHANGED A SECOND TIME: #1735 found the trigger restating the character axis while the `ChatListFilterChip`
+// beside it ALREADY said `Filtered: <name> ✕` — one fact, two sentences. The trigger now states ONLY the
+// axis with no other visible carrier (the month bound); the chip keeps sole ownership of the character
+// name and its only ✕ (#490's one-reset contract).
+test("#1718/#1735 @mobile: the trigger states the month bound only — the chip alone carries the character name and its ✕", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory mobile={true} />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  // NONE.
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
+  await component.getByRole("button", { name: "Filters", exact: true }).click();
+
+  // CHARACTER only — set from inside the panel. The trigger stays at its neutral name (the chip carries
+  // the fact); the chip is the ONLY place "Aria Nightshade" and its ✕ appear.
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade" }).click();
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await expect(component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true })).toBeVisible();
+
+  // BOTH — the month clause reaches the trigger; the character clause does not, because the chip already
+  // carries it (never a second sentence for one on-screen fact). `exact` is the whole assertion: a trigger
+  // that also spelled "with Aria Nightshade" fails this match even though the chip's own "Clear the Aria
+  // Nightshade filter" button legitimately carries the same name.
+  await component.getByLabel("Show chats up to").fill("2020-06");
+  await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
+
+  // …and clearing the character leaves the month clause alone, and removes the chip's own ✕ with it.
+  await component.getByRole("button", { name: "Clear the Aria Nightshade filter" }).click();
+  await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
+  await expect(component.getByText("Filtered:")).toBeHidden();
+});
+
+// The DESKTOP twin: the pane is a 300px column with vertical room to spare, so BOTH controls render outright
+// and no Filters row exists at all. This is the arm that goes red if the fold leaks past its applicability.
+test("#1350/#1718 @desktop: both secondary filters render outright, with no Filters disclosure", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByLabel("Show chats up to")).toBeVisible();
+  await expect(component.getByRole("list", { name: "Filter by character" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Show chats up to", exact: true })).toHaveCount(0);
 });
 
@@ -1637,17 +1683,20 @@ test("#1180 the intent wrapper is display:contents — it generates no box and m
 // `mobile` on the story is the shell's published viewport regime (`setMobileViewport`), which is the axis
 // the fold itself reads; the two are independent and BOTH are required for this to be a phone.
 //
-// MEASURED HERE, both arms: **156px** folded against **181px** on the unmodified source (the red-first
-// receipt, taken by restoring `chat-list-character-filter.tsx` from HEAD and re-running these same mounts).
-// WIDTH-INVARIANT across the phone band, for the same reason the characters pane is - nothing in the folded
-// chrome wraps at either end - so the smaller phone is no worse and the bigger one no better. 158 is the
-// measured number plus 2px of sub-pixel headroom.
+// MEASURED HERE, both arms, and the number has moved TWICE - each step its own red-first receipt:
+//   · 181px  the two secondaries unfolded (pre-#1361)
+//   · 156px  each folded behind a disclosure of ITS OWN (#1361 item 3 / #1350)
+//   · 104px  both behind ONE Filters row (#1718 arm A) - the number this fence now holds
+// The last step is 52px, which is MORE than the 44px trigger box it removes: the second disclosure was also
+// spending the column's `gap="row"` above it, and a band that leaves takes its gap with it. WIDTH-INVARIANT
+// across the phone band, for the same reason the characters pane is - nothing in the folded chrome wraps at
+// either end - so the smaller phone is no worse and the bigger one no better. 106 is the measured number
+// plus 2px of sub-pixel headroom.
 //
-// THE SAVING IS THE STRIP MINUS ITS TRIGGER, NOT THE WHOLE STRIP: a `Collapsible` trigger is a
-// `--spacing-control-sm` row, 44px at a coarse pointer, so folding an ~69px band buys ~25. Both of this
-// pane's folded filters now pay that 44px separately, which is a real remaining cost and is recorded as a
-// follow-up rather than papered over here.
-const CHAT_PHONE_CHROME_CEILING_PX = 158;
+// A FOLD BUYS `band - 44`, NOT THE BAND. That is why #1361's second fold returned only 25 of the ~69px it
+// hid, and it is the arithmetic that made ONE row the right shape: the two facts now share one trigger box
+// instead of renting two.
+const CHAT_PHONE_CHROME_CEILING_PX = 106;
 const CHAT_PHONE_CHROME_ARMS = [
   { width: 320, ceiling: CHAT_PHONE_CHROME_CEILING_PX },
   { width: 390, ceiling: CHAT_PHONE_CHROME_CEILING_PX },
@@ -1668,25 +1717,31 @@ test.describe("#1361 the chats pane's phone chrome budget", () => {
 
     // THE FENCE'S OWN POSITIVE CONTROL, one per arm - a ceiling that never moves is indistinguishable from
     // a constant the test happens to read. The same measurement is taken in the state that must exceed it:
-    // both disclosures OPEN, which is the chrome this pane spent before the two folds landed.
-    test(`at ${String(arm.width)}px coarse both disclosures OPEN exceed that budget - the fence measures, it does not assert`, async ({ mount, page }) => {
+    // the Filters row OPEN, which is the chrome this pane spends with both secondaries on screen - i.e. what
+    // the desktop column spends, and what the phone spent before the folds landed.
+    test(`at ${String(arm.width)}px coarse the Filters row OPEN exceeds that budget - the fence measures, it does not assert`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
       const component = await mount(<ChatListSurfaceStory mobile={true} width={arm.width} />);
       await expect(component.getByText("A grand adventure")).toBeVisible();
       expect(await chatPhoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
 
-      await component.getByRole("button", { name: "Filter by character", exact: true }).click();
-      await component.getByRole("button", { name: "Show chats up to", exact: true }).click();
+      await component.getByRole("button", { name: "Filters", exact: true }).click();
       await expect(component.getByLabel("Show chats up to")).toBeVisible();
       expect(await chatPhoneChrome(component)).toBeGreaterThan(arm.ceiling);
     });
   }
 });
 
-// #1361 item 3 - THE FOLD ITSELF, in the two claims a fold owes: the faces are not rendered while folded,
-// and the TRIGGER carries the scope in force, so folding never hides what is narrowing the list.
-test("#1361 @mobile: the faces strip folds behind a disclosure that names the scope in force", async ({ mount, page }) => {
+// #1361 item 3 -> #1718 arm A -> #1735 (side-eye 2026-09-05) - THE FOLD ITSELF, in the two claims a fold
+// owes: the faces are not rendered while folded, and the TRIGGER carries the scope in force. #1361's own
+// trigger is gone (the pane pays for ONE); #1735 then found the trigger restating the character scope the
+// `ChatListFilterChip` already names, so the pin is RE-SPELLED again: the trigger stays at its neutral name
+// and the CHIP is what "carries the scope in force" for the character axis (`Filtered: Aria Nightshade ✕`,
+// exercised in full at the `#1718/#1735` test above). The strip keeps its own name INSIDE the panel (#208's
+// one string), which is a different fact from the group's, and both are asserted here so neither can absorb
+// the other.
+test("#1361/#1718 @mobile: the faces strip folds behind the shared trigger, which stays neutral while the chip carries the scope", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
   const component = await mount(<ChatListSurfaceStory mobile={true} width={390} />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -1695,25 +1750,16 @@ test("#1361 @mobile: the faces strip folds behind a disclosure that names the sc
   await expect(component.getByRole("textbox", { name: "Search chats" })).toBeVisible();
   await expect(component.getByRole("list", { name: "Filter by character" })).toHaveCount(0);
 
-  // Opening it reveals the SAME strip, announced by the same one name (#208).
-  await component.getByRole("button", { name: "Filter by character", exact: true }).click();
+  // Opening the ONE trigger reveals the SAME strip, announced by the same one name (#208).
+  await component.getByRole("button", { name: "Filters", exact: true }).click();
   const strip = component.getByRole("list", { name: "Filter by character" });
   await expect(strip).toBeVisible();
 
-  // Scoping to a face lands on the TRIGGER, so a reader who folds it away still reads the scope.
+  // Scoping to a face leaves the trigger at its neutral name (#1735) - the chip below it is the one place
+  // that now says "Aria Nightshade".
   await strip.getByRole("button", { name: "Show chats with Aria Nightshade" }).click();
-  await expect(component.getByRole("button", { name: "Filter by character \u00b7 Aria Nightshade", exact: true })).toBeVisible();
-});
-
-// The DESKTOP twin - the arm that goes red if the fold leaks past its applicability. The pane is a 300px
-// column with vertical room to spare, so the strip renders outright under its printed kicker.
-test("#1361 @desktop: the faces strip renders outright, with no disclosure", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
-  const component = await mount(<ChatListSurfaceStory />);
-  await expect(component.getByText("A grand adventure")).toBeVisible();
-
-  await expect(component.getByRole("list", { name: "Filter by character" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Filter by character", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
+  await expect(component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true })).toBeVisible();
 });
 
 /** The pane's chrome: the distance from the story root's top edge to the list of chats. */

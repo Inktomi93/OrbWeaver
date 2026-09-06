@@ -1,7 +1,9 @@
 // The topbar notifications bell — a durable per-user inbox surface, deliberately separate from the
 // transient toast region. An unread-badged bell opening an anchored popover of inbox rows: an invite
 // row carries inline Accept/Decline; a handoff-nominated row carries Accept/Dismiss (no decline verb —
-// a nomination is host-retractable, not invitee-settleable); other reasons render copy + a dismiss.
+// a nomination is host-retractable, not invitee-settleable), where Accept opens the DISCLOSURE confirm
+// (#1762) rather than firing the verb — accepting copies four classes of the departing host's property into
+// your own library; other reasons render copy + a dismiss.
 // Mounted for every authed principal (#1627 — the inbox has single-human sources: a crash-disabled plugin,
 // an auto-disabled automation rule, the plugin consent prompt).
 //
@@ -27,10 +29,10 @@ import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import type { ChromePresentation } from "#state";
 import { openConfigTo, selectChat, setActiveSection } from "#state";
-import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
+import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
@@ -84,6 +86,11 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const [open, setOpen] = useState(false);
+  const [handoffDecision, setHandoffDecision] = useState<InboxItem | null>(null);
+  // The nominations this session has already accepted — #1501's "the verb landed" flag, kept HERE because
+  // the confirm that fires the verb outlives the row that opened it (and the row is re-created from the
+  // list a failed dismiss left unchanged).
+  const [acceptedHandoffIds, setAcceptedHandoffIds] = useState<readonly string[]>([]);
 
   // THE SHEET LENS HAS NO "OPEN" EVENT — its rows just ARE, so its "you looked" moment is the mount (the
   // popover's `onOpenChange` below is the bar lens's equivalent). This effect is what made the claim in the
@@ -124,10 +131,32 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   };
 
   const onHandoffAccepted = (chatId: ChatId): void => {
-    setOpen(false);
+    setHandoffDecision(null);
     setActiveSection("chats");
     selectChat(chatId);
   };
+
+  // THE NOMINATION BEING DECIDED (#1762) — hoisted OUT of the row on purpose: the bar lens's rows live
+  // inside a Popover, and a modal dialog opened from inside one dies with it the moment focus leaves. So
+  // Accept closes the popover and this state carries the decision, in both lenses.
+  const onRequestHandoff = (item: InboxItem): void => {
+    setOpen(false);
+    setHandoffDecision(item);
+  };
+  const handoffPayload = handoffDecision?.payload.type === "handoff-nominated" ? handoffDecision.payload : null;
+  const handoffConfirm =
+    handoffDecision === null || handoffPayload === null ? null : (
+      <HandoffAcceptConfirm
+        chatId={handoffPayload.chatId}
+        notificationId={handoffDecision.id}
+        offer={handoffPayload.offer}
+        onAccepted={(chatId): void => {
+          setAcceptedHandoffIds((ids) => [...ids, handoffDecision.id]);
+          onHandoffAccepted(chatId);
+        }}
+        onClose={(): void => setHandoffDecision(null)}
+      />
+    );
 
   const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount} unread)`;
   const inbox = (
@@ -135,7 +164,16 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       {items.length === 0 ? (
         <Text voice="quiet">No notifications.</Text>
       ) : (
-        items.map((item) => <InboxRow key={item.id} item={item} onAccepted={onAccepted} onHandoffAccepted={onHandoffAccepted} onOpenPlugins={onOpenPlugins} />)
+        items.map((item) => (
+          <InboxRow
+            key={item.id}
+            item={item}
+            acceptedHandoff={acceptedHandoffIds.includes(item.id)}
+            onAccepted={onAccepted}
+            onOpenPlugins={onOpenPlugins}
+            onRequestHandoff={onRequestHandoff}
+          />
+        ))
       )}
     </Stack>
   );
@@ -161,14 +199,17 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     // row was inside nothing. `aria-labelledby` at the heading rather than a second copy of the string: one
     // mint of the name, and the group and its heading can never drift.
     return (
-      <Section
-        aria-labelledby={SHEET_HEADING_ID}
-        data-testid={testId("notificationsInbox")}
-        kicker={<span id={SHEET_HEADING_ID}>{bellLabel}</span>}
-        role="group"
-      >
-        {inbox}
-      </Section>
+      <>
+        <Section
+          aria-labelledby={SHEET_HEADING_ID}
+          data-testid={testId("notificationsInbox")}
+          kicker={<span id={SHEET_HEADING_ID}>{bellLabel}</span>}
+          role="group"
+        >
+          {inbox}
+        </Section>
+        {handoffConfirm}
+      </>
     );
   }
 
@@ -199,6 +240,9 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
       <PopoverPopup aria-label="Notifications" data-testid={testId("notificationsInbox")}>
         {inbox}
       </PopoverPopup>
+      {/* OUTSIDE the popup, inside the root: the popover closes the moment the modal confirm takes focus,
+          and a dialog rendered in `PopoverPopup` would unmount with it mid-decision. */}
+      {handoffConfirm}
     </Popover>
   );
 }
@@ -206,19 +250,23 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
 interface InboxRowProps {
   readonly item: InboxItem;
   readonly onAccepted: (chatId: ChatId) => void;
-  readonly onHandoffAccepted: (chatId: ChatId) => void;
+  /** Open the DISCLOSURE confirm for this nomination (#1762) — the row no longer accepts anything itself. */
+  readonly onRequestHandoff: (item: InboxItem) => void;
+  /** This nomination has already been accepted through that confirm, so its Accept must not come back
+   *  (#1501, held across the hoist: the row is re-rendered from a list the failed dismiss did not change). */
+  readonly acceptedHandoff: boolean;
   readonly onOpenPlugins: () => void;
 }
 
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
- *  Accept/Dismiss; the rest → Dismiss). */
-function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxRowProps): ReactElement {
+ *  Accept/Dismiss; the rest → Dismiss). The handoff's Accept OPENS the disclosure confirm rather than
+ *  firing the verb — what a nomination copies into your library is the bell's one two-step decision. */
+function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins }: InboxRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const dismiss = useDismissNotification({ trpc, invalidation });
   const accept = useAcceptInvite({ trpc, invalidation });
   const decline = useDeclineInvite({ trpc, invalidation });
-  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
   const actionOwned = useRef(false);
   // THE VERB LANDED — the invite/handoff is accepted or declined, whatever happened to the follow-up dismiss
   // (#1501). It exists because the two writes are NOT one transaction: a row whose accept succeeded and whose
@@ -229,13 +277,10 @@ function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxR
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
   const isConsent = item.payload.type === "plugins-awaiting-consent";
-  const isPending = accept.isPending || decline.isPending || acceptHandoff.isPending || dismiss.isPending;
-  let pendingCopy = "Dismissing notification…";
-  if (isInvite) {
-    pendingCopy = `Updating invitation from ${item.payload.invitedByHandle}…`;
-  } else if (isHandoff) {
-    pendingCopy = "Updating host handoff…";
-  }
+  const isPending = accept.isPending || decline.isPending || dismiss.isPending;
+  // The handoff's own in-flight copy moved to the confirm with the verb (#1762): the only write this row
+  // still owns for a nomination is the dismiss.
+  const pendingCopy = isInvite ? `Updating invitation from ${item.payload.invitedByHandle}…` : "Dismissing notification…";
 
   const ownAction = (work: () => Promise<void>): void => {
     if (actionOwned.current) {
@@ -243,8 +288,7 @@ function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxR
     }
     actionOwned.current = true;
     // @orb-gate-ignore caught-failure-ownership(promise:work): every `work` this wraps (accept/decline/
-    // acceptHandoff/dismiss) carries its own errorToast — the toast is the surface. Ends if a new `work`
-    // caller lacks an errorToast.
+    // dismiss) carries its own errorToast — the toast is the surface. Ends if a new `work` caller lacks an errorToast.
     void work()
       .catch(() => undefined)
       .finally(() => {
@@ -277,19 +321,6 @@ function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxR
     ownAction(async () => {
       await decline.mutateAsync({ inviteId: payload.inviteId });
       setActed(true);
-      await dismiss.mutateAsync({ notificationId: item.id });
-    });
-  };
-
-  const acceptHostHandoff = (): void => {
-    const payload = item.payload;
-    if (payload.type !== "handoff-nominated") {
-      return;
-    }
-    ownAction(async () => {
-      await acceptHandoff.mutateAsync({ chatId: payload.chatId });
-      setActed(true);
-      onHandoffAccepted(payload.chatId);
       await dismiss.mutateAsync({ notificationId: item.id });
     });
   };
@@ -344,8 +375,15 @@ function InboxRow({ item, onAccepted, onHandoffAccepted, onOpenPlugins }: InboxR
             </Button>
           </>
         ) : null}
-        {isHandoff && !acted ? (
-          <Button type="button" disabled={isPending} intent="secondary" size="sm" onClick={acceptHostHandoff}>
+        {isHandoff && !acted && !acceptedHandoff ? (
+          <Button
+            aria-label="Accept the host handoff"
+            type="button"
+            disabled={isPending}
+            intent="secondary"
+            size="sm"
+            onClick={(): void => onRequestHandoff(item)}
+          >
             Accept
           </Button>
         ) : null}

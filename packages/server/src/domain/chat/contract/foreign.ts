@@ -113,6 +113,13 @@ export interface ForeignInputs {
    *  Absent/null ⇒ the turn stamps the `"default"` source label (unreachable when no user macros are
    *  authored, since the default config has none). */
   readonly presetId?: PresetId | null | undefined;
+  /** The NAME of the preset {@link ForeignInputs.presetId} points at — the SAME resolution, so the two can
+   *  never disagree about which preset this room assembles. Read by the room's Regex section, which must
+   *  name the preset the TURN uses (the GM redirect's on a game chat) and has no other route to it: the
+   *  wire's tier key is the bare word `preset`, and the client's only preset name is the VIEWER's active
+   *  one (#1754). Absent/null ⇒ the system `DEFAULT_PROMPT_CONFIG` stood in (or a fake that names nothing)
+   *  ⇒ the section says the bare `From the preset`, never a guess. */
+  readonly presetName?: string | null | undefined;
   readonly personas: ResolvedPersonas;
   readonly scanDepth: number;
   readonly injectionTokenBudget: number;

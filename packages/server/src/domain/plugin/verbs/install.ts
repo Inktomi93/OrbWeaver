@@ -84,6 +84,6 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       updatedAt: now,
     };
     await insertPlugin(ctx.db, row, bundleAssets.links);
-    return toPluginView(row);
+    return toPluginView(row, ctx.showcase.slugs);
   };
 }

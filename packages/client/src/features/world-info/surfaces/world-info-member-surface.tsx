@@ -12,19 +12,22 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { ArrowLeft, BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
-import { Container, Row, Stack } from "@orb/ui/layout";
+import { BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
+import { Container, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
-import { Heading, Text } from "@orb/ui/text";
+import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import type { MemberDrillBack } from "#components";
+import { MemberDrillHeader } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { CollectionMemberView } from "#lib";
 import { useFocusOnMount } from "#lib";
-import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
+import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
@@ -32,17 +35,25 @@ import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpd
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
 
-export function WorldInfoMemberSurface({ memberId }: { readonly memberId: string }): ReactElement {
+export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
   const trpc = useTRPC();
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
-  const book = books.find((row) => row.id === memberId);
+  const book = books.find((row) => row.id === view.memberId);
+  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
   if (book === undefined) {
-    return <EmptyState description="This book was deleted. Pick another from the list." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />;
+    // The EXIT rides the gone arm too (#1747) — the drill row is this surface's, so dropping it here would
+    // strand a drilled reader on a book another device deleted.
+    return (
+      <Stack gap="block">
+        <MemberDrillHeader back={back} />
+        <EmptyState description="This book was deleted. Pick another from the list." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />
+      </Stack>
+    );
   }
-  return <BookEditor bookId={book.id} />;
+  return <BookEditor back={back} bookId={book.id} />;
 }
 
-function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement {
+function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly back: MemberDrillBack }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
@@ -89,12 +100,11 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
     return (
       <Container>
         <Stack className="min-h-0 outline-none" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-          <Row align="center" gap="field">
-            <Button aria-label="Back to entries" intent="ghost" onClick={(): void => clearWorldEntrySelection()} size="sm">
-              <Icon icon={ArrowLeft} size="sm" />
-              Entries
-            </Button>
-          </Row>
+          {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
+              two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
+              book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
+              nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
+          <MemberDrillHeader back={{ label: "Back to entries", onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
           <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
         </Stack>
       </Container>
@@ -104,35 +114,43 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
   return (
     <Container>
       <Stack className="min-h-0 outline-none" data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-        <Row align="start" gap="field" justify="between">
-          <Stack className="min-w-0" gap="tight">
-            <Heading level={2}>{book.name}</Heading>
-            {book.description === null || book.description === "" ? null : <Text voice="gloss">{book.description}</Text>}
-          </Stack>
-          <Button aria-label="Edit book details" intent="ghost" onClick={(): void => setDetailsOpen(true)} size="sm">
-            <Icon icon={Pencil} size="sm" />
-          </Button>
-        </Row>
+        {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 06): `← Back to <library>` · the book's name · this
+            book's OWN verbs — Edit details · Backfill · New entry, exactly the trio the board draws, moved
+            up out of the two rows that used to carry them (the name+pencil row and the census row). No
+            lifecycle chrome: Delete is the LIST row's kebab (D121(D), #271).
+            EDIT DETAILS IS A LABELLED BUTTON NOW, not a bare pencil: the board names it, and the icon-only
+            trigger's whole accessible name lived in an `aria-label` nothing on screen said. */}
+        <MemberDrillHeader
+          actions={
+            <>
+              <Button intent="secondary" onClick={(): void => setDetailsOpen(true)} size="sm">
+                <Icon icon={Pencil} size="sm" />
+                Edit details
+              </Button>
+              {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
+                  ghost this is a transparent, borderless accent word sitting 8px from a filled primary, so
+                  the pair read as "one button and a caption" rather than as two verbs of different weight.
+                  Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
+                  its rank because it is the only filled control in the row. */}
+              <Button disabled={backfill.isPending || entries.length === 0} intent="secondary" onClick={onBackfill} size="sm">
+                Backfill titles
+              </Button>
+              <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+                <Icon icon={Plus} size="sm" />
+                New entry
+              </Button>
+            </>
+          }
+          back={back}
+          title={book.name}
+        />
+        {book.description === null || book.description === "" ? null : <Text voice="gloss">{book.description}</Text>}
 
-        <Row align="center" gap="field" justify="between">
-          <Text as="span" voice="datum">
-            {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
-          </Text>
-          <Row align="center" gap="field">
-            {/* `secondary`, NOT `ghost` (side-eye 2026-08-19 P2, the zero-resting-affordance class): at
-                ghost this is a transparent, borderless accent word sitting 8px from a filled primary, so
-                the pair read as "one button and a caption" rather than as two verbs of different weight.
-                Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
-                its rank because it is the only filled control in the row. */}
-            <Button disabled={backfill.isPending || entries.length === 0} intent="secondary" onClick={onBackfill} size="sm">
-              Backfill titles
-            </Button>
-            <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-              <Icon icon={Plus} size="sm" />
-              New entry
-            </Button>
-          </Row>
-        </Row>
+        {/* The entries census, alone on its row now that the three verbs moved up to the drill row (board
+            06 draws it at the list's leading edge). */}
+        <Text as="span" voice="datum">
+          {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
+        </Text>
 
         {entries.length === 0 ? (
           <EmptyState

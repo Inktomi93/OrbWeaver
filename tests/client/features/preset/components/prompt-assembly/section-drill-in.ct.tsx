@@ -9,8 +9,9 @@
 //     them, and Delete persists the shorter list through the boundary's store driver with no flush.
 //   · the PIVOT carries NO enable switch anywhere — a disabled pivot is an assembly with nowhere to
 //     splice the conversation.
-//   · a plain-marker CARRIER gets NO depth/order/triggers: the schema's own branch declares neither
-//     `inject` nor `trigger` on it, so offering the field would write a shape the contract rejects.
+//   · a plain-marker CARRIER gets NO depth/order: the schema's own branch declares no `inject` on it, so
+//     offering the field would write a shape the contract rejects. It DOES get Triggers — `trigger` is
+//     declared on every branch (#1462/#1736) — and every non-pivot section shows that cluster.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -431,23 +432,70 @@ test("the PIVOT carries no enable switch — on the rack or in its drill-in", as
   await expect(probe.getByLabel("Zone")).toHaveCount(0);
 });
 
-test("a CARRIER's drill-in offers no depth, no order and no triggers — the schema has no such fields", async ({ mount }) => {
+test("a CARRIER's drill-in offers no depth or order, but DOES offer Triggers — #1462/#1736", async ({ mount }) => {
   const probe = await mount(<RackStory />);
   await probe.getByRole("button", { name: "Edit World info (before)" }).click();
   await expect(probe.getByRole("button", { name: "Back to rack" })).toBeVisible();
 
   // It IS arrangeable in the rack sense — zone is array position, which every section has…
   await expect(probe.getByRole("combobox", { name: "Zone" })).toBeVisible();
-  // …but `inject` and `trigger` exist only on the literal / templated-marker arms of the union, so the
+  // …but `inject` exists only on the literal / templated-marker arms of the union, so the depth/order
   // fields are ABSENT rather than rendered-and-disabled (writing either would fail the contract).
   await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
-  await expect(probe.getByRole("combobox", { name: "Fires on" })).toHaveCount(0);
+  // `trigger` IS declared on the plain-marker arm too (#1462 gave ST's `injection_trigger` parity to
+  // world_info_before/after/chat_history) — the Triggers cluster is gated on `!pivot` alone, so a carrier
+  // that isn't the pivot gets it same as a literal or templated marker.
+  await expect(probe.getByRole("combobox", { name: "Fires on" })).toBeVisible();
   // Its body is the source-attribution panel plus the shared entry wrapper — never a body textarea.
   // Located by ROLE: the field's explainer moved to the hover HINT (side-eye F-32 — a one-line format
   // string does not need a 90px textarea plus a paragraph), and the hint trigger's own accessible name
   // contains the label, so a bare `getByLabel` now matches two elements.
   await expect(probe.getByRole("textbox", { name: "Entry wrapper" })).toBeVisible();
+});
+
+// ── #1736: THE PLAIN-MARKER TRIGGERS GATE SPLIT ──────────────────────────────────────────────────────
+// The gate used to be ONE `arrangeable` flag (literal || templated marker) covering BOTH the Placement
+// cluster's Order/Depth sub-fields AND the whole Triggers cluster — so a plain-marker carrier (world info
+// before/after, and chat_history itself once #1462 gave it `trigger` too) never got a Triggers editor even
+// though the assembler (`sectionTriggers`/`hasActiveMarker`) had honoured its `trigger` field since that
+// fold. Triggers is now gated on `!pivot` ALONE; Order/Depth stay arrangeable-only (unchanged — a plain
+// marker is a placement ANCHOR, `injectionDepthFor` returns null for it by design).
+
+test("#1736 — a plain marker's Triggers cluster WRITES, and the value survives edit → save → parsePromptConfig", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("savedTrig=(unsaved)");
+
+  await probe.getByRole("button", { name: "Edit World info (before)" }).click();
+  const fires = probe.getByRole("combobox", { name: "Fires on" });
+  await expect(fires).toHaveText(EVERY_GENERATION_RE);
+  await fires.click();
+  await page.getByRole("option", { name: "Swipe" }).click();
+  await page.keyboard.press("Escape");
+  await expect(fires).toHaveText(SWIPE_TRIGGER_RE);
+
+  // The FORM's own value (the write proof) —
+  await expect(state).toContainText("trig=sec_wi:swipe");
+  // — AND what the autosave SAVE seam received, re-derived through `parsePromptConfig` (the contract's
+  // own read path), not the live form: this is the edit→save→parse round trip, not just "the field wrote".
+  await expect(state).toContainText("savedTrig=sec_wi:swipe");
+});
+
+test("#1736 — a templated marker moved In Chat gets BOTH Placement's depth/order AND Triggers", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+
+  // `Post-history` (a templated marker) sits BEFORE the pivot in the fixture ⇒ Relative, so depth/order
+  // are absent there for the SAME reason a literal's are (O-9★, not the #1736 gate). Move it In Chat via
+  // the ⋯ menu so both halves of this pin — arrangement AND triggers — are visible on the one section.
+  await probe.getByRole("button", { name: "Edit Post-history" }).click();
+  await page.getByRole("button", { name: "Section actions" }).click();
+  await page.getByRole("menuitem", { name: "Move below the conversation" }).click();
+
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(IN_CHAT_ZONE_RE);
+  await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toBeVisible();
+  await expect(probe.getByRole("textbox", { name: "Order" })).toBeVisible();
+  await expect(probe.getByRole("combobox", { name: "Fires on" })).toBeVisible();
 });
 
 // ── THE `{{ }}` POPOVER COMPLETES AGAINST THE DERIVED CATALOG ────────────────────────────────────────

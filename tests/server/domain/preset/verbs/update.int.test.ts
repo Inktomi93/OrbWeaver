@@ -329,4 +329,42 @@ describe("update — the read-derived save over an unreadable stored blob", () =
     expect(detail.name).toBe("Renamed");
     expect(detail.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion + 900);
   });
+
+  // #1717 — one hop out from #1026: a COW fork's copy-forward arm (`params.config ?? parsePromptConfig(base.config)`)
+  // descends from a read of `base`, exactly like the editor's read-derived save, so an unreadable SYSTEM
+  // DEFAULT must refuse the fork rather than silently mint one carrying DEFAULT_PROMPT_CONFIG (a fork that
+  // does not match the base the owner thinks they forked).
+  test("a COW fork with no submitted config REFUSES over an unreadable system default, and mints NO fork (#1717)", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await seedPreset(db, {
+      id: SYSTEM_DEFAULT_PRESET_ID,
+      ownerId: null,
+      config: DEFAULT_PROMPT_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+
+    await expect(svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).rejects.toMatchObject({ code: "stored_config_unreadable" });
+
+    expect((await svc.list({ userId: owner })).length).toBe(1);
+  });
+
+  // A caller-submitted config carries no read of the base at all — the fork mints normally even though the
+  // system default's own blob is unreadable (the GUARD_EXEMPT shape: content that does not descend from a
+  // read of the row it lands on).
+  test("a COW fork WITH a submitted config mints normally over an unreadable system default", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await seedPreset(db, {
+      id: SYSTEM_DEFAULT_PRESET_ID,
+      ownerId: null,
+      config: DEFAULT_PROMPT_CONFIG,
+      schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 900,
+    });
+
+    const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, config: DEFAULT_PROMPT_CONFIG });
+    expect(forked.config).toEqual(DEFAULT_PROMPT_CONFIG);
+  });
 });

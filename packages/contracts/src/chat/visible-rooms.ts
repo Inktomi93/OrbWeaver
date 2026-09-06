@@ -38,7 +38,7 @@ export interface VisibleRoomRef {
   /** The AUTHORED title, raw and untrimmed — null or blank means "never renamed", which the chain answers. */
   readonly title: string | null;
   /** The present characters' display names, in roster order, MINUS the caller's own seat (the chats list's own
-   *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information about
+   *  `summaryParticipantNames` rule: the viewer is in every room they can see, so their name carries no information about
    *  which characters are present). */
   readonly participantNames: readonly string[];
   /** Last activity (`chats.updatedAt`), epoch-ms. */

@@ -24,7 +24,7 @@ import { prefersReducedMotionNow } from "@orb/ui/lib";
 import { readAgentDebugHandle } from "./agent-bridge.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "./appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "./bug-report-bundle.ts";
-import { buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "./bug-report-bundle.ts";
+import { bugReportRouteFrom, buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "./bug-report-bundle.ts";
 import { consoleErrorRing } from "./console-error-ring.ts";
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
@@ -47,16 +47,18 @@ export interface BugReportCaptureInput {
   readonly now?: number;
 }
 
-/** Where the report was taken from — the URL as a fact, the shell as the answer (see `BugReportRoute`). */
+/** Where the report was taken from — the URL as a fact, the shell as the answer (see `BugReportRoute`).
+ *
+ *  This function is the DOM READ only. The reduction that drops the query string and fragment lives in the
+ *  DOM-free sibling (`bug-report-bundle.ts::bugReportRouteFrom`, #1535) so a node unit lane can hand it an
+ *  OAuth-callback URL and watch the code not come out; hand it `globalThis.location` whole and let the
+ *  reducer decide what survives. */
 function readRoute(shell: unknown): BugReportRoute {
-  return {
-    href: globalThis.location.href,
-    pathname: globalThis.location.pathname,
-    search: globalThis.location.search,
-    hash: globalThis.location.hash,
+  return bugReportRouteFrom({
+    location: globalThis.location,
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
     shell,
-  };
+  });
 }
 
 /** Every DOM-observable appearance carrier, read off the live document. DERIVED from the carrier manifest

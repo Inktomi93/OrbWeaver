@@ -60,6 +60,14 @@ export interface BundleImportDeps {
   readonly signal?: AbortSignal;
 }
 
+/** Every per-file {@link BundleImportFileOutcome.notes} in the report, flattened in file order (#1710). This
+ *  is the ONE derivation of "what did a bundle import leave behind" — a caller that needs the operator-facing
+ *  notes (the workload result, a future sync route) reads them off HERE rather than re-walking `outcomes`
+ *  itself, so a new note-carrying entity plane is visible everywhere without a second traversal to update. */
+export function bundleImportNotes(report: BundleImportReport): readonly string[] {
+  return report.outcomes.flatMap((outcome) => outcome.notes ?? []);
+}
+
 /** The leading directory of an archive path, including the trailing slash, or null for a top-level file. */
 function leadingDir(path: string): string | null {
   const slash = path.indexOf("/");

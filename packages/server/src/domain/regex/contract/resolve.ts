@@ -10,6 +10,7 @@
 // is not owner-filtered (a room's attached scripts are room-public prompt content, membership is the
 // caller's gate) — the `listChatBooks` precedent.
 
+import type { CharacterRegexSlice } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
@@ -32,11 +33,17 @@ export interface ResolveRegexSourcesArgs {
 }
 
 /** The four resolved slices, each already ordered by its junction `position`. The consumer (chat's
- *  `resolveHostTierRegexScripts`) concatenates global → preset → character → chat and dedupes by row id. */
+ *  `resolveHostTierRegexScripts`) concatenates global → preset → character (per seat, roster order) → chat,
+ *  drops the tiers this room switched off, and dedupes by row id. */
 export interface ResolvedRegexSources {
   readonly hostGlobal: readonly RegexScriptRow[];
   readonly preset: readonly RegexScriptRow[];
-  readonly character: readonly RegexScriptRow[];
+  /** PER SEAT, in roster order — not one flat list (#1742/F3). Each seated character is its own TIER: its
+   *  own per-chat allow flag, its own group in the room's Regex section, its own lever. A flat list made
+   *  "whose rows are these" unanswerable downstream, so the regroup this op already performs is now KEPT
+   *  instead of being immediately discarded by a `flatMap`. Concatenating the slices in array order
+   *  reproduces the old value exactly. */
+  readonly character: readonly CharacterRegexSlice[];
   readonly chat: readonly RegexScriptRow[];
 }
 

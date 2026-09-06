@@ -118,12 +118,22 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
  *  read anything. */
 export function CharacterLibraryWelcome(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="quiet">Loading your characters…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
-    >
-      <CharacterLandingBody />
-    </QueryBoundary>
+    // THE SCROLL BOX IS THE PANE'S, NOT THE FRAME'S (#1748, the #1133 hoist). Under the reservation's
+    // auto-height measuring Stack a scroller's `h-full` resolves to `auto` and the landing stops scrolling,
+    // so the box moved up here and `LandingFrame` keeps only the chrome it can author from the read. The
+    // `Container` rides up with it — the shelf grid is CONTAINER-queried (`cols="cellShelf"`) and an
+    // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
+    // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
+    // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
+    <Container className="relative h-full overflow-y-auto">
+      <QueryBoundary
+        fallback={<Text voice="quiet">Loading your characters…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
+        reserveKey="character.libraryWelcome"
+      >
+        <CharacterLandingBody />
+      </QueryBoundary>
+    </Container>
   );
 }
 
@@ -349,33 +359,29 @@ function LandingFrame({
   readonly children: ReactElement | null;
 }): ReactElement {
   return (
-    // `relative` rides the SAME class string as the overflow token (`scroll-container-positioned`): a
-    // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only`
-    // announcers included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf
-    // into blank space.
-    <Container className="relative h-full overflow-y-auto">
-      <Stack gap="section" padding="section">
-        {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
+    // THE SCROLL BOX AND ITS `Container` LIVE ABOVE THE BOUNDARY (#1748) — `character-library-welcome.tsx`'s
+    // own header carries why. What is left here is the chrome the read authors: the lead, the doors, the shelves.
+    <Stack gap="section" padding="section">
+      {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
             `justify=between`, the two buttons took ~250px of a 398px pane and squeezed "Pick up where you
             left off" into a ~110px column eleven lines tall. `@max-md:flex-col` is the `actionBar` recipe's
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
-        <Row align="start" className="@max-md:flex-col" gap="section" justify="between">
-          <Stack className="min-w-0 flex-1" gap="tight">
-            <Heading level={2}>{title}</Heading>
-            {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN
+      <Row align="start" className="@max-md:flex-col" gap="section" justify="between">
+        <Stack className="min-w-0 flex-1" gap="tight">
+          <Heading level={2}>{title}</Heading>
+          {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN
                 font, so the same cap on the Stack above was computed at the heading's step and let this
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
                 is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
                 of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
-            <Text className="max-w-(--reading-measure-prose)" voice="gloss">
-              {gloss}
-            </Text>
-          </Stack>
-          {doors}
-        </Row>
-        {children}
-      </Stack>
-    </Container>
+          <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+            {gloss}
+          </Text>
+        </Stack>
+        {doors}
+      </Row>
+      {children}
+    </Stack>
   );
 }

@@ -180,6 +180,46 @@ function primaryFirstLoafIndexes(loafs: readonly LoafRecord[]): ReadonlySet<numb
   return new Set(primaryByEntrance.values());
 }
 
+/** The native LoAF invoker name for React's discrete-event dispatch (measured on the real tree, e.g.
+ *  `docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md`'s "…6ms forced style/layout inside
+ *  `dispatchDiscreteEvent`") — condition (a) below. */
+const INPUT_DISPATCH_INVOKER = "dispatchDiscreteEvent";
+
+/** #1647 — THE ONE BOUNDED INPUT-DISPATCH LAYOUT-FRAME EXEMPTION (#1316's proposal). A click that resizes
+ *  a grid track (the list-collapse toggle) does REAL style/layout work, and that work must happen in the
+ *  click's own frame — `loaf-style-layout-count 0` is unmeetable for any correct implementation of the
+ *  interaction. #380's context-pane ruling ("one unavoidable grid-layout LoAF") is the precedent this
+ *  codifies. ALL FOUR conditions must hold, checked in the ORDER a violation is cheapest to prove, or the
+ *  frame still counts against the budget — this is a bounded carve-out, never a blanket allowance for
+ *  input-triggered layout:
+ *   (a) DISPATCH — a script in the frame IS the measured input's own dispatch
+ *       (`sourceFunctionName === "dispatchDiscreteEvent"`); a frame with no such script is not "the
+ *       click's own frame".
+ *   (b) NO FORCED LAYOUT — every script reports `forcedStyleAndLayoutDuration === 0`: nothing forced a
+ *       synchronous reflow DURING script execution.
+ *   (c) TAIL, NOT INTERLEAVED — `styleAndLayoutStart` falls at or after the frame's own script span (the
+ *       render-phase tail). Approximated as `styleAndLayoutStart >= Σ scripts[].duration`: the LoAF spec's
+ *       own `renderStart` field would say this exactly, but `packages/client/src/lib/motion-stats.ts` does
+ *       not plumb it yet (outside this fix's fence) — the script-span sum is the strongest signal this
+ *       instrument can compute today, and (b) already rules out the one shape (a script-forced reflow)
+ *       that this proxy could otherwise miss.
+ *   (d) ONLY ONE — it is the ONLY frame in the WHOLE window whose `styleAndLayoutStart > 0`. A second
+ *       layout frame, or any app-side forced sync layout anywhere in the window, still fails. */
+function isBoundedInputDispatchLayoutFrame(loaf: LoafRecord, allLoafs: readonly LoafRecord[]): boolean {
+  const layoutBearing = allLoafs.filter((l) => l.styleAndLayoutStart > 0);
+  if (layoutBearing.length !== 1 || layoutBearing[0] !== loaf) {
+    return false; // (d)
+  }
+  if (!loaf.scripts.some((s) => s.sourceFunctionName === INPUT_DISPATCH_INVOKER)) {
+    return false; // (a)
+  }
+  if (!loaf.scripts.every((s) => (s.forcedStyleAndLayoutDuration ?? 0) === 0)) {
+    return false; // (b)
+  }
+  const scriptSpan = loaf.scripts.reduce((sum, s) => sum + s.duration, 0);
+  return loaf.styleAndLayoutStart >= scriptSpan; // (c)
+}
+
 /** Raw/classified/budgeted LoAF inputs. The budget itself is unchanged: confirmed sealed-Select
  * entrance frames may carry their measured positioning style work; only the trigger's first page-
  * lifetime entrance receives the fixed blocking subtraction. Repeats and all unclassified work face
@@ -189,6 +229,10 @@ export function loafTotals(motion: MotionSnapshot | null): {
   classifiedInitializations: number;
   budgetedWorstBlocking: number;
   budgetedStyleLayout: number;
+  /** #1647 — true when exactly one style/layout LoAF in the window was EXCUSED under the bounded
+   *  input-dispatch exemption above (excluded, not silently dropped: a consuming report names this fact
+   *  instead of a `budgetedStyleLayout: 0` reading as an unqualified clean run). */
+  boundedInputDispatchExempt: boolean;
 } {
   const loafs = motion?.loafs ?? [];
   const primaryIndexes = primaryFirstLoafIndexes(loafs);
@@ -198,6 +242,13 @@ export function loafTotals(motion: MotionSnapshot | null): {
       return loaf !== undefined && !hasUnrelatedScriptAttribution(loaf);
     }),
   );
+  const styleLayoutLoafs = loafs.filter((loaf) => {
+    if (loaf.styleAndLayoutStart <= 0) {
+      return false;
+    }
+    const exemptSelectEntrance = confirmedSelectEntrance(loaf) !== undefined && !hasUnrelatedScriptAttribution(loaf);
+    return !(exemptSelectEntrance || isBoundedInputDispatchLayoutFrame(loaf, loafs));
+  });
   return {
     rawWorstBlocking: loafs.reduce((worst, loaf) => Math.max(worst, loaf.blockingDuration), 0),
     classifiedInitializations: eligiblePrimaryIndexes.size,
@@ -205,9 +256,8 @@ export function loafTotals(motion: MotionSnapshot | null): {
       const allowance = eligiblePrimaryIndexes.has(index) ? FIRST_SELECT_BLOCKING_ALLOWANCE_MS : 0;
       return Math.max(worst, Math.max(0, loaf.blockingDuration - allowance));
     }, 0),
-    budgetedStyleLayout: loafs.filter(
-      (loaf) => loaf.styleAndLayoutStart > 0 && (confirmedSelectEntrance(loaf) === undefined || hasUnrelatedScriptAttribution(loaf)),
-    ).length,
+    budgetedStyleLayout: styleLayoutLoafs.length,
+    boundedInputDispatchExempt: loafs.some((loaf) => loaf.styleAndLayoutStart > 0 && isBoundedInputDispatchLayoutFrame(loaf, loafs)),
   };
 }
 

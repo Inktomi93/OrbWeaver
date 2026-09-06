@@ -102,8 +102,23 @@ function authorClassIgnores(sheets) {
 // hooks). The node `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — no hooks/components.
 const UI_CT = "tests/ui/**/*.ct.tsx";
 const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
+// #1590: `tests/ui/**` grew underscore-prefixed story modules (the same "not a real test file" naming
+// convention as `_ct-stories.tsx` elsewhere) and a `.stories.tsx` suffix of its own — neither had a home
+// here, so `pnpm exec eslint <file>` answered "File ignored" for both (a real defect: the CT surface's
+// react-hooks/Compiler/jsx-a11y rules never reached them). Both are directory globs, not a filename list,
+// same doctrine as CLIENT_STORIES below.
+const UI_STORIES = "tests/ui/**/_*.tsx";
+const UI_STORIES_SUFFIX = "tests/ui/**/*.stories.tsx";
 const CLIENT_CT = "tests/client/**/*.ct.tsx";
-const CLIENT_STORIES = "tests/client/**/_ct-stories.tsx";
+// #1590: widened from the exact `_ct-stories.tsx` filename to every underscore-prefixed `.tsx` under
+// `tests/client/**` — story/fixture modules share that naming convention regardless of their suffix
+// (`_cascade-fixtures.tsx`, `_slash-command-stories.tsx`, …), and a per-filename list here would rot the
+// same way the exact-name-only version already had (32 files, none of them named `_ct-stories.tsx`,
+// were "File ignored" before this widened). Still matches the original `_ct-stories.tsx` files too.
+const CLIENT_STORIES = "tests/client/**/_*.tsx";
+// #1590: `*.fixtures.tsx` under `tests/client/**` had no home (only `tests/ui/**/*.fixtures.tsx` did) —
+// 12 files (11 `components/*.fixtures.tsx` + `state/config-row-annotation.fixtures.tsx`) were uncovered.
+const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
 // tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
 // in-page instruments, so their proofs MOUNT), and tests/support/ct carries the shared CT providers.
 // Both are React under playwright-ct exactly like the ui/client trees — without these rows the
@@ -112,7 +127,7 @@ const CLIENT_STORIES = "tests/client/**/_ct-stories.tsx";
 const TOOLING_CT = "tests/tooling/**/*.ct.tsx";
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
 const SUPPORT_CT = "tests/support/ct/**/*.tsx";
-const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES, TOOLING_CT, TOOLING_STORIES, SUPPORT_CT];
+const CT_SURFACE = [UI_CT, UI_FIXTURES, UI_STORIES, UI_STORIES_SUFFIX, CLIENT_CT, CLIENT_STORIES, CLIENT_FIXTURES, TOOLING_CT, TOOLING_STORIES, SUPPORT_CT];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
@@ -211,7 +226,7 @@ const TOOLING_TESTS = "tests/tooling/**/*.ts";
 // tests/server/{transport/trpc/stream/socket.test.ts,domain/chat/macro-identity.suite.int.test.ts}, and the
 // root program EXCLUDES both. That is why these dirs ride the escapee parser below rather than
 // projectService (#1231) — an upward search lands on the root tsconfig and finds them excluded.
-const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts"];
+const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts", "tests/showcase-plugins/**/*.ts"];
 // The trees the root program does NOT own — see the parser note above; every one of them is rooted by
 // `tsconfig.tests-dom.json`, which is why they share the escapee parser.
 //
@@ -219,10 +234,11 @@ const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/*
 // object at all, so `pnpm exec eslint <one of them> --max-warnings 0` answered "File ignored because no
 // matching configuration was supplied" — which the scoped verify lane passes `--no-warn-ignored` for, so
 // the hole was silent there and RED elsewhere. Census at the time: 2642 tracked `tests/**` ts+tsx files,
-// 274 uncovered — 202 `tests/client/**/*.ts`, 41 `tests/ui/**/*.ts` (both closed here), plus 31 `.tsx`
-// story/fixture modules that the CT surface's narrower globs miss (`*.fixtures.tsx` under tests/client,
-// `_*-stories.tsx` other than the exact `_ct-stories.tsx`, `tests/ui/**/*.stories.tsx`) — a REACT-surface
-// question, deliberately left for its own row rather than folded in here.
+// 274 uncovered — 202 `tests/client/**/*.ts`, 41 `tests/ui/**/*.ts` (both closed here), plus 32 `.tsx`
+// story/fixture modules the CT surface's narrower globs missed — a REACT-surface question, deliberately
+// left for its own row rather than folded in here. CLOSED by #1590: `UI_STORIES`/`UI_STORIES_SUFFIX`/
+// `CLIENT_FIXTURES` above, and `CLIENT_STORIES` widened from the exact `_ct-stories.tsx` filename to
+// every underscore-prefixed `.tsx` under `tests/client/**`.
 // These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
 // parser already has their program; no tsconfig moves with this.
 const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/client/**/*.ts", "tests/ui/**/*.ts"];

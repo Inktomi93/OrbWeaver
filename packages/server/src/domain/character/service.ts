@@ -29,6 +29,7 @@ import { createGetSnapshot } from "./verbs/get-snapshot.ts";
 import { createList } from "./verbs/list.ts";
 import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids.ts";
 import { createListSnapshots } from "./verbs/list-snapshots.ts";
+import { createListTagGroups } from "./verbs/list-tag-groups.ts";
 import { createLoadCardText } from "./verbs/load-card-text.ts";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character.ts";
 
@@ -43,6 +44,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     create: createCreate(ctx),
     get: createGet(ctx),
     list: createList(ctx),
+    listTagGroups: createListTagGroups(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),
     duplicate: createDuplicate(ctx),

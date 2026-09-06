@@ -1,7 +1,8 @@
 // The Macros tab (WAVE MU, §12A.5) — CRUD over `userMacros[i]` (the Variables-tab EntryListEditor idiom:
 // list + editor Dialog on the direct-bind form; the autosave BOUNDARY's store driver persists structural
 // array ops, D78 §3 — no manual flush) + the Macro browser (the ONE-metadata-table consumer) in a
-// closed-by-default disclosure underneath.
+// disclosure underneath that is OPEN by default (#859 T-3 — the reasoning and the measurement it
+// supersedes are at the `Collapsible` itself).
 //
 // The editor Dialog itself is client-shared (`#components/user-macro-editor-dialog`): owner ruling #20 gave
 // user macros a SECOND authoring home (a game's `config.userMacros`, edited on the rpg GM console), and both
@@ -75,7 +76,21 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
               />
             )}
           />
-          <Collapsible>
+          {/* OPEN BY DEFAULT (#859 T-3, side-eye 2026-08-30 rail-presets delta). Measured on an isolated
+              stage at 1280×800 with a fresh library: the Data view's CONTENT ended at y≈535 of a 752px pane
+              and its CONTEXT at y≈232 of 800 — two empty states, a lead sentence and one closed disclosure
+              in a pane two thirds void, on a tab whose copy is good and whose surface still read unbuilt.
+              The one thing that fills it is the tab's OWN content: this browser is the catalogue of every
+              macro the preset's evaluation would see, i.e. the reference you need OPEN while writing the
+              variables and macros the two lists above create. Opening it changes no layout and adds no copy.
+
+              THIS SUPERSEDES THIS FILE'S OWN "closed-by-default disclosure underneath" (the header's
+              original description, now amended), and it lands on the side the house has already ruled for
+              once: `preset-structure-tabs.tsx` records F6 — "a closed disclosure is where a knob goes to
+              die" — as the reason DELIVERY and COLLAPSING stay open kicker clusters. Reference material is
+              not a knob, which is why this was defensible closed; the emptiness of the pane it sits in is
+              what changed. It stays a Collapsible, so a reader who wants the tab short still closes it. */}
+          <Collapsible defaultOpen={true}>
             <CollapsibleTrigger>
               <Text voice="label">Macro browser</Text>
             </CollapsibleTrigger>

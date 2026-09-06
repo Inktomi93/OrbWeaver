@@ -1,14 +1,14 @@
 ---
 kind: review
 status: active
-updated: 2026-09-04
+updated: 2026-09-05
 ---
 
 # Snap CLI argv audit
 
 ## Outcome
 
-The post-repair executable surface accepts **129 flag spellings**: 116 through the normal Snap parser (115 public plus internal `--session-daemon`), plus 13 report-reader spellings handled by the raw-argv dispatcher. The only accepted spelling alias is `-h` for `--help`; the eight retired spellings below are explicit refusal redirects. The findings in this review were confirmed against the pre-repair tree and then repaired under #1298/#1299: scenario/session lifetime partitioning, export destination truth, strict modal dispatch, report missing-value parsing, ownerless modifiers, descriptor-derived help grammar, chooser/drop coverage, and the approved vocabulary cleanup are now represented in the authoritative ledger below.
+The post-repair executable surface accepts **130 flag spellings**: 117 through the normal Snap parser (115 public plus the two internal child entries, `--session-daemon` and — since #1163 arm b, 2026-09-05 — `--stage-keeper`), plus 13 report-reader spellings handled by the raw-argv dispatcher. The only accepted spelling alias is `-h` for `--help`; the eight retired spellings below are explicit refusal redirects. The findings in this review were confirmed against the pre-repair tree and then repaired under #1298/#1299: scenario/session lifetime partitioning, export destination truth, strict modal dispatch, report missing-value parsing, ownerless modifiers, descriptor-derived help grammar, chooser/drop coverage, and the approved vocabulary cleanup are now represented in the authoritative ledger below.
 
 This is an analysis-only review. No implementation or test files were changed. Ordinary dirty-tree state was treated as shared in-flight work, not as a finding.
 
@@ -265,6 +265,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--shot-of` | `V,L` selector | capture; element screenshot | checkpoint | canonical; legacy screenshot refused | owned | KEEP |
 | `--stream-settle` | `V,L` seconds | call settle policy; fixed streaming-surface settle | checkpoint | not requests capture | owned | KEEP; old `--sse` refuses by name |
 | `--stage-down` | `B` | admin; stop stage | exclusive | `--force` and `--stage-owner` modifiers | owned | KEEP |
+| `--stage-keeper` | `V,L` band index | internal band idle-timer process (#1163 arm b); polls one row and tears its stage down through the `--stage-down` path | internal only; spawned by `ensureStage`, refused beside any other mode | no public synonym | internal | KEEP internal |
 | `--stage-status` | `B` | admin; stage status | exclusive | no alias | owned | KEEP |
 | `--stage-sweep` | `B` | admin; prune stages | exclusive | no selector; `--stage-owner` belongs only to stage-down | owned | KEEP |
 | `--strict-console` | `B` | boot/call evidence policy; console failures fatal | outer/session boot | no alias | owned | KEEP |

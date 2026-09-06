@@ -9,7 +9,7 @@
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 
 /** One candidate the 7a/7b arbitration ranks — a present AI-driven `chat_participants` row's
- *  arbitration-relevant fields (the caller maps `loadRoster` rows; `isAiDriven` gates the set). Humans are
+ *  arbitration-relevant fields (the caller maps `loadParticipants` rows; `isAiDriven` gates the set). Humans are
  *  excluded UPSTREAM (they post free-form; §6 schedules only AI-driven kinds). */
 export interface ArbiterCandidate {
   /** WHO this candidate is (character or agent) — the selection + attribution identity. */

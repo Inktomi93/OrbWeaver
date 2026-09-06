@@ -44,6 +44,18 @@ export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactEl
       </Row>
     );
   }
+  if (state === "unreadable") {
+    // THE ONE ARM WITH NO VERB (#1716). The stored row cannot be read, so the server refuses every write
+    // derived from it and the driver never attempts one — a Retry here is the affordance that lies, which
+    // is exactly why this is a fifth state and not `error`. POLITE, like `blocked` and unlike `error`: it
+    // is a standing property of the row, true before the reader touched anything, and the surface's own
+    // `StoredConfigUnreadableNotice` carries the REASON and the repair doors. This line is the STATE.
+    return (
+      <Text aria-live="polite" className="text-destructive" data-slot="autosave-status" role="status" voice="gloss">
+        Can't save — this couldn't be read
+      </Text>
+    );
+  }
   if (state === "blocked") {
     // A HELD write, not a failed one (side-eye PROSE-LIMIT P2): the driver gates on `form.state.isValid`, so
     // while a field is refusing its value nothing is attempted — and this line used to keep reading "Saved"

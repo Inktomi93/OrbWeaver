@@ -38,37 +38,45 @@ describe("foldSaveState", () => {
   // `error` FIRST: a save that genuinely failed is a stronger fact about the write than anything about
   // what is in the box now, and it owns the retry affordance.
   test("error outranks every other fact, including an invalid form and an unwritten edit", () => {
-    expect(foldSaveState({ driver: "error", isValid: false, readOnlyDirty: true, unsaved: true })).toBe("error");
-    expect(foldSaveState({ driver: "error", isValid: true, readOnlyDirty: false, unsaved: false })).toBe("error");
+    expect(foldSaveState({ driver: "error", isValid: false, readOnlyDirty: true, unsaved: true, unwritable: false })).toBe("error");
+    expect(foldSaveState({ driver: "error", isValid: true, readOnlyDirty: false, unsaved: false, unwritable: false })).toBe("error");
   });
 
   // `blocked` SECOND: the driver is HOLDING this write, so it is not "saving" and it is certainly not saved.
   test("an invalid form reads blocked, whatever the driver was doing", () => {
-    expect(foldSaveState({ driver: "saved", isValid: false, readOnlyDirty: false, unsaved: false })).toBe("blocked");
-    expect(foldSaveState({ driver: "saving", isValid: false, readOnlyDirty: false, unsaved: true })).toBe("blocked");
+    expect(foldSaveState({ driver: "saved", isValid: false, readOnlyDirty: false, unsaved: false, unwritable: false })).toBe("blocked");
+    expect(foldSaveState({ driver: "saving", isValid: false, readOnlyDirty: false, unsaved: true, unwritable: false })).toBe("blocked");
   });
 
   test("a declared read-only mount that got edited reads blocked — that write will never be attempted", () => {
-    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: true, unsaved: true })).toBe("blocked");
+    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: true, unsaved: true, unwritable: false })).toBe("blocked");
   });
 
   // THE #81 P0 ARM. Everything below here was "saved" before the fold existed.
   test("an unwritten edit reads saving, never saved — the debounce window is not a success", () => {
-    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: true })).toBe("saving");
+    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: true, unwritable: false })).toBe("saving");
   });
 
   test("a clean, valid, writable form reads saved — the fold does not manufacture a pending write", () => {
-    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: false })).toBe("saved");
+    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: false, unwritable: false })).toBe("saved");
   });
 
   test("passes the driver through once it is genuinely writing, edit or no edit", () => {
-    expect(foldSaveState({ driver: "saving", isValid: true, readOnlyDirty: false, unsaved: true })).toBe("saving");
-    expect(foldSaveState({ driver: "saving", isValid: true, readOnlyDirty: false, unsaved: false })).toBe("saving");
+    expect(foldSaveState({ driver: "saving", isValid: true, readOnlyDirty: false, unsaved: true, unwritable: false })).toBe("saving");
+    expect(foldSaveState({ driver: "saving", isValid: true, readOnlyDirty: false, unsaved: false, unwritable: false })).toBe("saving");
+  });
+
+  // #1716's arm, ABOVE `error`: the stored row cannot be read, so no write from this form can ever land —
+  // and `error` (whose whole affordance is a Retry) would be the wrong verb over a refusal no retry clears.
+  test("unwritable outranks everything, including a genuinely failed save", () => {
+    expect(foldSaveState({ driver: "error", isValid: true, readOnlyDirty: false, unsaved: true, unwritable: true })).toBe("unreadable");
+    expect(foldSaveState({ driver: "saved", isValid: false, readOnlyDirty: true, unsaved: true, unwritable: true })).toBe("unreadable");
+    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: false, unwritable: true })).toBe("unreadable");
   });
 
   // A read-only mount that is CLEAN is not blocked — it is simply in sync, which is the overwhelmingly
   // common member-view case and must not wear a warning.
   test("a clean read-only mount reads saved", () => {
-    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: false })).toBe("saved");
+    expect(foldSaveState({ driver: "saved", isValid: true, readOnlyDirty: false, unsaved: false, unwritable: false })).toBe("saved");
   });
 });

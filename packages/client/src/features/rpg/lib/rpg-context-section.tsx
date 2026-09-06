@@ -62,8 +62,12 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     (s: ChatContextState): ReactNode =>
       isGameChat(s) ? (
         <Surface tier="instrument">
+          {/* RESERVED (#1098) — the key is DERIVED FROM THE TAB, never a literal: this is a FACTORY that
+              builds five different game tabs, and one literal here would hand all five the same box (the
+              copy-paste collision the gate's duplicate arm exists to red). One label, one surface, one key. */}
           <QueryBoundary
             fallback={<Text voice="gloss">{`Loading ${label.toLowerCase()}…`}</Text>}
+            reserveKey={`rpg.tab.${label.toLowerCase()}`}
             // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
             // collapses to nothing on error so a failed read is a single `role="alert"` region, never two
             // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
@@ -165,8 +169,11 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           return null;
         }
         return (
+          // RESERVED (#1098) — the Game DOOR is ONE surface (host-committed, non-game or paused), unlike
+          // the tab factory above, so it takes a literal key of its own.
           <QueryBoundary
             fallback={<Text voice="gloss">Loading…</Text>}
+            reserveKey="rpg.gameDoor"
             // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
             // pointer here surfaces the host detach heal exactly like the tab bodies.
             renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}

@@ -14,13 +14,15 @@ import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
-import { Heading, Text } from "@orb/ui/text";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { MemberDrillHeader } from "#components";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
-import type { CollectionDetailView } from "#lib";
+import type { CollectionMemberView } from "#lib";
 import { notify, talkativenessLevel, useFocusOnMount } from "#lib";
+import { clearCollectionSelection } from "#state";
 import { useApplyRosterPreset, useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 import { applyNotice, rosterRuleKnobGloss } from "../lib/roster-copy.ts";
@@ -73,7 +75,7 @@ function RosterRuleBlock(props: {
   );
 }
 
-export function RosterMemberSurface({ view }: { readonly view: CollectionDetailView }): ReactElement {
+export function RosterMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
   // The stamped-id posture: the seam's memberId is opaque; the owner re-brands through its own id space.
   const presetId = castId<RosterPresetId>(view.memberId);
   const trpc = useTRPC();
@@ -161,7 +163,19 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
         ref={surfaceRef}
         tabIndex={-1}
       >
-        <Heading level={2}>{roster.name}</Heading>
+        {/* THE DRILL ROW (#1747, DESIGN.md §3.4): `← Back to <library>` · the roster's name · this
+            collection's ONE member verb, Start chat (§3.4 names it). SAVE STAYS WITH THE FIELDS below: it
+            commits the two inputs it sits under and is not a member verb — moving it up would put a
+            form's submit two rows above the form and leave the conflict notice (#1561) beside nothing. */}
+        <MemberDrillHeader
+          actions={
+            <Button disabled={busy} intent="ghost" onClick={onStart} size="sm">
+              Start chat
+            </Button>
+          }
+          back={{ label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() }}
+          title={roster.name}
+        />
         {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's
             `aria-labelledby`, which OUTRANKS `aria-label` in the accname algorithm — so "Roster name" /
             "Roster description" named nothing and the cells already announced "Name" / "Description"
@@ -177,9 +191,6 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionDetailV
         <Row align="center" gap="field">
           <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
             Save
-          </Button>
-          <Button disabled={busy} intent="ghost" size="sm" onClick={onStart}>
-            Start chat
           </Button>
         </Row>
         {/* The two-writer collision, STATED (#1561). It rides beside the Save it qualifies rather than at

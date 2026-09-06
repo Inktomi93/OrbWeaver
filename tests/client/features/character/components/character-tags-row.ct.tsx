@@ -32,7 +32,7 @@ test("tag removal admits one durable intent, holds the cluster inert, and reject
   await retry.requested;
   await expect(remove).toBeDisabled();
   await expect.poll(() => trpc.count("character.bulkRemoveCardTag")).toBe(2);
-  retry.release(null);
+  retry.release({ applied: ["char_ct_1"], failed: [] });
   await expect(remove).toBeEnabled();
 });
 
@@ -69,6 +69,6 @@ test("tag apply admits one durable intent and rejection restores the picker", as
   await retry.requested;
   await expect(add).toBeDisabled();
   await expect.poll(() => trpc.count("character.bulkAddCardTag")).toBe(2);
-  retry.release(null);
+  retry.release({ applied: ["char_ct_1"], failed: [] });
   await expect(add).toBeEnabled();
 });

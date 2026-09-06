@@ -598,7 +598,7 @@ interface ResolvedRefs {
  *  Deduped case-insensitively. A model can then only target a REAL, resolvable ref under an enforcing backend,
  *  and the cast-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
-  const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgRoster(chatId), findGameByChat(deps.db, chatId)]);
+  const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgParticipants(chatId), findGameByChat(deps.db, chatId)]);
   const config = game?.config ?? rpgGameConfigSchema.parse({});
   // R6 — the per-actor write surface needs each roster actor's SHEET exceptions (grants/revokes). One read,
   // only when the game actually defines trackers (a tracker-free game pays nothing for the machinery).
@@ -820,7 +820,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", event: "rpg.extraction.stripped", stripped });
     // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
@@ -1277,7 +1277,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // dedicated round was the one vehicle that dropped silently).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
     const extraction = toolCallsToExtraction(calls);
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     return { ...delta, recordedToolCalls: recordToolCalls(calls) };
@@ -1354,7 +1354,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     // two more reads (the game row + a SECOND roster) whose only consumer is a log field. The roster index is
     // genuinely needed (it resolves target names to roster refs and backs the ghost guard), and the log's
     // target-menu denominator derives from state we already hold.
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({
       chatId,
@@ -1462,7 +1462,7 @@ async function resyncViaToolRound(
     events: { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped" },
   });
   const extraction = toolCallsToExtraction(calls);
-  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
   const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
   logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
   return { ok: true, delta };
@@ -1564,7 +1564,7 @@ async function resyncViaStructured(
     );
   }
   logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
-  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
   const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
   logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
   return { ok: true, delta };
@@ -1708,7 +1708,7 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
         "rpg populate: plane(s)/entry(ies) did not conform — DROPPED (the rest of the round still applies)",
       );
     }
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     // The wire says `title`; the sheet stores `className` (the takeover has rendered it as the title since the
@@ -1748,7 +1748,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // question `guard.ts` gates with.
     resolveViewerVisibility: deps.resolveViewerVisibility,
     setPointer: deps.rpgChatOps.setRpgPointer,
-    resolveRoster: deps.rpgChatOps.resolveRpgRoster,
+    resolveRoster: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToRoster: buildPromoteToRoster(deps),
     // Restore's narrow atomic companion seam: RPG builds one RPG statement from chat's minted marker ids;

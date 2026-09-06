@@ -100,12 +100,15 @@ const LORE = Array.from(
 ).join("\n");
 const STATIC_SYSTEM = `You are a terse lore assistant for the world described below. Answer in one short sentence unless asked otherwise.\n\n${LORE}`;
 
+/** A text-only seed turn — the seed carries content BLOCKS since #1605 (a tool exchange rides as a real
+ *  `tool_use`/`tool_result` pair); every turn this probe seeds is prose. */
+function textTurn(role: "user" | "assistant", text: string): { role: "user" | "assistant"; content: [{ type: "text"; text: string }] } {
+  return { role, content: [{ type: "text", text }] };
+}
+
 const RECALL_CANON = [
-  { role: "user" as const, content: "Tell me about the dragon of the western pass." },
-  {
-    role: "assistant" as const,
-    content: "The dragon's name is Kalvex, keeper of the western pass and hoarder of salt-ledgers.",
-  },
+  textTurn("user", "Tell me about the dragon of the western pass."),
+  textTurn("assistant", "The dragon's name is Kalvex, keeper of the western pass and hoarder of salt-ledgers."),
 ];
 
 interface Row {
@@ -400,15 +403,15 @@ async function s9(): Promise<void> {
   const cache = new SessionCache(new InMemorySessionStore());
   const chatId = castId<ChatId>("probe-chat-s9");
   const canonA = [
-    { role: "user" as const, content: "Name the dragon of the western pass in one word." },
-    { role: "assistant" as const, content: "Kalvex." },
-    { role: "user" as const, content: "Now describe the singing dunes in one sentence." },
+    textTurn("user", "Name the dragon of the western pass in one word."),
+    textTurn("assistant", "Kalvex."),
+    textTurn("user", "Now describe the singing dunes in one sentence."),
   ];
   // Canon B: same prefix, a DIVERGED last-assistant tail (a swipe of the Kalvex reply).
   const canonB = [
-    { role: "user" as const, content: "Name the dragon of the western pass in one word." },
-    { role: "assistant" as const, content: "Vorreth." },
-    { role: "user" as const, content: "Now describe the singing dunes in one sentence." },
+    textTurn("user", "Name the dragon of the western pass in one word."),
+    textTurn("assistant", "Vorreth."),
+    textTurn("user", "Now describe the singing dunes in one sentence."),
   ];
   const dispositions: string[] = [];
   async function turn(label: string, canon: typeof canonA): Promise<void> {

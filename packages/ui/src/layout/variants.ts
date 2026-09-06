@@ -278,6 +278,49 @@ export const gridVariants = tv({
       // whatever the labels or the pane become. The values still share ONE x, because it is one grid rather
       // than a per-row measurement.
       readout: "grid-cols-[max-content_1fr]",
+      // A CENTRED MEASURE WITH A LEADING ANNOTATION GUTTER (added 2026-09-05, #1728 arm B). Three tracks:
+      // the MIDDLE one is the reading column and it is centred by construction (the two `1fr` rails are
+      // equal at every width, whatever the middle track resolves to), and track 1 hangs a chip at its
+      // TRAILING edge — `justify-self: end` on the occupant — so the chip sits immediately beside the
+      // column without ever entering the box that is being centred. Track 3 is the mirror, for a
+      // trailing-annotated row.
+      //
+      // WHY IT EXISTS AT ALL: every other arm here sizes its tracks by the pane or by its own content, and
+      // both of those make an annotated row centre the ANNOTATION+CONTENT pair rather than the content. A
+      // row that centres the pair moves its prose sideways by half the chip the moment the chip appears,
+      // which is a reader-visible slide on a toggle rather than a layout choice.
+      //
+      // ONE CONSUMER TODAY: the chat message row's CENTRED skins (`flat`/`hush` via `flatOuter`, and
+      // `document`) — features/chat/lib/message-row-variants.ts. `bubble` and its family are NOT consumers:
+      // their rows are deliberately leading/trailing-anchored, so their identity gutter is part of the
+      // shape rather than an annotation beside a centred measure.
+      //
+      // §13.7 R2, VERBATIM AND CITED: "a second consumer graduates it into a named composite; until then it
+      // stays a variant member". Until a second surface asks for this shape, it stays exactly this row —
+      // one `cols` member, no primitive — under the ruling that minted it (#1728 arm B, owner 2026-09-05).
+      //
+      // THE CROSSOVER IS IN THE MEMBER, because it is a property of the SHAPE and not of one caller: a chip
+      // can only hang in a margin where a margin exists. Below `@min-[52rem]` the template is the TWO-track
+      // in-flow gutter (chip, then column) — byte-identical in effect to the flex row it replaces, and the
+      // arm every narrow surface gets, because there the reading column IS the track and there is nothing to
+      // hang into. At and above it the three tracks engage and the middle one centres.
+      //
+      // THE STEP IS DERIVED, THEN ROUNDED UP TO A NAMED ONE. The widest identity chip is
+      // `spacing.avatar-lg` 40px and the centred skins' column is capped at `--reading-measure` (75ch =
+      // 750px in the prose font, measured), and a chip fits the margin when `(track - column) / 2 >= 40`,
+      // i.e. `track >= 830px`. The step used is `@4xl` (56rem / 896px) — the nearest NAMED container
+      // step at or above that minimum, so the consuming feature can spell its matching placement classes
+      // without an arbitrary variant. The 830-896px band therefore keeps the in-flow gutter: conservative by
+      // one step, never clipping. Container steps are `rem`-denominated, so the whole thing moves with
+      // `--font-scale` exactly like the measure it is derived from.
+      //
+      // THE ROLE MIRROR IS PART OF THE TEMPLATE, not a caller's job: `data-role="user"` rows carry the chip
+      // TRAILING, so the two-track arm flips to `[column, chip]` — auto-placement then seats both roles
+      // correctly with no explicit column-start below the step, which is what keeps the narrow arm free of
+      // placement classes entirely.
+      gutterCentred:
+        "grid-cols-[auto_minmax(0,1fr)] in-data-[role=user]:grid-cols-[minmax(0,1fr)_auto] " +
+        "@4xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @4xl:in-data-[role=user]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
       // AN INSTRUMENT ROW'S THREE CELLS — name · flexing rail · the value cluster (added 2026-08-19,
       // side-eye P1-1 on the preset params deck). `readout`'s sibling, and the same ruling one axis wider:
       // the first track is CONTENT-sized so a name can never be clipped by a box, and the middle track
@@ -376,3 +419,15 @@ export const toolbarLinkVariants = tv({
 export const toolbarInputVariants = tv({
   base: `h-control-sm min-w-0 rounded-control border border-input-border bg-input px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
+
+/** THE `gutterCentred` TRACKS AS A CLASS, for a caller that must not swap its ELEMENT (#1728 arm B).
+ *  `react-hooks/static-components` bans binding a component to a render-scoped variable — the identity
+ *  changes when the arm changes and React remounts the subtree, which for a chat row would drop edit state
+ *  and re-run enter motion on a width change. A caller that needs the three rails CONDITIONALLY therefore
+ *  composes this onto whatever element it already renders (`Row`'s `flex` loses to the `grid` here under
+ *  tailwind-merge, both being `display` utilities) instead of choosing between `Row` and `Grid`.
+ *  The tracks themselves stay single-homed in `variants.ts` — this is a spelling of that member, never a
+ *  second copy of it. */
+export function gutterCentredTracks(): string {
+  return gridVariants({ cols: "gutterCentred" });
+}

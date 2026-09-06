@@ -41,7 +41,6 @@ function ctxWith(takenHandles: readonly string[] = []): { ctx: ImportContext; mi
     },
     findByImportHash: ({ importHash }) => Promise.resolve(byHash.get(importHash) ?? null),
     findByHandle: ({ handle }) => Promise.resolve(handles.has(handle) ? castId<CharacterId>("chr_taken") : null),
-    updateCharacter: unused,
     storeAsset: unused,
     attachCardTag: unused,
   };

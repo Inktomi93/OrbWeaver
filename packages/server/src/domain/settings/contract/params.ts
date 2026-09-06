@@ -21,6 +21,10 @@ interface UserSettingsActorParams {
 
 export interface GetUserSettingsParams extends UserSettingsActorParams {}
 
+/** `resetUserConfig` (#1771) — the whole-blob repair. Principal ONLY: it takes no id, so "reset someone
+ *  else's settings" is not a request this verb can be asked to make. */
+export interface ResetUserConfigParams extends UserSettingsActorParams {}
+
 export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams {
   readonly input: UpdateUserSettingsSectionInput;
 }

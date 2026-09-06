@@ -85,18 +85,34 @@ function MediaTile({
     );
   }
   return (
-    // The EXPLICIT accessible name: content-derived naming runs the title and subtitle together with no
-    // boundary ("World RPrickrocka · 7.4k↓"). A comma-joined label keeps both halves in the name, distinct.
-    <button
-      aria-label={item.subtitle === undefined ? item.title : `${item.title}, ${item.subtitle}`}
-      className={slots.tile()}
-      data-slot="media-tile"
-      onClick={(): void => onActivate(item.id)}
-      type="button"
-    >
+    <button aria-label={tileName(item)} className={slots.tile()} data-slot="media-tile" onClick={(): void => onActivate(item.id)} type="button">
       {body}
     </button>
   );
+}
+
+/**
+ * An interactive tile's EXPLICIT accessible name: identity, then state.
+ *
+ * WHY IT IS EXPLICIT AT ALL (side-eye 2026-08-29 P3, unreversed): content-derived naming runs the title and
+ * the subtitle together with no boundary ("World RPrickrocka · 7.4k↓"). A comma keeps both halves in the
+ * name, and distinct.
+ *
+ * WHY THE BADGE IS IN IT (#1698, side-eye 2026-09-05, the hub-ingested arm). An explicit name REPLACES the
+ * node's content, so everything on the tile that is not title-or-subtitle fell silently outside it —
+ * including the BADGE, which is the tile's only statement of STATE. Measured on the Card Atlas hub: every
+ * result announced `Illyria, damagecontrol · 2.8k↓` whether or not it was already in the library, on the one
+ * surface whose entire job is deciding what to add. The badge is a short status word by this part's own
+ * contract, so it appends as a clause AFTER the identity — the reading a sighted user gets from a corner
+ * badge (this thing, and by the way it is in this state), in the order a name should carry it.
+ *
+ * THE TAGS ARE DELIBERATELY NOT HERE. They are the browse genre's FILTER vocabulary, up to eight per tile,
+ * and appending eight words to every name in a 30-tile grid is exactly the noise an explicit name exists to
+ * avoid. They are painted, and they are not state.
+ */
+function tileName(item: MediaTileItem): string {
+  const identity = item.subtitle === undefined ? item.title : `${item.title}, ${item.subtitle}`;
+  return item.badge === undefined ? identity : `${identity}, ${item.badge}`;
 }
 
 export interface MediaTileGridProps {

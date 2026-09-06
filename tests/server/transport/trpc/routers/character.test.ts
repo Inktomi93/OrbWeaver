@@ -112,7 +112,7 @@ describe("character.list — wire-through", () => {
 
 describe("character.bulkRemoveCardTag — wire-through", () => {
   test("delegates {tagName, characterIds} with the resolved principal", async () => {
-    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => undefined);
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
       auth: principal("user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },
@@ -129,7 +129,7 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
   });
 
   test("rejects a blank tag name at the wire boundary (min(1))", async () => {
-    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => undefined);
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
       auth: principal("user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },

@@ -229,3 +229,46 @@ describe("design-audit contrast — #624: ONE classifier, shared with snap", () 
     // this is the cheap spelling guard that catches a narrowing edit before those have to run a browser.
   });
 });
+
+describe("design-audit contrast — #1078 (orb-ui audit F6): a masked foreground is WITHHELD, never resolved flat", () => {
+  // A failing ratio that would otherwise file a P1 — proves withholding is not merely "declines to fire
+  // on a passing sample" but genuinely REFUSES a verdict this rule would otherwise reach.
+  const failingMasked = sample({ foregroundMasked: true, inactive: "none" });
+
+  test("a masked text sample files no contrast finding, even where the ratio would fail", () => {
+    expect(checkContrast(failingMasked)).toBeNull();
+  });
+
+  test("the masked sample is WITHHELD, not silently excluded or judged-clean", () => {
+    const rows = colorTextPopulations([failingMasked]);
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 }, excluded: {} });
+    expect(rows["text-over-art"]).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 } });
+    expect(rows["inactive-control-legibility"]).toMatchObject({ candidates: 1, judged: 0, withheld: { maskedForeground: 1 } });
+  });
+
+  test("an UNMASKED sibling at the identical failing ratio is still judged and still REDs", () => {
+    const unmasked = sample({ foregroundMasked: false, inactive: "none" });
+    const finding = checkContrast(unmasked);
+    expect(finding?.rule).toBe("contrast");
+    expect(finding?.severity).toBe("P1");
+    const rows = colorTextPopulations([unmasked]);
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 1 });
+  });
+
+  test("an ABSENT flag reads as unmasked — fixture sample sets that predate the field keep their verdicts", () => {
+    const finding = checkContrast(sample({ inactive: "none" }));
+    expect(finding?.rule).toBe("contrast");
+  });
+
+  test("gray-on-color is UNAFFECTED by masking — it classifies the AUTHORED color, which a mask never changes", () => {
+    // A gray, chromatic-background sample that would normally fire gray-on-color: masking the foreground
+    // does not touch `color`/`backdrop`, so this rule's verdict must survive untouched.
+    const grayOnChromatic = sample({
+      foregroundMasked: true,
+      color: { r: 140, g: 140, b: 140 },
+      backdrop: { kind: "flat", color: { r: 40, g: 90, b: 200 } },
+    });
+    const rows = colorTextPopulations([grayOnChromatic]);
+    expect(rows["gray-on-color"]?.judged).toBe(1);
+  });
+});

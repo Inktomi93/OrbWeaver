@@ -412,6 +412,23 @@ Its report is nested under `args.frame_reporter`; paired trace end events have e
 frames (#389). Parser controls must use that real Chrome payload shape and retain a planted dropped-frame
 red outside the Select entrance.
 
+#### 4.1.2 The bounded input-dispatch layout-frame exemption (#1647, #1316's proposal)
+
+`loaf-style-layout-count 0` is unmeetable for a click that resizes a grid track (the list-collapse
+toggle): that IS real style/layout work, and it must happen in the click's own frame. #380's
+context-pane ruling ("one unavoidable grid-layout LoAF") is the precedent this codifies as DATA, in
+`tooling/src/motion-audit/lib/verdicts.ts`'s `isBoundedInputDispatchLayoutFrame` (an instrument rule,
+not a gate — motion-audit has no gate half). ALL FOUR conditions must hold or the frame still counts
+against the budget: (a) a script in the frame IS the measured input's own dispatch
+(`sourceFunctionName === "dispatchDiscreteEvent"`); (b) every script reports
+`forcedStyleAndLayoutDuration === 0`; (c) `styleAndLayoutStart` falls at/after the frame's own script
+span (the render-phase tail, approximated as `styleAndLayoutStart >= Σ scripts[].duration` — the exact
+LoAF-spec `renderStart` field is not yet plumbed through `packages/client/src/lib/motion-stats.ts`); and
+(d) it is the ONLY frame in the window whose `styleAndLayoutStart > 0`. `loafTotals()` reports
+`boundedInputDispatchExempt` alongside `budgetedStyleLayout` so a clean `0` count can be told apart from
+"nothing happened" — a consuming report NAMES the exemption rather than reading a bare zero as
+unqualified.
+
 ### 4.2 The motion inventory (what's built, where; item numbers are stable)
 
 Item 1's number is cited from code (`use-enter-motion.ts` → `guide §4.2 item 1`) — keep the

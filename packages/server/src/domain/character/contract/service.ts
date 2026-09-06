@@ -1,7 +1,7 @@
 // domain/character/contract/service — typed API surface: CharacterContext (DI bundle) + CharacterService
 // (verb interface) + cross-feature injected-op types (character never sideways-imports assets or tag).
 
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterBulkTagResult, CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -28,6 +28,7 @@ import type {
   GetCharacterParams,
   GetSnapshotParams,
   ListCharactersParams,
+  ListCharacterTagGroupsParams,
   ListSnapshotsParams,
   MintGroupCharParams,
   RemoveCharacterParams,
@@ -36,7 +37,16 @@ import type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params.ts";
-import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary, SnapshotView } from "./results.ts";
+import type {
+  CharacterRef,
+  GeneratedGreeting,
+  ImportedFromMatch,
+  ListCharactersResult,
+  ListCharacterTagGroupsResult,
+  SnapshotRef,
+  SnapshotSummary,
+  SnapshotView,
+} from "./results.ts";
 import type { CharacterDetail } from "./views.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
@@ -122,6 +132,8 @@ export interface CharacterService {
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
   readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
+  /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
+  readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
   /** Edits the live card in place (no CAS/COW); recomputes contentHash. */
   readonly update: (params: UpdateCharacterParams) => Promise<CharacterDetail>;
   /** Cascades snapshots/personas; best-effort reaps the avatar asset. */
@@ -130,8 +142,10 @@ export interface CharacterService {
   /** Missing/foreign ids are skipped, not thrown. */
   readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
-  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<void>;
-  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<void>;
+  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;
+  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
 
   readonly snapshot: (params: SnapshotParams) => Promise<SnapshotRef>;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;

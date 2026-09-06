@@ -4,6 +4,7 @@
 // `tagCollection`, never exported standalone.
 
 import { QueryBoundary } from "@orb/client/data";
+import { setTagPruneConfirmOpen, setTagSortMode } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
@@ -22,7 +23,9 @@ export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { re
           they land in, and a mount that grows to fit its content agrees with every overflow. */}
       <div style={{ height: 720, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          <TagMemberSurface memberId={memberId} />
+          {/* `library` is the host's own group label ("Tags", `tags-group.tsx`) — the drill row's exit says
+              `Back to Tags`, exactly as the config host spells it (#1747). */}
+          <TagMemberSurface view={{ library: "Tags", memberId }} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
@@ -46,12 +49,36 @@ export function TagMemberContentColumnStory(): ReactElement {
   );
 }
 
-/** The tag collection's ROWS (the LIST half) with the host's view pre-bound — for the row-anatomy and
- *  filter assertions that would otherwise be three components deep inside the host. */
+/** The tag collection's ROWS with the host's view pre-bound — for the row-anatomy and filter assertions
+ *  that would otherwise be three components deep inside the host.
+ *
+ *  THE HOST IS A FLEX COLUMN WITH A DEFINITE HEIGHT, and this box has to be one too (#1725). The rows'
+ *  windowed arm takes its bounded height from its parent chain now (`min-h-0 flex-1` all the way up to
+ *  CONTENT's own `overflow-y-auto` box) rather than from a 384px cap, so a story that mounted them in a
+ *  plain block would give the `VirtualList` a flex-basis of 0 inside an auto-height column and render a
+ *  ZERO-height scroller — a fixture disagreeing with the pane about the one property under test.
+ *
+ *  THE THREE SORT BUTTONS AND THE PRUNE BUTTON ARE THE HOST'S SEAM, drawn here as the CT's spelling of it
+ *  (the `ConfigMobileListStory` `go mobile` precedent). Since #1725 the sort Select and the prune menu item
+ *  are drawn by the CONFIG host from `tagCollection.sort` / `.actions`; both write exactly these store
+ *  functions, and the config landing's own CT pins that they do. What is left for THIS file is what the
+ *  rows do with the result, which is why the driver is the store rather than a re-mounted host. */
 export function TagCollectionRowsStory({ filter = "" }: { readonly filter?: string }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 620, overflow: "auto", width: 330 }}>
+      <button onClick={(): void => setTagSortMode("used")} type="button">
+        sort: most used
+      </button>
+      <button onClick={(): void => setTagSortMode("alpha")} type="button">
+        sort: a-z
+      </button>
+      <button onClick={(): void => setTagSortMode("manual")} type="button">
+        sort: manual
+      </button>
+      <button onClick={(): void => setTagPruneConfirmOpen(true)} type="button">
+        open prune confirm
+      </button>
+      <div style={{ display: "flex", flexDirection: "column", height: 620, overflow: "auto", width: 330 }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <TagCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
         </QueryBoundary>

@@ -1,5 +1,10 @@
-// The chats pane's PER-CHARACTER narrowing chrome — the faces shortcut strip (which FOLDS on a phone, #1361
-// item 3) and the "Filtered: X ✕" chip.
+// The chats pane's PER-CHARACTER narrowing chrome — the faces shortcut strip and the "Filtered: X ✕" chip.
+//
+// THE STRIP CARRIES NO FOLD OF ITS OWN (#1361 item 3 → #1718 arm A). #1361 gave it a phone `Collapsible`
+// whose trigger named the scope in force; that principle survives and its input changed — the pane has ONE
+// phone Filters row now (`chat-list-phone-filters.tsx`), because two stacked disclosures paid a 44px coarse
+// trigger twice to carry two facts. This file is viewport-agnostic again: one strip, one printed kicker,
+// rendered inside that panel on a phone and in the column on a desktop.
 // Split out of `surfaces/chat-list-surface.tsx` under the 450-line component cap (UI-Architecture §2.1) when
 // #490's filter work pushed that surface past it; a shortcut strip and a chip are components, and the
 // surface keeps the composition. Both read and write the ONE narrowing store (`chat-list-filter-store`), so
@@ -9,7 +14,6 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -18,7 +22,7 @@ import type { ReactElement } from "react";
 import { CharacterPicker, FaceStrip } from "#components";
 import { useTRPC } from "#data";
 import type { ChatListCharacterFilter } from "#state";
-import { clearChatListCharacterFilter, setChatListCharacterFilter, useMobileViewport } from "#state";
+import { clearChatListCharacterFilter, setChatListCharacterFilter } from "#state";
 import { recentFaces } from "../lib/recent-faces.ts";
 
 /** How many recent chats the FACES curation reads. The strip answers "who was I just with", so a bounded
@@ -27,16 +31,11 @@ import { recentFaces } from "../lib/recent-faces.ts";
  *  picker reaches the whole character library without enriching another 70 chat summaries. */
 const FACES_SOURCE_LIMIT = 30;
 
-/** The strip's one name — printed as its kicker on the desktop, spoken as its accessible name in both arms,
- *  and carried by the phone arm's disclosure trigger. ONE string (#208): the strip announced "Recent
- *  characters" while the kicker printed something else, so AT and the eye were told about different lists. */
+/** The strip's one name — printed as its kicker and spoken as its accessible name. ONE string (#208): the
+ *  strip announced "Recent characters" while the kicker printed something else, so AT and the eye were told
+ *  about different lists. It names the STRIP; the phone Filters row that hosts it names the GROUP, and the
+ *  two are different facts about different things (`phoneFiltersLabel`, `lib/chat-list-scope.ts`). */
 const FACES_LABEL = "Filter by character";
-
-/** The phone arm's trigger words — the label plus the scope IN FORCE, so a folded strip still says what it
- *  is doing to the list under it (the month bound's own posture, `chat-list-month-filter.tsx`). */
-function foldedTriggerLabel(filter: ChatListCharacterFilter | null): string {
-  return filter === null ? FACES_LABEL : `${FACES_LABEL} · ${filter.name}`;
-}
 
 /** Arm B — the faces strip: the pane learns FACES without the rail learning a new section. Tapping a face
  *  sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
@@ -55,7 +54,6 @@ function foldedTriggerLabel(filter: ChatListCharacterFilter | null): string {
  *  the pane to from the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so
  *  she is prepended as a face — the strip must never be filtering by someone who is not in it. */
 export function ChatListFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
-  const isMobile = useMobileViewport();
   const trpc = useTRPC();
   const { data: page, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
   // ONE read decides a face now (#192): the chat rows carry their own seats, so there is no second
@@ -100,13 +98,11 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
   // the faces that fit stay a one-tap shortcut, and the rest of the characters live behind the tile, which opens
   // the house character picker over the WHOLE library — so it also reaches someone you have never opened a
   // chat with, which no amount of scrolling ever could.
-  const strip = (
+  return (
     <FaceStrip
       caption={true}
       items={faces}
-      // The phone arm's DISCLOSURE TRIGGER prints these words, so the strip must not print them again inside
-      // the panel it opens — the accessible name is `label` in both arms either way (#208).
-      kicker={!isMobile}
+      kicker={true}
       label={FACES_LABEL}
       onSelect={scopeToFace}
       // RESERVE THE BOX WHILE THE READ IS IN FLIGHT (measured 2026-08-09: the pane shifted 74px on data
@@ -130,6 +126,7 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
               close();
             }}
             placeholder="Search characters…"
+            reserveKey="chat.listCharacterFilterPicker"
           />
         ),
       }}
@@ -139,34 +136,6 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
       selectedId={characterFilter?.id ?? null}
       verb="Show chats with"
     />
-  );
-  if (!isMobile) {
-    return strip;
-  }
-  // A SETTLED, FACELESS READ STILL RENDERS NOTHING — the strip's own data-driven empty posture (above), and
-  // a disclosure onto an empty row would be exactly the "shortcut to nowhere is chrome" the strip refuses.
-  // While the read is still in flight the fold is rendered CLOSED, which reserves nothing and needs to
-  // reserve nothing: the trigger is the strip's whole height until it is opened.
-  if (faces.length === 0 && !chatsPending) {
-    return null;
-  }
-  return (
-    // AND ON A PHONE IT FOLDS (#1361 item 3, owner-ruled 2026-09-05). Measured at 430×740 coarse: the chats
-    // pane spent 285px before the first chat row after the month bound folded (#1350), and this strip is
-    // ~85px of it — the single largest remaining band, above a list whose rows are the thing the reader came
-    // for. It is the SAME mechanism the month bound folded with, deliberately not a second one: a
-    // `Collapsible` whose trigger carries the state in force, so folding never hides what the list is doing.
-    //
-    // It is APPLICABILITY, not a mobile mode ([[no-separate-reduced-modes]]): the desktop pane is a 300px
-    // column with vertical room to spare and nothing to buy back, so it renders the faces outright.
-    //
-    // `defaultOpen` on the scope already in force, for the month bound's own reason — arriving scoped to a
-    // character must not bury the reason the list is short. UNCONTROLLED past that first commit: picking a
-    // face inside the panel must not re-open a panel the reader just closed, and the trigger says the scope.
-    <Collapsible defaultOpen={characterFilter !== null}>
-      <CollapsibleTrigger>{foldedTriggerLabel(characterFilter)}</CollapsibleTrigger>
-      <CollapsiblePanel>{strip}</CollapsiblePanel>
-    </Collapsible>
   );
 }
 

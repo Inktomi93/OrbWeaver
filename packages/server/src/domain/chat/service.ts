@@ -13,9 +13,9 @@ import { generateSegments } from "./memory/build/segments.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
 import { classifyParticipant } from "./persistence/participant.ts";
-import { loadRoster } from "./persistence/roster.ts";
+import { loadParticipants } from "./persistence/participants-read.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
-import { hostUserIdOf } from "./substrate/roster-host.ts";
+import { hostUserIdOf } from "./substrate/participants-host.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
 import { createClaimChat } from "./verbs/claim-chat.ts";
 import { createCompaction } from "./verbs/compaction.ts";
@@ -23,10 +23,10 @@ import { createEdit } from "./verbs/edit.ts";
 import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvites } from "./verbs/invites.ts";
+import { createParticipants } from "./verbs/participants.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
 import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
-import { createRoster } from "./verbs/roster.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
 import { createRequestTurn, createTurn } from "./verbs/turn.ts";
 
@@ -36,7 +36,7 @@ import { createRequestTurn, createTurn } from "./verbs/turn.ts";
  *  AgentCardView soul name, else the sourceKind label for an unhatched buddy) and `observer` (unseatable, never
  *  read) graft back on per PD-17/AP3-2 when the agent-principal design set returns. */
 function resolveSeatDisplayName(
-  r: Awaited<ReturnType<typeof loadRoster>>[number],
+  r: Awaited<ReturnType<typeof loadParticipants>>[number],
   resolved: {
     readonly publics: { displayName: string | null; handle: Handle | null } | null;
     readonly card: { name: string } | null;
@@ -81,7 +81,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   // theme/background overrides) from ONE ctx.resolveSeatDeco read (owner-scoped to the room host); a human's
   // displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
-    const rows = await loadRoster(ctx.db, chatId);
+    const rows = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(rows);
     return Promise.all(
       rows.map(async (r): Promise<ParticipantView> => {
@@ -154,7 +154,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   });
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
-  const roster = createRoster(ctx, { emit: deps.emitChecked, claimChat });
+  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat });
   // B6 — the reaction plane. NO `claimChat`: a reaction is a read-adjacent act on canon that already exists,
   // so it cannot be the first activity in a room (a husk has no committed variant to react to).
   const reactions = createReactions(ctx, { emit: deps.emit });
@@ -169,7 +169,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
       ...read,
       ...startChat,
       ...chatLifecycle,
-      ...roster,
+      ...participants,
       ...reactions,
       compact,
     },

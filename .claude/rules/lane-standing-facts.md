@@ -80,7 +80,14 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   ui/client src AND is the ONLY program that owns `tests/**/*.ct.tsx`; `tests-dom` owns
   `tests/{client,ui}/**/*.ts` plus an explicit list of non-CT DOM-coupled escapees and does NOT see CT tsx.
   A floor claims only coverage it verified — when uncertain, PLANT a control error; that is the standard,
-  not paranoia.
+  not paranoia. **A fourth, `.test-d.ts`-only invocation exists but adds no NEW coverage** — `pnpm
+  test:types` (the `types:testd` verify stage) runs vitest's typecheck feature, split 2026-09-05 (#1313)
+  into `types-node` (root `tsconfig.json`) and `types-browser` (`tsconfig.tests-dom.json`, for the handful
+  of `.test-d.ts` subjects that import a browser package) — it DUPLICATES `types:graph`/`typecheck:tests-dom`
+  for `.test-d.ts` files rather than supplementing them, and the split's whole point was to stop it
+  double-reporting under the wrong lib (it used to check every `.test-d.ts` under the DOM-less root with
+  `ignoreSourceErrors: true` swallowing the fallout — a floor that ran only `pnpm test:types` was measurably
+  blind to a real subject error in a DOM-touching `.test-d.ts` file before this fix).
 - **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load** (owner ruling): exit
   134/137, a heap abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
@@ -125,13 +132,24 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   green light naming the concurrency.
 - **Lanes NEVER busy-wait on a long run** (every sleep-loop poll re-bills cache reads on the lane's ENTIRE
   context). A lane that launches a >10-min detached run REPORTS AND STOPS, naming its log/exit-file; the
-  orchestrator resumes it by SendMessage. **A finished subagent turn is NOT re-invoked by its own
-  background jobs** — a run under \~10 min is redirected to a log and READ in a later call in the same
-  turn, never backgrounded-and-waited-on.
+  orchestrator resumes it by SendMessage. The harness-mechanics half — why a backgrounded run never comes
+  back to you — is its own section below, **"Running a long command"**, because it binds every lane, not
+  only the ones running suites (#911: three stalls in one day under this suite-load head).
 - **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure**
   (`reports/verify.json`, `reports/verify/<stage>.log`, `reports/test-report.json`), and those paths are
   `latest` POINTERS, not files written in place. What a run writes where: constitution §4 →
   `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
+
+## Running a long command (every lane — this is not a suite-load rule)
+
+- **A finished subagent turn is NOT re-invoked by its own background jobs.** There is no notification
+  coming: when your turn ends, nothing you started in the background can wake you. A run under \~10 min is
+  redirected to a log (`> $LOG 2>&1; echo EXIT=$?`) and READ in a LATER CALL IN THE SAME TURN — never
+  backgrounded-and-waited-on. A run over \~10 min is REPORTED AND STOPPED (name the log/exit-file); the
+  orchestrator resumes you by SendMessage.
+- **The failure shape, so you can catch yourself:** the sentence *"I'll wait for the notification"* (or
+  "I'll pause tool calls until the background job completes") is the tell — a lane that has written it has
+  already stalled (#911, three lanes in one day, 2026-08-30). Read the log now, or report and stop.
 
 ## The dev stack
 

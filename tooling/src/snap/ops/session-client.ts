@@ -23,7 +23,9 @@ import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import {
   SESSION_BOOT_TIMEOUT_MS,
+  SESSION_CALL_SILENCE_MS,
   SESSION_INSTRUMENT,
+  SESSION_PING_SILENCE_MS,
   SESSION_READY_POLL_MS,
   sessionAccess,
   sessionLogPath,
@@ -43,18 +45,36 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 const SNAP_CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
 
 /** One request → the daemon's event stream, delivered in arrival order; resolves with the `done` exit.
- *  Rejects when the socket refuses (no daemon listens) or the stream ends before `done` (a daemon that died
- *  mid-call) — both are the caller's "I could not measure", never a verdict. */
-export function sessionRequest(socketPath: string, request: SessionRequest, onEvent: (event: SessionEvent) => void): Promise<number> {
+ *  Rejects when the socket refuses (no daemon listens), when the stream ends before `done` (a daemon that
+ *  died mid-call), or when the daemon goes MUTE for `silenceMs` — all three are the caller's "I could not
+ *  measure", never a verdict.
+ *
+ *  `silenceMs` is REQUIRED (#1508). This door had no clock at all: a daemon that ACCEPTED the connection
+ *  and then wrote nothing held its caller forever — including `pingOk`, which the boot poll awaits
+ *  unwrapped, so `SESSION_BOOT_TIMEOUT_MS` was checked only after a wait that never ended and the boot
+ *  ceiling was unreachable. It bounds SILENCE, not duration: every event restarts the clock, so a
+ *  long-running call is never cut off while the daemon is still talking. Required rather than defaulted
+ *  because a handshake and a browser-driving call are two different silences (`session-plan.ts`). */
+export function sessionRequest(socketPath: string, request: SessionRequest, onEvent: (event: SessionEvent) => void, silenceMs: number): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const socket = createConnection(socketPath);
     let buffer = "";
     let done: number | null = null;
+    let mute: NodeJS.Timeout | undefined;
+    const armMute = (): void => {
+      clearTimeout(mute);
+      mute = setTimeout(() => {
+        socket.destroy();
+        reject(new Error(`the session daemon sent nothing for ${silenceMs}ms — treating its socket as wedged`));
+      }, silenceMs);
+    };
+    armMute();
     socket.setEncoding("utf8");
     socket.on("connect", () => {
       socket.write(`${JSON.stringify(request)}\n`);
     });
     socket.on("data", (chunk: string) => {
+      armMute();
       buffer += chunk;
       let newline = buffer.indexOf("\n");
       while (newline !== -1) {
@@ -73,8 +93,12 @@ export function sessionRequest(socketPath: string, request: SessionRequest, onEv
         newline = buffer.indexOf("\n");
       }
     });
-    socket.on("error", (error) => reject(error));
+    socket.on("error", (error) => {
+      clearTimeout(mute);
+      reject(error);
+    });
     socket.on("close", () => {
+      clearTimeout(mute);
       if (done === null) {
         reject(new Error("the session daemon closed the connection before its RESULT — it died mid-call"));
         return;
@@ -108,7 +132,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
   };
   // @orb-gate-ignore caught-failure-ownership(default:catch): a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.
   try {
-    return (await sessionRequest(socketPath, ping, () => undefined)) === EXIT.clean;
+    return (await sessionRequest(socketPath, ping, () => undefined, SESSION_PING_SILENCE_MS)) === EXIT.clean;
   } catch {
     return false;
   }
@@ -225,21 +249,26 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
   };
   // @orb-gate-ignore caught-failure-ownership(empty:error): a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.
   try {
-    return await sessionRequest(sessionSocketPath(home, name), request, (event) => {
-      if (event.kind === "done" && event.diagnosticCompleteness !== undefined) {
-        registerSnapDiagnosticCompleteness(event.diagnosticCompleteness);
-      }
-      if (event.kind === "done") {
-        registerSnapResultPairs(event.pairs);
-        for (const batch of event.facts ?? []) {
-          registerSnapFactBatch(batch);
+    return await sessionRequest(
+      sessionSocketPath(home, name),
+      request,
+      (event) => {
+        if (event.kind === "done" && event.diagnosticCompleteness !== undefined) {
+          registerSnapDiagnosticCompleteness(event.diagnosticCompleteness);
         }
-        if (event.sessionProvenance !== undefined) {
-          registerSnapSessionProvenance(event.sessionProvenance);
+        if (event.kind === "done") {
+          registerSnapResultPairs(event.pairs);
+          for (const batch of event.facts ?? []) {
+            registerSnapFactBatch(batch);
+          }
+          if (event.sessionProvenance !== undefined) {
+            registerSnapSessionProvenance(event.sessionProvenance);
+          }
         }
-      }
-      printEvent(event);
-    });
+        printEvent(event);
+      },
+      SESSION_CALL_SILENCE_MS,
+    );
   } catch (error) {
     const row = readRow(home, name);
     print(row === null ? `SESSION ERROR  ${name}: ${errorMessage(error)}` : sessionDeadText(row, errorMessage(error)));

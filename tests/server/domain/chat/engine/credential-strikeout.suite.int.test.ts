@@ -105,7 +105,7 @@ let strikes: StrikeCall[];
 let strikeImpl: (params: StrikeCall) => Promise<void>;
 
 /** The `prep` overrides that make `resolveSpeakerMemory` actually CALL `deps.recallMemory`: a scoped-shape
- *  group turn voiced by a real cast character, with the round's recall inputs staged. Any gate off and the
+ *  group turn voiced by a real seated character, with the round's recall inputs staged. Any gate off and the
  *  round-level memory passes through untouched — i.e. the side-role call never happens and the arm below
  *  would prove nothing. */
 function scopedRecallPrep(): Partial<TurnPrep> {

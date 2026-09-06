@@ -15,8 +15,9 @@
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
 // only the primary, opening "write <primary>'s perspective only" on a turn that voices all the seated characters, with
 // the model nonetheless attempting all the seated characters from a nudge naming names it was never given a card for). The
-// `-1` guard stays: it is the honest fallback for a genuinely off-roster speaker on a
-// PER-SPEAKER round (a wiring gap), and narrator no longer reaches it.
+// `-1` guard stays, but it is a REFUSAL now, not a fallback (#1462): a genuinely off-roster speaker on a
+// PER-SPEAKER round is a wiring gap, and keeping the primary answered it by shipping the wrong character's
+// card under the asked-for speaker's name. Narrator does not reach it at all.
 //
 // D60: `speakerRefs` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same
 // card-shaped `AssembleCharacter` slot (doc 04 §5, "the card-shape minus the card"), so an agent speaker's
@@ -24,6 +25,7 @@
 
 import type { AssembleCharacter, AssembleContext, GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 
 /** The output axis — what ONE generation voices. Derived, never re-spelled (spine §5.5). */
 type GroupOutput = GroupConfig["output"];
@@ -53,7 +55,14 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
 }
 
 /** PER-SPEAKER: the named speaker's card becomes the character section; `cardScope` selects the breadth of
- *  the co-speakers merged in beside it. An off-roster ref keeps the primary (never crashes). */
+ *  the co-speakers merged in beside it.
+ *
+ *  AN OFF-ROSTER REF IS REFUSED, not absorbed (#1462). This used to `return ctx` — "keep the primary, never
+ *  crash" — which is not a degrade but a WRONG ANSWER: the round still runs, the model is handed the PRIMARY's
+ *  card and the primary's `{{char}}`, and the reply is attributed to the speaker that was asked for. A seat
+ *  whose card read came back empty (`assembly/context` drops those ids from `speakerRefs`) hits exactly this
+ *  path, so it is reachable, not theoretical. Refusing surfaces the wiring gap where it happens instead of
+ *  shipping one character's prose under another's name (D41 no-silent-degrade). */
 function shapeContextForSingle(
   ctx: AssembleContext,
   characters: readonly AssembleCharacter[],
@@ -63,7 +72,10 @@ function shapeContextForSingle(
   const key = speakerKey(speaker.ref);
   const idx = speakerRefs.findIndex((m) => speakerKey(m) === key);
   if (idx === -1) {
-    return ctx; // the speaker isn't among the resolved characters (a wiring gap) — keep the primary, never crash.
+    throw new ChatOperationError(
+      CHAT_OP_CODES.speakerOffRoster,
+      `shapeContextForSpeaker: per-speaker round asked for ${key}, which is not among this turn's resolved speakers`,
+    );
   }
   const active = characters[idx] ?? ctx.character;
   const others = characters.filter((_, i) => i !== idx);

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: archived
-updated: 2026-08-30
+updated: 2026-09-05
 ---
 
 # docs/design/mocks — frozen design drawings
@@ -24,7 +24,9 @@ law, the `@orb/ui` primitive law, and the a11y gates apply to the BUILD, never t
 | `osrs-fixed-interface.png` | the OSRS fixed-screen interface — the source anatomy for the panel strip, embedded by `../../architecture/Context-Panel-Program.md` §CP-4. |
 | `characters-landing/` | the Characters CONTENT landing (#864, owner-ruled 2026-08-30) — `build.mjs` → four `*.dc.html` artboards + `canvas.json` (the Claude Design canvas source) + true-size `*.png` renders (docked · list collapsed · fresh install · phone); `DESIGN.md` carries the ruling, the material table and the fences. |
 | `context-bracket/` | the context panel as ONE head+foot chrome for chats, game rooms and characters (#860, owner-ruled 2026-08-30) — `build.mjs` → seven `*.dc.html` artboards + `canvas.json` (the Claude Design canvas source) + true-size default-state `*.png` renders; `DESIGN.md` carries the ruling, the slot table and the coupled sites. |
+| `config-collections/` | the config COLLECTIONS moved out of the LIST pane into CONTENT (#1725, owner-approved 2026-09-05 "redesign approved it can be built to spec but must match the mockups") — `build.mjs` → `canvas.html` (eleven boards from ONE renderer, Hearth + a Light toggle) + true-size `renders/*.{hearth,light}.png` (7 desktop at 1440×900, 4 phone at 430×860); `DESIGN.md` is the SPEC the build must match, and `REVIEW-stickler.md` / `REVIEW-sideeye.md` are the two v1–v2 reviews whose P0/P1s v3 answers. |
 | `rpg-shell-mockup.{html,png}` · `rpg-shell-mockup-v2.html` | the CP-4 shell; v2 is the SHARPENED one, v1 is kept as the pre-sharpening record (its `.png` is the one `Context-Panel-Program.md` embeds). |
+| `regex-section/` | the room's Regex section (#1742, owner-ruled 2026-09-05 "regex approved" on v2) — `build.mjs` → `canvas.html` (five boards: host open · host after two flips · member · phone · phone attach sheet) + true-size default-state `renders/*.png` in both themes; `DESIGN.md` is the spec, `STUDY.md` the SillyTavern fact base, `PROPOSAL-{ia,ux,sys}.md` the three lenses, `REVIEW-{sideeye,stickler}.md` the v1 reviews whose findings §7 folds. |
 
 **A mock set follows its spec.** When the spec a set draws retires to `docs/history/design/`, the set
 retires with it — the retired sets live at `../../history/design/mocks/` and are indexed by that dir's

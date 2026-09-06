@@ -27,6 +27,7 @@
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS, userSettingsSchema } from "@orb/contracts/settings";
+import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -60,19 +61,36 @@ export function userSettingsConfig(overrides: UserSettingsOverrides = {}): UserS
 }
 
 /** The full `UserSettingsView` a `settings.getUserSettings` stub answers with — `config` is always
- *  `userSettingsConfig(overrides)`, never a raw blob. */
+ *  `userSettingsConfig(overrides)`, never a raw blob.
+ *
+ *  `configUnreadable` defaults to `null` — the stub says "the stored blob read fine", which is what every
+ *  existing story means. A story that wants the #1716 state passes the failure kind, and passing one is the
+ *  ONLY way to get it: the field is REQUIRED here rather than optional so a stub cannot silently omit the
+ *  server's verdict and leave a surface asserting a state the wire never carries. */
 export function userSettingsView(
   overrides: UserSettingsOverrides = {},
-  view: { readonly userId?: UserId; readonly schemaVersion?: number; readonly updatedAt?: number } = {},
-): { userId: UserId; schemaVersion: number; config: UserSettings; updatedAt: number } {
+  view: {
+    readonly userId?: UserId;
+    readonly schemaVersion?: number;
+    readonly updatedAt?: number;
+    readonly configUnreadable?: VersionedParseFailure;
+  } = {},
+): { userId: UserId; schemaVersion: number; config: UserSettings; updatedAt: number; configUnreadable: VersionedParseFailure | null } {
   return {
     userId: view.userId ?? CT_SETTINGS_USER_ID,
     schemaVersion: view.schemaVersion ?? 1,
     config: userSettingsConfig(overrides),
     updatedAt: view.updatedAt ?? 0,
+    configUnreadable: view.configUnreadable ?? null,
   };
 }
 
 /** The at-rest fixture — every knob at its shipped default. Most `settings.getUserSettings` stubs want
  *  exactly this; a test with a knob to flip calls `userSettingsView({ ... })` instead. */
-export const USER_SETTINGS_VIEW: { userId: UserId; schemaVersion: number; config: UserSettings; updatedAt: number } = userSettingsView();
+export const USER_SETTINGS_VIEW: {
+  userId: UserId;
+  schemaVersion: number;
+  config: UserSettings;
+  updatedAt: number;
+  configUnreadable: VersionedParseFailure | null;
+} = userSettingsView();

@@ -191,7 +191,17 @@ Ownership: `session.json` in the session dir records `{ name, ownerCheckout, dae
 
 **The marker becomes a table.** `<main>/.cache/snap-stage/bands.json`: one row per band `{ band, serverPort, vitePort, sha|"dirty", dir, checkout, ownerPid, startedAt, lastUsedAt, sessions: [names], dbProvenance: { copiedFrom, copiedAt, devDbMtimeAtCopy }, rsyncs }`. `readActive/writeActive/touchActive/clearActive` become row verbs keyed by band; the old `active.json` is read ONCE as a legacy row and deleted (no compat shim — `Core-Tooling-Law.md` §1). `bandAccess` (`stage-plan.ts:72-94`) keeps its four verdicts per row; allocation = the caller's own row for (checkout, sha) → a `shared-reuse` row at the same sha → the lowest FREE band → the lowest `stranded` band (lazy reap-on-acquire, #1163 arm a) → exit 2 naming every row with idle ages when the cap/range is exhausted.
 
-**TTL, both arms of #1163.** `lastUsedAt` is stamped by every `ensureStage`, every session call bound to the band, and every attached sibling run (interaction = any request through the substrate, not only snap CLI calls). A stage with live session refs is never a strand. Arm (b), the active timer, lives in the session daemon (it already has a clock); a stage with NO session is reaped only by arm (a) or `--stage-sweep` — no extra daemon exists to leak. Defaults: session idle 30 min, stage idle 60 min (`ORB_SESSION_TTL_MIN`, `ORB_STAGE_TTL_MIN`) — owner fork F5.
+**TTL, both arms of #1163.** `lastUsedAt` is stamped by every `ensureStage`, every session call bound to the band, and every attached sibling run (interaction = any request through the substrate, not only snap CLI calls). A stage with live session refs is never a strand. Defaults: session idle 30 min, stage idle 60 min (`ORB_SESSION_TTL_MIN`, `ORB_STAGE_TTL_MIN`) — owner fork F5.
+
+**Arm (b) AS BUILT (#1163, 2026-09-05) — the ruling survives, its INPUT changed.** This section used to place the active timer inside the session daemon ("it already has a clock") and argued that a stage with NO session needs only arm (a) because "no extra daemon exists to leak". The owner re-raised the row on 2026-09-05 — *"there's supposed to be a whole mechanism, not just 60 minute idle"* — against this measurement: six of ten bands held, bands 0/1/2 stranded 2h56m / 4h51m / 1h37m with live `node --watch-preserve-output` stacks resident and `sessions: none` on every row, inside a loadavg of 50–83 on 24 cores that made three sibling lanes refuse to render a verdict. Every lane that afternoon drove `snap --isolated --ref <sha>` with no `--session`, so the daemon's clock never existed for any of them, and no lane was ever refused a band, so arm (a) never fired either. The mechanism that section defended is intact — **no second reaper was built, and the daemon still only RELEASES its band on session expiry** — but the CONDITION changed: the clock belongs to the BAND, not to whichever process happens to be driving it.
+
+- **The keeper.** `ensureStage` arms one detached, niced, own-pgid child per band at its single exit (`ops/stage-keeper.ts` `armStageKeeper` → `spawnNicedChild(node cli.ts --stage-keeper <band>)`; the argv front door stays `cli.ts`, and `--stage-keeper` is an INTERNAL flag beside `--session-daemon`). Idempotent: a warm reuse whose keeper is alive spawns nothing.
+- **Re-arming is FREE because the keeper POLLS the row** (`keeperPollMs` = TTL/10, floored 200 ms, ceilinged 60 s) rather than holding a resettable in-memory timer. Every write the substrate already makes re-arms it with no new coupling: `touchRow`, `bindSessionToBand`, `touchSessionHeartbeat`, an attached sibling run.
+- **The third interaction signal is a CONNECTED CLIENT** (`ops/stage-probe.ts` `foreignBandPeer`, one `ss -tnp state established`): an established connection to a row's port from a process that is not one of the stage's own. Without it a 90-minute one-shot drive — which calls `ensureStage` ONCE and then holds a browser for an hour — would be reaped mid-run, because nothing writes the table in between. Unidentified and off-box peers count AS connected.
+- **What it refuses:** a row naming a RESERVED port (the dev pair, the fixture, an e2e mode) is exit-2 with nothing touched; a row that is gone, or now names a different LIVE keeper, is RELEASED without acting; a row whose recorded keeper is dead is ADOPTED (the arming race, and the self-heal after a kill).
+- **It is never a fence.** Nothing consults `row.keeper` before reaping, so arm (a) and `--stage-sweep` reclaim a band whose keeper died exactly as before — pinned in `tests/tooling/snap/lib/stage-bands.test.ts`. The asymmetry is deliberate: the allocator reads `lastUsedAt` alone because it only fires under band PRESSURE; the timer fires under none, so every uncertainty resolves to `wait`.
+- **Which arm ended a stage is now recorded** (`ops/stage-reap-log.ts`, a bounded 20-row ledger beside `bands.json`): `timer` · `acquire` · `sweep` · `down`. `--stage-status` prints it plus each row's remaining timer, because a reaped band leaves no row and "free" would otherwise be indistinguishable from "taken from a lane ninety seconds ago".
+- Proofs: `tests/tooling/snap/lib/stage-keeper-plan.test.ts` (the rules) and `tests/tooling/snap/ops/stage-keeper.int.test.ts` (the shipped keeper process against a planted loopback stage on EPHEMERAL ports — never a real band, never a booted stack).
 
 **Health = three probes, one verdict.** `stageHealthy` (`stage.ts:86-88`) becomes `healthz ok` ∧ `vite answers` ∧ `served-probe fresh` (`tooling/src/stack/ops/served-probe.ts`, reached as a `stack.sh` verb) — a dead-watcher stage reads `degraded`, never `warm`. A `--dirty` stage additionally carries an ERA rule: `rsyncs > 20` or age > 6 h ⇒ `rebuild` (the long-lived-vite corrupt-graph class; a `--ref` stage never HMRs and is exempt).
 
@@ -1439,6 +1449,42 @@ own attach. Fenced in `ops/noise.ts` beside the sandbox-trace and vite-churn pre
 and `file:` only, never dropped, counted as `file-origin-noise`. And the selector proof reported the
 page-subject sentinel (`script-error` / `off-theme-font` / `flat-type-hierarchy` all name the DOCUMENT) as
 unlocatable; `PAGE_SUBJECT_SELECTOR` is now named in `contract/findings.ts` and skipped by the proof.
+
+### 10.11 What the 4 KB stdout budget measures (ruled 2026-09-05, #1556 + #1675)
+
+The end card is an agent-facing contract with a hard size constraint: the Bash tool truncates long output,
+and a truncated snap run loses the END CARD — the one block carrying the verdict, the findings and the
+READ pointer. `tests/tooling/snap/ops/agent-readable-output.suite.int.test.ts` holds the 4096-byte budget
+(4 KB, not 8 — §10.7's citation shrink).
+
+**The budget measures the AGENT-READABLE BODY, not the whole stream.** A line belongs to the body when its
+length is a function of THIS run's own arms and findings. The two run-identity lines — `CONCURRENT` and
+`PROVENANCE` — are EXCLUDED, because their length is a function of how many OTHER snap runs happen to be
+live on this checkout: the racing census names each sibling's run id, pid and start time in both lines.
+That is a property of the box, not of snap's output. Measured (#1675): co-scheduled with
+`design-audit.suite`, an otherwise 8/8-green run gained ~230 bytes of census and the budget arm read
+4204/4096 — a green contract turned red by scheduling alone. Reproduced deterministically 2026-09-05 by
+planting one `.inflight` marker naming the test's own pid: 4154 bytes whole, ~3.9 KB in the body.
+
+**Excluded is not unmeasured.** The same arm asserts that the plant reached the census (both lines really
+are carrying it), that the exclusion removes EXACTLY those two lines and nothing else (byte arithmetic
+against the removed lines), and that both lines are present at all — so the budget cannot be widened later
+by relabelling a body line as provenance, and a run that stopped stating its provenance goes red.
+
+**The RESULT line is inside the body and is the thing that will break next.** It is one line of ~40
+`key=value` pairs, one per arm-owned result pair; the fold added 38 bytes and #1538 another 22, leaving
+roughly 200 bytes of headroom on a quiet box. The deliberate decision: **the budget does not move, and the
+RESULT line does not grow without paying for it.** An arm that adds a pair either replaces one, or the arm
+that adds it also removes an equivalent-width pair, or its author folds the multi-token group behind a
+single derived token (`load-suspect=<arm>` is the existing precedent — one token standing for a whole
+paragraph the reader can expand through `--report`). Raising 4096 is not a fix: it re-creates the
+truncation the budget exists to prevent, one Bash call later.
+
+**What a load-suspect run does NOT do to the budget.** Under #1616 a contended box LABELS rather than
+withholds, and the run-global annotation's ~600-byte reason paragraph IS body — it is about this run. The
+suite therefore plants a QUIET box (`BOX_LOAD_ENV`) for every child rather than excusing the bytes: the
+output contract is judged on a quiet box, and the loaded-box arm that needs the annotation asserts its
+NAMING, not its size.
 
 ## 11. Cost
 

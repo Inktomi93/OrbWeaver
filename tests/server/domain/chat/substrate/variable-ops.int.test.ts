@@ -93,6 +93,119 @@ test("a standalone delta folds together with the existing message-variant deltas
   ]);
 });
 
+// ── The VALUE-level compare-and-set (#1555) ──────────────────────────────────────────────────────────────
+// The log-level CAS above and this are different promises, and the first test states the gap the second one
+// closes. A read-modify-write (story-clocks' tick: read the fold, parse "1/6", write "2/6") has two writers
+// that reach the same key from OPPOSITE SIDES of the plugin invoke queue — the `advance_clock` TOOL rides the
+// resident's tail-promise chain, a panel action goes through `runUiHostCall` on a fresh bridge that never
+// touches it — so they genuinely interleave. Measured before the fix: the second `set` overwrote the first and
+// two ticks moved the clock ONE segment ("expected 2/6 to deeply equal 3/6").
+
+test("an UNCONDITIONAL write stays last-writer-wins BY DESIGN — two ticks from one snapshot land one segment", async () => {
+  const chatId = await seedChat(db, "unconditional-tick");
+  const ctx = makeChatContext(db);
+  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+
+  // BOTH writers read the same settled fold and each computes cur+1 from it (one read = exactly what two
+  // concurrent readers observe). Both batches LAND — nothing is dropped, which is the log CAS's whole promise —
+  // and the fold takes the later one. For an ASSIGNMENT (an automation `set_variable`) that is correct; this
+  // test exists so the next reader does not mistake it for the guarantee a read-modify-write needs.
+  expect((await readChat(chatId)).runtime).toEqual({ "clock:the_ritual": "1/6" });
+  const settled = await Promise.all([
+    applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
+    applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
+  ]);
+  expect(settled).toEqual([{ outcome: "applied" }, { outcome: "applied" }]);
+  expect((await readChat(chatId)).runtime).toEqual({ "clock:the_ritual": "2/6" });
+});
+
+test("a STALE precondition refuses as data, writes NOTHING, and hands back the live value — the retry lands the tick", async () => {
+  const chatId = await seedChat(db, "cas-tick");
+  const ctx = makeChatContext(db);
+  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+
+  // Both ticks derive from the SAME snapshot ("1/6"), and both say so. Serialized here so the loser is
+  // decidable; the interleaved arm is the same predicate judged inside the CAS retry loop.
+  const first = await applyStandaloneVariableOps(
+    ctx,
+    chatId,
+    [{ op: "set", key: "clock:the_ritual", value: "2/6" }],
+    [{ key: "clock:the_ritual", expected: "1/6" }],
+  );
+  const second = await applyStandaloneVariableOps(
+    ctx,
+    chatId,
+    [{ op: "set", key: "clock:the_ritual", value: "2/6" }],
+    [{ key: "clock:the_ritual", expected: "1/6" }],
+  );
+
+  expect(first).toEqual({ outcome: "applied" });
+  expect(second).toEqual({ outcome: "stale", actual: { "clock:the_ritual": "2/6" } });
+  // NOTHING was written by the refusal: the loser left no batch in the durable log (the fold's source of
+  // truth), so a later refold cannot resurrect the tick that lost.
+  expect((await readChat(chatId)).standalone).toHaveLength(2);
+
+  // The RETRY, derived from what the refusal handed back — no second read, which would be its own window.
+  const retry = await applyStandaloneVariableOps(
+    ctx,
+    chatId,
+    [{ op: "set", key: "clock:the_ritual", value: "3/6" }],
+    [{ key: "clock:the_ritual", expected: "2/6" }],
+  );
+  expect(retry).toEqual({ outcome: "applied" });
+  // TWO ticks, TWO segments — the property the unconditional arm above cannot give.
+  expect((await readChat(chatId)).runtime).toEqual({ "clock:the_ritual": "3/6" });
+});
+
+test("`expected: null` is the belief that the key is UNSET — it holds on an absent key and fails once it is set", async () => {
+  const chatId = await seedChat(db, "cas-unset");
+  const ctx = makeChatContext(db);
+
+  // The create-if-absent arm: nobody has started this clock, so the belief holds and the mint lands.
+  const minted = await applyStandaloneVariableOps(
+    ctx,
+    chatId,
+    [{ op: "set", key: "clock:the_omen", value: "0/4" }],
+    [{ key: "clock:the_omen", expected: null }],
+  );
+  expect(minted).toEqual({ outcome: "applied" });
+
+  // A second starter loses: the key now reads "0/4", and the refusal says so rather than clobbering it back.
+  const raced = await applyStandaloneVariableOps(
+    ctx,
+    chatId,
+    [{ op: "set", key: "clock:the_omen", value: "0/6" }],
+    [{ key: "clock:the_omen", expected: null }],
+  );
+  expect(raced).toEqual({ outcome: "stale", actual: { "clock:the_omen": "0/4" } });
+  expect((await readChat(chatId)).runtime).toEqual({ "clock:the_omen": "0/4" });
+});
+
+test("a precondition is judged against the WINNER's state inside the retry loop, never the snapshot that lost", async () => {
+  const held = await freshHeldDb();
+  const chatId = await seedChat(held.db, "cas-through-retry");
+  const ctx = makeChatContext(held.db);
+  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+
+  // Park BOTH writers at the CAS read so each derives from the pre-race chain, exactly like the log-CAS pin
+  // below. One wins the log CAS and applies; the loser RE-READS — and its belief must be re-judged against the
+  // winner's "2/6", not silently carried through on the stale snapshot it originally read.
+  const gate = held.hold(CAS_READ, 2);
+  const expectOneSix = [{ key: "clock:the_ritual", expected: "1/6" }];
+  const a = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
+  const b = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
+  await gate.reached;
+  // POSITIVE CONTROL for the hold: both writers really are parked before their read, so neither has written.
+  expect((await readColumns(held.db, chatId)).runtime).toEqual({ "clock:the_ritual": "1/6" });
+  gate.release();
+  const outcomes = await Promise.all([a, b]);
+
+  // EXACTLY ONE applied. (Order is the scheduler's, so assert the SET, not the position.)
+  expect(outcomes.filter((o) => o.outcome === "applied")).toHaveLength(1);
+  expect(outcomes.filter((o) => o.outcome === "stale")).toEqual([{ outcome: "stale", actual: { "clock:the_ritual": "2/6" } }]);
+  expect((await readColumns(held.db, chatId)).runtime).toEqual({ "clock:the_ritual": "2/6" });
+});
+
 /** The CAS read's SQL signature: the ONE statement that returns the guarded column BOTH ways (the driver's
  *  bytes for the predicate, drizzle's decoded value for the derivation), which drizzle renders as the column
  *  term TWICE. Every other projection of this column renders it once, so this regex parks that statement and

@@ -118,7 +118,19 @@ interface ContrastFillRefusal {
   readonly refusal: string;
 }
 
-export type ContrastFillReading = ContrastFillSample | ContrastFillRefusal;
+/** The capture MACHINERY failed — `page.screenshot()` threw (twice: ops/contrast-fill.ts retries once on
+ *  the same page before minting this) or the buffer would not decode. An INSTRUMENT fault, discriminated
+ *  separately from `ContrastFillRefusal` (#1758): a `Page.captureScreenshot` protocol error under
+ *  contention is a DIFFERENT class from "I measured and there is nothing to see" — folding the two into
+ *  one `refused` reason string made a reason-string pin red on a transient CDP message that has nothing
+ *  to do with the fixture. The caller prints `status: "instrument-error"`, the same class
+ *  ops/contrast-pixels.ts's backdrop screenshot failure already uses. */
+interface ContrastFillCaptureFailed {
+  readonly kind: "capture-failed";
+  readonly reason: string;
+}
+
+export type ContrastFillReading = ContrastFillSample | ContrastFillRefusal | ContrastFillCaptureFailed;
 
 // ── THE EDGE ARM (#1346) ──────────────────────────────────────────────────────────────────────────────
 // WCAG 1.4.11 is a question about a BOUNDARY: the visual affordance that says "this is a field" must clear
@@ -167,10 +179,15 @@ export type ContrastEdgeSideReading =
   | { readonly side: ContrastEdgeSide; readonly kind: "skipped"; readonly reason: string }
   | { readonly side: ContrastEdgeSide; readonly kind: "refused"; readonly reason: string };
 
-/** The whole subject's reading: one row per side, plus the refusal that applies to all of them. */
+/** The whole subject's reading: one row per side, plus the refusal that applies to all of them. `refused`
+ *  is a DOMAIN no-verdict (an empty/off-screen box); `capture-failed` is the SAME instrument-fault class
+ *  `ContrastFillCaptureFailed` names (#1758) — `page.screenshot()`/the pixel decode failed twice, never a
+ *  claim about the border itself. Kept as a separate arm from `refused` so a reason-string pin cannot red
+ *  on a transient CDP message. */
 export type ContrastEdgeReading =
   | { readonly kind: "measured"; readonly sides: readonly ContrastEdgeSideReading[] }
-  | { readonly kind: "refused"; readonly refusal: string };
+  | { readonly kind: "refused"; readonly refusal: string }
+  | { readonly kind: "capture-failed"; readonly reason: string };
 
 /** Where the subject's BORDER BOX sits inside a decoded clip, in image pixels, with each side's border
  *  thickness — the edge arm's twin of `ContrastFillGeometry`. */

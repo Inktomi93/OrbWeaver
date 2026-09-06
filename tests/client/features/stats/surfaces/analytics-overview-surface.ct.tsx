@@ -9,7 +9,7 @@ import type { Page } from "@playwright/test";
 import { readCanvasBandInk, solidColumns } from "../../../../support/ct/canvas-ink.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
+import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceShortStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;
 /** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
@@ -378,4 +378,64 @@ test("the overview dashboard's content region carries a non-zero inset (#1200)",
   const padding = await region.evaluate((el) => getComputedStyle(el).paddingTop);
   // ONESHOT-OK: static CSS from the `padding="section"` prop, settled by the "Recompute now" visibility barrier above — it cannot change after mount.
   expect(padding).not.toBe("0px");
+});
+
+// ── #1727: the scroll box is the SURFACE'S, and the boundary now reserves its box ────────────────────
+// The five Analytics mounts were refused a `reserveKey` on GEOMETRY: the settled body owned the scroll box,
+// and the reservation wraps its settled child in an AUTO-HEIGHT measuring Stack, so `h-full` on a scroller
+// under the boundary resolves to `auto`, the pane stops scrolling, and everything past the fold becomes
+// unreachable (#1133, paid on `character.editor`). The box is hoisted above the boundary now, so these two
+// arms are the pair that has to stay true together: the surface still scrolls, AND the boundary remembers.
+//
+// HONEST LABELS. The REMEMBER arm is a defect proof — red against HEAD, where no key exists and the store
+// stays empty. The REACHABILITY arm is a FENCE against HEAD (an unkeyed boundary mounts no wrapper, so the
+// old shape scrolled fine); its red is against the KEYED-BUT-UNHOISTED tree — the state this lane would have
+// shipped by keying the mount without moving the box — which was measured red by hand before the hoist.
+
+/** The surface-box store's persisted blob (`createPersistedStore`, localStorage — one key per device). */
+const readSurfaceBoxBlob = (page: Page): Promise<string> =>
+  page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+    return key === undefined ? "" : (localStorage.getItem(key) ?? "");
+  });
+
+/** The remembered box for one surface id, 0 when the store has never seen it. */
+const readRememberedBox = (page: Page, surfaceId: string): Promise<number> =>
+  page.evaluate((id) => {
+    const key = Object.keys(localStorage).find((k) => k.includes("surface-box"));
+    const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+    return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.[id] ?? 0;
+  }, surfaceId);
+
+test("#1727 the overview surface scrolls past the fold AND remembers its settled box under `analytics.overview`", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+
+  // The SHORT pane: the fold is a property of this story (240px) rather than of whatever the stub happens
+  // to render, so "past the fold" means something deterministic.
+  const component = await mount(<AnalyticsOverviewSurfaceShortStory />);
+  // SETTLED: the recompute verb only renders once all four suspense reads have landed.
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const scroller = component.locator('[data-slot="analytics-content"]');
+  // The hoisted box is a REAL scroller: its content exceeds its own height. Polled, not sampled — the
+  // dashboard's charts settle their own geometry after the read lands.
+  await expect.poll(() => scroller.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+  // …and it actually moves. Under the refused geometry `h-full` resolves to `auto`, the element grows to its
+  // content, `scrollHeight === clientHeight`, and this assignment is a no-op at 0.
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  // The user-visible half: the LAST thing the dashboard renders is on screen after that scroll.
+  await expect(component.getByText("Not enough recent activity to compare months yet.")).toBeInViewport();
+
+  // The reservation half: the settle measured the child back into the store under this surface's own key,
+  // so the next boot paints the box instead of a one-line sentence.
+  await expect.poll(() => readSurfaceBoxBlob(page)).toContain("analytics.overview");
+  await expect.poll(() => readRememberedBox(page, "analytics.overview")).toBeGreaterThan(0);
 });

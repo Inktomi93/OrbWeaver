@@ -368,8 +368,16 @@ export interface PromptTransform {
  *  by three places that must never disagree: the `roomEntityChanged` member below, the composition root's
  *  `ROOM_REACH` resolver table (`entry/compose/room-reach.ts` — a `satisfies Record<RoomEntityKind, …>`, so
  *  a new kind cannot ship unresolved), and the client's `BUS_FILTERS.roomEntityChanged` Record. Presets are
- *  deliberately ABSENT (owner word): members never fetch a preset — the server assembles per turn. */
-export const ROOM_ENTITY_KINDS = ["character", "persona", "world-info"] as const;
+ *  deliberately ABSENT (owner word): members never fetch a preset — the server assembles per turn.
+ *
+ *  `regex` joined 2026-09-05 (#1733, the prerequisite of the #1742 Regex section). It is the one kind whose
+ *  fan is raised DIRECTLY by a verb rather than resolved from an entity id: a host's `attachToChat` /
+ *  `detachFromChat` / chat-arm `applyScopeOrder` already knows its `chatId`, and the member-visible
+ *  consequence is in THAT room. Before it, those three verbs emitted a `regexChanged` USER event only — the
+ *  host's own devices repainted and every other member of the room kept a stale rack until they reloaded. The
+ *  reach table's `regex` resolver serves the OTHER half (a library row's `enabled`/name changing under every
+ *  room that attaches it), which is the same staleness one plane up. */
+export const ROOM_ENTITY_KINDS = ["character", "persona", "world-info", "regex"] as const;
 export type RoomEntityKind = (typeof ROOM_ENTITY_KINDS)[number];
 
 /** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log

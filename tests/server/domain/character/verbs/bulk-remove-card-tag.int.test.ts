@@ -100,7 +100,7 @@ describe("bulk remove card tag", () => {
     });
   });
 
-  test("one failing detach still audits + ANNOUNCES the siblings that committed, then rethrows", async () => {
+  test("one failing detach still audits + ANNOUNCES the siblings that committed, and NAMES the failure in the result (#1694)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -110,14 +110,17 @@ describe("bulk remove card tag", () => {
     h.audits.length = 0;
     h.userEvents.length = 0;
 
-    // The attach's partial-failure posture, mirrored: a rejection must not swallow the siblings' refresh.
+    // The attach's partial-failure posture, mirrored: a rejection must not swallow the siblings' refresh,
+    // and (#1694) must not launder B's real success into one opaque failure for the whole batch either.
     const svc = createCharacterService({
       ...h.ctx,
       detachCardTag: async (args): Promise<boolean> => (args.characterId === a.id ? await Promise.reject(new Error("the tag store is down")) : true),
     });
 
-    await expect(svc.bulkRemoveCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] })).rejects.toThrow("the tag store is down");
+    const result = await svc.bulkRemoveCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] });
 
+    expect(result.applied).toEqual([b.id]);
+    expect(result.failed).toEqual([{ id: a.id, error: { code: "unexpected", message: "the tag store is down" } }]);
     expect(h.audits).toHaveLength(1);
     expect(h.audits[0]?.entry.metadata).toEqual({ tag: "hero", removed: 1 });
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged" } }]);

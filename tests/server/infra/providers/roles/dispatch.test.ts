@@ -23,7 +23,7 @@ import {
   requireBackend,
   requireRoleImpl,
 } from "@orb/server/infra/providers";
-import { providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
+import { NO_PROVIDER_SECRETS, providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
 import { makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -215,7 +215,7 @@ describe("runRole — the caller's abort reason is flattened before it reaches a
 
     // THE PIN, asserted FIRST because it is the defect: the verdict the transport path reaches.
     // `{kind:"server", retryable:true}` here is a cancelled call being re-run (and re-billed).
-    const classified = providerErrorFromHttp(thrown, "openrouter structured");
+    const classified = providerErrorFromHttp(thrown, "openrouter structured", NO_PROVIDER_SECRETS);
     expect(classified.kind).toBe("aborted");
     expect(classified.retryable).toBe(false);
 

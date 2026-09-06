@@ -40,14 +40,15 @@ export const CONFIG_CONTEXT_EMPTY = {
  *  the misread this ruling deletes. Nothing outside the placeholder arm may borrow the phrase. */
 export const CONFIG_UNBUILT_MARKER = "Not built yet";
 
-/** THE HOST'S ONE SENTENCE ABOUT ITS OWN GEOMETRY — CONTENT for an ACTIVE collection with no member open
- *  (#925's species contract). The pane belongs to the library, so everything ABOUT the library is the
- *  contribution's (`label` · `description` · `preview` · `emptyText` · `create.label`); where its members
- *  live is the HOST's fact, and this is the one line that states it. Same division as
- *  {@link CONFIG_CONTEXT_EMPTY}, which is why it homes beside it rather than in the collection contract. */
-export const CONFIG_COLLECTION_LANDING = {
-  hint: "Pick one from the list to open its editor.",
-} as const;
+// THE HOST'S ONE SENTENCE ABOUT ITS OWN GEOMETRY IS GONE (#1725, owner ruling 2026-09-05).
+// `CONFIG_COLLECTION_LANDING.hint` read "Pick one from the list to open its editor." — the host's fact about
+// WHERE a library's members live, beside the contribution's facts about what the library IS. The owner moved
+// the members into the same pane the sentence was written on, so the sentence became a direction to the pane
+// the reader is standing in. It is deleted rather than reworded because its whole JOB was to point somewhere
+// else: with the rows immediately below the control row, a line restating that they are there is the
+// affordance-shaped text #1209 already removed from this surface. Its one reader
+// (`config-collection-landing.tsx`) is the library host now, and the approved board 02 draws no sentence in
+// that position. The stickler's "replace, do not delete" is answered by the ROWS, not by a second string.
 
 /** THE ONE WORD FOR "this differs from its default" (#1099 F16 / Errand A). Every surface that marks the
  *  state spells it from here — the search result row, the LIST's group band, the shelf — so the marks a

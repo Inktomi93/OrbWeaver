@@ -57,6 +57,14 @@ export const RELATIONAL_REPRESENTATIVE_CAPS = {
   "row-void": 8,
 } as const;
 
+/** The walker's withheld SUBJECTS as an accounting fragment (#1704). They travel with the tally they
+ *  explain — a NO-VERDICT that names no subject cannot be chased — and Node adds no subject of its own.
+ *  Spelled ONCE because all three builders below need it and a conditional spread repeated three times is
+ *  how the `carried` tag came to reach only one of them. */
+function withheldSubjectsOf(census: RelationalCensusAccountingInput | undefined): Pick<RulePopulationAccounting, "withheldSubjects"> {
+  return census?.withheldSubjects === undefined ? {} : { withheldSubjects: { ...census.withheldSubjects } };
+}
+
 export function cappedRelationalFindings<T>(
   rule: keyof typeof RELATIONAL_REPRESENTATIVE_CAPS,
   items: readonly T[],
@@ -85,6 +93,7 @@ export function cappedRelationalFindings<T>(
       withheld,
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
+      ...withheldSubjectsOf(census),
     }),
   };
 }
@@ -115,6 +124,7 @@ export function accountedFindings<T>(
       withheld: { ...(census?.withheld ?? {}) },
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
+      ...withheldSubjectsOf(census),
     }),
   };
 }
@@ -235,6 +245,7 @@ export function decisionPopulationFindings<T extends { readonly selector: string
       collapsed: {},
       // The walker's route tag travels to the printed row unchanged (#1172) — Node adds no route of its own.
       ...(census?.carried === undefined ? {} : { carried: { ...census.carried } }),
+      ...withheldSubjectsOf(census),
     }),
   };
 }

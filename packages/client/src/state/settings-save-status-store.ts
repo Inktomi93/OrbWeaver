@@ -26,7 +26,12 @@ import { createGatedStore } from "./create-gated-store.ts";
  *  actively false: the over-cap prose refusal held the write while both editors' `[role=status]` still read
  *  "Saved" (side-eye PROSE-LIMIT P2). The BADGE/field error is the reason; the
  *  status line is the STATE, and it is also the live-region announcement a screen-reader user gets. */
-export const SAVE_LIFECYCLE_STATES = ["saved", "saving", "blocked", "error"] as const;
+/** `unreadable` = the entity's STORED blob could not be read, so the server refuses every write derived
+ *  from it (`stored_config_unreadable`, the #471/#1026 guard) and the driver never even attempts one. It is
+ *  a fifth state and not an `error` because the two demand opposite affordances: `error` owns Retry, and a
+ *  retry here CANNOT succeed — the bytes are what they are. Before #1716 this rendered as a defaults-looking
+ *  form that said "Saved" until the user typed, then a generic failure with a Retry that failed forever. */
+export const SAVE_LIFECYCLE_STATES = ["saved", "saving", "blocked", "error", "unreadable"] as const;
 export type SaveLifecycleState = (typeof SAVE_LIFECYCLE_STATES)[number];
 
 interface SettingsSaveStatusState {
@@ -44,12 +49,19 @@ interface SettingsSaveStatusState {
 
 const EMPTY_IDS: readonly string[] = [];
 
-/** error \> blocked \> saving \> saved. `blocked` outranks `saving` because a save in flight settles by
- *  itself and a held one never does — the aggregate must name the state that needs a person. */
+/** unreadable \> error \> blocked \> saving \> saved. `blocked` outranks `saving` because a save in flight
+ *  settles by itself and a held one never does — the aggregate must name the state that needs a person.
+ *  `unreadable` outranks even `error` because it EXPLAINS the errors underneath it: when the stored blob
+ *  cannot be read every section refuses identically, and naming a retryable failure over a refusal that no
+ *  retry can clear is the wrong verb on the loudest line (#1716). It carries no id list on purpose — the
+ *  condition is the whole blob's, so every reporting section is in it and there is nothing to jump TO. */
 function foldAggregate(states: Readonly<Record<string, SaveLifecycleState>>): Pick<SettingsSaveStatusState, "aggregate" | "erroredIds" | "blockedIds"> {
   const ids = Object.keys(states);
   if (ids.length === 0) {
     return { aggregate: null, erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS };
+  }
+  if (ids.some((id) => states[id] === "unreadable")) {
+    return { aggregate: "unreadable", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS };
   }
   const erroredIds = ids.filter((id) => states[id] === "error");
   const blockedIds = ids.filter((id) => states[id] === "blocked");

@@ -36,6 +36,7 @@ import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry } from "../contract/history.ts";
 import type { Selection } from "../contract/selection.ts";
@@ -202,6 +203,16 @@ export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: St
   };
 }
 
+/** The stage door's HANG ceiling (#1508). It is not a performance budget; it is the line past which a stage
+ *  is WEDGED, chosen far above any observed run (`structure:full` measured 292s on a busy box; the push
+ *  tier's suites are longer still) so the only thing it can catch is a hang. Past it the stage's process
+ *  group dies and its transcript says so, which the classifier scores as a tool error rather than leaving
+ *  `pnpm verify` waiting forever. It still rides `budget()` like every other wall clock in tooling
+ *  (`tooling-shared-plumbing` arm J): `budget()` never SHRINKS a declared base — the ten-minute ceiling caps
+ *  the load STRETCH only — so a 45-minute base comes back as 45 minutes on a quiet box and can only grow. */
+const STAGE_TIMEOUT_BASE_MS = 2_700_000; // 45 minutes
+const STAGE_TIMEOUT_MS = budget(STAGE_TIMEOUT_BASE_MS);
+
 async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
   const plan = planStage(stage, selection, tier, root);
@@ -225,6 +236,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const result = await spawnNicedTranscript(resolveBin(root, cmd), args, {
     cwd: root,
     env,
+    timeoutMs: STAGE_TIMEOUT_MS,
     ...(verbose ? { onChunk: mirrorChunk } : {}),
   });
   const durationMs = Date.now() - start;

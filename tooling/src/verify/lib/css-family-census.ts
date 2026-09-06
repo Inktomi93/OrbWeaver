@@ -101,7 +101,14 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // two rules of 1 + 7: `background: none` on the pane, and on the carrier the five that GENERATE it plus
   // the two glass declarations. No `box-shadow: inherit` on this one — `.shell-main` authors no elevation
   // and clips nothing, so the pane rule's shadow clause has no subject here (stated at the rule).
-  [CLIENT_GLOBALS]: 125,
+  // +2 (2026-09-05, #1362): `.orb-chat-track`'s two margin declarations — the room's ONE horizontal track
+  // stopped centring with `mx-auto`, whose halving of an ODD remainder landed the track (and every
+  // `backdrop-filter` layer inside it) on a half pixel. Measured on the isolated stage: content pane 893px,
+  // track 768px, margin 62.5 — `left -0.500 device px` on FOUR promoted layers at once (`composer`,
+  // `swipe-strip`, two `message-bubble`s) plus the `off-grid-text` their glyphs inherit. The replacement is
+  // `margin-inline-start: round(down, …, 1px)` + `margin-inline-end: auto`, the horizontal twin of Law 1's
+  // leading belt (integer-line-boxes.md §3b / Law 3). Same Law 3/4 family as the #1154 and #1173 rows above.
+  [CLIENT_GLOBALS]: 127,
   // +2 (2026-09-02, #1154): the band's separator moved from `border-block-end` to two composed box-shadow
   // stops (`--shell-band-rule` / `--shell-band-ember` + the `box-shadow` that reads them), so the 48px band
   // stops being a 47px CONTENT box that lands every occupant on a half pixel. The ramp / floating-context
@@ -112,9 +119,14 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // the viewport and sweeping it back. Two `from`-only keyframes (1 declaration each) + the two
   // `data-list-flip` counter rules + the two `data-list-settle` counter rules. The mobile-block cancels
   // widen existing selector lists and mint no declaration.
-  [SHELL]: 343,
+  // +6 (2026-09-06, #1646): the FLIP's THIRD counter, for the CENTRED class — `[data-slot=message-row]`'s
+  // honest delta is HALF the track (`.shell-main` resizes; a centred child moves by half of what a
+  // start-aligned one does), so it takes its own pair of `from`-only keyframes at `calc(track / 2)`, its own
+  // two `data-list-flip` counter rules and its two `data-list-settle` twins — the exact #1316 shape one
+  // alignment class over. The mobile cancel again widens a selector list and mints nothing.
+  [SHELL]: 349,
 };
-export const EXPECTED_DECLARATION_TOTAL = 1010;
+export const EXPECTED_DECLARATION_TOTAL = 1018;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 200;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",

@@ -15,7 +15,6 @@ import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RegexLibraryGroupStory } from "../_ct-stories.tsx";
 
-const BAND = /Regex scripts/;
 /** The kebab's accessible name is `Actions for <subject>`, so only a pattern addresses one row's menu — and
  *  the SUBJECT is the row's name plus its list-resolved qualifier (`"strip ooc" · 4 Sep 2025`, #443), which
  *  is why these stop at the quoted name rather than spelling a clock-fed stamp. */
@@ -77,12 +76,14 @@ function stub(page: Page, scripts: readonly unknown[] = SCRIPTS, globals: readon
   });
 }
 
-/** Open the group — every CT here needs its rows, and the disclosure store is device-local, so the reset
- *  runs first. Barriers on the FIRST ROW rather than on the disclosure's attribute: the rows arrive with the
- *  suspended query, and an expanded-but-empty frame is catchable in between. */
+/** Settle the library — every CT here needs its rows, and bulk mode is module state, so the reset runs
+ *  first. Barriers on the FIRST ROW: the rows arrive with the suspended query.
+ *
+ *  IT NO LONGER OPENS ANYTHING (#1725). The story used to mount the LIST BAND and this helper clicked it to
+ *  unfold the rows underneath. The owner moved the members into CONTENT, so the library IS the mount and
+ *  there is no disclosure to drive — the band's remaining pins are `config-list-collection-group.ct.tsx`'s. */
 async function openGroup(page: Page, group: Locator): Promise<void> {
   await page.getByRole("button", { name: "reset" }).click();
-  await group.getByRole("button", { name: BAND }).click();
   await expect(group.getByText("strip ooc", { exact: true })).toBeVisible();
 }
 
@@ -128,12 +129,15 @@ test("the kebab Delete confirms with the cascade, then fires removeScript", asyn
   await expect.poll(() => trpc.lastInput("regex.removeScript"), { intervals: [20, 50, 100] }).toEqual({ scriptId: STRIP["id"] });
 });
 
-test("the BAND carries the import door, named for what it takes", async ({ mount, page }) => {
+// IMPORT MOVED FROM THE BAND TO THE LIBRARY'S OVERFLOW (#1725, DESIGN.md §3.2) — D121-D's `band=Import`
+// anatomy survives with a changed address, and the door is never a bare button: it is the kebab's first
+// item, beside whatever library-level verbs the contribution declares.
+test("the library's overflow carries the import door, named for what it takes", async ({ mount, page }) => {
   await stub(page);
   const group = await mount(<RegexLibraryGroupStory />);
-  await page.getByRole("button", { name: "reset" }).click();
-  // Band chrome — visible without expanding the group, like create.
-  await expect(group.getByRole("button", { name: "Import a regex script" })).toBeVisible();
+  await openGroup(page, group);
+  await group.getByRole("button", { name: "More library actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Import a regex script" })).toBeVisible();
 });
 
 // ── X-16 · THE EDIT STAMP (the defect: `Add script` mints indistinguishable rows) ─────────────────────
@@ -159,7 +163,6 @@ test("every library row carries an EDITED stamp, so freshly-added rows are not i
   await stub(page, NEW_SCRIPTS);
   const group = await mount(<RegexLibraryGroupStory />);
   await page.getByRole("button", { name: "reset" }).click();
-  await group.getByRole("button", { name: BAND }).click();
   await expect(group.getByText("New script", { exact: true }).first()).toBeVisible();
 
   // Two rows, and the two subtitles must not be the same string — the stamps are three days apart.
@@ -188,7 +191,6 @@ test("two identically-named rows announce DISTINCT kebab names", async ({ mount,
   await stub(page, TWIN_SCRIPTS);
   const group = await mount(<RegexLibraryGroupStory />);
   await page.getByRole("button", { name: "reset" }).click();
-  await group.getByRole("button", { name: BAND }).click();
   await expect(group.getByText("New script", { exact: true }).first()).toBeVisible();
 
   const labels = await group.getByRole("button", { name: ANY_ROW_ACTIONS }).evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
@@ -203,7 +205,7 @@ test("two identically-named rows announce DISTINCT kebab names", async ({ mount,
 
 // ── BULK MODE ────────────────────────────────────────────────────────────────────────────────────────
 
-test("the band's toggle enters bulk mode, and the rows become checkboxes", async ({ mount, page }) => {
+test("the control row's toggle enters bulk mode, and the rows become checkboxes", async ({ mount, page }) => {
   await stub(page);
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);
@@ -280,7 +282,7 @@ test("Run everywhere sends the GLOBAL batch", async ({ mount, page }) => {
 // The sibling `character-bulk-bar` carries a header warning about exactly this — a trailing Delete clipped
 // out of a ~337px panel — and this bar has FIVE verbs where that one has three. Measured against the bar's
 // own box, never a px literal, so a token retune or a copy change moves the assertion with it.
-test("every bulk verb is reachable inside the roster column — nothing clips off the end", async ({ mount, page }) => {
+test("every bulk verb is reachable inside the narrow CONTENT pane — nothing clips off the end", async ({ mount, page }) => {
   await stub(page);
   const group = await mount(<RegexLibraryGroupStory />);
   await openGroup(page, group);

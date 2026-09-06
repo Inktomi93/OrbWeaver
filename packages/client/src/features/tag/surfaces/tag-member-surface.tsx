@@ -25,13 +25,15 @@ import { Input } from "@orb/ui/input";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
-import { Heading, Text } from "@orb/ui/text";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog } from "#components";
+import type { MemberDrillBack } from "#components";
+import { FormDialog, MemberDrillHeader } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import type { CollectionMemberView } from "#lib";
 import { useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useMergeTags, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
@@ -40,19 +42,35 @@ import { FOLDER_TYPE_ITEMS, tagColorValueLabel, usageTotalLabel } from "../lib/t
 /** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
 type PatchStyle = (patch: UpdateTagInput) => void;
 
-export function TagMemberSurface({ memberId }: { readonly memberId: string }): ReactElement {
+export function TagMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
   const trpc = useTRPC();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
-  const tag = tags.find((row) => row.id === memberId);
+  const tag = tags.find((row) => row.id === view.memberId);
+  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
   if (tag === undefined) {
     // Reachable for real: another device deleted this tag while it was open here (the tag verbs are
-    // bus-driven, so the list refetches under the editor). Say so instead of rendering a dead form.
-    return <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />;
+    // bus-driven, so the list refetches under the editor). Say so instead of rendering a dead form — and
+    // KEEP THE EXIT (#1747): the drill row is this surface's now, so a gone-member arm that dropped it
+    // would strand a drilled reader with no way back to the library.
+    return (
+      <Stack gap="block">
+        <MemberDrillHeader back={back} />
+        <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />
+      </Stack>
+    );
   }
-  return <TagMemberEditor others={tags.filter((other) => other.id !== tag.id)} tag={tag} />;
+  return <TagMemberEditor back={back} others={tags.filter((other) => other.id !== tag.id)} tag={tag} />;
 }
 
-function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly others: readonly TagWithUsage[] }): ReactElement {
+function TagMemberEditor({
+  tag,
+  others,
+  back,
+}: {
+  readonly tag: TagWithUsage;
+  readonly others: readonly TagWithUsage[];
+  readonly back: MemberDrillBack;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const deps = { trpc, invalidation };
@@ -98,12 +116,19 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
         ref={surfaceRef}
         tabIndex={-1}
       >
-        <Row align="center" gap="field">
-          <Heading level={2}>{tag.name}</Heading>
-          <Text as="span" voice="datum">
-            {usageTotalLabel(tag.usage.total)}
-          </Text>
-        </Row>
+        {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 03): `← Back to <library>` · the name · this tag's
+            own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
+            is a field below because it needs the target picker, Delete is the row's kebab, D121(D)). The
+            usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
+        <MemberDrillHeader
+          back={back}
+          meta={
+            <Text as="span" voice="datum">
+              {usageTotalLabel(tag.usage.total)}
+            </Text>
+          }
+          title={tag.name}
+        />
 
         <Field label="Name" name="tag-name">
           <Input

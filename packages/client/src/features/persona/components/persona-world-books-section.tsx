@@ -24,9 +24,13 @@ export interface PersonaLoreBookFieldProps {
 /** The persona's single-select lore book. */
 export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): ReactElement {
   return (
+    // RESERVED (#1098), fallback UNCHANGED — the settled child is ONE labelled Select, a constant box
+    // whatever the library holds, which is precisely the case a remembered measurement predicts exactly.
+    // The field sits mid-form, so the sentence-to-control delta shifts every control under it.
     <QueryBoundary
       fallback={<Text voice="gloss">Loading world books…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
+      reserveKey="persona.editor.loreBook"
     >
       <LoreBookSelect personaId={personaId} />
     </QueryBoundary>

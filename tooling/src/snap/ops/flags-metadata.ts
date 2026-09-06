@@ -108,6 +108,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--stage-status": { group: "Where", summary: "the shared stage-band table: owner, checkout, ref, age, sessions, db provenance" },
   "--stage-sweep": { group: "Where", summary: "reap stages idle past the TTL and prune orphan dirs" },
   "--stage-owner": { group: "Where", summary: "names the owner for a cross-checkout --stage-down" },
+  "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },
   "--force": { group: "Where", summary: "confirmation half of --stage-down --stage-owner and --session-close on a foreign live session" },
   // Session family (ops/flags-session.ts)
   "--session": { group: "Stateful sessions", summary: "boot or drive a named daemon-held browser session" },

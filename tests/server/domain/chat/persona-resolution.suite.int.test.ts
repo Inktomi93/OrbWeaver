@@ -39,7 +39,7 @@ import type { ChatContext } from "../../../../packages/server/src/domain/chat/co
 import type { ActiveTurns } from "../../../../packages/server/src/domain/chat/contract/active-turns.ts";
 import type { HistoryMacroNames } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
-import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/participants.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";

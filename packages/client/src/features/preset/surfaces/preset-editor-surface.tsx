@@ -39,18 +39,19 @@
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
 // `Container` is lane B's shared content-column ruling — the panel column measures the PANE through it.
 import { Container, Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
-import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { StoredConfigUnreadableNotice } from "#components";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
-import { createAutosaveEntityForm } from "#forms";
-import { useFocusOnMount } from "#lib";
+import { createAutosaveEntityForm, SaveUnwritableContext } from "#forms";
+import { PRESET_UNREADABLE_COPY, unreadableConfigCause, useFocusOnMount } from "#lib";
 import { setPresetEditorView, usePresetEditorView } from "#state";
 import { BuiltInCopyOnWriteNotice } from "../components/built-in-copy-on-write-notice.tsx";
 import { PresetEditorHeader } from "../components/preset-editor-header.tsx";
@@ -106,9 +107,15 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
       tabIndex={-1}
       className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
     >
+      {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
+          a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll
+          position with it. The remembered box holds the pane across a preset switch; the authored count is
+          only the first-boot guess (the reserved box re-fills it). The scroll box is the Stack ABOVE this
+          boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133). */}
       <QueryBoundary
-        fallback={<Text voice="gloss">Loading the preset…</Text>}
+        fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
+        reserveKey="preset.editor"
       >
         <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
       </QueryBoundary>
@@ -122,6 +129,18 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   // The active-for-generation pointer — read here (not just in the LIST) because the built-in's copy-on-write
   // fork must INHERIT it: a fork the user can't generate with makes every edit a silent no-op.
+  //
+  // THESE TWO STAY SINGULAR, AND THAT IS MEASURED, NOT AN OVERSIGHT (#859). They are the same serialized-
+  // waterfall shape the LIST pane's `preset-library-surface.tsx` just closed with `useSuspenseQueries` — the
+  // first read SUSPENDS before React reaches the second hook — but the PLURAL hook cannot be used HERE,
+  // because `presetId` is a prop that CHANGES (the rail switches presets under a mounted editor).
+  // `useQueries` only pushes new queries into its `QueriesObserver` from an EFFECT, and an effect never runs
+  // while the component is suspended, so a key change suspends forever: converted, this pane stuck in its
+  // `QueryBoundary` fallback after "switch to B" and took the SWITCH and drill-leak P0 pins red with it
+  // (measured 2026-09-05, @tanstack/react-query 5.101.4). The repo's other warm channel does not apply
+  // either: `usePrefetchQuery` is ruled unusable with tRPC's `queryOptions()` output
+  // (`data/use-display-scripts.ts`), and the house `ensureQueryData` idiom fires from an effect — one commit
+  // too late to join this wave. Closing this one needs a different mechanism, not this one.
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const reset = useResetPreset({ trpc, invalidation });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
@@ -167,8 +186,18 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // EARNED, never asserted. `null` = PENDING.
   const capabilityError = capabilityQuery.error;
 
+  // #1716: the stored blob could not be read, so `preset.config` above is a STAND-IN and every config write
+  // derived from it is refused server-side (`stored_config_unreadable`, the #1026 guard on
+  // `updatePresetRow`). The context stands the autosave driver down — no debounce, no crash-draft mirror,
+  // no teardown flush, and the header's status reads "Can't save — this couldn't be read" instead of
+  // "Saved" over an editor showing defaults. It is scoped to the FORM, not the surface: the header's
+  // rename and Activate are untouched, and that is the server's own boundary — the guard is on the CONFIG
+  // write, so an unreadable preset stays renameable and its Reset door stays open (it writes the packaged
+  // default through the deliberately-unguarded `replacePresetConfig`, which is the way out).
+  const configUnreadable = preset.configUnreadable;
+
   return (
-    <>
+    <SaveUnwritableContext value={configUnreadable !== null}>
       <PresetForm entityId={presetId} serverValues={seedConfig(preset.config)} save={autosave.save}>
         {(session): ReactElement => (
           <PresetEditorBody
@@ -183,6 +212,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             capabilityError={capabilityError}
             effective={effectiveQuery.data ?? undefined}
             reset={reset}
+            configUnreadable={configUnreadable}
             onRevealSection={onRevealSection}
           />
         )}
@@ -199,7 +229,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
           suggestedName={autosave.forkChoice.suggestedName}
         />
       )}
-    </>
+    </SaveUnwritableContext>
   );
 }
 
@@ -220,6 +250,10 @@ interface PresetEditorBodyProps {
   readonly capabilityError: ReadFailure | null;
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
+  /** #1716: the stored blob's read verdict — `null` = read faithfully, a failure kind = the body below is a
+   *  stand-in and nothing here can be saved. Carried down so the state is stated INSIDE the capped content
+   *  column, above the view bodies, exactly where the built-in copy-on-write notice already stands. */
+  readonly configUnreadable: VersionedParseFailure | null;
   readonly onRevealSection?: (() => void) | undefined;
 }
 
@@ -235,6 +269,7 @@ function PresetEditorBody({
   capabilityError,
   effective,
   reset,
+  configUnreadable,
   onRevealSection,
 }: PresetEditorBodyProps): ReactElement {
   const { form, saveState, retrySave, reseed } = session;
@@ -291,6 +326,19 @@ function PresetEditorBody({
             own header says "Base UI keeps only the OPEN panel mounted", and the CT strict-mode violation
             says otherwise — after tabbing Params→Prompt→Actions→Data, TWO panels held the notice at once.
             One notice per tab-visit is a paragraph the DOM accumulates and a locator cannot resolve. */}
+        {/* THE UNREADABLE STATE, in the same capped column and above the same view bodies as the
+            copy-on-write notice below it (#1716) — the edit that cannot be saved happens on any of the five
+            tabs, so the sentence cannot live inside one of them. Its doors are the header's Reset and the
+            library's Import, which the copy names; for a from-a-newer-version blob the copy deliberately
+            does NOT lead with Reset, because that blob is intact data this build merely cannot read. */}
+        {configUnreadable === null ? null : (
+          <Container className="w-full">
+            <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" padding="block">
+              <StoredConfigUnreadableNotice copy={PRESET_UNREADABLE_COPY[unreadableConfigCause(configUnreadable)]} />
+            </Stack>
+          </Container>
+        )}
+
         {isSystemDefault ? (
           <Container className="w-full">
             <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" padding="block">

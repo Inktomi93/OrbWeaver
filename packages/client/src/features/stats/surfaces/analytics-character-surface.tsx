@@ -39,12 +39,20 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   useFocusOnMount(surfaceRef);
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
-      <QueryBoundary
-        fallback={<Text voice="gloss">Loading character stats…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
-      >
-        <CharacterBody characterId={characterId} onBack={onBack} />
-      </QueryBoundary>
+      {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
+          paid for the class first). `reserveKey`'s measuring Stack is auto-height, so a scroller under the
+          boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
+          sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
+          slot ride the scroller, which is where #1200 put them. */}
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" padding="section">
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading character stats…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
+          reserveKey="analytics.character"
+        >
+          <CharacterBody characterId={characterId} onBack={onBack} />
+        </QueryBoundary>
+      </Stack>
     </Stack>
   );
 }
@@ -79,7 +87,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   }
 
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" gap="section" padding="section">
+    <Stack gap="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
         <Icon icon={ArrowLeft} size="sm" />
         Back

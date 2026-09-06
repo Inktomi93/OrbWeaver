@@ -106,6 +106,41 @@ const OWNED_BOOKS = [
   { id: "worldbook_ct_0000000000002", name: "Session Notes", description: "Running notes", createdAt: 1_700_000_000_001 },
 ];
 
+// The Regex section's reads (#1742) — this tab is its production mount, so EVERY arm stubs them or the
+// #629 unfed-read census below reds. The section is CLOSED by default, so only the KICKER's non-suspending
+// count read fires until a test opens it; the body's reads are here too because three tests do open it.
+// Host and member read DIFFERENT procs (`chat.listEffectiveRegex` is host-gated, D19), which is why both
+// are stubbed in every arm — a member-only gap would otherwise hide behind the host stub.
+const CT_SCRIPT = {
+  id: "regex_script_ct_0001",
+  name: "Strip OOC",
+  enabled: true,
+  updatedAt: 1_700_000_000_000,
+  findRegex: "\\(OOC:[^)]*\\)",
+  replaceString: "",
+  placement: ["AI_OUTPUT"],
+  markdownOnly: false,
+  promptOnly: false,
+  runOnEdit: false,
+  trimStrings: [],
+  substituteRegex: "none",
+};
+const EFFECTIVE_REGEX = {
+  enabled: true,
+  tiers: [
+    { scope: "global", allowed: true, rows: [{ script: CT_SCRIPT, position: 0, runsAt: 1, attachedElsewhere: false }] },
+    { scope: "preset", allowed: true, rows: [] },
+    { scope: "chat", allowed: true, rows: [] },
+  ],
+  effective: [{ scriptId: CT_SCRIPT.id, runsAt: 1 }],
+};
+const REGEX_READS = {
+  "chat.listEffectiveRegex": () => EFFECTIVE_REGEX,
+  "regex.listForChat": () => [],
+  "regex.listScripts": () => [CT_SCRIPT],
+  "regex.listRoomDisplayScripts": () => [],
+} as const;
+
 test("committed host + group: BOTH sections render as h3 headings", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
@@ -116,6 +151,7 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -155,11 +191,12 @@ for (const arm of [
       "chat.getUserMacroPicks": () => EMPTY_PICKS,
       "chat.getVariablePicks": () => VARIABLE_PICKS,
       "settings.getUserSettings": () => USER_SETTINGS,
+      ...REGEX_READS,
       "chat.getChat": () => CHAT_DETAIL,
     });
 
     const component = await mount(<CommittedSettingsTabStory isHost={arm.isHost} showGroup={arm.showGroup} />);
-    await openContextSections(component, "Injections", "Documents", "Lorebooks", "Macro picks", ...(arm.isHost ? [HOST_BAND] : []));
+    await openContextSections(component, "Injections", "Documents", "Lorebooks", "Regex", "Macro picks", ...(arm.isHost ? [HOST_BAND] : []));
 
     // Barrier on a SETTLED body of the last-declared section in this arm, so the assertions below are not
     // read while boundaries are still in their skeleton fallback (a pending boundary shows neither the
@@ -205,6 +242,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -245,6 +283,7 @@ test("committed non-host: Group behavior is ABSENT, Field overrides persists (re
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
@@ -266,6 +305,7 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -295,6 +335,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_TOOL_LIMIT]: () => ({}),
   });
@@ -325,6 +366,7 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
@@ -333,8 +375,65 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await expect(component.getByLabel("Tool rounds per turn")).toHaveCount(0);
 });
 
-// D121-E — the "share my display scripts" host switch (Host controls group). Host-only (the §8.1
-// permission-OMIT): the host sees + toggles it; a member never sees the control (the Tool-use precedent).
+// #1742 — THE REGEX SECTION'S PLACE IN THIS TAB, and the disclosure it retired. Three claims, all about the
+// COMPOSITION rather than the section's own behavior (that is `regex-section.ct.tsx`):
+//   1. it is a real h3 disclosure, CLOSED, sitting with the member-readable racks — after Lorebooks, before
+//      Macro picks (the run of headings is read in document order, so a re-ordering reds here);
+//   2. `Host controls › Appearance` is GONE — its one control moved into the section, and a tab that kept
+//      both would have two homes for the display-script switch;
+//   3. the closed kicker says `off` under a master off, which is the #1742 §7.4 rule: a bare count would
+//      hide the master's state on the panel's face.
+test("host: Regex is a closed h3 disclosure between Lorebooks and Macro picks, and Appearance is GONE", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  const trigger = component.getByRole("button", { name: /^Regex/u });
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  // `innerText` applies the kicker voice's own text-transform, so the run of names reads UPPERCASE here.
+  // POLLED, never one-shot: the sections settle as their count reads land (the DEF-14 class).
+  const sectionNames = async (): Promise<readonly string[]> =>
+    (await component.getByRole("heading", { level: 3 }).allInnerTexts()).map((text) => text.trim().toUpperCase().split(/\s/u)[0] ?? "");
+  await expect.poll(sectionNames, { intervals: [20, 50, 100, 250] }).toContain("REGEX");
+  const names = await sectionNames();
+  expect(names).toContain("LOREBOOKS");
+  expect(names.indexOf("REGEX")).toBe(names.indexOf("LOREBOOKS") + 1);
+  expect(names.indexOf("MACRO")).toBe(names.indexOf("REGEX") + 1);
+  await expect(component.getByRole("heading", { name: "Appearance", level: 3 })).toHaveCount(0);
+});
+
+test("host: the closed Regex kicker says `off` when the room's master is off (never a bare count)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+    "chat.listEffectiveRegex": () => ({ ...EFFECTIVE_REGEX, enabled: false, effective: [] }),
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await expect(component.getByRole("button", { name: /^Regex/u })).toHaveText(/off/u);
+});
+
+// D121-E — the "share my display scripts" host switch. It MOVED (#1742): it used to be the whole body of
+// `Host controls › Appearance`, and it now closes the Regex section's `On screen` group, beside the display
+// scripts it governs. So these three pins walk to `Regex`, not to `HOST_BAND` — the switch's behavior is
+// unchanged and its host-only omit (the §8.1 permission-OMIT, the Tool-use precedent) is unchanged with it.
 const UPDATE_HOST_DISPLAY_SCRIPTS = "chat.setHostDisplayScripts";
 
 function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
@@ -347,6 +446,7 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_HOST_DISPLAY_SCRIPTS]: () => ({}),
   });
@@ -355,14 +455,14 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
 test("host: the display-scripts switch renders seeded from getChat.hostDisplayScripts (off)", async ({ mount, page }) => {
   await stubHostDisplayScripts(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
-  await openContextSections(component, HOST_BAND);
+  await openContextSections(component, "Regex");
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).not.toBeChecked();
 });
 
 test("host: toggling the switch fires chat.setHostDisplayScripts with the new state", async ({ mount, page }) => {
   const trpc = await stubHostDisplayScripts(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
-  await openContextSections(component, HOST_BAND);
+  await openContextSections(component, "Regex");
   await component.getByRole("switch", { name: "Show my display scripts to everyone" }).click();
   await expect.poll(() => (trpc.lastInput(UPDATE_HOST_DISPLAY_SCRIPTS) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
@@ -376,6 +476,7 @@ test("member: the display-scripts switch is ABSENT (host-only omit — a member 
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).toHaveCount(0);
@@ -401,6 +502,7 @@ function stubOfferChoices(page: Page, room: boolean | null, userDefault: boolean
     // Same contract rule as USER_SETTINGS: `config.chat` is a WHOLE `ChatSettings`, so the arm's one knob
     // rides the contract defaults rather than replacing the section with a one-key object.
     "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, offerChoices: userDefault } } }),
+    ...REGEX_READS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, offerChoices: room }),
     [UPDATE_OFFER_CHOICES]: () => ({}),
   });
@@ -445,6 +547,7 @@ test("member: the offer-choices switch is ABSENT (host-only omit — this key st
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await openContextSections(component, "Lorebooks");
@@ -480,6 +583,7 @@ function stubReactionToggles(
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, ...args.userDefaults } } }),
+    ...REGEX_READS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, ...args.room }),
     [UPDATE_REACTIONS_ENABLED]: () => true,
     [UPDATE_CHARACTERS_CAN_REACT]: () => true,
@@ -544,6 +648,7 @@ test("member: NEITHER reaction switch exists (host-only omit — one gates their
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await openContextSections(component, "Lorebooks");
@@ -568,6 +673,7 @@ test("count chips: Field overrides shows 'N set' and Injections shows its count 
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -587,6 +693,7 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -621,6 +728,7 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -673,6 +781,7 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
@@ -712,6 +821,7 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -731,6 +841,7 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -749,6 +860,7 @@ test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, ne
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toBeVisible();
@@ -769,6 +881,7 @@ test("D-4: the Documents section renders directly after Injections, for a host A
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -794,6 +907,7 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await openContextSections(component, "Documents");
@@ -821,6 +935,7 @@ function stubLorebooks(page: Page): Promise<TrpcRecorder> {
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
     [ATTACH_BOOK]: () => null,
     [DETACH_BOOK]: () => ({ detached: true }),
@@ -893,6 +1008,7 @@ test("#640 member: the rows are visible, and there is NO attach and NO detach (p
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await openContextSections(component, "Lorebooks");
@@ -914,6 +1030,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
@@ -970,6 +1087,7 @@ test("#821: resolving Injections does not move the sections around it", async ({
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -1039,6 +1157,7 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -1077,6 +1196,7 @@ test("#829: the count chip's arrival does not resize the kicker's own line box",
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -1119,6 +1239,7 @@ function stubIndexPane(page: Page): Promise<TrpcRecorder> {
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 }
@@ -1211,6 +1332,7 @@ test("#830 member: the permission-OMIT layout is unchanged — five doors, and n
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
     "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
 

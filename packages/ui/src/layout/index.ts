@@ -21,3 +21,4 @@ export type { SurfaceProps, SurfaceTier } from "./surface.tsx";
 export { Surface } from "./surface.tsx";
 export type { ToolbarButtonProps, ToolbarGroupProps, ToolbarInputProps, ToolbarLinkProps, ToolbarProps, ToolbarSeparatorProps } from "./toolbar.tsx";
 export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarInput, ToolbarLink, ToolbarSeparator } from "./toolbar.tsx";
+export { gutterCentredTracks } from "./variants.ts";

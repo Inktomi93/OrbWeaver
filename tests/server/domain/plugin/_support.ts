@@ -176,6 +176,12 @@ export function makePluginHarness(
     /** The URL-install bundle fetch (U8 seam 15). Default REJECTS — a URL-install/upgrade suite injects its own
      *  (returning a bundle, or throwing to simulate an SSRF block), and every other suite never reaches it. */
     readonly fetchBundle?: PluginContext["fetchBundle"];
+    /** The SHOWCASE bundles the build "ships" (#1740). Default: SHIPS NOTHING — every suite that predates the
+     *  showcase update path keeps projecting `updateSource: null` for its upload-origin rows, and a suite that
+     *  exercises the path states its own shipped set with `makeBundle`, so the fixture versions are the test's
+     *  own rather than whatever `@orb/showcase-plugins` happens to ship today (the real package is pinned by
+     *  `tests/showcase-plugins` and driven end-to-end by the seeder int test). */
+    readonly showcase?: PluginContext["showcase"];
     /** Narrow the per-user concurrent-snippet ceiling (default: the production constant). */
     readonly snippetConcurrency?: number;
     /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
@@ -254,6 +260,9 @@ export function makePluginHarness(
     // The URL-install bundle fetch (U8 seam 15). Default REJECTS: a suite exercising previewFromUrl/installFromUrl/
     // upgradeFromUrl injects its own (a bundle, or a throw simulating an SSRF block), and no other suite reaches it.
     fetchBundle: overrides.fetchBundle ?? (() => Promise.reject(new Error("test: fetchBundle not wired"))),
+    // The shipped showcase set (#1740) — EMPTY by default, so a suite that never mentions it sees exactly the
+    // pre-#1740 behaviour (no row is a showcase row, `updateSource` is null, the batch check skips them).
+    showcase: overrides.showcase ?? { slugs: new Set<string>(), bundle: () => Promise.resolve(null), version: () => Promise.resolve(null) },
     host: overrides.port ?? fakePort,
     ops: overrides.ops ?? makeInertOps(),
     // The REAL surface-state store — the write op + the read verb + the deactivate sweep share ONE instance, so
@@ -325,7 +334,7 @@ export function makeInertOps(): PluginHostOps {
       resolveViewerVisibility: () => Promise.resolve(null),
       getVariables: () => Promise.resolve({}),
       listCharacters: () => Promise.resolve([]),
-      applyVariableOps: () => Promise.resolve(),
+      applyVariableOps: () => Promise.resolve({ outcome: "applied" }),
       requestTurn: () => Promise.resolve(),
     },
     worldInfo: {
@@ -443,4 +452,20 @@ export function makeBundle(
     entries[path] = bytes;
   }
   return zipSync(entries);
+}
+
+/** A fake SHIPPED showcase set for `makePluginHarness({ showcase })` (#1740) — one entry per manifest, the
+ *  manifest `id` acting as the slug exactly as it does in `@orb/showcase-plugins` (a bundle directory's name IS
+ *  its manifest id there, pinned by that package's own test).
+ *
+ *  It BUILDS the bundle from the same overrides it reports the version of, so the two answers cannot disagree —
+ *  the property the real reader has structurally (both `packShowcaseBundle` and `readShowcaseManifest` read one
+ *  `manifest.json`) and a hand-paired `{bundle, version}` fixture would quietly lose. */
+export function makeShowcaseShipping(shipped: readonly BundleManifestOverrides[]): PluginContext["showcase"] {
+  const bundles = new Map(shipped.map((manifest) => [manifest.id ?? "test-plugin", { bundle: makeBundle(manifest), version: manifest.version ?? "1.0.0" }]));
+  return {
+    slugs: new Set(bundles.keys()),
+    bundle: (slug: string): Promise<Uint8Array | null> => Promise.resolve(bundles.get(slug)?.bundle ?? null),
+    version: (slug: string): Promise<string | null> => Promise.resolve(bundles.get(slug)?.version ?? null),
+  };
 }

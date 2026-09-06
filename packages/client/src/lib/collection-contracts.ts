@@ -42,16 +42,31 @@
 
 import type { ReactNode } from "react";
 
-/** Member count above which a group earns the host's FILTER input and the owner virtualizes its rows.
- *  ONE constant, two readers (the host's group frame, each contribution's row list) — the owner's real
- *  library is ~400 tags, so "the list is a glance" stops being true well before then. */
+/** Member count above which the owner VIRTUALIZES its rows. The owner's real library is ~400 tags, so "the
+ *  list is a glance" stops being true well before then.
+ *
+ *  IT NO LONGER GATES THE FILTER (#1725, owner ruling 2026-09-05). It had two readers and two jobs: this
+ *  threshold, and "a group earns the host's FILTER input". The filter half died with its premise — three
+ *  collapsible bands shared ONE list scroll column, so 32px of chrome per band was worth spending only past
+ *  a glance, and the library has its own pane now (DESIGN.md §3.2). The filter is always drawn; what
+ *  survives here is a RENDERING budget, which never depended on the geometry that changed. */
 export const COLLECTION_LARGE_GROUP = 30;
 
-/** The windowed-arm box's height cap, spelled ONCE for every collection (side-eye 2026-08-03 P3 flagged it
- *  re-spelled in all three row files). It is a CAP, not a height: three collapsible bands share one scroll
- *  column, so an uncapped (or pane-filling) first library would push every sibling band below the fold —
- *  the exact failure collapsed-by-default groups exist to prevent. */
-export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
+/** ═══ `COLLECTION_WINDOW_MAX_HEIGHT` WAS RE-BOUND, NOT RETUNED, AND THEN DELETED (#1725, DESIGN.md §5.4) ══
+ *  It was `"max-h-96"` — a 384px CAP, spelled once for all three row files. Its premise: three collapsible
+ *  bands shared ONE list scroll column, so an uncapped first library pushed every sibling band below the
+ *  fold. The owner moved the members into their own pane, so there are no siblings to protect.
+ *
+ *  The constant could not be deleted on its own, and that was a fact about the sealed primitive rather than
+ *  a preference: `@orb/ui/virtual-list` asserts a BOUNDED scroll box at mount (`assertBoundedScrollHeight`,
+ *  `virtual-list.tsx`) and THROWS when the box measures over 3× the viewport. So the fix was a RE-BIND — the
+ *  bound is the CONTENT pane's own `overflow-y-auto` box now, reached by flex rather than by a number: the
+ *  landing is a `min-h-0 flex-1` column inside that pane and each library's windowed arm is `min-h-0 flex-1`
+ *  inside the landing, which is the `character-library-body.tsx` chain verbatim. The window is therefore as
+ *  tall as the pane at every width instead of 384px at all of them, and the row past the old fold is
+ *  reachable (the #1133 stranded-tail class). Nothing re-spells a height, so there is nothing left to home.
+ *  Rendered receipt: `tests/client/features/config/components/config-collection-landing.ct.tsx`, the width
+ *  matrix (752/1440/1920 + the phone) over a 31-row library. */
 
 /** ONE library-level FACT the landing states — what is TRUE OF THE LIBRARY, in the library's own words,
  *  and (when the fact is about one member) a real door to it.
@@ -133,6 +148,26 @@ export interface CollectionDetailView {
   /** Opaque at the seam; the owner re-brands through its own id schema (the stamped-id posture — the same
    *  trade every drill store already makes at `P extends string`). */
   readonly memberId: string;
+}
+
+/** What the host hands the member's EDITOR specifically ({@link CollectionContribution.detail}) — the
+ *  detail view plus the ONE thing the editor needs and cannot know: which library it was drilled into from.
+ *
+ *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (#1747, DESIGN.md §3.4) ═══════════════════
+ *  The boards draw ONE drill row — `← Back to <library>` · the member's NAME · the member's own verbs — and
+ *  the member surface is the only party that can draw it, because the NAME has exactly one author: every
+ *  surface already renders it as its own `h2`, and a host heading over the four printed it twice (measured:
+ *  two CTs red on a strict-mode heading match). So the exit's WORDS travel down to the surface instead of
+ *  the name travelling up to the host. `library` is the group's own `label`, host-formatted nowhere else —
+ *  the contribution never learns the group id and still never learns what a member IS.
+ *
+ *  The CONTEXT arm keeps the bare {@link CollectionDetailView}: it draws no exit (the pane is beside the
+ *  member, not a rung above it), and a field it cannot use would read as one it should. */
+export interface CollectionMemberView extends CollectionDetailView {
+  /** The library this member was drilled into from, in the host's own words (`ConfigGroupDefinition.label`
+   *  — "Tags", "World info"). The drill row spells `Back to ${library}`, which is that button's whole
+   *  accessible name. */
+  readonly library: string;
 }
 
 /** A collection's CONTEXT arm — an explicit DECISION, never an absence (the `SectionDefinition.context`
@@ -259,8 +294,59 @@ export interface CollectionContribution {
    *  FOR THE NEXT ADOPTER (tag, world-info): nothing here is regex-specific. Declare the field, own a mode
    *  flag, and render your own bar + checkbox rows inside `list` — the band half is already built. */
   readonly bulkSelect?: { readonly label: string; readonly useMode: () => { readonly active: boolean; readonly toggle: () => void } };
-  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups. */
-  readonly detail: (view: CollectionDetailView) => ReactNode;
+  /** The library's READING ORDER, declared as DATA exactly like {@link bulkSelect} — the host draws ONE
+   *  `Select` in the control row (DESIGN.md §3.2, board 02's `Most used ▾`) and the CONTRIBUTION owns the
+   *  mode, the option set and the comparator behind it.
+   *
+   *  WHAT MOVED AND WHAT DID NOT. Only the CHROME is the host's: a sort control is a band-class control, and
+   *  a contribution drawing its own inside the ROW area is the second chrome grammar C-4 exists to forbid —
+   *  the same argument that put `bulkSelect`'s toggle here. The COMPARATOR stays with the rows, because it
+   *  runs over members and the host never sees one; `useMode` and the rows read the SAME device-local store,
+   *  so "the rows read the mode they are given" is true without widening {@link CollectionListView} with a
+   *  value that already has a home (tags: `state/tag-library-store.ts`).
+   *
+   *  IT IS AN OPTIONAL HOOK, so it is part of the contribution's hook IDENTITY and the #1203 keying law on
+   *  {@link useCount} governs it: tags declare a sort and regex / world-info / rosters do not, so the host's
+   *  per-collection mount stays keyed by GROUP ID or the hook count changes mid-fiber. The host calls
+   *  `useMode` unconditionally, once, inside a component of its own — never behind the `sort !== undefined`
+   *  test that decides whether to draw it.
+   *
+   *  `mode` / `options` are host-OPAQUE strings for the same reason member ids are: the host renders
+   *  `label → value` and hands the value back. A disabled option carries its own `description` — the option
+   *  row's gloss slot (`SelectOption.description`) — which is where a library explains a mode it cannot
+   *  offer, in the control the reader opened to change it. `label` is the trigger's accessible name. */
+  readonly sort?: {
+    readonly label: string;
+    readonly useMode: () => {
+      readonly mode: string;
+      readonly setMode: (next: string) => void;
+      readonly options: readonly { readonly value: string; readonly label: string; readonly disabled?: boolean; readonly description?: string }[];
+    };
+  };
+  /** LIBRARY-LEVEL verbs — the ones that act on the library rather than on a member — drawn by the host in
+   *  the control row's overflow kebab beside {@link importFile} (DESIGN.md §3.2; tags: "Prune unused tags").
+   *
+   *  A MEMBER verb is NOT one of these. Delete, Duplicate and Export are per-member and live in the row's
+   *  own kebab, owner-rendered (D121-D). What qualifies here is a verb whose subject is the whole library,
+   *  which is exactly why the host can draw it blind: there is no member to learn about.
+   *
+   *  THE KEBAB IS DRAWN ONLY WHEN IT HAS AN ITEM. A contribution declaring neither `importFile` nor this
+   *  field gets NO overflow at all — a control whose one act is to open onto nothing is the capability lie
+   *  #925's must-WORK bar names.
+   *
+   *  A DESTRUCTIVE VERB STILL CONFIRMS, AND THE CONFIRM IS THE CONTRIBUTION'S. `useRun` returns a plain
+   *  runner, so a verb that needs a question opens its OWN controlled dialog from inside `list` (tags do:
+   *  the runner writes the store flag the rows' `ConfirmDialog` is bound to). The host never learns what the
+   *  verb does, and `tone` is the only thing it renders differently.
+   *
+   *  `useRun` is a HOOK returning the runner, for the same reason {@link create}'s is — a definition is a
+   *  module-level value, so the mutation is only reachable through a hook the host calls unconditionally,
+   *  once, per declared action. The array is fixed per contribution, so the call order is fixed too. */
+  readonly actions?: readonly { readonly label: string; readonly useRun: () => () => void; readonly tone?: "default" | "danger" }[];
+  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups, and
+   *  since #1747 the DRILL ROW above it: the surface draws `MemberDrillHeader` with the {@link
+   *  CollectionMemberView#library} it is handed, the member's name, and the member's own verbs (§3.4). */
+  readonly detail: (view: CollectionMemberView) => ReactNode;
   /** CONTEXT for a selected member of this kind (see {@link CollectionContext}). */
   readonly context: CollectionContext;
 }

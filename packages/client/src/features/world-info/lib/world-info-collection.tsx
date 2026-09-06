@@ -36,7 +36,8 @@ export const worldInfoCollection: CollectionContribution = {
   create: { label: "New book", useRun: useCreateWorldInfoMember },
   importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },
   list: (view) => <WorldInfoCollectionRows view={view} />,
-  detail: (view) => <WorldInfoMemberSurface memberId={view.memberId} />,
+  // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
+  detail: (view) => <WorldInfoMemberSurface view={view} />,
   // Same question as the regex arm asks, in the same words — one grammar across the workspace's context band.
   context: { kind: "body", title: "Where it fires", render: (view) => <WorldInfoContextBody memberId={view.memberId} /> },
 };

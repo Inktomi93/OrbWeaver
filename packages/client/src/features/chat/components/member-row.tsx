@@ -282,7 +282,7 @@ function HandoffConfirm({
   readonly open: boolean;
   readonly setConfirm: (c: MemberRowConfirm | null) => void;
 }): ReactElement {
-  const [copyCast, setCopyCast] = useState(false);
+  const [copyCharacters, setCopyCharacters] = useState(false);
   return (
     <ConfirmDialog
       open={open}
@@ -291,17 +291,17 @@ function HandoffConfirm({
         if (!next) {
           // The offer is per-decision: a dismissed dialog must not leave a checked box waiting to surprise
           // the next hand-off from this row.
-          setCopyCast(false);
+          setCopyCharacters(false);
         }
       }}
       title={`Hand off host to ${row.displayName}?`}
       description={`${row.displayName} becomes the host once they accept. You stay in the chat as a member.`}
       body={
         <SettingCheckboxRow
-          label="Also give copies of your characters & worldbooks used in this room"
-          description="They get their own point-in-time copies when they accept. You keep yours, and editing or deleting them later won't change this room."
-          checked={copyCast}
-          onChange={setCopyCast}
+          label="Also give copies of your characters, world books, regex scripts & GM voice used in this room"
+          description="They get their own point-in-time copies when they accept, and their invitation lists exactly what that is. You keep yours, and editing or deleting them later won't change this room."
+          checked={copyCharacters}
+          onChange={setCopyCharacters}
         />
       }
       confirmIntent="primary"
@@ -309,9 +309,16 @@ function HandoffConfirm({
       onConfirm={(): void => {
         // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host
         // brought to the room, and a room whose preset silently reverts is the same broken gift as a room
-        // whose characters silently vanish. A non-game room has no preset for it to reach.
-        actions.onNominateHost?.(row.userId, { copyCast, copyGmPreset: copyCast });
-        setCopyCast(false);
+        // whose characters silently vanish. A non-game room has no preset for it to reach. The room's regex
+        // scripts ride `copyCharacters` server-side for the same reason.
+        //
+        // ALL FOUR CLASSES ARE NAMED HERE (#1762). The label used to say three and quietly carried the GM
+        // voice as well — one flag, four kinds of property, and the box named the ones that were easy to
+        // say. "world books" rather than "worldbooks" is this app's own spelling for the noun everywhere
+        // else it is shown. The RECEIVING side now states the same four with counts (the nomination's
+        // `offer` disclosure), so both ends of the transfer describe it in one vocabulary.
+        actions.onNominateHost?.(row.userId, { copyCharacters, copyGmPreset: copyCharacters });
+        setCopyCharacters(false);
         setConfirm(null);
       }}
     />

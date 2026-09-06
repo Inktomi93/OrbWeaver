@@ -17,6 +17,13 @@ import type {
 import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
 import type { CharacterDetail } from "#domain/character";
 
+/** A held ROUND CLAIM (#1568) — what `substrate/round-claim.ts::takeRoundClaim` hands back and what
+ *  `releaseRoundClaim` requires. The deadline is the claim's IDENTITY, not merely its expiry: the release is
+ *  matched on it, so a round whose lease already lapsed cannot clear its successor's claim. */
+export interface RefineryRoundClaim {
+  readonly leaseUntil: number;
+}
+
 /** The full session (the CONTENT surface's state) — summary fields + the anti-drift anchor + config. */
 export interface RefinerySessionView {
   readonly id: RefinerySessionId;

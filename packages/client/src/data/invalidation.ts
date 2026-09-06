@@ -16,11 +16,14 @@ import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
 import {
+  // The RPG bus's whole map lives in the reads module (this file sits at the 450-line cap) — seam unchanged.
+  allRpgGameFilters,
   chatCanonReads,
   chatReads,
   hiddenRevealRead,
   promptPreviewReads,
   ROOM_ENTITY_FILTERS,
+  RPG_BUS_FILTERS,
   reactionsRead,
   roomWasDark,
   runtimeVariablesRead,
@@ -160,6 +163,10 @@ const BUS_FILTERS: BusFilterMap = {
     //     host device instead of only the tab that toggled.
     // Free when the panel is closed: `invalidateQueries` is a no-op for a key with no cache entry.
     trpc.databank.listActiveForChat.queryFilter({ chatId: e.chatId }),
+    // `chat.listEffectiveRegex` (#1742) — the SAME two drivers as the rack above: the ROSTER (each seated
+    // character is its own tier group) and the write (`chat.setRegexAllow` emits this catch-all, which is
+    // why its mutation is `busDriven`). Host-gated ⇒ free for a member.
+    trpc.chat.listEffectiveRegex.queryFilter({ chatId: e.chatId }),
   ],
 
   // THE ENTITY→ROOM BRIDGE (design §3.7). An owner-plane entity edit somewhere else in the box moved
@@ -209,7 +216,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     trpc.regex.listScriptUsage.pathFilter(),
   ],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
-  regexChanged: (_e, trpc) => [trpc.regex.pathFilter()],
+  // The library plane. The Regex section's body is a CHAT read, so `trpc.regex.pathFilter()` alone left the
+  // HOST's own section stale after every one of the host's own writes (#1733's room plane covers the others).
+  regexChanged: (_e, trpc) => [trpc.regex.pathFilter(), trpc.chat.listEffectiveRegex.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
   themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],
@@ -318,67 +327,6 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
-
-// Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/
-// journal reads run `staleTime: Infinity`, so an rpg-bus tick is their freshness driver. TOTAL over
-// `RpgBusEvent["type"]` (the mapped type below is `bus-definition-belts`' consumer-exhaustiveness belt — a new
-// member fails tsc here until it names its reads). SWIPE freshness rides the CHAT bus (`variantSelected`, in
-// `BUS_FILTERS`), NOT a new rpg event — nothing is written on swipe-select, so the rpg bus never announces it.
-//
-// W2 FORWARD-SEAM: the rpg VERB tRPC procs (`trpc.rpg.getTrackerView`/`getGame`/`listJournal`/`getConfigView`)
-// land with the W2 rpg router — they do NOT exist on `AppRouter` yet, so each handler returns `[]` for now
-// (the map's SHAPE is the belt G11 checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
-// The per-member notes name the read each will invalidate — the same "map ready, procs pending" posture the
-// user bus's `connectionsChanged` deferral takes.
-type RpgBusFilterMap = {
-  readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
-};
-
-const RPG_BUS_FILTERS: RpgBusFilterMap = {
-  // The game row itself changed (create/config/knob/mode) — the takeover mode read + the host editor refetch.
-  // `revealHidden` rides along: the reveal-eye knob (`config.features.hiddenContentReveal`) makes the verb return the
-  // EMPTY reveal, so flipping it must empty/refill the host's veiled surfaces immediately.
-  gameChanged: (e, trpc) => [
-    trpc.rpg.getGame.queryFilter({ chatId: e.chatId }),
-    trpc.rpg.getConfigView.queryFilter({ chatId: e.chatId }),
-    trpc.rpg.revealHidden.queryFilter({ chatId: e.chatId }),
-    // `gmPresetId` is one of the knobs this event covers, and it is the ONLY per-room preset binding — so
-    // the Presets CONTEXT panel's "used by" roster (`preset.listUsage`) goes stale on exactly this write.
-    // A path filter, not a keyed one: the reader is looking at some OTHER surface's preset, not this room's.
-    trpc.preset.listUsage.pathFilter(),
-  ],
-  // A swipe-volatile snapshot was written — the WHOLE panel re-resolves against the new resolved-current
-  // snapshot (§4.9), so the single tracker aggregate refetches (every tab reads it).
-  snapshotPatched: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
-  // A per-actor identity sheet changed — the Status/Sheet tabs ride the same tracker aggregate.
-  sheetChanged: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
-  // The snapshot-resident quest plane changed — the Scene tab's goal lines ride the tracker aggregate.
-  questChanged: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
-  // A journal entry landed/changed — the paged, lineage-filtered archive refetches (Journal is full-only,
-  // but the listJournal read still invalidates for parity + the future lite→full graduation). Path-level (all
-  // pages) — the read is paged, so a page-keyed queryFilter would miss the other pages.
-  journalChanged: (_e, trpc) => [trpc.rpg.listJournal.pathFilter()],
-  // Lifecycle-only: the rpg-round store consumes these in `use-rpg-bus`; no durable read changed yet.
-  stateRoundStarted: () => [],
-  stateRoundSettled: () => [],
-  // A folded turn's tool-call record landed — the per-row "what this turn did" disclosure refetches
-  // (TOOLCALLS-INVISIBLE, arm A). Query-level (one chat): the read is chat-scoped and unpaged.
-  turnToolCallsRecorded: (e, trpc) => [trpc.rpg.listTurnToolCalls.queryFilter({ chatId: e.chatId })],
-};
-
-/** Every rpg filter, for the (re)connect gap-heal (the `use-rpg-bus.ts` blanket invalidate) — the game +
- *  tracker + config + journal + host-reveal reads for one open game, derived so a new read can't drift the
- *  heal set. */
-function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
-  return [
-    trpc.rpg.getGame.queryFilter({ chatId }),
-    trpc.rpg.getTrackerView.queryFilter({ chatId }),
-    trpc.rpg.getConfigView.queryFilter({ chatId }),
-    trpc.rpg.listJournal.pathFilter(),
-    trpc.rpg.revealHidden.queryFilter({ chatId }),
-    trpc.rpg.listTurnToolCalls.queryFilter({ chatId }),
-  ];
-}
 
 /** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed
  *  current-persona derivation would need (`settings.getUserSettings`/`persona.list`; the retired

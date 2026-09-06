@@ -11,7 +11,14 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
-import { SESSION_INSTRUMENT, sessionIdleMs, sessionSocketPath, sessionSweepVerdict } from "../lib/session-plan.ts";
+import {
+  SESSION_CLOSE_GRACE_MS,
+  SESSION_INSTRUMENT,
+  SESSION_PING_SILENCE_MS,
+  sessionIdleMs,
+  sessionSocketPath,
+  sessionSweepVerdict,
+} from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { describeStageAgePhrase } from "../lib/stage-plan.ts";
 import { sessionRequest } from "./session-client.ts";
@@ -40,11 +47,18 @@ async function askStatus(home: string, root: string, row: SessionRow): Promise<E
   let status: Extract<SessionEvent, { kind: "status" }> | null = null;
   // @orb-gate-ignore caught-failure-ownership(default:catch): a live pid whose socket does not answer is REPORTED from its row with the "not answering" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.
   try {
-    await sessionRequest(sessionSocketPath(home, row.name), adminRequest("status", root, false), (event) => {
-      if (event.kind === "status") {
-        status = event;
-      }
-    });
+    await sessionRequest(
+      sessionSocketPath(home, row.name),
+      adminRequest("status", root, false),
+      (event) => {
+        if (event.kind === "status") {
+          status = event;
+        }
+      },
+      // A status round trip is a handshake, so it takes the PING silence (#1508): before this door had a
+      // clock, one wedged daemon hung `--session-status` for every row behind it, forever.
+      SESSION_PING_SILENCE_MS,
+    );
   } catch {
     return null;
   }
@@ -124,7 +138,9 @@ async function closeSession(name: string, force: boolean): Promise<number> {
   let answered = false;
   // @orb-gate-ignore caught-failure-ownership(empty:catch): a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.
   try {
-    await sessionRequest(sessionSocketPath(home, name), adminRequest("close", root, force), () => undefined);
+    // The close grace, not the ping silence: a closing daemon is releasing a browser, and this is already
+    // the number this file waits for that (#1508 — the door itself used to wait forever instead).
+    await sessionRequest(sessionSocketPath(home, name), adminRequest("close", root, force), () => undefined, SESSION_CLOSE_GRACE_MS);
     answered = true;
   } catch {
     answered = false;

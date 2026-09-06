@@ -21,6 +21,8 @@
 import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
 import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import type { VariablePrecondition } from "@orb/contracts/chat";
+import { variablePreconditionsSchema } from "@orb/contracts/chat";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
 import type { PluginNotificationRecipient } from "@orb/contracts/notifications";
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
@@ -753,8 +755,14 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
         throw new Error("plugin host: chat.variables.write requires host authority on this chat");
       }
       const ops = Array.isArray(args[1]) ? (args[1] as readonly VarOp[]) : [];
-      await runtime.bridge.chat.applyVariableOps(scope.chatId, ops);
-      return null;
+      // The OPTIONAL compare-and-set (#1555). Unlike `ops` — which the domain's own `applyVarOp` rejects
+      // member-by-member — a malformed precondition would silently WEAKEN the guard it was passed to
+      // strengthen, so it is PARSED, and a shape that does not parse is a loud refusal of the call (the
+      // forged-handle arm's posture) rather than a write that quietly skipped its own check.
+      const expect = parsePreconditions(args[2]);
+      // The result is DATA the guest branches on — a lost race must not spend a crash strike (see the
+      // `PluginVariableWriteResult` contract). Only the two shapes the contract declares cross back.
+      return await runtime.bridge.chat.applyVariableOps(scope.chatId, ops, expect);
     },
   });
 
@@ -837,6 +845,27 @@ function buildQuickReplyChoices(raw: unknown): readonly { readonly label: string
       sendText: typeof e.sendText === "string" ? e.sendText : "",
     };
   });
+}
+
+/** Parse the guest's OPTIONAL `chat.applyVariableOps` preconditions (#1555). `undefined` when the guest passed
+ *  none (an unconditional write); a THROW when it passed something that is not a precondition list.
+ *
+ *  THE ONLY GUEST INPUT ON THIS SURFACE THAT IS PARSED RATHER THAN PROJECTED, and the asymmetry is the point:
+ *  `buildTurnHints`/`buildQuickReplyChoices` project junk to a harmless default because a dropped hint only
+ *  weakens the GUEST's request, whereas a dropped precondition silently weakens the GUARD — the write would
+ *  land unconditionally while the guest believes it was checked, which is the exact lost update the argument
+ *  exists to prevent. So a malformed guard is a loud refusal of the call, the same posture a forged chat handle
+ *  gets, and it is a programming error in the guest rather than the normal contended-write outcome (which is
+ *  data — see the `stale` result). */
+function parsePreconditions(raw: unknown): readonly VariablePrecondition[] | undefined {
+  if (raw === undefined || raw === null) {
+    return;
+  }
+  const parsed = variablePreconditionsSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error("plugin host: chat.applyVariableOps `expect` must be an array of { key: string, expected: string | null }");
+  }
+  return parsed.data;
 }
 
 /** Project the guest-supplied `chat.requestTurn` hints to the JSON-safe `{speakerCharacterId?, guided?}` shape.

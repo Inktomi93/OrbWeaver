@@ -53,6 +53,7 @@ export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
+  AgentSeedBlock,
   AgentSeedTurn,
   ChatHistoryMessage,
   ChatRequest,
@@ -73,6 +74,7 @@ export type {
 } from "./chat.ts";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
 export {
+  AGENT_CONTINUATION_PROMPT_STUB,
   AGENT_PROMPT_TAIL_JOINER,
   HISTORY_ROLES,
   NORMALIZED_FINISH_REASONS,
@@ -89,7 +91,7 @@ export type {
   ProviderDiagnostics,
   VerifyAuthRequest,
 } from "./diagnostics.ts";
-export type { ProviderErrorInit, ProviderErrorKind } from "./errors.ts";
+export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────
 export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 // ── Infra-internal: per-turn observability vocab ─────────────────────────────────────────────────

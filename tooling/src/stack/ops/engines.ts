@@ -55,9 +55,9 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
-import type { EngineLaunchProbes } from "../contract/types.ts";
+import type { EngineBootOutcome, EngineHealthWait, EngineLaunchProbes } from "../contract/types.ts";
 import { probeEngineAdoption } from "../lib/engine-adoption.ts";
-import { decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE } from "../lib/engine-launch.ts";
+import { classifyEngineBoot, decideEngineLaunch, stopSpawnedEngines } from "../lib/engine-launch.ts";
 import { probePortHealth } from "../lib/port-health.ts";
 import { acquireSpawnLock, pidIsAlive, releaseSpawnLock } from "../lib/spawn-lock.ts";
 
@@ -96,21 +96,25 @@ function shouldSkip(): boolean {
   return false;
 }
 
-async function waitHealthy(engine: string, port: number, child: FullPriorityChild): Promise<void> {
+/** How the wait ENDED — the caller turns it into the fleet verdict (`classifyEngineBoot`). It used to
+ *  return `void`, which collapsed "this engine died" into "this engine is slow" (#1494). */
+async function waitHealthy(engine: string, port: number, child: FullPriorityChild): Promise<EngineHealthWait> {
   for (let i = 0; i < HEALTH_POLL_MAX; i += 1) {
     // A dead child with a healthy port is NOT success — the port is someone else's engine and our
     // spawn crashed (the duplicate-fleet false-positive: the old poll validated the OTHER fleet).
     if (child.hasExited()) {
       log(`ERROR — ${engine} exited before becoming healthy; see vllm-${engine}.log.`);
-      return;
+      return "exited";
     }
     if ((await probePortHealth(port)).kind === "healthy") {
       log(`${engine} up (:${port})`);
-      return;
+      return "healthy";
     }
     await sleep(HEALTH_POLL_INTERVAL_MS);
   }
+  // NOT a failure (#1165): the ceiling is a poll bound, and a fleet that answers after it is `booted-late`.
   log(`WARNING — ${engine} not healthy after ${(HEALTH_POLL_MAX * HEALTH_POLL_INTERVAL_MS) / MS_PER_SECOND}s; continuing.`);
+  return "timeout";
 }
 
 /** FULL PRIORITY, deliberately (gate: tooling-shared-plumbing FULL_PRIORITY_CALLERS): these engines ARE
@@ -203,13 +207,15 @@ function holdUntilSignal(identities: readonly EngineLaunchIdentity[]): Promise<v
 interface FleetLaunchResult {
   readonly children: FullPriorityChild[];
   readonly launched: EngineLaunchIdentity[];
-  readonly identityFailures: number;
+  /** The operator line for every engine that FAILED the fleet — named, not tallied (#1494), because
+   *  "booted 2/3 · 1 failure" tells the operator nothing about which engine to look at. */
+  readonly failures: string[];
 }
 
 interface EngineLaunchResult {
   readonly child?: FullPriorityChild | undefined;
   readonly identity?: EngineLaunchIdentity | undefined;
-  readonly identityFailed: boolean;
+  readonly outcome: EngineBootOutcome;
 }
 
 async function launchOneEngine(opts: {
@@ -224,29 +230,31 @@ async function launchOneEngine(opts: {
   const { engine, port, launch, deployment, gpuCount, probes, baseEnv } = opts;
   const decision = await decideEngineLaunch({ engine, port, launch, probes });
   log(decision.message);
-  // Every non-spawn verdict ends this engine's turn; whether it also fails the FLEET (exit toolError) is
-  // the decision tier's mapped Record, so a new action cannot be added without ruling on that consequence.
+  // Every non-spawn verdict ends this engine's turn; whether it also fails the FLEET is the decision
+  // tier's ruling, read inside `classifyEngineBoot` from its mapped Record.
   if (decision.action !== "spawn") {
-    return { identityFailed: ENGINE_LAUNCH_IDENTITY_FAILURE[decision.action] };
+    return { outcome: classifyEngineBoot(engine, decision.action, null) };
   }
   const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
   const child = spawnEngine(engine, spec);
-  await waitHealthy(engine, port, child);
+  const wait = await waitHealthy(engine, port, child);
+  // A child that exited (or never got a pid) can carry no identity — and, since #1494, is a BOOT FAILURE
+  // rather than a silent omission from the tally.
   if (child.hasExited() || child.pid === undefined) {
-    return { child, identityFailed: false };
+    return { child, outcome: classifyEngineBoot(engine, decision.action, { wait: "exited", identityCaptured: false }) };
   }
   const identity = captureEngineLaunchIdentity(engine, port, REPO_ROOT, child.pid);
   if (identity === null) {
     log(`ERROR — ${engine} pid ${child.pid} did not resolve to a safe setsid launch identity; refusing to record or signal it.`);
-    return { child, identityFailed: true };
+    return { child, outcome: classifyEngineBoot(engine, decision.action, { wait, identityCaptured: false }) };
   }
-  return { child, identity, identityFailed: false };
+  return { child, identity, outcome: classifyEngineBoot(engine, decision.action, { wait, identityCaptured: true }) };
 }
 
 async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<typeof engineDeploymentEnv>, gpuCount: number): Promise<FleetLaunchResult> {
   const children: FullPriorityChild[] = [];
   const launched: EngineLaunchIdentity[] = [];
-  let identityFailures = 0;
+  const failures: string[] = [];
   const portOf: Record<(typeof VLLM_ENGINES)[number], number> = {
     embed: launch.ports.embed,
     rerank: launch.ports.rerank,
@@ -263,11 +271,11 @@ async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<ty
     if (result.identity !== undefined) {
       launched.push(result.identity);
     }
-    if (result.identityFailed) {
-      identityFailures += 1;
+    if (result.outcome.kind === "failed") {
+      failures.push(result.outcome.reason);
     }
   }, Promise.resolve());
-  return { children, launched, identityFailures };
+  return { children, launched, failures };
 }
 
 async function main(): Promise<ExitCode> {
@@ -303,10 +311,18 @@ async function main(): Promise<ExitCode> {
 
   // Foreground mode owns the verified identities until a signal; --detach writes the same identities and
   // exits, leaving the engines warm. The launch loop remains sequential because vLLM profiles shared VRAM.
-  const { children, launched, identityFailures } = await launchFleet(launch, deployment, gpuCount);
+  const { children, launched, failures } = await launchFleet(launch, deployment, gpuCount);
   log(`booted ${launched.length}/${VLLM_ENGINES.length} with verified launch identities — embed:${ports.embed} rerank:${ports.rerank} gen:${ports.gen}`);
 
-  if (identityFailures > 0) {
+  if (failures.length > 0) {
+    // NAME them, then tear down what WE spawned (#1494): the old path returned toolError with the
+    // already-spawned children still running and the identity file unwritten, so a half fleet sat on the
+    // GPUs with no durable record to stop it by. Adopted incumbents are untouched — they produced no child.
+    for (const failure of failures) {
+      log(`BOOT FAILURE — ${failure}`);
+    }
+    log(`fleet boot FAILED (${failures.length}/${VLLM_ENGINES.length}); stopping the engines this launcher spawned.`);
+    stopSpawnedEngines(children, log);
     releaseBootLock();
     return EXIT.toolError;
   }

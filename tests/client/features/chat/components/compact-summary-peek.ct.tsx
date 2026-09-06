@@ -5,6 +5,8 @@
 // readout. The popup renders through a Base UI Portal, so it's read via the PAGE locator.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import type { ProseReading } from "../../../../support/ct/prose-measure.ts";
 import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
 import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
@@ -73,6 +75,30 @@ const LONG_SUMMARY =
  *  a ceiling of 75, so it cannot red at any of those values today. */
 const SUMMARY_OPENING = "Aria and the traveller struck a bargain";
 
+/** Poll until two CONSECUTIVE readings of the paragraph's width agree (rounded to 0.01px), never `> 0` —
+ *  which the PREVIOUS viewport's box already satisfied, so the old barrier let the read land anywhere
+ *  along the popover's resize reflow (#1693: 340.1-358.0px spread across otherwise-identical runs).
+ *  Returns the reading that proved stable, not a fresh third read that could itself have drifted. */
+async function waitForStableProseReading(page: Page, opening: string): Promise<ProseReading> {
+  let previous: ProseReading | null = null;
+  let settled: ProseReading | null = null;
+  await expect
+    .poll(async () => {
+      const current = await readProseMeasure(page, opening);
+      const stable = previous !== null && Math.round(current.widthPx * 100) === Math.round(previous.widthPx * 100);
+      previous = current;
+      if (stable) {
+        settled = current;
+      }
+      return stable;
+    })
+    .toBe(true);
+  if (settled === null) {
+    throw new Error("reading measure: never reached two consecutive equal readings");
+  }
+  return settled;
+}
+
 test("#1175 FENCE — the compaction summary stays inside the prose measure at every desktop width", async ({ mount, page }) => {
   await mount(<CompactSummaryPeekStory summary={LONG_SUMMARY} />);
   await page.getByRole("button", { name: "View compaction summary" }).click();
@@ -81,10 +107,9 @@ test("#1175 FENCE — the compaction summary stays inside the prose measure at e
   const rows: string[] = [];
   for (const width of PROSE_WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
-    // Barrier on the SETTLED reflow: the popover repositions on resize, so the box read on the same tick
-    // as the viewport change is the pre-reflow one.
-    await expect.poll(async () => Math.round((await readProseMeasure(page, SUMMARY_OPENING)).widthPx)).toBeGreaterThan(0);
-    const reading = await readProseMeasure(page, SUMMARY_OPENING);
+    // BARRIER ON A STABLE WIDTH (#1693), never `> 0`: two consecutive equal readings across a frame prove
+    // the popover's resize reflow has actually finished, not merely started.
+    const reading = await waitForStableProseReading(page, SUMMARY_OPENING);
     rows.push(proseRow(width, reading));
     // ON the token, not merely under some width: the paragraph must resolve THIS measure in its own font.
     expect(reading.widthPx, `#1175 at ${String(width)}: ${rows.join(" | ")}`).toBeLessThanOrEqual(reading.proseTokenPx + 0.5);

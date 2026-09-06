@@ -152,11 +152,13 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
   await page.getByTestId("workloads-run-button").click();
   await expect(page.getByTestId("run-workload-dialog")).toBeVisible();
 
-  // The picker offers only singular-capable kinds — an unbuilt stub is absent by construction, and a
-  // non-owner never sees the owner-only "Maintenance" group or its bulk-only kind.
+  // The picker offers only singular-capable kinds — a stub kind (`reconcile-world-state`, WORKLOAD_KIND_MODES
+  // stub:true) is absent by construction, and a non-owner never sees the owner-only "Maintenance" group or
+  // its bulk-only kind. (#917: this used to guard a "Crew: director" string that named a purged concept —
+  // `crew` has no WorkloadKind member at all, so that assertion could never fail. Retargeted at a LIVE kind.)
   await page.getByRole("combobox", { name: "Job" }).click();
   await expect(page.getByRole("option", { name: "Index (embeddings)" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Crew: director" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Reconcile world state" })).toHaveCount(0);
   await expect(page.getByRole("option", { name: "Refresh model catalog" })).toHaveCount(0);
   await expect(page.getByText("Maintenance (all deployments)")).toHaveCount(0);
   await page.getByRole("option", { name: "Index (embeddings)" }).click();
@@ -299,9 +301,12 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
   await page.getByTestId("workloads-run-button").click();
 
   // The owner's picker is GROUPED — "Run on my data" (singular kinds) + a distinct "Maintenance
-  // (all deployments)" group carrying the built bulk-only kind.
+  // (all deployments)" group carrying the built bulk-only kind. `reconcile-world-state` is ALSO
+  // bulk+non-singular (would otherwise qualify for this same group) but stays out because it is
+  // still `stub:true` — this is the one place the stub flag does independent work (#917).
   await page.getByRole("combobox", { name: "Job" }).click();
   await expect(page.getByText("Maintenance (all deployments)")).toBeVisible();
+  await expect(page.getByRole("option", { name: "Reconcile world state" })).toHaveCount(0);
   await page.getByRole("option", { name: "Refresh model catalog" }).click();
 
   // A maintenance kind is bulk BY FORCE — a note, not a toggle; no target picker.

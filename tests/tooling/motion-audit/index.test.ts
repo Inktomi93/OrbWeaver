@@ -289,6 +289,63 @@ test("unconfirmed Select intent and non-Select portals remain ordinary style/lay
   expect(loafOverBudget(nonSelect)).toBe(true);
 });
 
+// ── #1647: the bounded input-dispatch layout-frame exemption (#1316's proposal) ─────────────────────
+/** The measured shape: React's `dispatchDiscreteEvent` handling the click, no forced mid-script reflow,
+ *  and the frame's own `styleAndLayoutStart` at/after the script's end (the render-phase tail). */
+function dispatchScript(over: Partial<Loaf["scripts"][number]> = {}): Loaf["scripts"][number] {
+  return {
+    sourceURL: "http://127.0.0.1:5173/@fs/react-dom_client.js",
+    duration: 22,
+    forcedStyleAndLayoutDuration: 0,
+    sourceFunctionName: "dispatchDiscreteEvent",
+    ...over,
+  };
+}
+
+test("#1647: the bounded single input-dispatch layout frame passes and is named in the totals", () => {
+  const motion = motionWith(loaf({ startTime: 0, duration: 22, blockingDuration: 0, styleAndLayoutStart: 22, scripts: [dispatchScript()] }));
+
+  expect(loafTotals(motion)).toMatchObject({ budgetedStyleLayout: 0, boundedInputDispatchExempt: true });
+  expect(loafOverBudget(motion)).toBe(false);
+});
+
+test("#1647 condition (a): a layout frame with NO input-dispatch script still reds", () => {
+  const motion = motionWith(
+    loaf({ startTime: 0, duration: 22, blockingDuration: 0, styleAndLayoutStart: 22, scripts: [dispatchScript({ sourceFunctionName: "someOtherWork" })] }),
+  );
+
+  expect(loafTotals(motion)).toMatchObject({ budgetedStyleLayout: 1, boundedInputDispatchExempt: false });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("#1647 condition (b): a script that FORCED synchronous layout still reds, even riding the dispatch script", () => {
+  const motion = motionWith(
+    loaf({ startTime: 0, duration: 22, blockingDuration: 0, styleAndLayoutStart: 22, scripts: [dispatchScript({ forcedStyleAndLayoutDuration: 6 })] }),
+  );
+
+  expect(loafTotals(motion)).toMatchObject({ budgetedStyleLayout: 1, boundedInputDispatchExempt: false });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("#1647 condition (c): style/layout INTERLEAVED with (before) the script's own span still reds", () => {
+  // The script reports 22ms of work but styleAndLayoutStart sits at 10ms in — before the script finished,
+  // i.e. interleaved rather than the render-phase tail.
+  const motion = motionWith(loaf({ startTime: 0, duration: 22, blockingDuration: 0, styleAndLayoutStart: 10, scripts: [dispatchScript({ duration: 22 })] }));
+
+  expect(loafTotals(motion)).toMatchObject({ budgetedStyleLayout: 1, boundedInputDispatchExempt: false });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
+test("#1647 condition (d): a SECOND layout frame in the window disqualifies the pairing entirely — both count", () => {
+  const motion = motionWith(
+    loaf({ startTime: 0, duration: 22, blockingDuration: 0, styleAndLayoutStart: 22, scripts: [dispatchScript()] }),
+    loaf({ startTime: 100, duration: 30, blockingDuration: 0, styleAndLayoutStart: 130, scripts: [appScript()] }),
+  );
+
+  expect(loafTotals(motion)).toMatchObject({ budgetedStyleLayout: 2, boundedInputDispatchExempt: false });
+  expect(loafOverBudget(motion)).toBe(true);
+});
+
 test("a purely virtualized journey moves the RAW total and never the verdict", () => {
   // The measured shape: 0.26 of instability, all of it virtual-row reconciliation.
   const motion = snapshot({ cls: 0.26, virtualizedCls: 0.26, nonVirtualizedCls: 0 });

@@ -28,7 +28,7 @@ function AddMemberShell({
           "Add cast…" in the CAST header — two person-glyph affordances in one row, one of them mute, and a
           first-timer could not predict which added a group and which added a person (side-eye 2026-08-30
           P2; #490-8 had established exactly ONE add-character door before B10 landed its sibling). The
-          discriminator is a VISIBLE noun on each: "cast" vs "character".
+          discriminator was a VISIBLE noun on each: "cast" vs "character" (the header is "Characters" now, #922).
 
           THE VISIBLE TEXT IS THE ACCESSIBLE NAME NOW, and it is the SAME STRING the `aria-label` carried —
           so WCAG 2.5.3 holds by construction (the visible label cannot fail to be contained in a name it
@@ -51,6 +51,7 @@ function AddMemberShell({
           label="Add a character"
           onSelect={onAdd}
           placeholder="Search characters…"
+          reserveKey="chat.addMemberPicker"
         />
       </PopoverPopup>
     </Popover>

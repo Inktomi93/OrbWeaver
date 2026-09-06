@@ -225,6 +225,7 @@ export function NewChatPicker(): ReactElement {
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
+        reserveKey="chat.newChatPicker"
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}
       />

@@ -53,14 +53,17 @@
     },
     {
       "path": "docs/design/1208-instrument-substrate.md",
-      "assignedSha256": "5fea4f8a4989eb4923b859f77dd697cb8868a03e36b0af63775c6c9a4236fa22",
+      "assignedSha256": "a55d5ccf9838a6a4865501e183672f2ad53beffb50d108ed2e98ac2c72e17fb1",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "5fea4f8a4989eb4923b859f77dd697cb8868a03e36b0af63775c6c9a4236fa22",
-      "verifiedCommit": "f0cb81c7d2bc6434d91f7c7f39bcc7a35e4d151e",
+      "verifiedSha256": "a55d5ccf9838a6a4865501e183672f2ad53beffb50d108ed2e98ac2c72e17fb1",
+      "verifiedCommit": "fc67b1acb1d166b358cded4849c682114c50ffb5",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at fc67b1acb by the orchestrator after reading NEW §10.11 in full (p-snap-honesty, #1556/#1675) — CORRECTS the premature 257eb27cc receipt, which attested be92a52e1's blob before the fold had landed: the 4 KB agent-readable budget measures the BODY; CONCURRENT and PROVENANCE lines are excluded because their length is a function of how many other runs are live; RESULT-line growth policy (the budget does not move; a new pair replaces one or folds behind a derived token).",
+        "re-attested at be92a52e1 by the orchestrator after reading NEW §10.11 in full (p-snap-honesty, #1556/#1675): the 4 KB agent-readable budget measures the BODY; CONCURRENT and PROVENANCE lines are excluded because their length is a function of how many other runs are live; the RESULT-line growth policy (the budget does not move; a new pair replaces one or folds behind a derived token).",
+        "re-attested at 3f0589e56 by the orchestrator after reading the §3.6 amendment in full (cb-stage-ttl, #1163 arm b): the 'active timer lives in the session daemon / no extra daemon to leak' placement is superseded with a dated 'the ruling survives, its INPUT changed' block (the owner's 2026-09-05 re-raise + the measured stranded bands); AS BUILT: one detached niced keeper per band armed at ensureStage's exit, polling the row (TTL/10), the third interaction signal = a connected client (ss established peer), refusals (reserved port exit 2 / released / adopted), never a fence for arm (a), the four-arm reap ledger; defaults stated (session idle 30 min, stage idle 60 min).",
         "re-attested at f0cb81c7d by the orchestrator after reading the #1616 diff in full (p-tooling-lies leg 3, owner ruling 2026-09-05): §7.1 heading re-ruled for the RATE class and a new LABEL-DON’T-WITHHOLD paragraph (loadavg 26–31 is not load on the 24-thread box; #1040’s 47.54%-at-1.04 receipt kept as the reason the label may not vote); the verdict vocabulary is three closed members in one home (`tooling/src/_shared/load-budget.ts` MEASUREMENT_DISPOSITIONS: complete · load-suspect · withheld); the RATE row now LABELS and PUBLISHES instead of withholding; mechanism bullets renamed (judgeRateLoad/annotateRateLoad/labelRateLoad, ORB-LOAD-SUSPECT); T14 rewritten (prints LOAD-SUSPECT, publishes, never red, never exit 2); two format:docs rewraps (--maxWorkers=1, --map <selector>); frontmatter dated 2026-09-05.",
         "re-attested at 561ea5ec3 (#1292, full 770-line delta read): adds the #1310 filmstrip transition-capture ruling (CDP screencast contact sheet, `record` retired to a recipe redirect); 10.5 React development-renderer arm (`prepare()` lifecycle, capability census/ledger, planted controls, #1284 implementation-complete); 10.6 sole rendered-instrument CLI ruling (#1292/#1293) - `afterNavigation`/`beforeAction`/`afterAction`/`afterActions` lifecycle, selective `--motion`/`--perf`/`--cpu-profile`/`--boot-trace`/`--react-profile` vocabulary, motion/perf capability-parity ledgers, interference refusals, retirement order; 10.7 indexed Snap run bundle + browser-free readers (#1295) - `run.json` schema, identity/dirty digest, artifact inventory, `--report`/`--reports` readers, acceptance repairs; 10.8 operator/cold-agent usability battery; 10.9 `--map` atlas+shell+surface sheets and the #1297 visibility-predicate repair; and 12.3's 2026-09-03 owner ruling naming Snap the sole public rendered-instrument CLI.",
         "re-attested at 9301fdf41 after a complete read and final implementation reconciliation: typed arm facts/artifact scope, diagnostic and HAR capture, map/Activity semantics, heap/React/filmstrip arms, multi-target proofs, bounded retention, cold-agent run reader, retired duplicate CLIs, and all four requested prerequisite commits are present; full structure ran 254/254 clean at main-3229425-2026-09-04T07-04-27-858Z.",
@@ -114,13 +117,13 @@
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",
-      "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "assignedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
-      "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+      "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+      "verifiedAt": "2026-09-05",
       "claims": [
         {
           "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -135,7 +138,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+              "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
             },
             {
               "kind": "test",
@@ -197,6 +200,7 @@
       ],
       "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
       "evidence": [
+        "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: §2 gains a LANDED note (the package exists; the seeder resolves packShowcaseBundle by node resolution; the checkJs program over the guest sources deliberately did NOT land with the move and is its own row); the before-state finding's tense updated; citation targets re-pointed to the package; updated 2026-09-05.",
         "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
         "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
       ]
@@ -562,14 +566,18 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
+      "assignedSha256": "ecd711b3cd72be899a26b296a35b3f4832e8a6ce43436e728b71dbe533f7b42d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "de6d7cc58b36190a302de926d62265e22729b01d345429b0b61e0ba64e9013e4",
-      "verifiedCommit": "24d2c6ab3902f2952c3a38914cd597c312640f8b",
+      "verifiedSha256": "ecd711b3cd72be899a26b296a35b3f4832e8a6ce43436e728b71dbe533f7b42d",
+      "verifiedCommit": "d5cee6b276b49cb1456b16abe4761f87b4ac4949",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after the second cite truth-repair (the owed setting-row-frame CT as prose) at d5cee6b27",
+        "re-attested after the dangling-refs truth-repair (planned paths de-backticked, the CT list re-pointed at the config-era files) at 9d6008a20",
+        "re-attested after #1722 (status: draft → active, p-docs-batch) and the #1741/#1747 amendments at e9ad555ac",
+        "re-attested at 626a06121 by the orchestrator after reading NEW §8.1b in full (cb-config-list, #1725): the four-ruling verdict table — #925 ENTER (select survives, disclose retired), D121(D) Import (band → overflow), #1099 F5 intact, #1211 copy survives with a changed address; the member lists now live in CONTENT (config-collection-landing); updated 2026-09-05.",
         "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 amendment in full (cb-config-list): §8.1 clause 1 keeps the must-WORK bar and the four #925 landing rulings as built behaviour; NEW §8.1a carries the owner's verbatim 2026-09-05 word and retires the 'distinct species → do not converge' inference (the ruling survives, its INPUT changed); §8.3's 'clean seam for #1169' paragraph is replaced by the priced result (all six divergences hold on structural reasons; two more in-pane divergences hold by TYPE); frontmatter updated 2026-09-05. Not touched: the rest of the program.",
         "re-attested at 89ba3e6cf by the orchestrator after reading the #1175/#1152 diff in full (cb-client-seams): a RESOLVED bullet records that the “#920 cold contract” premise was in no doc and §498-506 was already true; no other line changed; frontmatter dated 2026-09-05.",
         "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
@@ -1136,14 +1144,16 @@
     },
     {
       "path": "docs/design/mocks/README.md",
-      "assignedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+      "assignedSha256": "ecacf3ccf3c92833c0f893915a73dddb0e3d4244fa05ef51af6a6ac74ee9a1bf",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
-      "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "ecacf3ccf3c92833c0f893915a73dddb0e3d4244fa05ef51af6a6ac74ee9a1bf",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
+        "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
         "docs/design/mocks/README.md:1 (design; unheaded)",
         "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -1491,14 +1501,15 @@
     },
     {
       "path": "docs/design/plugin-showcase-set.md",
-      "assignedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+      "assignedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
-      "verifiedCommit": "9b35fa21e76dc74e7158ed7256454d74357d4a0c",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
+      "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+      "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: the authoring guide and the host-v1.d.ts homes re-pointed from entry/boot/seed-assets to packages/showcase-plugins/bundles/; no design change; updated 2026-09-05.",
         "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
         "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
         "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)",
@@ -1524,7 +1535,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts:716"
+              "target": "packages/showcase-plugins/bundles/host-v1.d.ts:716"
             }
           ]
         }
@@ -1839,14 +1850,22 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "e06f975c4383e7079e9742013163933e7eaddfd5afee898dccf505a195b2ac50",
+      "assignedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e06f975c4383e7079e9742013163933e7eaddfd5afee898dccf505a195b2ac50",
-      "verifiedCommit": "b64f6bdc02607ba0dc2b3d1d6ce4fedda2de28cc",
+      "verifiedSha256": "c8bbef11f6a59980279ee35daeea75f3a9a90451951055c809938928c645e140",
+      "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
       "verifiedAt": "2026-09-05",
       "evidence": [
+        "re-attested after #1010 (row 44: roster → participants landed for the server chat domain, residue enumerated) at 532758261",
+        "re-attested after the #1716/#1771 fold (b2e5ba01e: the unreadable-state register rows) at d5cee6b27",
+        "re-attested after the #1754 fold (cb-regex-label: the regex register's per-tier label rows) at 5cc98a324",
+        "re-attested after the #1739 fold (cb-regex-handoff): the regex register's previous-host row — mark = no switch, detach offered (the #1742 rationale half-retired by the room-gated detach) at 5e491d1ee",
+        "re-attested at ffd7d9a33 by the orchestrator after reading the regex REGISTER in full (cb-regex-section, #1742): five minted rows recorded BEFORE the strings exist (the map's own rule — a word changes HERE first) plus the REUSED table citing each shipped carrier; the server half landed with the mint, the client half is the step-4 build.",
+        "re-attested at b0e62f3bd by the orchestrator after reading the #1737/#1738 edit in full: the HELD survivor table is EMPTY (its last row, the prose-slot id, closed by the rename) and is replaced by a dated closure paragraph; the section keeps its re-derivation command and the false-stem fence; the drive-axis prose sweep (#1738) took the map's words (seated/present characters, joined character names, multi-voice, presence-gating).",
+        "re-attested at c545899ab by the orchestrator after reading the #1718 row in full (cb-mobile-shell): a Filters row — the phone chats pane's ONE shared filter trigger names every bound in force (Filters / Filters: chats up to <month> / Filters: chats with <character> / both), grammar homed at phoneFiltersLabel in chat-list-scope.ts; #1350's 'the trigger carries the bound' principle survives with its input changed.",
+        "re-attested at 2eed0d66b by the orchestrator after reading the #1649/#1049 edit in full: the four HELD handoff-offer rows CLOSED (copyCast → copyCharacters with a boot data migration; offerCast → offerCharacters; summaryCast → summaryParticipantNames); the table now carries its own re-derivation command and the false-stem fence; ONE new HELD row — the persisted prose-slot id chat.group.castMember (#1737, owner arm) — so the survivor table stays truthful.",
         "re-attested at b64f6bdc0 by the orchestrator after reading the #1662 row in full (cb-mobile-shell): a Resume row — the verb leads the accessible name of a door that re-enters an existing room (Resume <room title> on home; Resume the chat with <character> on the faces strip), homed at state/active-chat-store resumeChat; no other row changed.",
         "re-attested at 0edf956f1 (#1220 arm a + #1680, cb-vocab-hygiene leg 3): the hearth palette cell census widened to packages/tooling/scripts with the three tooling carriers and both instrument corrections stated verbatim; the chat sanctioned-survivor table carries four HELD rows citing #1649. Read in full by the orchestrator.",
         "re-attested at c4c7cd0de (#1671, cb-theme-isdefault): the hearth palette cell's client carrier row now says the mirrored display name is GONE (ThemeView.isDefault is the client's read). Read in full by the orchestrator.",
@@ -1888,7 +1907,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/server/src/domain/chat/persistence/roster.ts:1"
+              "target": "packages/server/src/domain/chat/persistence/participants-read.ts:1"
             }
           ]
         }
@@ -2155,6 +2174,266 @@
         }
       ],
       "summary": "Typed run-results and artifact-scope design: a total Zod arm-fact schema map plus branded context/page/window scope, replacing string-pair RESULT parsing as the structured-evidence trust boundary."
+    },
+    {
+      "path": "docs/design/mocks/config-collections/DESIGN.md",
+      "assignedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold (cb-config-list, #1725): v3 canvas redrawn from the live SectionsBand anatomy after side-eye + stickler review; owner word verbatim ('redesign approved it can be built to spec but must match the mockups'); the build (commit 2) landed against §5 with the named delta (sort row placement, commit 3) and the COLLECTION_WINDOW_MAX_HEIGHT re-bind fork recorded."
+      ],
+      "claims": [
+        {
+          "claim": "The owner approved v3 and the build must match the renders; commit 2 moved the member lists into CONTENT under the config-collection-landing host.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-collection-landing.tsx:1"
+            }
+          ]
+        }
+      ],
+      "summary": "Config collections in CONTENT mock (#1725, owner-approved 2026-09-05): eleven boards in both themes; §5 is the build obligations; the LIST keeps one band kind and the library (glance, control row, insights, rows) lives in CONTENT."
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-stickler.md",
+      "assignedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
+      ],
+      "claims": [
+        {
+          "claim": "The three P0s were removed in v3 and the coupled-site list drove commit 2.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            }
+          ]
+        }
+      ],
+      "summary": "Stickler review of the #1725 mock v2 (IA vs law, back-stack, coupled sites): three P0 (regex on-row switch vs the 2026-08-19 fork; drag handles for a per-scope order; header Delete vs D121(D)) that v3 removed; carries the verified coupled-site list the build brief used."
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-sideeye.md",
+      "assignedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v2; each finding is answered in v3 (one band kind, no row switch, one create home, rows sized to the pane, facts drawn once)."
+      ],
+      "claims": [
+        {
+          "claim": "Each v2 finding is answered in v3.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            }
+          ]
+        }
+      ],
+      "summary": "Side-eye review of the #1725 mock v2 (UX/visual/a11y, both themes): build-with-changes — board 1 was a fiction of Settings, the regex switch was dead, create sat in two homes, rows were 67% void at pane width, facts were drawn twice; v3 answers each."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/DESIGN.md",
+      "assignedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold (cb-regex-section): v2 redrawn from side-eye + stickler review; the server half (the effective read, the per-chat levers, #1733's room fan) landed with this fold; the section itself (step 4) is a fresh lane on the same worktree."
+      ],
+      "claims": [
+        {
+          "claim": "The owner approved v2 and the server half landed; the section build is step 4.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "The room's Regex section (#1742), owner-approved 2026-09-05 ('regex approved' on v2): a This-chat DisclosureSection with a lever strip (master + per-tier switches incl. Everywhere), the effective prompt-side list in run order, the On-screen roster, the member view and the phone; §4 mints the vocabulary; five boards in both themes."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
+      "assignedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."],
+      "claims": [
+        {
+          "claim": "An input proposal to the approved design.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Information-architecture proposal for the regex one-place (lane cb-regex-ia): where the section sits, what it lists, what it hides; an input to DESIGN.md."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
+      "assignedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
+      "verifiedCommit": "c6a6ec8cd44f05f44642e6505de200e7250334f5",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
+        "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
+      ],
+      "claims": [
+        {
+          "claim": "The tier model landed as resolveRegexTiers.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "Systems-lens proposal for the regex panel (lane cb-regex-sys): tiers, precedence, dedup at the winning tier, the room fan — the half that became the server read."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
+      "assignedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."],
+      "claims": [
+        {
+          "claim": "An input proposal to the approved design.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Interaction-design proposal for the Regex section (lane cb-regex-ux): the lever strip, switch sizes, the member view, the phone sheet."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
+      "assignedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v1; v2 answered its findings (lever strip incl. Everywhere, two legs/two rosters, readable off rows, shipped switch sizes)."
+      ],
+      "claims": [
+        {
+          "claim": "v1 findings answered in v2.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Side-eye review of the regex panel mock v1 (UX/visual/a11y, both themes) — the findings v2 was redrawn to answer."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
+      "assignedSha256": "8c5983bceefb71fc02cb8fd7960d6d5c17b490be33ab0bc06012c562b8c5bfd3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "8c5983bceefb71fc02cb8fd7960d6d5c17b490be33ab0bc06012c562b8c5bfd3",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."],
+      "claims": [
+        {
+          "claim": "v1 findings answered in v2; #1739 filed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "issue",
+              "target": "#1739"
+            }
+          ]
+        }
+      ],
+      "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/STUDY.md",
+      "assignedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."],
+      "claims": [
+        {
+          "claim": "The parity floor the design honours.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
     }
   ]
 }

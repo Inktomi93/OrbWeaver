@@ -61,21 +61,21 @@ test("parseSpeakerSpans: a trailing marker with no following text yields an empt
   expect(parseSpeakerSpans("<speaker>Alice</speaker>")).toEqual([{ speaker: "Alice", text: "" }]);
 });
 
-// ── The SECOND marker alphabet: plain `Name:` labels for the PRESENT cast (the tolerance layer) ─────
+// ── The SECOND marker alphabet: plain `Name:` labels for the PRESENT characters (the tolerance layer) ─────
 // The `<speaker>` format is instructed, not guaranteed — the shipped demo transcripts (generated live
 // against a real model) attribute with plain line-start labels and carry zero markers, and every narrator
 // row committed before the instruction existed has only the plain form. The grammar is timid by design.
 
-const CAST = ["Charlotte", "JFC"];
+const CHARACTERS = ["Charlotte", "JFC"];
 
-test("parseSpeakerSpans: with no castNames the plain-label grammar never fires (byte-identical no-op)", () => {
+test("parseSpeakerSpans: with no characterNames the plain-label grammar never fires (byte-identical no-op)", () => {
   const content = "JFC: Ship the boring version.";
   expect(parseSpeakerSpans(content)).toEqual([{ speaker: null, text: content }]);
 });
 
-test("parseSpeakerSpans: line-start cast labels split into ordered spans, LABEL TEXT KEPT", () => {
+test("parseSpeakerSpans: line-start character labels split into ordered spans, LABEL TEXT KEPT", () => {
   const content = "*a foreleg taps*\n\nJFC: Ship it.\n\nCharlotte: With one nuance.";
-  expect(parseSpeakerSpans(content, CAST)).toEqual([
+  expect(parseSpeakerSpans(content, CHARACTERS)).toEqual([
     { speaker: null, text: "*a foreleg taps*\n\n" },
     { speaker: "JFC", text: "JFC: Ship it.\n\n" },
     { speaker: "Charlotte", text: "Charlotte: With one nuance." },
@@ -83,40 +83,40 @@ test("parseSpeakerSpans: line-start cast labels split into ordered spans, LABEL 
 });
 
 test("parseSpeakerSpans: a label at position 0 opens the first span (no empty preamble span)", () => {
-  expect(parseSpeakerSpans("JFC: Ship it.", CAST)).toEqual([{ speaker: "JFC", text: "JFC: Ship it." }]);
+  expect(parseSpeakerSpans("JFC: Ship it.", CHARACTERS)).toEqual([{ speaker: "JFC", text: "JFC: Ship it." }]);
 });
 
 test("parseSpeakerSpans: markdown emphasis around the name and/or colon is tolerated", () => {
-  expect(parseSpeakerSpans("**JFC:** Ship it.", CAST)).toEqual([{ speaker: "JFC", text: "**JFC:** Ship it." }]);
-  expect(parseSpeakerSpans("*Charlotte*: Hm.", CAST)).toEqual([{ speaker: "Charlotte", text: "*Charlotte*: Hm." }]);
+  expect(parseSpeakerSpans("**JFC:** Ship it.", CHARACTERS)).toEqual([{ speaker: "JFC", text: "**JFC:** Ship it." }]);
+  expect(parseSpeakerSpans("*Charlotte*: Hm.", CHARACTERS)).toEqual([{ speaker: "Charlotte", text: "*Charlotte*: Hm." }]);
 });
 
-test("parseSpeakerSpans: a MID-SENTENCE cast name never splits — the label must open a line", () => {
+test("parseSpeakerSpans: a MID-SENTENCE character name never splits — the label must open a line", () => {
   const content = "She turned to JFC: the man was gone.";
-  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: null, text: content }]);
+  expect(parseSpeakerSpans(content, CHARACTERS)).toEqual([{ speaker: null, text: content }]);
 });
 
-test("parseSpeakerSpans: a name outside the cast never attributes", () => {
+test("parseSpeakerSpans: a name outside the room never attributes", () => {
   const content = "Mallory: trust me.";
-  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: null, text: content }]);
+  expect(parseSpeakerSpans(content, CHARACTERS)).toEqual([{ speaker: null, text: content }]);
 });
 
-test("parseSpeakerSpans: a cast label INSIDE a fenced code block is skipped (the fence stays whole)", () => {
+test("parseSpeakerSpans: a character label INSIDE a fenced code block is skipped (the fence stays whole)", () => {
   const content = "JFC: here.\n\n```python\n# JFC: a comment\nprint(1)\n```";
-  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: "JFC", text: content }]);
+  expect(parseSpeakerSpans(content, CHARACTERS)).toEqual([{ speaker: "JFC", text: content }]);
 });
 
-test("parseSpeakerSpans: the LONGEST matching cast name wins (no prefix shadowing)", () => {
+test("parseSpeakerSpans: the LONGEST matching character name wins (no prefix shadowing)", () => {
   expect(parseSpeakerSpans("Anna Lee: hi", ["Anna", "Anna Lee"])).toEqual([{ speaker: "Anna Lee", text: "Anna Lee: hi" }]);
 });
 
-test("parseSpeakerSpans: blank cast names are dropped (an empty roster is the no-op)", () => {
+test("parseSpeakerSpans: blank character names are dropped (an empty roster is the no-op)", () => {
   const content = "JFC: Ship it.";
   expect(parseSpeakerSpans(content, ["", "   "])).toEqual([{ speaker: null, text: content }]);
 });
 
-test("parseSpeakerSpans: a TAGGED body ignores castNames — the marker grammar is authoritative", () => {
-  expect(parseSpeakerSpans("<speaker>Charlotte</speaker>JFC: quoting him.", CAST)).toEqual([{ speaker: "Charlotte", text: "JFC: quoting him." }]);
+test("parseSpeakerSpans: a TAGGED body ignores characterNames — the marker grammar is authoritative", () => {
+  expect(parseSpeakerSpans("<speaker>Charlotte</speaker>JFC: quoting him.", CHARACTERS)).toEqual([{ speaker: "Charlotte", text: "JFC: quoting him." }]);
 });
 
 test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitively", () => {
@@ -238,10 +238,10 @@ test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline
   expect(stripInlineSpeakerLabel("one JFC: two", "JFC")).toBe("one two");
 });
 
-// #1354 — the inline stripper had no LEFT boundary, so a cast name that is a SUFFIX of an ordinary word was
+// #1354 — the inline stripper had no LEFT boundary, so a character name that is a SUFFIX of an ordinary word was
 // deleted out of the middle of it. This runs on every per-speaker reply BEFORE persist, so the altered bytes
 // are what canon keeps.
-test("stripInlineSpeakerLabel does NOT eat a cast name out of the middle of an ordinary word", () => {
+test("stripInlineSpeakerLabel does NOT eat a character name out of the middle of an ordinary word", () => {
   expect(stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")).toBe("I told SusAnn: watch out.");
   expect(stripInlineSpeakerLabel("the QUOTA: figure", "Ota")).toBe("the QUOTA: figure");
   // Non-ASCII names too — the boundary is `\p{L}\p{N}\p{M}`, not the ASCII-only `\b`.
@@ -282,7 +282,7 @@ test("cleanPerSpeakerReply persists NO self-tag fragment — leading + inline + 
 test("foreignLabelStops emits one `\\nName:` stop per name, deduped, blanks dropped", () => {
   expect(foreignLabelStops(["Seren", "Holt"])).toEqual(["\nSeren:", "\nHolt:"]);
   expect(foreignLabelStops(["Seren", " Seren ", "", "   "])).toEqual(["\nSeren:"]);
-  // No cast (a chat with no characters) ⇒ no stops ⇒ a byte-identical request.
+  // No character names (a chat with no characters) ⇒ no stops ⇒ a byte-identical request.
   expect(foreignLabelStops([])).toEqual([]);
 });
 
@@ -306,23 +306,23 @@ test("segmentSnippet: trimmed head, caller-capped — the one derivation writers
 });
 
 const ANCHOR_BODY = "Alice: Hello there.\nBob: Fine day.";
-const ANCHOR_CAST = ["Alice", "Bob"];
+const ANCHOR_CHARACTERS = ["Alice", "Bob"];
 
 test("resolveSegmentAnchor: a live anchor resolves to its span; each stale leg refuses alone", () => {
-  const live = resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
+  const live = resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CHARACTERS, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
   expect(live).toEqual({ speaker: "Bob", text: "Bob: Fine day." });
   // Out of range — the body segments into two spans.
-  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 5, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CHARACTERS, { index: 5, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
   // Speaker moved — a structural insert shifted the index onto somebody else's line.
-  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 0, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CHARACTERS, { index: 0, speaker: "Bob", snippet: "Bob: Fine day." })).toBeNull();
   // The FINGERPRINT leg — the same-speaker-insert hole the suite found: index in range, speaker matches,
   // but the text is a DIFFERENT line by the same speaker. (index, speaker) alone would silently pass this.
-  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Another line entirely." })).toBeNull();
+  expect(resolveSegmentAnchor(ANCHOR_BODY, ANCHOR_CHARACTERS, { index: 1, speaker: "Bob", snippet: "Bob: Another line entirely." })).toBeNull();
 });
 
 test("resolveSegmentAnchor: the snippet is a PREFIX, so a tail edit keeps the anchor alive", () => {
   const edited = "Alice: Hello there.\nBob: Fine day. And a fine evening too.";
-  const kept = resolveSegmentAnchor(edited, ANCHOR_CAST, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
+  const kept = resolveSegmentAnchor(edited, ANCHOR_CHARACTERS, { index: 1, speaker: "Bob", snippet: "Bob: Fine day." });
   expect(kept?.speaker).toBe("Bob");
   // A narration anchor carries `speaker: null` and resolves the same way.
   const narration = resolveSegmentAnchor("The rain fell.\n<speaker>Alice</speaker>Well.", [], { index: 0, speaker: null, snippet: "The rain fell." });
