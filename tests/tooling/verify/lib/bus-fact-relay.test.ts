@@ -1,0 +1,276 @@
+// The CONDITIONAL PUBLISHER: the live per-user bus reaches `bus.publish` two hops below the domain call
+// sites, through a local `const event` whose initializer is a ConditionalExpression, and republishes a
+// coarse form by indexing a totality table with the relayed discriminator. Each hop is a separate way for
+// a producer fact to go silently blind, and the coarse table is a way for it to go falsely GREEN (indexing
+// `Record<Union["type"], Union>` with an unnarrowed key types as EVERY member). These are fact-level
+// controls: they read the shared fact's own census through a probe policy rather than any bus policy's
+// verdict, so a change in either direction is visible here before it reaches a coverage id.
+import { Project } from "ts-morph";
+import type { BusFact } from "../../../../tooling/src/verify/contract/bus-fact.ts";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { busProducerFact } from "../../../../tooling/src/verify/lib/bus-fact.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+
+const ROOT = "/bus-fact-relay";
+
+const UNION = `export type ProbeBusEvent =
+  | { type: "chatsChanged"; chatId?: string }
+  | { type: "settingsChanged" }
+  | { type: "connectionsChanged" };
+export const PROBE_BUS_EVENT_TYPES = {
+  chatsChanged: true,
+  settingsChanged: true,
+  connectionsChanged: true,
+} satisfies Record<ProbeBusEvent["type"], true>;
+export const COARSE_PROBE_EVENT = {
+  chatsChanged: { type: "chatsChanged" },
+  settingsChanged: { type: "settingsChanged" },
+  connectionsChanged: { type: "connectionsChanged" },
+} satisfies Record<ProbeBusEvent["type"], ProbeBusEvent>;
+`;
+
+/** The live `bus-channel.ts` shape: an OVERLOADED exported factory whose returned object owns `publish`. */
+const BUS_CHANNEL = `export interface BusChannel<Key, Event> {
+  readonly publish: (key: Key, event: Event) => void;
+  readonly subscribe: (key: Key) => AsyncIterable<Event>;
+}
+export interface FirehoseBusChannel<Key, Event> extends BusChannel<Key, Event> {
+  readonly subscribeAll: (listener: (event: Event) => void) => () => void;
+}
+export function defineBusChannel<Key extends string, Event>(channelFor: (key: Key) => string): BusChannel<Key, Event>;
+export function defineBusChannel<Key extends string, Event>(
+  channelFor: (key: Key) => string,
+  opts: { readonly firehose: true },
+): FirehoseBusChannel<Key, Event>;
+export function defineBusChannel<Key extends string, Event>(
+  channelFor: (key: Key) => string,
+  opts?: { readonly firehose: true },
+): BusChannel<Key, Event> | FirehoseBusChannel<Key, Event> {
+  const sinks: Record<string, ((event: Event) => void)[]> = {};
+  const base: BusChannel<Key, Event> = {
+    publish: (key, event) => {
+      for (const sink of sinks[channelFor(key)] ?? []) {
+        sink(event);
+      }
+    },
+    subscribe: () => ({ [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }) }) as AsyncIterable<Event>,
+  };
+  if (opts?.firehose !== true) {
+    return base;
+  }
+  return { ...base, subscribeAll: () => () => undefined };
+}
+`;
+
+/** The live `user-events-bus.ts` shape, verbatim in structure: the conditional local event, the coarse
+ *  republish through the totality table, and `publishUserEvent` forwarding its own parameter. */
+const USER_EVENTS_BUS = `import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";
+import { COARSE_PROBE_EVENT } from "../../../../contracts/src/user-bus/index.ts";
+import { defineBusChannel } from "./bus-channel.ts";
+import { silenceUserEvent } from "./quiet-fanout.ts";
+
+const channelFor = (userId: string): string => \`user:\${userId}\`;
+const bus = defineBusChannel<string, ProbeBusEvent>(channelFor);
+
+export function publishUserEvent(userId: string, event: ProbeBusEvent): void {
+  if (silenceUserEvent(userId, event.type, () => bus.publish(userId, COARSE_PROBE_EVENT[event.type]))) {
+    return;
+  }
+  bus.publish(userId, event);
+}
+
+export function publishChatChanged(userId: string, chatId: string | undefined): void {
+  const event: ProbeBusEvent = chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };
+  publishUserEvent(userId, event);
+}
+`;
+
+const QUIET_FANOUT = `export function silenceUserEvent(_userId: string, _type: string, _coalesce: () => void): boolean {
+  return false;
+}
+`;
+
+/** The two-hop domain caller: `emitChatChanged` never names the bus at all. */
+const EMIT_CHAT_CHANGED = `import { publishChatChanged } from "../../transport/trpc/user-events-bus.ts";
+
+export function createChatChangedEmitter(): (chatId: string, userIds: readonly string[]) => void {
+  return (chatId, userIds) => {
+    for (const userId of userIds) {
+      publishChatChanged(userId, chatId);
+    }
+  };
+}
+`;
+
+/** The ordinary injected-door producer, unchanged by any relay work — the control that the new reads do
+ *  not replace the old ones. */
+const SETTINGS_VERB = `import type { ProbeBusEvent } from "../../../../../contracts/src/user-bus/index.ts";
+
+export function updateSettings(deps: { emitUserEvent: (userId: string, event: ProbeBusEvent) => void }, userId: string): void {
+  deps.emitUserEvent(userId, { type: "settingsChanged" });
+}
+`;
+
+const LIVE_FILES: Readonly<Record<string, string>> = {
+  "packages/contracts/src/user-bus/index.ts": UNION,
+  "packages/server/src/transport/trpc/bus-channel.ts": BUS_CHANNEL,
+  "packages/server/src/transport/trpc/quiet-fanout.ts": QUIET_FANOUT,
+  "packages/server/src/transport/trpc/user-events-bus.ts": USER_EVENTS_BUS,
+  "packages/server/src/entry/compose/emit-chat-changed.ts": EMIT_CHAT_CHANGED,
+  "packages/server/src/domain/settings/verbs/update.ts": SETTINGS_VERB,
+};
+
+function probePolicy(capture: (fact: BusFact) => void): GatePolicy {
+  return defineGate({
+    id: "bus-fact-relay-probe",
+    family: "bus-fact",
+    authority: "hard",
+    severity: "error",
+    population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+    analysis: "types",
+    execution: "entire-population",
+    facts: [busProducerFact],
+    resources: [],
+    message: "bus fact relay control",
+    create: (ctx) => ({
+      evaluate: () => {
+        const fact = ctx.fact(busProducerFact);
+        capture(fact);
+        ctx.receipt({ kind: "population", source: "bus-fact-relay-probe", members: Math.max(fact.receipt.members, 1) });
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/server/src/flag.ts": "export const flag = 1;\n" }, why: "descriptor proof control" }],
+    mustPass: [{ mode: "types", files: { "packages/server/src/pass.ts": "export const pass = 1;\n" }, why: "descriptor proof control" }],
+  });
+}
+
+interface FactRun {
+  readonly fact: BusFact;
+  readonly result: ReturnType<typeof runPolicyPass>;
+}
+
+function runFact(files: Readonly<Record<string, string>>): FactRun {
+  let captured: BusFact | undefined;
+  const policy = probePolicy((fact) => {
+    captured = fact;
+  });
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  if (captured === undefined) {
+    throw new Error(`the bus fact was never delivered: ${JSON.stringify(result.factErrors)} ${JSON.stringify(result.toolErrors)}`);
+  }
+  return { fact: captured, result };
+}
+
+function emittedMembers(fact: BusFact, exportName: string): readonly string[] {
+  const bus = fact.buses.find((record) => record.union.exportName === exportName);
+  if (bus === undefined) {
+    throw new Error(`the fact carries no bus named ${exportName}`);
+  }
+  return [...new Set(bus.emitters.map(({ member }) => member.name))].toSorted();
+}
+
+function emitterAnchors(fact: BusFact, exportName: string, member: string): readonly string[] {
+  const bus = fact.buses.find((record) => record.union.exportName === exportName);
+  return (bus?.emitters ?? []).filter((emitter) => emitter.member.name === member).map(({ anchor }) => `${anchor.path}:${anchor.line}`);
+}
+
+test("every fixture import specifier resolves inside the virtual project", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(LIVE_FILES)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  // A relative specifier that reaches nothing makes every identity read pass by fail-closure while the
+  // suite reports green — the wave-3 lesson, and it bit this fixture once (five `../` from `trpc/`
+  // resolved above the root, so the bus argument typed as an unresolved alias).
+  const dangling = project
+    .getSourceFiles()
+    .flatMap((sourceFile) => sourceFile.getImportDeclarations())
+    .filter((declaration) => declaration.getModuleSpecifierValue().startsWith(".") && declaration.getModuleSpecifierSourceFile() === undefined)
+    .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
+  expect(dangling).toEqual([]);
+});
+
+test("the conditional publisher, the two-hop relay and the coarse republish all resolve to their real members", () => {
+  const { fact, result } = runFact(LIVE_FILES);
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(fact.unresolved).toEqual([]);
+  expect(fact.status).toBe("ready");
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual(["chatsChanged", "settingsChanged"]);
+});
+
+test("the coarse totality table is not read as a producer of every member", () => {
+  const { fact } = runFact(LIVE_FILES);
+  expect(emittedMembers(fact, "ProbeBusEvent")).not.toContain("connectionsChanged");
+});
+
+test("the conditional publisher's emission anchors at its own source call, never at the union or the table", () => {
+  const { fact } = runFact(LIVE_FILES);
+  expect(emitterAnchors(fact, "ProbeBusEvent", "chatsChanged")).toContain("packages/server/src/transport/trpc/user-events-bus.ts:18");
+});
+
+const BASE_FILES: Readonly<Record<string, string>> = {
+  "packages/contracts/src/user-bus/index.ts": UNION,
+  "packages/server/src/transport/trpc/bus-channel.ts": BUS_CHANNEL,
+};
+
+test("a same-named publish on a receiver the checker cannot read is not the bus door", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/domain/settings/decoy.ts":
+      'declare const loose: any;\nexport function go(userId: string): void {\n  loose.publish(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("a homonym channel mint declared in another module is not the bus door", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/domain/settings/local-channel.ts":
+      "export interface BusChannel<Key, Event> {\n  readonly publish: (key: Key, event: Event) => void;\n}\nexport function defineBusChannel<Key, Event>(): BusChannel<Key, Event> {\n  return { publish: () => undefined };\n}\n",
+    "packages/server/src/domain/settings/decoy.ts":
+      'import type { ProbeBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./local-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>();\nexport function go(userId: string): void {\n  bus.publish(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("an argument typed as the WHOLE union is a forward: it proves no member and reds no fact", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/transport/trpc/forward.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./bus-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>((key) => key);\ndeclare const whole: ProbeBusEvent;\nexport function go(userId: string): void {\n  bus.publish(userId, whole);\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  expect(fact.status).toBe("ready");
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("an unreadable argument at the PROVEN door is a fail-closed unresolved identity, never a silent skip", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/transport/trpc/opaque.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./bus-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>((key) => key);\ndeclare const opaque: any;\nexport function go(userId: string): void {\n  bus.publish(userId, opaque);\n}\n',
+  });
+  expect(fact.unresolved.map(({ stage, reason }) => `${stage}/${reason}`)).toEqual(["emitter/missing"]);
+  expect(fact.status).not.toBe("ready");
+});
+
+test("the republish translation is READ from the table, never assumed to be the identity", () => {
+  const { fact } = runFact({
+    ...BASE_FILES,
+    "packages/server/src/transport/trpc/skewed.ts":
+      'import type { ProbeBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./bus-channel.ts";\nconst bus = defineBusChannel<string, ProbeBusEvent>((key) => key);\nconst SKEWED = {\n  chatsChanged: { type: "settingsChanged" },\n  settingsChanged: { type: "settingsChanged" },\n  connectionsChanged: { type: "settingsChanged" },\n} satisfies Record<ProbeBusEvent["type"], ProbeBusEvent>;\nexport function republish(userId: string, event: ProbeBusEvent): void {\n  bus.publish(userId, SKEWED[event.type]);\n}\nexport function go(userId: string): void {\n  republish(userId, { type: "chatsChanged" });\n}\n',
+  });
+  expect(fact.unresolved).toEqual([]);
+  // The caller proves `chatsChanged`; the table republishes `settingsChanged`. Assuming an identity table
+  // would credit the wrong member — the exact false-green shape the coarse fan would hide.
+  expect(emittedMembers(fact, "ProbeBusEvent")).toEqual(["settingsChanged"]);
+});
