@@ -2034,6 +2034,7 @@
     "tests/tooling/_shared/browser-network.test.ts",
     "tests/tooling/_shared/browser.int.test.ts",
     "tests/tooling/_shared/browser.test.ts",
+    "tests/tooling/_shared/concurrency-profile.test.ts",
     "tests/tooling/_shared/devtools-assets.test.ts",
     "tests/tooling/_shared/entrypoint.int.test.ts",
     "tests/tooling/_shared/evidence.test.ts",
