@@ -115,16 +115,8 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   // default \`rowTint\` arm, \`list-row-root\` the arm that paints the whole row — and BOTH halves of each
   // predicate are load-bearing: the slot identity says it is the primitive, \`[data-selected]\` says it is
   // the selection state. Without the state half an unselected row's hardcoded accent would go unjudged.
-  //
-  // THE RULING SURVIVES — ITS INPUT GAINED A CARRIER (#1823). #1725 left the config LIST with no marked
-  // location at all (every \`config-band\` painted \`rgba(0,0,0,0)\` in every state, the \`aria-current\` one
-  // included), so the band took the SAME ratified idiom — literally the same class pair, composed from
-  // \`SELECTION_RAIL\` (packages/ui/src/lib/selection-rail.ts), on a \`Button\` that cannot inherit ListRow's
-  // skin. The exemption is about the IDIOM, not about one primitive, so its population follows the
-  // fragment's carriers; the both-halves keying is unchanged, which is what still keeps an unselected band
-  // and any other rounded box with a left accent fully judged. The selector is INTERPOLATED (the
-  // \`INTERACTIVE_SELECTOR_JS\` precedent) so the planted-control arm can run the same string a browser runs
-  // — a selector spelled inside this source STRING is unreachable from every test.
+  // THE RULING SURVIVES — ITS INPUT GAINED A CARRIER (#1823): the population is the FRAGMENT's carriers,
+  // not one primitive's slots. Why, and why the selector is INTERPOLATED: lib/selection-rail-sel.ts.
   var SELECTION_RAIL_SEL = ${JSON.stringify(SELECTION_RAIL_SEL)};
   // THE ILLUSTRATED PICKER'S ART APERTURE (#1642). @orb/ui's PickerCell is the ONE anatomy every
   // single-choice PICTURE picker wears, and its art slot holds a DIAGRAM OF A DESIGN — the chat-style

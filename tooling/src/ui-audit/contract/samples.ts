@@ -239,16 +239,10 @@ export interface AccentBorderInput {
   readonly badgeLike: boolean;
   readonly tabContext: boolean;
   readonly statusContext: boolean;
-  /** The element IS a carrier of the ratified SELECTION RAIL (`@orb/ui`'s `SELECTION_RAIL` — the
-   *  `list-row-root` / `list-row-body` slots, and since #1823 the config `config-band` door) AND is
-   *  currently selected — the owner-ratified selection idiom (2026-08-22, issue #485). BOTH halves are
-   *  required: an unselected row/band, or any other rounded box wearing a left accent, keeps being judged.
-   *  Derived in the walker (ops/walker/census-decor.ts `SELECTION_RAIL_SEL`), judged in lib/checks-decor.ts.
-   *
-   *  THE FIELD NAME IS NOW NARROWER THAN ITS POPULATION and is deliberately left as-is by the #1823 lane
-   *  (renaming it + the `ratifiedListRowSelection` disposition reaches five committed test assertions and a
-   *  variant-arm-matrix row, which is its own change): read it as "wears the ratified rail", not as "is a
-   *  ListRow". */
+  /** The element carries the ratified SELECTION RAIL (`@orb/ui`'s `SELECTION_RAIL`) AND is selected — the
+   *  owner-ratified idiom (#485); both halves required. The carrier set and the ruling: lib/selection-rail-sel.ts.
+   *  THE NAME IS NARROWER THAN THE POPULATION since #1823 (the config band carries the rail too) and is left
+   *  as-is deliberately — renaming it reaches five committed assertions; read it as "wears the rail". */
   readonly listRowSelected: boolean;
   /** The element sits inside an ILLUSTRATED PICKER's art aperture — `@orb/ui`'s PickerCell
    *  `[data-slot="picker-cell-art"]` (packages/ui/src/primitives/picker-cell/picker-cell.tsx), the one
