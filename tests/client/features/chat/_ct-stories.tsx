@@ -2146,12 +2146,18 @@ export function CommittedSettingsTabStory({ isHost = true, showGroup = false, ro
  *
  *  `CtToastSurface` is the production toast outlet: the row switch's "off everywhere" notice + its Undo are
  *  BEHAVIOR of this section (§3, the row), so the toast pixels are part of what this story exists to render.
- *  Its manager is the one module-global `bindNotify` (see that component's header). */
+ *  Its manager is the one module-global `bindNotify` (see that component's header).
+ *
+ *  `data-testid="regex-section-pane"` is the CONTAINMENT ANCHOR (#1765): the section's own root
+ *  (`[data-slot="regex-section"]`) is a block container that grows with its own overflowing content, so a
+ *  width assertion anchored THERE is tautological (#1754 proved it live — passed green with `truncate` AND
+ *  `min-w-0` both planted off). This 380px div is the real fixed-width box; `expectContainedWithin`
+ *  (`tests/support/ct/contained-within.ts`) is pointed at it, never at the section's own root. */
 export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
   return (
     <CtDataProviders>
       <CtToastSurface>
-        <div style={{ width: 380 }}>
+        <div data-testid="regex-section-pane" style={{ width: 380 }}>
           <QueryBoundary
             fallback={<Text tone="muted">Loading this chat's regex…</Text>}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}

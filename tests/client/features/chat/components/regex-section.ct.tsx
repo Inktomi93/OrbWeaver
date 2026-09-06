@@ -18,6 +18,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { expectContainedWithin } from "../../../../support/ct/contained-within.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { RegexSectionStory } from "../_ct-stories.tsx";
@@ -281,11 +282,34 @@ test("host: a LONG preset name reaches BOTH voices whole — the lever clips vis
   // carries `truncate`), and a truncated NAME would leave a voice-control user unable to say the control's
   // words (WCAG 2.5.3) — so the switch's accessible name must still carry the whole preset name.
   //
-  // NOT a geometry arm, deliberately: containment is not measurable from this story. `boundingBox()` on the
-  // section grows with its own content and the 380px wrapper is not the mount root, so a width assertion
-  // here PASSES with `truncate` AND with `min-w-0` planted off (both controls run, both green) — it would be
-  // a fence wearing a receipt's clothes.
-  const longName = "Grimdark GM voice — long-context table rules v3";
+  // THE GEOMETRY ARM (#1765 closed the #1754 tautology): `boundingBox()`/`scrollWidth` anchored at
+  // `[data-slot="regex-section"]` is unfailable — that block container GROWS with its own overflowing
+  // content, so it was never narrower than what it holds; the arm passed green with BOTH `truncate` and
+  // `min-w-0` planted off. `expectContainedWithin` is anchored at the story's `regex-section-pane` testid
+  // instead — a REAL fixed-width box the section renders inside, never grows with it.
+  //
+  // THE SUBJECT IS THE ROW (`Row.min-w-0`), never the `Text.truncate` span itself: a CORRECTLY truncating
+  // span's own `scrollWidth` ALWAYS exceeds its own width (that is what "truncated" means — content clipped
+  // internally by `overflow: hidden`), so measuring the span directly is a false-positive machine that fires
+  // on the CORRECT render too (measured live: `scrollWidth 732px` on a span painted at a contained `315px`).
+  // The ROW does not itself clip, so its own `scrollWidth` only grows when the label truly escapes IT.
+  //
+  // RED-FIRST AGAINST THE REAL COMPONENT (`regex-section.tsx`'s `RegexLeverStrip`; `regex-tier-row.tsx`
+  // carries neither class, contra a stale citation): planting `min-w-0` off on the Row measured `scrollWidth
+  // 732px / boundingBox 732px` against the 380px pane — CAUGHT. Planting `truncate` off did NOT fail this
+  // arm: `truncate` bundles `white-space: nowrap` with the clip, so dropping it lets the label WRAP onto a
+  // second line instead of overflowing (measured: the Row's own width stayed inside the pane) — a real
+  // degradation (an unwanted second line), but not a WIDTH regression, so a width-only containment check is
+  // structurally blind to it. That half of the invariant stays on the pre-existing accessible-name pin above
+  // (WCAG 2.5.3); this arm's provable surface is `min-w-0`, and `contained-within.ct.tsx` proves the HELPER
+  // catches a genuine `truncate`-drop too, on a fixture built so the drop overflows rather than wraps (its
+  // own header states the decoupling deliberately — the helper's mechanism is proven even though this real
+  // call site cannot exercise both regressions through width alone).
+  //
+  // Long enough to overflow the 380px pane at the label's real rendered width (measured: a shorter 57-char
+  // name rendered at only 315px, comfortably inside 380 — too short for the `min-w-0` arm above to ever
+  // fail, which would have made it unfailable in exactly the shape #1765 exists to refuse).
+  const longName = "Grimdark GM voice — long-context table rules v3 for the archive campaign spanning several arcs and expansions";
   const view = board01();
   const tiers = view["tiers"] as Record<string, unknown>[];
   tiers[1] = { scope: "preset", allowed: true, label: longName, rows: [row(HEDGES, 0, 4)] };
@@ -293,6 +317,12 @@ test("host: a LONG preset name reaches BOTH voices whole — the lever clips vis
   const component = await mount(<RegexSectionStory />);
   await expect(component.getByRole("heading", { name: new RegExp(`^From the preset · ${longName}`, "u") })).toBeVisible();
   await expect(component.getByRole("switch", { name: `Preset · ${longName} — in this chat` })).toBeVisible();
+  // `page.getByTestId`, not `component.getByTestId`: the story's `regex-section-pane` div IS the mount root
+  // playwright-ct hands back as `component` (not a descendant of it), so a component-scoped `getByTestId`
+  // search never reaches it — the page-level lookup finds the same element by its stable anchor either way.
+  // The subject is the label's own `min-w-0` ROW (its immediate DOM parent), not the truncate span itself.
+  const label = component.getByText(`Preset · ${longName}`, { exact: true });
+  await expectContainedWithin(label.locator("xpath=.."), page.getByTestId("regex-section-pane"));
 });
 
 test("host: with NO label on the wire the preset tier says the bare `From the preset` (#1754)", async ({ mount, page }) => {
