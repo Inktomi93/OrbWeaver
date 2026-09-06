@@ -3,6 +3,8 @@
 
 export type { BackgroundSourceFieldProps } from "./background-source-field.tsx";
 export { BackgroundSourceField } from "./background-source-field.tsx";
+export type { BandProps } from "./band.tsx";
+export { Band } from "./band.tsx";
 export type { CharacterPickerProps } from "./character-picker.tsx";
 export { CharacterPicker } from "./character-picker.tsx";
 export type { ConfirmDialogProps } from "./confirm-dialog.tsx";

@@ -2,7 +2,8 @@
 // docs/history/design/actions-tab-information-architecture.md) — every prompt template the preset authors, as ONE
 // instrument list. D132 made this tab the one home for authorable prompt text, which took it from 15 rows to
 // 67; the IA that carries that: kind kickers (unchanged), disclosure-banded SUB-CLUSTERS for the kind that
-// outgrew a glance (extract, 41 rows — collapsed by default, the config collection-group grammar), and a
+// outgrew a glance (extract, 41 rows — collapsed by default, on the SHARED `Band` the config list's own
+// bands render; #1723 retired the hand-copied "borrow of the config band anatomy" this used to be), and a
 // tab-level filter (67 > COLLECTION_LARGE_GROUP). Mock: `mocks/preset-redesign/actions-and-sections.html`.
 //
 // EVERY CELL IS REGISTRY-DERIVED (§6.6): groups, cluster bands, row copy and the drill-in's fields all come
@@ -35,13 +36,14 @@
 import type { PromptConfig, TemplateClusterId } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronRight, ExternalLink, Icon, Search } from "@orb/ui/icons";
+import { ChevronRight, ExternalLink, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack, Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
+import { Band } from "#components";
 import type { AppFormInstance } from "#forms";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
@@ -174,13 +176,27 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   );
 }
 
-/** One SUB-CLUSTER band + its disclosed rows (IA §2.1) — the config collection-group band anatomy (chevron ·
- *  kicker-voice label · mono count), collapsed by default: the band is the map, expanding is one click, and
- *  a collapsed band's rows are UNMOUNTED (which is most of the tab-switch commit the 67-row flat list paid).
+/** One SUB-CLUSTER band + its disclosed rows (IA §2.1), collapsed by default: the band is the map, expanding
+ *  is one click, and a collapsed band's rows are UNMOUNTED (which is most of the tab-switch commit the 67-row
+ *  flat list paid).
+ *
+ *  IT RENDERS THE SHARED `Band`, IT NO LONGER *RESEMBLES* ONE (#1723). This doc used to say the band was
+ *  "the config collection-group band anatomy (chevron · kicker-voice label · mono count)" — a BORROW stated
+ *  in prose, which #1169's census then misread the direction of, and which the copy stopped honouring the
+ *  moment the original moved: the config side landed #978 F1 (a band Button inside a VERTICAL `Stack` must
+ *  be `w-full`, never `flex-1`, or `flex-basis: 0%` lands on the BLOCK axis and defeats the sealed
+ *  `h-control-sm`) at both of its bands, and this one kept `flex-1` and rendered **16px tall against a
+ *  32px fine / 44px coarse `--spacing-control-sm`** — measured on all six cluster bands, a tap target under
+ *  every floor. The chassis is `#components`' `Band` now, so that class of drift is not spellable here.
+ *  Two deltas from a config band, both stated at the call site: no region glyph (a cluster is named, not
+ *  iconified), and the census sits BESIDE the label rather than at the trailing edge, because this band
+ *  spans a CONTENT pane rather than a ~290px LIST door.
  *
  *  WHILE THE TAB FILTER IS ACTIVE the band degrades to a STATIC sub-header over its matches: the filter
  *  decides visibility, so a disclosure would be a control whose state means nothing (and a collapsed band
- *  HIDING matches would make the filter a liar). The chevron — the only affordance — is what leaves. */
+ *  HIDING matches would make the filter a liar). That arm is NOT a `Band` and must not become one — it is
+ *  not a control, so its label is the `kicker` voice rather than `interactiveKicker` (the pane's voice
+ *  budget: `interactiveKicker` names a region that IS a control). The chevron is what leaves. */
 function TemplateCluster({
   cluster,
   open,
@@ -213,25 +229,19 @@ function TemplateCluster({
   }
   return (
     <Stack gap="tight">
-      {/* The band is an ISLAND, not a labelled button (the config band's own side-eye lesson): `tight`
-          joints, `px-field` padding, name truncates, count is the mono datum. */}
-      <Button
+      <Band
         aria-controls={bodyId}
         aria-expanded={open}
-        className="min-w-0 flex-1 justify-start gap-tight px-field"
-        intent="ghost"
+        // BESIDE the label, not at the trailing edge (`BandProps.censusAlign`): this band spans the CONTENT pane,
+        // and a figure parked several hundred px from the name it counts stops reading as its count. The
+        // config bands' trailing census is right for a ~290px LIST door; both are the same anatomy.
+        censusAlign="label"
+        chevron={open ? "open" : "closed"}
+        count={count}
+        data-slot="template-cluster-band"
+        label={cluster.label}
         onClick={onToggle}
-        size="sm"
-        type="button"
-      >
-        <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
-        <Text as="span" className="truncate" voice="interactiveKicker">
-          {cluster.label}
-        </Text>
-        <Text as="span" voice="datum">
-          {count}
-        </Text>
-      </Button>
+      />
       <div hidden={!open} id={bodyId}>
         {open ? <Stack gap="tight">{children}</Stack> : null}
       </div>
