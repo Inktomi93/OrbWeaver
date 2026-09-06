@@ -134,5 +134,18 @@ export const gate = defineGate({
       },
       why: "the same owner through an import ALIAS — the descriptor is recognized by the declaration it resolves to, so a local spelling cannot hide or fake ownership",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/probe/index.ts":
+          'export type ProbeBusEvent = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<ProbeBusEvent["type"], true>;\n',
+        "tooling/src/verify/gates/__probe-shared-union.ts":
+          'export const SHARED_UNION = { path: "packages/contracts/src/probe/index.ts", exportName: "ProbeBusEvent" } as const;\n',
+        "tooling/src/verify/gates/__probe-coverage.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport { SHARED_UNION } from "./__probe-shared-union.ts";\nexport const gate = defineGate({ id: "probe-coverage", family: "bus-fact", severity: "error", union: SHARED_UNION });\n',
+        "tooling/src/verify/contract/policy.ts": "export function defineGate<T>(policy: T): T {\n  return policy;\n}\n",
+      },
+      why: "the identity IMPORTED from a shared const rather than declared beside the descriptor: the identifier's own symbol is the import alias, whose declarations are the ImportSpecifier, so without the alias hop the bus reads as unowned and this gate fails loud on a legal spelling",
+    },
   ],
 });

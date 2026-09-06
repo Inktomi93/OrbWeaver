@@ -15,6 +15,7 @@ import type { BusDeclarationIdentity, BusUnresolvedIdentity } from "../contract/
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import {
+  aliasResolvedDeclarations,
   authoredProperty,
   BUS_UNION_SUFFIX,
   beltUnionNode,
@@ -435,12 +436,17 @@ function identityByDeclaration(state: OwnerState): ReadonlyMap<object, BusDeclar
  *  consumes — measured on this tree, where the warning-debt sibling's own `UNION` made it read as the
  *  owner of `UserBusEvent`, so deleting the real coverage policy left the gate green.
  *
+ *  The binding is resolved through {@link aliasResolvedDeclarations}, so a descriptor consuming a SHARED
+ *  identity const (`import { SHARED_UNION }`) is the same fact as one declaring it locally: without that
+ *  hop the identifier's symbol is the import alias, whose declarations are the `ImportSpecifier`, and the
+ *  bus reads as unowned.
+ *
  *  The descendant read is BOUNDED to one already-selected node (the descriptor literal). It is navigation
  *  of a delivered subject, not population discovery: no file is opened, no glob is resolved. */
 function descriptorUnions(descriptor: MorphNode, identities: ReadonlyMap<object, BusDeclarationIdentity>): readonly BusDeclarationIdentity[] {
   const found = new Map<string, BusDeclarationIdentity>();
   for (const identifier of descriptor.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
+    for (const declaration of aliasResolvedDeclarations(identifier.getSymbol())) {
       const identity = identities.get(declaration.compilerNode);
       if (identity !== undefined) {
         found.set(busIdentityKey(identity), identity);
