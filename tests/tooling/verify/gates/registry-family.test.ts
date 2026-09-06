@@ -1,5 +1,7 @@
 import { Project } from "ts-morph";
 import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
+import { gate as configAnchorInRegistry } from "../../../../tooling/src/verify/gates/config-anchor-in-registry.ts";
+import { gate as configGroupCompleteness } from "../../../../tooling/src/verify/gates/config-group-completeness.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
@@ -18,6 +20,8 @@ test("registry definition policies keep their founding and nearest-legal fixture
   expect(
     verifyPolicyProofs([
       chromeRegistryCompleteness,
+      configAnchorInRegistry,
+      configGroupCompleteness,
       messageKindPolicyCoverage,
       modalBodyNotPlaceholder,
       modalRegistryCompleteness,
