@@ -194,17 +194,33 @@ function pidAlive(pid: number): boolean {
   }
 }
 
-/** How many `--stage-keeper` processes exist on the box RIGHT NOW. Counted by argv rather than by the
- *  table, because the property under test is about PROCESSES a run may leave behind, not about rows —
- *  and `ps` is the only thing that can see a child whose row was never written. The `--file` arm asserts
- *  a DELTA against its own baseline, so a sibling lane's live keeper cannot make it lie either way. */
-function keeperProcessCount(): number {
+/** How many `--stage-keeper` processes tracing THIS SUITE's own `home` exist on the box right now.
+ *  Counted by argv+env rather than by the table, because the property under test is about PROCESSES a
+ *  run may leave behind, not about rows — and `ps` is the only thing that can see a child whose row was
+ *  never written. Filtered to `home` because `--stage-keeper <band>` (the argv) carries no home — a
+ *  box-global count would have a SIBLING lane's own live keeper move this suite's delta either way. Each
+ *  candidate's `/proc/<pid>/environ` is read to confirm it inherited THIS home — the same `/proc` fence
+ *  `pidIsStageRooted` (ops/stage-probe.ts) uses for cwd, so a keeper started elsewhere never counts here. */
+function keeperProcessCount(home: string): number {
   // Through the house subprocess door (`_shared/proc.ts`), like every other `ps` read in this tree — it
   // carries the nice-19 floor and never throws, so a non-zero status reads as the zero this counter
   // reports. A proof that cannot enumerate processes has already failed its own planted control.
-  return runNicedSync("ps", ["-eo", "args="])
+  const candidates = runNicedSync("ps", ["-eo", "pid,args="])
     .stdout.split("\n")
-    .filter((line) => line.includes("--stage-keeper")).length;
+    .map((line) => line.trim())
+    .filter((line) => line.includes("--stage-keeper"));
+  let count = 0;
+  for (const line of candidates) {
+    const pid = Number.parseInt(line, 10);
+    if (!Number.isInteger(pid)) {
+      continue;
+    }
+    const environ = runNicedSync("cat", [`/proc/${pid}/environ`]);
+    if (environ.status === 0 && environ.stdout.includes(`ORB_SNAP_STAGE_HOME=${home}`)) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 /** The session-registry row a live daemon writes — `daemonPid` is THIS process, so `liveSessionNames`
@@ -331,7 +347,7 @@ describe("the stage's own idle timer", () => {
     const home = scratchHome("stageless");
     const fixture = join(home, "stageless.html");
     writeFileSync(fixture, '<!doctype html><html><body><button id="ok">okay</button></body></html>');
-    const before = keeperProcessCount();
+    const before = keeperProcessCount(home);
 
     // The real snap CLI, in the shape the `--file` suites use. `armStageKeeper` is reachable only from
     // `ensureStage`, which `configureStage` only reaches under `--isolated` — so a file run must allocate
@@ -349,16 +365,26 @@ describe("the stage's own idle timer", () => {
     expect(run.code, run.stdout).toBe(0);
     expect(elapsed, "a stageless run must not sit at its budget waiting on a child").toBeLessThan(CASE_BUDGET_MS / 2);
     expect(readBands(home), "a `--file` run allocates no band").toEqual([]);
-    expect(keeperProcessCount(), "no idle timer was armed, so none can be left behind").toBe(before);
+    expect(keeperProcessCount(home), "no idle timer was armed, so none can be left behind").toBe(before);
+
+    // THE NEGATIVE CONTROL: a keeper for a DIFFERENT `ORB_SNAP_STAGE_HOME` — standing in for a sibling
+    // lane's own live keeper — must never move THIS suite's attributable count, in either direction.
+    const foreignHome = scratchHome("foreign");
+    const foreignStage = await plantStage(foreignHome);
+    plantRow(foreignHome, foreignStage, 0);
+    const foreignKeeper = startKeeper(foreignHome);
+    expect(await until(() => keeperProcessCount(foreignHome) > 0, CASE_BUDGET_MS), "the foreign keeper never armed — the control proves nothing").toBe(true);
+    expect(keeperProcessCount(home), "a keeper for a DIFFERENT home moved this suite's attributable count").toBe(before);
+    foreignKeeper.child.killGroup("SIGKILL");
 
     // THE PLANTED CONTROL: arm one on purpose against a real row and the SAME assertion catches it — so
     // the zero above is a measurement, not an instrument that cannot see a keeper at all.
     const stage = await plantStage(home);
     plantRow(home, stage, 0);
     const planted = startKeeper(home);
-    expect(await until(() => keeperProcessCount() > before, CASE_BUDGET_MS), "the control never armed — the counter cannot see a keeper").toBe(true);
+    expect(await until(() => keeperProcessCount(home) > before, CASE_BUDGET_MS), "the control never armed — the counter cannot see a keeper").toBe(true);
     planted.child.killGroup("SIGKILL");
-    expect(await until(() => keeperProcessCount() === before, CASE_BUDGET_MS)).toBe(true);
+    expect(await until(() => keeperProcessCount(home) === before, CASE_BUDGET_MS)).toBe(true);
   });
 
   test("the timer NEVER targets the default stack: a row naming the dev pair is refused, exit 2, nothing touched", async () => {
