@@ -1,0 +1,31 @@
+{
+  "why": "THE ONE HOME for every worker/slot cap in the fleet (#1835). Six lanes across two accounts multiplied per-worktree caps ~6x: node_load1 peaked at 105.8 on 24 cores and PSI cpu 'some' hit 0.6 while the co-hosted homelab containers wanted ~3 cores. JSON, not TypeScript, because bash (.claude/hooks/*.sh via jq), CommonJS (scripts/*.cjs) and TypeScript (tooling/src/_shared/concurrency-profile.ts, vitest.config.ts, playwright-ct.config.ts) all have to read the same numbers with no build step in between. Change a number HERE; every reader follows.",
+  "envSwitch": "ORB_DEDICATED_BOX",
+  "envSwitchContract": "SHELL ENVIRONMENT ONLY — tooling never reads the repo .env (a config file that silently retunes the whole fleet is the lie this file exists to end). Unset / '' / '0' => shared. '1' => dedicated. Anything else REFUSES loudly.",
+  "profiles": {
+    "shared": {
+      "why": "The DEFAULT. This box co-hosts the homelab and routinely runs up to three lanes per account across two accounts.",
+      "vitestMaxWorkers": 4,
+      "ctWorkers": 2,
+      "ts7Checkers": 4,
+      "pnpmWorkspaceConcurrency": 1,
+      "hookBiomeSlots": 4,
+      "ctRunnersHostWide": 2,
+      "sessionCpuQuotaPct": 800,
+      "sessionMemoryHigh": "48G",
+      "wholeVerifyQueue": true
+    },
+    "dedicated": {
+      "why": "ORB_DEDICATED_BOX=1 — one operator, nothing else on the machine. These are the MEASURED quiet-box numbers the configs used to ship as their defaults (vitest 14 = reports/tooling/VITEST-INTEGRATION-SPEEDUP.md's 6.7x sweet spot; CT 4 = #766). sessionCpuQuotaPct 0 and sessionMemoryHigh '' mean NO ceiling: the cpu-fence hook prints that it is standing down rather than setting one.",
+      "vitestMaxWorkers": 14,
+      "ctWorkers": 4,
+      "ts7Checkers": 8,
+      "pnpmWorkspaceConcurrency": 4,
+      "hookBiomeSlots": 8,
+      "ctRunnersHostWide": 4,
+      "sessionCpuQuotaPct": 0,
+      "sessionMemoryHigh": "",
+      "wholeVerifyQueue": true
+    }
+  }
+}
