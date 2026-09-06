@@ -286,12 +286,16 @@ Two review findings were about the PROOFS rather than the policies, and both gen
   matched`). On the real tree the arm resolves **775** named import specifiers across the WHOLE authored source
   universe that used to refuse — `useState` 299, `useQuery` 139, `useRef` 135, drizzle's `inArray` 58, the
   project's own `createAutosaveEntityForm` 36, drizzle's `text` 29 / `integer` 28, `defineBusChannel` 5 —
-  while **182** still refuse as `ambiguous` and are all genuine merges (drizzle's `sql` 118, `SQL` 24,
+  while **180** still refuse as `ambiguous` and are all genuine merges (drizzle's `sql` 118, `SQL` 24,
   `SubstituteFindRegex` 11, `Component` 6, `ZodError` 5, …). Restricted to `packages/{server,client}/src`
   alone the same census reads 557 / 88, which is the number an earlier draft of this bullet carried without
-  saying its scope. A THIRD bucket is neither: a `node:` builtin (`readFile` 66, `readdir` 16, `stat` 12,
-  `scrypt` 1, `lookup` 1) answers `external-door` — the `node:` specifier resolves to no file in this program,
-  so those sites are outside both counts rather than missing from one.
+  saying its scope. A THIRD bucket is neither: a `node:` builtin specifier answers `external-door` wherever
+  the importing package resolves it to no file (`readFile` 65, `readdir` 15, `stat` 11 from `tests/`,
+  `scripts/` and `showcase-plugins`), and those sites are outside both counts — but the SAME specifier
+  splits by importing file: from `packages/server/src`, which resolves `@types/node`, one site each of
+  `readFile`, `readdir`, `stat`, `scrypt` and `lookup` answers `ambiguous` and IS inside the 180 (verifier-H
+  round 2 re-derived the buckets per site: 775 / 180 / 2,011 external-door). A census bucketed by specifier
+  NAME assigns a name wholly to one bucket and is wrong for exactly those five.
 - The `#data` / `#forms` package-internal import aliases DO resolve in the `getWorkspace({types:true})`
   program, so a surface importing `useTRPC` from `#data` is judged with the precise verdict, not the
   fail-closed one (verified by the planted control).
