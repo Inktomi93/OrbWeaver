@@ -20,8 +20,8 @@
 //     `roster` family, `domain/persona/verbs/resolve-personas-for-roster.ts`, and the client's
 //     `features/chat/lib/roster.ts` + `use-roster-*` hooks.
 //
-// Preview:  node scripts/codemods/rename-roster-participants.ts
-// Apply:    node scripts/codemods/rename-roster-participants.ts --apply
+// Preview:  pnpm codemod:run scripts/codemods/rename-roster-participants.ts
+// Apply:    pnpm codemod:run scripts/codemods/rename-roster-participants.ts --apply
 
 import process from "node:process";
 import type { CodemodContext, Plan, SourceFile } from "@orb/tooling/codemod";
@@ -193,69 +193,6 @@ function renameLocalSymbols(targets: typeof LOCAL_RENAMES): Plan {
   };
 }
 
-/**
- * Drop the PRE-move copies `SourceFile.move()` leaves behind in the project.
- *
- * Measured, not assumed: after the move plan, `project.getSourceFile(<old path>)` still answers with a
- * distinct SourceFile carrying the file's ORIGINAL text. It is a phantom — the move already rewrote every
- * importer and the apply step deletes the path — but the harness's pre-emit diagnostics check scans it and
- * counts its (now genuinely stale) errors as "the codemod produced broken code", which REFUSES the apply.
- * `forget()` detaches the phantom from the project without touching the disk.
- *
- * Filed as #1778 — the kit-level fix belongs in `moveFiles`, which no lane may edit from here.
- */
-/**
- * Put the `.ts` back on every specifier `SourceFile.move()` rewrote.
- *
- * ts-morph recomputes a moved module's relative specifiers WITHOUT an extension (`"./verbs/participants"`),
- * and this repo imports with explicit extensions. The result typechecks under the ROOT program (bundler
- * resolution, which is what `types:graph` runs) and is RED under the per-package `node16` program (TS2835)
- * plus biome's `useImportExtensions` — so a lane whose floor named only one type program would ship it.
- * Part of the same #1778 family as the phantom source file: `moveFiles` should do this itself.
- *
- * Deliberately NOT `repointAliasPaths`: that helper declares EVERY project file as touched, which widens
- * the harness's pre-emit diagnostics filter from this change's ~50 files to the whole workspace and buries
- * the signal under 4,100 pre-existing client DOM-lib errors. This plan declares only the files it changes.
- */
-function restoreMovedImportExtensions(): Plan {
-  // Longest-first, so the bare `participants` arm never truncates `participants-read` or its siblings.
-  const moved = ["participants-read", "resolve-rpg-participants", "participants-host", "participants-humans", "participants"];
-  const pattern = new RegExp(`(from\\s+")((?:\\.{1,2}/)[^"]*?(?:${moved.join("|")}))(")`, "gu");
-  return {
-    description: "Restore the .ts extension ts-morph's move() dropped from rewritten specifiers",
-    // Only knowable at transform time (which importers the moves rewrote), so each file is declared via
-    // ctx.snapshot immediately before it is mutated — the seam the harness documents for exactly this.
-    touchedFiles: [],
-    transform(innerCtx): void {
-      for (const sf of innerCtx.project.getSourceFiles()) {
-        const before = sf.getFullText();
-        const after = before.replace(pattern, "$1$2.ts$3");
-        if (after === before) {
-          continue;
-        }
-        innerCtx.snapshot(sf);
-        sf.replaceWithText(after);
-      }
-    },
-  };
-}
-
-function forgetStaleMoveSources(): Plan {
-  const fromPaths = MOVES.map(([from]) => from);
-  return {
-    description: `Forget ${fromPaths.length} phantom pre-move source file(s)`,
-    touchedFiles: fromPaths,
-    transform(innerCtx): void {
-      for (const from of fromPaths) {
-        const stale = innerCtx.project.getSourceFile(from);
-        if (stale !== undefined && stale.getFilePath().endsWith(from)) {
-          stale.forget();
-        }
-      }
-    },
-  };
-}
-
 await runCodemod(
   "rename-roster-participants",
   (ctx) => {
@@ -263,12 +200,12 @@ await runCodemod(
       ctx.plan(renameExportedSymbol(ctx, file, { oldName, newName }, { note: `${oldName} → ${newName}` }));
     }
     ctx.plan(renameLocalSymbols(LOCAL_RENAMES));
+    // `moveFiles` forgets the phantom pre-move source (#1778) and restores the `.ts` on every specifier
+    // it rewrites (#1781) since the kit fix; the two hand-rolled plans that used to do it here are gone.
     ctx.plan(moveFiles(ctx, MOVES, { note: "chat roster modules → participants" }));
     // `--diagnose` prints the pre-emit diagnostics the harness only COUNTS. The harness refuses to apply
     // on a non-zero count, so this is how a collision (a renamed local shadowing an existing
     // `participants`) is located rather than guessed at.
-    ctx.plan(restoreMovedImportExtensions());
-    ctx.plan(forgetStaleMoveSources());
     if (process.argv.slice(2).includes("--diagnose")) {
       printDiagnostics(ctx.project);
     }

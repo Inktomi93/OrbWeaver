@@ -408,61 +408,6 @@ function assertNoResidue(): Plan {
   };
 }
 
-/**
- * Drop the PRE-move copies `SourceFile.move()` leaves behind in the project (#1778).
- *
- * Measured by the `rename-roster-participants` lane and re-measured here: after a move plan,
- * `project.getSourceFile(<old path>)` still answers with a distinct SourceFile carrying the ORIGINAL text.
- * It is a phantom — the move already rewrote every importer — but the harness's pre-emit diagnostics check
- * scans it and counts its now-genuinely-stale errors as "the codemod produced broken code", which REFUSES
- * the apply. It would also make {@link assertNoResidue} report a survivor that does not exist on disk.
- */
-function forgetStaleMoveSources(): Plan {
-  const fromPaths = MOVES.map(([from]) => from);
-  return {
-    description: `Forget ${fromPaths.length} phantom pre-move source file(s)`,
-    touchedFiles: fromPaths,
-    transform(innerCtx): void {
-      for (const from of fromPaths) {
-        const stale = innerCtx.project.getSourceFile(from);
-        if (stale?.getFilePath().endsWith(from) === true) {
-          stale.forget();
-        }
-      }
-    },
-  };
-}
-
-/**
- * Put the `.ts`/`.tsx` back on every specifier `SourceFile.move()` rewrote (#1781).
- *
- * ts-morph recomputes a moved module's relative specifiers WITHOUT an extension, and this repo imports with
- * explicit ones. The result typechecks under the ROOT program (bundler resolution) and is RED under the
- * per-package `node16` program plus biome's `useImportExtensions` — so a lane whose floor named only one type
- * program would ship it. Deliberately NOT `repointAliasPaths`: that helper declares EVERY project file as
- * touched, which widens the diagnostics filter to the whole workspace.
- */
-function restoreMovedImportExtensions(): Plan {
-  // Longest-first so no arm truncates a sibling.
-  const moved = ["npc-card-slots", "rpg-scene-npcs"];
-  const pattern = new RegExp(`(from\\s+")((?:\\.{1,2}/)[^"]*?(?:${moved.join("|")}))(")`, "gu");
-  return {
-    description: "Restore the .tsx extension ts-morph's move() dropped from rewritten specifiers",
-    touchedFiles: [],
-    transform(innerCtx): void {
-      for (const sf of innerCtx.project.getSourceFiles()) {
-        const before = sf.getFullText();
-        const after = before.replace(pattern, "$1$2.tsx$3");
-        if (after === before) {
-          continue;
-        }
-        innerCtx.snapshot(sf);
-        sf.replaceWithText(after);
-      }
-    },
-  };
-}
-
 await runCodemod(
   "rename-rpg-cast-npc",
   (ctx) => {
@@ -471,9 +416,9 @@ await runCodemod(
     }
     ctx.plan(renameLocalSymbols(LOCAL_RENAMES));
     ctx.plan(rewriteValues());
+    // `moveFiles` forgets the phantom pre-move source (#1778) and restores the `.tsx` on every specifier
+    // it rewrites (#1781) since the kit fix; the two hand-rolled plans that used to do it here are gone.
     ctx.plan(moveFiles(ctx, MOVES, { note: "the scene-npc modules follow their contents" }));
-    ctx.plan(restoreMovedImportExtensions());
-    ctx.plan(forgetStaleMoveSources());
     ctx.plan(assertNoResidue());
     // `--diagnose` prints the pre-emit diagnostics the harness only COUNTS — how a collision is LOCATED
     // rather than guessed at.
