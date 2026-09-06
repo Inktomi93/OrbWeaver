@@ -119,9 +119,14 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // the viewport and sweeping it back. Two `from`-only keyframes (1 declaration each) + the two
   // `data-list-flip` counter rules + the two `data-list-settle` counter rules. The mobile-block cancels
   // widen existing selector lists and mint no declaration.
-  [SHELL]: 343,
+  // +6 (2026-09-06, #1646): the FLIP's THIRD counter, for the CENTRED class — `[data-slot=message-row]`'s
+  // honest delta is HALF the track (`.shell-main` resizes; a centred child moves by half of what a
+  // start-aligned one does), so it takes its own pair of `from`-only keyframes at `calc(track / 2)`, its own
+  // two `data-list-flip` counter rules and its two `data-list-settle` twins — the exact #1316 shape one
+  // alignment class over. The mobile cancel again widens a selector list and mints nothing.
+  [SHELL]: 349,
 };
-export const EXPECTED_DECLARATION_TOTAL = 1012;
+export const EXPECTED_DECLARATION_TOTAL = 1018;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 200;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
