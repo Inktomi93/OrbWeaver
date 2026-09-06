@@ -12,9 +12,9 @@ import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
-import type { SQL } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
 import type { ReconcileStatsResult } from "../contract/results.ts";
+import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
 export type { ReconcileStatsResult } from "../contract/results.ts";
 
@@ -327,28 +327,14 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   };
 }
 
-// The owner's chats (membership): chats with a character participant the owner owns, EXCLUDING HUSKS.
-// Reused by every per-owner scan below (the message stream, the daily chats-created histogram, the library
-// totals) — `loadChatMeta`'s per-character aggregate builds its own join and carries the same arm.
-//
-// THE HUSK ARM (R0 §4.7) IS HALF OF A CONTRACT, not a local filter. An unclaimed room (`chats.started_at`
-// NULL) is one the user never started: the LIVE plane pushes zero deltas for it (the creation deltas moved
-// off `startChat` onto the claim chokepoint, `domain/chat/verbs/claim-chat.ts`, and its seeded greetings are
-// replayed there too). If this rebuild kept counting husks, the two writers would disagree the moment any
-// husk existed and the drift gate would red — a correct fix on one side of a two-writer contract is a defect.
-// The same arm is on the live firstness probe (`domain/chat/persistence/participants-read.ts`).
+// The owner's chats (membership, husk-excluding) is `substrate/owner-chat-scope.ts` — ONE home, shared with
+// the on-read scans (#1477). It is reused by every per-owner scan below (the message stream, the daily
+// chats-created histogram, the library totals); `loadChatMeta`'s per-character aggregate needs its own join
+// shape (it GROUPs by participant) and carries the same arm inline.
 //
 // An agent-authored assistant row (characterId NULL) folds to the host owner + skips character_stats.
 // FLAG[PD-17]: a character-less agent-only room is un-constructable in v1, so that case is deferred, not
 // built.
-function ownerChatIds(ownerId: string): SQL {
-  return sql`
-    SELECT DISTINCT cp.chat_id FROM chat_participants cp
-    JOIN characters c ON c.id = cp.character_id
-    JOIN chats ch ON ch.id = cp.chat_id
-    WHERE c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL
-  `;
-}
 
 /** Owner-scoped canon version plus the owned-character count. Every stats-affecting live canon mutator
  *  increments `stats_canon_versions` through `applyStatsDelta` in the same batch as canon + rollups;

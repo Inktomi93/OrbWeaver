@@ -122,6 +122,15 @@ describe("readLatency", () => {
     expect(latency.avgGenMs).toBe(222);
   });
 
+  // The #1477 husk arm added an owner-chat-membership subquery to this read. The plan pin is extended to
+  // the POST-fix shape on purpose: the subquery must not cost the owner-indexed entry point (a `SCAN c`
+  // here would mean the dashboard's per-model read degraded to a full character sweep). Measured after the
+  // change — every step is an indexed SEARCH, zero SCAN:
+  //   SEARCH c USING INDEX characters_owner_idx (owner_id=?) / SEARCH m USING INDEX messages_character_idx
+  //   (character_id=?) / LIST SUBQUERY 1 → SEARCH c2 characters_owner_idx, SEARCH cp
+  //   chat_participants_character_idx, SEARCH ch sqlite_autoindex_chats_1 / SEARCH v
+  //   sqlite_autoindex_message_variants_1.
+  // `not.toContain("SCAN c")` covers the subquery's `c2` alias too (substring), which is deliberate.
   test("the model/provider latency plan starts from the owner's indexed character set", async () => {
     const planDb = await freshDb();
     const plan = await planDb.all<{ detail: string }>(
@@ -133,6 +142,12 @@ describe("readLatency", () => {
       JOIN characters c ON c.id = m.character_id
       WHERE c.owner_id = 'user_plan'
         AND m.role = 'assistant'
+        AND m.chat_id IN (
+          SELECT DISTINCT cp.chat_id FROM chat_participants cp
+          JOIN characters c2 ON c2.id = cp.character_id
+          JOIN chats ch ON ch.id = cp.chat_id
+          WHERE c2.owner_id = 'user_plan' AND cp.kind = 'character' AND ch.started_at IS NOT NULL
+        )
         AND v.model = 'model-a'
         AND v.provider = 'provider-a'
       ORDER BY m.rowid DESC
@@ -154,7 +169,10 @@ describe("readModelLatencies + modelLatencyKey", () => {
     expect(stats?.avgTtftMs).toBe(200);
   });
 
-  test("qualifies model rows before the latest-100 all-model bound", async () => {
+  // Model-LESS generations are disqualified before any bound applies (`v.model IS NOT NULL`), so a backlog
+  // of them cannot displace a real model bucket. (This pinned the pre-#1477 all-model bound's qualification
+  // order; with the bound now per bucket it pins the NULL-model filter itself.)
+  test("model-less generations never displace a qualified model bucket", async () => {
     const bucketDb = await freshDb();
     const owner = await seedUser(bucketDb, "user_model_bucket", "user");
     const character = await seedCharacter(bucketDb, owner, { id: "character_model_bucket" });
@@ -173,6 +191,61 @@ describe("readModelLatencies + modelLatencyKey", () => {
     const map = await readModelLatencies(bucketDb, owner);
 
     expect(map.get(modelLatencyKey("model-a", "provider-a"))?.avgTtftMs).toBe(111);
+  });
+
+  test("a husk room's generations are excluded — latency spans the same rooms as the model_stats rollup", async () => {
+    const huskDb = await freshDb();
+    const owner = await seedUser(huskDb, "user_husk_latency", "user");
+    const character = await seedCharacter(huskDb, owner, { id: "character_husk_latency" });
+    const husk = await seedChat(huskDb, character, { id: "chat_husk_latency", startedAt: null });
+    await seedMessage(huskDb, {
+      chatId: husk,
+      seq: 1,
+      role: "assistant",
+      characterId: character,
+      variants: [{ content: "greeting", model: "m", provider: "p", ttftMs: 9999, genStartedAt: T0, genFinishedAt: T0 + 9999 }],
+    });
+
+    // `readByModel` merges this map onto rollup rows the rebuild built husk-EXCLUSIVE — a bucket here for a
+    // room that contributed no `generations` there would print a latency for a room stats denies exists.
+    expect(await readModelLatencies(huskDb, owner)).toHaveProperty("size", 0);
+    expect((await readLatency(huskDb, owner, { kind: "owner" })).avgTtftMs).toBeNull();
+  });
+
+  test("the sample bound is PER BUCKET — a quiet model is not crowded out by a busy one", async () => {
+    const crowdDb = await freshDb();
+    const owner = await seedUser(crowdDb, "user_crowd", "user");
+    const character = await seedCharacter(crowdDb, owner, { id: "character_crowd" });
+    const chat = await seedChat(crowdDb, character, { id: "chat_crowd" });
+    const gen = async (n: number, model: string, ttftMs: number): Promise<void> => {
+      await seedMessage(crowdDb, {
+        chatId: chat,
+        seq: n,
+        role: "assistant",
+        characterId: character,
+        createdAt: T0 + n,
+        variants: [{ content: model, model, provider: "p", ttftMs, genStartedAt: T0, genFinishedAt: T0 + ttftMs }],
+      });
+    };
+    // The quiet model generates FIRST (oldest rowids) — under a global newest-100 bound it is evicted
+    // entirely by the busy model's backlog and vanishes from a map `readByModel` still renders a latency
+    // column from.
+    for (let n = 1; n <= 5; n += 1) {
+      await gen(n, "quiet", 500);
+    }
+    // The busy model's OLDEST five carry a distinct value, so the per-bucket cap is observable too.
+    for (let n = 6; n <= 10; n += 1) {
+      await gen(n, "busy", 1);
+    }
+    for (let n = 11; n <= 110; n += 1) {
+      await gen(n, "busy", 1000);
+    }
+
+    const map = await readModelLatencies(crowdDb, owner);
+
+    expect(map.get(modelLatencyKey("quiet", "p"))?.avgTtftMs).toBe(500);
+    // 100 newest `busy` samples, all 1000 — the five 1ms elders fell outside ITS OWN bucket's bound.
+    expect(map.get(modelLatencyKey("busy", "p"))?.avgTtftMs).toBe(1000);
   });
 
   test("modelLatencyKey joins model + provider", () => {
