@@ -2,7 +2,7 @@
 // in the ONE registry + resolves + executes through the SAME pipeline; the guest's raw JSON Schema is lifted
 // and ENFORCED (bad args → errors-as-data); an unsupported schema construct is an activation-fatal refusal
 // (PL-B); a collision is activation-fatal (`ToolNameCollisionError`, not boot-fatal); the ceiling runs as the
-// INSTALLING principal (PL-C — the installer's role in THIS chat, not the turn caller's roster); and
+// INSTALLING principal (PL-C — the installer's role in THIS chat, not the turn caller's membership); and
 // unregister leaves no ghost tool. #677 adds the PER-INSTALLER partition: the same namespaced name is held once
 // per installing user, so the collision is scoped to one shelf and a deactivation touches only that shelf.
 
@@ -99,12 +99,12 @@ test("a name collision is activation-fatal (ToolNameCollisionError), never last-
 });
 
 // PL-C is a ceiling over the INSTALLER, and the ONLY honest source for that is the installer's present role in
-// the invocation chat. It used to be `can(installer, …, exec.roster)` — a pure verdict over the TURN CALLER's
-// roster — which meant (a) the read admission could never deny (`decideChat("read")` returns unconditionally)
+// the invocation chat. It used to be `can(installer, …, exec.membership)` — a pure verdict over the TURN CALLER's
+// membership — which meant (a) the read admission could never deny (`decideChat("read")` returns unconditionally)
 // and (b) `canWrite` was taken from whoever was host of the room the tool ran in. These pins are written
 // against the REAL `can` seam so no stubbed `can` can make them pass vacuously.
 describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", () => {
-  const hostCallerExec = execOf({ chatId: castId("chat_x"), roster: { role: "host" } });
+  const hostCallerExec = execOf({ chatId: castId("chat_x"), membership: { role: "host" } });
 
   test("a chat the installer is not a present member of is DENIED — even when the CALLER is its host", async () => {
     const service = serviceWith(realCan);
@@ -123,7 +123,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
   });
 
   test("a MEMBER installer gets a READ-ONLY scope while the CALLER is host (canWrite is never the caller's)", async () => {
-    // THE EXPLOIT PIN. Pre-fix `canWrite` was `can(installer,"host",{roster: exec.roster})` = "is the CALLER
+    // THE EXPLOIT PIN. Pre-fix `canWrite` was `can(installer,"host",{membership: exec.membership})` = "is the CALLER
     // host", so a plugin installed by user A ran with host write authority inside user B's room the moment B's
     // own turn called it — unlocking applyVariableOps / worldInfo.upsertEntry / requestTurn / imagery there.
     const service = serviceWith(realCan);
@@ -149,7 +149,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
       return Promise.resolve("ok");
     };
     service.registerPluginTool(specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerRole: () => Promise.resolve("host") }));
-    const rec = await runOne(service, "plugin_host", { tag: "calm" }, { exec: execOf({ chatId: castId("chat_x"), roster: { role: "member" } }) });
+    const rec = await runOne(service, "plugin_host", { tag: "calm" }, { exec: execOf({ chatId: castId("chat_x"), membership: { role: "member" } }) });
     expect(rec?.isError).toBe(false);
     expect(seen?.canWrite).toBe(true);
   });
@@ -174,8 +174,8 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
         },
       }),
     );
-    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, { exec: execOf({ chatId: castId("chat_x"), roster: { role: "member" } }) });
-    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, { exec: execOf({ chatId: castId("chat_y"), roster: { role: "host" } }) });
+    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, { exec: execOf({ chatId: castId("chat_x"), membership: { role: "member" } }) });
+    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, { exec: execOf({ chatId: castId("chat_y"), membership: { role: "host" } }) });
     expect(okRec?.isError).toBe(false);
     expect(deniedRec?.isError).toBe(true);
     expect(asked).toEqual(["chat_x", "chat_y"]);
@@ -185,20 +185,20 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
   // D146 / #648 — THE CEILING RE-PROVEN THROUGH THE NEW PATH. The membrane review's whole argument for why the
   // wrong-principal bug was survivable was that NOTHING attaches or invokes a plugin tool outside a turn; the
   // `run_tool` automation arm removes that shield, and it invokes with a DIFFERENT exec shape from every
-  // pre-existing caller: `turnId: null` (a rule dispatch is not a turn) and `roster: null` (fail-closed — the
+  // pre-existing caller: `turnId: null` (a rule dispatch is not a turn) and `membership: null` (fail-closed — the
   // arm deliberately does not hand over anyone's membership). A ceiling that quietly depended on either field
   // being populated would go silent on exactly this path, which is why these two pins exist rather than an
   // assumption that the turn-shaped pins above still cover it.
-  const automationExec = execOf({ chatId: castId("chat_x"), roster: null, turnId: null });
+  const automationExec = execOf({ chatId: castId("chat_x"), membership: null, turnId: null });
 
-  test("the ceiling still DENIES on the automation exec shape — a null roster does not soften it", async () => {
+  test("the ceiling still DENIES on the automation exec shape — a null membership does not soften it", async () => {
     const service = serviceWith(realCan);
     let invoked = false;
     const invoke = (): Promise<string> => {
       invoked = true;
       return Promise.resolve("x");
     };
-    // The installer is not a present member of the chat the rule fires in. Nothing about `roster: null` may be
+    // The installer is not a present member of the chat the rule fires in. Nothing about `membership: null` may be
     // read as "no membership to check" — the ceiling's input is the INSTALLER's row read, and it says no.
     service.registerPluginTool(specOf({ name: "plugin_auto_denied", invoke, resolveInstallerRole: () => Promise.resolve(null) }));
     const rec = await runOne(service, "plugin_auto_denied", { tag: "calm" }, { exec: automationExec });
@@ -217,7 +217,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     service.registerPluginTool(specOf({ name: "plugin_auto_member", invoke, resolveInstallerRole: () => Promise.resolve("member") }));
     const rec = await runOne(service, "plugin_auto_member", { tag: "calm" }, { exec: automationExec });
     expect(rec?.isError).toBe(false);
-    // The write half stays LOCKED. With no roster in scope at all, a ceiling that had been reading the caller's
+    // The write half stays LOCKED. With no membership in scope at all, a ceiling that had been reading the caller's
     // role would have had to either crash or default — it does neither, because it never reads it.
     expect(seen).toEqual({ chatId: "chat_x", canWrite: false, automationDepth: 0 });
   });

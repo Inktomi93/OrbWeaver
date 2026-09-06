@@ -15,8 +15,8 @@
 //   (c) The ceiling runs as the INSTALLING principal (PL-C), not the turn caller: a plugin tool invoked in a
 //       chat its installer is not a member of fails with errors-as-data (`denied`) — the model narrates, never
 //       a cross-tenant read. It is a ROW READ of the installer's present role in THAT chat (the injected
-//       `resolveInstallerRole`), not a `can()` verdict over the caller's roster — `can()` cannot express this
-//       check, because the only roster in scope at invocation time belongs to the wrong principal. The guest
+//       `resolveInstallerRole`), not a `can()` verdict over the caller's membership — `can()` cannot express this
+//       check, because the only membership in scope at invocation time belongs to the wrong principal. The guest
 //       handler itself runs host-side under each host-fn's own installer gate, so the effects are
 //       installer-bounded by construction; this belt is the invocation-time read/write ceiling.
 //
@@ -38,7 +38,7 @@ import { toolRegistryKey } from "../substrate/partition.ts";
  *  ceiling). `null` = a non-chat consumer (no chat scope for the guest handler).
  *
  *  THE PRINCIPAL IS THE WHOLE POINT: the role is re-read for the INSTALLER in THIS chat, never derived from
- *  `exec.roster` (documented as "the caller's loaded membership"). Reading the caller's roster made the read
+ *  `exec.membership` (documented as "the caller's loaded membership"). Reading the caller's membership made the read
  *  admission a no-op and set `canWrite` from the CALLER's host role — so a plugin installed by user A ran with
  *  host write authority inside user B's room whenever B's own turn called the tool. */
 async function resolveInvocationChat(spec: PluginToolSpec, exec: ToolExecutionContext): Promise<InvocationChat | null | "denied"> {
@@ -108,7 +108,7 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
         // PL-C: the invocation ceiling runs as the INSTALLING principal — the installer must be a present
         // participant of the chat this tool runs in (a plugin never reads a room its owner can't see). The SAME
         // resolved role sets the guest handler's invocation-chat scope (membership admits it, host unlocks
-        // `canWrite`). The turn CALLER's roster is irrelevant to this ceiling by construction.
+        // `canWrite`). The turn CALLER's membership is irrelevant to this ceiling by construction.
         const chat = await resolveInvocationChat(spec, exec);
         if (chat === "denied") {
           return { kind: "denied" };

@@ -135,7 +135,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
       runAsUserId: castId("user_host"),
       triggeredBy: castId("user_host"),
       chatId: castId<ChatId>("chat_a"),
-      participants: null,
+      membership: null,
       turnId: castId<ChatTurnId>("chat_turn_a"),
     },
     ...over,
@@ -1667,7 +1667,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
         runAsUserId: host,
         triggeredBy: member,
         chatId: castId<ChatId>("chat_a"),
-        participants: null,
+        membership: null,
         turnId: castId<ChatTurnId>("chat_turn_a"),
       },
     });

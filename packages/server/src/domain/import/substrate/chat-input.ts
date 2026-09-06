@@ -390,7 +390,7 @@ function groupSpeakerFor(m: ParsedChatMessage, deps: GroupChatInputDeps): Charac
 
 /**
  * Map one collected GROUP transcript onto the canonical bulk-import input: the same shape a solo chat produces,
- * plus the room's extra seats (`roster`), the per-slot speaker attribution, and the room-behavior blob carried
+ * plus the room's extra seats (`characterIds`), the per-slot speaker attribution, and the room-behavior blob carried
  * off the ST group definition. The write op ownership-gates every seat and refuses an unseated speaker, so this
  * mapper only ever proposes ids the caller already resolved out of the room's own cast.
  */
@@ -412,5 +412,5 @@ export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps)
   // #1687: ST's `disabled_members` become orb's per-seat mute. Emitted only when the group actually disabled
   // someone — an absent list is the "every seat takes the column defaults" arm the field's contract states.
   const seatKnobs = deps.mutedSeats.map((characterId): BulkImportSeatKnobs => ({ characterId, disabled: true }));
-  return { ...base, messages, roster: deps.roster, metadata: deps.metadata, ...(seatKnobs.length > 0 ? { seatKnobs } : {}) };
+  return { ...base, messages, characterIds: deps.characterIds, metadata: deps.metadata, ...(seatKnobs.length > 0 ? { seatKnobs } : {}) };
 }

@@ -5,7 +5,7 @@
 // there is no `chats.ownerId`).
 //
 // PD-1 — RESOLVED. The privilege DECISION routes through the ONE injected `can()` seam (spine §6):
-// chat loads its own roster and calls `can(principal, 'read'|'host', {kind:'chat', roster})`. The `role ===
+// chat loads its own membership and calls `can(principal, 'read'|'host', {kind:'chat', membership})`. The `role ===
 // 'host'` comparison lives INSIDE `can()` (admin/guard.ts) and NOWHERE in chat (spine #6). What STAYS chat's:
 // (1) the leak-free PRESENCE answer — a `loadMemberChat` miss is a NOT-FOUND, not a `can()` deny (a non-member
 // must not learn a foreign chat exists; `can()` only decides authority over a KNOWN membership); (2) the
@@ -37,7 +37,7 @@ export function assertParticipant<T>(membership: T | undefined, chatId: ChatId):
  *  shaping is the caller's. A non-forbidden error (a real bug) is never swallowed — it propagates. */
 function permits(can: Can, principal: Principal, action: ChatAction, role: ParticipantRole): boolean {
   try {
-    can(principal, action, { kind: "chat", roster: { role } });
+    can(principal, action, { kind: "chat", membership: { role } });
     return true;
   } catch (err) {
     if (err instanceof DomainForbiddenError) {
@@ -49,7 +49,7 @@ function permits(can: Can, principal: Principal, action: ChatAction, role: Parti
 
 /**
  * Host-authority gate (`requireHost`'s decision half — call AFTER {@link assertParticipant}). Routes the
- * verdict through `can(principal, 'host', {kind:'chat', roster})`. A member who is not the host is a KNOWN
+ * verdict through `can(principal, 'host', {kind:'chat', membership})`. A member who is not the host is a KNOWN
  * existence (they're in the room), so the seam's deny is re-expressed as an authority refusal, NOT a leak:
  * {@link ChatOperationError}(`not_host`). Host-only surfaces: reseed/reorder/group-config/room-overrides/
  * invites/kick/handoff/anchor-reassignment/memberCardVisibility.

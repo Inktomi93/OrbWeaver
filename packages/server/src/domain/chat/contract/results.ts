@@ -346,7 +346,7 @@ export interface TurnPrep {
    *  deferred-drain / swipe-of-that-slot but never a later GM/auto/arbiter round. Absent ⇒ false (ineligible). */
   readonly respondsToLatestUserTurn?: boolean | undefined;
   /** The caller's loaded membership for chat-scoped tool ceilings; absent until a chat-scoped registrant exists. */
-  readonly toolRoster?: ChatMembership | undefined;
+  readonly toolMembership?: ChatMembership | undefined;
   /** The chat-level recurse cap; absent means the engine applies the seed default. */
   readonly toolRecurseLimit?: number | undefined;
   /** The per-speaker two-axis SHAPE, set by the group round driver; absent falls back to the single-speaker

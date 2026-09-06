@@ -427,7 +427,7 @@ describe("createBulkImportChats", () => {
       chats: [
         {
           ...base,
-          roster: [second.id],
+          characterIds: [second.id],
           messages: [base.messages[0] as (typeof base.messages)[number], { ...(base.messages[0] as (typeof base.messages)[number]), characterId: second.id }],
         },
       ],
@@ -457,7 +457,7 @@ describe("createBulkImportChats", () => {
     await op({
       ownerId: owner.id,
       characterId: primary.id,
-      chats: [{ ...base, roster: [muted.id], seatKnobs: [{ characterId: muted.id, disabled: true }] }],
+      chats: [{ ...base, characterIds: [muted.id], seatKnobs: [{ characterId: muted.id, disabled: true }] }],
     });
 
     const seats = await db.select().from(chatParticipants);
@@ -520,7 +520,9 @@ describe("createBulkImportChats", () => {
     const op = createBulkImportChats(importCtx(db, owner.id));
 
     const base = chatInput("Foreign.jsonl");
-    await expect(op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, roster: [foreign.id] }] })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, characterIds: [foreign.id] }] })).rejects.toBeInstanceOf(
+      DomainNotFoundError,
+    );
     await expect(
       op({
         ownerId: owner.id,

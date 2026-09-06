@@ -65,7 +65,7 @@ async function requireSuggestionHost(ctx: AutomationContext, principal: Principa
   if (role === undefined) {
     throw new SuggestionNotFoundError(pending.id);
   }
-  ctx.can(principal, "host", { kind: "chat", roster: { role } });
+  ctx.can(principal, "host", { kind: "chat", membership: { role } });
 }
 
 /** The ACTOR-authority half of the liveness re-check, shared by BOTH origins because it is one ruling, not

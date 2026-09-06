@@ -1,7 +1,7 @@
 // domain/automation/guard — the rule-authority chokepoint (the agents guard.ts precedent). A rule's authority
 // follows its SCOPE, and there are exactly two:
 //   • CHAT-SCOPED (`chat_id` set) — rule authoring IS room-host authority: `can(principal, "host",
-//     {kind:"chat", roster})` over the chat's PRESENT membership (never a bare `role === 'host'` — that lives
+//     {kind:"chat", membership})` over the chat's PRESENT membership (never a bare `role === 'host'` — that lives
 //     inside `can()`). A non-member collapses to a leak-free not-found; a member-who-is-not-host is a KNOWN
 //     existence, so `can()`'s DomainForbiddenError (→ FORBIDDEN) propagates.
 //   • OWNER-GLOBAL (`chat_id IS NULL`, C5) — there is no room, so there is no roster and `can()` has no
@@ -43,7 +43,7 @@ export async function requireChatHost(ctx: GuardCtx, principal: Principal, chatI
   if (role === undefined) {
     throw new AutomationChatNotFoundError(chatId);
   }
-  ctx.can(principal, "host", { kind: "chat", roster: { role } });
+  ctx.can(principal, "host", { kind: "chat", membership: { role } });
 }
 
 /** Gate a rule by its OWN scope (updateRule/setRuleEnabled/deleteRule/listFires/testRule/runRuleNow) and hand
@@ -68,6 +68,6 @@ export async function requireRuleAuthority(ctx: GuardCtx, principal: Principal, 
   if (role === undefined) {
     throw new RuleNotFoundError(ruleId);
   }
-  ctx.can(principal, "host", { kind: "chat", roster: { role } });
+  ctx.can(principal, "host", { kind: "chat", membership: { role } });
   return { ...rule, chatId };
 }

@@ -23,7 +23,7 @@ function defOf(defs: readonly ToolDefinition[], name: string): ToolDefinition {
 }
 
 function exec(chatId: ChatId, turnId: ChatTurnId | null): ToolExecutionContext {
-  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
+  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, membership: null };
 }
 
 test("the factory returns the 7 lite tool defs — member-floor, builtin, projectable args", async ({ db }) => {

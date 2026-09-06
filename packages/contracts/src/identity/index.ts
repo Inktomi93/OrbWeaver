@@ -2,6 +2,12 @@
 // threads. DAG root: kit-only, no domain, no `@orb/db`, no sibling contracts node.
 // Identity resolves ONCE at the entry seam into ONE immutable `Principal` flowing down unchanged;
 // `ResolvedIdentity` is the pre-row output (no `userId` — the seam adds it building `Principal`).
+//
+// VOCABULARY (#1772 / #914, vocabulary-map row 45): `ChatResource.membership` was `ChatResource.roster`
+// until 2026-09-06. The TYPE half of row 45 landed at #903 C2 (`ChatRoster` → `ChatMembership`) and left
+// the FIELD spelling the old word, so every `can()` call site read `{ kind: "chat", roster: {…} }` for a
+// single-`{role}` value that is not a list at all. `roster` remains RESERVED for the saved TEMPLATE
+// concept (`rosterPreset`, "Rosters" — row 48) and never names this one.
 
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -81,7 +87,7 @@ export interface GlobalResource {
 /** CHAT scope — carries the {@link ChatMembership} chat loaded + fed in. */
 export interface ChatResource {
   readonly kind: "chat";
-  readonly roster: ChatMembership;
+  readonly membership: ChatMembership;
 }
 export type ResourceRef = GlobalResource | ChatResource;
 

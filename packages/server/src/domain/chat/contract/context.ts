@@ -104,12 +104,17 @@ export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>
 export type ChatToolSet = unknown;
 
 /** The identity frame the loop hands `executeToolCalls`. Deliberately no `Principal` — the engine is
- *  principal-blind. `roster` is null until a chat-scoped registrant exists. */
+ *  principal-blind. `membership` is null until a chat-scoped registrant exists.
+ *
+ *  `membership` was `roster` before #1010 and `participants` between #1010 and #1772: #1010's local
+ *  `roster → participants` pass reached this PropertySignature and took vocabulary-map row 44's LIST word
+ *  for a row-45 single-`{role}` value. Row 44's own residue list already said this field's word is
+ *  `membership`; #1772 landed it. */
 export interface ChatToolExecFrame {
   readonly runAsUserId: UserId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
-  readonly participants: ChatMembership | null;
+  readonly membership: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
    *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
   readonly turnId: ChatTurnId;
