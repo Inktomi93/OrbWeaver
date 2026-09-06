@@ -1041,9 +1041,10 @@
         "authority": "normative",
         "fullRead": true,
         "verifiedSha256": "fe083b0224f7a5cd0e4b27cc4a10d1274c9fa5120721c86875e663758ca2b071",
-        "verifiedCommit": "0beea96d81436a482d774ea54a3ef628dd463e86",
+        "verifiedCommit": "34c2197ca0c8e903abab567ca81b4ca885fc3ecf",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "34c2197ca0c8e903abab567ca81b4ca885fc3ecf (#1571 item 4, the TSDoc-ownership bullet) — re-attested at the linearized sha at the fold; the lane's own receipt cited its pre-rebase sha 0beea96d8",
           "re-attested at 0beea96d8 (#1571): added the TSDoc-coverage bullet stating tsdoc/syntax is the ONLY TSDoc checker (no type program validates doc-comment syntax) and that packages/showcase-plugins sits outside the four-package TSDOC_SURFACE with no wired coverage.",
           "re-attested at eb01a72ab (#1055): the session-recovery pointer no longer names the retired docs/retro-workboard.md",
           "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, source-comment, and direct rule-import routing reconciled",
