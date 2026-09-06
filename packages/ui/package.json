@@ -99,7 +99,8 @@
     "./tool-call-block": "./src/primitives/tool-call-block/index.ts",
     "./tooltip": "./src/primitives/tooltip/index.ts",
     "./virtual-list": "./src/primitives/virtual-list/index.ts",
-    "./web-weave": "./src/art/web-weave/index.ts"
+    "./web-weave": "./src/art/web-weave/index.ts",
+    "./z-scope": "./src/tokens/z-scope.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts"

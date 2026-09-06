@@ -36,6 +36,28 @@
   /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
   height: 100dvh;
   position: relative;
+  /* ── THE SHELL IS ONE ISOLATED STACKING SCOPE (#1794 — this declaration is the scope's one home) ──────
+   * `isolation: isolate` makes this box a stacking context, so EVERY z-index written anywhere in this file
+   * is resolved against THIS grid's own children and orders nothing outside it. Three consequences a
+   * reader has to hold at once, because the file below only makes sense under them:
+   *
+   * 1. THE PROVIDER LAYER IS NOT A PAINT LAYER. `TooltipProvider` and `PortalContainerContext` wrap this
+   *    grid in app-shell.tsx and render no element at all; `ThemeScope` renders one with `className="contents"`,
+   *    and `RegionAnchor`'s dev `RenderProfiler` inside each region renders none. NONE of them generates a
+   *    box, so none is anywhere in the paint order — never draw a provider or a profiler into a z diagram,
+   *    and never reason about a float's rank from where its provider sits in the React tree.
+   * 2. THIS FILE MAY ONLY SPELL THE SHELL-SCOPED RUNGS: `--z-base` / `--z-raised` (a rung inside whatever
+   *    context an element already sits in) and `--z-overlay` (the shell frame's own float rung — panels,
+   *    the scrim one below it, the skip link). `--z-modal` and up are the PORTAL-FLOAT tier and buy
+   *    exactly nothing here: 50 and 40 order the same four siblings. The scope→token map is DATA, beside
+   *    the scale it maps: `packages/ui/src/tokens/z-scope.ts` (`Z_TOKEN_SCOPES`).
+   * 3. A CROSS-BOUNDARY FLOAT ESCAPES BY MOUNT POSITION, NEVER BY A HIGHER NUMBER. Dialogs, the ⌘K
+   *    palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — this grid's
+   *    `display: contents` SIBLING — so they paint in the document's own stacking context, above the whole
+   *    shell whatever it wrote. That carrier stays box-less on purpose: giving it isolation or a z-index
+   *    would mint a context that the floats then have to escape in turn. The ORDER those floats take among
+   *    themselves is the `z` block of tokens.json and nowhere else.
+   *    Pinned by app-shell.ct.tsx "MOBILE: the CONTEXT sheet rides the shell's OWN overlay rung…". */
   isolation: isolate;
   /* overflow:clip (not hidden) — a transformed collapsed/overlay panel still contributes to scrollable
    * overflow under `hidden`, letting focus-scroll nudge scrollLeft and slide the whole shell; clip removes it as a scroll container entirely. */
@@ -1219,7 +1241,17 @@
     position: fixed;
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
     width: 100dvw;
-    z-index: var(--z-modal);
+    /* THE SHELL'S OWN FLOAT RUNG, NOT THE PORTAL'S (#1794). This spelled `--z-modal` from the phone arm's
+     * first commit, on the reading that a full-screen sheet is "modal-like". It is not a rank this file can
+     * grant: `.shell-grid` is `isolation: isolate` (see the scope block at the top), so the only things this
+     * number orders are the shell's own painted children — the rail (`--z-raised`), CONTENT
+     * (`.shell-main`, itself a stacking context via `container-type`), the scrim (`--z-overlay` − 1) and
+     * the panels. 50 and 40 order them identically; what 50 did additionally was CLAIM a portal-tier rung from
+     * inside a scope that cannot reach the portal, which is the drift, not a paint bug. `position: fixed`
+     * does not change that — a fixed descendant of a stacking context still paints inside it.
+     * The desktop arm one block up already writes `--z-overlay` for the same panel in the same modes; this
+     * makes the two regimes agree by construction instead of by two numbers happening to sort the same. */
+    z-index: var(--z-overlay);
     transition: transform var(--shell-motion) var(--shell-ease);
   }
   /* `width` is RE-STATED here at (0,3,0) on purpose: the desktop context-width rule above
@@ -1242,7 +1274,10 @@
    * screen, with nothing to tell "tabs of this pane" from "sections of the app". The mock's phone artboards
    * do not draw the app bar, so the collision could not be seen at design time.
    * The sheet takes the bar's row instead of stacking on it — ONE foot strip on screen at a time. It is
-   * safe because this pane already owns the screen while it is open (`z-modal` over an `inert` frame) and
+   * safe because this pane already owns the screen while it is open (the shell's own `--z-overlay` rung
+   * over an `inert` frame — MEASURED at 390x844, #1794: with the sheet open, `elementFromPoint` at the tab
+   * bar's row answers the SHEET, and the rung it needs is only "above the shell's other children", never
+   * "above the portal's floats"; the ⌘K palette still covers this sheet, through the portal) and
    * it carries its OWN way out inside the band's top-right corner (fork 3 of the build design), so the
    * section bar is one dismiss away, never trapped behind. `collapsed` is NOT matched: an off-screen
    * drawer must keep the bar's row free, and it is the state the bar navigates from.

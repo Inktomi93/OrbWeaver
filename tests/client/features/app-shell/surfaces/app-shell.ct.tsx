@@ -5276,6 +5276,96 @@ test("MOBILE: the full-screen sheet gets the same elevation + inert content", as
   await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
 });
 
+/** WHO OWNS THE TOPMOST PIXEL at a point, named by the shell region that claims it. `elementFromPoint`
+ *  rather than a box comparison: overlapping boxes prove nothing about paint order, and this is the only
+ *  question a user can ask of a stack ("what does my finger land on?"). Portal first — a portal float is
+ *  never inside `.shell-grid`, so a grid-region answer for a float would be the bug. */
+function ownerAtPoint(page: Page, x: number, y: number): Promise<string> {
+  return page.evaluate(
+    ({ px, py }) => {
+      const hit = document.elementFromPoint(px, py);
+      if (hit === null) {
+        return "none";
+      }
+      if (hit.closest('[data-slot="portal-root"]') !== null) {
+        return "portal";
+      }
+      if (hit.closest('.shell-panel[data-panel-side="context"]') !== null) {
+        return "sheet";
+      }
+      if (hit.closest(".shell-rail") !== null) {
+        return "rail";
+      }
+      if (hit.closest(".shell-scrim") !== null) {
+        return "scrim";
+      }
+      if (hit.closest(".shell-content") !== null) {
+        return "content";
+      }
+      return hit.tagName.toLowerCase();
+    },
+    { px: x, py: y },
+  );
+}
+
+// ── THE SHELL IS AN ISOLATED STACKING SCOPE, AND A FLOAT ESCAPES IT THROUGH THE PORTAL (#1794) ────────
+// `.shell-grid` carries `isolation: isolate`, so EVERY z-index written inside the shell — the rail, the
+// scrim, a docked/overlay panel — is resolved against that box's own children and can never out-paint
+// anything mounted beside the grid. A cross-boundary float therefore escapes by being PORTALED to
+// `[data-slot="portal-root"]` (the grid's `display:contents` sibling), never by naming a higher token: the
+// number the shell writes only orders the shell.
+//
+// Two different claims, and this test says which is which rather than letting a green read as both:
+//   · the Z-INDEX EQUALITY is the SCOPE pin (#1794's actual change) — the mobile sheet used to spell the
+//     PORTAL-owned `--z-modal` here, which bought it nothing inside the isolated scope and mis-stated
+//     where the rung lives. RED against the pre-fix source (`50` vs the `--z-overlay` token's `40`).
+//   · the HIT-TESTS are a FENCE, not a defect proof: they held at the old value too, which is exactly the
+//     finding — the rung was over-reaching, never mis-ordering. They exist so the move is provably safe
+//     and cannot regress. Positive control taken by planting `var(--z-base)` on the sheet in shell.css:
+//     the tab-bar-row probe flipped `sheet` → `rail`, so the probe does bite.
+test("MOBILE: the CONTEXT sheet rides the shell's OWN overlay rung, and a portal float still covers it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...SHELL_AMBIENT_ROUTES, "chat.listChats": chatListResponder([]) });
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+
+  // The mechanism the whole ruling rests on — without it the shell's numbers WOULD compete with the floats.
+  await expect(page.locator(".shell-grid")).toHaveCSS("isolation", "isolate");
+
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+
+  // ORDERING FIRST, as the user meets it — and first in SOURCE too, so a planted regression fails on the
+  // rendered fact rather than on the token spelling. The sheet owns every pixel it covers: the content
+  // column beneath it AND the bottom tab bar's row, which THIS sheet deliberately takes (#875 F9) — the one
+  // place the shell asks a panel to out-paint the rail, and the reason the old comment reached for a
+  // modal-tier number.
+  //
+  // VIEWPORT coordinates, not the panel's own box: this sheet is `width: 100dvw` and reaches the screen's
+  // bottom edge, so the two points below are inside it BY CONSTRUCTION — a box-derived point would agree
+  // with a sheet that had drifted off-screen. Polled, because the sheet arrives on a `transform`
+  // transition and a single sample lands mid-slide.
+  const settled = { intervals: [20, 50, 100, 200] };
+  await expect.poll(() => ownerAtPoint(page, MOBILE.width / 2, MOBILE.height - 8), settled).toBe("sheet");
+  await expect.poll(() => ownerAtPoint(page, MOBILE.width / 2, MOBILE.height / 2), settled).toBe("sheet");
+
+  // SCOPE: read off the token, never a literal — a re-rank of the scale must not silently pass here.
+  await expect(contextPanel).toHaveCSS("z-index", TOKENS["z.overlay"].value);
+
+  // …and the ⌘K palette — a PORTAL float — still covers the sheet that is covering the screen.
+  expect(await dispatchCommandKey(page, { metaKey: true })).toBe(true);
+  const dialog = page.getByRole("dialog", { name: "Jump to…" });
+  await expect(dialog).toBeVisible();
+  // It escaped by MOUNT POSITION, not by out-numbering the shell: it is not inside `.shell-grid` at all.
+  await expect(page.locator('.shell-grid [role="dialog"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="portal-root"] [role="dialog"]')).toHaveCount(1);
+  // …and the SAME point that answered "sheet" a moment ago now answers "portal": the float is on top of
+  // the surface that was on top of the screen. (Polled: the palette has its own entrance.)
+  await expect.poll(() => ownerAtPoint(page, MOBILE.width / 2, MOBILE.height / 2), settled).toBe("portal");
+  // The sheet is still open underneath it — the float covered it, it did not close it.
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+});
+
 /** The overlay band's own dismiss, by its accessible name ("Close <section> list" / "… details"). */
 const OVERLAY_CLOSE_RE = /^Close /u;
 
