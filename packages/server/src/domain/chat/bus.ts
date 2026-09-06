@@ -26,6 +26,12 @@
 //     being one undifferentiated `null`. A lost event on a live chat is a permanent replay gap — a missing turn
 //     terminal, a missed automation trigger, a stranded client — so the transient half of that class (write
 //     contention) is now recovered instead of merely logged.
+// THE TERMINAL DROP HAS TWO BRANCHES, and they state opposite facts (#1544 — `reportTerminalDrop`): #1537's
+// one-id-per-retry made "the first attempt COMMITTED and the same-id retry tripped the PK" reachable, and
+// there the row (with its replay slot) STANDS while only the live fan is lost. Both are ERROR — a stranded
+// live subscriber is not a warning — but the message must not claim a permanent replay gap for the branch
+// that has none. Which branch it is comes off GROUND TRUTH (the stored payload under our id), never a driver
+// error code, for the same reason `classifyFailedAppend` states.
 // `null` ⇒ the event was not durably logged, so the composition root must not fan it either (a fanned event
 // with no `chat_events` row would be un-replayable). Aborting the turn at delete (verbs/chat-lifecycle) stops
 // the emits at the SOURCE; this classification is the floor under every other cause.
@@ -41,11 +47,11 @@ import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";
 import { appendChatEvent, appendChatEventAfterClaimStatement, insertChatEventStatement } from "./persistence/events.ts";
-import { loadChatRow } from "./persistence/queries.ts";
+import { loadChatEventById, loadChatRow } from "./persistence/queries.ts";
 import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
 
 /** What was durably logged: the assigned per-chat `seq` (the replay cursor) plus the event AS STORED — the
@@ -126,6 +132,54 @@ async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-
  *  the honest answer to. */
 const LIVE_APPEND_ATTEMPTS = 2;
 
+/** The cursor of the row our append minted under `id` — undefined when this event never landed.
+ *
+ *  IDENTITY, not existence (#1544): the retry re-uses ONE event id, so a row under that id can be either OUR
+ *  committed append or a row some other emit already owns (a duplicate-id minter is exactly what the fixed-id
+ *  fault pin exercises). Only the STORED PAYLOAD answers "did this event commit", so the verdict compares it
+ *  against what we tried to write — the same GROUND-TRUTH rule `classifyFailedAppend` states, never a driver
+ *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
+ *  is too unwell to say. */
+async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): the probe failing means the db is unwell — fall
+  // through to "we cannot prove it landed", which is the LOUD arm the caller already reports with the
+  // original `err`. Ends if this probe grows its own retry (then it owns reporting its own failure).
+  try {
+    const row = await loadChatEventById(db, id);
+    return row !== undefined && JSON.stringify(row.payload) === JSON.stringify(event) ? row.seq : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The one attempt-exhausted append the report below classifies: the id the whole retry re-used, the stamped
+ *  event it tried to write, the last attempt's error, and how many attempts were spent. */
+interface TerminalDrop {
+  readonly id: ChatEventId;
+  readonly event: DurableChatBusEvent;
+  readonly err: unknown;
+  readonly attempts: number;
+}
+
+/** Report the terminal drop BY BRANCH (#1544). Both are ERROR — a stranded live subscriber is not a warning —
+ *  but they state opposite facts, and #1537 made the second branch reachable: when the first attempt COMMITTED
+ *  and the same-id retry tripped the PK, the row and its replay slot STAND and only the live fan was lost, so
+ *  "its replay slot is permanently missing" was exactly backwards. The surviving `seq` rides the log line
+ *  because it is what a reconnect will deliver. */
+async function reportTerminalDrop(db: Db, drop: TerminalDrop): Promise<void> {
+  const { id, event, err, attempts } = drop;
+  const fields = { err, chatId: event.chatId, type: event.type, attempts };
+  const committedSeq = await committedRowSeq(db, id, event);
+  if (committedSeq === null) {
+    getLog().error(fields, "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing");
+    return;
+  }
+  getLog().error(
+    { ...fields, seq: committedSeq },
+    "chat bus: DURABLE APPEND reported failure AFTER committing on a live chat — only the LIVE FAN was lost; the row and its replay slot stand (a reconnect delivers it exactly once)",
+  );
+}
+
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(deps: ChatBusDeps): ChatBus {
   const rings = new Map<ChatId, ChatRingEntry[]>();
@@ -193,10 +247,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
         if (attempt < LIVE_APPEND_ATTEMPTS) {
           getLog().warn({ err, chatId, type: event.type, attempt }, "chat bus: durable append failed on a live chat — retrying");
         } else {
-          getLog().error(
-            { err, chatId, type: event.type, attempts: attempt },
-            "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing",
-          );
+          await reportTerminalDrop(deps.db, { id, event, err, attempts: attempt });
           return null;
         }
       }
