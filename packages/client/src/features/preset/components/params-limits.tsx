@@ -16,7 +16,7 @@
 // CONTEXT + ADVANCED render with NO capability: compaction and the escape hatches are ours, not the
 // model's. ADVANCED is the deck's ONE collapsed disclosure (genuinely rare escape hatches).
 //
-// The `<Field>` rows here ride `SettingRowGroup` + `ParamsRow` for the reason params-deck.tsx's header
+// The `<Field>` rows here ride `SettingRowGroup` + `SettingTrackRow` for the reason params-deck.tsx's header
 // states (#1770 — `row-void`); what stays OUTSIDE a group is anything that is not a label/control pair:
 // the KnobGrids (their own track set), the stop-sequence `Fieldset` (a group, not a row), the compaction
 // gloss and the vertical `Summary instructions` textarea.
@@ -34,14 +34,14 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { SettingRowGroup } from "#components";
+import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
-import { ParamsRow } from "./params-row.tsx";
+
 import { StopSequences } from "./stop-sequences.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -119,7 +119,7 @@ function OutputCluster({
       </KnobGrid>
       {verbosityLevels === undefined ? null : (
         <SettingRowGroup>
-          <ParamsRow>
+          <SettingTrackRow>
             <form.AppField name="params.verbosity">
               {(field): ReactElement => {
                 const value = field.state.value as Verbosity | undefined;
@@ -137,7 +137,7 @@ function OutputCluster({
                 );
               }}
             </form.AppField>
-          </ParamsRow>
+          </SettingTrackRow>
         </SettingRowGroup>
       )}
       {/* OUTSIDE the row group: this is a `Fieldset` GROUP (N chips plus an add box), not a label/control
@@ -154,7 +154,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section kicker="Context">
       <SettingRowGroup>
-        <ParamsRow>
+        <SettingTrackRow>
           <form.AppField name="params.compaction.mode">
             {(field): ReactElement => (
               <field.SelectField
@@ -165,8 +165,8 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
               />
             )}
           </form.AppField>
-        </ParamsRow>
-        <ParamsRow>
+        </SettingTrackRow>
+        <SettingTrackRow>
           <form.AppField name="params.compaction.thresholdPct">
             {(field): ReactElement => (
               <field.NumberField
@@ -179,9 +179,9 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
               />
             )}
           </form.AppField>
-        </ParamsRow>
+        </SettingTrackRow>
         {/* G4: the "missing 4th compaction knob" — minted on the schema, never given an editor. */}
-        <ParamsRow>
+        <SettingTrackRow>
           <form.AppField name="params.compaction.verbatimTail">
             {(field): ReactElement => (
               <field.NumberField
@@ -194,9 +194,9 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
               />
             )}
           </form.AppField>
-        </ParamsRow>
+        </SettingTrackRow>
         {/* G3: the provider's OWN context compression — honest per-backend gloss, since only some honor it. */}
-        <ParamsRow>
+        <SettingTrackRow>
           <form.AppField name="params.providerContextCompression">
             {(field): ReactElement => (
               <field.SwitchField
@@ -205,7 +205,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
               />
             )}
           </form.AppField>
-        </ParamsRow>
+        </SettingTrackRow>
       </SettingRowGroup>
       {/* HONEST-DEGRADE: the runner's own auto-compaction never exposes its summary, so `auto` stores no
           marker — no carry-forward on a model swap and nothing readable in the transcript. Shown plainly. */}
@@ -274,7 +274,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               shows what the preset holds instead of text that looks saved and is not. */}
           <LogitBiasField form={form} />
           <SettingRowGroup>
-            <ParamsRow>
+            <SettingTrackRow>
               <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
                 {(parallel): ReactElement => (
                   <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
@@ -291,8 +291,8 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
                   </Field>
                 )}
               </form.Subscribe>
-            </ParamsRow>
-            <ParamsRow>
+            </SettingTrackRow>
+            <SettingTrackRow>
               <form.Subscribe selector={(state): string | undefined => state.values.params.advanced?.dynamicContext}>
                 {(dynamicContext): ReactElement => (
                   <Field hint="Where the per-turn system half is delivered on the wire." label="Dynamic-context delivery">
@@ -307,7 +307,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
                   </Field>
                 )}
               </form.Subscribe>
-            </ParamsRow>
+            </SettingTrackRow>
           </SettingRowGroup>
           <CustomParametersEditor form={form} />
           <Text voice="gloss">
