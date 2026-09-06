@@ -307,8 +307,19 @@ export function GhostMessageRow({
       className={cn("@container", skin.outer("assistant"), enterClasses)}
     >
       {/* The `@container` above and this element's two arms are the settled row's, verbatim — the ghost is
-          the one row that MUST be laid out identically to what it becomes (#1728 arm B). */}
-      <Row align="start" gap="row" data-slot="message-row-body" className={cn(rowBodyClassFor(skin), "w-full")}>
+          the one row that MUST be laid out identically to what it becomes (#1728 arm B). THE `@max-md`
+          AVATAR STEP IS PART OF THAT PARITY (#1745, side-eye 2026-09-05): the container query landed with
+          arm B, but the row body's own `@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6`
+          pair — `message-row.tsx`'s phone-width chip shrink — never came with it, so a live turn at a
+          phone width rendered its 32px avatar-md chip through the whole stream and only stepped down to
+          24px the instant it settled: a visible one-frame reflow on every reply, the exact class of jump
+          this file's own header worries about elsewhere on this row. */}
+      <Row
+        align="start"
+        gap="row"
+        data-slot="message-row-body"
+        className={cn(rowBodyClassFor(skin), "w-full", "@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6")}
+      >
         {avatarNode}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
