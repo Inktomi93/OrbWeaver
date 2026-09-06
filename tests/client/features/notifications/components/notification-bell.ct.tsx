@@ -38,6 +38,9 @@ function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unkn
     seq: 1,
     readAt: null,
     dismissedAt: null,
+    // The server's #1799 verdict, which the CLIENT never re-derives: an invite the chat domain still holds
+    // open. Overridable per test — an invite settled elsewhere comes back `false` with its row still there.
+    actionable: true,
     createdAt: 1_750_000_000_000,
     ...overrides,
   };
@@ -53,6 +56,9 @@ function consentRow(pendingCount: number, overrides: Record<string, unknown> = {
     seq: 1,
     readAt: null,
     dismissedAt: null,
+    // A standing ask is actionable by construction — its producer RETRACTS the row the moment the last
+    // plugin is answered, so an ACTIVE consent row is a live ask (`notifications/substrate/actionable.ts`).
+    actionable: true,
     createdAt: 1_750_000_000_000,
     ...overrides,
   };
@@ -102,7 +108,10 @@ test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
 
   const bell = page.getByRole("button", { name: "Notifications", exact: true });
   await bell.click();
-  await expect(page.getByText("No notifications.")).toBeVisible();
+  // A STATE, not a shrug (#1799 restyle · `empty-states-are-load-bearing`). The bare "No notifications."
+  // this replaces read as a failed load and said nothing about what would ever appear here.
+  await expect(page.getByText("You're all caught up")).toBeVisible();
+  await expect(page.getByText("Invitations, host handoffs and notices from your plugins land here.")).toBeVisible();
 });
 
 test("Accept fires acceptInvite with the notification's inviteId, then dismisses the row", async ({ mount, page }) => {
@@ -357,7 +366,7 @@ test.describe("the phone's inbox block", () => {
 
     const inbox = component.getByRole("group", { name: "Notifications" });
     await expect(inbox).toBeVisible();
-    await expect(inbox.getByText("No notifications.")).toBeVisible();
+    await expect(inbox.getByText("You're all caught up")).toBeVisible();
   });
 });
 
@@ -728,4 +737,192 @@ test.describe("the unread mark (#1798)", () => {
       });
     });
   }
+});
+
+// ── THE INDICATOR MEANS NEW **OR** PENDING (#1799, owner ruling) ─────────────────────────────────────
+// THE DEFECT: the dot was `unreadCount > 0` alone, and opening the popover marks EVERY row read — so the
+// one interaction that shows you an invite is the interaction that stops the app reminding you about it.
+// A reader who opened the bell, did not decide, and closed it had no way back to the decision except
+// remembering it existed. The ruling splits the mark in two: opening clears the NEW half for everything,
+// and only ACTING clears the PENDING half.
+//
+// The pins drive the SERVER'S verdict (`InboxView.actionable`) over the stubbed wire, exactly as the
+// browser receives it — deliberately, because the client re-deriving "is this still open?" from the row's
+// type is the defect the field exists to prevent (an invite settled from a share link keeps its row).
+//
+// RED-FIRST RECEIPT (2026-09-06 — this block plus the restyle's pins run against `git show 7a9cce8c0:` of
+// `notification-bell.tsx` + `use-inbox.ts`, i.e. the #1798 dot with the OLD unread-only semantics, the rest
+// of the branch in place; `CT SUMMARY — FAILED · 25 passed · 6 failed`):
+//   ✘ a row still awaiting a decision keeps the dot after the inbox has been read
+//       toHaveCount  Expected: 1  Received: 0   (…resolved to 0 elements — the dot was already gone)
+//   ✘ acting on the last pending row clears the dot  — same shape: there was no dot to clear
+//   ✘ the popover marks the row that wants a decision …  ·  ✘ the SHEET lens carries the same marking
+//       `[data-slot="inbox-row"][data-pending]`  Expected: 1  Received: 0
+//   ✘ no unread → plain label, empty inbox copy  ·  ✘ an empty inbox still names its block
+//       getByText('You're all caught up')  element(s) not found
+// TWO OF THE PINS BELOW ARE FENCES, green in BOTH regimes, and they are labelled as such rather than
+// counted as proof: "an informational row's dot IS cleared by reading it" (the old predicate did that
+// already — it pins that the fix did not turn the dot into an always-on ornament) and "a decision settled
+// ELSEWHERE" (unread was already 0 there — it pins that we did not replace the read with a client-side
+// guess at the row's TYPE, which is the tempting wrong fix and would light the bell forever).
+test.describe("the indicator's two halves (#1799)", () => {
+  /** An invite that has ALREADY been read (`readAt` set) and is STILL waiting on a decision. It is the
+   *  whole ruling in one row: the NEW half is spent, the PENDING half is not. */
+  function readPendingInvite(): Record<string, unknown> {
+    return inviteRow({ readAt: 1_750_000_000_001, actionable: true });
+  }
+
+  test("a row still awaiting a decision keeps the dot after the inbox has been read", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [readPendingInvite()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 0 }),
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellStory />);
+
+    // Nothing is UNREAD, so the old predicate says "quiet" — and the invite is still standing there.
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(bell).toBeVisible();
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(1);
+
+    // …and it survives the round trip that used to be what silenced it: open, look, close.
+    await bell.click();
+    await expect(page.getByText("nate invited you to a chat")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByText("nate invited you to a chat")).toBeHidden();
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(1);
+  });
+
+  test("an informational row's dot IS cleared by reading it", async ({ mount, page }) => {
+    // The other half of the ruling, and the reason this is not just "always show a dot": a notice that asks
+    // nothing is settled by being seen. The stub answers the re-list AFTER markAllRead with the read row,
+    // which is what the real invalidation produces.
+    let read = false;
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({
+        items: [
+          inviteRow({
+            id: "ntf_ct_notice",
+            type: "kicked",
+            payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
+            actionable: false,
+            readAt: read ? 1_750_000_000_001 : null,
+          }),
+        ],
+        nextCursor: null,
+      }),
+      "notifications.markAllRead": () => {
+        read = true;
+        return { markedCount: 1 };
+      },
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellStory />);
+    await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
+    await expect(page.getByText("You were removed from a chat")).toBeVisible();
+
+    // Read = settled, for a row that asked nothing: the mark goes away without anyone acting.
+    await expect(page.getByRole("button", { name: "Notifications", exact: true }).locator('[data-slot="badge"]')).toHaveCount(0);
+  });
+
+  test("acting on the last pending row clears the dot", async ({ mount, page }) => {
+    // Dismiss is the act every row offers, so it is the one that proves the pending half is act-cleared and
+    // not merely time-cleared. After the dismiss the inbox is empty — the row left, and so did the mark.
+    let dismissed = false;
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: dismissed ? [] : [readPendingInvite()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 0 }),
+      // Declining is a REAL verb + its follow-up dismiss (`InboxRow.declineInvite`), so both are fed — an
+      // unstubbed decline would run inert and this pin would be measuring the dismiss alone.
+      "invites.declineInvite": () => null,
+      "notifications.dismiss": () => {
+        dismissed = true;
+        return null;
+      },
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellStory />);
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(1);
+
+    await bell.click();
+    await page.getByRole("button", { name: "Decline invitation from nate" }).click();
+
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(0);
+  });
+
+  test("a decision settled ELSEWHERE stops lighting the bell without the row moving", async ({ mount, page }) => {
+    // The case a client-side "is this an invite?" guess gets wrong, and the reason `actionable` is derived
+    // from `chat_invites.status` server-side: the invite was accepted from a share link (or revoked by the
+    // host), so the ROW is still in the inbox, unchanged, and there is nothing left to decide.
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow({ readAt: 1_750_000_000_001, actionable: false })], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 0 }),
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellStory />);
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(bell).toBeVisible();
+    await expect(bell.locator('[data-slot="badge"]')).toHaveCount(0);
+    // The row is still THERE — this is not "the inbox emptied", it is "the ask settled".
+    await bell.click();
+    await expect(page.getByText("nate invited you to a chat")).toBeVisible();
+  });
+});
+
+// ── THE ROW ANATOMY (#1799 restyle) ──────────────────────────────────────────────────────────────────
+// The owner's second half: the popover "could look cleaner and better". The claim under test is the one a
+// screenshot cannot make on its own — that pending and informational rows are told apart by an ATTRIBUTE
+// and not only by paint, so the distinction survives a theme, a contrast mode, and this test.
+test.describe("pending rows are marked, not merely painted (#1799)", () => {
+  function noticeRow(): Record<string, unknown> {
+    return inviteRow({
+      id: "ntf_ct_notice",
+      type: "kicked",
+      payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
+      seq: 2,
+      actionable: false,
+    });
+  }
+
+  test("the popover marks the row that wants a decision and leaves the notice unmarked", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow(), noticeRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 2 }),
+    });
+    await routeInboxStream(page, []);
+
+    await mount(<NotificationBellStory />);
+    await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
+
+    const rows = page.locator('[data-slot="inbox-row"]');
+    await expect(rows).toHaveCount(2);
+    await expect(page.locator('[data-slot="inbox-row"][data-pending]')).toHaveCount(1);
+    // …and it is the INVITE that carries it, not whichever row happened to render first.
+    await expect(page.locator('[data-slot="inbox-row"][data-pending]')).toContainText("nate invited you to a chat");
+  });
+
+  test("the SHEET lens carries the same marking", async ({ mount, page }) => {
+    // The phone's inbox is a different lens over the same rows (`presentation="sheet"`), and a distinction
+    // that exists only in the popover is a distinction half the users never get.
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow(), noticeRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 2 }),
+    });
+    await routeInboxStream(page, []);
+
+    const sheet = await mount(<NotificationBellSheetStory />);
+    await expect(sheet.locator('[data-slot="inbox-row"]')).toHaveCount(2);
+    await expect(sheet.locator('[data-slot="inbox-row"][data-pending]')).toHaveCount(1);
+  });
 });

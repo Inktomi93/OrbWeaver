@@ -15,6 +15,7 @@ import type { ReplaySinceParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
 import { selectInboxSince } from "../persistence/queries.ts";
+import { asksNothing, NO_STANDING_ASKS, standingAsksOf, withActionable } from "../substrate/actionable.ts";
 
 // The resume's own default page. The ceiling below it is the shared one, so a caller asking for more than
 // `NOTIFICATIONS_LIST_MAX_LIMIT` gets a clamped page — which a caller detecting "the log is exhausted" by a
@@ -24,7 +25,12 @@ const DEFAULT_LIMIT = NOTIFICATIONS_LIST_MAX_LIMIT;
 export function createReplaySince(ctx: NotificationsContext): Pick<NotificationsService, "replaySince"> {
   async function replaySince(params: ReplaySinceParams): Promise<readonly InboxView[]> {
     const limit = Math.min(params.limit ?? DEFAULT_LIMIT, NOTIFICATIONS_LIST_MAX_LIMIT);
-    return await selectInboxSince(ctx.db, params.principal.userId, params.afterSeq, limit);
+    const rows = await selectInboxSince(ctx.db, params.principal.userId, params.afterSeq, limit);
+    // The SAME `actionable` stamp `list` applies (#1799) — a live arrival and a page load must agree about
+    // the dot, so both wires run one substrate.
+    const asks = standingAsksOf(rows, params.principal.userId);
+    const standing = asksNothing(asks) ? NO_STANDING_ASKS : await ctx.resolveStandingAsks(asks);
+    return withActionable(rows, standing);
   }
   return { replaySince };
 }

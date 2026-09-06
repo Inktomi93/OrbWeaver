@@ -26,17 +26,22 @@ import type { RefreshStandingParams, RetractParams } from "../contract/params.ts
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
 import { dismissActiveOfType, updateActivePayloadOfType } from "../persistence/queries.ts";
+import { asRaised, asSettled } from "../substrate/actionable.ts";
 
 export function createStanding(ctx: NotificationsContext): Pick<NotificationsService, "refreshStanding" | "retract"> {
   async function refreshStanding(params: RefreshStandingParams): Promise<readonly InboxView[]> {
     // The same parse belt `record` runs: the stored payload is only ever a value the closed union produced,
     // whichever verb wrote it.
     const event = notificationEventSchema.parse(params.event);
-    return await updateActivePayloadOfType(ctx.db, event.recipientUserId, event);
+    // Still standing — a correction in place is never a settlement (#1799).
+    const corrected = await updateActivePayloadOfType(ctx.db, event.recipientUserId, event);
+    return corrected.map(asRaised);
   }
 
   async function retract(params: RetractParams): Promise<readonly InboxView[]> {
-    return await dismissActiveOfType(ctx.db, params.recipientUserId, params.type, ctx.now());
+    // Retracted = settled: the producer no longer has the ask (#1799).
+    const withdrawn = await dismissActiveOfType(ctx.db, params.recipientUserId, params.type, ctx.now());
+    return withdrawn.map(asSettled);
   }
 
   return { refreshStanding, retract };

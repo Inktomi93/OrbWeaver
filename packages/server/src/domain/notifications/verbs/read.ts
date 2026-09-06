@@ -9,6 +9,7 @@ import type { MarkAllReadResult } from "../contract/results.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import type { InboxView } from "../contract/views.ts";
 import { dismissScoped, markAllReadScoped } from "../persistence/queries.ts";
+import { asSettled } from "../substrate/actionable.ts";
 
 const ENTITY = "notification";
 
@@ -23,7 +24,8 @@ export function createRead(ctx: NotificationsContext): Pick<NotificationsService
     if (row === undefined) {
       throw new DomainNotFoundError(ENTITY, params.notificationId);
     }
-    return row;
+    // Dismissed = settled: the row has left the inbox, so it asks nothing of anyone (#1799).
+    return asSettled(row);
   }
 
   return { markAllRead, dismiss };

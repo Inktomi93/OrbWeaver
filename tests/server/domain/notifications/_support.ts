@@ -9,6 +9,7 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -24,8 +25,12 @@ export async function seedUser(db: Db, id: UserId, handle: Handle): Promise<void
   await seedUserRow(db, { id, handle: castId<Handle>(handle) });
 }
 
+/** The REAL `resolveStandingAsks` (#1799), never a stub: `InboxView.actionable` is derived from
+ *  `chat_invites.status` / `chats.pending_host_user_id`, and a hand-written resolver here would let the
+ *  domain suite agree with a fiction while the composed server disagreed. These tests run on a real db, so
+ *  they get the composed answer — an invite event whose id names no row is correctly NOT standing. */
 export function makeNotificationsService(db: Db, now: () => number): NotificationsService {
-  return createNotificationsService({ db, now });
+  return createNotificationsService({ db, now, resolveStandingAsks: createResolveStandingAsks(db) });
 }
 
 /** A minimal `user`-role Principal for the given recipient (the caller-scope verbs read `.userId`). */

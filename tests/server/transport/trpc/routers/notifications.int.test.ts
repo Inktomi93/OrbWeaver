@@ -26,6 +26,7 @@
 
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 import { describe } from "vitest";
@@ -40,7 +41,7 @@ describe("the inbox on a single-user deployment (#1627) — a durable row its ow
   /** The real service + a ladder context that says "this deployment cannot seat a second human". */
   async function soloDeployment(db: Parameters<typeof seedUser>[0], now: () => number): Promise<NotificationsService> {
     await seedUser(db, { id: SOLO, handle: castId<Handle>("solo") });
-    return createNotificationsService({ db, now });
+    return createNotificationsService({ db, now, resolveStandingAsks: createResolveStandingAsks(db) });
   }
 
   test("a plugin the crash policy auto-disabled reaches its OWNER's inbox", async ({ db, clock }) => {

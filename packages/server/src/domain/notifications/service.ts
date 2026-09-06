@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { createNotificationsContext } from "./context.ts";
+import type { ResolveStandingAsks } from "./contract/ops.ts";
 import type { NotificationsService } from "./contract/service.ts";
 import { createList } from "./verbs/list.ts";
 import { createRead } from "./verbs/read.ts";
@@ -16,10 +17,13 @@ import { createStanding } from "./verbs/standing.ts";
 interface NotificationsServiceDeps {
   db: Db;
   now: () => number;
+  /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
+   *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
+  resolveStandingAsks: ResolveStandingAsks;
 }
 
 export function createNotificationsService(deps: NotificationsServiceDeps): NotificationsService {
-  const ctx = createNotificationsContext(deps.db, deps.now);
+  const ctx = createNotificationsContext(deps.db, deps.now, deps.resolveStandingAsks);
   return {
     ...createRecord(ctx),
     ...createRead(ctx),
