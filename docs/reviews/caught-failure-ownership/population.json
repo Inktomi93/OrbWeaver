@@ -3712,7 +3712,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::empty:err::1",
       "path": "packages/server/src/infra/providers/backends/openrouter/probe.ts",
-      "line": 32,
+      "line": 36,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -3720,7 +3720,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a credential-probe failure is classified into a typed CredentialHealth (auth-class → revoked, else → unreachable), reason sanitized + secret-redacted by value; propagated as a verdict, never a false green, no secret leak. Ends if the catch can return \"ok\".",
-      "markerLine": 28
+      "markerLine": 32
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/runners/chat/chat-completions.ts::empty:err::1",

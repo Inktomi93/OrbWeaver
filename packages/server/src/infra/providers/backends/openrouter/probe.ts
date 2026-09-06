@@ -22,6 +22,10 @@ interface OrProbeClient {
  * `revoked` (a bad/revoked key); anything else → `unreachable`. `checkedAt` is stamped from the injected
  * clock (the domain may layer its own throttle state on top). The reason is sanitized — never raw upstream
  * markup/secrets.
+ *
+ * ORDER (#1809): SCRUB, then sanitize. `sanitizeApiError` strips `<…>` spans and caps at 500 chars, so
+ * running it first can bite a known credential in half and leave a fragment the by-value belt no longer
+ * matches. See {@link sanitizeApiError}'s file header.
  */
 export async function probeOpenRouterCredential(client: OrProbeClient, now: () => number, secrets: readonly string[] = []): Promise<CredentialHealth> {
   const checkedAt = now();
@@ -30,7 +34,7 @@ export async function probeOpenRouterCredential(client: OrProbeClient, now: () =
     await client.credits.getCredits();
     return { status: "ok", checkedAt };
   } catch (err) {
-    const reason = redactSecretsFromText(sanitizeApiError(errorMessage(err)), secrets);
+    const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
     if (AUTH_FAILURE_RE.test(reason)) {
       return { status: "revoked", checkedAt, reason };
     }

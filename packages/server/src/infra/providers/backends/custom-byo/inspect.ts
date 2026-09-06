@@ -132,6 +132,8 @@ export async function inspectCustomByoEndpoint(args: {
       },
     };
   } catch (err) {
-    return { ok: false, request, response: null, error: redactSecretsFromText(sanitizeApiError(errorMessage(err)), secrets) };
+    // SCRUB, then sanitize (#1809) — `sanitizeApiError` strips `<…>` spans and caps at 500 chars, so
+    // running it first fragments a markup-bearing credential past the by-value belt's reach.
+    return { ok: false, request, response: null, error: sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets)) };
   }
 }
