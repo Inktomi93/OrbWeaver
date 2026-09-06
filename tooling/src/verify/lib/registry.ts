@@ -94,7 +94,8 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: STATIC,
     argv: ["pnpm", "test:types"],
     classify: asViolations,
-    // vitest typecheck is one program — whole-only, deferred at a scoped tier.
+    // vitest typecheck is one STAGE (`pnpm test:types` runs both `types-node` and `types-browser` — the
+    // DOM-less/DOM-having split #1313 gave the `.test-d.ts` lane) — whole-only, deferred at a scoped tier.
   },
   {
     name: "types:tests-dom",
