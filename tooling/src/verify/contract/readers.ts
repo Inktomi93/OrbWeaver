@@ -16,8 +16,6 @@ export interface BusCoverageSpec {
 export type {
   BusAnchor,
   BusBeltIdentity,
-  BusConsumerIdentity,
-  BusCoveragePolicyIdentity,
   BusDeclarationIdentity,
   BusEmitterIdentity,
   BusFact,

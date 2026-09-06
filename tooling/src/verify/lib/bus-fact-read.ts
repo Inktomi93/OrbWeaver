@@ -15,6 +15,12 @@ export const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 
 export const busIdentityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}\0${exportName}`;
 
+/** Compare a resolved declaration to one delivered source without probing foreign dependency files. */
+export function deliveredSourceIs(context: GatePolicyContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
+  const absolute = sourceFile.getFilePath().replaceAll("\\", "/");
+  return (absolute === path || absolute.endsWith(`/${path}`)) && context.relativePath(sourceFile) === path;
+}
+
 export function busAnchor(context: GatePolicyContext, node: MorphNode): BusAnchor {
   const at = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
   return { path: context.relativePath(node.getSourceFile()), line: at.line, column: at.column, node };
@@ -39,12 +45,15 @@ interface RefusalInput {
 }
 
 export function busRefusal(input: RefusalInput): BusUnresolvedIdentity {
+  const source = input.node?.getSourceFile().compilerNode;
+  const anchor =
+    input.node !== undefined && input.context.files.some((candidate) => candidate.compilerNode === source) ? busAnchor(input.context, input.node) : null;
   return {
     stage: input.stage,
     reason: input.reason,
     detail: input.detail,
     expected: input.expected ?? null,
-    anchor: input.node === undefined ? null : busAnchor(input.context, input.node),
+    anchor,
   };
 }
 
@@ -241,10 +250,10 @@ export function callName(call: CallExpression): string | undefined {
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
-export function aliasForParameter(context: GatePolicyContext, call: CallExpression, index: number): TypeAliasDeclaration | undefined {
+export function typeForParameter(context: GatePolicyContext, call: CallExpression, index: number): Type | undefined {
   const signature = context.checker().getResolvedSignature(call);
   const parameter = signature?.getParameters()[index];
-  return parameter === undefined ? undefined : canonicalTypeAlias(context.checker().getTypeOfSymbolAtLocation(parameter, call));
+  return parameter === undefined ? undefined : context.checker().getTypeOfSymbolAtLocation(parameter, call);
 }
 
 export function callableDeclaration(call: CallExpression): MorphNode | undefined {
@@ -271,7 +280,7 @@ function busChannelReceiver(context: GatePolicyContext, receiver: MorphNode): bo
       origin.kind === "resolved" &&
       origin.value.target.kind === "module" &&
       origin.value.target.canonical.kind === "project" &&
-      context.relativePath(origin.value.target.canonical.sourceFile) === "packages/server/src/transport/trpc/bus-channel.ts" &&
+      deliveredSourceIs(context, origin.value.target.canonical.sourceFile, "packages/server/src/transport/trpc/bus-channel.ts") &&
       origin.value.target.canonical.exportedName === "defineBusChannel"
     );
   });
@@ -303,11 +312,11 @@ export function emitterSink(context: GatePolicyContext, call: CallExpression): E
   if (member === undefined) {
     return;
   }
-  const declarations = member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? [];
-  if (injectedReceiver(member.receiver) && declarations.some((declaration) => Node.isPropertySignature(declaration))) {
-    return "injected";
+  if (injectedReceiver(member.receiver)) {
+    const declarations = member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? [];
+    return declarations.some((declaration) => Node.isPropertySignature(declaration)) ? "injected" : undefined;
   }
-  return busChannelReceiver(context, member.receiver) ? "channel" : undefined;
+  return member.name === "publish" && busChannelReceiver(context, member.receiver) ? "channel" : undefined;
 }
 
 export function operationIdentity(context: GatePolicyContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
@@ -336,14 +345,14 @@ export function ownerIdentity(context: GatePolicyContext, node: MorphNode): BusD
   return { path: context.relativePath(node.getSourceFile()), exportName: name };
 }
 
-export function typeDiscriminators(alias: TypeAliasDeclaration): ReadonlySet<string> {
-  const property = alias.getType().getProperty("type");
+export function typeDiscriminators(type: Type, at: MorphNode): ReadonlySet<string> {
+  const property = type.getProperty("type");
   if (property === undefined) {
     return new Set();
   }
-  const type = property.getTypeAtLocation(alias);
+  const propertyType = property.getTypeAtLocation(at);
   return new Set(
-    (type.isUnion() ? type.getUnionTypes() : [type]).flatMap((part) => {
+    (propertyType.isUnion() ? propertyType.getUnionTypes() : [propertyType]).flatMap((part) => {
       const value = part.getLiteralValue();
       return typeof value === "string" ? [value] : [];
     }),

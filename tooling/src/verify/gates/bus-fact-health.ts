@@ -4,16 +4,14 @@ import { describeBusFactFailure } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { createBusFactQuery } from "../lib/bus-fact.ts";
 
-const SELF = "tooling/src/verify/gates/bus-fact-health.ts";
-const MESSAGE =
-  "shared bus fact is incomplete — bus policy verdicts are withheld until every union, belt, member, emitter, consumer, and coverage-policy identity resolves.";
+const MESSAGE = "shared bus fact is incomplete — bus policy verdicts are withheld until every union, belt, member, and emitter identity resolves.";
 
 export const gate = defineGate({
   id: "bus-fact-health",
   family: "bus-fact",
   authority: "hard",
   severity: "error",
-  population: { in: ["@authored"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
   analysis: "types",
   execution: "entire-population",
   resources: [],
@@ -22,12 +20,16 @@ export const gate = defineGate({
   create: (ctx) => {
     const query = createBusFactQuery(ctx);
     return {
-      visitors: query.visitors,
+      ...query.hooks,
       evaluate: () => {
         const fact = query.finish();
         ctx.receipt({ kind: "population", source: "bus-fact-health", members: 1 });
         if (fact.status !== "ready") {
-          ctx.report.file(SELF, { message: `${MESSAGE} ${describeBusFactFailure(fact)}` });
+          const anchor = ctx.files[0];
+          if (anchor === undefined) {
+            throw new Error("bus fact health received an empty effective source population");
+          }
+          ctx.report.file(ctx.relativePath(anchor), { message: `${MESSAGE} ${describeBusFactFailure(fact)}` });
         }
       },
     };
@@ -36,7 +38,6 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [SELF]: "export const healthAnchor = true;\n",
         "packages/contracts/src/probe/index.ts": "export const noBusUnion = true;\n",
       },
       expect: { count: 1, messageIncludes: "shared bus fact is incomplete" },
@@ -47,7 +48,6 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [SELF]: "export const healthAnchor = true;\n",
         "packages/contracts/src/probe/index.ts":
           'export type ProbeBusEvent = { type: "changed" };\nexport const PROBE_EVENT_TYPES = { changed: true } satisfies Record<ProbeBusEvent["type"], true>;\n',
       },

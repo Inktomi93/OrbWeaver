@@ -1,6 +1,6 @@
 // Invocation-local semantic identities returned by the shared bus fact reader.
 import type { Node } from "ts-morph";
-import type { GatePolicyContext, GatePolicyVisitor } from "./policy.ts";
+import type { GatePolicyContext, GatePolicyHooks } from "./policy.ts";
 
 export const BUS_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
 export type BusFactStatus = (typeof BUS_FACT_STATUSES)[number];
@@ -43,30 +43,15 @@ export interface BusEmitterIdentity {
   readonly anchor: BusAnchor;
 }
 
-export interface BusCoveragePolicyIdentity {
-  readonly id: string;
-  readonly family: string;
-  readonly anchor: BusAnchor;
-}
-
-export interface BusConsumerIdentity {
-  readonly bus: BusDeclarationIdentity;
-  readonly kind: "client-total-map" | "server-exhaustive";
-  readonly owner: BusDeclarationIdentity;
-  readonly anchor: BusAnchor;
-}
-
 export interface BusRecord {
   readonly union: BusUnionIdentity;
   readonly belt: BusBeltIdentity | null;
   readonly declaredMembers: readonly BusMemberIdentity[];
   readonly emitters: readonly BusEmitterIdentity[];
-  readonly consumers: readonly BusConsumerIdentity[];
-  readonly coveragePolicy: BusCoveragePolicyIdentity | null;
 }
 
 export interface BusUnresolvedIdentity {
-  readonly stage: "union" | "belt" | "member" | "emitter" | "consumer" | "coverage-policy";
+  readonly stage: "union" | "belt" | "member" | "emitter";
   readonly reason: "unsupported" | "dynamic" | "write" | "cycle" | "ambiguous" | "missing";
   readonly detail: string;
   readonly expected: BusDeclarationIdentity | null;
@@ -80,8 +65,6 @@ export interface BusFactReceipt {
   readonly belts: number;
   readonly members: number;
   readonly emitters: number;
-  readonly consumers: number;
-  readonly coveragePolicies: number;
   readonly unresolved: number;
 }
 
@@ -104,7 +87,7 @@ export type BusFact = BusReadyFact | BusNonReadyFact;
 export interface BusFactQuery<CoveredBus = never> {
   /** Compile-time ownership witness used by coverage policies; intentionally absent at runtime. */
   readonly coveredBusType?: CoveredBus;
-  readonly visitors: readonly GatePolicyVisitor[];
+  readonly hooks: Pick<GatePolicyHooks, "visitors">;
   /** Idempotent: one semantic computation is retained by this policy invocation's `create` closure. */
   readonly finish: () => BusFact;
 }

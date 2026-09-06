@@ -2,12 +2,11 @@
 // path/name registry, cache, parser, exception table, or legacy gate adapter crosses this boundary.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { BusCoveragePolicyIdentity, BusFact, BusFactQuery, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
+import type { BusFact, BusFactQuery, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import type { MutableBusRecord } from "./bus-fact-output.ts";
 import { finishBusFact } from "./bus-fact-output.ts";
 import {
-  aliasForParameter,
   authoredProperty,
   BUS_UNION_SUFFIX,
   beltMembers,
@@ -17,19 +16,18 @@ import {
   busIdentityKey,
   busRefusal,
   callableDeclaration,
+  callName,
   canonicalTypeAlias,
   discriminatorValues,
   EVENT_TYPES_SUFFIX,
-  indexedBusUnion,
+  emitterSink,
   NAMED_BUS_UNIONS,
   operationIdentity,
-  ownerIdentity,
   parameterProjection,
   typeDiscriminators,
+  typeForParameter,
 } from "./bus-fact-read.ts";
-import { isCanonicalDefineGate } from "./gate-contract-origin.ts";
-import { readMemberReference } from "./reference-fact.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
+import { resolveCallableMember } from "./gate-contract-origin.ts";
 import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 
 interface Relay {
@@ -42,14 +40,35 @@ interface Relay {
 interface QueryState {
   readonly aliases: TypeAliasDeclaration[];
   readonly belts: VariableDeclaration[];
-  readonly calls: CallExpression[];
+  readonly serverCalls: CallExpression[];
+  readonly emitterDoors: MorphNode[];
   readonly yields: import("ts-morph").YieldExpression[];
-  readonly consumers: MorphNode[];
-  readonly descriptorCalls: CallExpression[];
+}
+
+const CHAT_BUS = { path: "packages/contracts/src/chat/bus.ts", exportName: "ChatBusEvent" } as const;
+const BUS_FACT_KEY = Object.freeze({ id: "bus-fact" });
+
+function isProducerPath(record: MutableBusRecord, path: string): boolean {
+  if (path.startsWith("packages/server/src/domain/") || path.startsWith("packages/server/src/transport/")) {
+    return true;
+  }
+  return busIdentityKey(record.union) === busIdentityKey(CHAT_BUS) && path.startsWith("packages/server/src/entry/compose/");
 }
 
 function newState(): QueryState {
-  return { aliases: [], belts: [], calls: [], yields: [], consumers: [], descriptorCalls: [] };
+  return {
+    aliases: [],
+    belts: [],
+    serverCalls: [],
+    emitterDoors: [],
+    yields: [],
+  };
+}
+
+function collectCall(state: QueryState, call: CallExpression, path: string): void {
+  if (path.startsWith("packages/server/src/")) {
+    state.serverCalls.push(call);
+  }
 }
 
 function collectNode(context: GatePolicyContext, state: QueryState, node: MorphNode, sourceFile: SourceFile): void {
@@ -57,97 +76,26 @@ function collectNode(context: GatePolicyContext, state: QueryState, node: MorphN
   if (Node.isTypeAliasDeclaration(node) && node.isExported() && (node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName()))) {
     state.aliases.push(node);
   }
-  if (Node.isVariableDeclaration(node) && path.startsWith("packages/contracts/src/") && node.getName().endsWith(EVENT_TYPES_SUFFIX)) {
+  if (
+    Node.isVariableDeclaration(node) &&
+    path.startsWith("packages/contracts/src/") &&
+    node.getName().endsWith(EVENT_TYPES_SUFFIX) &&
+    beltUnionNode(node) !== undefined
+  ) {
     state.belts.push(node);
   }
   if (Node.isCallExpression(node)) {
-    state.calls.push(node);
-    if (path.startsWith("tooling/src/verify/gates/") && isCanonicalDefineGate(node.getExpression())) {
-      state.descriptorCalls.push(node);
-    }
+    collectCall(state, node, path);
+  }
+  if (
+    path.startsWith("packages/server/src/") &&
+    (Node.isParameterDeclaration(node) || Node.isPropertySignature(node) || Node.isMethodSignature(node)) &&
+    (node.getText().includes("Event") || node.getText().includes("Emitter"))
+  ) {
+    state.emitterDoors.push(node);
   }
   if (Node.isYieldExpression(node) && path.startsWith("packages/server/src/")) {
     state.yields.push(node);
-  }
-  if ((Node.isMappedTypeNode(node) || Node.isTypeReference(node)) && path.startsWith("packages/client/src/")) {
-    state.consumers.push(node);
-  }
-}
-
-function descriptorFields(context: GatePolicyContext, calls: readonly CallExpression[]): ReadonlyMap<string, BusCoveragePolicyIdentity> {
-  const descriptors = new Map<string, BusCoveragePolicyIdentity>();
-  for (const call of calls) {
-    const argument = call.getArguments()[0];
-    if (!Node.isObjectLiteralExpression(argument)) {
-      continue;
-    }
-    const field = (name: string): string | undefined => {
-      const property = argument.getProperty(name);
-      const initializer = Node.isPropertyAssignment(property) ? property.getInitializer() : undefined;
-      const read = initializer === undefined ? undefined : readStaticAuthoredScalar(initializer);
-      return read?.kind === "resolved" && typeof read.value === "string" ? read.value : undefined;
-    };
-    const id = field("id");
-    const family = field("family");
-    const path = context.relativePath(call.getSourceFile());
-    if (id !== undefined && family !== undefined && path === `tooling/src/verify/gates/${id}.ts`) {
-      descriptors.set(path, { id, family, anchor: busAnchor(context, call) });
-    }
-  }
-  return descriptors;
-}
-
-function isBusQuery(context: GatePolicyContext, call: CallExpression): boolean {
-  const origin = resolveCallableOrigin(call);
-  return (
-    origin.kind === "resolved" &&
-    origin.value.target.kind === "module" &&
-    origin.value.target.canonical.kind === "project" &&
-    context.relativePath(origin.value.target.canonical.sourceFile) === "tooling/src/verify/lib/bus-fact.ts" &&
-    origin.value.target.canonical.exportedName === "createBusFactQuery"
-  );
-}
-
-function attachCoveragePolicies(
-  context: GatePolicyContext,
-  state: QueryState,
-  byUnion: ReadonlyMap<string, MutableBusRecord>,
-  unresolved: BusUnresolvedIdentity[],
-): void {
-  const descriptors = descriptorFields(context, state.descriptorCalls);
-  for (const call of state.calls) {
-    if (!isBusQuery(context, call) || call.getTypeArguments().length === 0) {
-      continue;
-    }
-    const typeNode = call.getTypeArguments()[0];
-    const alias = typeNode === undefined ? undefined : canonicalTypeAlias(typeNode.getType());
-    if (alias === undefined) {
-      unresolved.push(
-        busRefusal({ context, stage: "coverage-policy", reason: "missing", detail: "typed bus query does not resolve one bus union", node: call }),
-      );
-      continue;
-    }
-    const record = byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
-    const descriptor = descriptors.get(context.relativePath(call.getSourceFile()));
-    if (record === undefined || descriptor === undefined) {
-      unresolved.push(
-        busRefusal({
-          context,
-          stage: "coverage-policy",
-          reason: "missing",
-          detail: "typed bus query has no canonical bus record or policy descriptor",
-          node: call,
-        }),
-      );
-      continue;
-    }
-    if (record.coveragePolicy !== null && record.coveragePolicy.id !== descriptor.id) {
-      unresolved.push(
-        busRefusal({ context, stage: "coverage-policy", reason: "ambiguous", detail: `${record.union.exportName} has multiple coverage policies`, node: call }),
-      );
-      continue;
-    }
-    record.coveragePolicy = descriptor;
   }
 }
 
@@ -155,14 +103,18 @@ function parentResolver(
   context: GatePolicyContext,
   buses: readonly MutableBusRecord[],
   byUnion: ReadonlyMap<string, MutableBusRecord>,
-): (alias: TypeAliasDeclaration) => MutableBusRecord | undefined {
+): (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined {
   const members = new Map(buses.map((record) => [record, new Set(record.declaredMembers.map(({ name }) => name))]));
-  return (alias) => {
-    const exact = byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
-    if (exact?.belt !== null) {
-      return exact;
+  const deliveredFiles = new Set(context.files.map((sourceFile) => sourceFile.compilerNode));
+  return (type, at) => {
+    const alias = canonicalTypeAlias(type);
+    if (alias !== undefined && deliveredFiles.has(alias.getSourceFile().compilerNode)) {
+      const exact = byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
+      if (exact?.belt !== null) {
+        return exact;
+      }
     }
-    const values = typeDiscriminators(alias);
+    const values = typeDiscriminators(type, at);
     const candidates = buses.filter((record) => {
       const names = members.get(record);
       return record.belt !== null && names !== undefined && values.size > 0 && [...values].every((value) => names.has(value));
@@ -192,13 +144,15 @@ function addRelay(relays: Relay[], relay: Relay): boolean {
   return true;
 }
 
-function appendEmission(
-  context: GatePolicyContext,
-  record: MutableBusRecord,
-  call: CallExpression,
-  values: readonly { readonly value: string; readonly node: MorphNode }[],
-  unresolved: BusUnresolvedIdentity[],
-): void {
+interface AppendEmissionInput {
+  readonly context: GatePolicyContext;
+  readonly record: MutableBusRecord;
+  readonly call: CallExpression;
+  readonly values: readonly { readonly value: string; readonly node: MorphNode }[];
+  readonly unresolved: BusUnresolvedIdentity[];
+}
+
+function appendEmission({ context, record, call, values, unresolved }: AppendEmissionInput): void {
   const members = new Map(record.declaredMembers.map((member) => [member.name, member]));
   for (const value of values) {
     const member = members.get(value.value);
@@ -220,147 +174,233 @@ function appendEmission(
   }
 }
 
-function directEmitters(
+function relayFromArgument(context: GatePolicyContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
+  const projection = parameterProjection(context, argument, property, []);
+  const declaration = projection === undefined ? undefined : enclosingFunction(projection.parameter);
+  if (projection === undefined || declaration === undefined) {
+    return;
+  }
+  const parameterIndex = declaration.getParameters().findIndex((parameter) => parameter.compilerNode === projection.parameter.compilerNode);
+  return parameterIndex < 0 ? undefined : { declaration, parameterIndex, memberPath: projection.memberPath, bus };
+}
+
+interface DirectArgumentInput {
+  readonly context: GatePolicyContext;
+  readonly call: CallExpression;
+  readonly index: number;
+  readonly argument: MorphNode;
+  readonly path: string;
+  readonly parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined;
+  readonly unresolved: BusUnresolvedIdentity[];
+  readonly relays: Relay[];
+}
+
+function collectDirectArgument({ context, call, index, argument, path, parentFor, unresolved, relays }: DirectArgumentInput): void {
+  const type = typeForParameter(context, call, index);
+  const record = type === undefined ? undefined : parentFor(type, call);
+  if (record === undefined || !isProducerPath(record, path)) {
+    return;
+  }
+  appendEmission({ context, record, call, values: discriminatorValues(context, argument, "type", []), unresolved });
+  const relay = relayFromArgument(context, argument, "type", record);
+  if (relay !== undefined) {
+    addRelay(relays, relay);
+  }
+}
+
+function emitterDoorNames(
   context: GatePolicyContext,
-  calls: readonly CallExpression[],
-  parentFor: (alias: TypeAliasDeclaration) => MutableBusRecord | undefined,
-  unresolved: BusUnresolvedIdentity[],
-): Relay[] {
+  declarations: readonly MorphNode[],
+  parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined,
+): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const declaration of declarations) {
+    if (!(Node.isParameterDeclaration(declaration) || Node.isPropertySignature(declaration) || Node.isMethodSignature(declaration))) {
+      continue;
+    }
+    const ownsBusParameter = declaration
+      .getType()
+      .getNonNullableType()
+      .getCallSignatures()
+      .some((signature) =>
+        signature
+          .getParameters()
+          .some((parameter) => parentFor(context.checker().getTypeOfSymbolAtLocation(parameter, declaration), declaration) !== undefined),
+      );
+    if (ownsBusParameter) {
+      names.add(declaration.getName());
+    }
+  }
+  return names;
+}
+
+function hasEmitterDoor(call: CallExpression, names: ReadonlySet<string>): boolean {
+  if (call.getArguments().some((argument) => Node.isObjectLiteralExpression(argument) && argument.getProperty("type") !== undefined)) {
+    return true;
+  }
+  const name = callName(call);
+  if (name === "publish" || (name !== undefined && names.has(name))) {
+    return true;
+  }
+  const expression = call.getExpression();
+  const member = Node.isIdentifier(expression) ? resolveCallableMember(expression) : undefined;
+  return member !== undefined && names.has(member.name);
+}
+
+interface DirectEmittersInput {
+  readonly context: GatePolicyContext;
+  readonly calls: readonly CallExpression[];
+  readonly emitterNames: ReadonlySet<string>;
+  readonly parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined;
+  readonly unresolved: BusUnresolvedIdentity[];
+}
+
+function directEmitters({ context, calls, emitterNames, parentFor, unresolved }: DirectEmittersInput): Relay[] {
   const relays: Relay[] = [];
   for (const call of calls) {
-    if (!context.relativePath(call.getSourceFile()).startsWith("packages/server/src/")) {
+    const path = context.relativePath(call.getSourceFile());
+    if (call.getArguments().length === 0 || !hasEmitterDoor(call, emitterNames) || emitterSink(context, call) === undefined) {
       continue;
     }
     for (const [index, argument] of call.getArguments().entries()) {
-      const alias = aliasForParameter(context, call, index);
-      const record = alias === undefined ? undefined : parentFor(alias);
-      if (record === undefined) {
-        continue;
-      }
-      appendEmission(context, record, call, discriminatorValues(context, argument, "type", unresolved), unresolved);
-      const projection = parameterProjection(context, argument, "type", []);
-      const fn = projection === undefined ? undefined : enclosingFunction(projection.parameter);
-      if (projection !== undefined && fn !== undefined) {
-        const parameterIndex = fn.getParameters().findIndex((parameter) => parameter.compilerNode === projection.parameter.compilerNode);
-        if (parameterIndex >= 0) {
-          addRelay(relays, { declaration: fn, parameterIndex, memberPath: projection.memberPath, bus: record });
-        }
-      }
+      collectDirectArgument({ context, call, index, argument, path, parentFor, unresolved, relays });
     }
   }
   return relays;
 }
 
-function propagateRelays(context: GatePolicyContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
-  const visited = new Set<string>();
-  for (;;) {
-    let changed = false;
-    for (const call of calls) {
-      const declaration = callableDeclaration(call);
-      for (const relay of relays.filter((candidate) => candidate.declaration.compilerNode === declaration?.compilerNode)) {
-        const key = `${call.getSourceFile().getFilePath()}\0${call.getStart()}\0${relay.parameterIndex}\0${busIdentityKey(relay.bus.union)}`;
-        if (visited.has(key)) {
-          continue;
-        }
-        visited.add(key);
-        const argument = call.getArguments()[relay.parameterIndex];
-        if (argument === undefined) {
-          unresolved.push(busRefusal({ context, stage: "emitter", reason: "missing", detail: "bus relay call omits its event argument", node: call }));
-          continue;
-        }
-        const property = relay.memberPath[0] ?? "type";
-        appendEmission(context, relay.bus, call, discriminatorValues(context, argument, property, unresolved), unresolved);
-        const projection = parameterProjection(context, argument, property, []);
-        const fn = projection === undefined ? undefined : enclosingFunction(projection.parameter);
-        if (projection !== undefined && fn !== undefined) {
-          const parameterIndex = fn.getParameters().findIndex((parameter) => parameter.compilerNode === projection.parameter.compilerNode);
-          changed = parameterIndex >= 0 && addRelay(relays, { declaration: fn, parameterIndex, memberPath: projection.memberPath, bus: relay.bus });
-        }
+interface PropagateRelayInput {
+  readonly context: GatePolicyContext;
+  readonly call: CallExpression;
+  readonly relay: Relay;
+  readonly relays: Relay[];
+  readonly unresolved: BusUnresolvedIdentity[];
+  readonly visited: Set<string>;
+}
+
+function propagateRelay({ context, call, relay, relays, unresolved, visited }: PropagateRelayInput): boolean {
+  const key = `${call.getSourceFile().getFilePath()}\0${call.getStart()}\0${relay.parameterIndex}\0${busIdentityKey(relay.bus.union)}`;
+  if (visited.has(key)) {
+    return false;
+  }
+  visited.add(key);
+  const argument = call.getArguments()[relay.parameterIndex];
+  if (argument === undefined) {
+    unresolved.push(busRefusal({ context, stage: "emitter", reason: "missing", detail: "bus relay call omits its event argument", node: call }));
+    return false;
+  }
+  const property = relay.memberPath[0] ?? "type";
+  appendEmission({ context, record: relay.bus, call, values: discriminatorValues(context, argument, property, []), unresolved });
+  const next = relayFromArgument(context, argument, property, relay.bus);
+  return next !== undefined && addRelay(relays, next);
+}
+
+function callsByName(calls: readonly CallExpression[]): ReadonlyMap<string, readonly CallExpression[]> {
+  const indexed = new Map<string, CallExpression[]>();
+  for (const call of calls) {
+    const name = callName(call);
+    if (name !== undefined) {
+      const existing = indexed.get(name);
+      if (existing === undefined) {
+        indexed.set(name, [call]);
+      } else {
+        existing.push(call);
       }
     }
-    if (!changed) {
-      return;
+  }
+  return indexed;
+}
+
+function propagateRelayPass(
+  input: Omit<PropagateRelayInput, "call" | "relay"> & { readonly callIndex: ReadonlyMap<string, readonly CallExpression[]> },
+): boolean {
+  let changed = false;
+  for (const relay of [...input.relays]) {
+    const name = relay.declaration.getName();
+    for (const call of name === undefined ? [] : (input.callIndex.get(name) ?? [])) {
+      if (callableDeclaration(call)?.compilerNode !== relay.declaration.compilerNode) {
+        continue;
+      }
+      changed = propagateRelay({ ...input, call, relay }) || changed;
     }
+  }
+  return changed;
+}
+
+function propagateRelays(context: GatePolicyContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
+  const visited = new Set<string>();
+  const callIndex = callsByName(calls);
+  while (propagateRelayPass({ context, callIndex, relays, unresolved, visited })) {
+    // A newly discovered wrapper parameter may expose another caller on the next pass.
   }
 }
 
-function attachClientConsumers(
-  context: GatePolicyContext,
-  nodes: readonly MorphNode[],
-  parentFor: (alias: TypeAliasDeclaration) => MutableBusRecord | undefined,
-): void {
-  for (const node of nodes) {
-    const indexed = Node.isMappedTypeNode(node)
-      ? indexedBusUnion(node.getTypeParameter().getConstraint())
-      : Node.isTypeReference(node) && node.getTypeName().getText() === "Record"
-        ? indexedBusUnion(node.getTypeArguments()[0])
-        : undefined;
-    const alias = indexed === undefined ? undefined : canonicalTypeAlias(indexed.getType());
-    const record = alias === undefined ? undefined : parentFor(alias);
-    if (record !== undefined) {
-      record.consumers.push({ bus: record.union, kind: "client-total-map", owner: ownerIdentity(context, node), anchor: busAnchor(context, node) });
-    }
+interface YieldedValueInput {
+  readonly context: GatePolicyContext;
+  readonly statement: import("ts-morph").YieldExpression;
+  readonly record: MutableBusRecord;
+  readonly value: { readonly value: string; readonly node: MorphNode };
+  readonly unresolved: BusUnresolvedIdentity[];
+}
+
+function appendYieldedValue({ context, statement, record, value, unresolved }: YieldedValueInput): void {
+  const member = record.declaredMembers.find((candidate) => candidate.name === value.value);
+  if (member === undefined) {
+    unresolved.push(
+      busRefusal({
+        context,
+        stage: "emitter",
+        reason: "missing",
+        detail: `${record.union.exportName} yielded frame carries undeclared member ${value.value}`,
+        node: value.node,
+        expected: record.union,
+      }),
+    );
+    return;
+  }
+  if (!record.emitters.some((emitter) => emitter.anchor.node.compilerNode === statement.compilerNode && emitter.member.name === member.name)) {
+    record.emitters.push({
+      member,
+      operation: { kind: "yield", owner: record.union, memberPath: ["chat", "event"] },
+      anchor: busAnchor(context, statement),
+    });
   }
 }
 
-function attachServerExhaustiveness(
+function attachYieldEmitter(
   context: GatePolicyContext,
-  calls: readonly CallExpression[],
-  parentFor: (alias: TypeAliasDeclaration) => MutableBusRecord | undefined,
+  statement: import("ts-morph").YieldExpression,
+  record: MutableBusRecord,
+  unresolved: BusUnresolvedIdentity[],
 ): void {
-  for (const call of calls) {
-    const argument = call.getArguments()[0];
-    const signature = context.checker().getResolvedSignature(call);
-    const parameter = signature?.getParameters()[0];
-    const parameterType = parameter === undefined ? undefined : context.checker().getTypeOfSymbolAtLocation(parameter, call);
-    const switchNode = call.getFirstAncestorByKind(SyntaxKind.SwitchStatement);
-    if (argument === undefined || parameterType?.isNever() !== true || switchNode === undefined) {
-      continue;
-    }
-    const discriminant = readMemberReference(switchNode.getExpression());
-    if (discriminant.kind !== "resolved" || discriminant.value.name !== "type") {
-      continue;
-    }
-    const alias = canonicalTypeAlias(discriminant.value.receiver.getType());
-    const record = alias === undefined ? undefined : parentFor(alias);
-    if (record !== undefined && argument.getText() === discriminant.value.receiver.getText()) {
-      record.consumers.push({ bus: record.union, kind: "server-exhaustive", owner: ownerIdentity(context, call), anchor: busAnchor(context, call) });
-    }
+  if (!isProducerPath(record, context.relativePath(statement.getSourceFile()))) {
+    return;
+  }
+  const expression = statement.getExpression();
+  if (expression === undefined || !Node.isObjectLiteralExpression(expression)) {
+    return;
+  }
+  const channel = authoredProperty(context, expression, "channel", unresolved);
+  const channelValue = channel === undefined ? undefined : readStaticAuthoredScalar(channel);
+  const event = authoredProperty(context, expression, "event", unresolved);
+  if (channelValue?.kind !== "resolved" || channelValue.value !== "chat" || event === undefined) {
+    return;
+  }
+  for (const value of discriminatorValues(context, event, "type", [])) {
+    appendYieldedValue({ context, statement, record, value, unresolved });
   }
 }
 
 function attachYieldEmitters(
   context: GatePolicyContext,
   yields: readonly import("ts-morph").YieldExpression[],
-  buses: readonly MutableBusRecord[],
+  byUnion: ReadonlyMap<string, MutableBusRecord>,
   unresolved: BusUnresolvedIdentity[],
 ): void {
-  for (const statement of yields) {
-    const expression = statement.getExpression();
-    const typeAlias = expression === undefined ? undefined : canonicalTypeAlias(expression.getType());
-    const record =
-      typeAlias === undefined
-        ? undefined
-        : buses.find((candidate) => busIdentityKey(candidate.union) === busIdentityKey(busDeclarationIdentity(context, typeAlias)));
-    if (expression === undefined || record === undefined || !Node.isObjectLiteralExpression(expression)) {
-      continue;
-    }
-    const channel = authoredProperty(context, expression, "channel", unresolved);
-    const channelValue = channel === undefined ? undefined : readStaticAuthoredScalar(channel);
-    const event = authoredProperty(context, expression, "event", unresolved);
-    if (channelValue?.kind !== "resolved" || channelValue.value !== "chat" || event === undefined) {
-      continue;
-    }
-    const members = new Map(record.declaredMembers.map((member) => [member.name, member]));
-    for (const value of discriminatorValues(context, event, "type", unresolved)) {
-      const member = members.get(value.value);
-      if (member !== undefined) {
-        record.emitters.push({
-          member,
-          operation: { kind: "yield", owner: record.union, memberPath: ["chat", "event"] },
-          anchor: busAnchor(context, statement),
-        });
-      }
+  const record = byUnion.get(busIdentityKey(CHAT_BUS));
+  if (record !== undefined) {
+    for (const statement of yields) {
+      attachYieldEmitter(context, statement, record, unresolved);
     }
   }
 }
@@ -372,8 +412,6 @@ function finishFact(context: GatePolicyContext, state: QueryState): BusFact {
     belt: null,
     declaredMembers: [],
     emitters: [],
-    consumers: [],
-    coveragePolicy: null,
   }));
   const byUnion = new Map(mutable.map((record) => [busIdentityKey(record.union), record]));
   for (const declaration of state.belts) {
@@ -406,40 +444,58 @@ function finishFact(context: GatePolicyContext, state: QueryState): BusFact {
     };
     record.declaredMembers.push(...beltMembers(context, declaration, record.union, unresolved));
   }
-  attachCoveragePolicies(context, state, byUnion, unresolved);
   const parentFor = parentResolver(context, mutable, byUnion);
-  const relays = directEmitters(context, state.calls, parentFor, unresolved);
-  propagateRelays(context, state.calls, relays, unresolved);
-  attachClientConsumers(context, state.consumers, parentFor);
-  attachServerExhaustiveness(context, state.calls, parentFor);
-  attachYieldEmitters(context, state.yields, mutable, unresolved);
+  const names = emitterDoorNames(context, state.emitterDoors, parentFor);
+  const relays = directEmitters({ context, calls: state.serverCalls, emitterNames: names, parentFor, unresolved });
+  propagateRelays(context, state.serverCalls, relays, unresolved);
+  attachYieldEmitters(context, state.yields, byUnion, unresolved);
   if (mutable.length === 0) {
     unresolved.push(busRefusal({ context, stage: "union", reason: "missing", detail: "no exported bus union exists in the effective population" }));
   }
   return finishBusFact(mutable, unresolved);
 }
 
-/** Construct the bus query once inside a policy's `create`; the final dispatcher feeds its visitors. */
-export function createBusFactQuery<CoveredBus = never>(context: GatePolicyContext): BusFactQuery<CoveredBus> {
+function createBusFactCollector(context: GatePolicyContext): BusFactQuery {
   const state = newState();
   let finished: BusFact | undefined;
+  let failure: unknown;
+  const visit = (node: MorphNode, sourceFile: SourceFile): void => {
+    try {
+      collectNode(context, state, node, sourceFile);
+    } catch (error) {
+      failure ??= error;
+      throw error;
+    }
+  };
   return {
-    visitors: [
-      {
-        kinds: [
-          SyntaxKind.TypeAliasDeclaration,
-          SyntaxKind.VariableDeclaration,
-          SyntaxKind.CallExpression,
-          SyntaxKind.YieldExpression,
-          SyntaxKind.MappedType,
-          SyntaxKind.TypeReference,
-        ],
-        visit: (node, sourceFile) => collectNode(context, state, node, sourceFile),
-      },
-    ],
+    hooks: {
+      visitors: [
+        {
+          kinds: [
+            SyntaxKind.TypeAliasDeclaration,
+            SyntaxKind.VariableDeclaration,
+            SyntaxKind.CallExpression,
+            SyntaxKind.Parameter,
+            SyntaxKind.PropertySignature,
+            SyntaxKind.MethodSignature,
+            SyntaxKind.YieldExpression,
+          ],
+          visit,
+        },
+      ],
+    },
     finish: (): BusFact => {
+      if (failure !== undefined) {
+        throw failure;
+      }
       finished ??= finishFact(context, state);
       return finished;
     },
   };
+}
+
+/** Share one collector across every selected bus policy in this pass; only the first registers visitors. */
+export function createBusFactQuery<CoveredBus = never>(context: GatePolicyContext): BusFactQuery<CoveredBus> {
+  const shared = context.sharedFact(BUS_FACT_KEY, () => createBusFactCollector(context));
+  return shared.collect ? shared.value : { ...shared.value, hooks: {} };
 }
