@@ -275,7 +275,7 @@ Two review findings were about the PROOFS rather than the policies, and both gen
 - ~~**`resolveModuleMemberOrigin` refuses an OVERLOADED export as `ambiguous`.**~~ **CLOSED 2026-09-06**
   by the shared overload-aware origin reader (`reference-fact-module.ts#overloadHome`): a set of declarations
   that is one FUNCTION-overload set — same kind, same source file, at most one implementation body — resolves
-  to one home, with the count carried in `canonical.declarationCount`. Everything else that yields several
+  to one home. Everything else that yields several
   declarations (a value/type merge, a `function`+`namespace` merge, an `export *` fan-in, an overload set
   split across two files) stays `ambiguous`. The limit is now a CAUGHT ROW in both React policies:
   `no-forward-ref` `mustFlag[1]` and `no-use-context` `mustFlag[1]` build React's door from
@@ -283,10 +283,15 @@ Two review findings were about the PROOFS rather than the policies, and both gen
   message — which the fail-closed `unreadable` arm does not carry, so the row reds the moment the reader
   refuses an overload set again (red-first receipt: both rows fail against the unmodified reader with
   `expected one effective finding matching messageIncludes="React 19 deprecates" but no single finding
-  matched`). On the real tree the arm resolves 557 client/server import specifiers that used to refuse —
-  `useState` (206), `useQuery` (135), `useRef` (103), drizzle's `inArray` (53), and the project's own
-  `createAutosaveEntityForm` (27) — while 88 genuinely merged symbols (drizzle's `sql`/`SQL`, `Component`)
-  still refuse.
+  matched`). On the real tree the arm resolves **775** named import specifiers across the WHOLE authored source
+  universe that used to refuse — `useState` 299, `useQuery` 139, `useRef` 135, drizzle's `inArray` 58, the
+  project's own `createAutosaveEntityForm` 36, drizzle's `text` 29 / `integer` 28, `defineBusChannel` 5 —
+  while **182** still refuse as `ambiguous` and are all genuine merges (drizzle's `sql` 118, `SQL` 24,
+  `SubstituteFindRegex` 11, `Component` 6, `ZodError` 5, …). Restricted to `packages/{server,client}/src`
+  alone the same census reads 557 / 88, which is the number an earlier draft of this bullet carried without
+  saying its scope. A THIRD bucket is neither: a `node:` builtin (`readFile` 66, `readdir` 16, `stat` 12,
+  `scrypt` 1, `lookup` 1) answers `external-door` — the `node:` specifier resolves to no file in this program,
+  so those sites are outside both counts rather than missing from one.
 - The `#data` / `#forms` package-internal import aliases DO resolve in the `getWorkspace({types:true})`
   program, so a surface importing `useTRPC` from `#data` is judged with the precise verdict, not the
   fail-closed one (verified by the planted control).

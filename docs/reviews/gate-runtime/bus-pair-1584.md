@@ -334,12 +334,20 @@ bus that no module named — a structural consequence of the per-union shape, no
 IS the generic policy's denominator, so a new bus is covered the day its belt lands. What carries the old
 gate's guarantee, in the shape a fixture can actually prove:
 
-| The owner gate asked | Now |
-| - | - |
-| does some policy declare this union? | the belted roster is the denominator — no declaration to omit |
-| did I parse zero gate modules? (blindness) | a definition fact with ZERO belted unions REFUSES the run (`bus-fact-health.test.ts`, "a corpus with no BELTED bus REFUSES") |
-| is a warning-debt sibling laundering ownership? | severity/authority no longer decide ownership at all; the deferral is a `(union, member)` row the coverage policy imports and skips |
-| — | a belted union with no producer-fact record REFUSES at the join rather than passing |
+| The owner gate asked | Now | Pinned by |
+| - | - | - |
+| does some policy declare this union? | the PRODUCER fact's belted roster is the denominator — there is no lookup to miss and no declaration to omit | "ONE policy quantifies over EVERY belted union" |
+| did I parse zero gate modules? (blindness) | a corpus with ZERO belted unions REFUSES the run | "a corpus with no BELTED bus REFUSES" |
+| is a warning-debt sibling laundering ownership? | severity/authority no longer decide ownership; the deferral is a `(union, member)` row read through the deferral module's own selector | "the deferral selector answers by (union, member)" + the cross-bus row |
+| — (new) | the definition fact's independently derived belted roster must AGREE with the producer's, or the run refuses | "a bus the PRODUCER fact belts and the definition fact cannot see REFUSES" |
+
+Every row above reds under a mutant, and the mutants were run: neutering the roster check reds the roster row
+(the corpus still refuses, with the OTHER message — which is why that row asserts the message and not merely
+`incomplete`); dropping the union half of the deferral key reds both the cross-bus row and the selector row.
+The originally-drafted "belted union with no producer-fact record REFUSES at the join" arm was REMOVED rather
+than pinned: with the denominator taken from the producer fact there is no such lookup, and the reachable
+divergence — a union alias declared outside `packages/contracts/src/` whose belt lives inside it, belted for
+the producer fact and invisible to the definition fact — is what the roster row plants.
 
 `busCoverageOwnerFact` (267–270 gate modules, 3.6–3.8 s of every composed pass) is deleted with it, along
 with `BusCoverageOwner`/`BusCoverageOwnerFact` and the two now-internal helpers it was the only outside caller
@@ -352,11 +360,17 @@ union's own emit operation, which the generic `fix` states categorically. The ON
 is the owner deferral, and it was already a separate policy (`user-bus-deferred-member`, hard/warning,
 `workItem: 1822`) — its "must not double-report" contract moved onto the generic policy, and its export is now
 `BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[]`, keyed by `(union, member)`: a bare member NAME would have
-deferred a same-named member of any OTHER bus once the quantifier went generic.
+deferred a same-named member of any OTHER bus once the quantifier went generic. Both policies read it through
+ONE selector, `deferralsFor(union, rows = BUS_MEMBER_DEFERRALS)`, so the union half cannot be honoured in one
+reader and dropped in the other; the injectable `rows` exists because the live list holds exactly one row, and
+without a planted second row the filter is unreachable from any fixture (measured — an unfiltered mutant left
+every bus spec green until the selector row landed).
 
-**Proof rows: none lost.** All 21 rows of the five retired modules moved onto the generic policy verbatim
-(12 mustFlag + 9 mustPass), plus one new mustFlag row that only the consolidated shape can express — two
-belted unions in one corpus, one produced and one not, judged by one policy. Conformance lives in
+**Proof rows: none lost.** All 21 rows of the five retired modules moved onto the generic policy
+(12 mustFlag + 9 mustPass) with their `files` maps byte-identical; what changed is what the consolidation
+owns — the per-union `message`/`fix` become the generic pair, and three `why` strings gained a clause naming
+the union or the consolidated behaviour. Plus one new mustFlag row that only the consolidated shape can
+express: two belted unions in one corpus, one produced and one not, judged by one policy. Conformance lives in
 `tests/tooling/verify/gates/bus-fact-health.test.ts` (that spec WAS the producer family's entry — the four
 coverage modules plus the health policy — so it stays the producer family's entry; `bus-pair.test.ts` keeps
 the definition family and the deferral pins, and imports the generic policy only for the two-policy deferral

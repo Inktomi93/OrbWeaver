@@ -121,8 +121,9 @@ declarations, so the identity home is unique even though the count is not — an
 families their precise verdict and closed the `.publish` door for every bus channel on the tree.
 `reference-fact-module.ts#overloadHome` now resolves a set of declarations to one home when every declaration
 is a `FunctionDeclaration`, in the same source file, with at most one implementation body; the home is the
-implementation when there is one, otherwise the first signature, and `canonical.declarationCount` carries the
-count. Both refusal sites take it (the export-symbol path at the old `:207`, and the local-export-specifier
+implementation when there is one, otherwise the first signature. The set's SIZE is deliberately NOT a
+contract field: no production reader consumes it, `declaration.getSymbol()?.getDeclarations()` still has it
+for one that ever does, and a required field nothing reads is dead weight in a contract 22 callers depend on. Both refusal sites take it (the export-symbol path at the old `:207`, and the local-export-specifier
 path at the old `:129`). **DELIBERATE NARROWING, stated:** the brief's kind list also named
 `MethodDeclaration`/`MethodSignature`/call-signature overload sets; every symbol that reaches this reader
 comes from `SourceFile#getExportSymbols()` or an export specifier's aliased symbol, so its declarations are
@@ -140,16 +141,21 @@ comment.
   implementations of one name in one file). Against the unmodified reader: **3 fail, 8 pass** — the four
   counterfactuals pass in BOTH states by design, and the planted package door is its own resolution control
   (an unresolvable door answers `external-door` and would prove nothing about declaration counting).
-- **Live arm census** (real workspace, 7,245 sources): **557** client/server import specifiers now resolve to
-  an overload set — `useState` 206, `useQuery` 135, `useRef` 103, drizzle `inArray` 53, the project's own
-  `createAutosaveEntityForm` 27, `defineBusChannel` 4 — while **88** stay `ambiguous` and are all genuine
-  merges (drizzle's `sql` 58, `SQL` 23, `Component`, `SubstituteFindRegex`, `Agent`, `buildConnector`,
-  `Quantization`). `@trpc/server`'s `TRPCError` is in NEITHER list, and the reason is not the one recorded:
+- **Live arm census** (real workspace, 7,245 sources, WHOLE authored tree — the first cut scoped it to
+  server+client and said so nowhere): **775** named import specifiers now resolve to an overload set
+  (`useState` 299, `useQuery` 139, `useRef` 135, drizzle `inArray` 58, the project's own
+  `createAutosaveEntityForm` 36, drizzle `text` 29 / `integer` 28, `defineBusChannel` 5) and **182** stay
+  `ambiguous`, all genuine merges (drizzle `sql` 118, `SQL` 24, `SubstituteFindRegex` 11, `Component` 6,
+  `ZodError` 5, …). Server+client alone: 557 / 88. A THIRD bucket is neither, and it is where the five
+  `node:` builtins live: `readFile` 66, `readdir` 16, `stat` 12, `scrypt` 1, `lookup` 1 all answer
+  `external-door`, because a `node:` specifier resolves to no file in this program — measured directly, not
+  inferred from their absence. `@trpc/server`'s `TRPCError` is in NEITHER list, and the reason is not the one recorded:
   measured directly, all seven of its server import specifiers refuse as `unsupported` — "local export
   TRPCError forwards an imported binding without a proven canonical export", the package barrel re-exporting a
   binding it imported — so `home-server-family-1584.md`'s claim that it was "a third live instance" of the
   OVERLOAD refusal is REFUTED, and closing it is a separate follow-up (below).
-- **Composed pre/post over the same corpus, all 109 final policies**: 237 raw = 157 waived + 78 granted + 2
+- **Composed pre/post over the same corpus** (109 final policies in BOTH arms — the reader change alone;
+  the consolidation's own 109→104 arm is the separate run below): 237 raw = 157 waived + 78 granted + 2
   effective, 0 alarms, 0 tool/fact/authority errors — and the diff is EMPTY in every direction: no per-policy
   count moved, no finding appeared or disappeared, no waiver or grant consumption changed, every provider
   receipt identical (bus-producers 66, drizzle-schema 1,288, registry-definitions 99, tuple-vocabularies
@@ -168,13 +174,30 @@ comment.
 
 **2. The generic producer-coverage policy.** The five per-union coverage policies (`bus-coverage`,
 `rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage`, `user-bus-coverage`) differed only in
-a `UNION` constant; they are one `bus-producer-coverage` (ordinary/error, family `bus-fact`) quantified over
-the belted roster of `busDefinitionFact`. `bus-coverage-owner` retires with them — the belted roster IS the
-denominator, so a belted bus nobody quantifies over cannot exist — and `busCoverageOwnerFact` (270 gate
-modules, 3.6 s of every composed pass) is deleted with it. `user-bus-deferred-member` stays; its export is now
+a `UNION` constant; they are one `bus-producer-coverage` (ordinary/error, family `bus-fact`) whose denominator
+is the PRODUCER fact's own belted roster — every bus it judges is one it holds the members and emitters for, so
+there is no lookup that can miss and no bus that can be skipped — cross-checked against the definition fact's
+independently derived belted roster, which must AGREE or the run refuses. `bus-coverage-owner` retires with
+them, and `busCoverageOwnerFact` (270 gate modules, 3.6 s of every composed pass) is deleted with it.
+
+Every arm of that guarantee is pinned and every pin was proven RED under its own mutant (the first cut had two
+that were not, and a fresh-context verifier caught both): the roster refusal (message-anchored, because the
+same corpus also trips the completeness refusal — neutering the check would otherwise slide past into the
+other message), the zero-belted blindness refusal, the generic quantification over two unrelated buses, and
+the `(union, member)` deferral key. The originally-drafted "belted union with no producer-fact record refuses
+at the join" arm was REMOVED rather than pinned: with the denominator taken from the producer fact there is no
+such lookup, and the reachable divergence is the opposite direction — a union alias declared outside
+`packages/contracts/src/` whose belt lives inside it is belted for the producer fact and INVISIBLE to the
+definition fact, which is what the roster row plants. `user-bus-deferred-member` stays; its export is now
 `BUS_MEMBER_DEFERRALS`, keyed by `(union, member)` because a bare NAME would defer a same-named member of any
-other bus once the quantifier went generic. All 21 proof rows of the five retired modules moved verbatim, plus
-one new row only the consolidated shape can express (two belted unions, one produced and one not, judged by
+other bus once the quantifier went generic, and BOTH policies read it through one selector (`deferralsFor`)
+so the key cannot be honoured in one reader and dropped in the other. The selector takes an injectable row
+list for one reason worth copying: the live list holds exactly ONE row, so a reader ignoring the union half
+behaves identically on the real tree and no fixture can tell the two apart — the filter was invisible to a
+mutant until a proof planted a second bus's row. All 21 proof rows of the five retired modules moved with their FILE MAPS byte-identical — the per-union
+`message`/`fix` are replaced by the generic ones the consolidated policy owns, and three `why` strings gained
+a clause naming the union or the consolidated behaviour — plus one new row only the consolidated shape can
+express (two belted unions, one produced and one not, judged by
 one policy). Conformance and the two refusal pins are in `bus-fact-health.test.ts` — that spec already WAS the
 producer family's entry — and `bus-pair.test.ts` keeps the definition family plus the deferral pins. Real
 pass over the family: 0/0/0/0; producer fact 66 members / **271 emitter anchors** / 0 unresolved, compared as

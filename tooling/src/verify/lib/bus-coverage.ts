@@ -1,8 +1,12 @@
-// Shared producer-coverage reconcile for the per-bus emit-coverage ratchets (ledger D50 + its twins).
+// RETIRED RESIDUE (2026-09-06, #1584): the five thin per-bus gates this reconcile served — `bus-coverage`,
+// `user-bus-coverage`, `rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage` — are DELETED.
+// One `bus-producer-coverage` policy on the shared bus producer fact quantifies over every belted union
+// instead. Nothing imports this module but its own spec; it retires with the legacy runtime at cutover.
+// What it WAS: the shared producer-coverage reconcile for the per-bus emit-coverage ratchets (D50 + twins).
 // A bus's event union is compile-exhaustive on the CONSUMER side (the client's total map), but nothing
 // machine-checks the PRODUCER side — a member can be declared, replay-guarded/reduced, and never emitted
-// (silently dead wire). Each bus's thin gate (tooling/src/verify/gates/{bus-coverage,user-bus-coverage}.ts)
-// supplies a `BusCoverageSpec`; THIS module owns the ONE reconcile so a new bus is a spec, not a third
+// (silently dead wire). Each bus's thin gate supplied a `BusCoverageSpec`; THIS module owned the ONE
+// reconcile so a new bus was a spec, not a third
 // copy of the belt logic (derive, not re-declare — docs/architecture/core/AGENTS.md §0.1.2 /
 // lock-the-extensible-shape). Two shapes of `*_EVENT_TYPES` belt are supported: an object literal
 // (`{ delta: true, … } satisfies Record<X["type"], true>` — chat/user) and an array literal
