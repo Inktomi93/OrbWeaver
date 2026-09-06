@@ -34,9 +34,9 @@ export function readVarKey<T>(plane: Record<string, T>, key: string): T | undefi
   return Object.hasOwn(plane, key) ? plane[key] : undefined;
 }
 
-/** A COMPLETE DECIMAL integer spelling, or null — the SAME shape `arm-executors.ts`'s `parseCompleteInteger`
- *  enforces for the automation `set_variable` arm (#1420), aligned here by OWNER RULING (#1557, 2026-09-05):
- *  one engine, one behavior. `Number.parseInt` is a PREFIX parser (`"5cats"` → 5, `"3.9"` → 3) that silently
+/** A COMPLETE DECIMAL integer spelling, or null — the ONE parser for both the macro engine's `inc`/`dec` and
+ *  the automation `set_variable` arm (`arm-executors.ts` imports it; its former local copy was retired at the
+ *  #1557 fold, 2026-09-07). Minted for #1420, aligned here by OWNER RULING (#1557, 2026-09-05): one engine, one behavior. `Number.parseInt` is a PREFIX parser (`"5cats"` → 5, `"3.9"` → 3) that silently
  *  applied a value the author never wrote to a counter later predicates read; a bare `Number()` is too
  *  generous the OTHER way (`"0x10"` → 16, `"1e3"` → 1000). Leading/trailing whitespace is trimmed (a
  *  rendered template legitimately carries it) but the empty string is not a zero — "nothing rendered" is a

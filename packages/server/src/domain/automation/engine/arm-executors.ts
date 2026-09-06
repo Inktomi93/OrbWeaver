@@ -37,7 +37,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { readVarKey, setVarKey } from "@orb/kit/macro";
+import { parseCompleteInteger, readVarKey, setVarKey } from "@orb/kit/macro";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
@@ -74,27 +74,6 @@ function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
 }
 
 // ── 1.1 set_variable ──────────────────────────────────────────────────────────────────────────────
-/** A COMPLETE DECIMAL integer spelling, or null (#1420).
- *
- *  `Number.parseInt` is a PREFIX parser: it reads as far as it can and discards the rest, so `"5cats"` was 5
- *  and `"3.9"` was 3 — values the author did not write, applied silently to a counter the room's later
- *  predicates read. The shape test is a decimal REGEX rather than a bare `Number()` because `Number` is
- *  generous in the other direction: it reads `"0x10"` as 16 and `"1e3"` as 1000, and a rendered template
- *  producing either of those is far more likely to be junk than to be a host asking for hexadecimal.
- *  `Number.isSafeInteger` then rejects the magnitudes at which arithmetic starts rounding.
- *
- *  Leading/trailing whitespace is TRIMMED first — a rendered template legitimately carries it — but the empty
- *  string is NOT a zero: "the author rendered nothing" is a mistake to name, not a value to invent. */
-const DECIMAL_INTEGER_RE = /^[+-]?\d+$/;
-
-function parseCompleteInteger(text: string): number | null {
-  const trimmed = text.trim();
-  if (!DECIMAL_INTEGER_RE.test(trimmed)) {
-    return null;
-  }
-  const value = Number(trimmed);
-  return Number.isSafeInteger(value) ? value : null;
-}
 
 /** Resolve the final value string for a `set`/`inc`/`dec` op given the current value + the rendered operand,
  *  or NULL when either input is not a complete integer (the caller turns that into an `arm_error`).
