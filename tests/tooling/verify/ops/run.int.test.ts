@@ -236,6 +236,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // The db-baseline parity stage (2026-08-02): the committed squashed baseline vs the live schema.
     // Promoted from a push-only int test after two baseline-regen misses shipped and sat ~10h.
     "structure:db-baseline",
+    // #1584: every live FK→assets.id column vs the asset-ref classification registry. Replaced the
+    // `asset-refs-fk-coverage` AST gate with a Drizzle-runtime comparator (the db-baseline shape).
+    "structure:asset-refs",
     // drizzle-kit's own journal/snapshot-chain validator (2026-08-02): near-no-op against the single
     // squashed baseline, ARMED for the first post-launch incremental migration (Tier-1-DB.md).
     "structure:drizzle-kit",
@@ -462,6 +465,9 @@ test("types:testd + types:tests-membership + browser:e2e* are whole-only (no sco
     "tests:execution-membership",
     // The whole schema module vs the ONE committed baseline — no partial-file form exists.
     "structure:db-baseline",
+    // The whole schema module vs the ONE asset-ref registry — a partial schema would call every
+    // unwalked asset-FK column unclassified.
+    "structure:asset-refs",
     // The ONE migrations dir's journal/snapshot chain — likewise no partial-file form.
     "structure:drizzle-kit",
     // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The

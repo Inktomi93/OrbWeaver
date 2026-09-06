@@ -34,6 +34,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "tests-membership": "none",
   "tests-execution-membership": "none",
   "db-baseline": "none",
+  "asset-refs": "none",
   "orphan-ratchet": "own",
   "boot-chunk": "none",
   "ledgers-fresh": "none",

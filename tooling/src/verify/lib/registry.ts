@@ -158,6 +158,22 @@ const GATING_STAGES: readonly StageDef[] = [
     // deferred at a scoped tier like the other cross-file reconciliations.
   },
   {
+    name: "structure:asset-refs",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:asset-refs"],
+    // Our OWN 0/1/2/3-speaking op (tooling/src/verify/ops/asset-refs-coverage.ts): every live FK→`assets.id`
+    // column must be classified RETAINING or DERIVED in domain/assets/persistence/asset-refs.ts — the ONE
+    // enumeration seam asset GC and the portability export both walk. It replaces the retired
+    // `asset-refs-fk-coverage` AST gate: `getTableConfig` over the exported schema module asks the question
+    // of the object Drizzle actually runs, so no authoring shape can shrink the denominator, and it also
+    // sees the two directions the gate could not (a phantom registry row; a key classified twice).
+    classify: ownScheme,
+    // A WHOLE-TREE invariant (the entire schema module vs the one registry) — whole-only, deferred at a
+    // scoped tier like `structure:db-baseline` and the other cross-file reconciliations. NO `scopedArgv`:
+    // a coverage verdict derived from a partial schema would call every unwalked column unclassified.
+  },
+  {
     name: "structure:drizzle-kit",
     group: "structure",
     tiers: STATIC,

@@ -35,7 +35,12 @@ test.for([...VERIFY_VERBS])("`%s --help` answers from argv alone under a 512MB h
   expect(res.stdout).toContain(verb);
 });
 
-test("an unknown verb is still MISUSE, not a help answer", async ({ runCli }) => {
+// The explicit timeout is the same half of the pin the comment above states: this row alone carried
+// vitest's 5s DEFAULT while every sibling spawn in this file budgets 30s, so under load it reported a
+// vitest TIMEOUT instead of the exit code that names the defect (observed 2026-09-05 at 5,123ms while
+// sibling spawns took 7-20s). Repaired in the #1584 asset-refs lane, which added the two spawns that
+// pushed it over.
+test("an unknown verb is still MISUSE, not a help answer", { timeout: HELP_TIMEOUT_MS }, async ({ runCli }) => {
   const res = await runCli("verify", ["not-a-verb", "--help"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
   await expect(res).toExitWith(3);
   expect(res.stderr).toContain('unknown verb "not-a-verb"');
@@ -58,6 +63,7 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   ["structure", ["--changed"], "takes no arguments"],
   ["gate-contract", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],
+  ["asset-refs", ["extra"], "takes no arguments"],
   ["orphan-ratchet", ["--updat"], "does not recognize"],
   ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],
   ["baseline", ["prose", "--chekc"], "unexpected argument"],

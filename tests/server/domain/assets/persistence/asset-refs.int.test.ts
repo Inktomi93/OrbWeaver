@@ -1,95 +1,80 @@
-// persistence: asset-refs — the STRUCTURAL close of the silent-GC gap. Enumerates EVERY column in the live
-// `@orb/db` schema whose FK target is `assets.id`, and asserts each is classified in the registry — either
-// RETAINING (`ASSET_REFS`, keeps the blob) or DERIVED (`DERIVED_ASSET_COLUMNS`, regenerable, does not pin).
-// A new asset-bearing column that is in NEITHER list fails here — so GC can never silently reclaim a live
-// blob because someone forgot to register a new reference. This is the coverage guarantee the maintenance
-// wave rests on (assets-maintenance.md §"the asset-ref registry"; the tag `persistence/junctions` twin).
+// persistence: asset-refs — the DOMAIN half of the STRUCTURAL close of the silent-GC gap. Every column in
+// the live `@orb/db` schema whose FK target is `assets.id` must be classified in the registry: RETAINING
+// (`ASSET_REFS`, keeps the blob) or DERIVED (`DERIVED_ASSET_COLUMNS`, regenerable, does not pin). A new
+// asset-bearing column in NEITHER list means GC can silently reclaim a live blob and the portability export
+// will not bundle it (assets-maintenance.md §"the asset-ref registry").
 //
-// It also asserts the two lists are DISJOINT (a column can't be both) and that `image_embeddings.assetId`
-// specifically stays DERIVED — the load-bearing exclusion (if it counted as retaining, every image asset
-// would be permanently live and `reapIfOrphan`/`collectGarbage` would reclaim nothing).
+// THE COMPARATOR LIVES IN THE STAGE, NOT HERE (2026-09-05, #1584 — the same move `db-baseline-parity` made):
+// `compareAssetRefsCoverage` (tooling/src/verify/ops/asset-refs-coverage.ts) owns the ONE reconciliation, and
+// the `structure:asset-refs` stage in `pnpm check` is its other caller, so the coverage/phantom/overlap
+// verdict is RED at commit time rather than only in this push-tier suite. Two reconciliations would be
+// exactly the drift this pins against — so this file asserts through the shared comparator, and keeps only
+// the DOMAIN-specific rows (which columns are known-retaining; that `image_embeddings` stays derived) as its
+// own assertions, because those are ledger decisions about THIS registry, not a general structural rule.
 
-// biome-ignore lint/performance/noNamespaceImport: drizzle introspection walks the WHOLE schema module as a Record — namespace import is the canonical way to enumerate every table (the schema-baseline-parity test does the same).
-import * as schema from "@orb/db";
-import { is } from "drizzle-orm";
-import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
-import { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
+// biome-ignore lint/performance/noNamespaceImport: the comparator's denominator IS every table the schema module exports — a namespace import is the canonical way to enumerate them (the schema-baseline-parity test does the same).
+import * as schema from "@orb/db/schema";
+import { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "@orb/server/domain/assets";
+import { compareAssetRefsCoverage } from "@orb/tooling/verify";
+import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-/** `table.column` key for a registry entry or a schema FK. */
-function keyOf(tableName: string, columnName: string): string {
-  return `${tableName}.${columnName}`;
+/** The load-bearing DERIVED exclusion: if `image_embeddings.asset_id` counted as retaining, every image
+ *  asset would be permanently live and `reapIfOrphan`/`collectGarbage` would reclaim nothing. */
+const DERIVED_EXCLUSION = "image_embeddings.asset_id";
+
+/** The known live RETAINING references. A demotion of any of these to DERIVED (or a drop) re-opens the reap
+ *  the row closed — `plugin_assets.asset_id` (#802) most of all: it is the ONLY thing referencing a
+ *  plugin-fetched cover, so nothing else would notice. */
+const KNOWN_RETAINING: readonly string[] = [
+  "characters.avatar_asset_id",
+  "personas.avatar_asset_id",
+  "gallery_items.asset_id",
+  "documents.source_asset_id",
+  "imagery_generations.asset_id",
+  "plugins.bundle_asset_id",
+  "plugin_assets.asset_id",
+];
+
+function coverage(): ReturnType<typeof compareAssetRefsCoverage> {
+  return compareAssetRefsCoverage({
+    schema: schema as unknown as Readonly<Record<string, unknown>>,
+    retaining: ASSET_REFS,
+    derived: DERIVED_ASSET_COLUMNS,
+  });
 }
 
-/** Every FK-to-`assets.id` column in the live schema, as `table.column` snake-case keys (the drizzle SQL
- *  names, matching what the registry columns expose via `.name`). */
-function schemaAssetFkColumns(): Set<string> {
-  const keys = new Set<string>();
-  for (const value of Object.values(schema)) {
-    if (!is(value, SQLiteTable)) {
-      continue;
-    }
-    const cfg = getTableConfig(value);
-    for (const fk of cfg.foreignKeys) {
-      const ref = fk.reference();
-      const targetTable = getTableConfig(ref.foreignTable).name;
-      if (targetTable !== "assets") {
-        continue;
-      }
-      for (const col of ref.columns) {
-        keys.add(keyOf(cfg.name, col.name));
-      }
-    }
-  }
-  return keys;
-}
+test("every asset-FK column in @orb/db is classified retaining-or-derived, with no phantom or overlapping row", () => {
+  const result = coverage();
 
-function registryKeys(refs: readonly { table: SQLiteTable; column: { name: string } }[]): Set<string> {
-  return new Set(refs.map((r) => keyOf(getTableConfig(r.table).name, r.column.name)));
-}
-
-test("every asset-FK column in @orb/db is classified retaining-or-derived (no silent GC gap)", () => {
-  const schemaColumns = schemaAssetFkColumns();
-  const retaining = registryKeys(ASSET_REFS);
-  const derived = new Set(DERIVED_ASSET_COLUMNS);
-  const classified = new Set([...retaining, ...derived]);
-
-  // 1. Total coverage: every FK-to-assets column is classified (the silent-GC-gap closer).
-  const unclassified = [...schemaColumns].filter((c) => !classified.has(c)).sort();
-  expect(unclassified).toEqual([]);
-
-  // 2. No phantom entries: the registry never names a column that isn't actually an asset FK.
-  const phantom = [...classified].filter((c) => !schemaColumns.has(c)).sort();
-  expect(phantom).toEqual([]);
-});
-
-test("retaining and derived lists are disjoint", () => {
-  const retaining = registryKeys(ASSET_REFS);
-  const derived = new Set(DERIVED_ASSET_COLUMNS);
-  const both = [...retaining].filter((c) => derived.has(c));
-  expect(both).toEqual([]);
+  // Named separately: an unclassified column is the silent-GC gap, a phantom row names nothing at all, and
+  // an overlapping key is classified twice — three different repairs in asset-refs.ts.
+  expect(result.unclassified).toEqual([]);
+  expect(result.phantom).toEqual([]);
+  expect(result.overlap).toEqual([]);
+  // The denominator, asserted last: with the three lists empty this can only fail on a blind read, and the
+  // comparator's own refusals already cover a total collapse.
+  expect(result.assetFkColumns.length).toBe(result.retaining.length + result.derived.length);
 });
 
 test("image_embeddings.asset_id stays DERIVED (the load-bearing exclusion)", () => {
-  const derived = new Set(DERIVED_ASSET_COLUMNS);
-  const retaining = registryKeys(ASSET_REFS);
-  expect(derived.has("image_embeddings.asset_id")).toBe(true);
-  expect(retaining.has("image_embeddings.asset_id")).toBe(false);
+  const result = coverage();
+
+  expect(result.derived).toContain(DERIVED_EXCLUSION);
+  expect(result.retaining).not.toContain(DERIVED_EXCLUSION);
 });
 
-test("the known live references are RETAINING (avatar, gallery, doc source, imagery, plugin bundle)", () => {
-  const retaining = registryKeys(ASSET_REFS);
-  for (const key of [
-    "characters.avatar_asset_id",
-    "personas.avatar_asset_id",
-    "gallery_items.asset_id",
-    "documents.source_asset_id",
-    "imagery_generations.asset_id",
-    "plugins.bundle_asset_id",
-    // #802 — the `net.fetchAsset` link. It is the ONLY thing that references a plugin-fetched cover, so a
-    // demotion to DERIVED (or a drop) silently re-opens the reap this row closed.
-    "plugin_assets.asset_id",
-  ]) {
-    expect(retaining.has(key)).toBe(true);
+test("the known live references are RETAINING (avatar, gallery, doc source, imagery, plugin bundle, plugin asset)", () => {
+  const retaining = new Set(coverage().retaining);
+
+  for (const key of KNOWN_RETAINING) {
+    expect(retaining.has(key), `${key} must stay RETAINING`).toBe(true);
   }
+});
+
+test("every ASSET_REFS row resolves to a live schema table — a row naming a dropped table is not silently skipped", () => {
+  const named = ASSET_REFS.map((ref) => `${getTableConfig(ref.table).name}.${ref.column.name}`);
+
+  expect(named.length).toBe(ASSET_REFS.length);
+  expect(new Set(named).size).toBe(named.length);
 });

@@ -1,6 +1,7 @@
 // Result shapes for the non-gate verify verbs: the SCOPED single-pass run, the gate self-proof
 // (conformance), the db schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-
 // ledger freshness stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
+import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { GateDescriptor } from "./gate.ts";
 import type { PassResult } from "./pass.ts";
 
@@ -31,6 +32,38 @@ export interface SchemaBaselineComparison {
   readonly missingFromBaseline: readonly string[];
   /** In the baseline, absent from the live schema — a stale/hand-edited baseline. */
   readonly staleInBaseline: readonly string[];
+}
+
+/** One row of the assets domain's RETAINING registry (`ASSET_REFS`), read structurally so the comparator
+ *  does not import the domain-internal `AssetRef` type (which the assets front door deliberately does not
+ *  re-export). The COLUMN is the authority: a drizzle column carries its own owning table, so the coverage
+ *  key derives from `column.table`, never from the row's declared `table` — a row pairing table X with a
+ *  same-NAMED column belonging to table Y would otherwise read as coverage of a column it does not name. */
+export interface AssetRefsRegistryRow {
+  readonly table: SQLiteTable;
+  readonly column: AnySQLiteColumn;
+}
+
+/** What one `check:asset-refs` reconciliation produced. Every list is `table.column` SQL keys, sorted.
+ *  The three verdict lists are INDEPENDENT: a column may be unclassified while another is phantom. */
+export interface AssetRefsCoverage {
+  /** Every `SQLiteTable` the schema module exported — the denominator behind every list below. */
+  readonly tables: number;
+  /** Every live FK→`assets.id` column in the schema. Zero is BLINDNESS, refused by the comparator. */
+  readonly assetFkColumns: readonly string[];
+  /** The RETAINING classification (`ASSET_REFS`), resolved through `getTableConfig`. */
+  readonly retaining: readonly string[];
+  /** The DERIVED classification (`DERIVED_ASSET_COLUMNS`), already snake-case keys. */
+  readonly derived: readonly string[];
+  /** Asset-FK columns in NEITHER class — GC can reap their blobs and export will not bundle them. */
+  readonly unclassified: readonly string[];
+  /** Classified keys that are not asset FKs at all — a registry row naming nothing. */
+  readonly phantom: readonly string[];
+  /** Keys classified BOTH retaining and derived — the two lists must be disjoint. */
+  readonly overlap: readonly string[];
+  /** RETAINING rows whose `column` does not belong to the `table` they name. The pair is incoherent: the
+   *  GC/export walk issues `SELECT … FROM <table> WHERE <column>`, which is a different table's column. */
+  readonly mismatched: readonly string[];
 }
 
 /** One committed single-writer ledger judged against a FRESH derivation of itself (`ledgers:fresh`, #817).

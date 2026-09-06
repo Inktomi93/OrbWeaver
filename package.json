@@ -50,6 +50,7 @@
     "prose:baseline": "node tooling/src/verify/cli.ts baseline prose",
     "check:tests-membership": "node tooling/src/verify/cli.ts tests-membership",
     "check:tests-execution-membership": "node tooling/src/verify/cli.ts tests-execution-membership",
+    "check:asset-refs": "node tooling/src/verify/cli.ts asset-refs",
     "check:db-baseline": "node tooling/src/verify/cli.ts db-baseline",
     "check:drizzle-kit": "pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts",
     "check:orphan-ratchet": "node tooling/src/verify/cli.ts orphan-ratchet",

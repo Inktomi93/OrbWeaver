@@ -9,7 +9,6 @@
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
-import { gate as assetRefsGate } from "../../tooling/src/verify/gates/asset-refs-fk-coverage.ts";
 import { gate as evaluateGate } from "../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as wireVocabGate } from "../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { loadGates, verifyGateProofs } from "../../tooling/src/verify/index.ts";
@@ -89,20 +88,6 @@ test("wire vocabulary evidence missing its engine fails closed", () => {
     withMustFlag(wireVocabGate, {
       files: { "packages/server/src/infra/providers/backends/x/schema.ts": 'export const DROP = ["title", "default"];\n' },
       why: "the vocabulary engine is missing, so a clean comparison is impossible",
-    }),
-  ]);
-  expect(failures).toEqual([]);
-});
-
-test("asset FK coverage missing its registry fails closed", () => {
-  const failures = verifyGateProofs([
-    withMustFlag(assetRefsGate, {
-      files: {
-        "packages/db/src/schema/x.ts":
-          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", { assetId: text("asset_id").references(() => assets.id) });\n',
-        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
-      },
-      why: "the asset registry is missing, so coverage cannot be established",
     }),
   ]);
   expect(failures).toEqual([]);
