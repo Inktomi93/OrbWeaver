@@ -82,7 +82,7 @@ const ALLOWLIST: ExemptionTable = {
     why: "same shape one table over: the one key-wise writer is the one-shot boot rename `migrateProseSlotVocab` (#1737), moving the `chat.group.castMember` override key; the whole-replace writers carry either a packaged constant or the editor's guarded read (#1026, the ARM B rows below), never an image a rename could be undone by. Ends when that migration is retired",
   },
   "userSettings.config": {
-    why: "the DELIBERATE #471 design: `writeUserConfig` is a whole-blob write by contract (the service builds the next blob by spreading a guarded read) and the only key-wise sibling is `clearSelectedThemeIds`'s cross-user `json_set` heal, an admin sweep that is not part of any user's read-modify-write. The residual is a race, not a straddle: a heal landing between one user's read and write is undone. Ends if that race is ruled a defect (then the heal moves behind the same seam) — orchestrator-notified at landing, #879",
+    why: "the DELIBERATE #471 design: `writeUserConfig` is a whole-blob write by contract (the service builds the next blob by spreading a guarded read), `replaceUserConfig` is the same column\'s second whole-blob writer (#1771 — the reset door, content-independent of the row, GUARD_EXEMPT below) and the only key-wise sibling is `clearSelectedThemeIds`'s cross-user `json_set` heal, an admin sweep that is not part of any user's read-modify-write. The residual is a race, not a straddle: a heal landing between one user's read and write is undone. Ends if that race is ruled a defect (then the heal moves behind the same seam) — orchestrator-notified at landing, #879",
   },
 };
 
@@ -98,6 +98,9 @@ const GUARD_EXEMPT: ExemptionTable = {
   },
   "packages/server/src/domain/preset/persistence/queries.ts#reseedPackagedPreset": {
     why: "same #1026 class, one shape over: name/kind/config all come from the packaged template registry, not from a read of the row being replaced. Same end condition (a merge-onto-stored rewrite)",
+  },
+  "packages/server/src/domain/settings/persistence/queries.ts#replaceUserConfig": {
+    why: "the #1026 provenance class, on the settings blob: its one caller (`verbs/reset-user-config.ts`) writes DEFAULT_USER_SETTINGS at the current schema version, never a value derived from a read of the row it lands on, so there is no degraded stand-in in it to persist. It exists because #1771 found `user_settings.config` had NO repair door at all — the section autosave, the per-leaf Reset (which writes through updateUserSettingsSection) and the backup restore all read-merge and are therefore correctly refused by the #471 guard, which left an unreadable blob permanently unwritable. The row\'s EXISTENCE is read to choose seed-vs-update; its columns never are. Ends if any caller reaches this function with a read-derived image (then it owes the guard and this row must go)",
   },
 };
 

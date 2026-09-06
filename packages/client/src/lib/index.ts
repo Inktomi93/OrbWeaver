@@ -211,6 +211,8 @@ export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
+export type { UnreadableConfigCause, UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
+export { PRESET_UNREADABLE_COPY, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
 export type { SortableTag, TagSortMode } from "./tag-sort.ts";

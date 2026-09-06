@@ -83,6 +83,22 @@ export function ConfigSaveFooter(): ReactElement | null {
   if (aggregate === null) {
     return null;
   }
+  if (aggregate === "unreadable") {
+    // #1716: the stored settings blob cannot be read, so every section beneath this footer is refusing
+    // identically and none of them is a place to jump TO — there is no locate arm, and the pane's own
+    // `SettingsUnreadableGate` above the sections carries the REASON and the repair door. This line is the
+    // aggregate STATE, and it exists because without it the footer read "Saved" over a pane where nothing
+    // can be saved — the exact lie the `blocked` arm below was minted to kill, one rung more absolute.
+    // Polite: it is a standing property of the stored row, true before the reader touched anything.
+    return (
+      <Row aria-live="polite" align="center" data-slot="config-save-footer" gap="field" role="status">
+        <Text className="text-destructive" voice="label">
+          Not saved
+        </Text>
+        <Text voice="label">— your settings couldn't be read.</Text>
+      </Row>
+    );
+  }
   if (aggregate === "error" && firstErrored !== undefined) {
     // A failed WRITE is urgent — assertive, so a screen reader interrupts (role="alert").
     const count = erroredIds.length === 1 ? "A section" : `${erroredIds.length} sections`;

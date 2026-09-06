@@ -28,7 +28,15 @@ import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
- *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */
+ *  write (updatedAt: 0) — materializing the row is ensureUserSettings.
+ *
+ *  READS THROUGH `parseOutcome`, NOT `parse` (#1716): same walk, same value, plus the provenance the
+ *  settings surfaces need. `writeUserConfig` below asks this EXACT question of this EXACT row before every
+ *  write and refuses (`stored_config_unreadable`) when it is not intact, so the read has to carry the same
+ *  verdict or the pane renders a defaults-looking form and only discovers the refusal after the user types
+ *  (the #1716 defect). An ABSENT row reports `null`, not a failure: `parseOutcome(undefined)` would say
+ *  `not-an-object`, which is honest about the bytes and WRONG about the situation — a never-written account
+ *  writes normally, exactly as `writeUserConfig`'s own row-absent arm does. */
 export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSettingsView> {
   const rows = await db.select().from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
   const row = rows[0];
@@ -38,14 +46,17 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
       schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
       config: parseUserSettings({}),
       updatedAt: 0,
+      configUnreadable: null,
     };
   }
+  // The blob carries no schemaVersion itself; without threading the column, every blob probes as v1.
+  const outcome = userSettingsConfig.parseOutcome(row.config, row.schemaVersion);
   return {
     userId: ownerId,
     schemaVersion: row.schemaVersion,
-    // The blob carries no schemaVersion itself; without threading the column, every blob probes as v1.
-    config: parseUserSettings(row.config, row.schemaVersion),
+    config: outcome.value,
     updatedAt: row.updatedAt,
+    configUnreadable: outcome.intact ? null : outcome.failure,
   };
 }
 
@@ -168,6 +179,43 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
     return;
   }
   requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
+  const written = await db
+    .update(userSettings)
+    .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
+    .where(and(eq(userSettings.userId, ownerId), ...ownedBackgroundGuards(db, ownerId, pinnedBackgroundAssetIds(config))))
+    .returning({ userId: userSettings.userId });
+  if (written.length === 0) {
+    throw backgroundUnavailable();
+  }
+}
+
+/**
+ * Write a config blob that DOES NOT DESCEND FROM A READ of the row it lands on — the settings twin of
+ * `replacePresetConfig`, and the ONE way out of an unreadable `user_settings.config` (#1771/#1716).
+ *
+ * DELIBERATELY UNGUARDED, and that is the #1026 provenance rule rather than a hole: `writeUserConfig`
+ * refuses because every one of its callers builds the next blob by spreading a READ of the stored one, so
+ * an unreadable read would persist the stand-in (#471). This function's caller — `resetUserConfig` —
+ * carries `DEFAULT_USER_SETTINGS`, a contract constant; there is no degraded read in it to persist, and
+ * guarding it would refuse the user's own explicit repair while preventing no loss. Before this existed the
+ * settings blob had NO repair door at all: every section write refused, the per-leaf Reset
+ * (`use-config-leaf.ts`) refused because it writes through `updateUserSettingsSection`, and even the backup
+ * restore (`verbs/import-user-settings.ts`) refused because it read-merges. The exemption is recorded
+ * two-sidedly in the `json-column-write-parity` gate's GUARD_EXEMPT table, so a future caller that starts
+ * merging onto the stored value turns that row RED.
+ *
+ * The BACKGROUND predicate still rides the write, unchanged from {@link writeUserConfig}: a repair may not
+ * pin an asset the caller does not own. (`DEFAULT_USER_SETTINGS` pins none, so the guard list is empty and
+ * the reset can never be refused by it — but the predicate belongs to the COLUMN, not to one caller.)
+ */
+export async function replaceUserConfig(db: Db, ownerId: UserId, config: UserSettings, at: number): Promise<void> {
+  const rows = await db.select({ userId: userSettings.userId }).from(userSettings).where(eq(userSettings.userId, ownerId)).limit(1);
+  // The row's own COLUMNS are never read — only its EXISTENCE, which decides seed-vs-update and cannot
+  // carry a degraded blob into the write. That is what keeps this function outside the #471 guard's class.
+  if (rows[0] === undefined) {
+    await insertGuardedUserSettings(db, ownerId, config, at);
+    return;
+  }
   const written = await db
     .update(userSettings)
     .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
