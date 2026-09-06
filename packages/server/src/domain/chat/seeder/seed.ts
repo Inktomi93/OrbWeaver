@@ -8,6 +8,23 @@
 // it, the bulk write's own `importHash` dedup (`demo-chat:<slug>`), so a crash mid-run re-runs cleanly
 // without duplicating the examples that already landed.
 //
+// AND A THIRD, NARROWER ONE — the per-example SKIP LEDGER (`onboarding.demoChatsSkipped`, #1550). The latch
+// above is a per-USER fact, so an example SKIPPED during a partial seed (its cast handle not in the library
+// yet — the repro: the character pack half-seeded — a transcript missing from the bundle, a parse failure)
+// was unreachable FOREVER: the latch went true anyway, and a demo room's absence reads identically whether
+// we never created it or the user deleted it. So a skip is RECORDED at the moment we know it, and a later
+// touch retries exactly those slugs.
+//
+// THE SET IS THE SKIPS, NOT "OURS", AND THE INVERSION IS THE SAFETY ARGUMENT. Recording which examples are
+// ours would fail DANGEROUS — the settings blob's `.catch` default reads as "we created none", and a retry
+// off that would re-create every example the user DELETED, which is the one thing the latch exists to
+// prevent. A skip list fails CLOSED: empty or lost ⇒ no retries ⇒ exactly the pre-#1550 behaviour. That is
+// also why the pre-ledger cohort needs no backfill pass — their empty list seals them, and the deletion they
+// may have made stays respected.
+//
+// A DEDUP SKIP IS NOT A SKIP. `writeChats` returning no row means the example already landed on a prior
+// partial run: the row EXISTS, so recording it would schedule a retry for something that is already there.
+//
 // Every write goes through chat's REAL canon-safe bulk seam (`BulkImportChats` — slots + variant pool +
 // selected pointer + founding roster, one atomic batch per chat) and the rpg game through rpg's real create
 // door. No raw SQL, no second write path.
@@ -34,6 +51,11 @@ function importHashFor(demo: DemoChat): string {
 function importedFromFor(demo: DemoChat): string {
   return `seed-assets/demo-chats/${demo.slug}.jsonl`;
 }
+
+/** What one example's seed attempt did. `present` is a converged SUCCESS (the row is already there), which
+ *  is why it is a THIRD member rather than a second flavour of failure — collapsing it into `skipped` would
+ *  schedule a retry for a room that exists, and collapsing it into `written` would over-count the log. */
+type SeedOutcome = "written" | "present" | "skipped";
 
 /** One resolved roster seat: the card the manifest's handle pointed at, plus the display name the transcript
  *  attributes its lines to. `handle` is carried so the authored game setup's `handle` seats resolve to real
@@ -154,26 +176,30 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     return seats.length === demo.handles.length && seats.length > 0 ? seats : null;
   }
 
-  /** Seed ONE example. Returns whether a chat was written (a dedup skip / a missing transcript / a missing
-   *  seated character all return false). One bulk call per example: each has its OWN primary character. */
-  async function seedOne(principal: Principal, demo: DemoChat, anchorPersonaId: PersonaId | null, now: number): Promise<boolean> {
+  /** Seed ONE example — THREE outcomes, because two of them used to be one `false` and that is the #1550
+   *  defect. `written`: this pass created the room. `present`: the row is already there (the bulk write's
+   *  `importHash` dedup fired — a prior partial run landed it), which is a converged SUCCESS and must never
+   *  be scheduled for a retry. `skipped`: nothing was written and nothing is there, so this example is owed
+   *  a later attempt — the one outcome the skip ledger records. One bulk call per example: each has its OWN
+   *  primary character. */
+  async function seedOne(principal: Principal, demo: DemoChat, anchorPersonaId: PersonaId | null, now: number): Promise<SeedOutcome> {
     const text = await deps.readTranscript(demo.slug);
     if (text === null) {
       log.warn({ slug: demo.slug }, "chat: demo transcript missing from the bundle — example skipped");
-      return false;
+      return "skipped";
     }
     const seats = await resolveSeats(principal, demo);
     if (seats === null) {
-      return false;
+      return "skipped";
     }
     const parsed = parseChatJsonl(text, { fileName: `${demo.slug}.jsonl`, charDirName: demo.slug });
     if (parsed === null || parsed.messages.length === 0) {
       log.warn({ slug: demo.slug }, "chat: demo transcript did not parse — example skipped");
-      return false;
+      return "skipped";
     }
     const primary = seats[0];
     if (primary === undefined) {
-      return false;
+      return "skipped";
     }
     const result = await deps.writeChats({
       ownerId: principal.userId,
@@ -182,12 +208,48 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     });
     const chatId = result.written[0]?.chatId;
     if (chatId === undefined) {
-      return false; // dedup skip — the example (and its game) already landed on a prior partial run
+      return "present"; // dedup skip — the example (and its game) already landed on a prior partial run
     }
     if (demo.game !== undefined && deps.createGame !== undefined) {
       await deps.createGame({ principal, chatId, game: demo.game, seats, mint: true });
     }
-    return true;
+    return "written";
+  }
+
+  /** Run one pass over `demos`, persist the skip ledger it produced, and answer how many rooms were written.
+   *  The ledger is written WHOLE from this pass's own outcomes UNION the skips this pass did not look at —
+   *  a merge could never REMOVE a slug, and removal is the whole point (a retry that lands must stop being
+   *  owed). Written LAST, so a throw above leaves the previous ledger and the next touch retries. */
+  async function runPass(
+    principal: Principal,
+    pass: { readonly demos: readonly DemoChat[]; readonly anchorPersonaId: PersonaId | null; readonly now: number; readonly carried: readonly string[] },
+  ): Promise<number> {
+    const { demos, anchorPersonaId, now, carried } = pass;
+    const outcomes = await Promise.all(demos.map(async (demo) => ({ slug: demo.slug, outcome: await seedOne(principal, demo, anchorPersonaId, now) })));
+    const attempted = new Set(demos.map((demo) => demo.slug));
+    const skipped = [...carried.filter((slug) => !attempted.has(slug)), ...outcomes.flatMap((o) => (o.outcome === "skipped" ? [o.slug] : []))];
+    await deps.markSkippedSlugs(principal, skipped);
+    return outcomes.filter((o) => o.outcome === "written").length;
+  }
+
+  /** The RETRY pass for examples a previous seed could not write (#1550). Runs on an already-latched user,
+   *  and only for slugs the ledger names — so it can never re-create an example the user deleted (that one
+   *  was WRITTEN once, so it was never recorded here). Zero recorded skips ⇒ zero reads, zero writes, which
+   *  is every touch for every user whose first seed was complete. */
+  async function retrySkipped(principal: Principal): Promise<void> {
+    const skipped = await deps.readSkippedSlugs(principal);
+    if (skipped.length === 0) {
+      return;
+    }
+    const owed = DEMO_CHATS.filter((demo) => skipped.includes(demo.slug));
+    if (owed.length === 0) {
+      // Every recorded slug has left the shipped manifest — drop them rather than carrying names forever.
+      await deps.markSkippedSlugs(principal, []);
+      return;
+    }
+    const anchorPersonaId = await deps.resolveSeatPersona(principal);
+    const seeded = await runPass(principal, { demos: owed, anchorPersonaId, now: deps.now(), carried: skipped });
+    log.info({ userId: principal.userId, seeded, owed: owed.length }, "chat: retried the example conversations a partial seed had skipped");
   }
 
   /** The pack-bump HEAL for ONE already-seeded example. Fills only the dressing fields still at their seeded
@@ -260,6 +322,9 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
 
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
+      // #1550 BEFORE the dressing heal: an example that was never written has nothing to dress, and a retry
+      // that lands wants this pass's heal to see it.
+      await retrySkipped(principal);
       await migratePack(principal);
       return;
     }
@@ -268,8 +333,7 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     // transcript's own carried dates (not from write order), so it is stable either way.
     const now = deps.now();
     const anchorPersonaId = await deps.resolveSeatPersona(principal);
-    const outcomes = await Promise.all(DEMO_CHATS.map((demo) => seedOne(principal, demo, anchorPersonaId, now)));
-    const seeded = outcomes.filter(Boolean).length;
+    const seeded = await runPass(principal, { demos: DEMO_CHATS, anchorPersonaId, now, carried: [] });
     await deps.markSeeded(principal);
     // A fresh seed IS the shipped pack by construction — stamping it here keeps the next bump's heal off it
     // until there is actually something to fill (the character seeder's precedent).
