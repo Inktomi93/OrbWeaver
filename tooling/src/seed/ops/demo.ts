@@ -19,16 +19,23 @@ import { rmSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import {
+  characterRegexScripts,
   chatBooks,
   chatParticipants,
+  chatRegexScripts,
   chats,
   createDb,
   documentChunks,
   documents,
+  globalRegexScripts,
   localPath,
   messages,
   personas,
   preCloseHousekeeping,
+  presetRegexScripts,
+  regexScripts,
+  rosterPresetMembers,
+  rosterPresets,
   tags,
   users,
   worldBooks,
@@ -36,6 +43,8 @@ import {
 } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RegexPlacement } from "@orb/kit/regex";
+import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import {
@@ -67,6 +76,12 @@ import {
   GROUP_CAST_SIZE,
   GROUP_CHAT_TITLE,
   principalOf,
+  REGEX_DISABLED_SCRIPT_NAME,
+  REGEX_DISPLAY_ONLY_SCRIPT_NAME,
+  REGEX_FIND_REPLACE_SCRIPT_NAME,
+  REGEX_PROMPT_ONLY_SCRIPT_NAME,
+  ROSTER_PRESET_ALT_NAME,
+  ROSTER_PRESET_MATCHING_NAME,
   SECOND_HUMAN_HANDLE,
   SEED_SESSION_SECRET,
   SOLO_CHAT_TITLE,
@@ -106,7 +121,26 @@ function dbFilePath(url: string): string | null {
 }
 
 async function countRows(db: Db): Promise<Record<string, number>> {
-  const tablesByLabel = { users, personas, chats, chatParticipants, messages, worldBooks, worldEntries, chatBooks, documents, documentChunks, tags };
+  const tablesByLabel = {
+    users,
+    personas,
+    chats,
+    chatParticipants,
+    messages,
+    worldBooks,
+    worldEntries,
+    chatBooks,
+    documents,
+    documentChunks,
+    tags,
+    regexScripts,
+    globalRegexScripts,
+    characterRegexScripts,
+    presetRegexScripts,
+    chatRegexScripts,
+    rosterPresets,
+    rosterPresetMembers,
+  };
   const pairs = await Promise.all(Object.entries(tablesByLabel).map(async ([label, table]): Promise<[string, number]> => [label, await db.$count(table)]));
   return Object.fromEntries(pairs);
 }
@@ -220,6 +254,88 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     });
     await services.worldInfo.attachToChat({ principal: owner, chatId: group.chat.id, bookId: book.id });
     log(`world book created + attached: ${WORLD_BOOK_NAME}`);
+
+    // Regex scripts (#1725 boards 04/05 + the #1742 room Regex section) — one per tier, so the room's
+    // effective run order shows every tier populated on a fresh db: global / character / chat / preset
+    // (the preset leg lands below, once the demo preset exists). `deriveRegexTierFlags` is the SAME pure
+    // derivation the client's save boundary and the server's bulk-placement verb use, so a seeded row's
+    // markdownOnly/promptOnly flags can never disagree with its placement set.
+    const findReplacePlacement: RegexPlacement[] = ["AI_OUTPUT", "USER_INPUT"];
+    const findReplaceScript = await services.regex.createScript({
+      principal: owner,
+      input: {
+        name: REGEX_FIND_REPLACE_SCRIPT_NAME,
+        enabled: true,
+        findRegex: "\\bthe Loom\\b",
+        replaceString: "the great Loom",
+        placement: findReplacePlacement,
+        ...deriveRegexTierFlags(findReplacePlacement),
+        runOnEdit: false,
+        trimStrings: [],
+        substituteRegex: SubstituteFindRegex.none,
+      },
+    });
+    await services.regex.attachGlobal({ principal: owner, scriptId: findReplaceScript.id });
+
+    const displayOnlyPlacement: RegexPlacement[] = ["DISPLAY"];
+    const displayOnlyScript = await services.regex.createScript({
+      principal: owner,
+      input: {
+        name: REGEX_DISPLAY_ONLY_SCRIPT_NAME,
+        enabled: true,
+        findRegex: "\\*([^*]+)\\*",
+        replaceString: "_$1_",
+        placement: displayOnlyPlacement,
+        ...deriveRegexTierFlags(displayOnlyPlacement),
+        runOnEdit: false,
+        trimStrings: [],
+        substituteRegex: SubstituteFindRegex.none,
+      },
+    });
+    if (assistantId !== undefined) {
+      await services.regex.attachToCharacter({ principal: owner, characterId: assistantId, scriptId: displayOnlyScript.id });
+    }
+
+    const promptOnlyPlacement: RegexPlacement[] = ["AI_OUTPUT"];
+    const promptOnlyScript = await services.regex.createScript({
+      principal: owner,
+      input: {
+        name: REGEX_PROMPT_ONLY_SCRIPT_NAME,
+        enabled: true,
+        findRegex: "\\bvault-key-7\\b",
+        replaceString: "[redacted]",
+        placement: promptOnlyPlacement,
+        ...deriveRegexTierFlags(promptOnlyPlacement),
+        runOnEdit: false,
+        trimStrings: [],
+        substituteRegex: SubstituteFindRegex.none,
+      },
+    });
+    await services.regex.attachToChat({ principal: owner, chatId: group.chat.id, scriptId: promptOnlyScript.id });
+    log(
+      `regex scripts created + attached: global/${REGEX_FIND_REPLACE_SCRIPT_NAME}, character/${REGEX_DISPLAY_ONLY_SCRIPT_NAME}, chat/${REGEX_PROMPT_ONLY_SCRIPT_NAME}`,
+    );
+
+    // Saved rosters (D61 B6) — through the same library-create door the rosters panel uses. One matching
+    // the demo group's seated trio, one a different pairing, so the picker shows more than a single row.
+    await services.rosterPreset.create({
+      principal: owner,
+      input: {
+        name: ROSTER_PRESET_MATCHING_NAME,
+        description: "The refinery crew, ready to seat as a group.",
+        members: groupCharIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
+      },
+    });
+    if (assistantId !== undefined) {
+      const altMembers = [assistantId, groupCharIds[0]]
+        .filter((id): id is CharacterId => id !== undefined)
+        .map((characterId, position) => ({ kind: "character" as const, characterId, position }));
+      await services.rosterPreset.create({
+        principal: owner,
+        input: { name: ROSTER_PRESET_ALT_NAME, description: "A smaller two-seat pairing.", members: altMembers },
+      });
+    }
+    log(`saved rosters created: ${ROSTER_PRESET_MATCHING_NAME}, ${ROSTER_PRESET_ALT_NAME}`);
   }
 
   // A databank document (paste-origin) + a synchronous ingest so document_chunks + embeddings exist.
@@ -228,8 +344,28 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
   log(`databank document ingested: ${DEMO_DOCUMENT_NAME} (${ingest.chunksUpserted} chunk(s) embedded)`);
 
   // A saved generation preset.
-  await services.preset.create({ userId: ownerId, name: DEMO_PRESET_NAME, kind: "chat" });
+  const preset = await services.preset.create({ userId: ownerId, name: DEMO_PRESET_NAME, kind: "chat" });
   log(`preset created: ${DEMO_PRESET_NAME}`);
+
+  // The FOURTH regex tier: a DISABLED script attached to the demo preset — so the preset leg of the room's
+  // Regex section is populated too, and a disabled row stays disabled through the attach.
+  const disabledPlacement: RegexPlacement[] = ["WORLD_INFO"];
+  const disabledScript = await services.regex.createScript({
+    principal: owner,
+    input: {
+      name: REGEX_DISABLED_SCRIPT_NAME,
+      enabled: false,
+      findRegex: "\\r\\n",
+      replaceString: "\\n",
+      placement: disabledPlacement,
+      ...deriveRegexTierFlags(disabledPlacement),
+      runOnEdit: false,
+      trimStrings: [],
+      substituteRegex: SubstituteFindRegex.none,
+    },
+  });
+  await services.regex.attachToPreset({ principal: owner, presetId: preset.id, scriptId: disabledScript.id });
+  log(`regex script created (disabled) + attached: preset/${REGEX_DISABLED_SCRIPT_NAME}`);
 
   // A tag, attached to the assistant character.
   const tag = await services.tag.createTag({ principal: owner, input: { name: DEMO_TAG_NAME } });
