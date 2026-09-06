@@ -7,6 +7,7 @@ import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { MutableBusRecord } from "./bus-fact-output.ts";
 import { finishBusFact } from "./bus-fact-output.ts";
+import type { ParameterProjection } from "./bus-fact-read.ts";
 import {
   authoredProperty,
   BUS_UNION_SUFFIX,
