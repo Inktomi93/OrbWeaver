@@ -56,6 +56,7 @@ async function applyOneRename(db: Db, from: string, to: string): Promise<number>
   const path = sql`('$[' || ${lowestMatchingIndex(from)} || '].name')`;
   let applied = 0;
   for (;;) {
+    // @orb-waive no-await-db-in-loop(returning): a converge-to-fixpoint migration: each pass rewrites the LOWEST matching arm of every row and repeats until zero rows come back, so the loop IS the algorithm rather than an N+1 over data. Ends when json_set can rewrite every matching arm in one statement.
     const rows = await db
       .update(automationRules)
       .set({

@@ -63,7 +63,7 @@ const CHAT_IDENTITY_ID_SOURCES = {
 /** Collect ONE kind's DISTINCT covered ids from whichever of the two optional sources the caller has
  *  loaded. Pure — no I/O; `loadChatIdentityProducer` runs the queries. */
 function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, source: ChatIdentityIdSource<Id>): Id[] {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for collecting covered ids
+  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for collecting covered ids. Ends if it outlives the call.
   const ids = new Set<Id>();
   for (const p of args.participants ?? []) {
     const id = source.participant(p);

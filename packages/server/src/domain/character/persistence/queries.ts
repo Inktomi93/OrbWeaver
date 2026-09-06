@@ -721,7 +721,7 @@ export function cardOf(src: CharacterCard): CharacterCard {
 
 // Read-only join over tag's schema via @orb/db, never an import of domain/tag. Pending rows excluded.
 export async function canonicalTagsFor(db: Db, characterIds: readonly CharacterId[]): Promise<Map<CharacterId, TagView[]>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map keyed by characterId
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map keyed by characterId. Ends if it outlives the call.
   const map = new Map<CharacterId, TagView[]>();
   if (characterIds.length === 0) {
     return map;

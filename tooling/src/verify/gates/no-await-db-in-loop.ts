@@ -48,6 +48,23 @@ function awaitedInLoopBody(node: MorphNode): boolean {
   return false;
 }
 
+/** The waiver-carrier boundary the central engine uses: a statement, or one of the declaration kinds it
+ *  treats as a scope. ONE ROUND TRIP PER ITERATION IS ONE FINDING, and the reason is the waiver plane, not
+ *  tidiness: a marker binds to its carrier and suppresses only when EXACTLY ONE finding of its position
+ *  token lies inside it, so two awaits in one carrier make the site UNWAIVABLE BY CONSTRUCTION — the
+ *  central engine calls the marker over-broad and suppresses neither. The live shape that proved it is a
+ *  ternary whose two branches are MUTUALLY EXCLUSIVE (`assets/persistence/asset-refs.ts`): one statement,
+ *  two awaited queries, exactly one round trip per iteration. */
+function waiverCarrier(node: MorphNode): object {
+  let current = node;
+  let parent = current.getParent();
+  while (parent !== undefined && !(Node.isBlock(parent) || Node.isSourceFile(parent) || Node.isModuleBlock(parent))) {
+    current = parent;
+    parent = current.getParent();
+  }
+  return current.compilerNode;
+}
+
 export const gate = defineGate({
   id: "no-await-db-in-loop",
   family: "no-await-db-in-loop",
@@ -60,42 +77,60 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.AwaitExpression],
-        visit: (node) => {
-          if (!Node.isAwaitExpression(node)) {
-            return;
-          }
-          const call = node.getExpression();
-          // THE LOOP TEST RUNS FIRST, and it is pure syntax: resolving a property symbol on every awaited
-          // call in a 7,000-file population is the ten-minute shape the id-brand lane measured. Only an
-          // await the loop body actually executes ever pays for the checker.
-          if (!(Node.isCallExpression(call) && awaitedInLoopBody(node))) {
-            return;
-          }
-          const verdict = readDrizzleClientCall(call);
-          if (verdict.kind === "foreign") {
-            return;
-          }
-          // FAIL-CLOSED: a member the checker cannot bind, spelled like a query verb, is reported. An
-          // unbindable receiver is exactly where a real db handle hides (an `any` seam, a broken door).
-          const failClosed = verdict.kind === "unresolved" && verdict.method !== null && QUERY_VERBS.has(verdict.method);
-          if (verdict.kind === "drizzle" || failClosed) {
-            const anchor = verdict.nameNode;
-            const method = verdict.method as string;
-            if (anchor !== null) {
-              // A bracket-spelled member's name node is the STRING LITERAL, so the authored token starts
-              // one character in; deriving the offset from the node's own text covers both spellings.
-              ctx.report.node(anchor, { token: method, offset: anchor.getText().indexOf(method) });
+  create: (ctx) => {
+    const reported = new Set<object>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.AwaitExpression],
+          visit: (node) => {
+            if (!Node.isAwaitExpression(node)) {
+              return;
             }
-          }
+            const call = node.getExpression();
+            // THE LOOP TEST RUNS FIRST, and it is pure syntax: resolving a property symbol on every awaited
+            // call in a 7,000-file population is the ten-minute shape the id-brand lane measured. Only an
+            // await the loop body actually executes ever pays for the checker.
+            if (!(Node.isCallExpression(call) && awaitedInLoopBody(node))) {
+              return;
+            }
+            const verdict = readDrizzleClientCall(call);
+            if (verdict.kind === "foreign") {
+              return;
+            }
+            // FAIL-CLOSED: a member the checker cannot bind, spelled like a query verb, is reported. An
+            // unbindable receiver is exactly where a real db handle hides (an `any` seam, a broken door).
+            const failClosed = verdict.kind === "unresolved" && verdict.method !== null && QUERY_VERBS.has(verdict.method);
+            const anchor = verdict.nameNode;
+            if (!(verdict.kind === "drizzle" || failClosed) || anchor === null) {
+              return;
+            }
+            const carrier = waiverCarrier(node);
+            if (reported.has(carrier)) {
+              return;
+            }
+            reported.add(carrier);
+            const method = verdict.method as string;
+            // A bracket-spelled member's name node is the STRING LITERAL, so the authored token starts one
+            // character in; deriving the offset from the node's own text covers both spellings.
+            ctx.report.node(anchor, { token: method, offset: anchor.getText().indexOf(method) });
+          },
         },
-      },
-    ],
-  }),
+      ],
+    };
+  },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts":
+          "export declare class Db {\n  select(): Db;\n  from(table: unknown): Db;\n  where(predicate: unknown): Promise<readonly unknown[]>;\n}\n",
+        "packages/server/src/domain/x/persistence/ternary.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[], scoped: boolean): Promise<void> {\n  for (const x of xs) {\n    const rows = scoped ? await db.select().from(x).where(1) : await db.select().from(x).where(2);\n    void rows;\n  }\n}\n',
+      },
+      expect: { count: 1, token: "where" },
+      why: "ONE ROUND TRIP PER ITERATION IS ONE FINDING. The two branches of a ternary are MUTUALLY EXCLUSIVE, so the loop makes one call — and reporting twice would make the site UNWAIVABLE BY CONSTRUCTION, because a positioned marker binds to its carrier and the central engine calls a marker matching two findings over-broad. The live `assets/persistence/asset-refs.ts` shape is exactly this",
+    },
     {
       mode: "types",
       files: {

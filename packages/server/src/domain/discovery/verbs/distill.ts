@@ -317,7 +317,7 @@ async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<voi
     if (chunk.length === 0) {
       continue;
     }
-    // @orb-gate-ignore no-await-db-in-loop: bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
+    // @orb-waive no-await-db-in-loop(batch): bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice). Ends if the driver lifts the cap.
     await db.batch(batchMany(chunk));
   }
 }

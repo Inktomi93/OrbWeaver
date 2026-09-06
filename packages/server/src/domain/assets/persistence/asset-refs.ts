@@ -92,7 +92,7 @@ export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset
  *  this closes, so a present, non-empty value joins the set unconditionally. Mirrors
  *  `selectInlineReferencedContents` (the chat-canon `asset:` JSON live-source). */
 async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for GC live-set. Ends if it outlives the call.
   const live = new Set<AssetId>();
   const rows = await db
     .selectDistinct({
@@ -156,7 +156,7 @@ function libraryAssetIds(libraryJson: string | null): AssetId[] {
  *  cross-user reap this closes: a host's chat background must not vanish because the asset's owner ran GC).
  *  Mirrors the settings live-source exactly. */
 async function selectCarriedBackgroundReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC live-set
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for GC live-set. Ends if it outlives the call.
   const live = new Set<AssetId>();
   // Root the `assetId` ONLY when the source `kind` is "asset". A non-asset source (`none`/`seeded`/`external`)
   // carries NO asset ref, so a stray/smuggled `assetId` on such a source — a hand-crafted or pre-canonicalization
@@ -187,9 +187,10 @@ async function selectCarriedBackgroundReferencedAssetIds(db: Db): Promise<Set<As
  *  registry column to THAT owner's assets through the `assets` join (the export half — a bundle carries only
  *  its owner's blobs, and a foreign-owned referenced asset is not the exporter's to ship). */
 async function selectFkReferencedAssetIds(db: Db, ownerId: UserId | null): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for the reference live-set. Ends if it outlives the call.
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
+    // @orb-waive no-await-db-in-loop(where): one SELECT per ASSET_REFS registry row, not per data row — each ref names a DIFFERENT table and column, so the twelve reads cannot collapse into one statement. Ends when the registry is expressible as one UNION over a generated view.
     const rows =
       ownerId === null
         ? await db.selectDistinct({ id: ref.column }).from(ref.table).where(isNotNull(ref.column))
@@ -218,10 +219,11 @@ const OWNER_FILTER_BATCH = 500;
  *  parsed in JS precisely so a corrupt value FAILS instead of silently reading empty — see
  *  `libraryAssetIds`), so the narrowing happens here, against the index rows themselves. */
 async function narrowToOwner(db: Db, candidates: ReadonlySet<AssetId>, ownerId: UserId): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for the reference live-set. Ends if it outlives the call.
   const owned = new Set<AssetId>();
   const ids = [...candidates];
   for (let i = 0; i < ids.length; i += OWNER_FILTER_BATCH) {
+    // @orb-waive no-await-db-in-loop(where): deliberate chunking: the loop steps by OWNER_FILTER_BATCH because the id set exceeds the libSQL bound-variable cap, so one round trip per chunk IS the batching. Ends if the driver lifts the cap.
     const rows = await db
       .select({ id: assets.id })
       .from(assets)
@@ -240,7 +242,7 @@ async function narrowToOwner(db: Db, candidates: ReadonlySet<AssetId>, ownerId: 
  *  the referencing JSON without its bytes, which is the same data loss with a longer fuse. */
 async function selectReferencedAssetIds(db: Db, ownerId: UserId | null): Promise<Set<AssetId>> {
   const live = await selectFkReferencedAssetIds(db, ownerId);
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for the reference live-set
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for the reference live-set. Ends if it outlives the call.
   const jsonPinned = new Set<AssetId>();
   for (const id of await selectSettingsReferencedAssetIds(db)) {
     jsonPinned.add(id);
@@ -272,7 +274,7 @@ export async function selectOwnedReferencedAssetIds(db: Db, ownerId: UserId): Pr
  *  dies — e.g. a character whose avatar (FK) doubles as a card/chat background (JSON) via CAS dedup. The
  *  registry is tiny and this is maintenance-time, so the full-set scan is the right cost trade for correctness. */
 export async function selectReferencedAmong(db: Db, candidateIds: readonly AssetId[]): Promise<Set<AssetId>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator for GC candidate check
+  // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for GC candidate check. Ends if it outlives the call.
   const referenced = new Set<AssetId>();
   if (candidateIds.length === 0) {
     return referenced;

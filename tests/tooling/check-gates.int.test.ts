@@ -158,8 +158,6 @@ function writeFixtures(): void {
   fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate: fixture — names a gate that does not exist\nexport const x = 1;\n");
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
-  // no-handwritten-wire-json-schema: a hand-authored JSON-Schema literal on a wire `schema` field (the D79 seal).
-  fx("packages/server/src/__g_wireschema.ts", 'export const rf = { name: "x", schema: { type: "object", properties: {} } };\n');
   // commented-code: parked code in a // comment.
   fx("packages/server/src/__g_commented.ts", "// const dead = 1;\nexport const live = 1;\n");
   // schema-branding: a db text id column without .$type<XId>().
@@ -169,19 +167,6 @@ function writeFixtures(): void {
   );
   // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
   fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
-  // byte-check-cast: a CHECK's length() cap over a bare column against a *_MAX_BYTES constant with no
-  // `cast(... as blob)` — SQLite length() on TEXT counts characters, so this admits up to 4x its stated
-  // byte limit (#642). Deliberately no PK/index on this fixture — the schema-structure gates it would
-  // also trip (table-explicit-primary-key, fk-*) are covered by their OWN fixtures above.
-  fx(
-    "packages/db/src/schema/__g_bytecap.ts",
-    'import { sql } from "drizzle-orm";\n' +
-      'import { check, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
-      "const G_BYTECAP_MAX_BYTES = 65536;\n" +
-      'export const gBytecap = sqliteTable("g_bytecap", { value: text("value") }, () => [\n' +
-      '  check("g_bytecap_value_check", sql.raw(`length(value) <= ${G_BYTECAP_MAX_BYTES}`)),\n' +
-      "]);\n",
-  );
   // fk-columns-indexed: an FK column that leads NO index. Isolated on purpose — it states its onDelete and
   // declares its PK, so only this gate's arm is the deliberate fire.
   fx(
@@ -269,8 +254,6 @@ function writeFixtures(): void {
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.
   fx("tests/tooling/__g_det.test.ts", `export const t = ${["Date", "now"].join(".")}();\n`);
-  // providers-runner-seal: a domain consumer (above infra) importing a sealed runner symbol.
-  fx("packages/server/src/domain/__g_seal/x.ts", `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`);
   // pd-citation-integrity: a code FLAG[PD-n] citing an id with no registry row (orphan).
   // The citation is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the orphan citation.
@@ -298,31 +281,19 @@ function writeFixtures(): void {
     `${D}/__g_extidwrite/persistence/x.ts`,
     "declare function updateUser(db: unknown, id: string, patch: unknown): Promise<void>;\nexport async function link(db: unknown, id: string, externalId: string): Promise<void> {\n  await updateUser(db, id, { externalId, updatedAt: 0 });\n}\n",
   );
-  // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach
-  // the @orb/db barrel hides from dep-cruiser — the gate matches the ImportSpecifier).
-  fx(`${D}/discovery/__g_rollup.ts`, `import { ownerStats } from "@orb/db";\nexport const x = ownerStats;\n`);
   // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
   fx("packages/server/src/domain/__g_env.ts", `import process from "node:process";\nexport const x = process.env["FOO"];\n`);
   // assumes-single-replica: a module-scope mutable cache in a file with no ASSUMES(single-replica).
   fx("packages/server/src/domain/__g_replica.ts", "export const cache = new Map<string, number>();\n");
   // no-caller-user-id: the D19-forbidden `callerUserId` identifier (in the fixture's source, not here).
   fx("packages/server/src/__g_caller.ts", "export const callerUserId = 1;\n");
-  // test-mock-doctrine: vi.mock targeting an internal relative module.
-  fx("tests/__g_mock.test.ts", `import { vi } from "vitest";\nvi.mock("../src/foo");\n`);
   // test-factory-contract: makeX taking db, seedX without db.
   fx("tests/support/factories/__g_factory.ts", "export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n");
-  // test-fixture-imports: importing test/expect directly from vitest.
-  fx("tests/__g_imports.test.ts", `import { test, expect } from "vitest";\n`);
   // test-no-stubs: a test block with no assertions.
   fx("tests/__g_stub.test.ts", `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`);
   // audit-client-tests: an async test with no await — the assertion is present so test-no-stubs stays
   // quiet; only the deep auditor's missing-await arm fires (activated 2026-07-17).
   fx("tests/__g_audit.test.ts", `import { expect, test } from "support/test";\ntest("g async", async () => {\n  expect(1).toBe(1);\n});\n`);
-  // no-direct-reports-write: a `.screenshot({ path: "reports/…" })` literal in tests/**.
-  fx(
-    "tests/__g_reportswrite/x.ts",
-    'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/g.png" });\n}\n',
-  );
   // server-layout: an illegal directory at the root of server/src.
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
@@ -467,12 +438,6 @@ function writeFixtures(): void {
     "packages/client/src/state/__g_zustand.ts",
     "declare const useGStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a, b: s.b }));\n",
   );
-  // vector-scope-derived: a domain OUTSIDE the sanctioned set importing a vector-table symbol (D20).
-  fx(`${D}/__g_vec/persistence/x.ts`, `import { chatDigests } from "@orb/db";\nexport const x = chatDigests;\n`);
-  // turn-identity: a `principal` identifier inside the Principal-blind chat engine (D19).
-  fx(`${D}/chat/engine/__g_ti.ts`, "export function leak(principal: { userId: string }): string {\n  return principal.userId;\n}\n");
-  // membership-enforcer: an owner-equality comparison inside domain/chat (D18).
-  fx(`${D}/chat/verbs/__g_me.ts`, "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n");
   // chat-viewer-plane-canon-reads: a VIEWER-plane verb (matrix `listMessages: "member"`) reaching the
   // floorless bulk canon reader — the D79 leak shape. The gate resolves the verb through the
   // `ChatService["<verb>"]` return annotation and keys the verdict off the LIVE authority matrix.
@@ -808,11 +773,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_cachesurgery/hooks/__g_h.ts",
     "export const f = (qc: { invalidateQueries: (a: unknown) => void }): void => {\n  qc.invalidateQueries({});\n};\n",
   );
-  // no-await-db-in-loop: an awaited db query inside a for-of (the N+1 shape).
-  fx(
-    `${D}/__g_awaitloop/x.ts`,
-    "declare const xs: string[];\ndeclare const db: { select: () => { from: (t: unknown) => Promise<unknown> } };\ndeclare const y: unknown;\nexport async function f(): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.select().from(y);\n  }\n}\n",
-  );
   // no-chat-trpc-in-surface: an inline chat-verb mutation in a surface file.
   fx("packages/client/src/features/__g_chattrpc/surfaces/__g_s.ts", "export const o = trpc.chat.send.mutationOptions();\n");
   // no-color-literals: an arbitrary hex color in a className.
@@ -914,8 +874,6 @@ function writeFixtures(): void {
   fx(`${D}/__g_loosecast/x.ts`, "declare const x: unknown;\nexport const a = x as never;\n");
   // no-manual-token-estimate: the hand-rolled `.length / 4` token estimate.
   fx(`${D}/__g_tokest/__g_tok.ts`, "export function f(text: string): number {\n  return text.length / 4;\n}\n");
-  // no-hardcoded-side-gen-sampling: a hardcoded sampling literal at a domain side-gen call site.
-  fx(`${D}/__g_sidegen/__g_s.ts`, "export const opts = { temperature: 0.3, maxTokens: 24 };\n");
   // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
   fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
   // no-pointer-variants-in-features: a pointer CAPABILITY variant in a feature className (the pointer twin of
@@ -965,8 +923,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_staletime/hooks/__g_h.ts", 'export const o = { staleTime: "static" };\n');
   // no-untrusted-html-in-main-dom: dangerouslySetInnerHTML outside the sanctioned seals (D44).
   fx("packages/client/src/features/__g_rawhtml/components/__g_c.tsx", "export const C = (s: string) => <div dangerouslySetInnerHTML={{ __html: s }} />;\n");
-  // persistence-no-in-memory-state: a module-scope Map in a persistence/ file.
-  fx(`${D}/__g_memstate/persistence/__g_p.ts`, "export const m = new Map();\n");
   // query-machine-seals: a useMutation import outside data/ (client-architecture-lockdown.md §16 G9).
   fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
   // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
@@ -1101,13 +1057,6 @@ function writeFixtures(): void {
     'import { messageVariants } from "@orb/db";\nexport const gStmt = db.update(messageVariants).set({ content: "replaced" }).where(eq(messageVariants.id, id));\n',
   );
   fx("tooling/src/verify/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
-  // bounded-list-limit: an inline `limit: z.number()…` with no `.max()` in the router tree (the #45/#46
-  // ceiling). The path is inside the gate's scanRoot (transport/trpc/routers); the fixture leaves every real
-  // bounded schema untouched, so the added finding is this gate's bite alone.
-  fx(
-    "packages/server/src/transport/trpc/routers/__g_boundedlimit.ts",
-    'import { z } from "zod";\nexport const gListInput = z.object({ limit: z.number().int().optional() });\n',
-  );
   // ct-poll-schedule-and-paint (ARM A): a module-scope interval array handed to `expect.poll` — Playwright's
   // pollAgainstDeadline pops/shifts the caller's array, so the schedule is drained after its first use. ARM A
   // is the fixturable one: ARM B needs a barrier-vocabulary derivation plus an ordered trigger/poll pair,

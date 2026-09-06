@@ -24,7 +24,7 @@ import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for asset refs in a message
+  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for asset refs in a message. Ends if it outlives the call.
   const ids = new Set<string>();
   for (const v of message.variants) {
     for (const span of tokenizeContent(v.content, { committed: true })) {
@@ -51,7 +51,7 @@ async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: read
     .select({ id: characters.id })
     .from(characters)
     .where(and(inArray(characters.id, [...characterIds]), eq(characters.ownerId, ownerId)));
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local membership Set over the row set this query just returned
+  // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set over the row set this query just returned. Ends if it outlives the call.
   const ownedIds = new Set(owned.map((row) => row.id));
   for (const characterId of characterIds) {
     if (!ownedIds.has(characterId)) {
@@ -76,7 +76,7 @@ function namedSpeaker(m: BulkImportChatInput["messages"][number]): CharacterId |
  *  could stamp `messages.characterId` with an owned-but-unrostered card — a row every roster-joined read
  *  (transcript speaker names, member cards, the group arbitration feed) would then resolve to a ghost. */
 function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): void {
-  // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
+  // @orb-waive persistence-no-in-memory-state(Set): call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
   const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const m of ci.messages) {
     const named = namedSpeaker(m);
@@ -93,7 +93,7 @@ function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void 
   if (ci.seatKnobs === undefined || ci.seatKnobs.length === 0) {
     return;
   }
-  // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
+  // @orb-waive persistence-no-in-memory-state(Set): call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
   const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const knob of ci.seatKnobs) {
     if (!seated.has(knob.characterId)) {
@@ -395,7 +395,7 @@ async function resolveBranches(ctx: ChatImportContext, ownerId: UserId, characte
     .from(chats)
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
     .where(eq(chatParticipants.characterId, characterId));
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Map for import-from linkage
+  // @orb-waive persistence-no-in-memory-state(Map): query-local dedup Map for import-from linkage. Ends if it outlives the call.
   const byFile = new Map<string, ChatId>();
   const candidates = all
     .filter((c): c is { id: ChatId; importedFrom: string; createdAt: number } => c.importedFrom !== null)
@@ -618,7 +618,7 @@ async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedCha
     .from(messageVariants)
     .where(inArray(messageVariants.messageId, messageIds))
     .orderBy(asc(messageVariants.idx));
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local regrouping of the variant rows just loaded
+  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows just loaded. Ends if it outlives the call.
   const variantsByMessage = new Map<MessageId, MessageVariantId[]>();
   for (const variant of variants) {
     const pool = variantsByMessage.get(variant.messageId) ?? [];

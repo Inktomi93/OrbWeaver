@@ -491,6 +491,7 @@ function foldMessage(r: MessageRow, a: Accums): void {
 async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
+    // @orb-waive no-await-db-in-loop(all): keyset PAGINATION over the owner's whole message corpus — the loop exists to bound memory, and one round trip per page is what streaming means. Ends if the rebuild folds server-side.
     const rows = await db.all<MessageRow>(sql`
       SELECT m.id AS mid, m.character_id AS cid, m.role AS role, m.created_at AS createdAt,
              ch.created_at AS chatCreatedAt, v.content AS content,
@@ -594,6 +595,7 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
 async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
+    // @orb-waive no-await-db-in-loop(all): keyset PAGINATION over the owner's swipe variants, the sibling of the message scan above. Ends if the rebuild folds server-side.
     const rows = await db.all<SwipeRow>(sql`
       SELECT mv.id AS svid, m.character_id AS cid, m.created_at AS msgCreatedAt, mv.content AS content,
              mv.tokens_in AS ti, mv.tokens_out AS tout, mv.token_provenance AS tokenProvenance,

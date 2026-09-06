@@ -162,7 +162,7 @@ const verdictCoreSchema = z.object({ verdict: refineryVerdictSchema });
 /** The newest analyze VERDICT per session (the roster badge) — one query, grouped in JS (a per-owner
  *  roster is small; the newest-first scan takes the first verdict it sees per session). */
 export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySessionId[]): Promise<Map<RefinerySessionId, RefineryVerdict>> {
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local sessionId → newest-verdict map.
+  // @orb-waive persistence-no-in-memory-state(Map): query-local sessionId → newest-verdict map. Ends if it outlives the call.
   const map = new Map<RefinerySessionId, RefineryVerdict>();
   if (sessionIds.length === 0) {
     return map;

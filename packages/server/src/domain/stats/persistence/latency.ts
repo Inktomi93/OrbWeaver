@@ -126,7 +126,7 @@ export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<s
     )
     WHERE rn <= ${LATENCY_SAMPLE_LIMIT}
   `);
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator map for latency buckets
+  // @orb-waive persistence-no-in-memory-state(Map): query-local accumulator map for latency buckets. Ends if it outlives the call.
   const buckets = new Map<string, { ttft: number[]; gen: number[] }>();
   for (const r of rows) {
     const key = modelLatencyKey(r.model, r.provider ?? UNKNOWN_PROVIDER);
@@ -142,7 +142,7 @@ export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<s
       b.gen.push(r.gf - r.gs);
     }
   }
-  // @orb-gate-ignore persistence-no-in-memory-state: query-local accumulator map for latency stats output
+  // @orb-waive persistence-no-in-memory-state(Map): query-local accumulator map for latency stats output. Ends if it outlives the call.
   const out = new Map<string, LatencyStats>();
   for (const [key, b] of buckets) {
     out.set(key, statsOf(b.ttft, b.gen));
