@@ -62,8 +62,15 @@ export function knobIssue(knob: RulePresetKnobDescriptor, value: RulePresetKnobV
   switch (knob.kind) {
     case "number":
       return null; // clamped on entry — always in range.
-    case "text":
-      return typeof value === "string" && value.trim().length > 0 ? null : "Required.";
+    case "text": {
+      // Mirrors the server's OWN floor (`substrate/presets.ts::resolveText`), not a blanket "never
+      // empty" — a `minLength: 0` knob (`storyPacing`'s "Standing direction", "" = none) is validly
+      // blank, and blocking it here would make a documented-optional field unreachable (#1387).
+      if (knob.minLength === 0) {
+        return null;
+      }
+      return typeof value === "string" && value.trim().length >= knob.minLength ? null : "Required.";
+    }
     case "entityRef":
       return typeof value === "string" && value.length > 0 ? null : `Choose a ${RULE_PRESET_ENTITY_NOUNS[knob.entity]}.`;
     case "textList": {

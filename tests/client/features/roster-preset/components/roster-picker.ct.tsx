@@ -73,7 +73,7 @@ const PACING_PRESET: RulePresetView = {
   spends: true,
   knobs: [
     { key: "everyN", kind: "number", label: "Every N beats", help: "Counted over the chat's messages.", default: 8, min: 2, max: 40 },
-    { key: "steer", kind: "text", label: "Nudge", default: "Take stock of the pacing.", maxLength: 400 },
+    { key: "steer", kind: "text", label: "Nudge", default: "Take stock of the pacing.", minLength: 1, maxLength: 400 },
   ],
 };
 

@@ -48,8 +48,11 @@ function resolveText(key: string, descriptor: Extract<RulePresetKnobDescriptor, 
   if (typeof raw !== "string") {
     return refuse(key, "expected text");
   }
-  if (raw.length === 0) {
-    return refuse(key, "must not be empty");
+  // The descriptor's OWN floor (#1387), not a hardcoded "non-empty": most text knobs feed an arm field
+  // that is meaningless blank (`minLength: 1`), but a knob whose own semantics allow blank (`storyPacing`'s
+  // "Standing direction", "" = none) declares `minLength: 0` and rides straight through.
+  if (raw.length < descriptor.minLength) {
+    return refuse(key, descriptor.minLength <= 1 ? "must not be empty" : `must be at least ${descriptor.minLength} characters`);
   }
   if (raw.length > descriptor.maxLength) {
     return refuse(key, `must be at most ${descriptor.maxLength} characters`);

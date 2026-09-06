@@ -149,10 +149,16 @@ export interface RulePresetNumberKnobDescriptor extends RulePresetKnobBase {
 }
 
 /** A free-text knob (a steer line, a veil word). `maxLength` mirrors the arm cap the value lands in, so a
- *  refusal happens at the knob rather than deep inside `automationActionSchema`. */
+ *  refusal happens at the knob rather than deep inside `automationActionSchema`. `minLength` is the knob's
+ *  OWN floor — most text knobs feed an arm field that is meaningless blank (a veil marker, an entry name),
+ *  so `minLength: 1` is the common case, but a few (`storyPacing`'s "Standing direction") are documented as
+ *  legitimately optional (their own `help` says "leave empty for none", and the arm field they feed is
+ *  `.optional()` with no `.min()`), and those declare `minLength: 0` — never a hardcoded "must not be
+ *  empty" that cannot tell the two apart (#1387). */
 export interface RulePresetTextKnobDescriptor extends RulePresetKnobBase {
   readonly kind: "text";
   readonly default: string;
+  readonly minLength: number;
   readonly maxLength: number;
 }
 
