@@ -147,6 +147,7 @@ function policy(): GatePolicy {
     population: "@client",
     analysis: "types",
     execution: "selected-files",
+    resources: [],
     message: "dark class token",
     create: (context) => {
       const reader = createStaticClassFactReader();
@@ -186,7 +187,8 @@ test("composes with the production policy context and shared dispatcher", () => 
   const project = projectOf({
     "packages/client/src/x.tsx": 'import { clsx } from "clsx"; const value = "dark:bg-card"; export const X = clsx(value);',
   });
-  const result = runPolicyPass({ policies: [policy()], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  const gate = policy();
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.findings).toMatchObject([{ token: "dark:bg-card" }]);

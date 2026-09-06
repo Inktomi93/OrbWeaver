@@ -1,7 +1,7 @@
 /** Closed authority/severity and owner-completion contract for central gate post-processing.
  * Policy metadata is added by the coordinator; detector findings cannot author it. */
 
-import type { SourceFile } from "ts-morph";
+import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 
 export const GATE_AUTHORITIES = ["hard", "ordinary", "reviewed-grant"] as const;
 export type GateAuthority = (typeof GATE_AUTHORITIES)[number];
@@ -140,7 +140,7 @@ export interface GateAuthorityVerdict {
 export interface GateAuthorityBatchInput {
   readonly knownPolicies: readonly SelectedGatePolicy[];
   readonly selectedPolicies: readonly SelectedGatePolicy[];
-  readonly ordinaryWaiverSourceFiles: ReadonlyMap<string, SourceFile>;
+  readonly ordinaryWaiverSources: readonly OrdinaryWaiverSource[];
   readonly ownerResults: readonly GateOwnerResult[];
   readonly reviewedGrants: readonly ReviewedGateGrant[];
   readonly failOnWarnings: boolean;

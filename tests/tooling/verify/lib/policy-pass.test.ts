@@ -612,6 +612,160 @@ test("final policy execution and waiver acquisition admit only authored .ts/.tsx
   expect(mixed.authority.authorityAlarms).toEqual([]);
 });
 
+function resourceWaiverPolicy(input: {
+  readonly id: string;
+  readonly file: string;
+  readonly line: number;
+  readonly column: number;
+  readonly token: string;
+  readonly createThrows?: boolean;
+}): GatePolicy {
+  return policy(input.id, {
+    authority: "ordinary",
+    population: { of: "none", why: "resource-only waiver fixture" },
+    analysis: "resource",
+    execution: "entire-population",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.resources.authoredTree("client-source");
+        if (input.createThrows === true) {
+          throw new Error("resource owner failed");
+        }
+        ctx.report.file(input.file, { line: input.line, column: input.column, token: input.token });
+      },
+    }),
+  });
+}
+
+test.each([
+  {
+    label: "CSS block comments",
+    file: "packages/client/src/styles/waived.css",
+    source: ".a {\n  /* @orb-waive resource-format(#bad): exact CSS declaration */\n  color: #bad;\n}\n",
+    line: 3,
+    column: 10,
+    token: "#bad",
+  },
+  {
+    label: "Markdown HTML comments",
+    file: "packages/client/src/waived.md",
+    source: "<!-- @orb-waive resource-format(forbidden): exact prose token -->\nforbidden\n",
+    line: 2,
+    column: 1,
+    token: "forbidden",
+  },
+  {
+    label: "JSONC line comments",
+    file: "packages/client/src/waived.jsonc",
+    source: '{\n  // @orb-waive resource-format(forbidden): exact JSONC value\n  "value": "forbidden"\n}\n',
+    line: 3,
+    column: 13,
+    token: "forbidden",
+  },
+  {
+    label: "JSONC block comments",
+    file: "packages/client/src/waived-block.jsonc",
+    source: '{\n  /* @orb-waive resource-format(forbidden): exact JSONC value */\n  "value": "forbidden"\n}\n',
+    line: 3,
+    column: 13,
+    token: "forbidden",
+  },
+  {
+    label: "SQL line comments",
+    file: "packages/client/src/waived.sql",
+    source: "-- @orb-waive resource-format(forbidden): exact SQL token\nSELECT forbidden;\n",
+    line: 2,
+    column: 8,
+    token: "forbidden",
+  },
+  {
+    label: "SQL block comments",
+    file: "packages/client/src/waived-block.sql",
+    source: "/* @orb-waive resource-format(forbidden): exact SQL token */\nSELECT forbidden;\n",
+    line: 2,
+    column: 8,
+    token: "forbidden",
+  },
+])("ordinary resource waivers bind through $label", ({ file, source, line, column, token }) => {
+  const gate = resourceWaiverPolicy({ id: "resource-format", file, line, column, token });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.waivedFindings).toMatchObject([{ finding: { file, token } }]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test("plain JSON is a commentless carrier and marker-shaped strings cannot waive it", () => {
+  const file = "packages/client/src/waived.json";
+  const source = '{\n  "marker": "@orb-waive json-resource(forbidden): string is not a comment",\n  "value": "forbidden"\n}\n';
+  const gate = resourceWaiverPolicy({ id: "json-resource", file, line: 3, column: 13, token: "forbidden" });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.authority.waivedFindings).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ file, token: "forbidden" }]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.ordinaryConsumption).toEqual([]);
+});
+
+test("malformed and stale CSS markers alarm while the live finding remains effective", () => {
+  const file = "packages/client/src/styles/refused.css";
+  const source = ".a {\n  /* @orb-waive */\n  /* @orb-waive css-refusal(missing): stale position */\n  color: #bad;\n}\n";
+  const gate = resourceWaiverPolicy({ id: "css-refusal", file, line: 4, column: 10, token: "#bad" });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.authority.effectiveFindings).toMatchObject([{ file, token: "#bad" }]);
+  expect(result.authority.waivedFindings).toEqual([]);
+  expect(result.authority.authorityAlarms.map(({ message }) => message)).toEqual([
+    expect.stringMatching(/stale|dead position/i),
+    expect.stringMatching(/malformed/i),
+  ]);
+});
+
+test("undeclared resource files cannot contribute ordinary waiver markers", () => {
+  const file = "packages/client/src/styles/declared.css";
+  const source = ".a {\n  /* @orb-waive declared-css(#bad): exact CSS declaration */\n  color: #bad;\n}\n";
+  const gate = policy("declared-css", {
+    authority: "ordinary",
+    population: { of: "none", why: "authored CSS only" },
+    analysis: "resource",
+    execution: "entire-population",
+    resources: [{ kind: "authored-css" }],
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.resources.authoredCss();
+        ctx.report.file(file, { line: 3, column: 10, token: "#bad" });
+      },
+    }),
+  });
+  const result = run([gate], projectOf({}), {
+    resourceOptions: {
+      overlay: {
+        [file]: source,
+        "packages/ui/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
+        "packages/client/src/undeclared.md": "<!-- @orb-waive declared-css(missing): undeclared marker -->\nclean\n",
+      },
+    },
+  });
+
+  expect(result.authority.waivedFindings).toHaveLength(1);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.ordinaryConsumption).toHaveLength(1);
+});
+
+test("an incomplete resource owner withholds stale liveness but not malformed acquisition", () => {
+  const file = "packages/client/src/incomplete.md";
+  const source = "<!-- @orb-waive resource-incomplete(missing): stale while incomplete -->\n<!-- @orb-waive -->\nclean\n";
+  const gate = resourceWaiverPolicy({ id: "resource-incomplete", file, line: 3, column: 1, token: "clean", createThrows: true });
+  const result = run([gate], projectOf({}), { resourceOptions: { overlay: { [file]: source } } });
+
+  expect(result.policies[0]?.owner.status).toBe("incomplete");
+  expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+  expect(result.authority.authorityAlarms).toMatchObject([{ policyId: "ordinary-waiver", message: expect.stringMatching(/malformed/i) }]);
+  expect(result.authority.authorityAlarms).toHaveLength(1);
+});
+
 test("ordinary waiver acquisition alarms stay blocking while unselected liveness is withheld", () => {
   const selected = policy("ordinary-selected", { authority: "ordinary" });
   const unselected = policy("ordinary-unselected", { authority: "ordinary" });

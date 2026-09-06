@@ -5,10 +5,12 @@ import { performance } from "node:perf_hooks";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
+import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
 import { createResourceReader } from "./resource-reader.ts";
@@ -32,6 +34,12 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
   const root = resolve(options.root);
   const reader = createResourceReader(options);
   const receipts = new Map<string, ResourceReceipt>();
+  const acquiredPaths = new Set<string>();
+  const recordPaths = (paths: readonly string[]): void => {
+    for (const path of paths) {
+      acquiredPaths.add(path);
+    }
+  };
   let parser: Project | undefined;
   const sourceParser =
     options.parseSource ??
@@ -60,6 +68,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       } catch (error) {
         loaded = { status: "unresolved", paths: [], members: 0, reason: error instanceof Error ? error.message : String(error) };
       }
+      recordPaths(loaded.paths);
       const receipt: ResourceReceipt = {
         source,
         status: loaded.status,
@@ -95,5 +104,25 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     staticConfig: keyed("static-config", (id: StaticConfigResourceId) => loadStaticConfig(reader, id, parseSource)),
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
   });
-  return Object.freeze({ host, receipts: () => Object.freeze([...receipts.values()].toSorted((left, right) => left.source.localeCompare(right.source))) });
+  const ordinaryWaiverSources = (): readonly OrdinaryWaiverSource[] =>
+    Object.freeze(
+      [...acquiredPaths]
+        .toSorted((left, right) => left.localeCompare(right))
+        .flatMap((path): readonly OrdinaryWaiverSource[] => {
+          const format = ordinaryWaiverResourceFormat(path);
+          if (format === undefined) {
+            return [];
+          }
+          const text = reader.read(path);
+          if (text.status !== "ready") {
+            throw new Error(`ordinary waiver resource carrier ${path} is ${text.status}: ${text.reason}`);
+          }
+          return [Object.freeze({ kind: "resource", path, format, text: text.value })];
+        }),
+    );
+  return Object.freeze({
+    host,
+    receipts: () => Object.freeze([...receipts.values()].toSorted((left, right) => left.source.localeCompare(right.source))),
+    ordinaryWaiverSources,
+  });
 }

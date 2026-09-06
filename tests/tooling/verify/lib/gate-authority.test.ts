@@ -7,6 +7,7 @@ import type {
   RawGateFinding,
   SelectedGatePolicy,
 } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import type { OrdinaryWaiverSource } from "../../../../tooling/src/verify/contract/ordinary-waiver-source.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -24,9 +25,9 @@ function ordinaryFinding(file: string, overrides: Partial<RawGateFinding> = {}):
   return finding(file, { token: "ordinary", ...overrides });
 }
 
-function sourceFiles(files: Readonly<Record<string, string>>): ReadonlyMap<string, import("ts-morph").SourceFile> {
+function ordinarySources(files: Readonly<Record<string, string>>): readonly OrdinaryWaiverSource[] {
   const project = new Project({ useInMemoryFileSystem: true });
-  return new Map(Object.entries(files).map(([path, source]) => [path, project.createSourceFile(`/repo/${path}`, source)]));
+  return Object.entries(files).map(([path, source]) => ({ kind: "typescript" as const, path, sourceFile: project.createSourceFile(`/repo/${path}`, source) }));
 }
 
 function owner(
@@ -49,7 +50,7 @@ function coordinate(overrides: Partial<GateAuthorityBatchInput> = {}): GateAutho
     reviewedGrants: [],
     failOnWarnings: false,
     ...overrides,
-    ordinaryWaiverSourceFiles: overrides.ordinaryWaiverSourceFiles ?? sourceFiles({ "ordinary.ts": "ordinary\n" }),
+    ordinaryWaiverSources: overrides.ordinaryWaiverSources ?? ordinarySources({ "ordinary.ts": "ordinary\n" }),
   };
   return coordinateGateAuthority(input);
 }
@@ -61,7 +62,7 @@ test("each authority uses only its own exception door and findings derive policy
       owner("ordinary-policy", [ordinaryFinding("ordinary.ts", { line: 2 })]),
       owner("reviewed-policy", [finding("reviewed.ts", { subject: "src/a.ts", operation: "import" })]),
     ],
-    ordinaryWaiverSourceFiles: sourceFiles({ "ordinary.ts": "// @orb-waive ordinary-policy(ordinary): fixture\nordinary\n" }),
+    ordinaryWaiverSources: ordinarySources({ "ordinary.ts": "// @orb-waive ordinary-policy(ordinary): fixture\nordinary\n" }),
     reviewedGrants: [
       {
         id: "grant:reviewed",
@@ -397,12 +398,12 @@ test("warning promotion changes blocking without rewriting severity", () => {
   const unpromoted = coordinate({
     selectedPolicies: [POLICIES[1] as SelectedGatePolicy],
     ownerResults: [owner("ordinary-policy", [ordinaryFinding("warning.ts")])],
-    ordinaryWaiverSourceFiles: sourceFiles({ "warning.ts": "ordinary\n" }),
+    ordinaryWaiverSources: ordinarySources({ "warning.ts": "ordinary\n" }),
   });
   const promoted = coordinate({
     selectedPolicies: [POLICIES[1] as SelectedGatePolicy],
     ownerResults: [owner("ordinary-policy", [ordinaryFinding("warning.ts")])],
-    ordinaryWaiverSourceFiles: sourceFiles({ "warning.ts": "ordinary\n" }),
+    ordinaryWaiverSources: ordinarySources({ "warning.ts": "ordinary\n" }),
     failOnWarnings: true,
   });
 

@@ -1,5 +1,6 @@
 // Closed resource requests; adding a family requires a concrete provider and a proof, never a path callback.
 import type { SourceFile } from "ts-morph";
+import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
@@ -24,4 +25,6 @@ export interface ResourceInvocation {
   readonly host: ResourceHost;
   /** Unique acquisitions, including failures. Cache hits do not inflate cost/member totals. */
   readonly receipts: () => readonly ResourceReceipt[];
+  /** Comment-aware text snapshots from facts already acquired through declared resource doors. */
+  readonly ordinaryWaiverSources: () => readonly OrdinaryWaiverSource[];
 }

@@ -296,7 +296,7 @@ function processPolicy(policy: SelectedGatePolicy, state: CoordinationState): vo
   processReviewed(policy, findings, state);
 }
 function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof createOrdinaryWaiverEngine>["reconcile"]> {
-  const engine = createOrdinaryWaiverEngine({ sourceFiles: state.input.ordinaryWaiverSourceFiles, knownPolicies: [...state.knownPolicies.values()] });
+  const engine = createOrdinaryWaiverEngine({ sources: state.input.ordinaryWaiverSources, knownPolicies: [...state.knownPolicies.values()] });
   const findings = state.ordinaryFindings.toSorted(findingOrder);
   const matched = engine.match(findings);
   for (const [index, finding] of findings.entries()) {
