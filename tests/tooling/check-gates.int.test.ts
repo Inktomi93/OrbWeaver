@@ -467,25 +467,19 @@ function writeFixtures(): void {
     "tests/tooling/__g_pseudoskip.test.ts",
     'import { test } from "support/test";\ntest("g", () => {\n  test.info().annotations.push({ type: "skipped" });\n  return;\n});\n',
   );
-  // bus-coverage: NO fixture — its DEFERRED map is now EMPTY (the last deferral, `expression`, closed when the
-  // E3 classify emit landed). With no deferred member, neither STALE (needs a deferred member) nor MISSING
-  // (needs an un-emitted REAL member — a `__g_` file can't add one to the single-home union) is fixturable, so
-  // bus-coverage joins UNFIXTURABLE_GATES; the STALE mechanism stays proven by the `user-bus-coverage` twin
-  // below (its DEFERRED `connectionsChanged`). Keep in sync with the DEFERRED map in bus-coverage.ts.
-  // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
-  // store yet) gains a canonical injected emitter call → "stale allowlist". An arbitrary matching literal
-  // is deliberately a decoy, not producer evidence; tests/tooling/verify/lib/bus-coverage.test.ts locks both
-  // sides. Keep in sync with the DEFERRED map in user-bus-coverage.ts.
-  fx(`${D}/chat/__g_userbus.ts`, 'ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });\n');
+  // bus-coverage / user-bus-coverage: NO fixture. Both are final `defineGate` policies on the shared bus
+  // producer fact (#1584); their DEFERRED maps are gone, and the retirement ratchet that the live
+  // `connectionsChanged` fixture used to drive is now `user-bus-deferred-member`, proven through the
+  // production dispatcher in tests/tooling/verify/gates/bus-pair.test.ts.
   // rpg-bus-coverage: NO fixture — as of W1c-b its DEFERRED map is EMPTY (every RpgBusEvent member gained a real
   // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
   // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
-  // (the `bus-coverage` twin's exact posture); the STALE mechanism stays proven by the `user-bus-coverage` twin.
+  // (the `bus-coverage` twin's exact posture); the retirement ratchet is proven by `user-bus-deferred-member`.
   // automation-bus-coverage / domain-events-coverage: NO fixture — both DEFERRED maps are EMPTY at mint
   // (every AutomationBusEvent and DomainEvent member has a real emit literal in domain scope), so neither
   // STALE (needs a deferred member) nor MISSING (a `__g_` file cannot add a REAL member to the single-home
   // union) is fixturable. They join UNFIXTURABLE_GATES on the `bus-coverage`/`rpg-bus-coverage` precedent;
-  // the shared reconcile's STALE mechanism stays proven by the `user-bus-coverage` twin above.
+  // the retirement ratchet is proven by `user-bus-deferred-member` through the production dispatcher.
   // domain-freshness-plane: a mutating domain with no DOMAIN_FRESHNESS row — the refinery arm, which is the
   // state the tree was actually in before 2026-08-14.
   fx(
@@ -708,13 +702,9 @@ function writeFixtures(): void {
   // group,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
   // node:fs, not ts-morph, so the real-tree fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_ownsnodef/lib/helper.ts", "export const g = 1;\n");
-  // bus-definition-belts: a `*_EVENT_TYPES satisfies Record<X["type"], true>` const in @orb/contracts with
-  // NEITHER a coverage-gate file naming it NOR a client-side total map in data/invalidation.ts — both belts
-  // missing (client-architecture-lockdown.md §13 laws 4/5, §16 G11).
-  fx(
-    "packages/contracts/src/__g_busbelt/index.ts",
-    'export type GBeltEvent = { type: "gTick" };\nexport const G_BELT_EVENT_TYPES = { gTick: true } satisfies Record<GBeltEvent["type"], true>;\n',
-  );
+  // bus-definition-belts: NO fixture. It is a final `defineGate` policy on the shared bus definition fact
+  // (#1584), split into belt/totality/consumer/owner ids whose proofs run in the hermetic conformance
+  // runtime (tests/tooling/verify/gates/bus-pair.test.ts); no `__g_` file enters the working tree.
   // membership-fan-guard: an actor-only `emitUserEvent` identifier inside domain/chat — member-visible
   // state must fan via emitChatChanged/the chat bus, never a single-user channel (client-architecture-
   // lockdown.md §13 law 2/§16 G12).
@@ -1041,7 +1031,7 @@ function writeFixtures(): void {
 // bus-coverage: its DEFERRED map is EMPTY (every ChatBusEvent member now emits — the E3 classify emit closed
 // the last deferral). STALE needs a deferred member (none); MISSING needs an un-emitted REAL union member,
 // which a throwaway `__g_` file can't add to the single-home `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by
-// its conformance mustFlag (a synthetic un-emitted member) + the `user-bus-coverage` twin's live STALE fixture.
+// its conformance mustFlag (a synthetic un-emitted member) in the final policy's own proof set.
 // bus-payload-allowlist: scopes to 8 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
 // type identity, after #1024/#1025 added the open-key-space and imported-zod-schema arms, and after #1047
