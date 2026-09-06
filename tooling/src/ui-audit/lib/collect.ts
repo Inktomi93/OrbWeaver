@@ -43,7 +43,9 @@
 //   quiet-state               walker cohort census; samplesAreJudged
 //   double-empty-state        walker region census; samplesAreJudged
 //   tier-drift                walker tier census; every (element, property) pair returned, pass or fail
-//   selection-idiom           walker selection census; candidates exceed returned samples by design
+//   selection-idiom           walker selection census; candidates exceed returned samples by design;
+//                             carried(heterogeneousRest) — cohorts with no majority rest paint, judged
+//                             against the smallest delta over their distinct rest paints (#1808)
 //   aria-name                 every censused interactive control is judged — the count IS the evidence
 //   tabindex-positive         every censused tabindex attribute is judged
 //   z-index-escalation        every censused positive z-index is judged
@@ -62,9 +64,15 @@
 //   side-tab                  excluded(statusRegionAccent, ratifiedListRowSelection, illustratedPickerArt)
 //   border-accent-on-rounded  same census, same three ratified exemptions, its own affected count
 //   glow-shadow               excluded(sanctionedGlowCarrier) — keeps the exemption's REACH visible
-//   distorted-image           excluded(noComparableExtent, objectFitCropsOrLetterboxes)
-//   radial-halo               excluded(sanctionedGlowCarrier)
-//   radial-spotlight-glow     the same wash census as the row above, its own affected count
+//   distorted-image           excluded(noComparableExtent, objectFitCropsOrLetterboxes,
+//                             objectFitDoesNotScale — none/scale-down scale no axis independently) ·
+//                             withheld(unreadableExtent, unreadableObjectFit — input the rule cannot
+//                             read is missing evidence, not a licence to convict; #1808)
+//   radial-halo               excluded(sanctionedGlowCarrier) · withheld(unresolvedGradientStop — a
+//                             colour-shaped stop the ONE reader declined; the surviving stops are a
+//                             partial measurement, never a smaller gradient)
+//   radial-spotlight-glow     the same wash census as the row above, its own affected count, and the
+//                             same refusal — it belongs to the gradient, not to one rule
 //   stripe-background         excluded(otherPatternKind) — one sweep, two disjoint populations
 //   grid-line-background      excluded(otherPatternKind)
 //   layout-transition         excluded(otherMotionKind, panelExempt) — the motion-law §3.7 carve-out, counted

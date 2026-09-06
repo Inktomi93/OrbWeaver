@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Authoring a mechanism-matched ui-audit rule
@@ -71,6 +71,96 @@ that fixed them and can drift.
 | 12 | An ACCENT EDGE on a card (`side-tab` / `border-accent-on-rounded`) | Two spellings, and the one the tree reaches for most is a `::before`/`::after` BAR — absolutely positioned, filled with a token colour, pinned to one edge — not a `border-*-width` (`packages/client/src/styles/globals.css:84`; live: `[aria-label="Tags"]::after`, 3px x 252px `oklch(0.72 0.175 52)` on a 10px-radius card) | Reading the element's own four border widths only. It publishes `candidates=0 judged=0 affected=0 withheld() excluded()` on the exact surface carrying the banned edge, which is indistinguishable from clean — and the same run's positive control (`candidates=1` on Appearance) proves the collector is alive, not dead | A second collection channel into the SAME family and the SAME `AccentBorderInput`, so ONE checker judges both: a pseudo layer thin on one axis, spanning >=60% of the host on the other, pinned to that edge, with a background COLOUR (never the image channel — the CTA/active-tab gradient RING carries its paint as `background-image` and would otherwise be convicted wholesale). Every context flag is read off the HOST, so the ratified exemptions (row 11 included) reach the new channel the day they land | `tooling/src/ui-audit/ops/walker/census-accent.ts` (`accentBarSide`); three-direction proof in `tests/tooling/ui-audit/ops/walker/census-accent.int.test.ts` (#1103) | Measured: `docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md` F12 + its Instrument Delta. The repair OPENS a channel, which is when a ratified exclusion is most likely to be silently re-opened — #1151 was the standing row for exactly that, and it stayed closed only because the flags ride the host |
 | 13 | The RENDERED ANATOMY of a component's instances (`cohort-anatomy`'s height spread) | Some `data-slot` carriers are INLINE TEXT RUNS with no box of their own — `@orb/ui`'s markdown emits one `span[data-slot="dialogue"]` per quoted run inside a paragraph (`packages/ui/src/markdown/dialogue-paragraph.tsx:54,71`) | `getBoundingClientRect().height` on any censused carrier. On a `display: inline` element that is the UNION of its LINE BOXES, i.e. a wrap count: one cohort reported 69/45px desktop, 45/21px Light and 21/45px mobile-coarse for byte-identical markup — the majority and the minority TRADE PLACES between arms, which no anatomy defect does | A computed-`display` fence at collection: a member whose display is exactly `inline` is a boxless run, and a cohort whose members are ALL boxless is `excluded(inlineTextRun)` — counted and printed, never dropped. Read the DISPLAY, not `getClientRects().length > 1`: a single-line inline run is equally unmeasurable, and letting the wrap count decide whether the rule can see the cohort is the same bug one level up. `inline-block`/`inline-flex` own a box and stay judged; a MIXED cohort stays judged too, because one member rendering inline beside box siblings IS the divergence this rule exists to say | `tooling/src/ui-audit/ops/walker/census-cohort.ts` (`inlineRun`); both-directions proof in `tests/tooling/ui-audit/ops/walker/census-cohort.int.test.ts` (#1703) | The tell that this is a MECHANISM defect and not a threshold one: the verdict inverted between arms. A finding that changes sign with the viewport is measuring the viewport |
 | 14 | WHETHER TWO CONTROLS SHARING A NAME ARE ONE VERB (`duplicate-action-door`) | The app assigns jobs to REGIONS: `nav[aria-label=Primary] > button "Chats"` navigates the app, while `#context-cell-chats` inside `toolbar "Character"` repaints the context region with that character's chats (`docs/architecture/core/UI-Architecture-and-Layout.md` §4.1-4.3) | Pairing on (role, accessible name) plus a structural PATH. Two regions doing two jobs under one noun read as one verb with two homes, and the rule's own remedy — give the verb one home — would delete the view switcher | The ARIA container role is the tell: a door whose nearest `role="toolbar"` ancestor holds >=2 sibling cells is a VIEW SWITCH and leaves this rule's population as `excluded(viewSwitchCell)` (counted, printed). Scoped to `role="toolbar"` and no wider — the same rule's list-row-against-shelf findings are a RULING (#1662, ruled DIFFERENTIATE), not a fence, and must keep firing | `tooling/src/ui-audit/ops/walker/census-interactive.ts` (`doorToolbarHome`) + `lib/checks-quality.ts` (`isViewSwitchCell`); two-direction proof in `tests/tooling/ui-audit/ops/walker/census-interactive.int.test.ts` (#1705) | The two fixtures differ by the `role="toolbar"` ATTRIBUTE ALONE — the door path is position-free and carries no role — so the negative arm is a true control rather than a differently-shaped document. When a fence keys on one attribute, make the control vary only that attribute |
+
+## The per-rule mechanism census (one row per registered rule)
+
+The table above is the DEFECT class list — fourteen mechanism mismatches that shipped. This one is the
+DENOMINATOR: every id in `tooling/src/ui-audit/contract/rules.ts`, what its candidate selection actually
+reads, where that selection lives, and whether a PLANTED RENDERED positive proves the selection sees the
+thing (#1807, from #999 item 3). Derived from the tree 2026-09-06 — re-derive before citing, and re-derive
+the whole table when the registry grows.
+
+**Read the last column exactly as written.** Every rule already owns an executable firing proof and a
+nearest-neighbour silence proof — the `design-audit-rule-proof` gate makes a missing one RED, so
+"none — owed" NEVER means "unproved verdict". It means the only proof is CHECKER-LEVEL: a hand-built
+input object handed to the pure `checks-*.ts` function, which proves the THRESHOLD and says nothing about
+whether the census can see the shape on a real page. That is precisely the blindness this document
+exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an
+"owed" cell is a real gap in the mechanism axis, filed as such and not backfilled with an invented
+receipt. Of the 62 registered rules, 39 carry a planted rendered control, 22 are owed one, and
+`off-grid-transform` is half-owed (its withheld arm is planted, its firing arm is not). One of the 22 —
+`buried-raster` — is owed BY OWNER RULING rather than by omission; its cell says so.
+
+Shorthand for the collection sites: `w/<file>` = `tooling/src/ui-audit/ops/walker/<file>.ts` (the in-page
+census that builds the sample), `lib/<file>` = `tooling/src/ui-audit/lib/<file>.ts` (the Node-side
+verdict), `T/…` = a test path under `tests/`. Rules whose sample array is filled by one census and judged
+by one checker share a row; the two accounting-only rules (`reveal-coverage`, `canvas-ink`) emit no
+Finding at all and their control is the printed population row.
+
+| rule | what its candidate selection READS | collection site | verdict site | planted RENDERED control |
+| - | - | - | - | - |
+| tap-target | offered interactive controls, extent from a compositor `elementFromPoint` ring probe (not the border box) | `w/census-interactive` + `w/hit-extent` + `w/target-identity` | `lib/checks-a11y` | `T/tooling/ui-audit/ops/walker/hit-extent.int.test.ts` · `target-identity.int.test.ts` · `T/tooling/design-audit-walker.ct.tsx` |
+| reveal-coverage | rest-hidden reveal clusters (opacity 0 at rest, real geometry) — accounting only, never a Finding | `w/census-interactive` | `lib/collect-families` (census row) | `T/…/census-interactive.int.test.ts` (withheld row + its silent twin) |
+| control-aspect | offered controls' rendered w/h ratio against the role's silhouette | `w/census-interactive` (`controlAspects`) | `lib/checks-a11y` | `T/tooling/ui-audit/cli.int.test.ts` (planted 1.09 aspect + shipped 64x44 twin) |
+| obscured-target | a painted element whose OWN centre hit-tests to a local neighbour (`ownsPoint`) | `w/census-collision` + `w/census-occlusion` | `lib/checks-a11y` | `T/…/census-collision.int.test.ts` · `cli.int.test.ts` · walker CT |
+| aria-name | presence of any accname source, keyed spec-order (`aria-labelledby` before `aria-label`, plus `el.labels`) | `w/accessible-name` + `w/census-interactive` | `lib/checks-a11y` | `T/…/census-interactive.int.test.ts` (four-arm, #1009) |
+| border-contrast | a control's DECLARED border colour vs `resolveBackdropUnder(el)` (WCAG 1.4.11) | `w/census-border` | `lib/checks-border` | `T/tooling/ui-audit/cli.int.test.ts` (1.1:1 boundary + its 3:1 twin) |
+| landmark-missing | presence of a `<main>`/`role=main` landmark on the document | `w/census-interactive` (`mainLandmarkPresent`) | `lib/checks-a11y` | `T/tooling/ui-audit/cli.int.test.ts` (both directions) |
+| tabindex-positive | `[tabindex]` attribute values > 0 on visible elements | `w/census-interactive` | `lib/checks-a11y` | **none — owed** (checker-level only; the rendered suite asserts its ABSENCE on hidden nodes, never a plant) |
+| skipped-heading | the document's `h1…h6` order | `w/census-quality` | `lib/checks-a11y` | `T/…/census-quality.int.test.ts` |
+| text-over-art | text whose backdrop resolves to a gradient/image, judged at the WORST stop | `w/census-text` + `w/resolve` | `lib/checks-color` | walker CT (`oklch-gradient-bled`, P0 worst-stop) |
+| contrast | every text node's composited foreground vs `resolveBackdrop` (canvas-normalised, any colour space) | `w/census-text` + `w/resolve` | `lib/checks-color` | `T/tooling/ui-audit/cli.int.test.ts` (planted 1:1) · `census-text.int.test.ts` · walker CT |
+| hover-contrast | the same pair measured under a FORCED state (CDP `:hover` + Base UI `data-*`) | `ops/hover` + `w/state-paint` + `w/group-variant` | `lib/checks-hover` | `T/tooling/ui-audit/cli.int.test.ts` (real forced hover) · `ops/hover-walker.int.test.ts` |
+| inactive-control-legibility | text inside a control the shared `INACTIVE_KIND_EXPR` classifies inactive | `w/census-text` | `lib/checks-color` | `T/…/census-text.int.test.ts` |
+| gray-on-color | neutral ink over a chromatic fill | `w/census-text` | `lib/checks-color` | **none — owed** (checker-level only) |
+| border-accent-on-rounded | an accent edge on a rounded card — BOTH spellings: own `border-*-width` AND a pinned `::before`/`::after` bar | `w/census-accent` | `lib/checks-decor` | `T/…/census-accent.int.test.ts` · `census-decor.int.test.ts` · walker CT |
+| side-tab | same census, the one-edge flavour | `w/census-accent` | `lib/checks-decor` | same as above |
+| glow-shadow | chromatic box/text-shadow on the element AND its pseudo layers, at rest and under force | `w/census-glow` + `w/state-paint` | `lib/checks-decor` | `T/…/census-glow.int.test.ts` · `state-paint.int.test.ts` |
+| distorted-image | rendered box aspect vs natural raster aspect, gated on the `object-fit` keyword | `w/census-text` (`images`) | `lib/checks-media` | **none — owed** (checker-level only: `T/tooling/ui-audit/lib/checks-media.test.ts` + `index.test.ts`) |
+| canvas-ink | visible `<canvas>` elements — accounting only, always `excluded(canvasPaint)` | `w/census-collision` | `lib/collect-families` (census row) | `T/…/census-collision.int.test.ts` (both directions) |
+| broken-image | `<img>` with an empty `src` or `naturalWidth === 0` after load | `w/census-text` | `lib/checks-media` | **none — owed** (the rendered suite carries the SILENT arm only) |
+| radial-halo | a radial-gradient wash's colour stops (canvas-normalised), fade-out shape + chroma | `w/census-glow` (`radialGlows`) | `lib/checks-ornament` | **none — owed** (checker-level: `T/…/lib/css-color.test.ts` proves the colour-space arm, not the census) |
+| radial-spotlight-glow | the same wash census, low-alpha flavour | `w/census-glow` | `lib/checks-ornament` | **none — owed** (as above) |
+| stripe-background | `repeating-linear-gradient` in `background-image` | `w/census-decor` (`bgPatterns`) | `lib/checks-ornament` | **none — owed** |
+| grid-line-background | ≥2 `linear-gradient` layers + a ≤200px `background-size` tile | `w/census-decor` | `lib/checks-ornament` | **none — owed** |
+| icon-tile-stack | a heading's previous element sibling: box, fill/border, radius, an icon child | `w/census-decor` | `lib/checks-ornament` | **none — owed** |
+| layout-transition | authored `transition-property` naming a layout property | `w/census-decor` (`motionStatics`) | `lib/checks-ornament` | **none — owed** |
+| bounce-easing | `animation-name` / `cubic-bezier` control points outside 0..1 | `w/census-decor` | `lib/checks-ornament` | **none — owed** |
+| text-overflow | `scrollWidth > clientWidth` on the nearest CLIPPING ancestor-or-self, credited for a real affordance | `w/census-quality` | `lib/checks-quality` | `T/tooling/ui-audit/cli.int.test.ts` · walker CT (both directions, incl. the sr-only trap) |
+| truncated-to-nothing | text present in the DOM whose painted box is ~0px | `w/census-collision` | `lib/checks-quality` | `T/…/census-collision.int.test.ts` · `cli.int.test.ts` · walker CT |
+| repeated-container-text | the same literal string ≥3 times inside one decorated container | `w/census-quality` | `lib/checks-quality` | **none — owed** (rendered suite carries the SILENT arm only) |
+| clipped-overflow | a positioned/in-flow child spilling its clipping box, per side, behind ONE paint fence | `w/census-quality` | `lib/checks-quality` | `T/…/census-quality.int.test.ts` · walker CT |
+| edge-flush-cards | cards touching a horizontal scroller's content edge at `scrollLeft ≈ 0` | `w/census-quality` | `lib/checks-quality` | **none — owed** (SILENT arm only) |
+| script-error | uncaught page errors captured by the RUNNER — not a DOM census at all | `ops/run` (page events) | `lib/checks-quality` | **none — owed** (no fixture plants a page exception) |
+| duplicate-action-door | (role, accname) door HOMES, with the `role=toolbar` view-switch fence | `w/census-interactive` | `lib/checks-duplicate-door` | `T/…/census-interactive.int.test.ts` · walker CT |
+| headline-overhang | a display headline's painted rect clipped into an opaque neighbour | `w/census-occlusion` | `lib/checks-quality` | `T/…/census-occlusion.int.test.ts` (3 arms) |
+| inline-padding-leak | an `inline` element's tallest LINE FRAGMENT vs its line-height (block padding on an inline) | `w/census-occlusion` | `lib/checks-quality` | `T/…/census-occlusion.int.test.ts` (4 arms) |
+| z-index-escalation | positive `z-index` on non-static elements | `w/census-interactive` | `lib/checks-structure` | **none — owed** (checker-level only) |
+| nested-card | innermost card-like boxes inside another card-like box (fill+border+radius+shadow predicate) | `w/census-decor` | `lib/checks-structure` | `T/…/census-decor.int.test.ts` · `cli.int.test.ts` · walker CT |
+| gradient-text | `background-clip:text` + a gradient image + transparent `color` | `w/census-decor` | `lib/checks-structure` | **none — owed** |
+| animated-img-hover | a state-variant transform class on the `<img>` OR its ≤3 wrapper ancestors, via the SHARED state predicate | `w/census-decor` + `w/state-paint` | `lib/checks-structure` | `T/…/census-decor.int.test.ts` (wrapper-hover zoom + its negative) |
+| cohort-anatomy | rendered height spread across siblings keyed `tag + data-slot + role`, boxless inline runs excluded | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `cli.int.test.ts` |
+| row-void | the gap between a row's label and the control it names | `w/census-cohort` | `lib/checks-structure` | `T/…/census-cohort.int.test.ts` · `cli.int.test.ts` |
+| selection-idiom | selected/unselected computed-paint DELTAS per authored cohort (`claim + home + state`), against the cohort's majority rest paint | `w/census-selection` | `lib/checks-structure` | `T/…/census-selection.int.test.ts` (16 arms incl. the #1808 baseline pair) |
+| pane-ink | where a region's last authored paint sits relative to its height | `w/census-region` | `lib/checks-structure` | `T/…/census-region.int.test.ts` · `cli.int.test.ts` |
+| quiet-state | the loudness ORDER of an authored ON/OFF cohort's own fills over `resolveBackdropUnder` | `w/census-region` | `lib/checks-color` | `T/…/census-region.int.test.ts` (8 arms) · `cli.int.test.ts` (incl. the OKLCH arm) |
+| double-empty-state | simultaneously rendered `[data-slot=empty-state-root]` per surface | `w/census-region` | `lib/checks-quality` | `T/…/census-region.int.test.ts` · `cli.int.test.ts` |
+| text-below-ramp | computed `font-size` against the ramp's floor, per authored decision | `w/census-text` (`textStyles`) | `lib/checks-typography` | walker CT (9px `aria-hidden` paragraph) |
+| undersized-ui-text | the same census against the FUNCTIONAL floor | `w/census-text` | `lib/checks-typography` | `T/tooling/ui-audit/cli.int.test.ts` · walker CT |
+| line-length | measure in `ch`, from a MEASURED advance (not `fontSize × 0.5`) | `w/census-text` | `lib/checks-typography` | walker CT (Geist advance arms) |
+| tight-leading | computed `line-height` vs font-size, `normal` excluded | `w/census-text` | `lib/checks-typography` | **none — owed** |
+| justified-text | `text-align: justify` on an element with own text | `w/census-text` | `lib/checks-typography` | **none — owed** |
+| all-caps-body | `text-transform: uppercase` / typed caps on non-heading prose | `w/census-text` | `lib/checks-typography` | **none — owed** |
+| wide-tracking | `letter-spacing` above the band, with the ratified caps-voice exemption | `w/census-text` | `lib/checks-typography` | walker CT (caps kicker exempt + sentence-case fires) |
+| crushed-tracking | `letter-spacing` below the band | `w/census-text` | `lib/checks-typography` | **none — owed** |
+| caveat-outweighed | a sentence-shaped caveat set SMALLER than the endpoints it bounds | `w/census-text` | `lib/checks-caveat` | `T/tooling/ui-audit/cli.int.test.ts` (both directions) |
+| off-theme-font | the PAGE's censused font faces + a paint probe for each | `w/census-text` (`fontCensus`) | `lib/checks-font-census` | `T/tooling/ui-audit/cli.int.test.ts` (unpaintable face + present twin) |
+| flat-type-hierarchy | the PAGE's censused font-size SET | `w/census-text` (`fontCensus.sizes`) | `lib/checks-typography` | **none — owed** |
+| buried-raster | raster carriers (`<img>` / `background-image` url) at accumulated opacity < 0.15 | `w/census-text` (`buriedRasters`) | `lib/checks-media` | **none — owed** by design: the owner ruled this detector must not fire on today's tree, so a live plant would be a manufactured finding — `T/…/lib/checks-media.test.ts` is the checker-level proof |
+| tier-drift | painted value vs the tier's OWN `--orb-tier-*`, resolved by the browser (a self-oracle) | `w/census-tier` | `lib/checks-quality` | `T/…/census-tier.int.test.ts` (7 arms) · `census-tier.test.ts` (the pair-map derivation) |
+| off-grid-text | device-pixel landing of text inside a promotion context | `w/census-grid` | `lib/checks-typography` | `T/…/census-grid.int.test.ts` · `census-grid.test.ts` |
+| promoted-layer-offset | the promotion ROOTS' own fractional landing, element AND pseudo | `w/census-grid` | `lib/checks-quality` | walker CT (#1154 pseudo arm) |
+| off-grid-transform | a non-identity REST transform's fractional landing | `w/census-grid` | `lib/checks-quality` | **partial — the WITHHELD (animating) arm is planted in `census-grid.int.test.ts`; a firing rendered plant is owed** |
 
 ## Closing verdicts (session tasks #21, #19 — folded in 2026-09-01)
 

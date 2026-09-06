@@ -1,6 +1,10 @@
-// ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, accent borders, bg patterns, icon tiles, static motion offenders.
+// ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, bg patterns, icon tiles, static motion offenders.
 // The two GLOW families that used to sit between accent borders and bg patterns now live in
 // census-glow.ts (2026-09-01) — the pseudo-element sweep took this file past the tooling-size cap.
+// THE ACCENT-EDGE FAMILY LEFT TOO and this header claimed it for a day past the move (#1103,
+// truth-repaired 2026-09-06 under #1807): `accentBorders` is declared and filled ONLY in
+// census-accent.ts, which sweeps both the element's own border widths and the pseudo BAR spelling. This
+// file's only remaining accent business is the `artPane` context flag it shares with that census.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
