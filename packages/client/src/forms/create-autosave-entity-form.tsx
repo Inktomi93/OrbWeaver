@@ -300,8 +300,8 @@ export function createAutosaveEntityForm<TValues extends object>(
         programmaticWriteRef.current = true;
         try {
           for (const [name, value] of Object.entries(serverValues)) {
-            // @orb-gate-ignore no-loose-id-cast(name): not a branded-id cast — a server-row FIELD KEY erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. ENDS WHEN: the seed is typed as a partial of TValues instead of an entries loop.
-            // @orb-gate-ignore no-loose-id-cast(value): not a branded-id cast — the field's VALUE erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the key above.
+            // @orb-waive no-loose-id-cast(name): not a branded-id cast — a server-row FIELD KEY erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. ENDS WHEN: the seed is typed as a partial of TValues instead of an entries loop.
+            // @orb-waive no-loose-id-cast(value): not a branded-id cast — the field's VALUE erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the key above.
             form.setFieldValue(name as never, value as never);
           }
         } finally {

@@ -35,13 +35,29 @@ isolated policy timings.
 
 ## Remaining identity-flow policies
 
-Read and convert as one family before leaving this area:
+The second slice converts three more policies:
+
+- `no-loose-id-cast` uses compiler-resolved canonical brand identity for the double-cast arm and the final
+  positioned waiver plane for six form-library `as never` escapes;
+- `no-mint-via-cast` resolves both the kit `castId` seam and known generator origins through aliases rather
+  than matching callee text. The one newly exposed `globalThis.crypto.randomUUID()` socket mint now uses
+  `newId<SocketId>()`, the canonical prefixless brand minter;
+- `no-fake-disabled-id` shares the canonical cast matcher and static authored-value reader, so import aliases
+  and const/wrapper spellings cannot hide an empty sentinel.
+
+All identity policy descriptors share `gates/_proof/id-brand.ts` for isolated kit brand/cast fixtures and
+run through one `id-brand-flow.test.ts` conformance entry. No test owns a Project walker or policy runner.
+
+The first unfiltered real cast-family pass took 66.30 s because canonical module resolution ran on every call
+expression. The invocation-local matcher now indexes kit import aliases once per source before resolving
+only candidate calls. The repeated full-project run took 22.45 s, produced zero effective findings, consumed
+all six `no-loose-id-cast` waivers, and reported no waiver, policy, fact, or authority errors. Peak RSS was
+3,455,360 KiB with no swap or major page faults.
+
+One identity-flow policy remains before leaving this area:
 
 - `no-raw-id`: replace textual Zod recognition and gate-local symbol exemption with canonical call/type
   identity and central authority;
-- `no-mint-via-cast`: recognize the kit `castId` call and generator provenance rather than callee text;
-- `no-loose-id-cast`: retain the authored cast-shape rule with final positioned findings;
-- `no-fake-disabled-id`: share canonical `castId` and static-string facts with the mint rule.
 
 `registry-context-via-mint` contains the word mint but is a registry-construction policy, not an identity
 brand policy, and remains in its own family.

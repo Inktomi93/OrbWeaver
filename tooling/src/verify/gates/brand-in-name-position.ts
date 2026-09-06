@@ -5,16 +5,13 @@ import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =
   "a parameter or field uses bare `string` even though @orb/kit/ids owns the same name as a canonical brand — wrong-id values therefore type-check at this boundary.";
 const FIX =
   "use the canonical branded type and mint or parse it at the owning boundary. For a foreign wire that only shares the name, add `@orb-waive brand-in-name-position(<position>): <whose id + end condition>` on the exact declaration.";
 const POPULATION = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tests"] as const;
-const IDS_BASE =
-  "declare const brand: unique symbol;\nexport type Branded<B extends string> = string & { readonly [brand]: B };\nexport type TypeIdOf<P extends string> = Branded<P>;\n";
-const ids = (aliases: string): string => `${IDS_BASE}${aliases}`;
-
 interface BrandPosition {
   readonly typeName: string;
   readonly brand: string;
@@ -131,7 +128,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(chatId: string): void { void chatId; }\n",
       },
       expect: { count: 1, token: "chatId", messageIncludes: "canonical ChatId" },
@@ -140,7 +137,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type MessageId = TypeIdOf<"message">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type MessageId = TypeIdOf<"message">;\n'),
         "packages/contracts/src/x/views.ts": "export interface Row { readonly messageId: string | null; }\n",
       },
       expect: { count: 1, token: "messageId" },
@@ -149,7 +146,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type SessionToken = Branded<"SessionToken">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type SessionToken = Branded<"SessionToken">;\n'),
         "packages/server/src/domain/sessions/contract/service.ts": "export interface Args { readonly sessionToken: string; }\n",
       },
       expect: { count: 1, token: "sessionToken" },
@@ -158,7 +155,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\nexport type SessionId = TypeIdOf<"session">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\nexport type SessionId = TypeIdOf<"session">;\n'),
         "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts":
           "export class Store {\n  // @orb-waive brand-in-name-position(sessionId): the SDK owns this session id; ends if it becomes an Orb session row.\n  record(chatId: string, sessionId: string): void { void chatId; void sessionId; }\n}\n",
       },
@@ -168,7 +165,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "tests/server/domain/chat/thing.test.ts": "export interface Fixture { readonly chatId: string; }\n",
       },
       expect: { count: 1, token: "chatId" },
@@ -179,7 +176,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(chatId: ChatId): void { void chatId; }\n",
       },
       why: "the signature carries its canonical brand",
@@ -187,7 +184,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type SessionId = TypeIdOf<"session">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type SessionId = TypeIdOf<"session">;\n'),
         "packages/server/src/infra/providers/backends/agent-sdk/log.ts":
           "export interface Frame {\n  // @orb-waive brand-in-name-position(sessionId): the SDK owns this id; ends if renamed or parsed as an Orb session.\n  readonly sessionId: string;\n}\n",
       },
@@ -196,7 +193,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(fromChatId: string, ownerId: string): void { void fromChatId; void ownerId; }\n",
       },
       why: "only exact canonical lower-camel positions are claimed",
@@ -204,7 +201,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": 'export function post(): void { const chatId: string = "x"; void chatId; }\n',
       },
       why: "local variables are outside the signature-flow policy",
@@ -212,7 +209,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(chatId: string | number): void { void chatId; }\n",
       },
       why: "a genuinely polymorphic value is not the bare-string defect class",
@@ -220,7 +217,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [ID_BRAND_HOME]: ids('export type ChatId = TypeIdOf<"chat">;\n'),
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(roomId: string): void { void roomId; }\n",
       },
       why: "a name no canonical brand owns is not guessed from suffixes",
