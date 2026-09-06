@@ -1,254 +1,185 @@
-// Gate: ui-exports-map-complete (core/ui-package-design.md) — @orb/ui is EXPORTS-MAP sealed: a module dir
-// with no `"./<n>"` entry is UNIMPORTABLE, and nothing else on the tree says so (hint-trigger shipped that
-// way for a day; only its CT's failed import found it). A1 a module dir with an index.ts and no entry; A2 a
-// FAMILY subdir with no index.ts at all (no front door to export); A3 an entry whose target file is gone
-// (two-sided — the map may not name what the tree does not have); A4 the reader learned nothing.
-//
-// THE SHAPE IS DERIVED, NOT LISTED (§10 — key off the live source of truth): a depth-1 dir UNDER src/ that
-// has its own index.ts is a MODULE (`lib`, `markdown`, `stream`, `tokens`) and owns entry `./<dir>`; one
-// WITHOUT an index.ts but with subdirs is a FAMILY (`primitives`, `charts`, `content`, `art`) and each of
-// its subdirs owns entry `./<subdir>`. So a NEW family needs no gate edit, and no hard-coded family list
-// can go stale (§3 — a path constant that dies on a rename is a silent green).
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+// Gate: ui-exports-map-complete (ui-package-design.md). The live @orb/ui module tree and package exports
+// must agree in both directions. ResourceHost supplies both sources; the policy derives modules from the
+// tree rather than maintaining a family list.
 
-const UI_PKG_REL = "packages/ui/package.json";
-const UI_SRC_REL = "packages/ui/src";
-/** Real-tree anchor (GATE-AUTHORING.md §4.5) for the A4 blindness arm — the primitive every real tree has
- *  and no example below builds (the examples invent `thing`-shaped dirs). */
-const ANCHOR_REL = `${UI_SRC_REL}/primitives/button/index.ts`;
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { ResourceTreeEntry } from "../contract/resource.ts";
+import type { PackageStringMap } from "../contract/resource-config.ts";
+
+const UI_PACKAGE = "packages/ui";
+const UI_SOURCE = `${UI_PACKAGE}/src`;
+const UI_MANIFEST = `${UI_PACKAGE}/package.json`;
 const INDEX = "index.ts";
-
 const MESSAGE =
-  "the @orb/ui exports map does not match the module tree (core/ui-package-design.md) — A1: a module dir " +
-  'with an index.ts and no `"./<name>"` entry is UNIMPORTABLE (`import … from "@orb/ui/<name>"` fails to ' +
-  "resolve, and the only thing that notices is the first consumer, usually a CT); A2: a family subdir with " +
-  "no index.ts has no front door to export at all; A3: an entry pointing at a file that does not exist — " +
-  "the map may not name what the tree lacks; A4: this gate read no exports map (see the finding).";
-const FIX =
-  'add `"./<name>": "./src/<family>/<name>/index.ts"` to packages/ui/package.json exports (the map is ' +
-  "alphabetical), give the dir its index.ts front door, or delete the entry whose target is gone.";
+  "the @orb/ui exports map does not match the module tree (core/ui-package-design.md) — every module needs its exact export, every family member needs index.ts, and every export target must exist.";
 
 interface ModuleDir {
-  /** The exports KEY this dir owns (`./button`). */
   readonly key: string;
-  /** Its target, exactly as the map spells it (`./src/primitives/button/index.ts`). */
   readonly target: string;
-  /** Repo-relative path of the index.ts — the report anchor. */
-  readonly indexRel: string;
-  /** Repo-relative path of the dir itself — the A2 anchor (there is no file to point at). */
-  readonly dirRel: string;
+  readonly indexPath: string;
+  readonly directoryPath: string;
   readonly hasIndex: boolean;
 }
 
-function subdirs(abs: string): string[] {
-  if (!existsSync(abs)) {
-    return [];
-  }
-  return readdirSync(abs, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
+function childDirectories(entries: readonly ResourceTreeEntry[], parent: string): readonly string[] {
+  const prefix = `${parent}/`;
+  return entries
+    .filter((entry) => entry.kind === "directory" && entry.path.startsWith(prefix))
+    .map((entry) => entry.path.slice(prefix.length))
+    .filter((path) => path.length > 0 && !path.includes("/"))
+    .toSorted();
 }
 
-/** Every dir the exports map is REQUIRED to name, derived from the tree's own two-level shape. */
-function moduleDirs(root: string): ModuleDir[] {
-  const srcAbs = join(root, UI_SRC_REL);
+function modules(entries: readonly ResourceTreeEntry[]): readonly ModuleDir[] {
+  const files = new Set(entries.filter((entry) => entry.kind === "file").map((entry) => entry.path));
   const out: ModuleDir[] = [];
-  for (const top of subdirs(srcAbs)) {
-    const topHasIndex = existsSync(join(srcAbs, top, INDEX));
-    if (topHasIndex) {
-      out.push({
-        key: `./${top}`,
-        target: `./src/${top}/${INDEX}`,
-        indexRel: `${UI_SRC_REL}/${top}/${INDEX}`,
-        dirRel: `${UI_SRC_REL}/${top}/`,
-        hasIndex: true,
-      });
+  for (const top of childDirectories(entries, UI_SOURCE)) {
+    const topDirectory = `${UI_SOURCE}/${top}`;
+    const topIndex = `${topDirectory}/${INDEX}`;
+    if (files.has(topIndex)) {
+      out.push({ key: `./${top}`, target: `./src/${top}/${INDEX}`, indexPath: topIndex, directoryPath: topDirectory, hasIndex: true });
       continue;
     }
-    // No index.ts of its own ⇒ a FAMILY. A leaf dir that is neither (styles/ — css only) owns no entry.
-    for (const child of subdirs(join(srcAbs, top))) {
-      out.push({
-        key: `./${child}`,
-        target: `./src/${top}/${child}/${INDEX}`,
-        indexRel: `${UI_SRC_REL}/${top}/${child}/${INDEX}`,
-        dirRel: `${UI_SRC_REL}/${top}/${child}/`,
-        hasIndex: existsSync(join(srcAbs, top, child, INDEX)),
-      });
+    for (const child of childDirectories(entries, topDirectory)) {
+      const directoryPath = `${topDirectory}/${child}`;
+      const indexPath = `${directoryPath}/${INDEX}`;
+      out.push({ key: `./${child}`, target: `./src/${top}/${child}/${INDEX}`, indexPath, directoryPath, hasIndex: files.has(indexPath) });
     }
   }
   return out;
 }
 
-/** The `exports` block of packages/ui/package.json, or undefined when there is nothing to read. */
-function exportsMap(root: string): Record<string, string> | undefined {
-  const abs = join(root, UI_PKG_REL);
-  if (!existsSync(abs)) {
-    return;
-  }
-  const parsed: unknown = JSON.parse(readFileSync(abs, "utf-8"));
-  const block = (parsed as { exports?: unknown }).exports;
-  if (typeof block !== "object" || block === null) {
-    return;
-  }
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(block as Record<string, unknown>)) {
-    if (typeof value === "string") {
-      out[key] = value;
-    }
-  }
-  return out;
+function targetPath(target: string): string | undefined {
+  return target.startsWith("./") && target.length > 2 ? `${UI_PACKAGE}/${target.slice(2)}` : undefined;
 }
 
-function scanExportsMap(ctx: GateRunCtx): void {
-  const map = exportsMap(ctx.root);
-  const dirs = moduleDirs(ctx.root);
-  if (map === undefined) {
-    // A4 — no map to check. Only a claim on the real tree: a conformance mini-project without a
-    // package.json is legitimately nothing to judge.
-    if (existsSync(join(ctx.root, ANCHOR_REL))) {
-      ctx.report({
-        file: UI_PKG_REL,
-        line: 0,
-        column: 0,
-        message: `A4 — no readable \`exports\` block in ${UI_PKG_REL} on a real tree: @orb/ui is exports-map sealed, so either the seal is gone or this gate is now blind (GATE-AUTHORING.md §4 rule 6).`,
-      });
-    }
-    return;
-  }
-  ctx.scan({ unit: "module dir", scanned: dirs.length });
-  for (const dir of dirs) {
-    if (!dir.hasIndex) {
-      ctx.report({
-        file: dir.dirRel,
-        line: 0,
-        column: 0,
-        message: `A2 — ${dir.dirRel} has no ${INDEX}: a family member's front door IS its export target, so this dir can never be reached through @orb/ui (core/ui-package-design.md).`,
-      });
+function reportModuleProblems(ctx: GatePolicyContext, entries: readonly ResourceTreeEntry[], exports: PackageStringMap): void {
+  for (const module of modules(entries)) {
+    if (!module.hasIndex) {
+      ctx.report.file(module.directoryPath, { line: 1, column: 1, message: `${module.directoryPath} has no ${INDEX}; it has no exportable front door.` });
       continue;
     }
-    if (map[dir.key] !== dir.target) {
-      const spelled = map[dir.key];
-      const detail = spelled === undefined ? "no entry at all" : `"${spelled}", not "${dir.target}"`;
-      ctx.report({
-        file: dir.indexRel,
-        line: 0,
-        column: 0,
-        message: `A1 — ${UI_PKG_REL} exports has ${detail} for "${dir.key}": this module is UNIMPORTABLE (or importable under a target that is not its own index), and the first thing to notice will be a consumer that fails to resolve (core/ui-package-design.md).`,
-      });
+    if (exports[module.key] !== module.target) {
+      const spelled = exports[module.key];
+      const detail = spelled === undefined ? "no entry at all" : `${JSON.stringify(spelled)}, not ${JSON.stringify(module.target)}`;
+      ctx.report.file(module.indexPath, { line: 1, column: 1, message: `${UI_MANIFEST} exports has ${detail} for ${JSON.stringify(module.key)}.` });
     }
   }
-  // A3 — two-sided: an entry naming a file the tree does not have. Every exports value is judged, not just
-  // the ones a dir claims, so a rename that leaves the map behind is RED from the map's side too.
-  for (const [key, target] of Object.entries(map)) {
-    if (!existsSync(join(ctx.root, "packages/ui", target))) {
-      ctx.report({
-        file: UI_PKG_REL,
-        line: 0,
-        column: 0,
-        message: `A3 — exports entry "${key}" points at "${target}", which does not exist: a dead entry resolves to nothing at import time and silently re-attaches to whatever later takes that path (core/ui-package-design.md).`,
+}
+
+function reportDeadTargets(ctx: GatePolicyContext, entries: readonly ResourceTreeEntry[], exports: PackageStringMap): void {
+  const paths = new Set(entries.map((entry) => entry.path));
+  for (const [key, target] of Object.entries(exports)) {
+    const path = targetPath(target);
+    if (path === undefined || !paths.has(path)) {
+      ctx.report.file(UI_MANIFEST, {
+        line: 1,
+        column: 1,
+        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which does not exist.`,
       });
     }
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "ui-exports-map-complete",
-  docRow: "core/ui-package-design.md",
-  status: "active",
-  // The map is one file judged against the whole ui tree — never a per-file verdict.
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "ui-exports-map-complete",
+  family: "ui-exports-map-complete",
+  authority: "hard",
+  severity: "error",
+  population: { of: "none", why: "the UI tree and package exports are closed ResourceHost facts" },
+  analysis: "resource",
+  execution: "entire-population",
+  resources: [
+    { kind: "authored-tree", id: "packages" },
+    { kind: "package-metadata", id: "ui" },
+  ],
   message: MESSAGE,
-  fix: FIX,
-  // Reads package.json (never in the ts-morph project) and the real directory tree.
-  fsBacked: true,
-  run: scanExportsMap,
+  fix: 'add the exact "./<name>": "./src/<family>/<name>/index.ts" export, add the missing index.ts, or delete the dead export.',
+  create: (ctx) => ({
+    evaluate: () => {
+      const tree = ctx.resources.authoredTree("packages");
+      const metadata = ctx.resources.packageMetadata("ui");
+      if (tree.status !== "ready" || metadata.status !== "ready") {
+        return;
+      }
+      reportModuleProblems(ctx, tree.value, metadata.value.exports);
+      reportDeadTargets(ctx, tree.value, metadata.value.exports);
+    },
+  }),
   mustFlag: [
     {
+      mode: "resource",
       files: {
-        // A1 — THE FOUNDING SHAPE: hint-trigger, complete and correct, with no entry in the map. It was
-        // unimportable for a full day and every gate, typecheck and lint on the tree stayed green.
-        "packages/ui/package.json": '{\n  "name": "@orb/ui",\n  "exports": {\n    "./button": "./src/primitives/button/index.ts"\n  }\n}\n',
-        "packages/ui/src/primitives/button/index.ts": 'export { Button } from "./button.tsx";\n',
-        "packages/ui/src/primitives/hint-trigger/index.ts": 'export { HintTrigger } from "./hint-trigger.tsx";\n',
+        "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts"}}',
+        "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
+        "packages/ui/src/primitives/hint-trigger/index.ts": "export const HintTrigger = 1;\n",
       },
       expect: { count: 1, messageIncludes: "no entry at all" },
-      why: "the founding defect — a finished primitive the exports map never named, so `@orb/ui/hint-trigger` did not resolve",
+      why: "a complete module absent from the exports map is unimportable",
     },
     {
+      mode: "resource",
       files: {
-        // A1 again, the WRONG-TARGET spelling: an entry exists but points at another module's index (the
-        // copy-paste slip an entry-presence-only check would call clean).
         "packages/ui/package.json":
-          '{\n  "exports": {\n    "./button": "./src/primitives/button/index.ts",\n    "./badge": "./src/primitives/button/index.ts"\n  }\n}\n',
+          '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts","./badge":"./src/primitives/button/index.ts"}}',
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
         "packages/ui/src/primitives/badge/index.ts": "export const Badge = 1;\n",
       },
-      expect: { count: 1, messageIncludes: "not " },
-      why: "an entry that RESOLVES but to the wrong module — presence is not correctness, and the importer gets someone else's exports",
+      expect: { count: 1, messageIncludes: "not" },
+      why: "an export entry pointing at another module is present but wrong",
     },
     {
+      mode: "resource",
       files: {
-        // A2 — a family subdir with no index.ts: nothing to export, and ui-primitive-structure's trio clause
-        // only covers primitives/, so charts/content/art had no such check at all.
-        "packages/ui/package.json": '{\n  "exports": {\n    "./button": "./src/primitives/button/index.ts"\n  }\n}\n',
+        "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts"}}',
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
         "packages/ui/src/charts/meter/meter.tsx": "export const Meter = 1;\n",
       },
       expect: { messageIncludes: "has no index.ts" },
-      why: "a CHARTS family member with no front door — the same unimportable-module class, in a family the primitive-structure gate does not scan",
+      why: "a family member without an index has no exportable front door",
     },
     {
+      mode: "resource",
       files: {
-        // A3 — the map names a file the tree does not have (the other half of a rename).
         "packages/ui/package.json":
-          '{\n  "exports": {\n    "./button": "./src/primitives/button/index.ts",\n    "./ghost": "./src/primitives/ghost/index.ts"\n  }\n}\n',
+          '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts","./ghost":"./src/primitives/ghost/index.ts"}}',
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
       },
       expect: { count: 1, messageIncludes: "does not exist" },
-      why: "TWO-SIDED (§4 rule 4): a dead entry is not merely useless — it re-attaches to whatever later takes that path",
-    },
-    {
-      files: {
-        // A4 — the real-tree anchor exists (a genuine ui tree) but the package manifest does not.
-        [ANCHOR_REL]: "export const Button = 1;\n",
-      },
-      expect: { messageIncludes: "no readable" },
-      why: "the §4.6 blindness tripwire: this gate reads ONE manifest by path, so its disappearance must be RED and not a silent ✓",
+      why: "an export target that vanished is stale",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
-        // The correct shape across both levels: a FAMILY member and a top-level MODULE, each named exactly.
         "packages/ui/package.json":
-          '{\n  "exports": {\n    "./button": "./src/primitives/button/index.ts",\n    "./meter": "./src/charts/meter/index.ts",\n    "./lib": "./src/lib/index.ts"\n  }\n}\n',
+          '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts","./meter":"./src/charts/meter/index.ts","./lib":"./src/lib/index.ts"}}',
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
         "packages/ui/src/charts/meter/index.ts": "export const Meter = 1;\n",
         "packages/ui/src/lib/index.ts": "export const cn = 1;\n",
       },
-      why: "the derivation written down: a dir WITH its own index.ts is a module (`lib`), one WITHOUT is a family whose children are the modules (`primitives`, `charts`) — no hard-coded family list to go stale",
+      why: "family members and top-level modules each have the exact derived export",
     },
     {
+      mode: "resource",
       files: {
-        // A dir that is neither a module nor a family — the `styles/` shape (css only, exported by FILE).
         "packages/ui/package.json":
-          '{\n  "exports": {\n    "./button": "./src/primitives/button/index.ts",\n    "./styles/globals.css": "./src/styles/globals.css"\n  }\n}\n',
+          '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts","./styles/globals.css":"./src/styles/globals.css"}}',
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
-        "packages/ui/src/styles/globals.css": ":root {\n  --x: 1;\n}\n",
+        "packages/ui/src/styles/globals.css": ":root { --x: 1; }\n",
       },
-      why: "DECLARED LIMIT as a written baseline: a leaf dir with no index.ts and no subdirs owns no `./<name>` entry — `styles/` publishes a FILE, and demanding a front door there would be a false positive",
+      why: "a leaf CSS directory owns no module export while its explicit file export stays valid",
     },
     {
+      mode: "resource",
       files: {
-        // A module dir with subdirs of its own (`tokens/`) is judged as a MODULE — its children are internal.
-        "packages/ui/package.json": '{\n  "exports": {\n    "./tokens": "./src/tokens/index.ts"\n  }\n}\n',
+        "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{"./tokens":"./src/tokens/index.ts"}}',
         "packages/ui/src/tokens/index.ts": "export const tokens = {};\n",
         "packages/ui/src/tokens/generated/palette.ts": "export const palette = {};\n",
       },
-      why: "having an index.ts is what makes a dir a MODULE — its subdirs are internals, not unexported modules (the false positive a depth-2 sweep would produce on `tokens/generated`)",
+      why: "a top-level module may contain internal subdirectories without exporting each one",
     },
   ],
-};
+});
