@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 560,
-    "enforced": 555,
+    "sites": 565,
+    "enforced": 560,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 555,
+      "deliberate-absorb": 560,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 142,
-      "default": 154,
-      "empty": 264
+      "promise": 143,
+      "default": 157,
+      "empty": 265
     }
   },
   "rows": [
@@ -4531,7 +4531,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 210,
+      "line": 231,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4539,12 +4539,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 195
+      "markerLine": 216
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 329,
+      "line": 350,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4552,7 +4552,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 326
+      "markerLine": 347
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -4661,7 +4661,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 28,
+      "line": 35,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4669,12 +4669,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.",
-      "markerLine": 25
+      "markerLine": 32
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 261,
+      "line": 234,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4682,7 +4682,20 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 258
+      "markerLine": 231
+    },
+    {
+      "siteId": "tooling/src/_shared/proc.ts::promise:settle::1",
+      "path": "tooling/src/_shared/proc.ts",
+      "line": 382,
+      "column": 7,
+      "grammar": "promise",
+      "position": "promise:settle",
+      "ordinal": 1,
+      "snippet": "settle(code).catch((error: unknown) => {",
+      "verdict": "deliberate-absorb",
+      "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.",
+      "markerLine": 381
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::empty:cleanupError::1",
@@ -4696,6 +4709,58 @@
       "verdict": "deliberate-absorb",
       "reason": "the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.",
       "markerLine": 126
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::default:catch::1",
+      "path": "tooling/src/_shared/run-marker.ts",
+      "line": 139,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a pid that exits mid-scan (or another user's) answers null, which every caller reads as \"not provably mine\" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal.",
+      "markerLine": 136
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::default:catch::2",
+      "path": "tooling/src/_shared/run-marker.ts",
+      "line": 171,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them.",
+      "markerLine": 167
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::default:catch::3",
+      "path": "tooling/src/_shared/run-marker.ts",
+      "line": 181,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH.",
+      "markerLine": 177
+    },
+    {
+      "siteId": "tooling/src/_shared/run-marker.ts::empty:error::1",
+      "path": "tooling/src/_shared/run-marker.ts",
+      "line": 196,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed.",
+      "markerLine": 193
     },
     {
       "siteId": "tooling/src/_shared/run-retention.ts::default:catch::1",
@@ -6416,7 +6481,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::empty:error::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 224,
+      "line": 225,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -6424,12 +6489,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
-      "markerLine": 220
+      "markerLine": 221
     },
     {
       "siteId": "tooling/src/snap/ops/session-daemon.ts::promise:readSessionRequestLine::1",
       "path": "tooling/src/snap/ops/session-daemon.ts",
-      "line": 194,
+      "line": 195,
       "column": 5,
       "grammar": "promise",
       "position": "promise:readSessionRequestLine",
@@ -6437,7 +6502,7 @@
       "snippet": "readSessionRequestLine(socket)",
       "verdict": "deliberate-absorb",
       "reason": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
-      "markerLine": 193
+      "markerLine": 194
     },
     {
       "siteId": "tooling/src/snap/ops/session-registry.ts::empty:catch::1",
@@ -6559,7 +6624,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-status.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/stage-status.ts",
-      "line": 216,
+      "line": 233,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6567,12 +6632,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.",
-      "markerLine": 213
+      "markerLine": 230
     },
     {
       "siteId": "tooling/src/snap/ops/stage-teardown.ts::default:catch::1",
       "path": "tooling/src/snap/ops/stage-teardown.ts",
-      "line": 109,
+      "line": 116,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6580,7 +6645,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says \"No stack log was found to preserve\" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.",
-      "markerLine": 105
+      "markerLine": 112
     },
     {
       "siteId": "tooling/src/snap/ops/watch.ts::promise:screenshot::1",
@@ -7001,7 +7066,7 @@
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 72,
+      "line": 74,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7009,12 +7074,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as \"someone holds this\".",
-      "markerLine": 59
+      "markerLine": 61
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::2",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 89,
+      "line": 91,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7022,12 +7087,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.",
-      "markerLine": 85
+      "markerLine": 87
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/ct-runner-lock.ts",
-      "line": 174,
+      "line": 197,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7035,7 +7100,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"the lock is held\" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: \"busy\"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
-      "markerLine": 171
+      "markerLine": 194
     },
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::1",
@@ -7066,7 +7131,7 @@
     {
       "siteId": "tooling/src/verify/lib/history.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/history.ts",
-      "line": 48,
+      "line": 68,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7074,12 +7139,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict.",
-      "markerLine": 45
+      "markerLine": 65
     },
     {
       "siteId": "tooling/src/verify/lib/history.ts::empty:err::1",
       "path": "tooling/src/verify/lib/history.ts",
-      "line": 68,
+      "line": 88,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -7087,7 +7152,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing.",
-      "markerLine": 57
+      "markerLine": 77
     },
     {
       "siteId": "tooling/src/verify/lib/host-slots.ts::default:catch::1",

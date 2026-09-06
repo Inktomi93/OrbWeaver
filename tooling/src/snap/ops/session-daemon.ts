@@ -28,6 +28,7 @@ import { currentSnapStageProvenance } from "../lib/run-provenance.ts";
 import { SESSION_INSTRUMENT, sessionSocketPath } from "../lib/session-plan.ts";
 import { sessionCapRefusal } from "../lib/session-refusals.ts";
 import { urlStageBand } from "../lib/stage-plan.ts";
+import { sweepOwnBrowsers, sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { configureStage, snapDestination } from "./guards.ts";
 import { debuggingEndpointFor, finishSession, launchSnapSession } from "./session.ts";
 import type { SessionDaemonState } from "./session-daemon-request.ts";
@@ -235,6 +236,12 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
       removeSocket(home, name);
       removeRow(home, name);
       publishRunSlot(root, slot, []);
+      // THE BROWSER IS IN ITS OWN SESSION (#1848), so the group kill below cannot reach it and a close
+      // that failed leaves it running for good. Anything still carrying this daemon's run marker after
+      // the close is exactly that; a clean shutdown reaps nothing and prints nothing.
+      for (const line of [...sweepOwnBrowsers(), ...sweepStrandedBrowsers()]) {
+        print(`[snap-session] ${line}`);
+      }
     } finally {
       resolveClosed();
       if (state.terminalReason !== null) {

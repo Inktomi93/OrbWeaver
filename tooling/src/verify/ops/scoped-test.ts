@@ -45,7 +45,9 @@ import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooli
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
-import { inheritedProcessEnv, runNicedSync } from "@orb/tooling/_shared/proc";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ScopedOperand } from "@orb/tooling/_shared/scoped-run-paths";
 import {
@@ -191,7 +193,12 @@ function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]
 /** The real run, streamed to the operator's terminal. The CT arm builds in the lease's PER-INVOCATION cache
  *  (#1581) — which also carries the old "clear the cache first" property, since a freshly-minted directory
  *  is an empty cache and nothing else is building in it. */
-function spawnRun(runner: ScopedTestRunner, root: string, rest: readonly string[], cacheDir: string | null): number {
+function spawnRun(
+  runner: ScopedTestRunner,
+  root: string,
+  rest: readonly string[],
+  lease: { readonly cacheDir: string; readonly runMarker: string } | null,
+): number {
   if (runner === "ct") {
     const slot = openRunSlot(root, "ct");
     const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
@@ -199,7 +206,10 @@ function spawnRun(runner: ScopedTestRunner, root: string, rest: readonly string[
       env: inheritedProcessEnv({
         [CT_RUN_SLOT_ENV]: slot.dir,
         [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
-        ...(cacheDir === null ? {} : { [CT_CACHE_DIR_ENV]: cacheDir }),
+        // THE RUN MARKER (#1848) reaches every browser playwright launches, because a browser inherits the
+        // worker's environment and playwright puts each one in its OWN session — where a process-group
+        // kill can never find it. The lease's `release` and the runner's timeout sweep both read it back.
+        ...(lease === null ? {} : { ...runMarkerEnv(lease.runMarker), [CT_CACHE_DIR_ENV]: lease.cacheDir }),
       }),
       stdio: "inherit",
     });
@@ -251,6 +261,11 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
   }
   const lock = await acquireCtRunnerSlots(root, {
     argv: rest,
+    // The sweeps' receipts share the runner's one operator channel — a teardown that killed a stranded
+    // browser fleet, or found none, must not be silent (#1848).
+    notice: (message) => {
+      warn(message);
+    },
     host: {
       // The HOST-WIDE half WAITS rather than refusing (#1835) — see acquireCtRunnerSlots. A lane that
       // sits here is not stuck; it is being told, on one line, exactly what it is behind.
@@ -278,7 +293,7 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
   }
   try {
     const refused = preflight(tier, root, rest, operands);
-    return refused ?? spawnRun(tier, root, rest, lock.lease.cacheDir);
+    return refused ?? spawnRun(tier, root, rest, lock.lease);
   } finally {
     lock.lease.release();
   }

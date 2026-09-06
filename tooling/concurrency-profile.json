@@ -1,24 +1,32 @@
 {
   "why": "THE ONE HOME for every worker/slot cap in the fleet (#1835). Six lanes across two accounts multiplied per-worktree caps ~6x: node_load1 peaked at 105.8 on 24 cores and PSI cpu 'some' hit 0.6 while the co-hosted homelab containers wanted ~3 cores. JSON, not TypeScript, because bash (.claude/hooks/*.sh via jq), CommonJS (scripts/*.cjs) and TypeScript (tooling/src/_shared/concurrency-profile.ts, vitest.config.ts, playwright-ct.config.ts) all have to read the same numbers with no build step in between. Change a number HERE; every reader follows.",
+  "stageBudgets": {
+    "why": "The verify runner's per-stage HANG CEILING, DERIVED from the caps above instead of hand-typed (#1848). It was one 45-minute constant in tooling/src/verify/ops/run.ts applied to every stage, and on 2026-09-06 the product-test stage blew through it and reported `[tool-error] TIMED OUT` on a QUIET box — a stage cannot have a ceiling below its own honest runtime. MEASURED on 2026-09-06 at base 23237a3d1: the CT suite is 488 files / 5121 cases by playwright's own --list, and a 25-file systematic sample (541 cases) cost 1004 WORKER-SECONDS of test time, i.e. ~1.86s per case => ~160 worker-minutes for the whole suite (the 2026-09-02 four-worker run implies ~115, so this number is the conservative end). Divide by ctWorkers, multiply by the factor, add the host-slot wait a CT run may legitimately spend queueing, and the ceiling follows every future change to the caps by itself. It is NOT a performance budget: past it a stage is WEDGED.",
+    "defaultMinutes": 45,
+    "ctSuiteWorkerMinutes": 165,
+    "ctCeilingFactor": 1.5,
+    "ctHostSlotWaitMinutes": 45
+  },
   "envSwitch": "ORB_DEDICATED_BOX",
   "envSwitchContract": "SHELL ENVIRONMENT ONLY — tooling never reads the repo .env (a config file that silently retunes the whole fleet is the lie this file exists to end). Unset / '' / '0' => shared. '1' => dedicated. Anything else REFUSES loudly.",
   "profiles": {
     "shared": {
-      "why": "The DEFAULT. This box co-hosts the homelab and routinely runs up to three lanes per account across two accounts.",
+      "why": "The DEFAULT. This box co-hosts the homelab and routinely runs up to three lanes per account across two accounts. ctWorkers went 2 -> 4 on 2026-09-06 by OWNER RULING (#1848), and #1835's ruling SURVIVES — its input changed: one CT worker is ~one core, the box-wide bound is `ctRunnersHostWide` (2 slots => at most 8 Chromiums, a third of a 24-core box) and `.claude/hooks/cpu-fence.sh`'s 800% per-session quota, not the per-run worker count. What actually starved the box on 2026-09-06 was per-worktree caps multiplying across six lanes PLUS 72 orphaned browsers and stranded stages; the host-wide slots, the quota and #1848's run-marker sweeps are the fix for that. At 2 workers the measured CT suite is ~80 min and the push bar ~95; at 4 it is ~41 and ~51.",
       "vitestMaxWorkers": 4,
-      "ctWorkers": 2,
+      "ctWorkers": 4,
       "ts7Checkers": 4,
       "pnpmWorkspaceConcurrency": 1,
       "eslintConcurrency": 4,
       "hookPoolSlots": 4,
       "hookTs7Checkers": 2,
       "ctRunnersHostWide": 2,
+      "stageCap": 3,
       "sessionCpuQuotaPct": 800,
       "sessionMemoryHigh": "48G",
       "wholeVerifyQueue": true
     },
     "dedicated": {
-      "why": "ORB_DEDICATED_BOX=1 — one operator, nothing else on the machine. These are the MEASURED quiet-box numbers the configs used to ship as their defaults (vitest 14 = reports/tooling/VITEST-INTEGRATION-SPEEDUP.md's 6.7x sweet spot; CT 4 = #766). sessionCpuQuotaPct 0 and sessionMemoryHigh '' mean NO ceiling: the cpu-fence hook prints that it is standing down rather than setting one.",
+      "why": "ORB_DEDICATED_BOX=1 — one operator, nothing else on the machine. These are the MEASURED quiet-box numbers the configs used to ship as their defaults (vitest 14 = reports/tooling/VITEST-INTEGRATION-SPEEDUP.md's 6.7x sweet spot; CT 4 = #766). sessionCpuQuotaPct 0 and sessionMemoryHigh '' mean NO ceiling: the cpu-fence hook prints that it is standing down rather than setting one. stageCap 5 (#1848): a stage is a ~7-process full stack, the band RANGE (10, _shared/ports.ts) is the hard ceiling, and with no homelab to starve the reason to hold three is gone — 5 still leaves half the table for a sibling checkout.",
       "vitestMaxWorkers": 14,
       "ctWorkers": 4,
       "ts7Checkers": 8,
@@ -27,6 +35,7 @@
       "hookPoolSlots": 8,
       "hookTs7Checkers": 4,
       "ctRunnersHostWide": 4,
+      "stageCap": 5,
       "sessionCpuQuotaPct": 0,
       "sessionMemoryHigh": "",
       "wholeVerifyQueue": true

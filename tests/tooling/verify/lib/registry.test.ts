@@ -42,8 +42,12 @@ test("tests:tooling is a REAL stage at full — and at NO other tier", () => {
 });
 
 test("tests:node stays the push bar for everything else, and no longer carries the tooling battery", () => {
-  // `pnpm test`'s project list is what makes the exclusion real; the row's argv is the pointer to it.
-  expect(stage("push", "tests:node").argv).toEqual(["pnpm", "test"]);
+  // `pnpm test:node`'s project list is what makes the exclusion real; the row's argv is the pointer to it.
+  // The argv changed in #1848: this stage was `pnpm test`, the COMPOSITE that also ran the whole CT suite,
+  // and the two halves shared one 45-minute hang ceiling that the sum outgrew (a false `[tool-error]` on a
+  // quiet box). CT is now the sibling `browser:ct` stage with its own profile-derived ceiling; `pnpm test`
+  // survives untouched as the green-to-commit ritual and as the manual `tests:product-composite` row.
+  expect(stage("push", "tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stagesForTier("push").some((row) => row.name === "tests:node")).toBe(true);
   // The `changed` inner loop still reaches `tests/tooling` (#1566) — a lane editing an instrument gets its
   // related tests without the whole battery. That argv is pinned against a REAL Selection in

@@ -2,7 +2,7 @@
 // owns data normalization; this file owns package provenance and the worker problem-report sink only.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { withProcessEnv } from "../../_shared/proc.ts";
+import { withProcessEnv } from "../../_shared/process-env.ts";
 import { HEAP_PARSER_PACKAGE, HEAP_PARSER_VERSION } from "../contract/heap.ts";
 
 const REQUIRED_METHODS = [

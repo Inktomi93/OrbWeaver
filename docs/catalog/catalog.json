@@ -1997,9 +1997,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 545,
-      "bytes": 46757,
-      "sha256": "c9907a11d6bb7bad55fe5d691c6358783fa58e725e50d987b6f7b8cb23fb77ce",
+      "lines": 571,
+      "bytes": 48725,
+      "sha256": "9bed19ed8d0f587b56a5fc7f18d3b14bc6728af83ee149025ffb4af97f13ee05",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2067,7 +2067,7 @@
         ],
         "summary": "Active verification design re-attested for #995: quality:boot-chunk measures the emitted boot set against the 818,188-byte production baseline with the existing five-percent convention."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",

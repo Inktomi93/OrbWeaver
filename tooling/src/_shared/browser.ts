@@ -15,7 +15,8 @@ import { effectiveContextViewport, resolveBrowserEnvironmentContract } from "./b
 import { resolveProbeMedia } from "./browser-media.ts";
 import { warn } from "./log.ts";
 import { DEV_PORTS } from "./ports.ts";
-import { processEnvValue } from "./proc.ts";
+import { inheritedProcessEnv, processEnvValue } from "./process-env.ts";
+import { currentRunMarker, runMarkerArg, runMarkerEnv } from "./run-marker.ts";
 
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
@@ -150,10 +151,29 @@ interface LaunchedBrowser {
   readonly persistentContext?: BrowserContext;
 }
 
+/** THE RUN MARKER FOR EVERY BROWSER THIS PROCESS LAUNCHES (#1848). Playwright puts each browser in its own
+ *  session, so a snap killed mid-drive (SIGKILL, a stage timeout, a lane torn down) leaves a Chromium that
+ *  no process-group kill can reach — the same leak the CT runner had, and the reason 72 headless-shell
+ *  processes were alive on this box on 2026-09-06. The marker rides the browser's ENVIRONMENT, which
+ *  `/proc/<pid>/environ` makes readable and unforgeable, so `_shared/run-marker.ts`'s sweeps can find them
+ *  by RUN — never by program name, which would kill a sibling lane's fleet. */
+function markedBrowserEnv(): NodeJS.ProcessEnv {
+  return inheritedProcessEnv(runMarkerEnv(currentRunMarker()));
+}
+
+/** …AND THE ARG, because the env alone does not survive: chromium rewrites its own environ area for its
+ *  process title, so `/proc/<pid>/environ` reads EMPTY for every browser process (measured 2026-09-06).
+ *  The switch is unknown to chromium, which ignores it, and lands in `/proc/<pid>/cmdline` — where the
+ *  sweep's second channel reads it. Marking the ROOT is sufficient: killing it took all six of the probe's
+ *  chromium processes with it. */
+function markedBrowserArgs(args: readonly string[]): string[] {
+  return [...args, runMarkerArg(currentRunMarker())];
+}
+
 async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
   const browserArgs = browserArgsWithAcceleration(opts.browserArgs);
   if (opts.persistentProfileDir === undefined) {
-    return { browser: await chromium.launch({ headless: opts.headless, args: browserArgs }) };
+    return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: markedBrowserEnv() }) };
   }
   // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
   // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
@@ -166,7 +186,8 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
   const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
     ...sizing,
     headless: opts.headless,
-    args: browserArgs,
+    args: markedBrowserArgs(browserArgs),
+    env: markedBrowserEnv(),
     ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
   });
   const browser = persistentContext.browser();

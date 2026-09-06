@@ -30,7 +30,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { budget } from "@orb/tooling/_shared/load-budget";
-import { processEnvValue } from "@orb/tooling/_shared/proc";
+import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm ct:scoped <paths…>)");

@@ -1,7 +1,7 @@
 import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { OrbConsoleCompletenessSummary } from "../../_shared/browser-diagnostics.ts";
 import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
-import { inheritedProcessEnv } from "../../_shared/proc.ts";
+import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { SnapRunFactBatch } from "../contract/run-facts.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";

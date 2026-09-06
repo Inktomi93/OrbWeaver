@@ -40,14 +40,15 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import type { RunHistoryEntry } from "../contract/history.ts";
+import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
-import { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
+import { appendHistory, historyEntry, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
+import { stageHangCeilingBaseMs } from "../lib/stage-budget.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
@@ -206,6 +207,9 @@ interface RunContext {
   readonly root: string;
   readonly slot: RunSlot;
   readonly verbose: boolean;
+  /** This run's process marker (#1848) — exported into every stage child's environment and swept by the
+   *  kill paths, so a browser that left the process group still dies with the run that started it. */
+  readonly runMarker: string;
 }
 
 /** THE RESULT A STAGE THAT DID NOT RUN PUBLISHES — one home, and EXPORTED so the notice has a producer
@@ -233,15 +237,14 @@ export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: St
   };
 }
 
-/** The stage door's HANG ceiling (#1508). It is not a performance budget; it is the line past which a stage
- *  is WEDGED, chosen far above any observed run (`structure:full` measured 292s on a busy box; the push
- *  tier's suites are longer still) so the only thing it can catch is a hang. Past it the stage's process
- *  group dies and its transcript says so, which the classifier scores as a tool error rather than leaving
- *  `pnpm verify` waiting forever. It still rides `budget()` like every other wall clock in tooling
- *  (`tooling-shared-plumbing` arm J): `budget()` never SHRINKS a declared base — the ten-minute ceiling caps
- *  the load STRETCH only — so a 45-minute base comes back as 45 minutes on a quiet box and can only grow. */
-const STAGE_TIMEOUT_BASE_MS = 2_700_000; // 45 minutes
-const STAGE_TIMEOUT_MS = budget(STAGE_TIMEOUT_BASE_MS);
+/** The stage door's HANG ceiling (#1508) — the line past which a stage is WEDGED, never a performance
+ *  budget. The BASE is data now (`../lib/stage-budget.ts`, #1848: one typed 45 minutes for every stage
+ *  turned a quiet-box CT run into a false `[tool-error]`); the load STRETCH is applied here, because
+ *  `budget()` never shrinks a base — a 45-minute base is 45 minutes on a quiet box and can only grow
+ *  (`tooling-shared-plumbing` arm J). */
+function stageTimeoutMs(stage: StageDef): number {
+  return budget(stageHangCeilingBaseMs(stage));
+}
 
 async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined, tier: Tier): Promise<StageResult> {
   const { root, slot, verbose } = ctx;
@@ -261,12 +264,15 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const [cmd, ...args] = argv;
   // NO_COLOR only — setting FORCE_COLOR alongside it (even "0") makes node WARN per child process that
   // NO_COLOR is ignored (13 warnings per push run, 2026-07-17); every gate tool honors NO_COLOR alone.
+  // THE RUN MARKER rides the same env (#1848): every descendant of this stage carries it, so the kill
+  // paths can reach a browser or a vite server that left the process group.
   // biome-ignore lint/style/noProcessEnv: NO_COLOR passthrough to children — greppable plain output, not config.
-  const env = { ...process.env, ...Object.fromEntries([["NO_COLOR", "1"]]), ...stage.env };
+  const env = { ...process.env, ...Object.fromEntries([["NO_COLOR", "1"]]), ...runMarkerEnv(ctx.runMarker), ...stage.env };
   const result = await spawnNicedTranscript(resolveBin(root, cmd), args, {
     cwd: root,
     env,
-    timeoutMs: STAGE_TIMEOUT_MS,
+    timeoutMs: stageTimeoutMs(stage),
+    runMarker: ctx.runMarker,
     ...(verbose ? { onChunk: mirrorChunk } : {}),
   });
   const durationMs = Date.now() - start;
@@ -345,6 +351,9 @@ function scopeLabel(parsed: Parsed): string {
 
 async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<VerifyReport> {
   const startedAt = new Date().toISOString();
+  // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
+  // second marker would orphan every browser from the outer run's sweep, which is the hole being closed.
+  const runMarker = inheritedRunMarker() ?? mintRunMarker();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
   const stages = stagesForTier(parsed.tier);
@@ -369,7 +378,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     }
     // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
     // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    results.push(await runOneStage({ root, slot, verbose: parsed.verbose }, stage, parsed.selection, parsed.tier));
+    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker }, stage, parsed.selection, parsed.tier));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
@@ -388,21 +397,6 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     exitCode,
     failed: results.filter((s) => !s.ok).length,
     stages: results,
-  };
-}
-
-/** This run's history line (#411) — recorded BEFORE the comparison so the file is the ledger even when the
- *  comparison has nothing to say. `runId` ties the line back to the artifact it measured. */
-function historyEntry(root: string, report: VerifyReport): RunHistoryEntry {
-  return {
-    runId: `${process.pid}-${new Date().toISOString()}`,
-    at: new Date().toISOString(),
-    tier: report.tier,
-    scope: report.scope,
-    sha: currentSha(root),
-    exitCode: report.exitCode,
-    totalMs: report.stages.reduce((n, s) => n + s.durationMs, 0),
-    stages: report.stages.map((s) => ({ name: s.name, mode: s.mode, durationMs: s.durationMs })),
   };
 }
 
