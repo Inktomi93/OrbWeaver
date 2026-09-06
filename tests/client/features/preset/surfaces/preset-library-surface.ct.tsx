@@ -1179,3 +1179,46 @@ test("#1748 the search input survives the pending read, and the rows still reach
     )
     .toBeGreaterThan(0);
 });
+
+// #859 P3-A (side-eye 2026-08-30 rail-presets delta). THE LIST PANE'S TWO READS MUST BE ONE WAVE.
+//
+// The finding was a 61ms rendered frame flagged against `aside[aria-label=Presets list]` on entry, with
+// `__orb.animations()` reading 0 at settle — which the receipt read as "a transition on a layout property
+// during the pane's mount". IT IS NOT, and the tree says so twice: the `[drop]` flagger names whatever
+// animation LIFETIME overlaps the frame window and not the frame's cause (`boot-veil.tsx`'s #429 ruling,
+// `motion-animation-state.ts` `targetsOverlapping`), and the pane's only entry motion is shell.css's
+// `@keyframes shell-list-panel-in { from { translate: -100% 0 } }` — a compositor-owned translate that is
+// already what the guide asks for. A settled read of 0 animations is the entry animation having ENDED, not
+// one never having run.
+//
+// The cause is the SAME defect one surface over: #1134/F5 on the Characters landing, where three serialized
+// `useSuspenseQuery` calls put the last response's commit inside the list pane's entry animation
+// (`character-library-welcome.tsx`'s header records the measurement). Two `useSuspenseQuery` calls in one
+// body CANNOT fire together — the first suspends before React reaches the second hook.
+//
+// Pinned at the NETWORK boundary and as ORDERING, exactly as #1134 is: `__orb.queries()` / `recorder.count()`
+// are blind here (two procedure calls happen either way), and the assertion holds whichever way
+// `httpBatchLink` packs the wave — one batched request trivially satisfies it, two concurrent ones satisfy
+// it, and only a waterfall violates it. Barriered on the SETTLED pane (a row is rendered) before the log is
+// read, never on an in-flight state.
+test("#859 the list pane's two reads go out as one wave — no response lands before the last request", async ({ mount, page }) => {
+  const events: string[] = [];
+  const isPaneRead = (url: string): boolean => url.includes("preset.list") || url.includes("settings.getUserSettings");
+  page.on("request", (request) => {
+    if (isPaneRead(request.url())) {
+      events.push("out");
+    }
+  });
+  page.on("requestfinished", (request) => {
+    if (isPaneRead(request.url())) {
+      events.push("in");
+    }
+  });
+
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  expect(events.filter((event) => event === "out").length, "the probe measured nothing — no read reached the wire").toBeGreaterThan(0);
+  expect(events.indexOf("in"), `a response landed while reads were still going out: ${events.join(",")}`).toBe(events.lastIndexOf("out") + 1);
+});

@@ -23,7 +23,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef } from "react";
 import { LibraryListFrame, LibraryListRows, LibrarySurfaceShell } from "#components";
@@ -75,8 +75,27 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   const trpc = useTRPC();
   const client = useTRPCClient();
   const invalidation = useInvalidation();
-  const { data: presets } = useSuspenseQuery(trpc.preset.list.queryOptions());
-  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  // TWO READS, ONE WAVE — the PLURAL hook, never two `useSuspenseQuery` calls (#859 / side-eye 2026-08-30
+  // P3-A). Two singular calls in one body structurally cannot fire together: the first SUSPENDS before React
+  // reaches the second hook, so the reads serialize into a waterfall and the second one's resume commits
+  // INSIDE this pane's entry animation (shell.css `shell-list-panel-in`) — the window the `[drop]` flagger
+  // named `aside[aria-label=Presets list]` at 61ms. That flagger attributes by animation-LIFETIME overlap,
+  // never by cause (boot-veil.tsx's #429 ruling), so the pane's compositor-owned translate was the victim,
+  // not the offender: there is no layout-property transition on this aside to find, and `animations()`
+  // reading 0 at SETTLE is that translate having finished. `useSuspenseQueries` issues both in one pass and
+  // suspends once. Same idiom and same reason as `character/components/character-library-welcome.tsx`
+  // (#1134).
+  //
+  // WHAT IT BOUGHT, MEASURED RATHER THAN CLAIMED (isolated stage, home → Presets, 4x CPU, n=2 per arm; at
+  // 1x NEITHER arm drops a frame at all): HEAD flagged 2 drops / 60+84ms and 1 / 114ms, this tree flags
+  // 1 / 58ms and 1 / 51ms. Fewer and smaller, and still 1-8ms over the 50ms budget — so the waterfall was A
+  // contributor to that frame, not the whole of it, and the residue is the section-entry commit itself. The
+  // deterministic proof of the WAVE is the CT, not those numbers: `preset-library-surface.ct.tsx`'s "#859 …
+  // one wave" pin asserts at the network boundary that no response lands before the last request goes out
+  // (red on the unfixed source with `out,in,out,in`).
+  const [{ data: presets }, { data: settings }] = useSuspenseQueries({
+    queries: [trpc.preset.list.queryOptions(), trpc.settings.getUserSettings.queryOptions()],
+  });
   const selectedId = useSelectedPresetId();
 
   const create = useCreatePreset({ trpc, invalidation });
