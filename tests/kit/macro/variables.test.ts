@@ -2,7 +2,7 @@
 // (`foldVarOps`), and the op-log capture the mutation handlers push (`ctx.opLog`). These are the primitives the
 // chat domain persists per-variant + folds along the selected-variant chain to kill the swipe-clobber (#3263).
 
-import type { MacroEnv, VarOp } from "@orb/kit/macro";
+import type { MacroDiagnostic, MacroEnv, VarOp } from "@orb/kit/macro";
 import { applyVarOp, foldVarOps, processMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -23,12 +23,34 @@ test("applyVarOp set/add/inc/dec/delete mutate env in place", () => {
   expect(Object.hasOwn(env, "x")).toBe(false);
 });
 
-test("applyVarOp inc/dec parse-or-zero on a missing/non-numeric key", () => {
+// #1557, OWNER RULING: ALIGN with #1420's complete-bounded-integer refusal — inc/dec need a whole number
+// or they refuse (leave the stored value untouched) rather than silently rebasing to 0. An ABSENT variable
+// is still a fresh counter at 0 (that is not corruption, there is nothing to rebase away from); a variable
+// holding a non-integer string IS corruption and `applyVarOp` says so via its boolean return, never by
+// inventing a value.
+test("applyVarOp inc/dec: an ABSENT key is a fresh counter at 0, a NON-INTEGER key is a refusal", () => {
   const env: MacroEnv = { junk: "not-a-number" };
-  applyVarOp(env, { op: "inc", key: "fresh" });
+  expect(applyVarOp(env, { op: "inc", key: "fresh" })).toBe(true);
   expect(env["fresh"]).toBe("1");
-  applyVarOp(env, { op: "dec", key: "junk" });
-  expect(env["junk"]).toBe("-1");
+  expect(applyVarOp(env, { op: "dec", key: "junk" })).toBe(false);
+  expect(env["junk"]).toBe("not-a-number"); // untouched — no silent rebase to -1
+});
+
+// {{incvar}}/{{decvar}} render a VISIBLE diagnostic no-op on a non-integer current value (#1557) — the
+// author sees the unchanged number AND a diagnostic, never a value they didn't write.
+test("{{incvar}}/{{decvar}} refuse a non-integer current value: byte-identical render + a diagnostic", () => {
+  const env: MacroEnv = { junk: "not-a-number" };
+  const diagnostics: MacroDiagnostic[] = [];
+  const ctx = { char: "C", user: "U", persona: "", scenario: "", env, diagnostics };
+  expect(processMacros("{{incvar::junk}}", ctx)).toBe("not-a-number");
+  expect(diagnostics).toHaveLength(1);
+  expect(diagnostics[0]?.code).toBe("non-integer-var");
+  expect(env["junk"]).toBe("not-a-number");
+
+  diagnostics.length = 0;
+  expect(processMacros("{{decvar::junk}}", ctx)).toBe("not-a-number");
+  expect(diagnostics).toHaveLength(1);
+  expect(diagnostics[0]?.code).toBe("non-integer-var");
 });
 
 // ── foldVarOps — deterministic replay over ordered per-variant deltas ──────────────────────────
