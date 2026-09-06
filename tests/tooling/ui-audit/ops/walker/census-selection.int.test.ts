@@ -235,3 +235,40 @@ test("the aria-pressed toolbar idiom keeps registering after the part partition"
   expect(res.stdout).toContain("ringx1 · fillx1 · bar-leftx1");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
+
+// ── #1076 (orb-ui audit F4): the ratified inset ring is a recognised selection channel ──────────────
+//
+// selectionDeltaSignature's box-shadow test vetoed ANY box-shadow containing the substring "inset" —
+// the RATIFIED persistent-state ring (`data-pressed:inset-ring-2 inset-ring-ring`,
+// toggle/variants.ts:19; memory inset-ring-vs-focus-ring-layers) never registered as a channel at all,
+// silently reading "none" on a control that unquestionably paints a selection treatment.
+
+test("selection-idiom recognizes an inset box-shadow ring as its own channel", async ({ runCli, scratch }) => {
+  const vocabularies = [
+    stateTwin("checked", "outline:2px solid orange"),
+    stateTwin("selected", "box-shadow: inset 0 0 0 2px red"),
+    stateTwin("current", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "inset-ring-selection.html"), relationalDocument(vocabularies));
+  const res = await runCli("snap", ["--file", join(scratch, "inset-ring-selection.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout, "an inset ring must register as its own treatment, not read as 'none'").toContain("ringx1 · inset-ringx1 · bar-leftx1");
+});
+
+test("a box-shadow combining an unchanged outer ring with a new inset ring counts inset-ring only, once", async ({ runCli, scratch }) => {
+  const vocabularies = [
+    stateTwin("checked", "outline:2px solid orange"),
+    // The outer glow (`0 0 5px #fff`) sits on BOTH twins (baseStyle) and does not change — a genuine
+    // focus-ring-style layer that happens to compose alongside the selection state's inset ring must not
+    // be credited to the selection idiom twice just because it rides in the same `box-shadow` shorthand.
+    stateTwin("selected", "box-shadow: 0 0 5px #fff, inset 0 0 0 2px red", "box-shadow: 0 0 5px #fff"),
+    stateTwin("current", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "inset-ring-mixed-selection.html"), relationalDocument(vocabularies));
+  const res = await runCli("snap", ["--file", join(scratch, "inset-ring-mixed-selection.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(res.stdout, "the unchanged outer ring is not a second treatment beside the new inset ring").toContain("ringx1 · inset-ringx1 · bar-leftx1");
+  expect(res.stdout, "the mixed shadow must not register as a compound inset-ring+shadow signature").not.toContain("shadowx");
+});
