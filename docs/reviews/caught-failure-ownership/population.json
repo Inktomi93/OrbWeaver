@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 555,
-    "enforced": 550,
+    "sites": 556,
+    "enforced": 551,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 550,
+      "deliberate-absorb": 551,
       "detached-owned": 5,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 142,
-      "default": 151,
+      "default": 152,
       "empty": 262
     }
   },
@@ -1994,9 +1994,22 @@
       "markerLine": 33
     },
     {
+      "siteId": "packages/server/src/domain/chat/bus.ts::default:catch::1",
+      "path": "packages/server/src/domain/chat/bus.ts",
+      "line": 150,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the probe failing means the db is unwell — the",
+      "markerLine": 144
+    },
+    {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 187,
+      "line": 245,
       "column": 9,
       "grammar": "default",
       "position": "default:err",
@@ -2004,12 +2017,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "classified by classifyFailedAppend (ground-truth",
-      "markerLine": 181
+      "markerLine": 239
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::default:err::2",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 232,
+      "line": 287,
       "column": 7,
       "grammar": "default",
       "position": "default:err",
@@ -2017,12 +2030,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "same FLAG[emit-is-total] contract as `emit`",
-      "markerLine": 214
+      "markerLine": 269
     },
     {
       "siteId": "packages/server/src/domain/chat/bus.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/bus.ts",
-      "line": 112,
+      "line": 118,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2030,12 +2043,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the ground-truth probe failing means the db is",
-      "markerLine": 107
+      "markerLine": 113
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 908,
+      "line": 921,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2043,12 +2056,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 903
+      "markerLine": 916
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1842,
+      "line": 1856,
       "column": 13,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2061,7 +2074,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::empty:deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1868,
+      "line": 1882,
       "column": 7,
       "grammar": "empty",
       "position": "empty:deltaErr",
@@ -2069,12 +2082,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1862
+      "markerLine": 1876
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::promise:releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1974,
+      "line": 1988,
       "column": 10,
       "grammar": "promise",
       "position": "promise:releasedBody",
