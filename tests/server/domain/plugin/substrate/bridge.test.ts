@@ -676,14 +676,14 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
 describe("buildPluginBridge — the U8 D148 card-state ops stamp the plugin's own slug + close over the installer", () => {
   function cardStateRecordingOps(): {
     readonly ops: PluginHostOps;
-    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
+    // @orb-waive brand-in-name-position(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     readonly setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[];
-    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
+    // @orb-waive brand-in-name-position(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     readonly getCalls: { installerUserId: UserId; slug: string; characterId: string }[];
   } {
-    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
+    // @orb-waive brand-in-name-position(characterId): the recorder mirrors PluginHostOps.character.setCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     const setCalls: { installerUserId: UserId; slug: string; characterId: string; data: Record<string, unknown> }[] = [];
-    // @foreign-id-ok(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
+    // @orb-waive brand-in-name-position(characterId): the recorder mirrors PluginHostOps.character.getCardData, whose characterId is a bare `string` under the same marker (the guest's untrusted wire id, owner-scope-gated at persistence).
     const getCalls: { installerUserId: UserId; slug: string; characterId: string }[] = [];
     const base = makeInertOps();
     const ops: PluginHostOps = {
@@ -748,7 +748,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
   readonly bookChats: { readonly owner: UserId; readonly chatId: ChatId }[];
   readonly entryReads: { readonly owner: UserId; readonly bookId: string }[];
   readonly attachChecks: { readonly owner: UserId; readonly bookId: string }[];
-  // @foreign-id-ok(assetId): the guest's untrusted wire string recorded verbatim — the `assets.read` op param is a bare `string` under the same marker (ops.ts); branding it here would diverge from the interface it mirrors.
+  // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string recorded verbatim — the `assets.read` op param is a bare `string` under the same marker (ops.ts); branding it here would diverge from the interface it mirrors.
   readonly assetReads: { readonly installerUserId: UserId; readonly assetId: string }[];
   readonly searchReqs: { readonly installerUserId: UserId; readonly queryText: string }[];
   readonly viewers: UserId[];
@@ -757,7 +757,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
   const bookChats: { owner: UserId; chatId: ChatId }[] = [];
   const entryReads: { owner: UserId; bookId: string }[] = [];
   const attachChecks: { owner: UserId; bookId: string }[] = [];
-  // @foreign-id-ok(assetId): the guest's untrusted wire string recorded verbatim (mirrors the bare-`string` op param in ops.ts).
+  // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string recorded verbatim (mirrors the bare-`string` op param in ops.ts).
   const assetReads: { installerUserId: UserId; assetId: string }[] = [];
   const searchReqs: { installerUserId: UserId; queryText: string }[] = [];
   const viewers: UserId[] = [];

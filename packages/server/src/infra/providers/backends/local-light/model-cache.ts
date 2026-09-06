@@ -40,19 +40,19 @@ const DEFAULT_DTYPE: DataType = "fp32";
 /** The inference seam the role files depend on. Each method returns clean numeric data (no transformers
  *  Tensor leaks) — raw un-normalized Float32Arrays; role files own L2-normalization and MRL truncation. */
 export interface LocalLightModelCache {
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly embedTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly scorePairs: (modelId: string, query: string, documents: readonly string[]) => Promise<number[]>;
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly embedImages: (modelId: string, images: readonly ImageInput[]) => Promise<Float32Array[]>;
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly embedClipTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
   /** Alpha-matte an image via a `background-removal` segmentation model (RMBG-1.4 default; expressions-design/
    *  03 §4.1). Returns PNG bytes with the background driven to alpha-0. The whole transformers.js coupling
    *  (pipeline load + `putAlpha` composite + PNG encode) stays HERE — the role file (`matte.ts`) is a thin
    *  model-id/abort wrapper, mirroring the rerank/embed split. */
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly removeBackground: (modelId: string, image: ImageInput) => Promise<Uint8Array>;
 }
 
@@ -101,7 +101,7 @@ function tensorRows(t: Tensor): Float32Array[] {
   return rows;
 }
 
-// @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
 // `Tensor` arrives as a PARAMETER, not a module binding: the class is only reachable after the dynamic
 // import resolves, and every caller already holds the resolved module.
 function requireTensor(out: Record<string, unknown>, key: string, modelId: string, TensorCtor: TransformersModule["Tensor"]): Tensor {
@@ -324,7 +324,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     },
   );
 
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   const embedJinaTexts = async (modelId: string, texts: readonly string[]): Promise<Float32Array[]> =>
     processor.withLease(modelId, (proc) =>
       jinaEmbedder.withLease(modelId, async (model) => {

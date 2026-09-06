@@ -40,7 +40,7 @@ function assertNeverKind(value: never): never {
  *  same `invalid` classification, as the hosted decoder's width/count checks. */
 async function embedImageSide(
   cache: LocalLightModelCache,
-  // @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   modelId: string,
   input: ImageInput | readonly ImageInput[],
 ): Promise<(Float32Array<ArrayBuffer> | null)[]> {
@@ -59,7 +59,7 @@ async function embedImageSide(
 }
 
 /** Embed texts → one normalized vector each; empty/whitespace texts filter to `null` (aligned). */
-// @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
 async function embedTextSide(cache: LocalLightModelCache, modelId: string, input: string | readonly string[]): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const texts: readonly string[] = typeof input === "string" ? [input] : input;
   const kept: { index: number; text: string }[] = [];
@@ -88,7 +88,7 @@ async function embedTextSide(cache: LocalLightModelCache, modelId: string, input
 }
 
 /** Dispatch on the discriminated `kind` of the joint-embed input. */
-// @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
 async function embedByKind(cache: LocalLightModelCache, modelId: string, input: ImageEmbedInput): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   switch (input.kind) {
     case "image":

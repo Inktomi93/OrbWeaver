@@ -57,7 +57,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
     // `character.ingestAsset`. Recorded so a test proves what crossed the infra→domain seam (never the guest).
     fetchedAssets: { bytes: Uint8Array; mime: string }[];
     ingestedAssets: string[];
-    // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
+    // @orb-waive brand-in-name-position(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
     cardDataWrites: { characterId: string; data: Record<string, unknown> }[];
     cardDataReads: string[];
     pubsubEmits: { name: string; data: Record<string, unknown> }[];
@@ -71,7 +71,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
   const characterIngests: Record<string, unknown>[] = [];
   const fetchedAssets: { bytes: Uint8Array; mime: string }[] = [];
   const ingestedAssets: string[] = [];
-  // @foreign-id-ok(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
+  // @orb-waive brand-in-name-position(characterId): the fake bridge records the guest's untrusted wire string verbatim (the PluginBridge.character.setCardData param is a bare `string` under the same marker); branding it would diverge from the interface it mirrors.
   const cardDataWrites: { characterId: string; data: Record<string, unknown> }[] = [];
   const cardDataReads: string[] = [];
   const pubsubEmits: { name: string; data: Record<string, unknown> }[] = [];
@@ -921,7 +921,7 @@ describe("attachMembrane — net.fetchAsset downloads a remote image into the in
         ctx,
         "(async () => { const r = await host.net.fetchAsset('https://img.allowed.test/cover.png'); return JSON.stringify({ keys: Object.keys(r), assetId: r.assetId }) })()",
       );
-      // @foreign-id-ok(assetId): the guest-returned wire DTO shape asserted verbatim — the membrane hands this back as inert text, never branded; branding it would diverge from the `PluginHostV1.net.fetchAsset` return it mirrors.
+      // @orb-waive brand-in-name-position(assetId): the guest-returned wire DTO shape asserted verbatim — the membrane hands this back as inert text, never branded; branding it would diverge from the `PluginHostV1.net.fetchAsset` return it mirrors.
       const parsed = JSON.parse(out) as { keys: string[]; assetId: string };
       // The guest received EXACTLY one property, the asset id — no bytes, no url, no mime.
       expect(parsed.keys).toEqual(["assetId"]);
