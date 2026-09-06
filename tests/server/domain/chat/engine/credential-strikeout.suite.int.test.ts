@@ -30,10 +30,25 @@ import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { createMemoryRecallWarningEpisode } from "../../../../../packages/server/src/domain/chat/memory/recall/rerank-warning.ts";
+import type { SearchContext } from "../../../../../packages/server/src/domain/search/context.ts";
+import { createDigests } from "../../../../../packages/server/src/domain/search/verbs/digests.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { fakeRecallResult, makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
+import {
+  FROZEN_AT,
+  fakeRecallResult,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedUser,
+  stubRunCompaction,
+  testConnection,
+} from "../_support.ts";
+import { GROUP_CHAR, seedDigest, seedSegment } from "../memory/_support.ts";
 
 const HOST = castId<UserId>("user_host");
 /** The credential the seeded BYO connection authenticates with — the id every strike must name. */
@@ -133,6 +148,7 @@ function engineOver(
   runChatTurn: ChatContext["runChatTurn"],
   runCompaction: Parameters<typeof createTurnEngine>[1]["runCompaction"] = stubRunCompaction,
   depsOver: Partial<Parameters<typeof createTurnEngine>[1]> = {},
+  ctxOver: Partial<ChatContext> = {},
 ): ReturnType<typeof createTurnEngine> {
   const ctx = makeChatContext(db, {
     runChatTurn,
@@ -140,6 +156,7 @@ function engineOver(
       strikes.push(params);
       return strikeImpl(params);
     },
+    ...ctxOver,
   });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
@@ -288,6 +305,58 @@ describe("the main turn's fault path strikes out the credential it ran under", (
 
     // The turn still fails loudly (the throw is the caller's), but no credential is touched: this failure did
     // not come from the generation, so it says nothing about the key the generation ran under.
+    expect(strikes).toEqual([]);
+  });
+
+  // #1603 — the arm above proves the strike is withheld, using a HAND-WRITTEN rejection whose message already
+  // said "EMBED role". The real path said no such thing: `search/verbs/digests.ts` awaited
+  // `ctx.roleClients.embed` with no catch, so the 401 arrived at the turn anonymous — the user was told the
+  // turn failed and never which of their keys to go fix. This drives the REAL recall + the REAL digests verb
+  // over a rejecting embed client, so the message under assertion is the one production would produce.
+  test("#1603 the REAL recall path names the failing ROLE on the way out — and still strikes nothing", async () => {
+    const chatId = await seedChat(db, "strike-side-role-real");
+    // The egocentric query is built from THIS window; an empty one makes the verb refuse for `empty_query`
+    // before it ever reaches the embed, and the arm would prove nothing.
+    const recent = [
+      { seq: 1, role: "user" as const, kind: "standard" as const, characterId: null, authorUserId: HOST, personaId: null, content: "the ledger" },
+    ];
+    const owner = await seedUser(db, castId<Handle>("recall_owner"));
+    await seedCharacter(db, owner, "group"); // the shared bucket's FK parent (GROUP_CHAR)
+    await seedCharacter(db, owner, "speaker");
+    // A pool member that SURVIVES the witnessing filter, so recall actually reaches retrieval instead of
+    // short-circuiting on an empty pool (a digest whose covered segment span is missing, or whose span no
+    // horizon proves, is dropped before any search call — and the arm would prove nothing).
+    await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
+    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
+    // FABRICATION-OK: minimal RoleClients double — this path throws at the FIRST call (`embed`) and reads
+    // nothing else off the bundle.
+    const searchCtx = {
+      db,
+      roleClients: { embed: (): Promise<never> => Promise.reject(rejected) },
+      now: () => FROZEN_AT,
+      resolveActiveDocumentIds: () => Promise.resolve([]),
+    } as unknown as SearchContext;
+    const digests = createDigests(searchCtx);
+    const engine = engineOver(
+      succeedingTurn,
+      stubRunCompaction,
+      { recallMemory, loadWitnessHorizons: () => Promise.resolve([{ joinSeq: 1, leftSeq: null }]) },
+      { searchDigests: (query) => digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))) },
+    );
+
+    const prep = scopedRecallPrep();
+    const err = await engine
+      .runTurn(prepOf(chatId, { ...prep, memoryRecall: { ...prep.memoryRecall, recent } as NonNullable<TurnPrep["memoryRecall"]> }))
+      .catch((e: unknown) => e);
+
+    // The role is NAMED to the human who has to fix a key — and the PLANTED message deliberately does not
+    // contain that word, so this can only pass if the verb put it there.
+    expect(rejected.message).not.toContain("embed");
+    expect((err as Error).message).toContain("embed");
+    // …the provider's classification still travels (the re-frame is lossless)…
+    expect(err).toMatchObject({ kind: "auth_failed", apiErrorStatus: 401 });
+    // …and the CHAT's credential is still untouched: this failure came from a key that provider never saw.
     expect(strikes).toEqual([]);
   });
 
