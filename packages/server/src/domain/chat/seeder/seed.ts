@@ -54,8 +54,13 @@ function importedFromFor(demo: DemoChat): string {
 
 /** What one example's seed attempt did. `present` is a converged SUCCESS (the row is already there), which
  *  is why it is a THIRD member rather than a second flavour of failure — collapsing it into `skipped` would
- *  schedule a retry for a room that exists, and collapsing it into `written` would over-count the log. */
-type SeedOutcome = "written" | "present" | "skipped";
+ *  schedule a retry for a room that exists, and collapsing it into `written` would over-count the log.
+ *
+ *  ONE importable spelling of the axis (`no-inline-union-redecl`): the tuple is the declaration and the type
+ *  DERIVES from it, so a fourth outcome cannot be added to one of them alone. Module-private — the outcome is
+ *  this seeder's own dispatch vocabulary and crosses no boundary. */
+const SEED_OUTCOMES = ["written", "present", "skipped"] as const;
+type SeedOutcome = (typeof SEED_OUTCOMES)[number];
 
 /** One resolved roster seat: the card the manifest's handle pointed at, plus the display name the transcript
  *  attributes its lines to. `handle` is carried so the authored game setup's `handle` seats resolve to real
