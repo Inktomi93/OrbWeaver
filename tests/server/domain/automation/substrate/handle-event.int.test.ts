@@ -1074,3 +1074,80 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
   const [view] = await svc.listRules({ principal: principal(host), chatId });
   expect(view?.enabled).toBe(false);
 });
+
+// #1554 — d11a0f6e9 (#1423) put ALL domain-bus dispatch behind ONE process-wide lane
+// (`automation:domain`), so a slow arm on one owner's rule delayed every OTHER owner's unrelated rule too.
+// Two owner-GLOBAL rules (`chatId: null`) each watching `character.updated` on their OWN owned character —
+// the real shape (`livingLibrary`'s own catalogue row) — prove BOTH halves the restructure owes: two
+// DIFFERENT owners' domain events interleave, and one owner's OWN two events still serialize (the exact
+// #1423 property, now scoped to the OWNER key instead of the whole bus).
+describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () => {
+  test("two owners' domain events interleave while one owner's own events still serialize", async () => {
+    const order: string[] = [];
+    const gates = { ownerA: deferred(), ownerA2: deferred() };
+    let ownerAFires = 0;
+    const f = await setup({
+      runArm: async (action): Promise<{ readonly ok: true }> => {
+        const arm = action as Extract<AutomationActionInput, { type: "set_variable" }>;
+        const tag = arm.key;
+        order.push(`${tag}:enter`);
+        if (tag === "ownerA") {
+          ownerAFires += 1;
+          // The FIRST ownerA fire blocks on `gates.ownerA`; a SECOND ownerA fire (queued behind it on the
+          // same owner lane) blocks on `gates.ownerA2` — two independent gates so the test can release them
+          // one at a time and observe the queueing, exactly as #1423's same-chat pin does for one lane.
+          await (ownerAFires === 1 ? gates.ownerA.promise : gates.ownerA2.promise);
+        }
+        order.push(`${tag}:exit`);
+        return { ok: true };
+      },
+    });
+    const ownerA = f.host;
+    const ownerB = await seedUser(f.db, "user_owner_b");
+    const characterA1 = await seedCharacter(f.db, ownerA, "card-a1");
+    const characterA2 = await seedCharacter(f.db, ownerA, "card-a2");
+    const characterB = await seedCharacter(f.db, ownerB, "card-b");
+
+    async function armGlobalRule(owner: UserId, key: string): Promise<void> {
+      const p = principal(owner);
+      const rule = await f.svc.createRule({
+        principal: p,
+        chatId: null,
+        name: `global-${key}`,
+        trigger: { bus: "domain", type: "character.updated" },
+        predicateCel: null,
+        actions: [{ type: "set_variable", scope: "global", key, op: "set", value: "x" }],
+      });
+      await f.svc.setRuleEnabled({ principal: p, ruleId: rule.id, enabled: true });
+    }
+    await armGlobalRule(ownerA, "ownerA");
+    await armGlobalRule(ownerB, "ownerB");
+
+    // ownerA's event and ownerB's event, both raised before either dispatch can finish -- the exact shape
+    // two rapid domain-bus events have (a card import, a lore edit, seconds apart).
+    const eventA1 = f.svc.handleEvent({ type: "character.updated", characterId: characterA1, contentChanged: true });
+    const eventB = f.svc.handleEvent({ type: "character.updated", characterId: characterB, contentChanged: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // THE OLD SINGLE LANE'S SIGNATURE: unserialized-by-owner would read the same as this already does not
+    // regress (both being blind lanes never contended), so the proof is what happens NEXT — ownerB's short
+    // arm settles WHILE ownerA's is still parked, which the pre-#1554 single "automation:domain" lane could
+    // never show (ownerB would not even ENTER until ownerA's exit).
+    expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit"]);
+
+    // A SECOND ownerA event, raised while the first is still blocked -- it must queue behind ownerA's own
+    // lane (never behind ownerB's, which has already drained) and must NOT start until the first exits.
+    const eventA2 = f.svc.handleEvent({ type: "character.updated", characterId: characterA2, contentChanged: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit"]); // ownerA2 has NOT entered yet.
+
+    gates.ownerA.resolve();
+    await eventA1;
+    // The SECOND ownerA job's "enter" lands on the lane's own tail, one microtask after the first settles.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit", "ownerA:exit", "ownerA:enter"]);
+
+    gates.ownerA2.resolve();
+    await Promise.all([eventB, eventA2]);
+    expect(order).toEqual(["ownerA:enter", "ownerB:enter", "ownerB:exit", "ownerA:exit", "ownerA:enter", "ownerA:exit"]);
+  });
+});
