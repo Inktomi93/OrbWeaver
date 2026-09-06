@@ -4,7 +4,9 @@ import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verif
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
+import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
+import { gate as sectionRegistryCompleteness } from "../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -20,7 +22,9 @@ test("registry definition policies keep their founding and nearest-legal fixture
       modalBodyNotPlaceholder,
       modalRegistryCompleteness,
       placeholderCopyRegistry,
+      routeImportsNoFeature,
       sectionFactoryContributionBundle,
+      sectionRegistryCompleteness,
       warningCodeCoverage,
     ]),
   ).toEqual([]);
