@@ -61,9 +61,8 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   // 2 -> 4 by OWNER RULING 2026-09-06 (#1848). The measured CT suite is ~160 WORKER-minutes (488 files /
   // 5121 cases), so 2 workers made the push bar ~95 min and 4 makes it ~51; the box-wide bound is
   // `ctRunnersHostWide` (<=8 Chromiums) plus the cpu-fence quota, not this per-run number.
-  // COUPLED PROSE, STILL STALE AT THIS COMMIT: .claude/rules/lane-standing-facts.md and
-  // .claude/agent-doctrine.md both quote "CT 2" by value. This lane may not edit `.claude/**` beyond the
-  // worktree-remove hook, so the prose edit is owed by the integrator — this comment is the receipt.
+  // COUPLED PROSE: .claude/rules/lane-standing-facts.md quotes the shared CT value by literal ("vitest 4,
+  // CT 4"); it was repaired in the #1848 fold commit. `.claude/agent-doctrine.md` carries no CT literal.
   expect(shared.ctWorkers, "playwright CT workers default").toBe(4);
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
