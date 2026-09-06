@@ -23,7 +23,7 @@ import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessage
 import { flushTurn } from "./flush.ts";
 import { forkGame } from "./fork-game.ts";
 import { gatherTurnContext } from "./gather.ts";
-import { handoffHealStatements, handoffRekeyActors } from "./handoff-heal.ts";
+import { handoffHealStatements, handoffRekeyActors, handoffWouldCopyGmPreset } from "./handoff-heal.ts";
 
 /** Build the `ChatRpgOps` runtime over the rpg ctx (rpg-design/05 §3.2). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
@@ -155,6 +155,10 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the
     // pre-offer heal.
     handoffHealStatements: (args): ReturnType<ChatRpgOps["handoffHealStatements"]> => handoffHealStatements(ctx, args),
+    // HOST HANDOFF, the NOMINATE-side disclosure (#1762): the same knob/ownership gate the heal applies,
+    // asked before the nominee has consented — so the inbox row can say whether the room's GM voice comes
+    // with it. Reads only; `false` for a non-game chat.
+    handoffWouldCopyGmPreset: (chatId, nomineeUserId): Promise<boolean> => handoffWouldCopyGmPreset(ctx, chatId, nomineeUserId),
     // HOST HANDOFF, POST-SWAP: the copied cast's tracker rows/presence/pins move onto the copy ids. Not a
     // statement (a hand-door read-modify-write that may clone forward), so it runs after the swap commits.
     handoffRekeyActors: (chatId, cardCopies): Promise<void> => handoffRekeyActors(ctx, chatId, cardCopies),

@@ -445,6 +445,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     copyHandoffCards: () => Promise.resolve([]),
     copyHandoffBooks: () => Promise.resolve([]),
     copyHandoffRegexScripts: () => Promise.resolve([]),
+    // …and the #1762 disclosure twins the NOMINATE path calls on every offer: the no-offer answer is zero,
+    // so a pre-disclosure handoff test still emits a nomination that says "this gives you nothing".
+    countHandoffBooks: () => Promise.resolve(0),
+    countHandoffRegexScripts: () => Promise.resolve(0),
     restampHandoffDigests: () => Promise.resolve([]),
     // D22 member-card tags — default "no accepted tags" (safe floor); a member-card test overrides it.
     resolveCharacterTags: () => Promise.resolve([]),

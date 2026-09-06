@@ -198,6 +198,22 @@ type CopyHandoffBooksOp = (args: {
  *  on its own, so unlike the lore arm it is not derived from what the seats did. */
 type CopyHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<readonly BatchStmt[]>;
 
+/** The host-handoff LORE copy's DISCLOSURE twin (world-info's `CountHandoffBooks`, declared structurally) —
+ *  how many DISTINCT books the copy above would mint for `toOwnerId`, resolved by the same owner-filtered
+ *  source reads and the same convergence rule, and writing nothing. `characterIds` are the SOURCE cards the
+ *  offer would copy (the card half); the room half needs no input. */
+type CountHandoffBooksOp = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+  readonly characterIds: readonly CharacterId[];
+}) => Promise<number>;
+
+/** The host-handoff REGEX copy's DISCLOSURE twin (regex's `CountHandoffRegexScripts`, declared
+ *  structurally) — how many scripts the copy above would MINT for `toOwnerId`, sharing the copy's own plan
+ *  resolver so a script the nominee already owns content-identically is disclosed as what it is: nothing new. */
+type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<number>;
+
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
@@ -833,6 +849,12 @@ export interface ChatRpgOps {
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
   readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly BatchStmt[]>;
+  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): WOULD an accepted `copyGmPreset` offer copy this
+   *  room's GM voice into `nomineeUserId`'s library? `true` only when the room is a game, its `gmPresetId` is
+   *  set, and the nominee cannot already read it — i.e. exactly the gate `handoffHealStatements` applies at
+   *  accept, asked without writing. A preset the nominee already owns answers FALSE and that is not a
+   *  degrade: the knob is left alone, so nothing lands in their library and nothing should be promised. */
+  readonly handoffWouldCopyGmPreset: (chatId: ChatId, nomineeUserId: UserId) => Promise<boolean>;
   /** HOST HANDOFF, POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from the
    *  source card's key onto the copy's (`rekeyActor` — the `promoteActor` mechanism). NOT statement-shaped and
    *  therefore NOT in the swap batch: it is a read-modify-write through rpg's hand door, which resolves the
@@ -1277,6 +1299,14 @@ export interface ChatContext {
    *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
    *  except executable, and un-flippable by anyone still in the room (#1739). */
   readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
+  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): how many books / scripts an accept would land in
+   *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
+   *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a
+   *  disclosure must be UNABLE to write: the nomination happens before consent, and an op that could mint is
+   *  an op that eventually will. Each lives in its copy's own file over its copy's own plan resolver, so
+   *  what the row promises and what the accept does cannot drift into two rules. */
+  readonly countHandoffBooks: CountHandoffBooksOp;
+  readonly countHandoffRegexScripts: CountHandoffRegexScriptsOp;
   /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
    *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
    *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */

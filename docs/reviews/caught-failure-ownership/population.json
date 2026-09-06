@@ -631,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/notifications/components/notification-bell.tsx::promise:work::1",
       "path": "packages/client/src/features/notifications/components/notification-bell.tsx",
-      "line": 248,
+      "line": 292,
       "column": 10,
       "grammar": "promise",
       "position": "promise:work",
@@ -639,7 +639,7 @@
       "snippet": "void work()",
       "verdict": "deliberate-absorb",
       "reason": "every `work` this wraps (accept/decline/",
-      "markerLine": 245
+      "markerLine": 290
     },
     {
       "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
@@ -2932,7 +2932,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1196,
+      "line": 1201,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2940,12 +2940,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1192
+      "markerLine": 1197
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1229,
+      "line": 1234,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2953,12 +2953,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1218
+      "markerLine": 1223
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1266,
+      "line": 1271,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2966,7 +2966,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1258
+      "markerLine": 1263
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",

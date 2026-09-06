@@ -13,6 +13,7 @@
 import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { handoffOfferContentsSchema } from "../chat/roster.ts";
 
 // `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 const recipientUserIdSchema = brandedId<UserId>();
@@ -89,10 +90,22 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     recipientUserId: recipientUserIdSchema,
     chatId: chatIdSchema,
   }),
+  // THE NOMINATION CARRIES ITS OWN DISCLOSURE (#1762). Accepting is not just "you now host this room": it
+  // lands the departing host's characters, world books, GM voice and the room's REGEX SCRIPTS — executable
+  // transforms over the accepter's chats (#1739) — in the NOMINEE's library. The receiving side rendered a
+  // bare Accept for all of it, so the counts ride the payload and the client confirms against them.
+  //
+  // COUNTS, NOT IDS — the ids-only habit inverts here and the shape is the reason: the nominee owns none of
+  // those rows yet, so an id would be an unreadable pointer AND a second user's library key on the wire.
+  // `handoffOfferContentsSchema` (`@orb/contracts/chat`) is its one home, beside the OFFER it previews, so
+  // the producer's resolution and the reader's render cannot drift into two shapes.
   z.object({
     type: z.literal("handoff-nominated"),
     recipientUserId: recipientUserIdSchema,
     chatId: chatIdSchema,
+    /** What accepting would copy into the recipient's library, frozen at nominate. All-zero = the room
+     *  transfers and nothing else does (the built D64 drop), which the confirm says in as many words. */
+    offer: handoffOfferContentsSchema,
   }),
   z.object({
     type: z.literal("handoff-accepted"),

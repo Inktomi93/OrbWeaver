@@ -49,9 +49,9 @@ import { beforeEach, describe } from "vitest";
 import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
-import { createCopyHandoffRegexScripts } from "../../../../../packages/server/src/domain/regex/index.ts";
+import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "../../../../../packages/server/src/domain/regex/index.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
+import { createCopyHandoffBooks, createCountHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -124,9 +124,8 @@ function minters(): {
 /** A chat context wired with the REAL copy factories. `copyAsset` is the identity-ish stub (the picture
  *  re-own is the assets domain's — its own contract; here it simply reports "no avatar"), so these tests
  *  assert the card/book/digest planes without an assets service. */
-function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {}): Parameters<typeof createRoster>[0] {
+function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1]> = {}, notes: NotificationEvent[] = []): Parameters<typeof createRoster>[0] {
   const mint = minters();
-  const notes: NotificationEvent[] = [];
   return makeChatContext(db, {
     getCard: ownedCard(),
     emitNotification: recordingEmit(notes),
@@ -139,6 +138,10 @@ function copyContext(overrides: NonNullable<Parameters<typeof makeChatContext>[1
     }),
     copyHandoffBooks: createCopyHandoffBooks({ db, now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
     copyHandoffRegexScripts: createCopyHandoffRegexScripts({ db, now: () => 1, newScriptId: mint.newScriptId }),
+    // The disclosure twins are REAL too (#1762) — the whole claim of the nomination pins is that the counted
+    // plan and the executed copy are one resolution, which a stubbed count could not prove.
+    countHandoffBooks: createCountHandoffBooks(db),
+    countHandoffRegexScripts: createCountHandoffRegexScripts(db),
     restampHandoffDigests: createHandoffRestampStatements({ db }),
     ...overrides,
   });
@@ -631,5 +634,79 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
     expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(0);
     const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
     expect(attached.map((a) => a.regexScriptId)).toEqual([scriptId]);
+  });
+});
+
+// ── THE NOMINATION'S DISCLOSURE (#1762) ─────────────────────────────────────────────────────────────────
+// The nominee decides on ONE screen, from ONE row, and everything above lands in THEIR library the moment
+// they press Accept — including the executable regex scripts (#1739). So the `handoff-nominated`
+// notification carries what the offer would copy, resolved AT NOMINATE from the SAME ownership axes the
+// accept executes (`resolveHandoffCopyPlan` → the three owning-domain resolvers), never a second guess.
+// The pins below are the equality that makes the disclosure honest: what the row SAYS is what the accept
+// then DOES, and a nomination that gives nothing says zero rather than staying silent.
+describe("the nomination discloses what an accepted offer would copy", () => {
+  test("the payload's counts are the rows the accept then lands", async () => {
+    const { host, member, chatId, aria } = await seedTransferRoom();
+    // A second giftable seat, a card-attached book, the room's own book, and one chat-tier script.
+    const bryn = await seedCharacter(db, host, "bryn");
+    await seedParticipant(db, { chatId, key: "cb", characterId: bryn, role: "member" });
+    const cardBook = castId<WorldBookId>("world_book_card");
+    await db.insert(worldBooks).values({ id: cardBook, ownerId: host, name: "Aria lore", description: null, createdAt: 1 });
+    await db.insert(characterBooks).values({ characterId: aria, worldBookId: cardBook, role: "primary", createdAt: 1 });
+    const roomBook = castId<WorldBookId>("world_book_room");
+    await db.insert(worldBooks).values({ id: roomBook, ownerId: host, name: "Room lore", description: null, createdAt: 1 });
+    await db.insert(chatBooks).values({ chatId, worldBookId: roomBook, createdAt: 1 });
+    await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
+    // FABRICATION-OK: minimal ChatRpgOps — this nominate/accept pair reaches only the three handoff methods.
+    const rpg = {
+      handoffHealStatements: (): Promise<readonly BatchStmt[]> => Promise.resolve([]),
+      handoffRekeyActors: (): Promise<void> => Promise.resolve(),
+      handoffWouldCopyGmPreset: (): Promise<boolean> => Promise.resolve(true),
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(copyContext({ rpg }, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: true } });
+
+    const nomination = notes.find((n) => n.type === "handoff-nominated");
+    expect(nomination).toBeDefined();
+    expect(nomination).toMatchObject({ offer: { characters: 2, worldBooks: 2, regexScripts: 1, gmPreset: true } });
+
+    // …and that IS what lands: the disclosure is the copy plan's own resolution, not a parallel count.
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(2);
+    expect(await db.select().from(worldBooks).where(eq(worldBooks.ownerId, member))).toHaveLength(2);
+    expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(1);
+  });
+
+  test("an offer of NOTHING discloses zeros — the row still says what it gives, which is nothing", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
+
+    expect(notes.find((n) => n.type === "handoff-nominated")).toMatchObject({
+      offer: { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false },
+    });
+  });
+
+  test("the disclosure carries the copy's OWN ownership axes — a stranger's script and the nominee's own card are not counted", async () => {
+    const { host, member, chatId } = await seedTransferRoom();
+    // The nominee ALREADY owns this seated card: it is a live seat, never a gift (and never a disclosed one).
+    const theirs = await seedCharacter(db, member, "theirs");
+    await seedParticipant(db, { chatId, key: "ct", characterId: theirs, role: "member" });
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    await seedChatScript(chatId, stranger, { id: "regex_script_foreign", name: "Not theirs", find: "x" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+
+    // Only the host's own `aria` seat is giftable; the stranger's chat script is not the host's to give.
+    expect(notes.find((n) => n.type === "handoff-nominated")).toMatchObject({
+      offer: { characters: 1, worldBooks: 0, regexScripts: 0, gmPreset: false },
+    });
   });
 });

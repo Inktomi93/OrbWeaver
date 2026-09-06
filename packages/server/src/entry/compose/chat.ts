@@ -82,13 +82,13 @@ import { PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
-import { createCopyHandoffRegexScripts } from "#domain/regex";
+import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
-import { createCopyHandoffBooks } from "#domain/world-info";
+import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
@@ -1184,6 +1184,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       now: input.now,
       newScriptId: minter(ID_PREFIX.regexScript),
     }),
+    // …and their NOMINATE-side disclosure twins (#1762), each from the SAME domain file as its copy so the
+    // number the nominee is shown comes out of the plan the accept executes. `db` only: these run before
+    // the nominee has consented to anything, so they are structurally unable to mint (no clock, no minter).
+    countHandoffBooks: createCountHandoffBooks(input.db),
+    countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card

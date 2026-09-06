@@ -59,3 +59,23 @@ export type CopyHandoffBooks = (args: {
   readonly chatId: ChatId;
   readonly cardCopies: readonly HandoffCardPair[];
 }) => Promise<readonly BatchStmt[]>;
+
+/** How many DISTINCT books {@link CopyHandoffBooks} would mint for `toOwnerId` — the NOMINATE-side
+ *  disclosure the `handoff-nominated` notification carries (#1762), answered before anyone has consented to
+ *  anything.
+ *
+ *  READ-ONLY BY CONSTRUCTION, and that is the whole reason it is a second op rather than a `dryRun` flag on
+ *  the copy: it runs at NOMINATE, where the nominee has agreed to nothing, so the disclosure must be unable
+ *  to write rather than merely choosing not to.
+ *
+ *  It shares the copy's OWN source reads and its OWN convergence rule (both owner-filtered halves; a
+ *  chat-attached book whose name the recipient already owns on this chat is not a mint, exactly as the copy
+ *  decides), so the number the nominee is shown and the rows the accept lands cannot come from two rules.
+ *  `characterIds` are the SOURCE cards the offer would copy — the copy takes pairs because it already has
+ *  them, this takes sources because at nominate no copy exists yet. */
+export type CountHandoffBooks = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+  readonly characterIds: readonly CharacterId[];
+}) => Promise<number>;
