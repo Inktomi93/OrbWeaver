@@ -192,11 +192,22 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // INSIDE an escaped Tailwind class name. Zero live img hovers ride the attribute channel today —
   // the owner's standing ruling is "we dont build things just for what we have today", and the
   // shared predicate (ops/walker/state-paint.ts) costs this scan nothing.
+  // THE HOUSE MEDIA-ZOOM IDIOM PUTS THE CLASS ON THE WRAPPER, NOT THE IMG (#1075, orb-ui audit F3).
+  // media-tile-grid's cover span carries \`group-hover:scale-105\`; the <img> inside it carries no
+  // transform class of its own. A same-element-only class read is blind to the idiom this codebase
+  // actually authors, so the scan walks the img's own class list AND its near ancestors — bounded, like
+  // the interactive-island wrapper walk (census-decor.ts's \`isInteractiveIsland\`), so a decorative
+  // grandparent far up the tree cannot false-positive an unrelated img.
+  var IMG_HOVER_WRAPPER_DEPTH = 3;
   var animatedImgHovers = [];
   for (var h = 0; h < imgEls.length; h += 1) {
     var himg = imgEls[h];
-    var hcls = typeof himg.className === "string" ? himg.className.split(/\\s+/) : [];
-    if (hcls.some(function (c) { return STATE_VARIANT_TRANSFORM_RE.test(c); })) {
+    var hoverAnimated = false;
+    for (var hanc = himg, hlevels = 0; hanc && hlevels <= IMG_HOVER_WRAPPER_DEPTH && !hoverAnimated; hanc = hanc.parentElement, hlevels += 1) {
+      var hcls = typeof hanc.className === "string" ? hanc.className.split(/\\s+/) : [];
+      if (hcls.some(function (c) { return STATE_VARIANT_TRANSFORM_RE.test(c); })) hoverAnimated = true;
+    }
+    if (hoverAnimated) {
       animatedImgHovers.push({ selector: describe(himg), hasHoverAnimation: true });
     }
   }
@@ -211,11 +222,22 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       for (var r = 0; r < rules.length; r += 1) {
         var rule = rules[r];
         if (!rule.selectorText) continue;
-        if (
-          (hasStateHover(rule.selectorText) || stateAttrAnywhere(rule.selectorText)) &&
-          /img/i.test(rule.selectorText) &&
-          HOVER_TRANSFORM_RE.test(rule.cssText)
-        ) {
+        if (!(hasStateHover(rule.selectorText) || stateAttrAnywhere(rule.selectorText))) continue;
+        if (!HOVER_TRANSFORM_RE.test(rule.cssText)) continue;
+        // THE SELECTOR TEXT NAMES THE WRAPPER, NOT THE IMG (#1075): a \`/img/i\` substring test over
+        // \`rule.selectorText\` never matched the media-tile idiom's compiled group-hover selector, which
+        // names only the wrapper's class. Bind the selector to the LIVE DOM instead: does it match an
+        // <img>, or does a matched element CONTAIN one — the exact wrapper-carries-the-class shape.
+        var matchesImg = false;
+        try {
+          var matched = document.querySelectorAll(rule.selectorText);
+          for (var mi = 0; mi < matched.length && !matchesImg; mi += 1) {
+            if (matched[mi].tagName === "IMG" || matched[mi].querySelector("img") !== null) matchesImg = true;
+          }
+        } catch (e3) {
+          continue; // unparseable selector text (an unescaped Tailwind variant colon, etc.)
+        }
+        if (matchesImg) {
           animatedImgHovers.push({ selector: rule.selectorText, hasHoverAnimation: true });
         }
       }
