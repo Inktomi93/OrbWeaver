@@ -28,6 +28,12 @@ import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walke
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const LADDER_PATTERN = /var HIT_PROBE_RADII = \[([^\]]+)\]/;
+/** #1829: the ring must be sampled INSIDE the rung. A target of extent `2r` occupies `[c - r, c + r)`, so
+ *  the coordinate `c + r` is the neighbour's first pixel and the top rung is unreachable without an inset.
+ *  Both halves are derived from the walker string — the constant AND the ring that must consume it, because
+ *  a declared-but-unused inset reads exactly like a fixed walker. */
+const INSET_PATTERN = /var HIT_PROBE_INSET = ([\d.]+)/;
+const INSET_RING_PATTERN = /var p = r - HIT_PROBE_INSET;/;
 /** Wide enough to contain every floor the rule can hold (the widest is the AAA 44px touch target). */
 const SIZE_SCAN_MAX = 80;
 
@@ -91,5 +97,25 @@ describe("the hit-extent ladder and the tap-target floors", () => {
 
   test("PLANTED CONTROL: a walker string whose ladder cannot be found reports zero radii, never a pass", () => {
     expect(ladderOf(WALKER_HIT_EXTENT.replace("var HIT_PROBE_RADII", "var RENAMED_RADII"))).toEqual([]);
+  });
+
+  // #1829 — the rung being IN the ladder is not enough; the ring must be able to LAND on it. Measured
+  // 2026-09-06: an @orb/ui Checkbox at a coarse pointer answers `self` on all four cardinals at +/-21.5px
+  // and answers a sibling label at +/-22px, so probing AT r=22 published 32 against a 44px floor and filed
+  // a P2 no design change could clear. The RENDERED half is design-audit-walker.ct.tsx's coarse describe;
+  // this is the coupling that goes red if the inset is removed or declared and never used.
+  test("the ring is sampled INSIDE the rung, so the top rung is reachable at all", () => {
+    const inset = INSET_PATTERN.exec(WALKER_HIT_EXTENT);
+    expect(inset, "no HIT_PROBE_INSET in the walker — the derivation is blind, not the walker clean").not.toBeNull();
+    const value = Number(inset?.[1] ?? Number.NaN);
+    expect(value, "the inset must be a sub-pixel step: 0 re-creates the boundary probe, >=1 skips real pixels").toBeGreaterThan(0);
+    expect(value).toBeLessThan(1);
+    expect(INSET_RING_PATTERN.test(WALKER_HIT_EXTENT), "HIT_PROBE_INSET is declared but the ring does not consume it").toBe(true);
+  });
+
+  test("PLANTED CONTROL: a ring rebuilt on the bare radius is reported, so the check above can fail", () => {
+    const boundaryProbe = WALKER_HIT_EXTENT.replace("var p = r - HIT_PROBE_INSET;", "var p = r;");
+    expect(boundaryProbe, "the planted control changed nothing — the ring was not inset to begin with").not.toBe(WALKER_HIT_EXTENT);
+    expect(INSET_RING_PATTERN.test(boundaryProbe)).toBe(false);
   });
 });
