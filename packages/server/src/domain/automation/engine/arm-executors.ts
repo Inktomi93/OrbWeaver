@@ -191,7 +191,10 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
       await deps.ops.chat.applyVariableOps(chatId, [{ op: "delete", key }]);
       // WRITE-THROUGH, the delete half (`writeArmVariable` states the rule for the set half): mirror the
       // delete onto the shared in-memory `vars` too, so a later `has()` in this batch is false.
-      delete frame.env.vars[key];
+      // `Reflect.deleteProperty`, never the bare `delete` operator (#1571) — `kit/macro/variables.ts`'s own
+      // `applyVarOp` states why: house style bans it, and it is what keeps that file's "property syntax is
+      // not used on this plane anywhere" claim actually true rather than one this call site quietly broke.
+      Reflect.deleteProperty(frame.env.vars, key);
     } else {
       await deleteGlobalVariable(deps.db, frame.authorUserId, key);
     }
