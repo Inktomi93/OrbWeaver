@@ -56,6 +56,12 @@ export interface GatePolicyReportSink {
   readonly file: (path: string, details?: GatePolicyFileFindingDetails) => void;
 }
 
+export interface GateSharedFactLease<Value> {
+  readonly value: Value;
+  /** True only for the first consumer over this exact invocation population. */
+  readonly collect: boolean;
+}
+
 /** The policy-visible surface. Deliberately contains no Project, root, filesystem, parser, or grants. */
 export interface GatePolicyContext {
   readonly files: readonly SourceFile[];
@@ -64,6 +70,8 @@ export interface GatePolicyContext {
   readonly relativePath: (sourceFile: SourceFile) => string;
   readonly sourceFile: (repoRelativePath: string) => SourceFile;
   readonly checker: () => TypeChecker;
+  /** Invocation-local shared derivation; shared reader modules own keys and collection visitors. */
+  readonly sharedFact: <Value>(key: object, create: () => Value) => GateSharedFactLease<Value>;
   readonly report: GatePolicyReportSink;
   readonly receipt: (receipt: GatePolicyReceipt) => void;
 }
