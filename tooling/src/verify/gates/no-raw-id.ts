@@ -106,7 +106,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [ID_BRAND_HOME]: idCastProofModule("export function typeIdSchema(_prefix: string): unknown { return {}; }\n"),
-        "packages/contracts/src/x.ts": 'import { typeIdSchema } from "../../../kit/src/ids/index";\nexport const schema = { userId: typeIdSchema("user") };\n',
+        "packages/contracts/src/x.ts": 'import { typeIdSchema } from "../../kit/src/ids/index";\nexport const schema = { userId: typeIdSchema("user") };\n',
       },
       why: "the canonical validating schema carries branded output",
     },
