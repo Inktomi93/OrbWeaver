@@ -297,9 +297,20 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       // rather than repaired: a child that carries neither text nor a control is already excluded by the
       // MEASURED test below, which needs no name vocabulary at all.
       if (!ccSubstantive) continue;
-      // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), it must not be
-      // an sr-only stub, and it must be or carry a CONTROL — in-flow text spill is text-overflow's.
-      if (!ccPositioned && !(ccControl && isVisible(cchild) && !isVisuallyHidden(cchild))) continue;
+      // THE VISUALLY-HIDDEN FENCE IS SHARED BY BOTH ARMS (#1783). Cut UI is a claim about pixels, and a
+      // visually-hidden box paints none whatever its rect says — the same argument the CONTAINER fence
+      // above makes, one level down. It sat inside the in-flow condition, so the POSITIONED arm judged
+      // sr-only stubs: Base UI's SliderThumb renders its real \`<input type=range>\` with the vendor's
+      // \`visuallyHidden\` posture (position:fixed, top/left 0, clip-path:inset(50%), overflow:hidden)
+      // sized 100%/100%, i.e. a VIEWPORT-sized rect, so every Slider inside a clipping container minted
+      // "clipped Nnnpx" = viewportRight - containerRight (measured 383px on Presets, #1770).
+      // \`isVisible\` is deliberately NOT hoisted with it: it requires a non-zero rect, and the
+      // zero-size positioned arm below (declared insets as the only evidence) exists precisely for
+      // children it would reject.
+      if (isVisuallyHidden(cchild)) continue;
+      // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), and it must be or
+      // carry a CONTROL — in-flow text spill is text-overflow's.
+      if (!ccPositioned && !(ccControl && isVisible(cchild))) continue;
       var ccRect = cchild.getBoundingClientRect();
       var ccSide = null;
       var ccSpill = CLIP_SPILL_TOLERANCE;
