@@ -134,8 +134,18 @@ pool_run() { # pool_run <name> <cmd...>: take any of the N SHARED slots, else sk
   printf 'pool: all %s host-wide slots busy (%s) — the %s leg was SKIPPED (no output is expected from it)\n' "$slots" "$pooldir" "$name" >>"$diag"
   return 0
 }
-pool_run biome pnpm exec biome check --reporter=concise --diagnostic-level=error \
-  --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
+# THE PER-EDIT LEG RUNS UNDER tooling/biome.edit.jsonc, NOT THE ROOT CONFIG (#1850, 2026-09-06). Three
+# PROJECT-domain rules in biome.json (noImportCycles / noPrivateImports / noUndeclaredDependencies) make
+# every invocation crawl and parse the whole 7,230-file tree to build the module graph — measured 5 s /
+# 25 CPU-s for ONE file on a quiet box, 18 s / 52 CPU-s under load, on EVERY save in EVERY lane. The edit
+# config extends the root (same formatter, same file-local rules — a planted `var` + unused import still
+# red) but turns the project domain off and tells the scanner to ignore the tree
+# (`files.experimentalScannerIgnores`): 84 ms / ~1 CPU-s per file. The three graph rules are the whole-tree
+# `lint:biome` verify stage's, which pays the crawl ONCE per run. `--skip` does NOT avoid the crawl and the
+# daemon (`--use-server`) reported a fresh file as "Checked 0 files" and timed out from a worktree — both
+# were measured and rejected.
+pool_run biome pnpm exec biome check --config-path="$root/tooling/biome.edit.jsonc" --reporter=concise \
+  --diagnostic-level=error --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
 bpid=$!
 
 # dep-cruiser only understands TS/JS source under packages/ — skip configs, scripts, docs, etc. It shares

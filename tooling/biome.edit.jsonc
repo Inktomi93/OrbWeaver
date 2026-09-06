@@ -1,0 +1,22 @@
+// THE EDIT HOOK'S CONFIG (#1850, 2026-09-06). Extends the root biome.json — same formatter, same file-local
+// rules (a planted `var` + unused import still red) — with the PROJECT domain off and the scanner told to
+// ignore the tree. The root's three project-graph rules (noImportCycles / noPrivateImports /
+// noUndeclaredDependencies) make EVERY biome invocation crawl and parse all ~7,230 files to build the module
+// graph: measured 5 s / 25 CPU-s for ONE file on a quiet box, 18 s / 52 CPU-s under load, on every save in
+// every lane. Those rules are the whole-tree `lint:biome` verify stage's, which pays the crawl once per run.
+// `--skip` does not avoid the crawl; the daemon reported a fresh file as "Checked 0 files" and timed out from
+// a worktree — both measured and rejected. Consumed ONLY by .claude/hooks/biome-check.sh via --config-path.
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
+  "extends": ["../biome.json"],
+  "files": {
+    "experimentalScannerIgnores": ["packages", "tooling", "tests", "scripts", "docs", "playwright", ".claude", ".cache", "reports", "node_modules"]
+  },
+  "linter": {
+    "domains": { "project": "none" },
+    "rules": {
+      "suspicious": { "noImportCycles": "off" },
+      "correctness": { "noPrivateImports": "off", "noUndeclaredDependencies": "off" }
+    }
+  }
+}
