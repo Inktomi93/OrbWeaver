@@ -13207,8 +13207,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 378,
-      "bytes": 33601,
-      "sha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
+      "bytes": 33613,
+      "sha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13221,14 +13221,15 @@
       },
       "receipt": {
         "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
-        "assignedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
+        "assignedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b6f54c8a246d49dc7c807298880882d609995702d4cdb7b70f779bfac9552ff8",
-        "verifiedCommit": "c6a6ec8cd44f05f44642e6505de200e7250334f5",
+        "verifiedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
+        "verifiedCommit": "69bd33a23eb353d2122883f149fa8e08e7603641",
         "verifiedAt": "2026-09-05",
         "evidence": [
+          "69bd33a23eb353d2122883f149fa8e08e7603641 re-points the verb citation to chat/verbs/participants.ts after the #1010 rename (train-75 dangling-refs)",
           "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
           "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
           "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
