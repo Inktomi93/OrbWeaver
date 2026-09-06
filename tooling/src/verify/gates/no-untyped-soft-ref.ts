@@ -1,212 +1,166 @@
-// Gate: no-untyped-soft-ref (D24 typed per-type FK tables, D37 audit_logs actor→real-FK fix). A schema
-// column whose JS key ends in `Id` must carry a `.references()` FK — "boundaries are physics,
-// FK-enforced" (D24). A soft ref (an id column with no FK, kept coherent by a hand-rolled sweep) is
-// banned; sanctioned exceptions: `audit_logs.entityId` (must outlive an arbitrary referent of unknown
-// type) and `users.externalId` (an external IdP subject, not an orbweaver-table reference). The allowlist is a two-direction ratchet.
-// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
-// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
-// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
-// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
-// column's DECLARING file and the scan line prints the resolved table/column population.
-import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// Policy: no-untyped-soft-ref (Core-Path-Registry.md D24, with D37) — an id-shaped schema column carries a
+// `.references()` FK. Boundaries are physics: a soft ref (an id column with no FK, kept coherent by a
+// hand-rolled sweep) is the shape D24 outlawed.
+//
+// AUTHORITY IS reviewed-grant, and the SUBJECT IS THE PAIR, not a file. The legacy `SOFT_REF_ALLOWLIST`
+// keyed six `table.column` pairs, each a permanent semantic ruling that the referent is not an
+// orbweaver row at all (an append-only log's polymorphic entity, an external IdP subject, an SDK resume
+// handle, an upstream generation id, two code-tuple catalogue ids). Those are recurring repository
+// PERMISSIONS, so each is one exact `(subject, operation)` row in `lib/reviewed-grants.ts` with `why`
+// and `endsWhen`, keyed on the SQL `table.column` pair exactly as the ledger decided it — a grant keyed
+// on a FILE would move with the schema module and license whatever else landed there.
+//
+// THE STALE ARM IS GONE, AND NOTHING WAS LOST. Legacy re-implemented liveness by hand: a `finalize` hook
+// that compared the allowlist against a per-run `seenSoftPairs` set, guarded on the schema BARREL being
+// loaded so a synthetic fileset could not report all six rows as stale. Central reconciliation owns both
+// halves now — a row consumed zero times after a complete owner run is STALE and a row matching more than
+// one finding is OVER-BROAD — and the guard is structural rather than hand-rolled: the shared
+// `drizzleSchemaFact` refuses unless the whole declared schema population resolved, so an incomplete
+// denominator withholds the policy instead of mis-judging its rows.
+//
+// IDENTITY, NOT SPELLING, on every axis, through the shared fact: the column BUILDER is the resolved
+// `drizzle-orm/sqlite-core` export rather than the leading identifier of a `text("x").a().b()` chain, the
+// FK is the resolved `.references()` operation rather than a `.includes(".references(")` text probe, and
+// the primary-key exemption is the resolved operation rather than `.includes(".primaryKey(")`. The
+// imported/spread columns object (#945) and the shorthand member (#1035) are the fact's own resolution.
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 
-const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
-const TABLE_FN = "sqliteTable";
+const OPERATION = "soft-reference";
 const ID_KEY = /Id$/u;
-const COLUMN_ROOTS = new Set(["text", "integer"]);
+/** The two scalar builders an orbweaver id column is ever declared with. */
+const ID_COLUMN_BUILDERS: ReadonlySet<string> = new Set(["text", "integer"]);
 
-/** `table.column` (JS key) pairs sanctioned to be an id-shaped column with NO FK, each with its cite. */
-export const SOFT_REF_ALLOWLIST: ExemptionTable = {
-  // The append-only audit log must outlive an arbitrary referent of unknown type — the ONE D24 soft ref.
-  "audit_logs.entityId": { why: "D24 the sole sanctioned soft-ref (append-only log, polymorphic referent)" },
-  // An external IdP subject identifier (the SSO `sub`), not a reference to any orbweaver table.
-  "users.externalId": { why: "external IdP subject string, not an orbweaver-table FK" },
-  // The Claude Agent SDK's OWN resume handle (the prompt-cache lineage id the SDK returns) — an
-  // EXTERNAL identifier, not a reference to any orbweaver table (D8/D25).
-  "session_entries.sdkSessionId": { why: "external agent-sdk resume handle, not an orbweaver-table FK" },
-  // The upstream OpenRouter generation handle (`gen-…`) a variant billed under — an EXTERNAL provider id
-  // (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).
-  "message_variants.generationId": { why: "external OpenRouter generation handle, not an FK" },
-  // A rule-preset CATALOGUE id (`RULE_PRESET_IDS`, @orb/contracts/automation) — a member of a closed
-  // CODE tuple, not a row of any table, so there is nothing to FK (interaction-direction spec §3-S3;
-  // B10's rules rider, build record saved-rosters §6.1/§6.2). Coherence is the wire's z.enum at write
-  // + the live-catalogue re-check at read/apply (an orphaned id degrades to a reported skip).
-  "automation_rules.rulePresetId": { why: "rule-preset catalogue id (a code tuple member, D24-external) — mint provenance, not an FK" },
-  "roster_preset_rules.rulePresetId": { why: "rule-preset catalogue id (a code tuple member, D24-external) — the cast's captured rule, not an FK" },
-};
+const MESSAGE =
+  "an id-shaped column (its JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned: " +
+  "boundaries are physics, FK-enforced (D24). Add the FK, or, if the referent is genuinely not an " +
+  "orbweaver row, take an exact reviewed grant naming the table.column pair. See Core-Path-Registry.md D24.";
+const UNREADABLE = MESSAGE;
+const FIX = "add the `.references(() => target.id)` FK; a genuinely non-relational id column takes an exact reviewed grant with its D-cite.";
 
-const SOFT_MESSAGE = (pair: string): string =>
-  `column \`${pair}\` is an id-shaped column with NO \`.references()\` FK — a soft ref is banned ` +
-  "(boundaries are physics, FK-enforced: D24). Add the FK, or if it is legitimately non-relational add a " +
-  "justified allowlist row (tooling/src/verify/gates/no-untyped-soft-ref.ts) with a D-cite. See " +
-  "Core-Path-Registry.md D24.";
-const STALE_MESSAGE = (pair: string): string =>
-  `SOFT_REF_ALLOWLIST names "${pair}" but that column now has a \`.references()\` FK (or no longer ` +
-  "exists) — delete the stale entry (tooling/src/verify/gates/no-untyped-soft-ref.ts). See D24.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+/** Is this an id-shaped column with no FK — the D24 subject? */
+function isSoftReference(column: SchemaColumn): boolean {
+  return ID_KEY.test(column.identity.propertyName) && ID_COLUMN_BUILDERS.has(column.builder.exportedName) && !column.primaryKey && column.foreignKey === null;
 }
 
-/** The root callee identifier of a `text("x").a().b()` builder chain (`text`/`integer`/…). Walks the
- *  call/property-access spine down to its leading identifier. */
-function chainRoot(expr: Node): string {
-  let current = expr;
-  while (current.isKind(SyntaxKind.CallExpression) || current.isKind(SyntaxKind.PropertyAccessExpression)) {
-    current = current.getExpression();
-  }
-  return current.isKind(SyntaxKind.Identifier) ? current.getText() : "";
+/** Every soft reference in the ready schema, as a grant candidate keyed on the SQL `table.column` pair. */
+function softReferences(schema: SchemaModel): readonly ReviewedGrantCandidate[] {
+  return schema.tables.flatMap((table) =>
+    table.columns.filter(isSoftReference).map((column) => {
+      const name = column.identity.propertyName;
+      return {
+        node: column.declaration,
+        subject: `${table.sqlName}.${name}`,
+        operation: OPERATION,
+        token: name,
+        offset: Math.max(column.declaration.getText().indexOf(name), 0),
+      };
+    }),
+  );
 }
 
-interface IdColumn {
-  pair: string;
-  /** The column's DECLARING file — not the table's, once the columns object is imported. */
-  file: string;
-  line: number;
-  hasRef: boolean;
-}
-
-/** Every id-shaped column (key ends `Id`, rooted at text/integer, no `.primaryKey()`) in one table. */
-function idColumns(colsObj: Node, tableSqlName: string): IdColumn[] {
-  const out: IdColumn[] = [];
-  for (const column of columnProperties(colsObj)) {
-    if (!ID_KEY.test(column.name) || column.initializer === undefined) {
-      continue;
-    }
-    if (!COLUMN_ROOTS.has(chainRoot(column.initializer))) {
-      continue;
-    }
-    const chain = column.text;
-    if (chain.includes(".primaryKey(")) {
-      continue;
-    }
-    out.push({
-      pair: `${tableSqlName}.${column.name}`,
-      file: column.node.getSourceFile().getFilePath(),
-      line: column.node.getStartLineNumber(),
-      hasRef: chain.includes(".references("),
-    });
-  }
-  return out;
-}
-
-// STAMP arm (per-node): a `sqliteTable(...)` with an id-shaped column (`*Id`, text/integer, no FK) not on
-// the SOFT_REF_ALLOWLIST → per-site finding at visit. STALE arm (whole-tree): a listed pair whose column
-// gained a FK or vanished → finalize. The stale arm is name-keyed against the LIVE allowlist, so a
-// synthetic tree misfires unless guarded — on (a) project scope and (b) the schema barrel being loaded.
-// The barrel is loaded on every real run, so the ratchet is preserved.
-const SOFT_REF_SCHEMA_BARREL = "packages/db/src/schema/index.ts";
-const seenSoftPairs = new Set<string>();
-
-export const gate: GateDescriptor = {
-  name: "no-untyped-soft-ref",
-  docRow: "Core-Path-Registry.md D24 (D37)",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "an id-shaped column (JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned (boundaries are physics, FK-enforced: D24). Add the FK, or if it is legitimately non-relational add a justified allowlist row in tooling/src/verify/gates/no-untyped-soft-ref.ts with a D-cite. See Core-Path-Registry.md D24.",
-  fix: "add the `.references(() => target.id)` FK, or add a D-cited row to SOFT_REF_ALLOWLIST if the column is legitimately non-relational.",
-  scanRoot: (p) => SCHEMA_DIR.test(`/${p}`),
-  kinds: [SyntaxKind.CallExpression],
-  begin: () => {
-    seenSoftPairs.clear();
-  },
-  visit: (node, _sf, ctx) => {
-    if (!node.isKind(SyntaxKind.CallExpression)) {
-      return;
-    }
-    const callee = node.getExpression();
-    if (!(callee.isKind(SyntaxKind.Identifier) && callee.getText() === TABLE_FN)) {
-      return;
-    }
-    const [nameArg, colsArg] = node.getArguments();
-    if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral) || colsArg === undefined) {
-      return;
-    }
-    for (const col of idColumns(colsArg, nameArg.getLiteralText())) {
-      const rel = relPath(ctx.root, col.file);
-      if (col.hasRef) {
-        continue;
-      }
-      seenSoftPairs.add(col.pair);
-      if (!(col.pair in SOFT_REF_ALLOWLIST)) {
-        ctx.report({
-          file: rel,
-          line: col.line,
-          column: 0,
-          message: SOFT_MESSAGE(col.pair),
-          token: `soft-ref ${col.pair}`,
-        });
-      }
-    }
-  },
-  finalize: (ctx) => {
-    ctx.scan(schemaScan(ctx.project));
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SOFT_REF_SCHEMA_BARREL)) {
-      return; // not the real full schema tree — the name-keyed stale arm would misfire (§4.4)
-    }
-    for (const pair of Object.keys(SOFT_REF_ALLOWLIST)) {
-      if (!seenSoftPairs.has(pair)) {
-        ctx.report({
-          file: "packages/db/src/schema",
-          line: 0,
-          column: 0,
-          message: STALE_MESSAGE(pair),
-        });
-      }
-    }
-  },
+export const gate = defineGate({
+  id: "no-untyped-soft-ref",
+  family: "drizzle-schema",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: DRIZZLE_SCHEMA_POPULATION,
+  analysis: "types",
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    evaluate: (): void => {
+      const fact = ctx.fact(drizzleSchemaFact).schema();
+      recordReadySchemaFact(ctx, fact);
+      reportReviewedGrantCandidates(ctx.report, softReferences(fact.value), { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+    },
+  }),
   mustFlag: [
     {
-      files: 'const widgetId = text("widget_id");\nexport const t = sqliteTable("t", { widgetId });\n',
-      at: "packages/db/src/schema/x.ts",
-      expect: { count: 1, messageIncludes: "soft ref" },
-      why: "THE #1035 SHORTHAND RED: an id-shaped column with no FK, declared as a shorthand member — it has no allowlist row, so nothing else could ever have exposed the drop",
-    },
-    {
+      mode: "types",
       files: {
-        "packages/db/src/schema/x-columns.ts": 'export const tColumns = { widgetId: text("widget_id") };\n',
-        "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("t", tColumns);\n',
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: text("widget_id") });\n',
       },
-      expect: { count: 1, messageIncludes: "soft ref" },
-      why: "THE #945 IMPORTED-COLUMNS RED: an id-shaped column with no FK, reached through an imported columns object. It has no allowlist row, so the stale arm could never have exposed the omission — the miss was permanently silent",
+      expect: { count: 1, token: "widgetId", messageIncludes: "soft ref is banned" },
+      why: "the founding shape — a `*Id` text column with no `.references()` FK and no grant row",
     },
     {
-      files: 'export const t = sqliteTable("t", { widgetId: text("widget_id") });\n',
-      at: "packages/db/src/schema/x.ts",
-      expect: { messageIncludes: "soft ref is banned" },
-      why: "a `*Id` text column with no .references() FK, not on the allowlist — a banned soft ref (D24)",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst widgetId = text("widget_id");\nexport const t = sqliteTable("t", { widgetId });\n',
+      },
+      expect: { count: 1, token: "widgetId" },
+      why: "THE #1035 SHORTHAND RED: the same column written as a shorthand member — the keystroke that used to empty this gate's subject",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x-columns.ts": 'import { text } from "drizzle-orm/sqlite-core";\nexport const tColumns = { widgetId: text("widget_id") };\n',
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable } from "drizzle-orm/sqlite-core";\nimport { tColumns } from "./x-columns.ts";\nexport const t = sqliteTable("t", tColumns);\n',
+      },
+      expect: { count: 1, token: "widgetId" },
+      why: "THE #945 IMPORTED-COLUMNS RED: the obligation reached through an imported columns object, anchored on the column's DECLARING file",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const audit = sqliteTable("audit_logs", { entityId: text("entity_id") });\n',
+      },
+      expect: { count: 1, messageIncludes: "soft ref is banned" },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the sole D24 sanctioned pair reds like any other soft ref and is licensed by its exact grant row, so a SECOND soft ref on the same table is a finding until someone reviews it",
     },
   ],
-  // NOTE: the SOFT_REF_ALLOWLIST stale/ratchet arm (a listed pair that gains an FK or vanishes) is
-  // `fileLoaded`-guarded to the real schema barrel — its coverage moves to the live `pnpm check:structure`
-  // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
     {
-      files: 'const widgetId = text("widget_id").references(() => w.id);\nexport const t = sqliteTable("t", { widgetId });\n',
-      at: "packages/db/src/schema/x.ts",
-      why: "the SHORTHAND's green twin: the resolved column carries its FK — the member kind is not the verdict",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const w = sqliteTable("w", { id: text("id").primaryKey() });\nexport const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
+      },
+      why: "the fix: the id column carries its FK, resolved as a Drizzle `.references()` operation rather than found by a text probe",
     },
     {
-      files: 'export const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
-      at: "packages/db/src/schema/y.ts",
-      why: "the `*Id` column carries a .references() FK — a typed ref, passes",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const w = sqliteTable("w", { id: text("id").primaryKey() });\nconst widgetId = text("widget_id").references(() => w.id);\nexport const t = sqliteTable("t", { widgetId });\n',
+      },
+      why: "the SHORTHAND's green twin: resolving the member kind widens the obligation set, never the accusation",
     },
     {
-      // an allowlisted no-FK id column (audit_logs.entityId — the sole D24 soft ref) passes.
-      files: 'export const t = sqliteTable("audit_logs", { entityId: text("entity_id") });\n',
-      at: "packages/db/src/schema/audit.ts",
-      why: "an allowlisted no-FK id column (audit_logs.entityId, the sole D24 soft ref) passes",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
+      },
+      why: 'a PRIMARY KEY id and a non-id column are not soft refs — the pk exemption is the resolved operation, not a `.includes(".primaryKey(")` text probe',
     },
     {
-      // a primary-key id + a non-id column are not soft refs.
-      files: 'export const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
-      at: "packages/db/src/schema/z.ts",
-      why: "a primary-key id and a non-id column are not id-shaped soft refs — passes",
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, blob } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: blob("widget_id") });\n',
+      },
+      why: "DECLARED NARROWING: an id-named column built by something other than `text`/`integer` is not the scalar-id shape D24 rules, and the builder is proven by its drizzle export rather than by the leading identifier of the chain",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widget: text("widget") });\n',
+      },
+      why: "a column whose key does not end in `Id` is outside the subject — the pair identity is the JS key, exactly as D24 states it",
     },
   ],
-};
+});

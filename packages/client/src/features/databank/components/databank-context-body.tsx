@@ -52,6 +52,7 @@ export function DatabankContextBody(): ReactElement {
     // thing you do not have yet (and sits over the Add that fixes it) and CONTENT's is the section's own
     // welcome, while a 320px CONTEXT rail's no-selection arm is a CAPTION for a panel, not a hero — its
     // title and sentence carry it. The other two keep theirs; the repetition is what goes.
+    // @orb-waive empty-state-has-action(EmptyState): the NO-SELECTION arm: a `single` context body is mounted unconditionally and must render the section's own context.empty copy itself, while the next step — picking a row — lives in the sibling LIST pane, which is on screen whenever this is (the config-context-body precedent). Ends if the context body stops mounting without a member.
     return <EmptyState description={DATABANK_CONTEXT_EMPTY.description} title={DATABANK_CONTEXT_EMPTY.title} />;
   }
   return (
@@ -111,6 +112,7 @@ function DocumentGone(): ReactElement {
   // "from the list", never "on the left" (side-eye 2026-08-19 N-10): the LIST pane is a docked column, a
   // slide-over or collapsed, and on a phone the panes stack — the direction is wrong more often than right.
   return (
+    // @orb-waive empty-state-has-action(EmptyState): the GONE arm — the open document was deleted while its activation panel was up. The next step is picking another row in the sibling roster, which is on screen; the world-info/tag/regex context twins are the same species. Ends if the context pane can be shown without its sibling roster.
     <EmptyState description="This document was deleted. Pick another from the list." icon={<Icon icon={FileText} size="lg" />} title="Document not found" />
   );
 }

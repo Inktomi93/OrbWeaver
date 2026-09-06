@@ -1,175 +1,166 @@
-// Gate: no-raw-interactive-intrinsics (design-enforcement.md §3.2, D62) — a raw `<button>`, `<input>`,
-// `<select>`, `<textarea>`, or an `<a href>` in packages/client/src/features/** (app-shell exempt) is
-// banned regardless of className — interactivity must come from an @orb/ui primitive. RED: a `.tsx`
-// file whose JSX opens a BANNED_TAG, or an `<a>` carrying `href` (an `<a>` with no `href` stays legal).
-// BURN_DOWN is a both-directions ratchet (no-interactive-role-in-features precedent).
+// Policy: no-raw-interactive-intrinsics (design-enforcement.md §3.2, D62) — interactivity in a feature
+// comes from an `@orb/ui` primitive. A hand-rolled `<button>`, `<input>`, `<select>`, `<textarea>` or
+// `<a href>` re-implements focus rings, disabled semantics, sizing, density and touch floors by hand, and
+// does it differently every time.
 //
-// SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): the shell tier is SCANNED and exempted by a cited
-// row plus the shared RENAME TRIPWIRE, not scoped out of scanRoot. The `.tsx` clause stays a scope decision
-// (a file KIND, not a home).
-import type { JsxOpeningElement, JsxSelfClosingElement, Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
-import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+// AUTHORITY IS reviewed-grant, which is the 2026-08-22 SCAN-AND-ALLOWLIST ruling carried forward rather
+// than reversed: the shell tier is SCANNED and exempted by a cited row plus a rename tripwire, never
+// scoped out of the population. Under the final runtime the row is an exact `(subject, operation)` grant
+// in `lib/reviewed-grants.ts` and the tripwire is central liveness — a home that stops hosting a raw
+// intrinsic reds at its unused row, and a NEW shell file hosting one is a finding until someone reviews
+// it. That is strictly finer than the legacy DIRECTORY row, which licensed every current and future file
+// under `features/app-shell/`.
+//
+// THE EMPTY `BURN_DOWN` TABLE IS DELETED, per the exception census's delete list: all three original rows
+// (persona avatar, persona-settings backup restore, character portrait) migrated to `@orb/ui/file-trigger`
+// and the table has been empty since. An empty table plus its stale-arm sweep is machinery guarding
+// nothing; central grant liveness is the replacement for both.
+//
+// NO IDENTITY READER, deliberately. The subject is a JSX INTRINSIC — a lowercase tag is the DOM element by
+// language rule, and it cannot be aliased, re-exported, or shadowed by a project component (a component
+// tag must be capitalised or a member expression). The identity IS the spelling here, which is why this
+// policy resolves nothing and says so rather than performing a resolution that could only ever agree.
+//
+// DECLARED NARROWING (its own mustPass rows): an `<a>` with no `href` is an anchor TARGET, not a control.
+import type { JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
 const BANNED_TAGS: ReadonlySet<string> = new Set(["button", "input", "select", "textarea"]);
-
-/** Current offenders → their fix owner/reason. See the no-interactive-role-in-features precedent for the
- *  ratchet contract (both arms). Empty — all 3 original BURN_DOWN rows (persona avatar, persona-settings
- *  backup restore, character portrait) migrated to `@orb/ui/file-trigger` (rollup-audit C3). */
-const BURN_DOWN: ExemptionTable = {};
-
-/** The ONE feature dir that may host a raw interactive intrinsic. */
-const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/client/src/features/app-shell/": {
-    why: "the SHELL tier — it composes the app frame below the primitive layer (design-enforcement.md §3.2, D62 exempts it). Ends when the shell moves: the rename tripwire reds the row at its dead path instead of exempting a directory that no longer exists",
-  },
-};
+const ANCHOR = "a";
+const HREF = "href";
+const OPERATION = "raw-interactive-intrinsic";
 
 const MESSAGE =
-  "raw interactive intrinsic in a feature (design-enforcement.md §3.2, D62) — interactivity in " +
-  "features/** must come from an @orb/ui primitive (Button, TextField, Select, TextArea, Link, …), " +
-  "never a hand-rolled <button>/<input>/<select>/<textarea>/<a href>.";
+  "a raw interactive intrinsic in a feature (design-enforcement.md §3.2, D62) — interactivity in " +
+  "features/** comes from an @orb/ui primitive (Button, TextField, Select, TextArea, Link, …), never a " +
+  "hand-rolled <button>/<input>/<select>/<textarea>/<a href>. The shell tier composes the app frame below " +
+  "the primitive layer and is licensed one FILE at a time by an exact reviewed grant.";
+const UNREADABLE = MESSAGE;
+const FIX = "reach for the matching @orb/ui primitive (Button, TextField, Select, TextArea, Link); a shell-tier home takes an exact reviewed grant.";
 
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "BURN_DOWN entry has NO raw interactive intrinsic any more — the offender was reworked to a " +
-  "primitive (ratchet down): delete the stale row in no-raw-interactive-intrinsics.ts: ";
-
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
+/** The JSX tag delivered to the visitor, in either spelling. */
+function jsxElement(node: MorphNode): JsxOpeningElement | JsxSelfClosingElement | undefined {
+  return Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node) ? node : undefined;
 }
 
-/** Is this JSX opening/self-closing element a banned raw intrinsic (button/input/select/textarea, or an
- *  `<a>` carrying `href`)? */
-function isBannedIntrinsic(el: JsxOpeningElement | JsxSelfClosingElement): boolean {
-  const tag = el.getTagNameNode().getText();
+/** The banned intrinsic this tag opens, or undefined. An `<a>` counts only when it carries `href`. */
+function bannedTag(element: JsxOpeningElement | JsxSelfClosingElement): string | undefined {
+  const tag = element.getTagNameNode().getText();
   if (BANNED_TAGS.has(tag)) {
-    return true;
+    return tag;
   }
-  if (tag !== "a") {
-    return false;
+  if (tag !== ANCHOR) {
+    return;
   }
-  return el.getAttributes().some((attr) => attr.getKind() === SyntaxKind.JsxAttribute && attr.getFirstChild()?.getText() === "href");
+  const interactive = element.getAttributes().some((attribute) => Node.isJsxAttribute(attribute) && attribute.getNameNode().getText() === HREF);
+  return interactive ? ANCHOR : undefined;
 }
 
-// A banned raw intrinsic (button/input/select/textarea, or <a href>) in features/** (excluding
-// app-shell). The empty BURN_DOWN's stale arm is finalize-guarded to project scope.
-const GATE_SELF = "tooling/src/verify/gates/no-raw-interactive-intrinsics.ts";
-const passSeenBurnDown = new Set<string>();
-
-/** The banned tag of a JSX element node, or undefined (a trailing return expression — no fall-off-end). */
-function bannedTagOf(node: Node): string | undefined {
-  const el = node.asKind(SyntaxKind.JsxOpeningElement) ?? node.asKind(SyntaxKind.JsxSelfClosingElement);
-  return el !== undefined && isBannedIntrinsic(el) ? el.getTagNameNode().getText() : undefined;
-}
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
- *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
-
-export const gate: GateDescriptor = {
-  name: "no-raw-interactive-intrinsics",
-  docRow: "design-enforcement.md §3.2 (D62)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-raw-interactive-intrinsics",
+  family: "no-raw-interactive-intrinsics",
+  authority: "reviewed-grant",
+  severity: "error",
+  // The shell is SCANNED, not scoped out (the 2026-08-22 ruling): nothing is subtracted, and the one home
+  // that hosts a raw control is a grant row. `.tsx` stays a scope decision — a file KIND, not a home.
+  population: { in: ["@client"], under: ["packages/client/src/features/**"], ext: ["tsx"] },
+  analysis: "syntax",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "reach for the matching @orb/ui primitive (Button, TextField, Select, TextArea, Link) — never a hand-rolled <button>/<input>/<select>/<textarea>/<a href>.",
-  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
-  kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
-  begin: () => {
-    passSeenBurnDown.clear();
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
+          visit: (node, sourceFile): void => {
+            const element = jsxElement(node);
+            const tag = element === undefined ? undefined : bannedTag(element);
+            if (element === undefined || tag === undefined) {
+              return;
+            }
+            candidates.push({
+              node: element.getTagNameNode(),
+              subject: ctx.relativePath(sourceFile),
+              operation: `${OPERATION}:${tag}`,
+              token: tag,
+              offset: 0,
+            });
+          },
+        },
+      ],
+      evaluate: (): void => {
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+      },
+    };
   },
-  visit: (node, sf, ctx) => {
-    const tag = bannedTagOf(node);
-    if (tag === undefined) {
-      return;
-    }
-    const rel = clientRel(sf.getFilePath());
-    if (rel in BURN_DOWN) {
-      passSeenBurnDown.add(rel);
-      return;
-    }
-    if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
-      return;
-    }
-    ctx.report(node, { token: `<${tag}>`, offset: 0 });
-  },
-  finalize: (ctx) => {
-    reportUnresolvedHomes(ctx, SANCTIONED_HOMES, { gateSelf: GATE_SELF, what: "shell tier" });
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return;
-    }
-    for (const rel of Object.keys(BURN_DOWN)) {
-      if (!passSeenBurnDown.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/no-raw-interactive-intrinsics.ts`,
-        });
-      }
-    }
-  },
-  // NOTE: the BURN_DOWN ratchet/stale arms are guarded to the real full tree — their coverage moves to
-  // the live `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
-      files: 'export const G = <button type="button">Go</button>;\n',
-      at: "packages/client/src/features/demo/thing.tsx",
-      why: "a raw <button> in a feature — interactivity must come from an @orb/ui primitive",
+      mode: "source",
+      files: { "packages/client/src/features/demo/thing.tsx": 'export const G = (): unknown => <button type="button">Go</button>;\n' },
+      expect: { count: 1, token: "button" },
+      why: "the founding shape — a hand-rolled control in a feature, which must be an @orb/ui Button",
     },
     {
-      files: 'export const G = <a href="/x">go</a>;\n',
-      at: "packages/client/src/features/demo/link.tsx",
-      why: "an <a> carrying href is interactive — must be an @orb/ui Link",
+      mode: "source",
+      files: { "packages/client/src/features/demo/link.tsx": 'export const G = (): unknown => <a href="/x">go</a>;\n' },
+      expect: { count: 1, token: "a" },
+      why: "an `<a>` carrying href is a control — it must be an @orb/ui Link",
     },
     {
-      files: 'export const G = <input type="text" />;\n',
-      at: "packages/client/src/features/demo/input.tsx",
-      why: "a raw <input> in a feature — must be an @orb/ui TextField",
+      mode: "source",
+      files: { "packages/client/src/features/demo/input.tsx": 'export const G = (): unknown => <input type="text" />;\n' },
+      expect: { count: 1, token: "input" },
+      why: "a raw <input> — an @orb/ui TextField",
     },
     {
-      files: "export const G = <select><option>a</option></select>;\n",
-      at: "packages/client/src/features/demo/select.tsx",
-      why: "a raw <select> in a feature — must be an @orb/ui Select",
+      mode: "source",
+      files: { "packages/client/src/features/demo/select.tsx": "export const G = (): unknown => (\n  <select>\n    <option>a</option>\n  </select>\n);\n" },
+      expect: { count: 1, token: "select" },
+      why: "a raw <select> — an @orb/ui Select",
     },
     {
-      files: "export const G = <textarea />;\n",
-      at: "packages/client/src/features/demo/textarea.tsx",
-      why: "a raw <textarea> in a feature — must be an @orb/ui TextArea",
+      mode: "source",
+      files: { "packages/client/src/features/demo/textarea.tsx": "export const G = (): unknown => <textarea />;\n" },
+      expect: { count: 1, token: "textarea" },
+      why: "a raw <textarea> — an @orb/ui TextArea",
     },
     {
-      files: {
-        [HOME_SWEEP_ANCHOR]: "export const schema = {};\n",
-        "packages/client/src/features/demo/ok.tsx": "export const G = null;\n",
-      },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
-      why: "THE RENAME TRIPWIRE (§4.4a mode B): the shared anchor is loaded but features/app-shell/ resolves to no file — the shell moved, which the old scanRoot exclusion could not see",
+      mode: "source",
+      files: { "packages/client/src/features/app-shell/surfaces/app-shell.tsx": 'export const G = (): unknown => <button type="button">Shell</button>;\n' },
+      expect: { count: 1, token: "button" },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the shell tier is SCANNED (the 2026-08-22 ruling) and reds like any other feature file, licensed by its exact grant row — so a SECOND shell file hosting a raw control is a finding until someone reviews it, which the legacy directory row could not express",
     },
   ],
   mustPass: [
     {
-      files: "export const G = <a>anchor target</a>;\n",
-      at: "packages/client/src/features/demo/anchor.tsx",
-      why: "a non-interactive <a> with no href (an anchor-name target) stays legal",
+      mode: "source",
+      files: { "packages/client/src/features/demo/anchor.tsx": "export const G = (): unknown => <a>anchor target</a>;\n" },
+      why: "THE DECLARED NARROWING: a non-interactive `<a>` with no href is an anchor TARGET, not a control",
     },
     {
-      files: 'export const G = <a name="top">top</a>;\n',
-      at: "packages/client/src/features/demo/anchor-name.tsx",
-      why: "an <a name> with no href is a non-interactive anchor target — stays legal",
+      mode: "source",
+      files: { "packages/client/src/features/demo/anchor-name.tsx": 'export const G = (): unknown => <a name="top">top</a>;\n' },
+      why: "an `<a name>` with no href is the same target species — still not a control",
     },
     {
-      files: 'export const G = <button type="button">Shell</button>;\n',
-      at: "packages/client/src/features/app-shell/thing.tsx",
-      why: "THE ALLOWLIST ITSELF: app-shell is the shell tier — now SCANNED, and a raw button there passes only because a cited SANCTIONED_HOMES row covers it",
+      mode: "source",
+      files: { "packages/client/src/features/demo/primitive.tsx": "export const G = (): unknown => <Button>Go</Button>;\n" },
+      why: "the fix: an @orb/ui primitive. A CAPITALISED tag is a component by language rule, never an intrinsic — which is why this policy resolves no identity",
     },
     {
-      files: "export const G = <button>Go</button>;\n",
-      at: "packages/ui/src/primitives/button/button.tsx",
-      why: "scope: outside features/** a ui/ primitive legally hosts the raw element — not scanned, passes",
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/anchor.tsx": "export const G = (): unknown => null;\n",
+        "packages/ui/src/primitives/button/button.tsx": 'export const B = (): unknown => <button type="button">Go</button>;\n',
+      },
+      why: "SCOPE: outside `features/**` a ui primitive legally hosts the raw element — that is where the one implementation belongs",
     },
   ],
-};
+});

@@ -10,9 +10,7 @@
 // touches no process.env. `foundation/env` owns the ONE process.env read and calls this with its parsed floor.
 
 export const ENGINES_POSTURES = ["off", "adopt-only", "adopt-or-start"] as const;
-// @orb-gate-ignore no-inline-types: the §7.5 keystone — this derived type MUST co-locate with its `as const`
-// tuple, and ENGINES_POSTURES is a server-foundation env axis (not a cross-boundary contract) — its one home
-// is here beside the tuple it derives from; hoisting the alias away from its source would violate §7.5.
+// @orb-waive no-inline-types(EnginesPosture): the §7.5 keystone — this derived type MUST co-locate with its `as const` tuple, and ENGINES_POSTURES is a server-foundation env axis (not a cross-boundary contract), so its one home is here beside the tuple it derives from; hoisting the alias away from its source would violate §7.5. Ends when the posture axis becomes a cross-boundary contract and the tuple moves to @orb/contracts with it.
 export type EnginesPosture = (typeof ENGINES_POSTURES)[number];
 
 /** The deprecated inputs the resolver falls back to when ENGINES_POSTURE is unset. `vllmDisabled` is the

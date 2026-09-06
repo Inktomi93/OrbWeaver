@@ -378,9 +378,6 @@ function writeFixtures(): void {
   // component-size-ui: the @orb/ui twin (activated 2026-07-17) — a ui source over the 450-line cap,
   // in its own __g_ dir at the src root (the __g_motion/__g_defprops placement precedent).
   fx("packages/ui/src/__g_oversize/__g_oversize.ts", "// pad line\n".repeat(451));
-  // persistence-boundary: raw browser storage in a feature file (outside the two persist factories
-  // + the boot/dev allowlist).
-  fx("packages/client/src/features/__g_persistb/lib/__g_flag.ts", 'export const v = globalThis.localStorage.getItem("k");\n');
   // no-interactive-role-in-features: a feature file forging an interactive widget via a layout-kit
   // role= passthrough (NOT in BURN_DOWN → fires). `Row` is a local `declare` — the gate matches the JSX
   // `role="button"` attribute by AST, so the fixture parses standalone without importing @orb/ui.
@@ -388,10 +385,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_role/components/__g_role.tsx",
     'declare function Row(props: { role?: string; children?: unknown }): unknown;\nexport const G = <Row role="button">hi</Row>;\n',
   );
-  // no-raw-interactive-intrinsics: a raw <input> in a feature file (not app-shell, not in BURN_DOWN).
-  fx("packages/client/src/features/__g_rawintr/components/__g_rawintr.tsx", 'export const G = <input type="text" />;\n');
-  // empty-state-has-action: an <EmptyState> with no `action` prop, in a file not in the ALLOWLIST.
-  fx("packages/client/src/features/__g_emptyact/surfaces/__g_emptyact.tsx", 'export const G = <EmptyState title="Nothing here" />;\n');
   // no-arbitrary-tw-values: a scoped-utility (w-) arbitrary-value class, off-token, not in ALLOWLIST.
   fx("packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx", 'export const G = <div className="w-[137px]" />;\n');
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
@@ -556,11 +549,6 @@ function writeFixtures(): void {
     // biome-ignore lint/nursery/noUnnecessaryTemplateExpression: The function name is assembled so the literal isn't present in THIS file's source.
     `export function ${"gNoFocus"}Surface() {\n  return <div>unfocused</div>;\n}\n`,
   );
-  // registry-assembly-at-door-only: a createRegistry( call in a feature file — outside the door.
-  fx(
-    "packages/client/src/features/__g_regdoor/lib/__g_regdoor.ts",
-    'declare function createRegistry<T>(name: string, ids: readonly string[], defs: T): unknown;\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-  );
   // placeholder-copy-registry: a PAIR of co-located `*-section` files sharing one (title, description)
   // placeholder — the cross-file distinctness "SAME" arm. The `-section` path shape (SECTION_FILE_RE)
   // matches ANY owner folder, so `__g_*` folders trip the real-tree scan with zero collision against the
@@ -633,13 +621,8 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_ownerupserts/persistence/__g_ownerupserts.ts",
     'import { characters } from "@orb/db";\nexport async function gPut(db: D, row: R) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.id, set: { name: row.name } });\n}\n',
   );
-  // untrusted-regex-safe-exec: the canonical composition property wired to native `.test`, not the
-  // node:vm watchdog factory. The gate deliberately ignores every other dynamic RegExp site.
-  fx("packages/server/src/entry/compose/__g_chat.ts", "export const gCtx = { testRegexKey: (regex: RegExp, value: string): boolean => regex.test(value) };\n");
   // public-route-body-cap: a mutating non-tRPC route that parses the body with no cap middleware.
   fx("packages/server/src/entry/http/__g_bodycap.ts", 'app.post("/api/__g", async (c) => c.json(await c.req.json()));\n');
-  // plugin-dump-guard: a guest membrane value materialized outside the one guard-before-dump helper.
-  fx("packages/server/src/infra/plugin-host/__g_membrane.ts", "export function gDump(ctx: Ctx, handle: Handle): unknown {\n  return ctx.dump(handle);\n}\n");
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
   // no caller/scope param and no CALLER_FREE_OPS row.
   fx(
@@ -658,15 +641,8 @@ function writeFixtures(): void {
   );
   // caught-failure-ownership: a reasonless empty catch is syntactically handled and names no runtime owner.
   fx("packages/server/src/domain/__g_caught/__g_caught.ts", "export function gCaught(): void {\n  try { risky(); } catch {}\n}\n");
-  // no-untyped-soft-ref: a `*Id` column with NO `.references()` FK (not in SOFT_REF_ALLOWLIST).
-  fx(
-    "packages/db/src/schema/__g_softref.ts",
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gSoftref = sqliteTable("__g_softref", { fooId: text("foo_id") });\n',
-  );
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
   fx("packages/server/src/infra/auth/__g_userid.ts", "export function gAuth(userId: string): string {\n  return userId;\n}\n");
-  // no-raw-egress: a bare `fetch(` in packages/server/src outside the sanctioned provider-egress zones.
-  fx("packages/server/src/domain/__g_egress.ts", 'export async function gFetch(): Promise<unknown> {\n  return fetch("http://example.test");\n}\n');
   // contract-verb-presence: a __g_ domain whose contract/service.ts declares a verb on a *Service interface
   // with NO test in tests/server/domain/__g_verbpres/ (the domain tree is empty → the verb is uncovered).
   fx("packages/server/src/domain/__g_verbpres/contract/service.ts", "export interface GVerbPresService {\n  readonly gUntested: () => Promise<void>;\n}\n");
@@ -789,8 +765,6 @@ function writeFixtures(): void {
   );
   // no-if-is-group: an isGroup boolean branch (solo is the degenerate group — D16).
   fx(`${D}/__g_isgroup/x.ts`, "export function f(isGroup: boolean): number {\n  if (isGroup) {\n    return 1;\n  }\n  return 0;\n}\n");
-  // no-inline-types: an exported interface in a domain verb (types live in contract/).
-  fx(`${D}/__g_inltypes/verbs/__g_v.ts`, "export interface Leak {\n  a: number;\n}\n");
   // no-layout-context-props: a layout-context boolean prop (compact) on JSX (D42).
   fx("packages/client/src/features/__g_layoutprops/components/__g_c.tsx", "export const G = <EntityCard compact={true} />;\n");
   // no-loose-id-cast: an `as never` type-check launder.
@@ -886,14 +860,6 @@ function writeFixtures(): void {
   // The gate's ALLOWLIST stale arm keys on the REAL-TREE anchor + real files, which this fixture does not
   // touch, so the added finding is the ARM-B bite alone.
   fx(`${D}/__g_cdnr/contract/probe-row.ts`, "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n");
-  // zod-modern-spellings: ARM A (`.strict()` on a `z.object(…)` — respell as `z.strictObject`). Its other
-  // three arms (all-literal union, hand-flattened `error.issues`, the `z.enum(["true","false"])` env
-  // hand-roll) fire on the same fixture would be redundant here — one arm proves the gate is wired into the
-  // live pass, which is all this anti-drift suite claims; every arm's own bite is proven per-arm by
-  // gate-conformance's mustFlag rows. The gate scans `packages/**` only, so writing the shape literally in
-  // THIS file cannot self-trip it, and the fixture leaves the real-tree anchor (foundation/env/index.ts)
-  // untouched so its ISSUES_ALLOWLIST ratchet keeps judging the six real join sites.
-  fx("packages/contracts/src/__g_zodspell/index.ts", 'import { z } from "zod";\nexport const gZodSpell = z.object({ a: z.string() }).strict();\n');
   // gate-modernization ARM A: a module in the gate corpus that exports no `gate` descriptor. The loader
   // SKIPS such a file (`mod.gate === undefined ⇒ continue`), so it enforces nothing forever with no signal
   // — the exact hole arm A closes. This is the ONE arm a throwaway file can drive: arm B needs a real

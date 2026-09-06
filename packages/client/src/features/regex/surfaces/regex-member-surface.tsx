@@ -47,6 +47,7 @@ export function RegexMemberSurface({ view }: { readonly view: CollectionMemberVi
     // Reachable for real: another device deleted this script while it was open here (the regex verbs are
     // bus-driven, so the list refetches under the editor). The EXIT rides along (#1747): the drill row is
     // this surface's, so the gone-member arm owes it too or a drilled reader is stranded.
+    // @orb-waive empty-state-has-action(EmptyState): the regex member editor's GONE arm — the open script was deleted on another device (the regex verbs are bus-driven, so the list refetches under the editor). The next step is picking another row in the sibling roster, which is on screen. Ends if this surface can be reached without its sibling roster.
     return (
       <Stack gap="block">
         <MemberDrillHeader back={back} />

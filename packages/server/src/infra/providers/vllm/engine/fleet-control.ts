@@ -52,9 +52,7 @@ export function clearHold(runDir: string): void {
 
 // ── the wake DECISION (shared by the CLI + the client auto-wake gate) ────────────────────────────────────
 
-// @orb-gate-ignore no-inline-types: an engine-internal discriminated RESULT verdict — a union (not an
-// interface), co-located with its decider `decideWake` below exactly like this file's sibling result
-// interfaces (AutoSleepState/AutoSleepDecision); the engine dir has no cross-boundary contract home.
+// @orb-waive no-inline-types(WakeDecision): an engine-internal discriminated RESULT verdict — a union (not an interface), co-located with its decider `decideWake` below exactly like this file's sibling result interfaces (AutoSleepState/AutoSleepDecision); the engine dir has no cross-boundary contract home. Ends when the engine subsystem gains a contract/ slot, or this verdict crosses a boundary and moves into it.
 export type WakeDecision = { readonly ok: true } | { readonly ok: false; readonly reason: string; readonly heldMarker: boolean };
 
 /** May this engine wake? Two gates, in order: (1) the HOLD marker refuses even with free VRAM (intent ahead

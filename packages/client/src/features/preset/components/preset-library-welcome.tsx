@@ -88,6 +88,7 @@ export function PresetLibraryWelcome(): ReactElement {
   const teaching = filteredToNothing ? NO_MATCHES : TEACHING;
   return (
     <Stack align="center" className="h-full min-h-0 justify-center">
+      {/* @orb-waive empty-state-has-action(EmptyState): the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState
         description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
         icon={<Icon icon={SlidersHorizontal} size="lg" />}

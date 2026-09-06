@@ -92,8 +92,7 @@ export function resolveOwnerFallbackCredential(input: OwnerFallbackCredentialInp
 /** The composed verdict. Keys on RETENTION × PERIMETER — the credential planes are reported as facts
  *  beside it, because the door has a second credential (an admin session) that no env knob can remove. */
 export const DIAGNOSTICS_EXPOSURES = ["minimal", "retaining", "retaining-open"] as const;
-// @orb-gate-ignore no-inline-types: the §7.5 keystone — this derived type MUST co-locate with its `as const`
-// tuple, and the exposure axis is a server-foundation env axis, not a cross-boundary contract.
+// @orb-waive no-inline-types(DiagnosticsExposure): the §7.5 keystone — this derived type MUST co-locate with its `as const` tuple, and the exposure axis is a server-foundation env axis, not a cross-boundary contract. Ends when the exposure axis becomes a cross-boundary contract and the tuple moves to @orb/contracts with it.
 export type DiagnosticsExposure = (typeof DIAGNOSTICS_EXPOSURES)[number];
 
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
