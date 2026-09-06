@@ -2023,7 +2023,9 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
   await expect(region).toHaveAttribute("tabindex", "0");
 });
 
-// ── #1661: THE PHONE'S CHROME BUDGET (a RATCHET, not a defect proof) ────────────────────────────────
+// ── #1661: THE SURFACE'S OWN CHROME BUDGET AT A COARSE VIEWPORT (a RATCHET, not a defect proof; NOT the
+// phone regime — #1721 renamed it after this fence's name read to a cold agent as a phone-screen budget
+// it structurally cannot measure) ──────────────────────────────────────────────────────────────────────
 // MEASURED on an isolated stage at HEAD (`snap / --goto characters --isolated --ref 9b0623869 --mobile
 // --idle`, 430x740 DPR3 `pointer:coarse`): the first character row starts at y=280 of a 740px phone —
 // 37.8% of the screen spent before the thing the reader came for. The 2026-09-02 side-eye measured ~262px
@@ -2078,22 +2080,24 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
 // `tests/client/features/app-shell/surfaces/app-shell.ct.tsx`, "#1669 the Characters plane's phone chrome" -
 // the real shell on the real registry at 320/390 coarse, 336px before the change and 288px after. Lowering
 // THIS constant to that number would be a fence over a state this mount cannot reach.
-const PHONE_CHROME_ARMS = [
+/** Coarse-pointer viewport widths this fence measures. Named for the VIEWPORT, not "phone" — this mount
+ *  has no `.shell-grid`, no `AppShell` and no mobile regime to shed a band under (#1721). */
+const SURFACE_CHROME_ARMS_COARSE = [
   { width: 320, ceiling: 308 },
   { width: 390, ceiling: 308 },
 ] as const;
 
-test.describe("#1661 the phone's chrome budget", () => {
+test.describe("#1661 the surface's OWN chrome budget at a coarse viewport (not the phone regime — see #1669 in app-shell.ct.tsx for that)", () => {
   test.use({ hasTouch: true });
 
-  for (const arm of PHONE_CHROME_ARMS) {
+  for (const arm of SURFACE_CHROME_ARMS_COARSE) {
     test(`at ${String(arm.width)}px coarse the resting chrome above the first character row holds its budget`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       await routeThree(page);
       const component = await mount(<CharacterLibrarySurfaceStory width={arm.width} />);
       await expect(row(component, "Starla")).toBeVisible();
 
-      expect(await phoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+      expect(await surfaceChromeAboveFirstRow(component)).toBeLessThanOrEqual(arm.ceiling);
     });
 
     // THE FENCE'S OWN POSITIVE CONTROL, one per arm. A ceiling that never moves is indistinguishable from a
@@ -2110,17 +2114,18 @@ test.describe("#1661 the phone's chrome budget", () => {
       await routeManyTags(page, 12);
       const component = await mount(<CharacterLibrarySurfaceStory width={arm.width} />);
       await expect(component.getByText("Tagged One")).toBeVisible();
-      expect(await phoneChrome(component)).toBeLessThanOrEqual(arm.ceiling);
+      expect(await surfaceChromeAboveFirstRow(component)).toBeLessThanOrEqual(arm.ceiling);
 
       await openFilters(component);
       await expect(component.getByRole("button", { name: FEWER_FILTERS })).toBeVisible();
-      expect(await phoneChrome(component)).toBeGreaterThan(arm.ceiling);
+      expect(await surfaceChromeAboveFirstRow(component)).toBeGreaterThan(arm.ceiling);
     });
   }
 });
 
-/** The pane's chrome: the distance from the story root's top edge to the first character row. */
-async function phoneChrome(component: Locator): Promise<number> {
+/** The pane's chrome: the distance from the story root's top edge to the first character row. Named for
+ *  what it reads (the SURFACE's own chrome), not "phone" — this mount has no shell to shed a band under. */
+async function surfaceChromeAboveFirstRow(component: Locator): Promise<number> {
   const list = component.getByRole("list", { name: "Character library" });
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
   return Math.round((listBox?.y ?? 0) - (paneBox?.y ?? 0));
