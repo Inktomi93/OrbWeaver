@@ -3286,17 +3286,32 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
     main.appendChild(row);
   });
 
-  // BARRIER ON THE SETTLED DOCK (#1316's own corridor test uses the identical geometric identity): the #242
-  // squeeze resolves `--list-track-docked` a beat after the list's own mode, so reading before it settles
-  // risks the keyframe baking in a pre-squeeze value.
+  // BARRIER ON THE SETTLED DOCK, TWO CONDITIONS IN ONE READ (#1316's own corridor test, verbatim): geometry
+  // alone is not enough — the #1741 regime seed's own mount-time FLIP can still be RUNNING (a real
+  // `data-list-flip` the production hook stamped, not mine) even after `.shell-main`'s box has already
+  // reached its resting geometry, and stamping MY `data-list-flip` on top of that live one contaminates the
+  // fabricated row's animation with whatever frame the hook's OWN animation happens to be on. Nothing
+  // animating AND the geometry holds, sampled in the SAME evaluate so they cannot be read a frame apart.
   await page.waitForFunction(() => {
     const mainEl = document.querySelector(".shell-main");
     const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
-    return mainEl !== null && panelEl !== null && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
   });
 
   for (const direction of ["in", "out"] as const) {
     const { mainRaw, rowRaw } = await page.locator(".shell-grid").evaluate((grid, dir) => {
+      // FORCE THE MATCH-STATE TRANSITION (post-#1741): the regime seed's own mount-time FLIP can leave
+      // `data-list-flip` already at THIS test's first value, and a CSS animation only (re)starts when a
+      // selector transitions from not-matching to matching — setting an attribute to its OWN current value
+      // is not such a transition, so the "in" arm read back no animation at all (`getAnimations()` empty)
+      // the first time this ran post-rebase. Remove, force a style flush, THEN set, so every arm is a real
+      // absent→present transition regardless of what the seed left behind.
+      grid.removeAttribute("data-list-flip");
+      void grid.offsetWidth;
       grid.setAttribute("data-list-flip", dir);
       const read = (selector: string): string | null => {
         const el = document.querySelector(selector);
@@ -3347,15 +3362,24 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
     main.appendChild(row);
   });
 
-  // BARRIER ON THE SETTLED DOCK (the #1316 settle test's own fix, restated): `--list-track-docked` depends
-  // on the CONTEXT pane's own mode via the #242 squeeze, which resolves a beat after the list's — an
-  // unbarriered read races it and samples `.shell-main` and the row against DIFFERENT track widths (a real
-  // flake this test hit once: main 181.583px against a row still reading the pre-squeeze 307px). The
-  // geometric identity is a token-free stand-in for "the squeeze has resolved".
+  // BARRIER ON THE SETTLED DOCK, TWO CONDITIONS IN ONE READ (root-caused post-#1741, restated per the
+  // #1316 corridor test's own pattern): geometry alone let this test race the #1741 regime seed's own
+  // mount-time FLIP, whose `data-list-flip` the production hook can still hold on `.shell-grid` even after
+  // `.shell-main`'s box has already reached its resting position — stamping `data-list-settle` on top of
+  // that LIVE flip does not override it (the animation, while running, wins the cascade for `translate`
+  // over a plain declaration), so the row read back whatever frame the hook's own animation happened to be
+  // on (measured: main 263.856px / row 30.8991px and main 300.014px / row -46.1111px — neither a real track
+  // width nor half of one, the tell that an unrelated animation, not the settle rule, was answering). The
+  // #242-squeeze race this barrier was ALSO written for (main 181.583px against a stale-307px row) is still
+  // covered by the geometric half.
   await page.waitForFunction(() => {
     const mainEl = document.querySelector(".shell-main");
     const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
-    return mainEl !== null && panelEl !== null && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
   });
 
   const heldTranslates = (direction: "in" | "out"): Promise<{ main: string; row: string }> =>
