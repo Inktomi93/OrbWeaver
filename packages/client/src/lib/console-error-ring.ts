@@ -26,8 +26,10 @@ const RING_CAP = 128;
 const TEXT_MAX = 2000;
 const ARG_MAX = 12;
 
-/** One recorded browser-side failure, as `__orb.consoleErrors()` returns it. */
-export interface ConsoleErrorRecord {
+/** One recorded browser-side failure, as `__orb.consoleErrors()` returns it. Module-local by design: the
+ *  ring and its `__orb` projection are the only readers, so the interface is not exported — a name nothing
+ *  outside this file spells is not part of the client's surface (#1847). */
+interface ConsoleErrorRecord {
   /** Which surface reported it: a `console.error` call, an uncaught error event, or a rejected promise. */
   readonly source: "console" | "uncaught" | "rejection";
   /** Wall-clock epoch ms at the record (`performance.timeOrigin + performance.now()`). */
@@ -102,7 +104,9 @@ function push(record: ConsoleErrorRecord): void {
 }
 
 /** Record one failure. Exported for the install hooks below AND as the seam a spec drives — recording is the
- *  whole behaviour, and the browser events that trigger it are not reproducible in a node unit lane. */
+ *  whole behaviour, and the browser events that trigger it are not reproducible in a node unit lane.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function recordConsoleError(source: ConsoleErrorRecord["source"], args: readonly unknown[]): void {
   const stack = firstStack(args);
   push({

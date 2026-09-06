@@ -43,6 +43,9 @@ import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
 
+/** The per-game tails {@link serializeHandWrite} queues on. */
+const handWriteChains = new Map<RpgGameId, Promise<void>>();
+
 /** Per-game ownership for the hand READ-MODIFY-WRITE critical section. Resolving a head and later inserting
  *  its derived clone are one operation: without this chain, two same-game calls can resolve the same old head
  *  and last-write-wins silently drops one gesture. Different games keep independent tails. A rejected task is
@@ -52,8 +55,6 @@ const UNCOMMITTED = 0;
  *
  * @public Test-anchored module surface; focused controls pin ordering, key isolation, and rejection recovery.
  */
-const handWriteChains = new Map<RpgGameId, Promise<void>>();
-
 export function serializeHandWrite<T>(gameId: RpgGameId, run: () => Promise<T>): Promise<T> {
   const previous = handWriteChains.get(gameId) ?? Promise.resolve();
   // @orb-gate-ignore caught-failure-ownership(promise:previous): a rejected `previous` link is absorbed only

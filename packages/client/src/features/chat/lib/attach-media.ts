@@ -26,7 +26,9 @@ const ATTACHABLE_VIDEO_TYPES: readonly string[] = ["video/mp4", "video/webm"];
 /** The picker's native `accept` filter, derived from the same vocabulary the drop/paste gate tests. */
 export const ATTACH_MEDIA_ACCEPT = [`${IMAGE_MIME_PREFIX}*`, ...ATTACHABLE_VIDEO_TYPES].join(",");
 
-/** The refusal a non-media file earns — names the file and the formats that WOULD work (never a silent drop). */
+/** The refusal a non-media file earns — names the file and the formats that WOULD work (never a silent drop).
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function unsupportedAttachMessage(file: File): string {
   return `${file.name} isn't an image or video — attach a PNG, JPG, WEBP, GIF, MP4 or WEBM`;
 }
@@ -48,7 +50,9 @@ export function dropzoneRefusalMessage(rejection: FileDropzoneRejection, sizeCei
  *  in that window for the same reason: a mid-send attach is cleared by the send's own commit signal). */
 export const ATTACH_BUSY_MESSAGE = "Wait for the message to send, then attach.";
 
-/** True when `file` is an image of any family, or one of the two sniffed video containers. */
+/** True when `file` is an image of any family, or one of the two sniffed video containers.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function isAttachableMedia(file: File): boolean {
   return file.type.startsWith(IMAGE_MIME_PREFIX) || ATTACHABLE_VIDEO_TYPES.includes(file.type);
 }

@@ -2,6 +2,15 @@
 // schemas are vendored and hash-pinned here, then Orb adds the semantic checks JSON Schema cannot express:
 // inherited types, terminal aliases, closed extensions/output roles, bounded Resolver composition, and
 // removed-token review. Runtime CSS remains concrete data in `orb.cssValues`, never a private token type.
+//
+// NOT SHIPPED, and deliberately absent from the package `exports` map (#1847): this module is node-only
+// (`node:child_process`/`node:fs`) and validates through `ajv`, an @orb/ui devDependency — it is build/
+// verify machinery, the twin of its package-root neighbours tokens.build.ts and tokens.near-duplicate.ts,
+// neither of which carries a subpath either. An `exports` entry is a PRODUCTION-surface declaration, and
+// `knip --production` reads it as one: with `./token-contract` present, ajv/ajv-formats were reported as
+// unlisted production dependencies of a browser package. Its two cross-package readers (the
+// `tokens-contract` gate and tests/tooling) import it by relative path — tools sit above the cake and read
+// down; the module cannot re-home into tooling while tokens.build.ts consumes it (`packages-no-tooling`).
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -12,12 +21,15 @@ import { Ajv } from "ajv";
 import * as addFormatsModule from "ajv-formats";
 import { z } from "zod";
 
-export const DTCG_VERSION = "2025.10";
-export const FORMAT_SCHEMA_SOURCE = "https://www.designtokens.org/schemas/2025.10/format.json";
-export const RESOLVER_SCHEMA_SOURCE = "https://www.designtokens.org/schemas/2025.10/resolver.json";
+// PROVENANCE of the two vendored schemas the hashes below pin — DTCG version 2025.10, fetched from
+// `https://www.designtokens.org/schemas/2025.10/{format,resolver}.json`. Stated as a comment, not as three
+// `DTCG_VERSION`/`*_SCHEMA_SOURCE` constants: nothing read them (#1847), and a constant no code reads is a
+// value that can drift away from the bytes it claims to describe without anything noticing. The VERSION is
+// load-bearing in exactly two places that DO check — the vendored filenames under `src/tokens/schemas/` and
+// the `$schema` each token file declares — and re-spelling it here bought neither of them a guarantee.
 export const FORMAT_SCHEMA_SHA256 = "02d3362a3127834fd2fdd4e4d86748eaa4623054fabf369db8a410526b12646f";
 export const RESOLVER_SCHEMA_SHA256 = "2286caca56d683066475b93bca78fd73a9a337f20981bf98ea8ee8d60f8fd40b";
-export const TOKEN_REMOVAL_BASE_REF = "origin/main";
+const TOKEN_REMOVAL_BASE_REF = "origin/main";
 export const REQUIRED_SEED_VALUE_SET_PATHS: readonly string[] = Object.freeze([
   "color.primary",
   "color.ring",
@@ -64,7 +76,7 @@ export const REQUIRED_SEED_VALUE_SET_PATHS: readonly string[] = Object.freeze([
   "color.backdrop",
 ]);
 
-export const TOKEN_FILES = {
+const TOKEN_FILES = {
   base: "src/tokens/tokens.json",
   light: "src/tokens/themes/light.json",
   mocha: "src/tokens/themes/mocha.json",
@@ -96,11 +108,11 @@ const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
 
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
-export type TokenType = (typeof TOKEN_TYPES)[number];
-export type OutputRole = "input" | "light-dark" | "percentage" | "snapped";
+type TokenType = (typeof TOKEN_TYPES)[number];
+type OutputRole = "input" | "light-dark" | "percentage" | "snapped";
 export type CssValuePlacement = "theme" | "root";
 
-export interface TokenContractDiagnostic {
+interface TokenContractDiagnostic {
   readonly path: string;
   readonly message: string;
   readonly code: string;
@@ -115,14 +127,14 @@ export interface ContractToken {
   readonly outputRole: OutputRole | null;
 }
 
-export interface CssValueEntry {
+interface CssValueEntry {
   readonly value: string;
   readonly placement: CssValuePlacement;
   readonly description: string;
   readonly provenance: readonly string[];
 }
 
-export interface ThemeSet {
+interface ThemeSet {
   readonly id: "hearth" | "light" | "mocha";
   readonly colorScheme: "light" | "dark";
   readonly source: "base" | "light" | "mocha";

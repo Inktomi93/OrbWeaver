@@ -37,10 +37,21 @@ interface RegisteredSnapshot extends AppearanceMessageCarrierEntry {
 }
 
 const mountedSnapshots = new Map<string, RegisteredSnapshot>();
-let testEnabled = false;
+let forcedOn = false;
 
 export function appearanceMessageRegistryEnabled(): boolean {
-  return IS_DEV || testEnabled;
+  return IS_DEV || forcedOn;
+}
+
+/** Collect outside dev. The registry's ONE reader is the agent debug bridge (`agent-bridge-appearance.ts`),
+ *  so the bridge's own ungated install is the production caller — which is also what a production-mode
+ *  component-test bundle enters through, instead of a `__…ForTest` switch (#1847). Returns the disposer;
+ *  the bridge never disposes (a page has one bridge), a CT host that enables it directly does. */
+export function enableAppearanceMessageRegistry(): () => void {
+  forcedOn = true;
+  return (): void => {
+    forcedOn = false;
+  };
 }
 
 export function registerAppearanceMessageSnapshot(instanceId: string, snapshot: AppearanceMessageCarrierSnapshot): () => void {
@@ -57,18 +68,4 @@ export function readAppearanceMessageSnapshots(): readonly AppearanceMessageCarr
   return [...mountedSnapshots.values()]
     .sort((left, right) => left.instanceId.localeCompare(right.instanceId))
     .map(({ instanceId, snapshot }) => ({ instanceId, snapshot }));
-}
-
-/** Test-only reset. Production lifetime is one page; real rows own all ordinary cleanup. */
-export function __resetAppearanceMessageRegistryForTest(): void {
-  mountedSnapshots.clear();
-  testEnabled = false;
-}
-
-/** CT-only enablement for the production-mode component-test bundle. */
-export function __enableAppearanceMessageRegistryForTest(): () => void {
-  testEnabled = true;
-  return (): void => {
-    testEnabled = false;
-  };
 }

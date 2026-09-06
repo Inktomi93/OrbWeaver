@@ -24,7 +24,9 @@ import type { SnippetGate } from "../contract/ops.ts";
 /** Concurrently-running snippets per user. A LEAN, with its resolution criterion recorded: raise it when a real
  *  workflow needs parallel snippets, lower it if measured abuse arrives first. A snippet is a personal REPL — 1
  *  is the usage shape and the slack above it is for a double-submit or a retry over a still-settling run, NOT
- *  for fan-out. Worst case per user at this value: 4 × the 32 MiB context ceiling, released at the wall. */
+ *  for fan-out. Worst case per user at this value: 4 × the 32 MiB context ceiling, released at the wall.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const SNIPPET_CONCURRENCY_PER_USER = 4;
 
 /** Build the process-wide snippet gate. Zero state per user at rest: the map holds a key only while that user

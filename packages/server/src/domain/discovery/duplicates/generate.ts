@@ -33,7 +33,9 @@ import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
  *  front door for the workload runner's log + the tRPC default. */
 export const DEFAULT_DUP_THRESHOLD = 0.92;
 
-/** Maximum content-distinct representatives admitted in one owner/model cosine space. */
+/** Maximum content-distinct representatives admitted in one owner/model cosine space.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const MAX_DUPLICATE_VECTORS_PER_SPACE = HUBNESS_DENSE_MAX;
 /** Maximum derived character pairs admitted across one atomic recompute. */
 const MAX_DUPLICATE_PAIRS_PER_RUN = 10_000;

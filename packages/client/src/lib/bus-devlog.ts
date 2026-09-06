@@ -2,7 +2,14 @@
 // subscriptions bypass the tRPC loggerLink by design, so without this the bus is invisible: the
 // console shows downstream refetches with zero attribution to the event that drove them. This channel
 // restores cause: subscription lifecycle + a live count, each canon event → the keys it invalidated,
-// and a duplicate-invalidate alarm (the storm signature). IS_DEV-gated; inert in prod.
+// and a duplicate-invalidate alarm (the storm signature).
+//
+// THE CONSOLE OUTPUT IS IS_DEV-GATED; THE EVIDENCE BOOKKEEPING IS NOT (#1847). The live count and the
+// 64-entry ring are what `window.__orb.bus()` reads, and they are two integers and a bounded array —
+// cheap enough to keep honest, and keeping them unconditional is what lets the component-test bundle
+// (built in Vite PRODUCTION mode, where IS_DEV is false) drive these REAL doors instead of a pair of
+// `__…ForTest` plants that re-implemented the same arithmetic beside them. The ring stays inert in a
+// shipped app for the ordinary reason: `invalidation.ts` only calls `busInvalidate` under IS_DEV.
 
 import type { ChatId } from "@orb/kit/ids";
 import { IS_DEV } from "./dev-flag.ts";
@@ -52,21 +59,6 @@ export function __resetBusEventRing(): void {
   busEventLog.length = 0;
 }
 
-/** CT-only plant for the production-mode component build, where IS_DEV correctly disables bus logging. */
-export function __createBusDevlogFixtureForTest(): { readonly cleanup: () => void } {
-  liveSubscriptions += 1;
-  return {
-    cleanup: (): void => {
-      liveSubscriptions = Math.max(0, liveSubscriptions - 1);
-    },
-  };
-}
-
-/** CT-only event plant; does not mutate the live subscription count. */
-export function __recordBusEventForTest(type: string, chatId: ChatId, keys: readonly string[]): void {
-  busEventLog.push({ at: clockMs(), type, chatId, keys });
-}
-
 /** The live subscription count (a value climbing past 1 for one open chat = a double-subscription). */
 export function busLiveCount(): number {
   return liveSubscriptions;
@@ -86,10 +78,10 @@ function shortId(id: string): string {
 /** A subscription attached. `replay` ⇒ seeded with a replay cursor — the one path that can re-deliver
  *  early events, so it's called out explicitly. */
 export function busSubscribe(chatId: ChatId, replay: boolean): void {
+  liveSubscriptions += 1;
   if (!IS_DEV) {
     return;
   }
-  liveSubscriptions += 1;
   console.info(
     `%c${logClock()} [bus] %c⊹ subscribe   ${shortId(chatId)}%c  replay=${replay ? "0" : "—"} · live=${liveSubscriptions}`,
     PREFIX_STYLE,
@@ -100,25 +92,25 @@ export function busSubscribe(chatId: ChatId, replay: boolean): void {
 
 /** The paired detach — decrements the live count (floored at 0; a late cleanup can't drive it negative). */
 export function busUnsubscribe(chatId: ChatId): void {
+  liveSubscriptions = Math.max(0, liveSubscriptions - 1);
   if (!IS_DEV) {
     return;
   }
-  liveSubscriptions = Math.max(0, liveSubscriptions - 1);
   console.info(`%c${logClock()} [bus] %c⊝ unsubscribe ${shortId(chatId)}%c  · live=${liveSubscriptions}`, PREFIX_STYLE, LIFECYCLE_STYLE, MUTED_STYLE);
 }
 
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
  *  `(none)`. Pure-transient events never call `invalidate`, so they never reach here. */
 export function busInvalidate(type: string, chatId: ChatId | "user", keys: readonly string[]): void {
+  busEventLog.push({ at: clockMs(), type, chatId, keys });
+  if (busEventLog.length > BUS_RING_CAP) {
+    busEventLog.shift();
+  }
   if (!IS_DEV) {
     return;
   }
   const arrow = keys.length === 0 ? "→ (none)" : `→ ${keys.join(", ")}`;
   console.info(`%c${logClock()} [bus] %c◆ ${type} ${shortId(chatId)}%c ${arrow}`, PREFIX_STYLE, EVENT_STYLE, MUTED_STYLE);
-  busEventLog.push({ at: clockMs(), type, chatId, keys });
-  if (busEventLog.length > BUS_RING_CAP) {
-    busEventLog.shift();
-  }
 }
 
 /** One call per invalidated key. Counts same-key invalidations inside a burst window and logs once

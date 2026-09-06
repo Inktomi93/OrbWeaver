@@ -137,7 +137,7 @@
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::promise:json::3",
       "path": "packages/client/src/data/auth-bootstrap.ts",
-      "line": 132,
+      "line": 133,
       "column": 25,
       "grammar": "promise",
       "position": "promise:json",
@@ -145,7 +145,7 @@
       "snippet": "const parsed = (await res.json().catch(() => ({}))) as { readonly endSessionUrl?: string | null };",
       "verdict": "deliberate-absorb",
       "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field.",
-      "markerLine": 131
+      "markerLine": 132
     },
     {
       "siteId": "packages/client/src/data/bus/room-registry.ts::promise:attach::1",
@@ -1333,7 +1333,7 @@
     {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",
       "path": "packages/client/src/lib/console-error-ring.ts",
-      "line": 78,
+      "line": 80,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1341,7 +1341,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unstringifiable console argument degrades to a",
-      "markerLine": 73
+      "markerLine": 75
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",
@@ -2581,7 +2581,7 @@
     {
       "siteId": "packages/server/src/domain/rpg/snapshot-edit.ts::promise:next::1",
       "path": "packages/server/src/domain/rpg/snapshot-edit.ts",
-      "line": 66,
+      "line": 67,
       "column": 19,
       "grammar": "promise",
       "position": "promise:next",
@@ -2589,12 +2589,12 @@
       "snippet": "const settled = next.then(",
       "verdict": "deliberate-absorb",
       "reason": "`settled` only feeds the chain-tail bookkeeping",
-      "markerLine": 63
+      "markerLine": 64
     },
     {
       "siteId": "packages/server/src/domain/rpg/snapshot-edit.ts::promise:previous::1",
       "path": "packages/server/src/domain/rpg/snapshot-edit.ts",
-      "line": 62,
+      "line": 63,
       "column": 16,
       "grammar": "promise",
       "position": "promise:previous",
@@ -2602,7 +2602,7 @@
       "snippet": "const next = previous.then(run, run);",
       "verdict": "deliberate-absorb",
       "reason": "a rejected `previous` link is absorbed only",
-      "markerLine": 59
+      "markerLine": 60
     },
     {
       "siteId": "packages/server/src/domain/rpg/substrate/delta.ts::default:catch::1",
@@ -3023,7 +3023,7 @@
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1057,
+      "line": 1059,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3031,12 +3031,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the",
-      "markerLine": 1052
+      "markerLine": 1054
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 792,
+      "line": 794,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3044,12 +3044,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — documented above: a failed",
-      "markerLine": 787
+      "markerLine": 789
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::empty:err::2",
       "path": "packages/server/src/entry/compose/rpg.ts",
-      "line": 1285,
+      "line": 1287,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -3057,7 +3057,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a",
-      "markerLine": 1269
+      "markerLine": 1271
     },
     {
       "siteId": "packages/server/src/entry/compose/services.ts::default:catch::1",
@@ -3686,7 +3686,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::promise:created::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 227,
+      "line": 230,
       "column": 10,
       "grammar": "promise",
       "position": "promise:created",
@@ -3694,12 +3694,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.",
-      "markerLine": 226
+      "markerLine": 229
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::promise:promise::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 214,
+      "line": 217,
       "column": 10,
       "grammar": "promise",
       "position": "promise:promise",

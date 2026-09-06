@@ -41,16 +41,20 @@ export type RunAnalysisAction = Extract<AutomationAction, { type: "run_analysis"
 export type AnalysisRoutes = RunAnalysisAction["routes"];
 
 // ── caps (named — noMagicNumbers) ─────────────────────────────────────────────────────────────────────
-/** The active twist bank's DURABLE ceiling (legacy `TWIST_CAP` — adds beyond it drop, retires free slots). */
+/** The active twist bank's DURABLE ceiling (legacy `TWIST_CAP` — adds beyond it drop, retires free slots).
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const ANALYSIS_TWIST_CAP = 6;
 /** The retired bank's FIFO ceiling — old retirements age out; the bank exists to stop resurrections, and a
- *  twist retired 24 entries ago is no longer a live resurrection risk. */
+ *  twist retired 24 entries ago is no longer a live resurrection risk.
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const ANALYSIS_RETIRED_CAP = 24;
 /** Per-pass twist-op bound (a wire-stripped post-parse belt — the durable bank cap is the real wall). */
 const TWIST_OPS_PER_PASS = 8;
 /** One arc / one twist is a sentence-class string, not prose. EXPORTED because they are the caps the
- *  parse-on-read clamp uses too (`parseAnalysisState`), and a cap spelled twice is a cap that drifts. */
+ *  parse-on-read clamp uses too (`parseAnalysisState`), and a cap spelled twice is a cap that drifts.
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const ANALYSIS_ARC_MAX = 400;
+/** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const ANALYSIS_TWIST_MAX = 200;
 /** The lore route's per-pass entry bound — a settled span distills to a few keyed facts, not a chapter. */
 const LORE_PER_PASS = 4;

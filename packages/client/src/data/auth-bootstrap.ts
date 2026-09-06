@@ -94,8 +94,9 @@ export async function firstRunSetup(password: string): Promise<void> {
 }
 
 /** The logout response: the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
- *  with no end_session_endpoint). */
-export interface LogoutResult {
+ *  with no end_session_endpoint). Module-local: `logout` below is the only spelling of the name, and
+ *  callers consume the shape through that signature (#1847). */
+interface LogoutResult {
   readonly endSessionUrl: string | null;
 }
 

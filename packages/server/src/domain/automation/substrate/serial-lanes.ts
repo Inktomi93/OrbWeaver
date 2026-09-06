@@ -91,7 +91,14 @@ export function runInLane<T>(key: string, job: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** How many lanes are currently active — the drain assertion's only reader (a leak here is unbounded memory). */
+/**
+ * How many lanes are currently active — the drain assertion's only reader (a leak here is unbounded memory).
+ *
+ * @public Test-anchored module surface. The BOUNDEDNESS claim in this file's header ("the Map is bounded by
+ * the number of CONCURRENTLY ACTIVE keys") is only a claim unless something can read the size back, and
+ * `runInLane`'s own callers have no reason to ask. This is that reader, and the drain spec is what turns
+ * the header sentence into a checked property.
+ */
 export function activeLaneCount(): number {
   return lanes.size;
 }

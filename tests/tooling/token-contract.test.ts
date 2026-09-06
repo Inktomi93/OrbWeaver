@@ -3,15 +3,17 @@
 // exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { TokenContractTexts } from "@orb/ui/token-contract";
+import { describe } from "vitest";
+// Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847),
+// because an exports entry would declare node-only, ajv-backed code as the package's production surface.
+import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
 import {
   FORMAT_SCHEMA_SHA256,
   REQUIRED_SEED_VALUE_SET_PATHS,
   RESOLVER_SCHEMA_SHA256,
   readTokenContractTexts,
   validateTokenContractTexts,
-} from "@orb/ui/token-contract";
-import { describe } from "vitest";
+} from "../../packages/ui/token-contract.ts";
 import { gate as tokensContractGate } from "../../tooling/src/verify/gates/tokens-contract.ts";
 import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";

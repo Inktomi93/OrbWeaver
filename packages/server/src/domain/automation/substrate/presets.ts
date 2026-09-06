@@ -202,7 +202,9 @@ function spendProbeValue(descriptor: RulePresetKnobDescriptor): RulePresetKnobVa
  *  is knob-independent. Spend is not. `clockFires` emits a `trigger_turn` under `firedArm: "narrate"` and a
  *  free `post_notification` under `"notify"`, so no static fact about the def answers the question — only the
  *  builder does. The DEFAULT bag is the honest input because it is the configuration a host mints by pressing
- *  Add without touching a knob, which is exactly the row the catalogue is labelling. */
+ *  Add without touching a knob, which is exactly the row the catalogue is labelling.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function rulePresetSpendsAtDefaults(def: ErasedRulePresetDef): boolean {
   const probe: Record<string, RulePresetKnobValue> = {};
   for (const [key, descriptor] of Object.entries(def.knobs)) {

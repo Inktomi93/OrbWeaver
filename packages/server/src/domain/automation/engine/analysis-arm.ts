@@ -94,7 +94,9 @@ const CARD_QUOTE_MAX = 120;
 // reaches the model, and its field never exists to fill.
 
 /** Compose the pass's system contract from the ENABLED routes, resolving each clause through the room
- *  host's prose overrides (an absent override = the shipped default bytes). */
+ *  host's prose overrides (an absent override = the shipped default bytes).
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function buildAnalysisSystemPrompt(routes: AnalysisRoutes, prose: ProseOverrides): string {
   return [
     resolveProseText("automation.analysis.lead", prose),
@@ -120,7 +122,9 @@ function transcriptLine(row: AnalysisWindowRow): string {
 /** Assemble the pass's user prompt: brief → host steer → the current private plot → the settled section
  *  (when the lore route reads one) → the fresh tip. Pure + deterministic — the golden test pins it. The
  *  section labels are structural grammar (sub-12-word, the autobg `Scene:` class); the one AUTHORED line
- *  (the cold-start arc ask) is the `automation.analysis.firstArc` slot. */
+ *  (the cold-start arc ask) is the `automation.analysis.firstArc` slot.
+ *
+ *  @public Test-anchored module surface; the golden prompt test is its only cross-module reader. */
 export function buildAnalysisUserPrompt(inputs: AnalysisPromptInputs, prose: ProseOverrides): string {
   const parts: string[] = [`Your task: ${inputs.brief}`];
   if (inputs.steer.length > 0) {
