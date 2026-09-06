@@ -28,7 +28,8 @@ import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabu
 const SINK = "warnings";
 /** The ONE name of the infra-to-chat warning translation; a rename REDs loudly instead of going quiet. */
 const CHAT_MAPPER = "toChatWarning";
-const CHAT_EMITTERS = new Set(["emit", "emitQuiet"]);
+/** A readonly tuple, not a module-scope `Set`: nothing in a policy module may be mutable at module scope. */
+const CHAT_EMITTERS = ["emit", "emitQuiet"] as const;
 
 interface Channel {
   readonly tuple: string;
@@ -112,7 +113,7 @@ function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: Cha
   if (call !== undefined && name === "push") {
     return isPushedWarning(object, call);
   }
-  if (channel.chat && name !== undefined && CHAT_EMITTERS.has(name)) {
+  if (channel.chat && CHAT_EMITTERS.some((emitter) => emitter === name)) {
     return stringOf(propertyValue(object, "type")) === "warning";
   }
   return returned !== undefined && call === undefined && object.getProperty("message") !== undefined;
