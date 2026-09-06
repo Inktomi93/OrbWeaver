@@ -63,7 +63,7 @@ export function TagMemberContentColumnStory(): ReactElement {
  *  are drawn by the CONFIG host from `tagCollection.sort` / `.actions`; both write exactly these store
  *  functions, and the config landing's own CT pins that they do. What is left for THIS file is what the
  *  rows do with the result, which is why the driver is the store rather than a re-mounted host. */
-export function TagCollectionRowsStory({ filter = "" }: { readonly filter?: string }): ReactElement {
+export function TagCollectionRowsStory({ filter = "", width = 330 }: { readonly filter?: string; readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
       <button onClick={(): void => setTagSortMode("used")} type="button">
@@ -78,7 +78,11 @@ export function TagCollectionRowsStory({ filter = "" }: { readonly filter?: stri
       <button onClick={(): void => setTagPruneConfirmOpen(true)} type="button">
         open prune confirm
       </button>
-      <div style={{ display: "flex", flexDirection: "column", height: 620, overflow: "auto", width: 330 }}>
+      {/* `width` is the PANE the rows are asked to fill. 330 is the LIST-era column every landed pin was
+          written against and stays the default; #1824's width matrix drives it to the real CONTENT widths
+          (382 coarse · the crossover · 990 desktop), because a row's ink balance is a WIDTH property and a
+          point measurement at one width proves nothing about the other end. */}
+      <div style={{ display: "flex", flexDirection: "column", height: 620, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <TagCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
         </QueryBoundary>
