@@ -22,6 +22,8 @@ const CHIPS = RULE_PRESETS.diceChips;
 const CLOCK = RULE_PRESETS.clockFires;
 /** The one `entityRef`-carrying preset (#630) — the auto-add-lore card's lorebook reference. */
 const LORE = RULE_PRESETS.autoAddLore;
+/** The one text knob whose own semantics declare `minLength: 0` — "Standing direction", "" = none (#1387). */
+const STORY_PACING = RULE_PRESETS.storyPacing;
 
 /** The entityRef refusal, verbatim: the host's noun, not "expected text" or a TypeID complaint. */
 const NO_BOOK_CHOSEN = /knob 'bookId': choose a lorebook/u;
@@ -53,6 +55,18 @@ test("a text knob refuses empty and over-cap text", () => {
   expect(() => resolveRulePresetKnobs(PACING.knobs, { steer: "" })).toThrow(RuleValidationError);
   expect(() => resolveRulePresetKnobs(PACING.knobs, { steer: "x".repeat(601) })).toThrow(RuleValidationError);
   expect(resolveRulePresetKnobs(PACING.knobs, { steer: "x".repeat(600) })["steer"]).toHaveLength(600);
+});
+
+test("#1387: a text knob's OWN minLength decides the floor — a blanked required knob refuses AT THE KNOB, a minLength:0 knob resolves blank", () => {
+  // `storyPacing`'s "Standing direction" is documented optional ("" = none) and its arm field
+  // (`run_analysis.steer`) is `.optional()` with no `.min()` — a caller who blanks it after touching the
+  // field must not be refused by a floor that does not know the difference between "optional" and
+  // "required" text knobs.
+  expect(resolveRulePresetKnobs(STORY_PACING.knobs, { steer: "" })).toMatchObject({ steer: "" });
+  // A required text knob (minLength: 1, unchanged) still refuses blank — AT THE KNOB, before `createRule`
+  // ever sees the arm — and the message names the field, not a bare zod complaint from deep inside
+  // `automationActionSchema`.
+  expect(() => resolveRulePresetKnobs(PACING.knobs, { steer: "" })).toThrow(/knob 'steer': must not be empty/u);
 });
 
 test("a textList knob refuses an emptied list, an over-long deck, and an empty entry", () => {

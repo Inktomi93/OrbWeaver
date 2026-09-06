@@ -96,7 +96,7 @@ const PACING_PRESET = {
   spends: true,
   knobs: [
     { key: "everyN", kind: "number", label: "Every N beats", default: 8, min: 2, max: 200 },
-    { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", maxLength: 600 },
+    { key: "steer", kind: "text", label: "Nudge", default: "Shift the pacing.", minLength: 1, maxLength: 600 },
   ],
 };
 
@@ -140,7 +140,7 @@ const CLOCK_PRESET = {
       optionLabels: { narrate: "Narrate it in the room", notify: "Notify me" },
       default: "narrate",
     },
-    { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, maxLength: 600 },
+    { key: "firedText", kind: "text", label: "What happens", default: CLOCK_PROMPT_DEFAULT, minLength: 1, maxLength: 600 },
   ],
 };
 

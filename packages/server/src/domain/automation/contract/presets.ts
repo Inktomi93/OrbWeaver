@@ -359,6 +359,7 @@ const WELCOME_BACK_RECAP = defineRulePreset({
       kind: "text",
       label: "The recap",
       default: "Briefly recap where the scene stands — who is present, what just happened, what is unresolved. Two or three sentences, in narration.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -407,12 +408,13 @@ const AUTO_ADD_LORE = defineRulePreset({
     // attached to this chat, which is a LIVE fact the picker cannot pre-empt.
     bookId: { kind: "entityRef", entity: "worldInfoBook", label: "Lorebook", help: "The book to write into — one of this room's own." },
     everyN: { kind: "number", label: "Every N messages", default: 10, min: CADENCE_MIN, max: CADENCE_MAX },
-    entryKey: { kind: "text", label: "Entry name", default: "session notes", maxLength: ENTRY_KEY_MAX },
+    entryKey: { kind: "text", label: "Entry name", default: "session notes", minLength: 1, maxLength: ENTRY_KEY_MAX },
     note: {
       kind: "text",
       label: "What to write",
       help: "Macros and CEL expressions over this chat's variables are available.",
       default: "Session notes.",
+      minLength: 1,
       maxLength: LORE_NOTE_MAX,
     },
     confirmFirst: {
@@ -522,6 +524,7 @@ const PACING_NUDGE = defineRulePreset({
       kind: "text",
       label: "Nudge",
       default: "Take stock of the pacing: raise a complication, or let the scene breathe. One beat, no recap.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -626,6 +629,7 @@ const CLOCK_FIRES = defineRulePreset({
       kind: "text",
       label: "What happens",
       default: "The pressure that has been building finally breaks into the scene.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -665,11 +669,19 @@ const SCENE_VEIL = defineRulePreset({
   summary: "Type a marker in your message and the next beat cuts away instead of playing it out.",
   ruleCount: 1,
   knobs: {
-    veilWord: { kind: "text", label: "Veil marker", help: "Matched literally, anywhere in the message.", default: "((veil))", maxLength: NEEDLE_MAX },
+    veilWord: {
+      kind: "text",
+      label: "Veil marker",
+      help: "Matched literally, anywhere in the message.",
+      default: "((veil))",
+      minLength: 1,
+      maxLength: NEEDLE_MAX,
+    },
     redirect: {
       kind: "text",
       label: "What to do instead",
       default: "Draw the veil: cut away from that beat and resume afterward, in a new moment.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -706,6 +718,7 @@ const CALLBACK = defineRulePreset({
       kind: "text",
       label: "How it resurfaces",
       default: "An unresolved promise resurfaces and presses on the scene. Do not resolve it outright.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -745,6 +758,7 @@ const CUTAWAYS = defineRulePreset({
       kind: "text",
       label: "The cutaway",
       default: "One short cutaway elsewhere; seed a soft tension and resolve nothing.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -782,6 +796,9 @@ const STORY_PACING = defineRulePreset({
       label: "Standing direction",
       help: "Rides every pass — e.g. “slow burn”, “keep it cozy”. Leave empty for none.",
       default: "",
+      // The one text knob whose OWN semantics allow blank ("" = none, said above and in the arm's own
+      // `.optional()` schema with no `.min()`) — #1387.
+      minLength: 0,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -949,6 +966,7 @@ const THE_NEEDLE = defineRulePreset({
       label: "How it should look",
       help: "Biases the pick over your own backgrounds — it never invents one.",
       default: "Choose the most charged, high-stakes backdrop that still fits where the scene is taking place.",
+      minLength: 1,
       maxLength: BACKDROP_INSTRUCTION_MAX,
     },
   },
@@ -1065,6 +1083,7 @@ const ASYNC_TABLE_NUDGE = defineRulePreset({
       label: "The notice",
       help: "What the waiting members are told. Macros and expressions over this room's state are available.",
       default: "The scene has moved — there is a new post waiting for you.",
+      minLength: 1,
       // The arm's own `messageTemplate` bound and the stored notice's bound are the same 200 by design
       // (`AUTOMATION_NOTICE_MESSAGE_MAX` is the wire cap the executor slices the RENDERED text to); refusing
       // at the knob means an over-long notice is a typed mint refusal rather than a silent truncation.
@@ -1278,6 +1297,7 @@ const REACT_TO_LORE_ACTIVATION = defineRulePreset({
       label: "How to react",
       help: "Rides every reaction — e.g. “have a character notice it”, “let it change the mood”.",
       default: "New lore has just come into play. Weave it into the next beat naturally — let a character notice or react to it. Do not explain it outright.",
+      minLength: 1,
       maxLength: STEER_TEXT_MAX,
     },
   },
@@ -1319,6 +1339,7 @@ const AUTO_SET_SCENE_BACKGROUND = defineRulePreset({
       label: "What to lean toward",
       help: "Biases the pick over your own backgrounds — it never invents one.",
       default: "Choose the background that best matches where the scene is now taking place.",
+      minLength: 1,
       maxLength: BACKDROP_INSTRUCTION_MAX,
     },
   },

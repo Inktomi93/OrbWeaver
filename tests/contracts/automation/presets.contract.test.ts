@@ -135,7 +135,7 @@ test("the knob descriptor union is discriminated on kind — each arm carries it
   // with its own fields and only its own fields.
   const descriptors: readonly RulePresetKnobDescriptor[] = [
     { kind: "number", label: "N", default: 8, min: 2, max: 200 },
-    { kind: "text", label: "Steer", default: "go", maxLength: 600 },
+    { kind: "text", label: "Steer", default: "go", minLength: 1, maxLength: 600 },
     { kind: "textList", label: "Chips", default: ["a"], minItems: 1, maxItems: 4, maxLength: 80 },
     // A choice arm carries its own host LABELS (#655) — `options` are wire values, and rendering them raw
     // is what put `ask`/`write` and `scenario`/`background`/`free` in front of a host as the options.
