@@ -40,17 +40,16 @@ This checkpoint deliberately preserves incomplete and red work. A committed WIP 
 
 ## Post-fold integration repair
 
-Commit `00017c0bf` repaired the mechanical conflicts after all checkpoints were folded: one canonical TS/TSX predicate, explicit `resources: []` on the five bus drafts, an `authored-css` declaration and valid regexes on the CSS draft, and the three incomplete-return paths in bus/static-class facts. `pnpm exec tsc -p tooling/tsconfig.json --noEmit --pretty false` passes on the combined worktree. The focused CSS slice remains 4/6: ordinary-waiver/SourceFile composition and static-class empty-policy parity are the two known failures.
+Commit `00017c0bf` repaired the mechanical conflicts after all checkpoints were folded: one canonical TS/TSX predicate, explicit `resources: []` on the five bus drafts, an `authored-css` declaration and valid regexes on the CSS draft, and the three incomplete-return paths in bus/static-class facts. Commit `b240cc66a` then added closed waiver carriers for declared CSS, Markdown, JSONC, JSON, and SQL resources and repaired the static-class integration test without weakening the nonempty-policy contract. `pnpm exec tsc -p tooling/tsconfig.json --noEmit --pretty false` passes on the combined worktree. The six-file CSS/ResourceHost/static-class slice passes 19/19; the broader resource-waiver run passed 101 focused tests. Plain JSON supplies finding coordinates but has no comment grammar.
 
 ## Resume order
 
-1. Resolve the two focused CSS failures without weakening ordinary-waiver identity or static-class parity.
-2. Finish cold review of the resource-declaration seam, waiver plane, and schema fact. Re-run the orphan-grant, exact-loaded-descriptor, TS/TSX, and same-path hybrid controls.
-3. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
-4. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
-5. Finish registry fact tests/review, then convert its closed gate set.
-6. Repair static-class parity before converting any class/style gate; rerun the `no-raw-color-in-css` proof and ResourceHost CSS integration first.
-7. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
+1. Finish cold review of the resource-declaration seam, waiver plane, and schema fact. Re-run the orphan-grant, exact-loaded-descriptor, TS/TSX, same-path hybrid, and resource-waiver controls.
+2. Re-run the 53 -> 13 layout eligibility matrix against the folded resource declarations, then convert the newly eligible layout/size/resource gates.
+3. Complete the bus emitter/call provenance and differential before granting its four drafts conversion credit.
+4. Finish registry fact tests/review, then convert its closed gate set.
+5. Repair static-class parity before converting any additional class/style gate; `no-raw-color-in-css` still needs old/new population and finding differentials before conversion credit.
+6. After all WIP is coherent, regenerate the test baseline and document catalog once, then resume the remaining policy-family waves and final atomic loader/report/scaffold cutover.
 
 ## Known red state
 
