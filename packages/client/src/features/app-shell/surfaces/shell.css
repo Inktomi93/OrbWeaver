@@ -84,9 +84,19 @@
    * the bottom of the viewport and nothing overflows. `env()` resolves to 0px on every device without the
    * inset, so this is a no-op on desktop and in a plain browser tab.
    *
-   * BOTTOM IS DELIBERATELY NOT HERE: the mobile arm gives the bottom band to the tab bar's own grid row
-   * (`calc(--rail-w + env(safe-area-max-inset-bottom …))`), and paying it twice would float the bar. */
+   * BOTTOM IS PAID HERE AND REFUNDED IN THE MOBILE ARM, which is the opposite of how it started (#1869).
+   * #1868 left the bottom edge to the mobile tab bar's own grid row and said so — true on a phone, and it
+   * left a REAL hole everywhere else: above 48rem there is no bottom row at all, so on a device with a home
+   * indicator and a wide viewport (an iPad, the shell's landscape arm) the content column, both panes and
+   * the rail all ran under it. The edge belongs to the frame on every regime, so the frame pays it, and the
+   * ONE arm that has something else in that band refunds it below. It cannot be a second `@media` here:
+   * §4.4 of the paint law allows shell.css exactly one viewport query and this file already spends it.
+   *
+   * `safe-area-max-inset-bottom` (with the dynamic form as its fallback) for the same reason the tab bar's
+   * row uses it: the dynamic inset shrinks toward 0 as browser chrome collapses, and a frame that resizes
+   * on every scroll drags every region inside it. */
   padding-block-start: env(safe-area-inset-top);
+  padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 }
 
@@ -1178,6 +1188,12 @@
 /* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
 @media (max-width: 48rem) {
   .shell-grid {
+    /* THE REFUND (#1869): the base rule pays the bottom inset for every regime, and this is the one regime
+     * that has something else in that band — the tab bar's grid row already carries
+     * `calc(--rail-w + env(safe-area-max-inset-bottom …))`, so paying it here too would float the bar one
+     * inset above the edge it is supposed to sit on. Zero, not `revert`: `revert` rolls past the whole
+     * author origin and would take the base declaration's own value with it (the #135/#137 scar). */
+    padding-block-end: 0;
     grid-template-columns: minmax(0, 1fr);
     /* THE BAR'S BAND IS THE STATIC MAX INSET, NOT THE DYNAMIC ONE (#1868). `safe-area-inset-*` SHRINKS
      * toward 0 as browser chrome collapses, so a tab bar sized from it grows and shrinks on every scroll —
