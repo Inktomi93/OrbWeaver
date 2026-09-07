@@ -52,6 +52,27 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <!-- PWA/home-screen identity (icons 192/512 + maskable live in the manifest). -->
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- THE INSTALLED APP'S STATUS BAR — a RECORDED DECISION, and deliberately the value it already had.
+         `default` is what iOS assumes when this meta is absent, so this line changes NOTHING today. It is
+         here as a tripwire, because the obvious "improvement" is actively broken and someone will reach for
+         it: the manifest is `display: standalone` and the viewport is `viewport-fit=cover`, which reads like
+         an invitation to set `black-translucent` and go edge-to-edge under the status bar.
+
+         DO NOT. `black-translucent` paints WHITE status-bar text directly over the app's own content, and
+         this app ships a LIGHT palette whose background is oklch(0.98 0.004 75) — near-white text on
+         near-white ground, i.e. an invisible clock. It cannot be conditioned away either: iOS reads this
+         meta ONCE at launch, while polarity here is derived at RUNTIME by ThemeScope's `surfacePolarity`
+         (D71-3) and is not even enumerable — a custom seed theme's polarity is measured, not named. So there
+         is no value of this meta that is correct for every palette the app can wear, and `black-translucent`
+         is correct for exactly one of them.
+
+         `default` lets the OS own that strip and keeps it legible on every palette, and the per-scheme
+         `theme-color` pair below is what actually makes it FOLLOW the theme rather than sitting at a fixed
+         colour. The cost, stated: in the installed app the web view no longer extends under the status bar,
+         so `env(safe-area-inset-top)` — which `.shell-grid` pays (shell.css, #1868) — resolves to 0 there.
+         That padding is not dead: it is what keeps the frame off the notch in the browser-tab and landscape
+         cases, and it is the half that would already be correct if this ever goes translucent. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <!-- Browser-chrome tint = the Hearth background per OS scheme (values from the generated theme
          tokens — oklch(0.158 0.006 60) / oklch(0.98 0.004 75) as sRGB hex; meta can't read CSS vars). -->
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0c0a" />
