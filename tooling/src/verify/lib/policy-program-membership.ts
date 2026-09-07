@@ -215,11 +215,23 @@ export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventor
   const parsed = configs.map((config) => parseConfig(inventory, config));
   const extended = new Set(parsed.flatMap((config) => localExtendsTargets(inventory, config)));
   const referenced = new Set(parsed.flatMap((config) => referenceConfigs(inventory, config.parsed)));
-  const roots = configs.filter((config) => !extended.has(config) || referenced.has(config)).toSorted(compare);
-  if (roots.length === 0) {
+  const candidates = parsed.filter((config) => !extended.has(config.canonical.relative) || referenced.has(config.canonical.relative));
+  if (candidates.length === 0) {
     throw new Error("TypeScript config discovery found no runnable program roots");
   }
-  return roots;
+  return candidates
+    .filter((config) => !isExplicitTemplate(config))
+    .map((config) => config.canonical.relative)
+    .toSorted(compare);
+}
+
+function isExplicitTemplate(config: ParsedConfig): boolean {
+  const files = config.raw["files"];
+  const include = config.raw["include"];
+  const hasEmptyRoots = (Array.isArray(files) && files.length === 0) || (Array.isArray(include) && include.length === 0);
+  const hasNoInclude = include === undefined || (Array.isArray(include) && include.length === 0);
+  // An unmatched nonempty include is a broken program, even when it inherits an empty files array.
+  return hasEmptyRoots && hasNoInclude && config.parsed.fileNames.length === 0 && (config.parsed.projectReferences?.length ?? 0) === 0;
 }
 
 export function readAvailablePolicyPrograms(inventory: PolicyRepositoryInventory): readonly PolicyProgramMembership[] {

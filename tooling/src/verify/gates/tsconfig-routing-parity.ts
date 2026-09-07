@@ -5,8 +5,9 @@
 import { isAbsolute, join, relative } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { discoverTypePrograms } from "@orb/tooling/_shared/project-worlds";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
+import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import { staticPrograms } from "../lib/program-routing.ts";
 
 // The tsgo binary always lives in the REAL repo's node_modules (process.cwd() when `pnpm check`/conformance
@@ -19,7 +20,7 @@ function tsgoBin(): string {
 
 const GRAPH = "tsconfig.json";
 // The programs this gate reconciles are DISCOVERED (type-worlds phase 0, #1351): every tsconfig on the tree
-// that roots a source file, through `_shared/project-worlds.ts`. The hand list this replaced had drifted twice
+// selected by `lib/policy-program-membership.ts`. The hand list this replaced had drifted twice
 // — it omitted tsconfig.tests-dom.json until #1274 (312 roots outside the universe) and never listed
 // packages/showcase-plugins at all. A conformance tree is discovered the same way, so a planted config is in.
 
@@ -63,7 +64,7 @@ function programRoots(root: string, cfg: string): ReadonlySet<string> | undefine
 
 /** The tsconfig programs under root — the real repo's ten, or a conformance tree's planted few. */
 function presentConfigs(root: string): readonly string[] {
-  return discoverTypePrograms(root);
+  return readAvailablePolicyPrograms(readPolicyRepositoryInventory(root)).map((program) => program.config);
 }
 
 interface RootSets {
@@ -155,8 +156,7 @@ export const gate: GateDescriptor = {
       // server. The FORWARD arm reds: "server ROOTS this file but staticPrograms routes it to {client}".
       // Same class as the ct-data-providers / tests-ui bugs (a config include diverging from the algebra).
       files: {
-        // `include: []` marks the template ABSTRACT — discovery (project-worlds) keeps only configs that root a
-        // source file, exactly as the real tsconfig.base.json falls out by rooting nothing but ambient d.ts.
+        // The shared reader distinguishes explicit empty templates from broken programs with missing inputs.
         "tsconfig.base.json":
           '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" }, "include": [] }\n',
         "packages/client/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',

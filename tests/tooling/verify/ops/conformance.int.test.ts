@@ -39,6 +39,7 @@
 import { join } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateExample, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
+import { gate as routingParity } from "../../../../tooling/src/verify/gates/tsconfig-routing-parity.ts";
 import { loadGates } from "../../../../tooling/src/verify/index.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { loadInMemoryExample, verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
@@ -110,6 +111,10 @@ test("a gate that DOES flag still bites in the fs-backed substrate — the resol
   };
 
   expect(verifyGateProofs([biting])).toEqual([]);
+});
+
+test("the fs-backed parity proofs use the compiler reader's authored repository inventory", () => {
+  expect(verifyGateProofs([routingParity])).toEqual([]);
 });
 
 // ── #780: the in-memory substrate equivalence sweep ────────────────────────────────────────────────────
