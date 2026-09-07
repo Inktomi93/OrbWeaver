@@ -4330,14 +4330,15 @@
     },
     {
       "path": "docs/architecture/proposed/type-worlds-program.md",
-      "assignedSha256": "c0186361786319637b80e5a73fb13d069960fe5b2e0442f50343bb53e0ddc147",
+      "assignedSha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c0186361786319637b80e5a73fb13d069960fe5b2e0442f50343bb53e0ddc147",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedSha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
+      "verifiedCommit": "141cbb4335013ab01277d95d7b80f14940df39cd",
       "verifiedAt": "2026-09-06",
       "evidence": [
+        "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
         "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
         "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
         "docs/architecture/proposed/INDEX.md:1 (FUTURE row added, routing to sprint #1351)",
