@@ -26,7 +26,18 @@ export const inputVariants = tv({
     // TabsTab `stacked` precedent). Pinned by COMPUTED box in tests/ui/primitives/input/input.ct.tsx.
     layout: {
       field: [FIELD_CONTROL, "h-control-sm"],
-      inline: [FIELD_CONTROL_BOX, "h-auto min-h-0 px-field py-0 text-label leading-label"],
+      // `text-field-dense` IS THE DENSE STEP WITH THE PLATFORM FLOOR BAKED IN (#1868, §4b axis 3). This arm
+      // was `text-label` (13px), two steps under iOS Safari's 16px focus-zoom threshold, so every
+      // click-to-edit on a phone zoomed the whole viewport. The token carries the pointer arm
+      // (`orb.pointerFine`), so this call site states a type step and no capability query — see
+      // lib/field-control.ts for why the token layer owns this and not a variant here.
+      //
+      // IT COSTS THE NO-SHIFT BAR ONE STEP ON TOUCH, ruled rather than overlooked: `inline` exists to
+      // occupy the SAME visual slot the datum it replaces did, and at coarse it is now one step taller than
+      // that datum. A zoomed page is a far larger shift than one type step, so the floor wins and the
+      // no-shift promise is a FINE-POINTER promise. If the coarse growth ever measures as a real jump at a
+      // call site, the answer is that site reserving the taller box, never dropping the floor.
+      inline: [FIELD_CONTROL_BOX, "h-auto min-h-0 px-field py-0 text-field-dense leading-field-dense"],
     },
   },
   defaultVariants: { layout: "field" },

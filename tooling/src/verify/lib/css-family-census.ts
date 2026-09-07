@@ -79,14 +79,42 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // arms measured floor-and-ceiling per seed (tokens.json color.input-border).
   // −2 (2026-09-06, #1684): `--spacing-switch-thumb`'s two arms — see the note on
   // EXPECTED_DIRECT_THEME_DECLARATIONS below.
-  [THEME]: 304,
+  // +8 (2026-09-07, #1868): the FIELD TYPE STEP, minted pointer-conditional — `text.field` /
+  // `text.field-dense` and their paired `leading.*`, four tokens each emitting a base (coarse) declaration
+  // and an `@media (pointer: fine)` arm. iOS Safari zooms the viewport in when a control under 16px takes
+  // focus and never zooms back out, so the platform floor is 16px at coarse; the fine arms are the design's
+  // own 15px/13px steps. The arm rides `$extensions["orb.pointerFine"]`, the `spacing.touch-target`
+  // mechanism (§4b axis 3: a capability is baked into the TOKEN so the call site carries no variant) —
+  // which is what let the interim `@media (any-pointer: coarse)` blocks in ui globals.css AND tiers.css
+  // both be DELETED in the same commit rather than left as a second home for one platform fact.
+  // NOT an arm on `text.body`: `[data-slot="message-bubble"]` reads that for transcript prose, and a coarse
+  // arm there would enlarge all reading prose on touch and collide with `--reading-body-scale`.
+  [THEME]: 312,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
   // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
   // mint no `--fade-*` family (that one is generated — see LOCAL_FADE_STOP_RE below).
+  // +1 (2026-09-07, #1868): the coarse-pointer 16px FIELD FLOOR — one `font-size: var(--text-title)` on
+  // `[data-slot="input-root"|"textarea-root"|"select-trigger"]` inside `@media (any-pointer: coarse)`.
+  // iOS Safari zooms the viewport on focus for any control under 16px and never zooms back out, and every
+  // field in the app computed 15px (`--text-body`) or 13px (`--text-label`). This is the UN-TIERED half of
+  // a two-home floor; the TIERED half is the `--orb-tier-field-size` pair in tiers.css below, and the split
+  // is SPECIFICITY, not duplication (the tier map is unlayered at (0,2,0) and must keep out-ranking this
+  // (0,1,0) rule so a tier can still retune itself). It mints no family and no token: `--text-title` is the
+  // existing 1rem step. It is CSS rather than a utility on FIELD_CONTROL because Base UI's own spelling,
+  // `any-pointer-coarse:text-base`, imports TAILWIND's default scale — `no-raw-typography-in-features` reds
+  // it, correctly.
   [UI_GLOBALS]: 189,
   // +2 (2026-09-04): `[data-density="comfortable"]` / `[data-density="compact"]` each set
   // `--orb-grid-cell-fixed` to its density alias — the tier map is where the density selection lives.
+  // +2 (2026-09-07, #1868): the coarse-pointer arm of the FIELD FLOOR — `--orb-tier-field-size` and
+  // `--orb-tier-field-leading` re-pointed at the `--text-title`/`--leading-title` step under
+  // `@media (any-pointer: coarse)`. It is HERE and not only in ui globals.css because this file is
+  // unlayered by design: `[data-surface-tier] [data-slot="input-root"]` at (0,2,0) out-ranks both the
+  // primitive's utility default AND the (0,1,0) un-tiered floor, so a field inside ANY `<Surface>` — every
+  // LIST pane search box, every settings field — would otherwise have kept its 13px/15px step and gone on
+  // zooming iOS on focus. Two declarations because the tier map always maps size and leading as a pair.
+  // No family minted: both values are existing generated tokens.
   [TIERS]: 47,
   // +1 (2026-09-02, #1120): the collapsed panel's `backdrop-filter: none`. A section that declares a pane
   // "unavailable" still renders it collapsed (owner decision H3 / arm L-b), and the off-screen box was
@@ -126,7 +154,17 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // start-aligned one does), so it takes its own pair of `from`-only keyframes at `calc(track / 2)`, its own
   // two `data-list-flip` counter rules and its two `data-list-settle` twins — the exact #1316 shape one
   // alignment class over. The mobile cancel again widens a selector list and mints nothing.
-  [SHELL]: 349,
+  // +2 (2026-09-07, #1868): the DEVICE INSETS became the grid's on all four edges — `padding-block-start:
+  // env(safe-area-inset-top)` and `padding-inline: env(…-left) env(…-right)` replacing the lone
+  // `padding-inline-start`. `viewport-fit=cover` makes notch/Island/home-indicator avoidance OURS, and
+  // three of the four edges were unkept: TOP was invisible in a browser tab (Safari's own chrome sits
+  // there) but real in the `display: standalone` PWA, where the 48px topbar rendered under the status bar
+  // and the Island; END was unkept in landscape. Paying them on the GRID rather than per region is what
+  // preserves the D66 A1 chrome-row horizon, and `box-sizing: border-box` means the block padding comes out
+  // of the existing `100dvh` rather than adding to it. The topbar's own `max(--spacing-block,
+  // env(…-right))` collapsed back to a plain `padding-inline` in the same commit (that was the
+  // single-region half of this job, now double-counting), so the net is +2 and not +3.
+  [SHELL]: 351,
 };
 // −2 (2026-09-06, #1684): `--spacing-switch-thumb`'s base and `@media (pointer: fine)` arms. The Switch
 // knob became a token-driven calc of the other three dimensions (`track-height − 2×border − 2×inset`) so
@@ -134,8 +172,16 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
 // device pixel at every `--font-scale` — the vault token had no consumer left and is retired in
 // packages/ui/src/tokens/removed.json. Same family as the #1362 row below: a half-pixel landing repaired
 // at the length that produces it (docs/design/integer-line-boxes.md §2, amended there).
-export const EXPECTED_DECLARATION_TOTAL = 1016;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 199;
+// +10 (2026-09-07, #1868): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and
+// 2 shell (the four-edge device insets). ui globals and tiers are NET ZERO — each briefly carried an
+// `@media (any-pointer: coarse)` block while the floor was being built in CSS, and both were deleted when
+// the token layer took the capability; that is the shape §4b axis 3 asks for and the reason the two CSS
+// homes do not appear in this delta at all. Each half is annotated at its own sheet above.
+export const EXPECTED_DECLARATION_TOTAL = 1026;
+// +4 (2026-09-07, #1868): the four field tokens' BASE declarations. Their `pointer: fine` arms live in a
+// generated @media block, which is a themeRule and not a direct @theme declaration — hence +4 here against
+// +8 on the sheet total above.
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 203;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

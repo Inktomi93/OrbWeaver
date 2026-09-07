@@ -16,6 +16,28 @@
 // contract from the standard overlay fade.
 import { OVERLAY_MOTION } from "./overlay-motion.ts";
 
-export const SCRIM_BASE = "fixed inset-0 bg-backdrop";
+// THE iOS ARM IS BASE UI'S OWN, AND IT IS NOT OPTIONAL (#1868). Their vendored docs put `min-height:
+// 100dvh` plus `@supports (-webkit-touch-callout: none) { position: absolute }` on EVERY backdrop —
+// Dialog (8 occurrences), AlertDialog (4), Drawer (4), Combobox (1) — under the comment "iOS 26+: Ensure
+// the backdrop covers the entire visible viewport." A `position: fixed` backdrop is laid against the
+// LAYOUT viewport, and on iOS 26 that can be shorter than what the reader is actually looking at once
+// browser chrome collapses, leaving an undimmed strip at the edge of every overlay. `absolute` beds it in
+// the document instead, and `min-h-dvh` is what makes that box tall enough to be worth bedding.
+//
+// `-webkit-touch-callout` IS THE UA TEST, not a capability we care about: it is a WebKit-only property, so
+// the @supports query is the house way to ask "is this WebKit" without sniffing a user agent. Base UI
+// chose it; we match it rather than inventing a second discriminator for the same question.
+//
+// ONE STRING, SIX OVERLAYS. `SCRIM_BASE` feeds `SCRIM(tier)` which feeds dialog, alert-dialog, drawer,
+// menu, popover and select — so the arm lands on all of them here or on none of them anywhere.
+//
+// IT CANNOT BE PINNED BY A RENDERED TEST, and that is a property of the subject, not an omission: the
+// `absolute` arm is reachable only in WebKit, and every browser we drive (CT, snap, design-audit) is
+// Chromium, which resolves this @supports block to false and renders the byte-identical `fixed` box it
+// always did. A CT asserting the computed position would pass while proving nothing. The honest pin is
+// structural, beside the other cross-sheet sync assertions in tests/ui/styles/css-structure.suite.test.ts
+// — NOT WRITTEN HERE (#1868 landed primitives + CSS only; the test trees carry unrelated in-flight work
+// in another worktree, owner instruction 2026-09-07), so this comment is the standing pointer for it.
+export const SCRIM_BASE = "fixed inset-0 min-h-dvh bg-backdrop supports-[-webkit-touch-callout:none]:absolute";
 
 export const SCRIM = (tier: "popover" | "modal"): string => `${SCRIM_BASE} z-(--z-${tier}) ${OVERLAY_MOTION.backdropFade(tier === "modal" ? "base" : "fast")}`;
