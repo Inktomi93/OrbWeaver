@@ -201,8 +201,17 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
 
   // A worker-level error (a module that failed to load, an uncaught throw in the worker's OWN code) is a crash
   // of the same class — the surface has no guest, so it has nothing to draw.
-  worker.onerror = (): void => {
-    kill("the plugin's interface could not be loaded");
+  //
+  // THE EVENT IS THE ONLY WITNESS, so it is not thrown away (#1856). This handler used to ignore its argument
+  // and emit a fixed sentence, which is what a person then found in `lastError` — a report that names no file,
+  // no line and no cause, for the one failure mode that leaves nothing else behind (the guest never started, so
+  // there is no guest log either). #1856 sat unreproducible for exactly that reason. `ErrorEvent` carries
+  // `message`/`filename`/`lineno`; a cross-origin worker script blanks them by spec, which is itself a
+  // diagnosis, so the bare sentence remains the fallback rather than the default.
+  worker.onerror = (event: ErrorEvent): void => {
+    const where = event.filename === "" ? "" : ` (${event.filename}:${event.lineno}:${event.colno})`;
+    const detail = event.message === "" ? "" : `: ${event.message}${where}`;
+    kill(`the plugin's interface could not be loaded${detail}`);
   };
 
   armWall(UI_GUEST_BOOT_WALL_MS, "startup");
