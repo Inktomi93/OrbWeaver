@@ -13,7 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { DisplayTierInRoomStory } from "./_ct-stories.tsx";
 
 // The story's raw canon, restated here rather than imported: playwright-ct rewrites every named import

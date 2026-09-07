@@ -24,8 +24,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterCreateBandStory } from "../../../forms/_form-identity-stories.tsx";
 
 const HANDLE_CONFLICT_COPY = "You already have a character with that name. Pick a different name and try again.";

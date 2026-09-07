@@ -2,7 +2,7 @@
 // found wrong about how this tab SPEAKS: its breakdown announced as a list with no list items, and its
 // ranked bar chart carried no reading at all for anyone who cannot see it.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsModelsTabStory } from "../_ct-stories.tsx";
 
 const LATENCY = { avgTtftMs: 300, p90TtftMs: 900, avgGenMs: 1200, p90GenMs: 2400 };

@@ -94,12 +94,10 @@ owning_tsconfig() {
   if [[ "$p" == "packages/client/vite.config.ts" ]]; then
     echo "packages/client/tsconfig.json"; return
   fi
-  # 3. the browser reach-back trees (owned WITH dom by a NON-ancestor config — the editor blind spot).
-  if [[ "$p" =~ ^tests/client/.*\.tsx$ || "$p" == "tests/support/ct/ct-data-providers.tsx" ]]; then
-    echo "packages/client/tsconfig.json"; return
-  fi
-  if [[ "$p" =~ ^tests/ui/.*\.tsx$ || ( "$p" =~ ^tests/support/ct/.*\.tsx$ && "$p" != "tests/support/ct/ct-data-providers.tsx" ) || "$p" =~ ^playwright/.*\.(tsx|d\.ts)$ ]]; then
-    echo "packages/ui/tsconfig.json"; return
+  # 3. the browser-tests world (tsconfig.tests-dom.json): browser-subject trees by directory, every tsx under
+  #    tests/ or playwright/ by suffix, the CT mount's .d.ts, and the st-goldens rig (mirror of that config's include).
+  if [[ "$p" =~ ^tests/(client|ui|e2e|support/browser)/ || "$p" =~ ^(tests|playwright)/.*\.tsx$ || "$p" =~ ^playwright/.*\.d\.ts$ || "$p" =~ ^scripts/probes/st-goldens/ ]]; then
+    echo "tsconfig.tests-dom.json"; return
   fi
   # 4. the node graph roots (tests/·scripts/·reset.d.ts — .ts/.mts/.cts; a reach-back .tsx was claimed above).
   if [[ "$p" =~ ^tests/ || "$p" =~ ^scripts/ || "$p" == "reset.d.ts" ]]; then

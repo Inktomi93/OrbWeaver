@@ -12,7 +12,7 @@
 
 import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import { TransformsReadoutStory, TransformsReadoutSystemDefaultStory } from "./_readout-stories.tsx";
 
 /** The readout resolves the preset's ATTACHED scripts; an empty set is enough (the pin is the ORDER, and

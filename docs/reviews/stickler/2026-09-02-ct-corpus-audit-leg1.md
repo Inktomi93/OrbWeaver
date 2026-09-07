@@ -36,7 +36,7 @@ await component.screenshot({ path: `reports/snaps/cb-rules-${theme}-${width}.png
 ```
 
 - Defect: a CT screenshot written into the snap instrument's PUBLISHED family. Per
-  `tests/support/ct/story-shot.ts`'s own header (the #1201 fix, its one home), `reports/snaps/` names
+  `tests/support/node/story-shot.ts`'s own header (the #1201 fix, its one home), `reports/snaps/` names
   are symlink aliases into finished snap-run slots since #1164; `page.screenshot({path})` is an
   ordinary write and FOLLOWS a symlink, so a name collision silently rewrites a finished run's
   evidence while the alias still lstats as a link.
@@ -177,7 +177,7 @@ on it), harness correctness, coverage of the subject's contract.
 | `tests/ui/primitives/spinner/spinner.ct.tsx` | 91 | CLEAN. Mid-flight reads are RANGE asserts + a moved-later poll — the honest animated-state shape |
 | `tests/ui/primitives/skeleton/skeleton.ct.tsx` | 60 | CLEAN |
 | `tests/ui/layout/grid.ct.tsx` | 69 | CLEAN |
-| `tests/support/ct/touch-floor.ct.tsx` | 41 | CLEAN — the #662 instrument bite-proof pair (both directions) |
+| `tests/support/browser/touch-floor.ct.tsx` | 41 | CLEAN — the #662 instrument bite-proof pair (both directions) |
 
 Partial reads (located, not concluded; NOT counted in coverage): `dice-ask-source.ct.tsx` +
 `rpg-scene-cards` grep regions (name triage), `config-welcome`/`config-list-surface` flagged sites
@@ -378,7 +378,7 @@ MID BAND (74):
   tests/ui/layout/grid.ct.tsx (score 6.5, 69 ln) [READ-LEG1]
   tests/client/features/preset/components/preset-structure-tabs.ct.tsx (score 6.5, 62 ln)
   tests/client/features/credentials/components/connections-roles-section.ct.tsx (score 6.5, 380 ln)
-  tests/support/ct/touch-floor.ct.tsx (score 6.3, 41 ln) [READ-LEG1]
+  tests/support/browser/touch-floor.ct.tsx (score 6.3, 41 ln) [READ-LEG1]
   tests/client/features/imagery/components/image-detail-body.ct.tsx (score 6.3, 204 ln)
   tests/ui/primitives/macro-textarea/macro-textarea.ct.tsx (score 6.2, 229 ln)
   tests/client/features/chat/surfaces/message-list-surface.ct.tsx (score 6.2, 1304 ln)
@@ -863,8 +863,8 @@ tests/client/features/rpg/lib/rpg-context-section.ct.tsx:3971  expect(await tabI
 tests/client/features/stats/surfaces/analytics-overview-surface.ct.tsx:339  expect(await readPhantomScrollers(page)) .toEqual
 tests/client/features/workloads/lib/workloads-group.ct.tsx:321  expect(await outerHeight()) .toBeCloseTo
 tests/client/forms/form-identity.suite.ct.tsx:106  expect(await unidentifiedControls(ok)) .toEqual
-tests/support/ct/touch-floor.ct.tsx:38  expect(await hitExtent(control, "x"), "a glyph button's overflowing ::after must still reach the coarse touch 
-tests/support/ct/touch-floor.ct.tsx:39  expect(await hitExtent(control, "y"), "a glyph button's overflowing ::after must still reach the coarse touch 
+tests/support/browser/touch-floor.ct.tsx:38  expect(await hitExtent(control, "x"), "a glyph button's overflowing ::after must still reach the coarse touch 
+tests/support/browser/touch-floor.ct.tsx:39  expect(await hitExtent(control, "y"), "a glyph button's overflowing ::after must still reach the coarse touch 
 tests/ui/art/web-weave/web-weave-touch.ct.tsx:88  expect(await frameFingerprint(canvas)) .toBe
 tests/ui/art/web-weave/web-weave.ct.tsx:377  expect(await solidPixelsAround(canvas, target, HUNT_PROBE_HALF_PX), "the probe window must start as bare silk"
 tests/ui/art/web-weave/web-weave.ct.tsx:378  expect(await solidPixelsAround(canvas, hub, HUNT_PROBE_HALF_PX), "and the instrument must SEE her, at the hub,

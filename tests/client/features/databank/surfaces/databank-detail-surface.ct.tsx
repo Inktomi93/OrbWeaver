@@ -9,9 +9,9 @@
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
-import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
+import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import {
   DatabankDetailContentColumnStory,
   DatabankDetailListModeStory,
@@ -514,7 +514,7 @@ test("no absolutely-positioned box escapes the databank detail scroller (the con
 // resolved font, judged against the design law's 75 (`.claude/skills/side-eye-design-review/SKILL.md` §2).
 // A `ch` comparison would only restate the token. And the paragraph is found by its own COPY rather than by
 // a `data-slot`, so this pin compiles and runs against the pre-fix source: a DEFECT PROOF, not a fence.
-// The reader is `support/ct/prose-measure.ts` — this pin grew the fifth hand-rolled copy of that probe, and
+// The reader is `support/browser/prose-measure.ts` — this pin grew the fifth hand-rolled copy of that probe, and
 // extracting it was the point at which it got a home (#1653's second leg).
 const PROSE_WIDTHS = [1280, 1440, 1920] as const;
 /** The design law's line-length ceiling, in typographic characters — never a px and never a token value. */

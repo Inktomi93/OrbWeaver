@@ -17,7 +17,7 @@ import { OperationsSection } from "../../../../packages/client/src/features/user
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section.tsx";
 import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section.tsx";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The Users SECTION (SET-SEAMS stage 3) in isolation — `admin.listUsers` + `sessions.me` (the viewer's role

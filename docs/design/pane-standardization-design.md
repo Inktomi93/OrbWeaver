@@ -333,7 +333,7 @@ The §3 changes touch, by class:
    reader sees the new fields), the new `list-empty-floor` arm, both with `mustFlag`/`mustPass` vitest
    rows (invisible to `pnpm check` — run the suites); `context-definition-shape` unchanged (arms are
    count/mint-based); `placeholder-copy-registry` untouched.
-6. **The CT tier** — `tests/support/ct/ct-data-providers.tsx` `fakeSection` + real-registry mirror
+6. **The CT tier** — `tests/support/browser/ct-data-providers.tsx` `fakeSection` + real-registry mirror
    (`settings-section-three-coupled-sites.md`); the WHOLE shell CT family re-swept, not just touched
    surfaces (`arrival-default-retires-host-ct-premises.md` — the mount premise changes: bands render via
    hook, extensions loses a toggle, content regions gain an attribute + padding); the #1136

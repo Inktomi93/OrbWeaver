@@ -13,9 +13,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/ct/ink-void.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagCollectionRowsStory } from "../_ct-stories.tsx";
 
 const TAGS = [
@@ -312,7 +312,7 @@ test("the WINDOWED roster paints a scroll cue while there is more below, and dro
 // edge, which is the 848px hole. Every other collection row (regex scent, world-info bookScent, roster
 // members, databank, preset) already carries a subtitle — tags was the one that did not.
 
-// The three widths and the 25% bar are the CT kit's (`support/ct/ink-void.ts`) since #1838, because
+// The three widths and the 25% bar are the CT kit's (`support/browser/ink-void.ts`) since #1838, because
 // DESIGN.md §5.6 owes this matrix to EVERY collection row and the roster rows now take the same one.
 for (const width of INK_VOID_WIDTHS) {
   test(`#1824: a tag row's ink-to-ink void stays inside the 25% bar at ${String(width)}px`, async ({ mount, page }) => {

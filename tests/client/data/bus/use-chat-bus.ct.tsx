@@ -15,8 +15,8 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { routeOrbSocket } from "../../../support/node/route-orb-socket.ts";
+import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatBusAttachFloorStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 

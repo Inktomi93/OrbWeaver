@@ -4,7 +4,7 @@
 //   · design-audit's walker — `ops/walker/hit-extent.ts`: an `elementFromPoint` RING at half-extents
 //     [11, 12, 16, 22], published as `2 x radius`, with ancestor credit allowed only for a control whose
 //     floor is carried by an overflowing pseudo or that is visually hidden (`ancestorCreditAllowed`).
-//   · the CT kit — `tests/support/ct/touch-floor.ts` `hitExtent`: a 1px outward WALK per axis, owning a
+//   · the CT kit — `tests/support/browser/touch-floor.ts` `hitExtent`: a 1px outward WALK per axis, owning a
 //     point when `hit === el || el.contains(hit) || (pseudoCarried && hit.contains(el))`.
 //
 // THE ROW'S PREMISE — "the auditor judges the BORDER BOX" — is REFUTED by these arms: on the shape the
@@ -40,7 +40,7 @@ const DOCUMENT = `<!doctype html>
   <div><button type="button" class="bare" data-slot="bare-value">18</button></div>
 </main></body></html>`;
 
-/** `tests/support/ct/touch-floor.ts` `hitExtent`'s ownership rule, verbatim in shape, run inside the page
+/** `tests/support/browser/touch-floor.ts` `hitExtent`'s ownership rule, verbatim in shape, run inside the page
  *  the auditor is judging. Spelled here rather than imported because the kit's function takes a Playwright
  *  `Locator`; the RULE is the three-clause `owns` predicate, and that is what must agree. */
 const CT_WALK_EVAL = `(() => {

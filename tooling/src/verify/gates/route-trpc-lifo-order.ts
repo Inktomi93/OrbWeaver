@@ -121,7 +121,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files:
-        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/ct/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
+        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/node/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
       at: "tests/client/features/g/g.ct.tsx",
       expect: { messageIncludes: "LIFO" },
       why: "the exact settings-context-tab.ct.tsx (#629) shape — page.route registered BEFORE routeTrpc, so routeTrpc (last-registered) wins and the pending-hang route never runs",
@@ -130,13 +130,13 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files:
-        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/ct/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await routeTrpc(page, {});\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n});\n',
+        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/node/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await routeTrpc(page, {});\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n});\n',
       at: "tests/client/features/g/g.ct.tsx",
       why: "the add-chat-document-dialog.ct.tsx / tag-picker-dialog.ct.tsx idiom — routeTrpc FIRST, the override page.route SECOND (last-registered, correctly wins) — passes",
     },
     {
       files:
-        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/ct/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await page.route("**/api/auth/me", () => undefined);\n  await routeTrpc(page, {});\n});\n',
+        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../support/node/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await page.route("**/api/auth/me", () => undefined);\n  await routeTrpc(page, {});\n});\n',
       at: "tests/client/features/g/g2.ct.tsx",
       why: "a page.route for an UNRELATED endpoint (**/api/auth/me) before routeTrpc — no pattern overlap, no LIFO collision, passes",
     },

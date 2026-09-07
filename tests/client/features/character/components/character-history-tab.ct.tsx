@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterHistoryTabStory } from "../_ct-stories.tsx";
 
 test("Snapshot now admits one durable intent and rejection restores retry", async ({ mount, page }) => {

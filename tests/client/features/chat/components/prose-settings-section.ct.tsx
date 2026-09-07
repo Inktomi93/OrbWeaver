@@ -9,9 +9,9 @@ import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/p
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";

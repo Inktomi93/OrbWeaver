@@ -33,8 +33,8 @@ import { SectionContextHost } from "../../../../packages/client/src/features/app
 import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
-import { placeholderConfigGroups, realConfigGroups } from "../../../support/ct/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { placeholderConfigGroups, realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
+import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {

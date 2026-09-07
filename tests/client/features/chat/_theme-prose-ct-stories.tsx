@@ -9,7 +9,7 @@ import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { Suspense } from "react";
 import { HomeHearthRoom } from "../../../../packages/client/src/features/chat/components/home-hearth-room.tsx";
 import { HomeMastheadBody } from "../../../../packages/client/src/features/chat/components/home-masthead-body.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { makeChatSummary } from "./fixtures.ts";
 
 interface HomePartialThemeProseStoryProps {

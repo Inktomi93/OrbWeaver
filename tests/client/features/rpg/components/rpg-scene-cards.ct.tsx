@@ -5,7 +5,7 @@
 // pins the directive grammar; this pins that the archive threads the verdict at all, rather than defaulting).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RpgCardLightboxStory, RpgSceneCardsStory } from "../_ct-stories.tsx";
 
 const FRAME = '[data-slot="sandbox-frame"]';

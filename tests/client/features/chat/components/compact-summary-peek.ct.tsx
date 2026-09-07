@@ -6,8 +6,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { ProseReading } from "../../../../support/ct/prose-measure.ts";
-import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
+import type { ProseReading } from "../../../../support/browser/prose-measure.ts";
+import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
 import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
 const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe map changed hands.";
@@ -53,7 +53,7 @@ test("clicking View reveals the compaction summary readout", async ({ mount, pag
 //
 // THE ASSERTION IS IN THE LAW'S UNIT, NOT THE TOKEN'S. A `ch` comparison would only restate the token; this
 // measures the AVERAGE GLYPH ADVANCE through the shared reading-measure reader
-// (`tests/support/ct/prose-measure.ts` — canvas `measureText` over the paragraph's own resolved font, and
+// (`tests/support/browser/prose-measure.ts` — canvas `measureText` over the paragraph's own resolved font, and
 // the prose token resolved INSIDE that paragraph) and judges against the design law's 75. And it walks three viewports,
 // because "the line is short enough" is a RANGE property: a ch cap is viewport-independent only while the
 // available width exceeds it.
@@ -77,7 +77,7 @@ const LONG_SUMMARY =
   "said aloud what the map was worth, because saying it would have made the bargain a different kind of thing entirely.";
 
 /** The paragraph addressed by its own rendered COPY, for the shared reading-measure reader (#1683): the
- *  measurement this test grew for itself now has ONE home (`tests/support/ct/prose-measure.ts`), so the six
+ *  measurement this test grew for itself now has ONE home (`tests/support/browser/prose-measure.ts`), so the six
  *  copies of it cannot drift apart. A `data-slot` hook would be a hook the fix could satisfy while the
  *  paragraph moved off the measure — the reader's contract is deliberately text-keyed.
  *

@@ -40,7 +40,7 @@
 // DECLARED BLIND SPOTS (literal-shape, honestly stated):
 //  • DATA FLOW. The gate keys on imports/calls, not values. A sanctioned home that resolves text and then
 //    passes the RESULT down as a prop into a form field is invisible here — that is what the CT helper
-//    `tests/support/ct/assert-token-roundtrip.ts` exists to catch (the wire payload is the real proof).
+//    `tests/support/node/assert-token-roundtrip.ts` exists to catch (the wire payload is the real proof).
 //  • DYNAMIC IMPORT. `(await import("@orb/kit/macro")).processMacros(…)` has no ImportSpecifier; the CALL
 //    arm still fires on the bare-name form, but a property-access call off the namespace object does not.
 //  • ALIASED IMPORT. `import { processMacros as p }` hides the CALL arm (the callee text is `p`), but the
@@ -92,7 +92,7 @@ const FIX =
   "render the RAW string in the field (a MacroTextarea shows `{{tokens}}` on purpose) and resolve only where " +
   "the result is READ. If this really is a read-only readout, add its path to SANCTIONED in " +
   "tooling/src/verify/gates/macro-resolution-home.ts WITH its reason — and give it a token-round-trip CT " +
-  "(tests/support/ct/assert-token-roundtrip.ts) if it sits next to a writable field.";
+  "(tests/support/node/assert-token-roundtrip.ts) if it sits next to a writable field.";
 
 /** Every example except the tripwire one spreads this: the five entry points DECLARED where the rename
  *  tripwire expects them, so an example proves its own arm rather than incidentally tripping the tripwire.

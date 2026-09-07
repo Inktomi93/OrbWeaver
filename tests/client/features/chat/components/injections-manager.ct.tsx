@@ -16,9 +16,9 @@ import type { ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
-import { measureClamp } from "../../../../support/ct/measure-clamp.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { measureClamp } from "../../../../support/browser/measure-clamp.ts";
+import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { InjectionsManagerStory, InjectionsReserveStory } from "../_ct-stories.tsx";
 
 /** The Nth row's disclosure. Named by the row's ORDINAL, which is the only stable name an injection has —
@@ -218,7 +218,7 @@ test("editing a field autosaves — fires setChatInjection with the id + new val
 // The owner ruling MACROS NEVER RESOLVE IN WRITABLE FIELDS, on the injection body — a template field the
 // assembler resolves at turn time. If this editor ever painted resolved text, the next autosave would
 // overwrite the stored `{{user}}` with whoever happened to be bound (see the helper's header). The shared
-// assertion lives in tests/support/ct/assert-token-roundtrip.ts precisely so no editor re-spells it.
+// assertion lives in tests/support/node/assert-token-roundtrip.ts precisely so no editor re-spells it.
 test("a literal {{token}} typed into Content round-trips to the wire unresolved", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.listChatInjections": () => [{ ...INJECTION_ROW, content: "{{char}} watches the door." }],

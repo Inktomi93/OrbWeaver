@@ -247,7 +247,7 @@ table). Against the tree:
   plus the post-sweep integrity pin for each write — the `chat.setHostDisplayScripts` template is `:919-920`
   and `:2472`.
 - **The display switch's three CTs** open `HOST_BAND` first (`settings-context-tab.ct.tsx:336-381`,
-  `tests/support/ct/open-context-sections.ts:17`) — after the move they open the `Regex` kicker; the presence
+  `tests/support/node/open-context-sections.ts:17`) — after the move they open the `Regex` kicker; the presence
   ledger's waiver text says "inside CommittedSettingsTab's Host controls group"
   (`tests/tooling/chat-component-presence.test.ts:112-115`) and a new `regex-context-section.tsx` needs a CT or a
   ledger line (`:1-11`, both directions bite). The #830 index pin (`:1138-1147`) and the D-1 order pins

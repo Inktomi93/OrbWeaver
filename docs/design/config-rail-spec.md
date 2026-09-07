@@ -51,7 +51,7 @@ The build phase walks the ten-step playbook **added 2026-08-03** at `client-arch
 3. **The definition + factory + front-door export** — `features/config/lib/config-section.tsx` exporting `makeConfigSection(collections)`, plus the `main.tsx` door row. G1 keys on LOCATION; `feature-owns-definition`'s `DEFINITION_RE` gains `|collection` in the SAME commit as the first `*-collection.tsx` (review §7.4) or tags/regex go RED the moment their `-pane.tsx` defs delete.
 4. **Per-section selection store** — `state/config-selection-store.ts`, a G27 mint, kinded per C-3.
 5. **`agent-nav/` vocabulary validation** — `__orb.nav` must accept `config` at R1 and REJECT `worldInfo` at R2, or the tooling lens lies about the app.
-6. **`tests/support/ct/ct-data-providers.tsx`** — the real section registry AND the `fakeSection` fold; tsc reds the Record, the mirror's INTENT is a per-edit judgment call.
+6. **`tests/support/browser/ct-data-providers.tsx`** — the real section registry AND the `fakeSection` fold; tsc reds the Record, the mirror's INTENT is a per-edit judgment call.
 7. **Mobile fate** — `rail.mobile` is explicit, no default: `"sheet"` as drawn (C-10 / F-13).
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`. VERIFY only. A hand-added rail or You-sheet entry is a G2 parallel map forming.
 9. **Placeholder copy** — `config` needs a DISTINCT (title, description); the drawn welcome copy is the source, and the same sentence is the home-tile gloss if a config tile ever lands.

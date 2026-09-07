@@ -66,152 +66,29 @@
     "playwright.config.ts",
     "knip.ts"
   ],
-  // Browser tsx under tests/ui, tests/client, and tests/support/ct import `@orb/ui`/`@orb/client` and
-  // would drag dom-only source into this node program — exclude the whole browser-tsx SURFACE by
-  // DIRECTORY, not by filename suffix. (A mis-named `-fixture.tsx` outlier slipped the old suffix globs
-  // and landed here mis-libbed — checked without dom, and never checked WITH it; D62 boundary hardening.)
-  // Every `.tsx` in those three trees is browser and owned with dom by ui/client tsconfig. The node-side
-  // CT plumbing (`tests/support/ct/*.ts`, e.g. route-trpc.ts) STAYS here (`.ts`, not `.tsx`), as does the
-  // node `tests/ui/tokens/*.test.ts`.
-  // `__g_*` — the check-gates self-test's reserved throwaway-fixture sentinel (see tsconfig.base.json's
-  // exclude note): this aggregator sweeps packages/scripts/tests, so it must skip the sentinel too or a
-  // concurrent `typecheck:graph` catches a fixture mid-lifecycle → phantom error.
+  // WORLD MEMBERSHIP IS DERIVABLE (type-worlds program, #1351 phase 1 + 5): no entry below names a FILE.
+  // This is the NODE world — DOM-less on purpose (see the header) — and the browser world is claimed by
+  // DIRECTORY + SUFFIX: `tests/{client,ui,e2e}` and `tests/support/browser` are browser-subject trees, every
+  // `.tsx` anywhere is React under playwright-ct, `playwright/` is the CT mount, and `scripts/probes/st-goldens`
+  // is a browser-driving rig (the whole rig, on the `tests/e2e` precedent: its scripts read browser state inside
+  // `page.evaluate` callbacks). All of those are rooted WITH dom by tsconfig.tests-dom.json, and a helper that
+  // needs lib.dom lives under `tests/support/browser/` so its LOCATION declares its world — the per-file
+  // escapee ledger this array used to carry (30 rows at its peak) is gone, and `tests-type-membership` is the
+  // guard that a new file lands in SOME program. `__g_*` is the check-gates self-test's throwaway-fixture
+  // sentinel (tsconfig.base.json's exclude note); `sillytavern-runtime` is the rig's GITIGNORED foreign
+  // capture, whose root `.d.ts` files would otherwise join this program (verified by planting a file: 1 → 0).
   "exclude": [
     "packages/ui/src",
     "packages/client/src",
-    "tests/ui/**/*.tsx",
-    "tests/ui",
-    "tests/support/ct/**/*.tsx",
-    "playwright",
-    "**/__g_*",
-    "**/__g_*/**",
-    // CT plumbing that is itself DOM-COUPLED: `dropFiles` builds a `DataTransfer` + `File` INSIDE the page
-    // (an `evaluateHandle` callback), so its body needs lib.dom even though it is `.ts` node-side glue —
-    // the one exception to the "tests/support/ct/*.ts stays here" note above. Home: tsconfig.tests-dom.json.
-    "tests/support/ct/drop-files.ts",
-    // Same exception, geometry flavor: the settings render-parity harness measures section boxes INSIDE the
-    // page (a `page.evaluate` callback reads `document` + `getBoundingClientRect`), so its body needs
-    // lib.dom. Home: tsconfig.tests-dom.json.
-    "tests/support/ct/settings-geometry.ts",
-    // Same exception, density-tier flavor: the per-pane tier-liveness probe reads computed font-size off a
-    // list row INSIDE the page (a `locator.evaluate` callback: `getComputedStyle` + a throwaway probe node
-    // for the token), so its body needs lib.dom. Home: tsconfig.tests-dom.json.
-    "tests/support/ct/tier-liveness.ts",
-    // Same exception, content-column flavor (#1664): the member-editor measurement oracle resolves both width
-    // tokens with a probe planted INSIDE the nearest container-type ancestor and reads gutters off
-    // `getBoundingClientRect` (a `page.evaluate` callback), so its body needs lib.dom. Home: tsconfig.tests-dom.json.
-    "tests/support/ct/measure-content-column.ts",
-    // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
-    // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
-    // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That
-    // drags lib.dom globals into this DOM-LESS node program. The SOURCE stays dom-typechecked by
-    // packages/ui/tsconfig; this test lives in tsconfig.tests-dom.json.
-    // The WHOLE e2e tree is DOM-context by ruling (owner, 2026-07-24): playwright specs read browser
-    // state inside `page.evaluate` callbacks, and typing them DOM-less forced hand-rolled element-shape
-    // bridges + `as unknown as` casts in every spec (the DomEl/DomRow pattern). The tree lives in
-    // tsconfig.tests-dom.json (dom + node — its specs are node harness code driving a browser).
-    "tests/e2e",
-    // The ST-parity probe's captured SillyTavern install (gitignored; `scripts/probes/st-goldens/README.md`).
-    // This aggregator `include`s all of `scripts`, and a specified `exclude` REPLACES tsc's default
-    // `["node_modules", …]` — so without this line the foreign app's four root `.d.ts` files join the
-    // program, and `public/global.d.ts` declares ST's browser globals into OUR global scope. Verified by
-    // planting a file: closure hits go 1 → 0. The rig's own five scripts DO typecheck here (2026-08-06);
-    // this excludes the third-party runtime beneath them, never our code.
-    "scripts/probes/st-goldens/sillytavern-runtime",
-    // #1228, the DOM-lib-leak defuse: this script's `page.evaluate` callbacks read `document`/
-    // `HTMLElement` inside the browser and formerly carried a program-scoping `/// <reference lib="dom"
-    // />` that silently supplied lib.dom to this WHOLE aggregator, masking every other DOM-coupled
-    // escapee below. Removed the directive; the script now typechecks under tsconfig.tests-dom.json.
-    "scripts/probes/st-goldens/generate-goldens.ts",
-    // Same #1228 leak, ct-support flavor: these `tests/support/ct/*.ts` files reach `document`/
-    // `HTMLElement`/`getComputedStyle`/`requestAnimationFrame` inside `page.evaluate`/`locator.evaluate`
-    // callbacks — DOM-coupled non-`.tsx` escapees, same class as the pre-existing drop-files/
-    // settings-geometry/tier-liveness trio just below. Homed at tsconfig.tests-dom.json.
-    "tests/support/ct/accessible-names.ts",
-    "tests/support/ct/autosave-status-transcript.ts",
-    "tests/support/ct/canvas-ink.ts",
-    "tests/support/ct/held-portrait-image.ts",
-    "tests/support/ct/ink-void.ts",
-    "tests/support/ct/measure-clamp.ts",
-    "tests/support/ct/part-vs-surface.ts",
-    "tests/support/ct/pixel-contrast.ts",
-    "tests/support/ct/prose-measure.ts",
-    "tests/support/ct/scroll-containing-block.ts",
-    "tests/support/ct/touch-floor.ts",
-    "tests/support/ct/weave-drive.ts",
-    // Same #1228 leak, TRANSITIVE-barrel flavor: this file imports every `@orb/client/features/*`
-    // config-group barrel (a non-component sibling of ct-data-providers.tsx, which is excluded by the
-    // `tests/support/ct/**/*.tsx` glob above and homed at packages/client/tsconfig.json) — a `.ts` file
-    // no `.tsx` directory reach-back claims, so its DOM-coupled component chain used to reach dom lib
-    // ONLY through the leak. Homed at packages/client/tsconfig.json beside its `.tsx` sibling (its only
-    // two consumers are both client-owned; the ct-data-providers.tsx upward-cake precedent). NOT
-    // subsumed by the #1243 tests/client wholesale exclude below — it lives under tests/support/ct/.
-    // #1765: the containment helper reads `scrollWidth`/`clientWidth`/`getBoundingClientRect` inside `evaluate`
-    // callbacks — DOM-coupled `.ts` glue, owned with lib.dom by tsconfig.tests-dom.json like its siblings here.
-    "tests/support/ct/contained-within.ts",
-    "tests/support/ct/ct-config-groups.ts",
-    // Same #1228 leak, tests/tooling flavor: these int/CT tests drive a REAL chromium directly
-    // (`@playwright/test` `chromium.launch`/`@playwright/experimental-ct-react`) rather than importing a
-    // package's DOM-typed source, so no other program's reach-back claims them. Homed at
-    // tsconfig.tests-dom.json.
-    "tests/tooling/_shared/browser.int.test.ts",
-    "tests/tooling/design-audit-walker.ct.tsx",
-    "tests/tooling/snap/cascade.suite.int.test.ts",
-    "tests/tooling/snap/ops/arms/contrast.int.test.ts",
-    // Same #1228 leak, node-fetch-lib flavor: this file's planted `fetch` stand-in types against
-    // `RequestInfo` (the whatwg fetch surface tsc sources from lib.dom, not `@types/node`). Homed at
-    // tsconfig.tests-dom.json.
-    "tests/tooling/stack/lib/engine-launch.test.ts",
-    // #1243 final leg (owner-accepted plan change, bridge round 5, WHOLESALE arm): every prior round of
-    // this section individually excluded ONE `tests/client/**` file at a time (auth-bootstrap.test.ts,
-    // the barrel-import re-points, the pure.ts #lib-trim displacements, ...) and EACH round exposed a
-    // fresh, still-growing layer of independent reachers into the SAME impure client chains
-    // (`#lib`/`#state`/`#data` package-internal aliases, which always resolve to the impure `index.ts`,
-    // never a `pure.ts` subpath) — the signature of a wrong unit of work, not a shrinking ledger. The
-    // `pure.ts` mirrors this paragraph names are GONE as of 2026-09-05 (#1339, type-worlds phase 2):
-    // the barrels are the only client front door now, so the alias claim above is unconditional and
-    // there is no curated subpath left to look for.
-    // wholesale fix: `tests/client/**` (non-`.tsx`; `.tsx` is already excluded above and owned by
-    // packages/client/tsconfig.json's reach-back) is NOT node-context by nature — any test that imports
-    // or deep-imports client SOURCE is a browser-subject test, so its honest home is the DOM-libbed
-    // program (tsconfig.tests-dom.json), matching the tests/e2e precedent above (a directory glob by
-    // ruling, not a per-file ledger). Per-file escapee comments for `tests/client/**` are RETIRED as of
-    // this line — new client escapees need no entry here at all, they ride the directory exclude.
-    // The guard MOVES, it does not vanish — from TYPE time to RUN time, not to another
-    // type program (`pnpm typecheck`'s per-package client program CARRIES lib.dom, so it structurally
-    // cannot catch a stray `document`/`window`; see tsconfig.tests-dom.json's matching note for the
-    // full correction and the run-time mechanism — no vitest project sets `environment`, no jsdom/
-    // happy-dom is installed, so an accidental DOM reference throws `ReferenceError` the instant a
-    // node-context test EXECUTES). And this aggregator's own header above (its DOM-LESS-on-purpose
-    // note, `tsconfig.json:17-22`) states its actual motivating purpose: protecting SERVER/node typing
-    // from lib.dom's overrides, never policing stray `document` in tests — this move relocated only
-    // TEST files, so that purpose is fully intact.
     "tests/client",
-    // #1243, packages/ui HALF: the identical "wholesale by directory" fix, one level later. Per-file
-    // ui/lib/data escapees (variant-arm-matrix's family, _ct-stories.tsx's chain, clamp.ts's, several
-    // chart-option chains) kept surfacing NEW independent reachers into ui/lib/index.ts's "#lib"
-    // internal alias after five separate per-file fixes — the SAME signature that triggered the
-    // tests/client move above. `tests/ui/**` (non-`.tsx`) rides the same directory exclude now.
-    // tests/tooling/**'s two DIRECT `.tsx`/`.ts` escapees below are NOT subsumed by either wholesale
-    // move (they live outside both tests/client/** and tests/ui/**) and stay per-file, same as the
-    // handful of tests/server/** reachers.
     "tests/ui",
-    // #1243: two SERVER tests, each deep-importing a client/ui feature file whose OWN code internally
-    // imports a package-scoped alias ("#lib"/the client "@orb/client/data/bus" deep subpath) - not
-    // subsumed by either wholesale move since they live under tests/server/.
-    "tests/server/transport/trpc/stream/socket.test.ts",
-    "tests/server/domain/chat/macro-identity.suite.int.test.ts",
-    // #1243: two tests/tooling/** files bare-importing "@orb/ui/lib" for a pure constant each
-    // (CSS_MERGE_FAMILY_NAMES, STAMPED_VARIANT_AXES) - pulls ui/lib/index.ts wholesale; no
-    // "@orb/ui/lib/pure" surface exists (out of this round's scope).
-    "tests/tooling/css-merge-parity.int.test.ts",
-    "tests/tooling/ui-audit/ops/walker/target-identity.test.ts",
-    // #1243: tests/tooling/_ct-stories.tsx is a `.tsx` STORY module (not a test, no test-role directory
-    // exemption claims it either - it lives under tests/tooling/, not tests/{client,ui}/) bare-importing
-    // @orb/ui/{button,checkbox,slider}, whose primitives import "#lib" - the SAME class as
-    // design-audit-walker.ct.tsx (already homed, #1228). overflow.ct.tsx (a sibling of
-    // design-audit-walker.ct.tsx missed in the original #1228 sweep) ALSO imports it independently.
-    "tests/tooling/_ct-stories.tsx",
-    "tests/tooling/snap/ops/overflow.ct.tsx"
+    "tests/e2e",
+    "tests/support/browser",
+    "**/*.tsx",
+    "playwright",
+    "scripts/probes/st-goldens",
+    "scripts/probes/st-goldens/sillytavern-runtime",
+    "**/__g_*",
+    "**/__g_*/**"
   ]
 }

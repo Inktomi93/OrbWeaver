@@ -152,7 +152,7 @@ Explicitly throwaway probes, one-shot lenses, launcher shims, operator scripts. 
 
 Two merges are REFUSED with receipts — do not re-propose without new evidence:
 
-- **accname engine → `@orb/ui`: refused.** There is no accname engine in `@orb/ui` to sit beside; `UI-Primitives-and-Reuse.md` §13.10 is the authority and its mechanical half (`tests/support/ct/accessible-names.ts`) carries the OPPOSITE ruling — a hand-rolled in-page name computation is banned, which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either (snap resolves a NAME for a selector; ui-audit emits raw ATTRIBUTES and never computes what the name IS). If the two tool-side resolvers are ever merged, `tooling/src/_shared/` is the home `tooling-shared-plumbing` already guards.
+- **accname engine → `@orb/ui`: refused.** There is no accname engine in `@orb/ui` to sit beside; `UI-Primitives-and-Reuse.md` §13.10 is the authority and its mechanical half (`tests/support/browser/accessible-names.ts`) carries the OPPOSITE ruling — a hand-rolled in-page name computation is banned, which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either (snap resolves a NAME for a selector; ui-audit emits raw ATTRIBUTES and never computes what the name IS). If the two tool-side resolvers are ever merged, `tooling/src/_shared/` is the home `tooling-shared-plumbing` already guards.
   **THE TWO TOOL-SIDE RESOLVERS WERE MERGED (#1324, 2026-09-04) — and the refusal above is unchanged.**
   The ruling survives; its INPUT changed. What the merge folded is not an accname ENGINE but a
   COMPARISON KEY that both sites already computed and both computed wrong the same way: snap's surface

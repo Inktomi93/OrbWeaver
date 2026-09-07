@@ -28,7 +28,7 @@ import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 

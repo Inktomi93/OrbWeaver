@@ -34,7 +34,7 @@ import { useEffect, useState } from "react";
 import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
-import { CtDataProviders } from "../../../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
 import { makeModelCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");

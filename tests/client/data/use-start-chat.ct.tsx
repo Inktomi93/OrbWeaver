@@ -14,7 +14,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { StartChatStory } from "./_ct-stories.tsx";
 
 const CREATED_ID = "chat_ct_start_chat";

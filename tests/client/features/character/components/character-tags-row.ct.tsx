@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterTagsRowStory } from "../_ct-stories.tsx";
 
 test("tag removal admits one durable intent, holds the cluster inert, and rejection restores retry", async ({ mount, page }) => {

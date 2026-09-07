@@ -19,7 +19,7 @@ import { PersonaEditor } from "../../../../packages/client/src/features/persona/
 import { PersonaList } from "../../../../packages/client/src/features/persona/components/persona-list.tsx";
 import { PersonaNotificationsSection } from "../../../../packages/client/src/features/persona/components/persona-notifications-section.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 type PersonaFixture = Parameters<typeof PersonaPanelRow>[0]["persona"];
 

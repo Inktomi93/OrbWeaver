@@ -48,7 +48,7 @@ built around these gaps. `tooling/src/verify/lib/selection.ts` is the code home 
 
 An editor (and a naive file-scoped `tsc`) type-checks a file against its NEAREST ancestor tsconfig. But a
 file can be OWNED by a NON-ancestor config that reaches back into it — the browser `.tsx` reach-back trees
-(`tests/ui/**`, `tests/client/**`, `tests/support/ct/**`, `playwright/**`) are claimed WITH dom by the
+(`tests/ui/**`, `tests/client/**`, `tests/support/browser/**`, `playwright/**`) are claimed WITH dom by the
 `ui`/`client` configs, not by any ancestor. File-scoped tsc is therefore unsound (it never sees consumers);
 the honest per-tool floor is the OWNING PACKAGE, not the file (`selection.ts` header). The `types:packages`
 stage runs `tsc -p <owning-config>`, never a file-scoped check.

@@ -7,7 +7,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 export function BackgroundSourceFieldStory({ readOnly = false }: { readonly readOnly?: boolean }): ReactElement {
   const [value, setValue] = useState<ThemeBackground | null>(null);

@@ -20,8 +20,8 @@ import type { AutomationRuleId, AutomationSuggestionId, MessageId } from "@orb/k
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { AutomationSuggestionCardStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";

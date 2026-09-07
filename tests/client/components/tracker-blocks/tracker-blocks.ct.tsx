@@ -16,7 +16,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
-import { ctSnapPath } from "../../../support/ct/snap-out.ts";
+import { ctSnapPath } from "../../../support/node/snap-out.ts";
 import { TrackerValueTwoWriters } from "./_ct-stories.tsx";
 
 /** WCAG 2.2 SC 2.5.8's minimum target size. Named once so the ambient chip pin reads as the criterion it is. */

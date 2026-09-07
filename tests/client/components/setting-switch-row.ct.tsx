@@ -10,7 +10,7 @@
 
 import { SettingCheckboxRow, SettingSwitchRow } from "@orb/client/components";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { readSwitchRowOrientation } from "../../support/ct/settings-geometry.ts";
+import { readSwitchRowOrientation } from "../../support/browser/settings-geometry.ts";
 
 test("SettingSwitchRow honours disabled + renders its reason as the row's description", async ({ mount, page }) => {
   await mount(

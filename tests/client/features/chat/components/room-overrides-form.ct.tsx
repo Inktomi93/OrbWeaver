@@ -11,8 +11,8 @@
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureClamp } from "../../../../support/ct/measure-clamp.ts";
-import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { measureClamp } from "../../../../support/browser/measure-clamp.ts";
+import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { RoomOverridesSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="room-overrides-saved"]';

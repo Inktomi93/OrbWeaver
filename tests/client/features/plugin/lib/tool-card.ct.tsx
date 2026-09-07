@@ -20,7 +20,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginToolCardStory } from "../_ct-stories.tsx";
 
 const A_PAST_INSTANT = 1_760_000_000_000;

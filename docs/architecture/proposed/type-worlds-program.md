@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # The type-world program: derivable test-program membership
@@ -30,6 +30,38 @@ const a=g.match(re)||[], b=d.match(re)||[];
 console.log("per-file test entries: tsconfig.json="+a.length+" tests-dom="+b.length);
 process.exit(a.length+b.length>0?1:0)'
 ```
+
+## Status 2026-09-06 — phase 1 landed, and the config half of phase 5 with it (branch `cb/type-worlds-bork`)
+
+Measured first, on `main` at 7754c2405, by writing the two world programs BY RULE ONLY (no per-file entry
+anywhere) and typechecking each: the browser world was clean (4,449 files, a planted control proved it could
+red); the node world red 728 times — 567 in 76 `packages/{ui,client}/src` files pulled in transitively by
+exactly FOUR node-side importers (`tests/support/browser/ct-config-groups.ts` through six client barrels, two
+tooling tests through `@orb/ui/lib` for one pure constant each, one server test through `@orb/client/data/bus`),
+142 in the 17 DOM-coupled `tests/support/ct` helpers' own bodies, 12 in the st-goldens rig script, 7 in four
+tooling tests' in-page callbacks. Every one of those had an answer that is not a list:
+
+- **Phase 1:** `tests/support/ct/` is gone; 24 helpers whose bodies need lib.dom live in `tests/support/browser/`,
+  15 node-side ones in `tests/support/node/` (moved through the codemod kit; the split is the measured one,
+  not a guess). Spelled `tests/support/{browser,node}` rather than `tests/_support/…` so every rule that already
+  names `tests/support/` (test-layout's exemption, the CT changed-scope view, vitest's serial lane) kept
+  working without a coupled-site sweep; the `iso/` directory is minted when a helper needs it.
+- **Phase 5, the config half:** `tsconfig.json` (the node world) and `tsconfig.tests-dom.json` (the browser-tests
+  world) carry directory + suffix rules only; `packages/{ui,client}/tsconfig.json` check nothing but their own
+  src (every test `.tsx` and the CT mount are rooted by the browser-tests world). The acceptance measure above
+  reports 0. The `scripts/probes/st-goldens` rig joined the browser-tests world as a DIRECTORY, on the
+  `tests/e2e` precedent (a browser-driving rig whose scripts read page state inside `evaluate` callbacks).
+- **The four barrel importers:** the two tooling tests and the server test import the pure LEAF module by
+  relative path (`class-merge.ts`, `variant-attrs.ts`, `chat-event-seq-guard.ts`); `ct-config-groups.ts` is a
+  browser helper and moved. Phase 3 (barrel homogeneity) remains the durable cure for the barrels themselves.
+- **The four tooling tests:** three in-page callbacks became string-body `page.evaluate` calls (the
+  appearance-invariant-runtime precedent — a node-world test cannot type an in-page callback, and a
+  browser-world helper would drag lib.dom back in through the import; the import DIRECTION is the fence), and
+  one `RequestInfo` became `Parameters<typeof fetch>[0]`.
+
+Phase 0 (the vocabulary module + the predictive membership report) is still open (#1858); phases 3, 4 and 6 are
+untouched. The routing algebra (`program-routing.ts`), the edit hook, eslint's parser map and biome moved in
+the same commit.
 
 ## The diagnosis
 

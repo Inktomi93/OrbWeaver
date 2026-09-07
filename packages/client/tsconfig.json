@@ -1,50 +1,18 @@
 {
-  // @orb/client is browser code (the frontend cake tip: kit ← ui ← client). DOM libs + JSX on top
-  // of the isomorphic base — mirrors packages/ui. Explicit include (was implicit-everything): the
-  // package's own code PLUS the client-owned CT browser program the root aggregator excludes —
-  // EVERY browser tsx under tests/client, matched by DIRECTORY not filename suffix (so a mis-named
-  // helper can't fall through to the node aggregator and be checked without dom — D62 tsconfig-boundary
-  // hardening) and the client-side CT provider stack (ct-data-providers.tsx — it imports @orb/client,
-  // so it can NEVER be swept into ui's program: upward-cake; packages/ui/tsconfig.json includes only
-  // ct-providers.tsx).
-  //
-  // #1228, the DOM-lib-leak defuse: ct-config-groups.ts is ct-data-providers.tsx's NON-`.tsx` sibling
-  // (the "a non-component module beside ct-data-providers.tsx" its own header names) — it imports
-  // every `@orb/client/features/*` config-group barrel, so it is DOM-coupled by the same transitive
-  // chain, but being `.ts` (not `.tsx`) no directory-glob reach-back above claims it. It used to reach
-  // this program's dom lib ONLY via the root aggregator's leaked `/// <reference lib="dom" />`
-  // (scripts/probes/st-goldens/generate-goldens.ts); the root aggregator now excludes it explicitly.
-  //
-  // #1312 (2026-09-05): browser purity is NOT enforced by the base's `types: []` — that only
-  // suppresses AUTO-inclusion of `@types/*`, and cannot suppress the `/// <reference types="node" />`
-  // a DEPENDENCY .d.ts injects (measured: the type-only `import type { AppRouter } from "@orb/server"`
-  // edge — 5 sites, sanctioned by dep-cruiser `client-no-backend-runtime` — reaches pino-std-serializers
-  // and undici-types, which reference `node`, so `Buffer.from("x")` typechecks clean here). The real
-  // enforcers are dep-cruiser `client-no-backend-runtime` (runtime import edges), biome
-  // `correctness/noNodejsModules` (node:* import form) and biome `style/noRestrictedGlobals` (bare
-  // globals — Buffer/setImmediate/global/…, biome.json's last override).
+  // @orb/client is browser code (the frontend cake tip: kit ← ui ← client). DOM libs + JSX on top of the
+  // isomorphic base — mirrors packages/ui. THIS PROGRAM CHECKS ONLY ITS OWN SRC + vite.config.ts (type-worlds
+  // program, #1351): the browser tests it used to reach back into (`tests/client/**/*.tsx`, the client-owned CT
+  // data providers) are rooted by tsconfig.tests-dom.json, the browser-tests world, by directory + suffix.
+  // vite.config.ts joined 2026-08-03 so a dead vite key never sits in no program; `../../platform.d.ts` is
+  // the root ambient pair's second half (node-26 adoption program §1.2) — this array overrides the base's,
+  // which carries both.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // VITE is this package's resolver, so it stays on the bundler pair while the base went nodenext
-    // (tsx-shedding stage 4). Not a weakening: node-strict resolution is a SUBSET of what vite accepts,
-    // and the shared packages (kit/contracts) are checked under nodenext by their own programs.
+    // VITE is this package's resolver — the bundler pair, same reasoning as packages/ui.
     "module": "esnext",
     "moduleResolution": "bundler",
-    // `esnext.disposable` mirrors tsconfig.base.json's lib (node-26 adoption program §1.1) — this array
-    // OVERRIDES the base's, so the entry must be repeated here. (§5 rules ui/client have zero
-    // disposal-shaped sites today; the lib stays uniform so a program never silently loses the typing.)
     "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
     "jsx": "react-jsx"
   },
-  // `../../platform.d.ts` = the root ambient pair's second half (node-26 adoption program §1.2) — see
-  // tsconfig.base.json's include note: this array overrides the base's, which carries both.
-  "include": [
-    "src",
-    "vite.config.ts",
-    "../../reset.d.ts",
-    "../../platform.d.ts",
-    "../../tests/client/**/*.tsx",
-    "../../tests/support/ct/ct-data-providers.tsx",
-    "../../tests/support/ct/ct-config-groups.ts"
-  ]
+  "include": ["src", "vite.config.ts", "../../reset.d.ts", "../../platform.d.ts"]
 }

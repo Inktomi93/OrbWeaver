@@ -8,7 +8,10 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-import type { MessageRenderContext } from "#lib";
+// The LEAF, not the `#lib` barrel: a type-only import is erased at runtime but TypeScript still RESOLVES the
+// barrel, and `lib/index.ts` value-exports DOM-coupled modules — through this one line a node-side test that
+// imports this adapter dragged 19 browser files into the DOM-less program (type-worlds #1351).
+import type { MessageRenderContext } from "../../../lib/message-render.ts";
 
 export interface ResolveMessageRenderContextInput {
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;

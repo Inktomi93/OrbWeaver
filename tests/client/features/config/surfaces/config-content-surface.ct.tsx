@@ -14,9 +14,9 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { readEscapedAbsolutes } from "../../../../support/ct/settings-geometry.ts";
+import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */

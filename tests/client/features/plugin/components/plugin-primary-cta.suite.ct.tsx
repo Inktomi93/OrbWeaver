@@ -22,10 +22,10 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
+import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { ExtensionsPageStory, PluginChatSettingsSectionStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
 
 const A_PAST_INSTANT = 1_760_000_000_000;

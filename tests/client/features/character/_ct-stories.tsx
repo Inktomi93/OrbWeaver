@@ -44,7 +44,12 @@ import { CharacterOverviewCard } from "../../../../packages/client/src/features/
 import { CharacterRelationsTab } from "../../../../packages/client/src/features/character/components/character-relations-tab.tsx";
 import { CharacterRestoreBookAction } from "../../../../packages/client/src/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
-import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import {
+  CtAppDataProviders,
+  CtCharacterContributorSectionRegistry,
+  CtDataProviders,
+  CtRealSectionRegistry,
+} from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 // The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring

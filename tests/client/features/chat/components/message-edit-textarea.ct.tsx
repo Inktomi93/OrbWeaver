@@ -3,7 +3,7 @@
 // patch); a no-op edit (unchanged text) just exits without firing the mutation.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageEditTextareaStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
 

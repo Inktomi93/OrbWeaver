@@ -4,8 +4,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RpgGameDoorStory } from "../_ct-stories.tsx";
 
 function stubChat(page: Page, rpg: unknown, mutation: string, responder: TrpcResponder): Promise<TrpcRecorder> {

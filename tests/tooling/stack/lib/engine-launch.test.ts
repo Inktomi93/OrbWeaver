@@ -14,7 +14,7 @@ const CONNECTION_REFUSED = Object.assign(new Error("connect ECONNREFUSED 127.0.0
 
 /** A loopback stand-in: `/health`, `/v1/models` and `/openapi.json` answered from planted values. */
 function plantedFetch(served: { readonly health: Response | Error; readonly modelIds?: readonly string[]; readonly paths?: readonly string[] }): typeof fetch {
-  return ((input: RequestInfo | URL): Promise<Response> => {
+  return ((input: Parameters<typeof fetch>[0]): Promise<Response> => {
     const url = String(input);
     if (url.endsWith("/health")) {
       return served.health instanceof Error ? Promise.reject(served.health) : Promise.resolve(served.health);

@@ -18,7 +18,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersContextStory, CharactersListStory, CharactersScreenStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures.ts";

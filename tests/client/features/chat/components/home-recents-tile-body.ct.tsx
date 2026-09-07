@@ -16,7 +16,7 @@
 // read is NOT warmed (`use-prefetch-room.ts` carries the numbers), so nothing here requests it.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatRecentsHeroArtStory, ChatRecentsMobileStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 

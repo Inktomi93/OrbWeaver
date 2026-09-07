@@ -4,7 +4,7 @@
 // first row changes; a row exposes its replies + tokens summary.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsListSurfaceStory } from "../_ct-stories.tsx";
 
 const ARIA = {

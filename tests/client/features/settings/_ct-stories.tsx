@@ -8,7 +8,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { AppearanceLooksSection } from "../../../../packages/client/src/features/settings/components/appearance-looks-section.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The LOOKS section alone (its `listThemes` + `getUserSettings` reads stubbed per-test via routeTrpc) —

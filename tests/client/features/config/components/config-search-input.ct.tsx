@@ -13,8 +13,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { resolveSpacingPx } from "../../../../support/ct/touch-floor.ts";
+import { resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_search", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };

@@ -1,7 +1,7 @@
 // CT: the Analytics CONTEXT "Personas" tab — the same two findings as the Models tab beside it
 // (side-eye ANALYTICS 2026-08-19, P2c + P1e), which is why they are fixed as one class rather than one row.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsPersonasTabStory } from "../_ct-stories.tsx";
 
 const PERSONAS = [
