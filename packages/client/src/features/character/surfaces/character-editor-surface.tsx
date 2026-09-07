@@ -116,7 +116,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // scroller, where an auto-height child is exactly what a scroller wants. `relative` rides along: a scroll
     // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
     // area (character-library-welcome.tsx carries the same note).
-    <Stack className="relative h-full overflow-y-auto">
+    <Stack className="relative h-full overflow-y-auto overscroll-contain">
       <QueryBoundary
         fallback={<SkeletonRows count={EDITOR_SKELETON_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}

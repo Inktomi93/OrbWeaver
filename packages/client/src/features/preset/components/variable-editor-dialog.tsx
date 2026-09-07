@@ -37,7 +37,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
     >
       <DialogPopup>
         <DialogTitle>Edit variable</DialogTitle>
-        <Stack gap="block" className="relative min-h-0 overflow-y-auto">
+        <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
           <form.AppField name={`variables[${index}].name`}>
             {(field): ReactElement => <field.TextField label="Name" description="The macro key — used as {{name}} in your prompt." />}
           </form.AppField>

@@ -33,8 +33,28 @@
   /* NO `transition: grid-template-columns` here — see "THE PANEL PUSH IS A FLIP" below. The track resizes
    * in ONE frame and the visible motion is a compositor-only counter-translate. */
   height: 100vh; /* fallback for no-dvh */
+  /* ── THE FRAME SHRINKS ABOVE THE SOFT KEYBOARD (#1869) ───────────────────────────────────────────────
+   * `interactive-widget=resizes-content` (index.html) asks the browser to do exactly this and WebKit has
+   * never implemented it (bug 259770); `dvh` is not shrunk by the keyboard on ANY browser, because dynamic
+   * viewport units track browser chrome and nothing else. So on iOS the frame kept its full height while
+   * the keyboard covered the composer and the tab bar, and Safari scrolled the visual viewport to the
+   * focused field — which the reader cannot scroll back, because `overflow: clip` on html/body and on this
+   * grid means there is no scroll container to scroll.
+   *
+   * Subtracting the measured inset makes the frame fit the space the keyboard leaves, which is what
+   * `resizes-content` would have done: every region inside reflows from the grid as it already does, the
+   * tab bar stays on its own row, and the composer rides up with the content column. ONE declaration,
+   * because the grid is the thing every region's geometry already resolves through.
+   *
+   * `--orb-keyboard-inset` is written imperatively by `use-keyboard-inset-var.ts` (shell tier) off
+   * `@orb/ui`'s `readKeyboardInset` — which bails on pinch-zoom and on sub-60px chrome collapse, Base UI's
+   * own two guards. THE `0px` FALLBACK IS LOAD-BEARING, not defensive: the hook REMOVES the property
+   * whenever there is no keyboard, so a bare `var()` here would be invalid for the entire ordinary life of
+   * the app and would take this whole `height` declaration with it (an invalid `var()` inside `calc()`
+   * makes the declaration IACVT). With the fallback it resolves `calc(100dvh - 0px)` — byte-identical to
+   * what it replaced on every desktop, every Android, and every iOS moment with no keyboard up. */
   /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
-  height: 100dvh;
+  height: calc(100dvh - var(--orb-keyboard-inset, 0px));
   position: relative;
   /* ── THE SHELL IS ONE ISOLATED STACKING SCOPE (#1794 — this declaration is the scope's one home) ──────
    * `isolation: isolate` makes this box a stacking context, so EVERY z-index written anywhere in this file

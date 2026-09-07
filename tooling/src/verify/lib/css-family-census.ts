@@ -104,7 +104,12 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // existing 1rem step. It is CSS rather than a utility on FIELD_CONTROL because Base UI's own spelling,
   // `any-pointer-coarse:text-base`, imports TAILWIND's default scale — `no-raw-typography-in-features` reds
   // it, correctly.
-  [UI_GLOBALS]: 189,
+  // +1 (2026-09-07, #1869): the drawer's bottom safe-area clearance — one `padding-bottom` on
+  // `[data-slot="drawer-content"]`. A Drawer portals to a SIBLING of `.shell-grid`, so the frame's own
+  // four-edge insets structurally cannot reach it, and the phone's modal presentation IS this component.
+  // CSS rather than a variant because `env()` has no token utility spelling and an arbitrary `pb-[env(…)]`
+  // is gate-RED; this tier owns primitive-wide treatments where CSS itself is the mechanism.
+  [UI_GLOBALS]: 190,
   // +2 (2026-09-04): `[data-density="comfortable"]` / `[data-density="compact"]` each set
   // `--orb-grid-cell-fixed` to its density alias — the tier map is where the density selection lives.
   // +2 (2026-09-07, #1868): the coarse-pointer arm of the FIELD FLOOR — `--orb-tier-field-size` and
@@ -178,12 +183,12 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
 // device pixel at every `--font-scale` — the vault token had no consumer left and is retired in
 // packages/ui/src/tokens/removed.json. Same family as the #1362 row below: a half-pixel landing repaired
 // at the length that produces it (docs/design/integer-line-boxes.md §2, amended there).
-// +12 (2026-09-07, #1868 + #1869): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and
-// 4 shell (the four-edge device insets, then #1869's bottom pay/refund pair). ui globals and tiers are NET ZERO — each briefly carried an
+// +13 (2026-09-07, #1868 + #1869): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and
+// 4 shell (the four-edge device insets, then #1869's bottom pay/refund pair), 1 ui globals (#1869's drawer clearance). ui globals and tiers are NET ZERO — each briefly carried an
 // `@media (any-pointer: coarse)` block while the floor was being built in CSS, and both were deleted when
 // the token layer took the capability; that is the shape §4b axis 3 asks for and the reason the two CSS
 // homes do not appear in this delta at all. Each half is annotated at its own sheet above.
-export const EXPECTED_DECLARATION_TOTAL = 1028;
+export const EXPECTED_DECLARATION_TOTAL = 1029;
 // +4 (2026-09-07, #1868): the four field tokens' BASE declarations. Their `pointer: fine` arms live in a
 // generated @media block, which is a themeRule and not a direct @theme declaration — hence +4 here against
 // +8 on the sheet total above.

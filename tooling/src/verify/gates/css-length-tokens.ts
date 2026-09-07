@@ -49,9 +49,16 @@ const STRUCTURAL_DECLARATIONS: readonly StructuralDeclaration[] = [
   },
   {
     prop: "height",
-    value: "100dvh",
+    value: "calc(100dvh - var(--orb-keyboard-inset, 0px))",
     count: 1,
-    why: "the dynamic viewport arm is the shell-height mechanism; it ends only if the shell stops owning the viewport",
+    why:
+      "the dynamic viewport arm is the shell-height mechanism; it ends only if the shell stops owning the viewport. " +
+      "It gained the keyboard subtrahend at #1869: `interactive-widget=resizes-content` is inert on WebKit (bug 259770) " +
+      "and dvh is not shrunk by the soft keyboard on ANY browser, so the shell measures the covered band itself " +
+      "(@orb/ui readKeyboardInset, written to the root by use-keyboard-inset-var.ts) and subtracts it. The `0px` " +
+      "fallback is load-bearing: the hook REMOVES the property when no keyboard is up, and a bare var() inside calc() " +
+      "would make this whole declaration IACVT — so the ordinary no-keyboard resolution is calc(100dvh - 0px), " +
+      "byte-identical to the bare 100dvh this replaced.",
   },
   {
     prop: "--pane-deficit",
@@ -321,7 +328,7 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
-      files: { [SHELL]: ".shell-grid { height: 100dvh; }\n.paint { gap: 7px; }\n" },
+      files: { [SHELL]: ".shell-grid { height: calc(100dvh - var(--orb-keyboard-inset, 0px)); }\n.paint { gap: 7px; }\n" },
       expect: { token: "gap:7px" },
       why: "a paint/component length in the sanctioned shell stylesheet is raw and RED",
     },
@@ -346,7 +353,7 @@ export const gate: GateDescriptor = {
     {
       files: {
         [SHELL]:
-          ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: 100dvh; --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n.shell-probe { block-size: 1px; }\n.a { width: 100dvw; }\n.b { width: 100dvw; }\n.c { width: 100dvw; }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n@media (max-width: 48rem) {\n}\n",
+          ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n.shell-probe { block-size: 1px; }\n.a { width: 100dvw; }\n.b { width: 100dvw; }\n.c { width: 100dvw; }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n@media (max-width: 48rem) {\n}\n",
       },
       why: "the exact structural viewport, query, zero, and measurement literals remain legal",
     },

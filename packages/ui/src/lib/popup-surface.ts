@@ -8,7 +8,7 @@ import { DISABLED_STATE } from "./disabled-state.ts";
 // (select uses `min-w-(--anchor-width)` so a long option can grow the popup; autocomplete/combobox
 // lock to `w-(--anchor-width)`), so it is NOT baked here — the consumer adds it.
 export const POPUP_SURFACE =
-  "relative z-(--z-popover) max-h-(--available-height) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground";
+  "relative z-(--z-popover) max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground";
 
 // The centered modal popup surface shared by dialog + alert-dialog. The sizing (dialog's
 // `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-sm`) is per-seal.
