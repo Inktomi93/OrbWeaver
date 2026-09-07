@@ -54,7 +54,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     // because an ancestor flex chain gives it one, and `reserveKey`'s auto-height measuring Stack severs
     // that chain wherever the scroller sits UNDER the boundary; hoisted, the measuring wrapper sits INSIDE
     // the scroller, the chain is unbroken, and the scroller survives the read.
-    <Stack className="relative min-h-0 overflow-y-auto">
+    <Stack className="relative min-h-0 overflow-y-auto overscroll-contain">
       <QueryBoundary
         fallback={<Text voice="quiet">Loading…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}

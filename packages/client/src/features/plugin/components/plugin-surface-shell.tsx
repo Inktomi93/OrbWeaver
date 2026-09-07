@@ -80,7 +80,7 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={regionName} className="relative min-h-0 grow overflow-y-auto p-block" gap="block" role="group">
+        <Stack aria-label={regionName} className="relative min-h-0 grow overflow-y-auto overscroll-contain p-block" gap="block" role="group">
           {children}
         </Stack>
       </Stack>

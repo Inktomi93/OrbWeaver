@@ -182,7 +182,7 @@ function DialogModal({
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
-  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto outline-none" : "relative min-h-0 overflow-y-auto outline-none";
+  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none" : "relative min-h-0 overflow-y-auto outline-none";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
       {/* OPENING FOCUS LANDS IN THE BODY, NOT ON CLOSE (side-eye 2026-08-16 ARIA rider). Base UI's default

@@ -161,7 +161,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           down the sides and under the last block. `Stack padding="section"` would have run 24px all round
           and pulled the two columns tighter to the frame than the shelf's own rhythm. */}
       <Stack
-        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto px-gutter pt-section pb-gutter outline-none`}
+        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto overscroll-contain px-gutter pt-section pb-gutter outline-none`}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}

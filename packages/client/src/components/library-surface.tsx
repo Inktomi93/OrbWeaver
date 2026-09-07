@@ -75,7 +75,7 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, chil
 }
 
 /** The one class string the pane's scroll box wears, whichever of the two elements owns it. */
-const LIBRARY_SCROLL_BOX = "relative min-h-0 flex-1 overflow-y-auto";
+const LIBRARY_SCROLL_BOX = "relative min-h-0 flex-1 overflow-y-auto overscroll-contain";
 
 export interface LibraryListFrameProps {
   readonly searchValue: string;

@@ -439,6 +439,34 @@
   opacity: 0.55;
 }
 
+/* ── A DRAWER'S LAST ROW CLEARS THE HOME INDICATOR (#1869) ────────────────────────────────────────────
+ * Base UI's own bottom-sheet demos pad the popup with `calc(… + env(safe-area-inset-bottom, 0px) + …)` in
+ * five separate places (docs/vendor/base-ui/components/drawer.md:528, 924, 2171, 2559, 4759). Our sealed
+ * drawer carried none: `drawer/variants.ts`'s `content` slot is a bare `p-section`, so on any device with a
+ * home indicator the sheet's final row sat inside the gesture band.
+ *
+ * IT IS NOT COVERED BY THE SHELL'S OWN INSETS, and that is the whole reason it needs its own rule: a Drawer
+ * portals to `[data-slot="portal-root"]`, which app-shell.tsx renders as a SIBLING of `.shell-grid`. The
+ * four-edge `padding` the frame pays reaches its own descendants and structurally cannot reach a portalled
+ * float. This is the same anatomy the #623 modal-plate rule had to state for the same reason.
+ *
+ * EVERY SIDE, not just `bottom`: the left/right sheets are `inset-y-0`, so they reach the bottom edge too.
+ * A phone's modal presentation IS this component (`modal-host.tsx` routes the coarse arm to `DrawerModal`),
+ * so this is every mobile modal's last row, not an edge case.
+ *
+ * IT IS CSS AND NOT A VARIANT because `env()` has no token utility spelling: `variants.ts` composes token
+ * utilities and may not mint values (paint law §4.2), and a `pb-[env(safe-area-inset-bottom)]` arbitrary
+ * value is what `no-arbitrary-tw-values` exists to red. This tier owns "primitive-wide treatments" and is
+ * legal "only when CSS itself is the mechanism" (§4.2/§4.3) — a runtime environment value only CSS can read
+ * is exactly that case. Unlayered, so it beats the `p-section` utility it extends rather than replaces.
+ *
+ * It ADDS to the section step rather than overriding it, so a drawer on a device with no home indicator is
+ * byte-identical to before (`env()` resolves 0px) and one with an indicator keeps its full padding plus the
+ * clearance. */
+[data-slot="drawer-content"] {
+  padding-bottom: calc(var(--spacing-section) + env(safe-area-inset-bottom));
+}
+
 /* ART BLEED (#205) — the two declarations `art/art-bleed/variants.ts` cannot honestly spell as utilities.
  * Read them together; the component's own header carries the WHY.
  *

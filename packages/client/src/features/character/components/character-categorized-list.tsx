@@ -63,7 +63,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
   onLoadMore,
 }: CharacterCategorizedListProps<T>): ReactElement {
   return (
-    <Stack className="relative min-h-0 flex-1 overflow-y-auto" gap="block">
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="block">
       {/* C9-1d: the tag's `folderType` decides each group's FIRST paint (OPEN ⇒ expanded, plain/CLOSED ⇒
           collapsed behind its name + count) — `defaultOpen`, so the user's own toggle wins from then on and
           the section never fights them back. */}

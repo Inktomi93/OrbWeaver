@@ -24,6 +24,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <!-- iOS Safari AUTO-LINKS anything that parses as a phone number into a tappable dial link, and this
+         origin renders ARBITRARY MODEL-GENERATED PROSE — a roleplay transcript full of numbers is exactly
+         the corpus that trips it, and the result is blue dial links the author never wrote inside someone
+         else's dialogue. Off. This is a detection opt-out, not a linkification policy: real links in
+         markdown are rendered by the seal and unaffected. -->
+    <meta name="format-detection" content="telephone=no" />
     <title>orbweaver</title>
     <!-- The document's own one-line description (#194 — Lighthouse SEO scored 0/1 on its absence). It is
          NOT a marketing line: this origin is a self-hosted single-tenant app behind auth (see

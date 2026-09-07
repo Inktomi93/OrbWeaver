@@ -33,6 +33,7 @@ import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.t
 import { useChatBackground } from "../hooks/use-chat-background.ts";
 import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
 import { useShellContentPrimacyObserver } from "../hooks/use-is-mobile-viewport.ts";
+import { useKeyboardInsetVar } from "../hooks/use-keyboard-inset-var.ts";
 import { useListTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
@@ -129,6 +130,7 @@ export function AppShell(): ReactElement {
   // ONLY in a true-solo room; `undefined` (any other composition, landing, an unresolved read) ⇒ the viewer's
   // appearance source. fit/dim/blur always stay the viewer's own treatment (source-only carry).
   // A file dropped anywhere but a dropzone would navigate the tab to that file and take the session with it.
+  useKeyboardInsetVar();
   useStrayFileDropGuard();
   const chatBg = useChatBackground();
   const effectiveBg = chatBg ?? appearanceBackgroundSource(appearance);

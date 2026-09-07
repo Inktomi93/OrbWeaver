@@ -11,7 +11,7 @@ import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 export const alertDialogVariants = tv({
   slots: {
     backdrop: SCRIM("modal"),
-    viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto p-gutter",
+    viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto overscroll-contain p-gutter",
     popup: `${MODAL_SURFACE} max-w-cq-sm ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",

@@ -149,7 +149,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
             it); this box keeps the block half, which is scroll geometry and nobody else's. */}
         <Stack
           aria-label={regionLabel}
-          className="relative h-full min-h-0 flex-1 overflow-y-auto py-section outline-none"
+          className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain py-section outline-none"
           data-slot="config-content"
           ref={contentRef}
           role="region"
