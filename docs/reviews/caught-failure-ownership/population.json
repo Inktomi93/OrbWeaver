@@ -7053,7 +7053,7 @@
     {
       "siteId": "tooling/src/verify/gates/tsconfig-routing-parity.ts::default:catch::1",
       "path": "tooling/src/verify/gates/tsconfig-routing-parity.ts",
-      "line": 45,
+      "line": 46,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7061,7 +7061,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "returns undefined, which measure() routes into `toolError` — a tsgo/config failure is a tool error, not a clean parity verdict (per the doc comment above). Ends if measure() stops reading undefined as a tool error.",
-      "markerLine": 42
+      "markerLine": 43
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",

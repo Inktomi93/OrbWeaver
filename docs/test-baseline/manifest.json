@@ -2345,6 +2345,7 @@
     "tests/tooling/verify/lib/policy-pass-readers.suite.test.ts",
     "tests/tooling/verify/lib/policy-pass.test.ts",
     "tests/tooling/verify/lib/policy-plan.test.ts",
+    "tests/tooling/verify/lib/policy-program-membership.test.ts",
     "tests/tooling/verify/lib/policy-scope.test.ts",
     "tests/tooling/verify/lib/population-resolver.test.ts",
     "tests/tooling/verify/lib/population.int.test.ts",

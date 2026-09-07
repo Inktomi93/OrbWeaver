@@ -13,6 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { Project } from "ts-morph";
 import type { Finding, GateDescriptor, GateExample } from "../contract/gate.ts";
 import type { PassResult } from "../contract/pass.ts";
@@ -117,6 +118,8 @@ const TS_SOURCE_RE = /\.tsx?$/u;
 function runFsBackedExample(gate: GateDescriptor, ex: GateExample): PassResult {
   const root = mkdtempSync(join(tmpdir(), "orb-conformance-"));
   try {
+    // Compiler membership uses the same authored Git inventory in fixtures and real runs.
+    execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: root });
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     for (const [rel, text] of Object.entries(exampleFiles(ex, gate))) {
       const abs = join(root, rel);

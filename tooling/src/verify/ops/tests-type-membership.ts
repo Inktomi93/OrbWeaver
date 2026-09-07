@@ -12,16 +12,15 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { discoverTypePrograms, predictedTestProgram, programRootFiles } from "@orb/tooling/_shared/project-worlds";
+import { predictedTestProgram } from "@orb/tooling/_shared/project-worlds";
 import type { MembershipOutcome, MembershipRow } from "../contract/tests-type-membership.ts";
+import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
+import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:tests-membership");
 
-// The TYPE programs whose import closures collectively must cover every test file are DISCOVERED from the
-// tree (`_shared/project-worlds.ts`, type-worlds phase 0): every tsconfig that roots a source file. The hand
-// list this replaced named 4 of the tree's 10 programs. Each is a real tsgo `-p <config>` program;
-// `--listFilesOnly` gives its full resolved file set. (The vitest `types` project's `.test-d.ts` files are
-// graph-program members already — the root graph `include: ["tests"]` sweeps them.)
+// The shared compiler graph includes declaration projects and reference-only solutions; abstract templates
+// are excluded by discovery. Native `--listFilesOnly` independently supplies each import closure.
 
 // The type-relevant test SOURCE roots + the file-extension surface. `.d.ts` is INCLUDED (it's type-bearing);
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
@@ -183,7 +182,8 @@ export function findTripleSlashLibLeaks(root: string, files: readonly string[]):
 /** The `tests-membership` verb — BOTH the closure-membership reconciliation and the triple-slash-lib-leak
  *  tripwire; either finding is a violation. */
 export function runTestsTypeMembership(root: string): number {
-  const programs = discoverTypePrograms(root);
+  const memberships = readAvailablePolicyPrograms(readPolicyRepositoryInventory(root));
+  const programs = memberships.map((program) => program.config);
   const closures = programClosures(root, programs);
   if (closures === undefined) {
     return EXIT.toolError; // a tsgo listing broke — the checker is broken, not the tree
@@ -192,7 +192,7 @@ export function runTestsTypeMembership(root: string): number {
   const testFiles = enumerateTestFiles(root);
   const escapees = findEscapees(testFiles, closure, root);
   const leaks = findTripleSlashLibLeaks(root, enumerateTypeRelevantFiles(root));
-  const rootsByProgram = new Map(programs.map((cfg) => [cfg, new Set(programRootFiles(root, cfg))] as const));
+  const rootsByProgram = new Map(memberships.map((program) => [program.config, new Set(program.files)] as const));
   const rows = classifyMembership(root, testFiles, rootsByProgram, closures);
   const count = (outcome: MembershipOutcome): number => rows.filter((row) => row.outcome === outcome).length;
 

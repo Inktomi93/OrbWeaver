@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # The type-world program: derivable test-program membership
@@ -59,17 +59,19 @@ tooling tests' in-page callbacks. Every one of those had an answer that is not a
   browser-world helper would drag lib.dom back in through the import; the import DIRECTION is the fence), and
   one `RequestInfo` became `Parameters<typeof fetch>[0]`.
 
-**Phase 0 landed on the same branch, right after (#1858).** `tooling/src/_shared/project-worlds.ts` is the ONE
-model: `PACKAGE_WORLDS` (intent, the one hand-authored list), `BROWSER_SURFACE_DIRS` (the directory rulings),
-`worldOf`/`predictedTestProgram` (package + directory + suffix), and `discoverTypePrograms` (every tsconfig on
-disk that roots a source file — the abstract base falls out by RULE, not by name). The membership stage and
-the `tsconfig-routing-parity` gate both take their program list from it (the stage's hand list named 4 of 10
-programs; the gate's omitted `packages/showcase-plugins`), the routing algebra derives its browser-package set
-from it, and the stage prints the actual-vs-predicted REPORT. **Baseline on this tree: 2,777 test files,
-10 programs, predicted 2,777 · drift 0 · import-only 0 · unowned 0, in 4 s** (the 11-program listing cost
-pushback 3 feared is not there — ts7 lists all ten in under the old four's time). The verdict is still "≥1
-program" by this document's ordering; phase 6 is now a one-line flip with a green baseline behind it. Phases
-3 and 4 are untouched. The routing algebra, the edit hook, eslint's parser map and biome moved with phase 1.
+**World intent and compiler membership have separate owners.** `tooling/src/_shared/project-worlds.ts`
+holds `PACKAGE_WORLDS`, `BROWSER_SURFACE_DIRS`, and the package/directory/suffix classifiers. It performs no
+filesystem or compiler reads. `tooling/src/verify/lib/policy-program-membership.ts` supplies the membership
+stage and routing-parity gate with the same compiler graph used by policy scopes, over the shared authored
+repository inventory. Discovery follows nested config variants and project references. Explicit empty
+templates are excluded from automatic discovery; missing inputs in a nonempty include remain a refusal.
+Declaration-only projects retain compiler ownership.
+
+The report remains informational beyond its existing zero-owner check. Its current test/Playwright
+population and transitional browser-directory rules do not yet prove the repo-wide terminal state. A
+zero-drift result establishes agreement with those rules, not barrel purity or permitted cross-world
+imports. Phase 6 still depends on the remaining ownership, closure, and boundary proofs; it is not complete
+merely because the current report is green. Current run receipts and phase lifecycle live on #1858/#1351.
 
 ## The diagnosis
 
