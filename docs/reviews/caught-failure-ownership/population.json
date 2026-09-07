@@ -7053,7 +7053,7 @@
     {
       "siteId": "tooling/src/verify/gates/tsconfig-routing-parity.ts::default:catch::1",
       "path": "tooling/src/verify/gates/tsconfig-routing-parity.ts",
-      "line": 57,
+      "line": 45,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7061,7 +7061,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "returns undefined, which measure() routes into `toolError` — a tsgo/config failure is a tool error, not a clean parity verdict (per the doc comment above). Ends if measure() stops reading undefined as a tool error.",
-      "markerLine": 54
+      "markerLine": 42
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
@@ -7209,7 +7209,7 @@
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/program-routing.ts",
-      "line": 296,
+      "line": 299,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7217,7 +7217,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.",
-      "markerLine": 293
+      "markerLine": 296
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",

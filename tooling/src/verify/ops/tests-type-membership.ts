@@ -12,19 +12,16 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { discoverTypePrograms, predictedTestProgram, programRootFiles } from "@orb/tooling/_shared/project-worlds";
+import type { MembershipOutcome, MembershipRow } from "../contract/tests-type-membership.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:tests-membership");
 
-// The TYPE programs whose import closures collectively must cover every test file. Each is a real tsgo
-// `-p <config>` program; `--listFilesOnly` gives its full resolved file set. (The vitest `types` project's
-// `.test-d.ts` files are graph-program members already — the root graph `include: ["tests"]` sweeps them —
-// so the graph closure covers them; there is no separate tsgo config to list for that lane.)
-const PROGRAMS: readonly string[] = [
-  "tsconfig.json", // the DOM-less root graph (node tests/**, scripts/**)
-  "packages/client/tsconfig.json", // @orb/client + its tests/client/**/*.tsx reach-back
-  "packages/ui/tsconfig.json", // @orb/ui + its tests/ui/**/*.tsx + playwright/** reach-back
-  "tsconfig.tests-dom.json", // the DOM-coupled NON-.tsx test escapees
-];
+// The TYPE programs whose import closures collectively must cover every test file are DISCOVERED from the
+// tree (`_shared/project-worlds.ts`, type-worlds phase 0): every tsconfig that roots a source file. The hand
+// list this replaced named 4 of the tree's 10 programs. Each is a real tsgo `-p <config>` program;
+// `--listFilesOnly` gives its full resolved file set. (The vitest `types` project's `.test-d.ts` files are
+// graph-program members already — the root graph `include: ["tests"]` sweeps them.)
 
 // The type-relevant test SOURCE roots + the file-extension surface. `.d.ts` is INCLUDED (it's type-bearing);
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
@@ -52,21 +49,54 @@ function programClosure(root: string, config: string): readonly string[] | undef
   return res.stdout.split("\n").map((l) => l.trim());
 }
 
-/** The union of every program's closure, as a Set of ABSOLUTE posix paths. undefined ⇒ a listing broke. */
-function unionClosure(root: string): ReadonlySet<string> | undefined {
-  const members = new Set<string>();
-  for (const config of PROGRAMS) {
+/** Every program's closure, keyed by config, as Sets of ABSOLUTE posix paths. undefined ⇒ a listing broke. */
+function programClosures(root: string, programs: readonly string[]): ReadonlyMap<string, ReadonlySet<string>> | undefined {
+  const out = new Map<string, ReadonlySet<string>>();
+  for (const config of programs) {
     const closure = programClosure(root, config);
     if (closure === undefined) {
       return; // a broken listing → the whole reconciliation is a tool error, not a false "clean"
     }
+    out.set(config, new Set(closure.filter((abs) => abs.length > 0)));
+  }
+  return out;
+}
+
+/** The union of every program's closure. */
+function unionClosure(closures: ReadonlyMap<string, ReadonlySet<string>>): ReadonlySet<string> {
+  const members = new Set<string>();
+  for (const closure of closures.values()) {
     for (const abs of closure) {
-      if (abs.length > 0) {
-        members.add(abs);
-      }
+      members.add(abs);
     }
   }
   return members;
+}
+
+/** Classify every test file. Pure over the given sets (exported for the proof test). */
+export function classifyMembership(
+  root: string,
+  testFiles: readonly string[],
+  rootsByProgram: ReadonlyMap<string, ReadonlySet<string>>,
+  closuresByProgram: ReadonlyMap<string, ReadonlySet<string>>,
+): readonly MembershipRow[] {
+  const prefix = `${root}/`;
+  return testFiles.map((file) => {
+    const predicted = predictedTestProgram(file);
+    const rootedBy = [...rootsByProgram].filter(([, roots]) => roots.has(file)).map(([cfg]) => cfg);
+    const containedBy = [...closuresByProgram].filter(([, closure]) => closure.has(`${prefix}${file}`)).map(([cfg]) => cfg);
+    let outcome: MembershipOutcome;
+    if (containedBy.length === 0) {
+      outcome = "unowned";
+    } else if (rootedBy.length === 0) {
+      outcome = "import-only";
+    } else if (predicted !== undefined && rootedBy.length === 1 && rootedBy[0] === predicted) {
+      outcome = "predicted";
+    } else {
+      outcome = "drift";
+    }
+    return { file, predicted, rootedBy, containedBy, outcome };
+  });
 }
 
 /** Every type-relevant test SOURCE file under the test roots, as repo-relative posix paths (sorted). */
@@ -153,15 +183,29 @@ export function findTripleSlashLibLeaks(root: string, files: readonly string[]):
 /** The `tests-membership` verb — BOTH the closure-membership reconciliation and the triple-slash-lib-leak
  *  tripwire; either finding is a violation. */
 export function runTestsTypeMembership(root: string): number {
-  const closure = unionClosure(root);
-  if (closure === undefined) {
+  const programs = discoverTypePrograms(root);
+  const closures = programClosures(root, programs);
+  if (closures === undefined) {
     return EXIT.toolError; // a tsgo listing broke — the checker is broken, not the tree
   }
+  const closure = unionClosure(closures);
   const testFiles = enumerateTestFiles(root);
   const escapees = findEscapees(testFiles, closure, root);
   const leaks = findTripleSlashLibLeaks(root, enumerateTypeRelevantFiles(root));
+  const rootsByProgram = new Map(programs.map((cfg) => [cfg, new Set(programRootFiles(root, cfg))] as const));
+  const rows = classifyMembership(root, testFiles, rootsByProgram, closures);
+  const count = (outcome: MembershipOutcome): number => rows.filter((row) => row.outcome === outcome).length;
 
-  process.stdout.write(`tests-type-membership — ${testFiles.length} test file(s) across ${PROGRAMS.length} type program(s)\n`);
+  process.stdout.write(`tests-type-membership — ${testFiles.length} test file(s) across ${programs.length} type program(s)\n`);
+  // The phase-0 REPORT (type-worlds #1351): actual vs PREDICTED membership. Informational until phase 6 flips
+  // the verdict from "≥1 program" to "the predicted program"; the drift + import-only counts are the escapee
+  // baseline every later phase is measured by.
+  process.stdout.write(`  report: predicted=${count("predicted")} drift=${count("drift")} import-only=${count("import-only")} unowned=${count("unowned")}\n`);
+  for (const row of rows.filter(({ outcome }) => outcome === "drift" || outcome === "import-only")) {
+    process.stdout.write(
+      `      · ${row.outcome} ${row.file} — predicted ${row.predicted ?? "∅"}, rooted by {${row.rootedBy.join(", ")}}, in {${row.containedBy.join(", ")}}\n`,
+    );
+  }
   if (escapees.length === 0) {
     process.stdout.write("  ✓ every tests/** + playwright/** TS file is in ≥1 type program's closure\n");
   } else {

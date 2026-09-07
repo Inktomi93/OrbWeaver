@@ -2051,6 +2051,7 @@
     "tests/tooling/_shared/proc.int.test.ts",
     "tests/tooling/_shared/proc.test.ts",
     "tests/tooling/_shared/process-env.test.ts",
+    "tests/tooling/_shared/project-worlds.test.ts",
     "tests/tooling/_shared/ratchet-rows.test.ts",
     "tests/tooling/_shared/rated-theme-fixture.test.ts",
     "tests/tooling/_shared/run-marker.test.ts",

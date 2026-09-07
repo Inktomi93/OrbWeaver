@@ -59,9 +59,17 @@ tooling tests' in-page callbacks. Every one of those had an answer that is not a
   browser-world helper would drag lib.dom back in through the import; the import DIRECTION is the fence), and
   one `RequestInfo` became `Parameters<typeof fetch>[0]`.
 
-Phase 0 (the vocabulary module + the predictive membership report) is still open (#1858); phases 3, 4 and 6 are
-untouched. The routing algebra (`program-routing.ts`), the edit hook, eslint's parser map and biome moved in
-the same commit.
+**Phase 0 landed on the same branch, right after (#1858).** `tooling/src/_shared/project-worlds.ts` is the ONE
+model: `PACKAGE_WORLDS` (intent, the one hand-authored list), `BROWSER_SURFACE_DIRS` (the directory rulings),
+`worldOf`/`predictedTestProgram` (package + directory + suffix), and `discoverTypePrograms` (every tsconfig on
+disk that roots a source file — the abstract base falls out by RULE, not by name). The membership stage and
+the `tsconfig-routing-parity` gate both take their program list from it (the stage's hand list named 4 of 10
+programs; the gate's omitted `packages/showcase-plugins`), the routing algebra derives its browser-package set
+from it, and the stage prints the actual-vs-predicted REPORT. **Baseline on this tree: 2,777 test files,
+10 programs, predicted 2,777 · drift 0 · import-only 0 · unowned 0, in 4 s** (the 11-program listing cost
+pushback 3 feared is not there — ts7 lists all ten in under the old four's time). The verdict is still "≥1
+program" by this document's ordering; phase 6 is now a one-line flip with a green baseline behind it. Phases
+3 and 4 are untouched. The routing algebra, the edit hook, eslint's parser map and biome moved with phase 1.
 
 ## The diagnosis
 
