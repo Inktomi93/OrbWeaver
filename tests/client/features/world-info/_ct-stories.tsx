@@ -16,7 +16,7 @@ import { WorldInfoCollectionRows } from "../../../../packages/client/src/feature
 import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body.tsx";
 import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section.tsx";
 import { WorldInfoMemberSurface } from "../../../../packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's

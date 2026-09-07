@@ -12,7 +12,7 @@
 // with the token that already equals the answer, and the fine picker untouched.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hitBoxes, measurePitch, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitBoxes, measurePitch, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { PackIconPickerStory } from "../_ct-stories.tsx";
 
 const ICON_CHOICE = /^Iron Sword: use the /;

@@ -12,7 +12,7 @@ import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolveSpacingPxIn } from "../../support/ct/touch-floor.ts";
+import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
 import { ListBandInShell } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = Number.parseFloat(TOKENS["text.micro"].value) * 16;

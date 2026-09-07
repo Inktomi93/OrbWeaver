@@ -8,9 +8,9 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/ct/pixel-contrast.ts";
-import { pixelSurface } from "../../../support/ct/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import type { PixelSurfaceReceipt, PixelSurfaceRegion } from "../../../support/browser/pixel-contrast.ts";
+import { pixelSurface } from "../../../support/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

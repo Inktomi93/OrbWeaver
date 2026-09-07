@@ -12,7 +12,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { ColorQuotedSpeechStory } from "./_ct-stories.tsx";
 
 interface SettingsWire {

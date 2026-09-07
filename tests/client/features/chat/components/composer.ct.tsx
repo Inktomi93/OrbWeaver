@@ -20,8 +20,8 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeImpersonateStream } from "../../../../support/ct/route-impersonate-stream.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 

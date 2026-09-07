@@ -8,7 +8,7 @@
 // precedent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatGameModeMenuStory, ChatOptionsMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 

@@ -15,8 +15,8 @@
 //     a narrow viewport alone renders a fine-pointer layout no phone produces.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsDoorsStory, MessageReactionsStory } from "../_reaction-stories.tsx";
 
 // The fixture's ids must MATCH `fixtures.ts::makeMessageView` — the pill row selects the room's window by

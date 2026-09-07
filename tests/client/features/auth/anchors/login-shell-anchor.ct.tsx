@@ -12,7 +12,7 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
-import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/ct/weave-drive.ts";
+import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { LoginSceneStory } from "../_ct-stories.tsx";
 
 const PHONE_W = 390;

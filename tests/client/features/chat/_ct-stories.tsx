@@ -175,7 +175,7 @@ import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/c
 import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
-import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
 
@@ -2152,7 +2152,7 @@ export function CommittedSettingsTabStory({ isHost = true, showGroup = false, ro
  *  (`[data-slot="regex-section"]`) is a block container that grows with its own overflowing content, so a
  *  width assertion anchored THERE is tautological (#1754 proved it live — passed green with `truncate` AND
  *  `min-w-0` both planted off). This 380px div is the real fixed-width box; `expectContainedWithin`
- *  (`tests/support/ct/contained-within.ts`) is pointed at it, never at the section's own root. */
+ *  (`tests/support/browser/contained-within.ts`) is pointed at it, never at the section's own root. */
 export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
   return (
     <CtDataProviders>

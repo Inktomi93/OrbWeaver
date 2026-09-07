@@ -5,7 +5,7 @@
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { SeriesRow } from "@orb/ui/series-row";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 /** The trigger's accessible name is composed from the row's spans — match the label within it. */
 const NAMED_BY_LABEL = /System/;

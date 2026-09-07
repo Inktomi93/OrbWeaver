@@ -6,7 +6,7 @@ import { CharacterPicker } from "@orb/client/components";
 import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 export interface CharacterPickerHarnessProps {
   /** Override the list's max-height utility. A tall value (e.g. `"max-h-none"`) lets a whole page of rows fit

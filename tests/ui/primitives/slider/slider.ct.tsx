@@ -4,7 +4,7 @@ import { Field } from "@orb/ui/field";
 import { Slider } from "@orb/ui/slider";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;

@@ -363,7 +363,7 @@ function contrastInputFor(scope: string, sample: JoinedText, backdrop: Rgb): Con
     fontWeight: sample.text.fontWeight,
     inactive: sample.inactive,
     // TWO independent dimmers multiplied, exactly as the pixel sampler does: the ink's own alpha and
-    // the accumulated ancestor opacity (tests/support/ct/pixel-contrast.ts readInk).
+    // the accumulated ancestor opacity (tests/support/browser/pixel-contrast.ts readInk).
     foregroundOpacity: sample.text.ink.a * sample.text.ancestorOpacity,
   };
 }

@@ -23,8 +23,8 @@ import {
   routeImpersonateStream,
   routeImpersonateStreamOnce,
   ZOMBIE_WATCH_MS,
-} from "../../../../support/ct/route-impersonate-stream.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+} from "../../../../support/node/route-impersonate-stream.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 

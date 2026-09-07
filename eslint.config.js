@@ -120,13 +120,13 @@ const CLIENT_STORIES = "tests/client/**/_*.tsx";
 // 12 files (11 `components/*.fixtures.tsx` + `state/config-row-annotation.fixtures.tsx`) were uncovered.
 const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
 // tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
-// in-page instruments, so their proofs MOUNT), and tests/support/ct carries the shared CT providers.
+// in-page instruments, so their proofs MOUNT), and tests/support/browser carries the shared CT providers.
 // Both are React under playwright-ct exactly like the ui/client trees — without these rows the
 // react-hooks/Compiler rules stop at the tests/{ui,client} border while `.ct.tsx` files elsewhere
 // render unchecked. Syntactic parse, same as the rest of CT_SURFACE (no program needed).
 const TOOLING_CT = "tests/tooling/**/*.ct.tsx";
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
-const SUPPORT_CT = "tests/support/ct/**/*.tsx";
+const SUPPORT_CT = "tests/support/browser/**/*.tsx";
 const CT_SURFACE = [UI_CT, UI_FIXTURES, UI_STORIES, UI_STORIES_SUFFIX, CLIENT_CT, CLIENT_STORIES, CLIENT_FIXTURES, TOOLING_CT, TOOLING_STORIES, SUPPORT_CT];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
@@ -215,17 +215,16 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 //
 // TWO PARSER PROGRAMS, because the test tree has two owners. Most of it resolves upward to the ROOT
 // `tsconfig.json` (which `include`s `tests`), so `projectService` finds it. But `tests/e2e/**` is
-// EXCLUDED from the root program and `tests/support/ct/{drop-files,settings-geometry,tier-liveness}.ts`
-// are claimed only by `tsconfig.tests-dom.json` — under projectService those answer "was not found by
+// EXCLUDED from the root program and `tests/support/browser/**` is claimed only by
+// `tsconfig.tests-dom.json` — under projectService those answer "was not found by
 // the project service" (measured: 3 parse errors). The escapee block hands the parser BOTH configs as
 // an array so each file is owned by whichever program includes it, WITHOUT duplicating tests-dom's
 // filename list here (that list moves; a copy of it would rot silently).
 const TOOLING_SRC = "tooling/src/**/*.ts";
 const TOOLING_TESTS = "tests/tooling/**/*.ts";
-// Node test dirs — MOSTLY root-owned, but not entirely: tsconfig.tests-dom.json claims
-// tests/server/{transport/trpc/stream/socket.test.ts,domain/chat/macro-identity.suite.int.test.ts}, and the
-// root program EXCLUDES both. That is why these dirs ride the escapee parser below rather than
-// projectService (#1231) — an upward search lands on the root tsconfig and finds them excluded.
+// Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
+// tsconfig.tests-dom.json any more). They keep riding the escapee parser below rather than
+// projectService, because the parser is handed BOTH root programs and picks whichever owns a file.
 const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts", "tests/showcase-plugins/**/*.ts"];
 // The trees the root program does NOT own — see the parser note above; every one of them is rooted by
 // `tsconfig.tests-dom.json`, which is why they share the escapee parser.
@@ -242,11 +241,10 @@ const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/*
 // These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
 // parser already has their program; no tsconfig moves with this.
 const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/client/**/*.ts", "tests/ui/**/*.ts"];
-// Every TS program that ROOTS a file under tests/**. The escapee parser is handed all three and uses
-// whichever one owns the file, so no block here ever restates a tsconfig's include list (a copy rots).
-// packages/client/tsconfig.json is in the set for exactly ONE file — tests/support/ct/ct-config-groups.ts,
-// #1228's non-`.tsx` sibling of ct-data-providers.tsx — which the root EXCLUDES and tests-dom never claimed.
-const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "packages/client/tsconfig.json"];
+// Every TS program that ROOTS a file under tests/**: the node world and the browser-tests world (type-worlds
+// program, #1351 — the package programs check nothing under tests/ any more). The escapee parser is handed
+// both and uses whichever one owns the file, so no block here ever restates a tsconfig's include list.
+const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json"];
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];

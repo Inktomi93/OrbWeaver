@@ -12,7 +12,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexTab } from "../../../../../packages/client/src/features/preset/components/regex-tab.tsx";
-import { CtDataProviders } from "../../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_regextabbbbbb");
 

@@ -5,7 +5,7 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ImagineExtractStory, ImagineFreeStory } from "../_ct-stories.tsx";
 
 /** The read-the-chat button's accessible name. It used to be "Preview prompt", a 13px ghost tucked into the

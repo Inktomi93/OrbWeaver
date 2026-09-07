@@ -20,8 +20,8 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
-import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
-import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
+import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
+import { clearNumber, setNumber } from "../../../../support/node/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
   ParamsDeckCapabilityErrorStory,

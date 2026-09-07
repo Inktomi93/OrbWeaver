@@ -27,7 +27,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { VIEWER_AMBIENT_ROUTES } from "../../fixtures.ts";
 import { CharacterLibraryWelcomeListModeStory } from "../_ct-stories.tsx";
 import type { CharacterSummaryFixture } from "../fixtures.ts";

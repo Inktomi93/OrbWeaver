@@ -13,8 +13,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { FirstRunPersonaDialogStory } from "../_ct-stories.tsx";
 
 // The gate is a `FormDialog`, which PORTALS to the body — so every locator here is PAGE-scoped. A mount-handle

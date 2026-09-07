@@ -6,9 +6,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { readCanvasBandInk, solidColumns } from "../../../../support/ct/canvas-ink.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
+import { readCanvasBandInk, solidColumns } from "../../../../support/browser/canvas-ink.ts";
+import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceShortStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;

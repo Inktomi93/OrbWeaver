@@ -48,7 +48,7 @@ import {
 } from "../../../packages/client/src/lib/motion-stats.ts";
 import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
 import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
-import { blockMainThread } from "../../support/ct/block-main-thread.ts";
+import { blockMainThread } from "../../support/node/block-main-thread.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.

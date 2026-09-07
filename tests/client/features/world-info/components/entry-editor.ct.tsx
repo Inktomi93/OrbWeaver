@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {

@@ -27,8 +27,8 @@ import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/ct/ink-void.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RosterCollectionRowsStory } from "../_ct-stories.tsx";
 
 function member(id: string, name: string, position: number): RosterPresetSummary["members"][number] {

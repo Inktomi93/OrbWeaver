@@ -71,7 +71,7 @@
 // proves the pipeline CAN fail.
 //
 // Import direction: tests → @orb/tooling is legal (orchestrator-verified 2026-09-01; the imports:depcruise
-// stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/ct/
+// stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/
 // pixel-contrast.ts importing @orb/tooling/_shared/wcag for exactly this kernel). tv objects are deep-
 // imported RELATIVELY from packages/ui/src (the @orb/ui exports map does not re-export variants; the
 // house precedent is tests/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.

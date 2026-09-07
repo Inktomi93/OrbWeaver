@@ -19,7 +19,7 @@ import { useState } from "react";
 import { AddCredentialDialog } from "../../../../packages/client/src/features/credentials/components/add-credential-dialog.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
-import { CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Connections group's three contributed sections, assembled as at the door. */
 const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(

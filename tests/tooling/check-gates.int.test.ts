@@ -1070,7 +1070,7 @@ function writeFixtures(): void {
   );
   // route-trpc-lifo-order: page.route("**/api/trpc/**", ...) registered BEFORE routeTrpc(page, ...) in
   // the same test body — the LIFO inversion (#643/#629). routeTrpc is a bare imported identifier here
-  // (no real support/ct/route-trpc.ts import needed — the gate matches on callee NAME, AST-only).
+  // (no real support/node/route-trpc.ts import needed — the gate matches on callee NAME, AST-only).
   fx(
     "tests/ui/primitives/__g_lifo/__g_lifo.ct.tsx",
     'import { test } from "@playwright/experimental-ct-react";\ndeclare function routeTrpc(page: unknown, routes: unknown): Promise<unknown>;\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',

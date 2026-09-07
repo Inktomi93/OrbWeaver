@@ -19,8 +19,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -588,7 +588,7 @@ test("a fake message-footer contribution's `when:false` hides it on the row", as
 // ── DENSITY S6: the room DECLARES the instrument tier, and the transcript's islands resolve it ──────
 // The MECHANISM probe lives in tests/ui/density-tier.suite.ct.tsx; it says nothing about whether the real
 // chat room still declares a tier — a deleted <Surface>, a re-homed pane or a portaled row all leave the
-// mechanism green and the room un-tiered (the S5 lesson, tests/support/ct/tier-liveness.ts). So these read
+// mechanism green and the room un-tiered (the S5 lesson, tests/support/browser/tier-liveness.ts). So these read
 // the transcript's own island back from the browser: the `:::choices` block is the transcript's
 // always-reachable tier-resolved island (a <Card>, so its padding + radius come from the tier map and not
 // from anything this feature spells). Every expectation resolves its token from the SAME document.

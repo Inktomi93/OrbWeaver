@@ -8,7 +8,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatBooksSectionStory } from "../_ct-stories.tsx";
 
 // A long name and a long description: the squeeze case. The title is the datum that must take the squeeze

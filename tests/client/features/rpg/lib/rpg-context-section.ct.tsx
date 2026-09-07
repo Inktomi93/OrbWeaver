@@ -15,11 +15,11 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ariaTreeFindings } from "../../../../support/ct/accessible-names.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
-import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
+import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
 
 const GAME_ID = "rpg_game_ct_keystone";
@@ -4347,7 +4347,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
 // `getBoundingClientRect`. A box is not a hit target here: `Button size="inline"` carries its ≥44px coarse
 // floor on an OVERFLOWING `::after`, so `HP value`'s 27×18 box was never the claim — and the box also could
 // not see that something was PAINTING OVER that pseudo. `elementFromPoint`, walked out from the centre, is
-// the only instrument that states either fact (`support/ct/touch-floor.ts` says why at length).
+// the only instrument that states either fact (`support/browser/touch-floor.ts` says why at length).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The default participant list with ONE meter on its actor (Vitality) instead of two — see the hit-tree test below

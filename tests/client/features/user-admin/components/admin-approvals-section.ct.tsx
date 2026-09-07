@@ -5,8 +5,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AdminApprovalsSectionStory } from "../_ct-stories.tsx";
 
 const T = 1_700_000_000_000;

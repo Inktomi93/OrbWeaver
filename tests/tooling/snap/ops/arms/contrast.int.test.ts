@@ -33,7 +33,8 @@ test("structured contrast proves pixel sampling and refuses the same-count occlu
       passed: true,
     });
 
-    await page.locator("body").evaluate((body) => body.insertAdjacentHTML("beforeend", '<div class="cover"></div>'));
+    // String-body evaluate — a node-world test cannot type an in-page callback (type-worlds #1351).
+    await page.evaluate(`document.body.insertAdjacentHTML("beforeend", '<div class="cover"></div>')`);
     const occluded = await captureContrastEvidence(page, ["p"], true, VIEWPORT);
     expect(occluded).toHaveLength(1);
     expect(occluded[0]?.evidence).toMatchObject({ status: "refused", candidates: 1, inViewport: 1, sampled: 0, method: null, passed: null });

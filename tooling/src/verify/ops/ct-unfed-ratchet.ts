@@ -1,7 +1,7 @@
 // THE UNFED-READ RATCHET (#637) — the #629 census turned from a diagnostic into a standing verdict.
 //
 // WHY IT EXISTS. `routeTrpc` answers an unlisted procedure `{result:{data:null}}` on purpose (an incidental
-// read must never 404 a test that has nothing to do with it — a RECORDED ruling, tests/support/ct/route-trpc.ts).
+// read must never 404 a test that has nothing to do with it — a RECORDED ruling, tests/support/node/route-trpc.ts).
 // But `null` is not a view, and a mount whose reads nobody fed runs its pipelines INERT: a suspending reader
 // throws and its QueryBoundary swaps the body for `QueryErrorState` while the heading outside the boundary
 // still passes; a NON-suspending reader skips its `data === undefined` branch and renders the null arm

@@ -9,9 +9,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { setNumber } from "../../../../support/ct/set-number.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { setNumber } from "../../../../support/node/set-number.ts";
 import { ChatMessageHandlingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_handling", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };

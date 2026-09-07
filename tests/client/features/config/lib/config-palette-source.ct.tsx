@@ -7,7 +7,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigNavProbe } from "../../../state/_ct-stories.tsx";
 import { ConfigPaletteStory } from "../_ct-stories.tsx";
 

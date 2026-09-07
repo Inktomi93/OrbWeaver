@@ -23,8 +23,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 

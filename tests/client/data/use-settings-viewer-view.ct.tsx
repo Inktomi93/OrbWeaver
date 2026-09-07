@@ -6,7 +6,7 @@
 // never block a pane from painting, and the shell re-applies a deep link once visibility grows.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { SettingsViewerViewStory } from "./_ct-stories.tsx";
 
 test("owner and admin both project isAdmin=true", async ({ mount, page }) => {

@@ -19,8 +19,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { driveFileDrop, driveFileUpload } from "@orb/tooling/_shared/upload";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../../support/ct/drop-files.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { dropFiles } from "../../../../support/browser/drop-files.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { BackupSettingsStory, LibraryImportEpochStory } from "../_ct-stories.tsx";
 
 /** The host's viewer projection (`useSettingsViewerView`) — the group body resolves each section's `when` off it. */

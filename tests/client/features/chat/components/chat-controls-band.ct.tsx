@@ -26,8 +26,8 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 

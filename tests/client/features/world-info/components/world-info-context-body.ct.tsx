@@ -11,7 +11,7 @@
 // library, not the page that happened to arrive first).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";

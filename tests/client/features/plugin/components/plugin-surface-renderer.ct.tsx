@@ -16,8 +16,8 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";
 
 const A_PAST_INSTANT = 1_760_000_000_000;

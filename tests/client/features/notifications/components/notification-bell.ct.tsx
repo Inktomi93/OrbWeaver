@@ -13,9 +13,9 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
+import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 // The bus's OWN transport mutations (#649). `stream.attach` rides the BATCHED HTTP link, not the SSE leg
 // (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket` never answers
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture

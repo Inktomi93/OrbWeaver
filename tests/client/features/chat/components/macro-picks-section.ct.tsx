@@ -7,7 +7,7 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MacroPicksSectionStory, MacroPicksSectionToastStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +

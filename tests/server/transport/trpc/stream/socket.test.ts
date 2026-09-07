@@ -9,7 +9,6 @@
 // YIELDED. Everything else (the withheld-row gap rule §5.5, the `lag` policy's "the replay refills it" §7,
 // the reconnect story §5.3) is downstream of it.
 
-import { createChatEventSeqGuard } from "@orb/client/data/bus";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SessionId, SocketId, UserId } from "@orb/kit/ids";
@@ -18,6 +17,8 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { SocketRegistry } from "@orb/server/transport/trpc";
 import { createSocketRegistry, FRAME_QUEUE_CAPACITY, publishChatEvent } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
+// The LEAF, not the `@orb/client/data/bus` barrel (it value-exports the socket/room hooks — type-worlds #1351).
+import { createChatEventSeqGuard } from "../../../../../packages/client/src/data/bus/chat-event-seq-guard.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 

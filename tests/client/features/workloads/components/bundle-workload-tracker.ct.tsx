@@ -32,8 +32,8 @@
 // timer that was already ticking at the moment of unmount.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { BundleWorkloadTrackerStory } from "../_ct-stories.tsx";
 

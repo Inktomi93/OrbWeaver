@@ -11,7 +11,7 @@ import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
 import { useActiveConfigGroup, useActiveSection } from "@orb/client/state";
 import type { ReactElement, ReactNode } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */

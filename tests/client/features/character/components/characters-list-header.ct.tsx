@@ -17,7 +17,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharactersBandInShellStory } from "../_ct-stories.tsx";
 
 /** The two ends of the docked list track (shell.css #242): the resting clamp, and the squeezed width the

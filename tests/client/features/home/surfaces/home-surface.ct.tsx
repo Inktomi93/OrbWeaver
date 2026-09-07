@@ -9,8 +9,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { pixelExtremaContrast } from "../../../../support/ct/pixel-contrast.ts";
-import { trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
 // room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time

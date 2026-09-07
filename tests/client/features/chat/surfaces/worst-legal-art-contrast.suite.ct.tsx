@@ -9,8 +9,8 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { auditRenderedTextContrast, pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { auditRenderedTextContrast, pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { WorstLegalArtRoomStory, WorstLegalArtThemePairsStory } from "../_contrast-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 

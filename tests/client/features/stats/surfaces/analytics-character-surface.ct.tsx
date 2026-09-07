@@ -4,7 +4,7 @@
 // overview's pinned pattern uncovered on this twin).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsCharacterSurfaceStory } from "../_ct-stories.tsx";
 
 const CHARACTER_STATS = {

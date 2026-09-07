@@ -2,7 +2,7 @@
 // literal (string/template STATIC text) containing "reports/" is RED: that literal can name a PUBLISHED
 // `latest` pointer (`reports/snaps/…`), and an ordinary file write FOLLOWS the symlink into whichever run
 // currently owns it, rewriting a finished run's evidence invisibly (#1201, live collision at
-// tracker-blocks.ct.tsx:833). The sanctioned door is `tests/support/ct/snap-out.ts` `ctSnapPath(name)`,
+// tracker-blocks.ct.tsx:833). The sanctioned door is `tests/support/node/snap-out.ts` `ctSnapPath(name)`,
 // which resolves at RUNTIME (never a literal at the call site) — see docs/design/1208-instrument-substrate.md §3.7.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -41,7 +41,7 @@ export const gate: GateDescriptor = {
     `A .screenshot({ path }) call in tests/** hands a "${NEEDLE}"-carrying literal as the path — the write ` +
     "follows whichever run currently owns that published pointer and rewrites its evidence invisibly. " +
     "docs/design/1208-instrument-substrate.md §3.7",
-  fix: 'Resolve the path through tests/support/ct/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.',
+  fix: 'Resolve the path through tests/support/node/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.',
   scanRoot: (p) => p.startsWith("tests/"),
   kinds: [SyntaxKind.CallExpression],
 

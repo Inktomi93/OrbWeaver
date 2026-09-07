@@ -20,8 +20,8 @@ import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/dat
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder, TrpcRoutes } from "../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../support/node/route-trpc.ts";
 
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;

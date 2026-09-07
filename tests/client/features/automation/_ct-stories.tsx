@@ -26,7 +26,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
-import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The narrowest REAL host for this surface — the CONTEXT pane at its docked width. A trailing control

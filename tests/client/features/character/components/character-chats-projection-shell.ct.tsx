@@ -21,7 +21,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharactersContextStory } from "../_ct-stories.tsx";

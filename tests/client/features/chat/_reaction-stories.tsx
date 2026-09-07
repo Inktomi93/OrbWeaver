@@ -27,7 +27,7 @@ import { MessageActionsRow } from "../../../../packages/client/src/features/chat
 import { ReactionPicker } from "../../../../packages/client/src/features/chat/components/reaction-picker.tsx";
 import { useReactionsForVariant, useViewerSeatId } from "../../../../packages/client/src/features/chat/hooks/use-message-reactions.ts";
 import { useToggleReactionMutation } from "../../../../packages/client/src/features/chat/lib/reaction-mutations.ts";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { makeMessageView } from "./fixtures.ts";
 
 // MODULE-PRIVATE (the playwright-ct constraint: a story module may export COMPONENTS ONLY — a spec that

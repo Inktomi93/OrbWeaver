@@ -10,7 +10,7 @@
 //   • a live-DOM read — `await <locator>.evaluate/textContent/innerText/getAttribute/inputValue/boundingBox/
 //     count/allTextContents/…(...)`, `await page.evaluate(...)`, or a `document.activeElement` snapshot
 //     (inline, or captured into a local then asserted);
-//   • a CT tRPC recorder read — `trpc.count/inputs/lastInput(...)` (tests/support/ct/route-trpc.ts): the
+//   • a CT tRPC recorder read — `trpc.count/inputs/lastInput(...)` (tests/support/node/route-trpc.ts): the
 //     recorder GROWS as calls land, so a bare read races the in-flight call.
 //
 // FIX: a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/
@@ -50,7 +50,7 @@ const DOM_READ_METHODS: ReadonlySet<string> = new Set([
   "jsonValue",
 ]);
 
-// The CT tRPC recorder (tests/support/ct/route-trpc.ts) — a spy whose call log GROWS as requests land, so a
+// The CT tRPC recorder (tests/support/node/route-trpc.ts) — a spy whose call log GROWS as requests land, so a
 // bare synchronous read races an in-flight call.
 const RECORDER_READ_METHODS: ReadonlySet<string> = new Set(["count", "inputs", "lastInput"]);
 

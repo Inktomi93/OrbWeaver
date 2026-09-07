@@ -16,8 +16,8 @@
 //     committed room was printing that 404 (twice, with the retry) on open.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import {
   TurnToolCallsDisclosureStory,
   TurnToolCallsEngagementStory,
