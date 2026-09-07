@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { BROWSER_PACKAGES } from "@orb/tooling/_shared/project-worlds";
 import { GIT_READ_PREFIX, ROOT } from "./repo-paths.ts";
 
 const TS_RE = /\.(?:ts|tsx|mts|cts)$/u;
@@ -19,10 +20,12 @@ const GRAPH = "tsconfig.json";
 const CLIENT_TSCONFIG = "packages/client/tsconfig.json";
 const UI_TSCONFIG = "packages/ui/tsconfig.json";
 const TESTS_DOM_TSCONFIG = "tsconfig.tests-dom.json";
-// The root graph's `include: packages/*/src` sweeps EVERY package's src EXCEPT the two BROWSER packages it
+
+// The root graph's `include: packages/*/src` sweeps EVERY package's src EXCEPT the BROWSER packages it
 // `exclude`s (ui + client are dom-typechecked by their own tsconfig — never in the DOM-less graph). So a
-// NODE package's src IS a graph root; a browser package's is not. (Mirror of tsconfig.json include/exclude.)
-export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(["ui", "client"]);
+// NODE package's src IS a graph root; a browser package's is not. The set is the world model's
+// (`_shared/project-worlds.ts` PACKAGE_WORLDS); the selection algebra imports it from there too.
+
 // Every `.tsx` under tests/ or playwright/ is React under playwright-ct, rooted by the browser-tests world
 // (tsconfig.tests-dom.json `tests/**/*.tsx` + `playwright/**/*.tsx`); the CT mount's `.d.ts` rides with it.
 const BROWSER_TSX_RE = /^(?:tests|playwright)\/.*\.tsx$/u;
