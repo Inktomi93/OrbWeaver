@@ -77,6 +77,47 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
 /** A 256-bit CSPRNG invite token, base64url for a URL-safe `/join/:token`. */
 const TOKEN_BYTES = 32;
 
+/** SAFE-BY-DEFAULT invite bounds (2026-09-07). `createInvite({})` used to mint a PERMANENT,
+ *  UNLIMITED-USE link — both fields are optional in `createInviteSchema` and both collapsed to
+ *  `null`, which the redeem predicate reads as "never expires" / "no use cap". A share link that
+ *  outlives the reason it was sent is the same failure we removed from the authentik signup invite.
+ *
+ *  The escape hatch survives and stays EXPLICIT on BOTH fields: `expiresAt: null` still means
+ *  never-expires and `maxUses: null` still means unlimited, so a deliberate durable link is one keystroke —
+ *  it just can't happen by omission any more.
+ *
+ *  `maxUses` GAINED its null arm with this change (2026-09-07). Without it "unlimited" was unspellable, and
+ *  the mint dialog — whose defaults are literally `expiry: "never"` + `maxUses: null` and which projects
+ *  BOTH by OMITTING the field — would have shown "Never expires" selected while minting a 48h single-use
+ *  link. A safe default is only safe if the deliberate arm it displaces is still reachable from the surface
+ *  that offers it. */
+const DEFAULT_MAX_USES = 1;
+const MS_PER_HOUR = 3_600_000;
+const DEFAULT_TTL_HOURS = 48;
+const DEFAULT_TTL_MS = DEFAULT_TTL_HOURS * MS_PER_HOUR;
+
+/** OMITTED vs EXPLICIT-`null`, which is the one distinction `??` cannot make: it folds both onto the same
+ *  branch, so `input.expiresAt ?? at + DEFAULT_TTL_MS` would silently give a deliberate never-expires link a
+ *  48h death. Spelled as a statement rather than a ternary because `useNullishCoalescing` reads a
+ *  nullish-shaped ternary as the `??` it must not become here, and a suppression would leave the next reader
+ *  believing the rule was merely inconvenient. */
+function resolveExpiresAt(requested: number | null | undefined, at: number): number | null {
+  if (requested === undefined) {
+    return at + DEFAULT_TTL_MS;
+  }
+  return requested;
+}
+
+/** The `maxUses` twin of {@link resolveExpiresAt}, and a statement for the same reason: `null` (unlimited,
+ *  which `persistence/invites.ts` reads as `isNull(maxUses)`) and `undefined` (omitted) must land on
+ *  DIFFERENT branches, which is exactly what `??` cannot do. */
+function resolveMaxUses(requested: number | null | undefined): number | null {
+  if (requested === undefined) {
+    return DEFAULT_MAX_USES;
+  }
+  return requested;
+}
+
 /** THE SEAT'S PERSONA AT JOIN — the same seed chain `startChat` runs for the founding host row
  *  (`start-chat.ts`: current persona, then default). Both join paths owe it: a seat born with
  *  `activePersonaId = NULL` stamps `persona_id = NULL` on every message that member writes, and a row with no
@@ -118,8 +159,8 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     const at = ctx.now();
     const token = randomBytes(TOKEN_BYTES).toString("base64url");
     const inviteId = ctx.newInviteId();
-    const maxUses = input.maxUses ?? null;
-    const expiresAt = input.expiresAt ?? null;
+    const maxUses = resolveMaxUses(input.maxUses);
+    const expiresAt = resolveExpiresAt(input.expiresAt, at);
     await insertInvite(ctx.db, {
       id: inviteId,
       chatId,

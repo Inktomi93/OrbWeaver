@@ -222,6 +222,7 @@
     "tests/client/features/chat/lib/continue-on-empty.test.ts",
     "tests/client/features/chat/lib/gen-duration.test.ts",
     "tests/client/features/chat/lib/group-config-model.test.ts",
+    "tests/client/features/chat/lib/invite-form-model.test.ts",
     "tests/client/features/chat/lib/join-token.test.ts",
     "tests/client/features/chat/lib/member-rows.test.ts",
     "tests/client/features/chat/lib/message-actions-reveal.test.ts",
