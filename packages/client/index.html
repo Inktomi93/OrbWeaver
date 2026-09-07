@@ -2,9 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover: the shell paints into the iOS safe-area insets (§4.1 immersive layout).
-         interactive-widget=resizes-content (§4b axis 4): the virtual keyboard shrinks the content so the
-         composer reflows ABOVE it — dvh/svh alone are not shrunk by the keyboard (L6/J12). -->
+    <!-- viewport-fit=cover: the shell paints into the safe-area insets, which makes keeping content out
+         of the notch / Island / home indicator OURS — every edge is paid at `.shell-grid` (shell.css).
+         interactive-widget=resizes-content (§4b axis 4): the virtual keyboard shrinks the LAYOUT viewport
+         so the composer reflows ABOVE it — dvh/svh alone are never shrunk by the keyboard (L6/J12).
+
+         That second clause is Chrome/Firefox only (#1868, truth-repaired 2026-09-07). WebKit has never
+         implemented `interactive-widget` (https://bugs.webkit.org/show_bug.cgi?id=259770, open), and
+         Safari ships no Virtual Keyboard API either, so `env(keyboard-inset-*)` is unavailable as a
+         fallback. On iOS the keyboard therefore covers the composer and the tab bar while the layout
+         viewport — and `100dvh` with it — reports the full height as if nothing happened. The attribute
+         stays: it is correct and load-bearing on Android. What answers the iOS half is per-surface, and
+         today that is Base UI's `Drawer.VirtualKeyboardProvider` on the phone's modal sheets
+         (features/app-shell/components/modal-host.tsx); the shell's own composer still rides platform
+         behaviour, which is survivable only because the fields now clear the 16px focus-zoom floor.
+
+         NO `user-scalable=no` AND NO `maximum-scale` — ever. They would "fix" the pinch-zoom symptom by
+         taking zoom away from every low-vision reader. iOS has ignored `user-scalable=no` since iOS 10
+         for exactly that reason. The zoom was a 15px-field defect, and it was fixed at the field. -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
