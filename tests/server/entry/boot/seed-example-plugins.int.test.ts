@@ -23,6 +23,7 @@ import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/co
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { liftJsonSchema } from "@orb/kit/json-schema";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
@@ -121,6 +122,13 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
     },
     registrar: {
       registerTool: (reg, invoke, scope): PluginRegistrationHandle => {
+        // THE LIFT IS PART OF REGISTERING A TOOL, so this fake performs it (#1865). The real registrar
+        // (`domain/tool-use/verbs/register-plugin-tool.ts`) lifts the guest's untrusted JSON Schema to zod and
+        // a `JsonSchemaLiftError` there is ACTIVATION-FATAL. A fake that only recorded `name`/`handler` said
+        // "story-clocks registers advance_clock" for months while every real install of it died on exactly
+        // this line — the suite was green about a plugin that had never once run. Recording a name is not
+        // proof a tool registered; surviving the lift is.
+        liftJsonSchema(reg.parameters);
         captured.tools.push({ name: reg.name, handler: reg.handler });
         captured.invoke = invoke;
         captured.scope = scope;

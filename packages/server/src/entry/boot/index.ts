@@ -14,6 +14,8 @@ export type { MigratePluginToolWireNamesDeps } from "./migrate-plugin-tool-wire-
 export { migratePluginToolWireNamesOnBoot } from "./migrate-plugin-tool-wire-names.ts";
 export type { MigrateProseSlotVocabDeps } from "./migrate-prose-slot-vocab.ts";
 export { migrateProseSlotVocabOnBoot } from "./migrate-prose-slot-vocab.ts";
+export type { ReactivatePluginsDeps, ReactivatePluginsReport } from "./reactivate-plugins.ts";
+export { reactivatePluginsOnBoot } from "./reactivate-plugins.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
 export { readSeedAvatar } from "./seed-assets/index.ts";

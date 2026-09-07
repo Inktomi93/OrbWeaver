@@ -56,7 +56,7 @@ function ExtensionsPageList(): ReactElement {
             {copy.action}
           </Button>
         }
-        description={copy.description()}
+        description={copy.description(empty.erroredCount)}
         icon={<Icon icon={Blocks} size="md" />}
         title={copy.title}
         titleAs="h2"

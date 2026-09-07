@@ -63,6 +63,7 @@ import {
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
+  reactivatePluginsOnBoot,
   reclaimLocksOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -452,6 +453,16 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     // AFTER the cards — each bundled example attaches to seeded characters by handle.
     await seedDemoChats({ seeder: built.demoChatSeeder, owner });
+    // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
+    // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,
+    // command, transform, tool or subscription until something re-activates it. Restoring first also means
+    // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
+    // instead of racing a second activation onto the old one.
+    await reactivatePluginsOnBoot({
+      db,
+      setEnabled: built.services.plugin.setEnabled,
+      resolvePrincipal: createHostPrincipalResolver(bootSessions),
+    });
     // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
     // ungranted, so the owner's first act on the Plugins pane is a real consent.
     await seedExamplePlugins({ seeder: built.examplePluginSeeder, owner });
