@@ -164,7 +164,13 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // of the existing `100dvh` rather than adding to it. The topbar's own `max(--spacing-block,
   // env(…-right))` collapsed back to a plain `padding-inline` in the same commit (that was the
   // single-region half of this job, now double-counting), so the net is +2 and not +3.
-  [SHELL]: 351,
+  // +2 more (2026-09-07, #1869): the frame's BOTTOM inset — `padding-block-end:
+  // env(safe-area-max-inset-bottom, …)` on `.shell-grid`, refunded to 0 inside the one mobile arm where the
+  // tab bar's grid row already carries it. #1868 left the bottom edge to that row and said so, which was
+  // true on a phone and left a real hole above 48rem, where there is no bottom row at all: on a wide
+  // viewport with a home indicator the content column, both panes and the rail all ran under it. It cannot
+  // be a second viewport `@media` — paint law §4.4 grants shell.css exactly one and it is already spent.
+  [SHELL]: 353,
 };
 // −2 (2026-09-06, #1684): `--spacing-switch-thumb`'s base and `@media (pointer: fine)` arms. The Switch
 // knob became a token-driven calc of the other three dimensions (`track-height − 2×border − 2×inset`) so
@@ -172,12 +178,12 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
 // device pixel at every `--font-scale` — the vault token had no consumer left and is retired in
 // packages/ui/src/tokens/removed.json. Same family as the #1362 row below: a half-pixel landing repaired
 // at the length that produces it (docs/design/integer-line-boxes.md §2, amended there).
-// +10 (2026-09-07, #1868): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and
-// 2 shell (the four-edge device insets). ui globals and tiers are NET ZERO — each briefly carried an
+// +12 (2026-09-07, #1868 + #1869): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and
+// 4 shell (the four-edge device insets, then #1869's bottom pay/refund pair). ui globals and tiers are NET ZERO — each briefly carried an
 // `@media (any-pointer: coarse)` block while the floor was being built in CSS, and both were deleted when
 // the token layer took the capability; that is the shape §4b axis 3 asks for and the reason the two CSS
 // homes do not appear in this delta at all. Each half is annotated at its own sheet above.
-export const EXPECTED_DECLARATION_TOTAL = 1026;
+export const EXPECTED_DECLARATION_TOTAL = 1028;
 // +4 (2026-09-07, #1868): the four field tokens' BASE declarations. Their `pointer: fine` arms live in a
 // generated @media block, which is a themeRule and not a direct @theme declaration — hence +4 here against
 // +8 on the sheet total above.
