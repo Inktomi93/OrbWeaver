@@ -543,7 +543,10 @@ export const inviteStatusSchema = z.enum(INVITE_STATUSES);
  *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the
  *  server — NEVER a client input, never returned in a view. `role` is server-forced `member` on redeem. */
 export const createInviteSchema = z.object({
-  maxUses: z.number().int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).optional(),
+  /** OMITTED = the verb's safe single-use default; an EXPLICIT `null` = unlimited, the same
+   *  say-it-out-loud escape hatch `expiresAt` carries. Nullable because the mint dialog offers unlimited
+   *  and had no way to spell it: omission is what the safe default claims, so "unlimited" needed a word. */
+  maxUses: z.number().int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).nullable().optional(),
   expiresAt: z.number().int().nullable().optional(),
   /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
   invitedHandle: brandedId<Handle>().nullable().optional(),

@@ -76,9 +76,13 @@ export function validateInviteForm(values: InviteFormValues): { fields: Record<s
 export function toCreateInviteInput(values: InviteFormValues, now: number): CreateInviteInput {
   const expiryKey: InviteExpiryKey = values.expiry in EXPIRY_MS ? (values.expiry as InviteExpiryKey) : "never";
   const expiryMs = EXPIRY_MS[expiryKey];
+  // BOTH BOUNDS ARE SENT EXPLICITLY, never by omission (2026-09-07). The verb's defaults are safe —
+  // an omitted field means single-use + 48h — so omitting is now how you ask for the OPPOSITE of what this
+  // form's own defaults say (`expiry: "never"`, `maxUses: null` = unlimited). Spelling the nulls is what
+  // keeps the dialog honest: what the picker shows is what gets minted.
   return {
     ...(values.mode === "handle" ? { invitedHandle: castId<Handle>(values.handle.trim()) } : {}),
-    ...(values.maxUses === null ? {} : { maxUses: values.maxUses }),
-    ...(expiryMs === null ? {} : { expiresAt: now + expiryMs }),
+    maxUses: values.maxUses,
+    expiresAt: expiryMs === null ? null : now + expiryMs,
   };
 }
