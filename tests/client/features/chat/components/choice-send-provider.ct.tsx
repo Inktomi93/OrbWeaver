@@ -9,7 +9,7 @@
 
 import type { RpgCyoaChoiceBehavior, RpgGameView } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { makeRpgGameView } from "../../rpg/fixtures.ts";
 import { ChoiceProviderStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";

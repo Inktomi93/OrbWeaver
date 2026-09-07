@@ -5,9 +5,9 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { holdPortraitImage, layoutBox, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/ct/held-portrait-image.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { seedActiveChat } from "../../../../support/ct/seed-active-chat.ts";
+import { holdPortraitImage, layoutBox, PORTRAIT_RATIO, PORTRAIT_W } from "../../../../support/browser/held-portrait-image.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { seedActiveChat } from "../../../../support/node/seed-active-chat.ts";
 import { RoomImageDetailStory } from "../../chat/_ct-stories.tsx";
 import { DetailFlowStory, DetailToastStory } from "../_ct-stories.tsx";
 

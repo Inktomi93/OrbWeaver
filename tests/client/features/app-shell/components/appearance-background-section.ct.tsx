@@ -27,8 +27,8 @@ import {
   BACKGROUND_DIM_MIN,
 } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
 import { DEFAULT_DEBOUNCE_MS } from "../../../../../packages/client/src/forms/entity-form-base.ts";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionCommitTallyStory, AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_background", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };

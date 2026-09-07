@@ -138,7 +138,19 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
           for the gutter-column measurement, and that ordering is part of this anatomy). */}
       <Icon {...(chevron === "reserved" ? { className: "invisible" } : {})} icon={CHEVRON_GLYPH[chevron]} size="sm" />
       {icon === undefined ? null : <Icon icon={icon} size="sm" />}
-      <Text as="span" className="truncate" data-slot="band-label" voice="interactiveKicker">
+      {/* A BAND IS NOT A SECOND KICKER (#1839 · side-eye 2026-09-06 F23, live for a third review running).
+          This label wore `interactiveKicker` and the LIST's shelf headings wear `kicker`: 13px/600/CAPS
+          against 10.5px/600/CAPS, same weight, same case, 2.5px apart, and the only difference between them
+          was tracking. Two type registers that far apart in intent — a SHELF is a heading over doors, a BAND
+          is a door — must not be that close in appearance, and the review named the cheapest honest fix: the
+          shelf is the caps register, so the band leaves it. `label` is the voice for a NAME at the readable
+          13px step, and being un-tracked and un-cased separates the two on THREE axes (case, weight, tracking)
+          without inventing a size — the type scale is closed and this change spends nothing from it.
+          #1106'S RULING SURVIVES; ITS INPUT LEFT. That fix gave `interactiveKicker` back its trailing tracking
+          column because a tracked label inside a `truncate` box was clipping "Regex scripts" by 0.42px on the
+          271px both-panels pane. The voice keeps it for its dozen other consumers; this band no longer has a
+          trailing tracking column to reclaim, so the clip is gone by construction rather than by compensation. */}
+      <Text as="span" className="truncate" data-slot="band-label" voice="label">
         {label}
       </Text>
       {count === undefined ? null : (

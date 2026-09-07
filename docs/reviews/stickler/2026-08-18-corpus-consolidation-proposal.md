@@ -543,7 +543,7 @@ build. Then, stages, each independently green:
   `analytics-section.tsx` + door row · fold `features/stats` surfaces into the corpus feature and
   delete the dir (G23 forces it — it owns no definition afterwards) · `analyticsSectionSelection`
   folds into the kinded store · `agent-nav` vocabulary (rejects `analytics`, and `snap --goto
-  analytics` stops working — probe recipes update) · `tests/support/ct/ct-data-providers.tsx`
+  analytics` stops working — probe recipes update) · `tests/support/browser/ct-data-providers.tsx`
   fakeSection fold · mobile fate row · `assembleChrome` verify-only · placeholder-copy row deleted ·
   rail prose (`UI-Architecture-and-Layout.md` §4.1 count + §4.2 Corpus/Analytics grid rows AMENDED,
   D-entry minted). LIST gains the economic sorts (`ANALYTICS_SORT_OPTIONS` moves homes).

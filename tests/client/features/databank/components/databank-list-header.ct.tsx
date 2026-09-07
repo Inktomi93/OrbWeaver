@@ -4,7 +4,7 @@
 
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { trpcError } from "../../../../support/ct/route-trpc.ts";
+import { trpcError } from "../../../../support/node/route-trpc.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 

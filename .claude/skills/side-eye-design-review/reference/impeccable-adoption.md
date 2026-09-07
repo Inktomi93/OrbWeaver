@@ -12,7 +12,7 @@
 > that do not exist): `ops/walker.ts` + `ops/walker/census-*.ts` (in-page fact gathering),
 > `lib/checks-*.ts` (pure verdicts) and `lib/collect.ts` (the family dispatcher that carries the
 > attribution header), unit-tested at `tests/tooling/ui-audit/index.test.ts` with real-CLI
-> fixtures at `tests/tooling/ui-audit/cli.int.test.ts` — and run via `pnpm snap <route> --design-audit`. The
+> fixtures at `tests/tooling/ui-audit/index.int.test.ts` — and run via `pnpm snap <route> --design-audit`. The
 > 23-command design vocabulary is adapted in `SKILL.md` §15; the DESIGN.md-equivalent context
 > distillation is `reference/design-context.md`.
 

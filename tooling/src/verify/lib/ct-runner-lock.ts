@@ -33,8 +33,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync 
 import { join } from "node:path";
 import process from "node:process";
 import { checkoutName } from "@orb/tooling/_shared/artifacts";
-import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
+import { describeRunMarkerSweep, inheritedRunMarker, mintRunMarker, sweepAbandonedRunMarkers, sweepRunMarkerNow } from "@orb/tooling/_shared/run-marker";
 import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.ts";
 import type { HostSlotDeps } from "./host-slots.ts";
 import { acquireHostSlot } from "./host-slots.ts";
@@ -109,11 +111,21 @@ export interface CtRunnerLockDeps {
   readonly pid?: number;
   readonly alive?: (pid: number) => boolean;
   readonly argv?: readonly string[];
+  /** Injected /proc + signal seams for the marker sweeps (#1848) — a test drives them without a box. */
+  readonly marker?: RunMarkerDeps;
+  /** Where a sweep's receipt goes. The runner passes its `warn` channel; a test collects the lines. */
+  readonly notice?: (message: string) => void;
 }
 
 /** A CT batch is minutes, and a second lane legitimately waits that long for a host slot rather than being
- *  refused. Load-scaled at acquire time; past it the pool degrades to uncapped, never to a wedge. */
-const CT_HOST_WAIT_BASE_MS = 2_700_000; // 45 minutes
+ *  refused. Load-scaled at acquire time; past it the pool degrades to uncapped, never to a wedge.
+ *
+ *  THE NUMBER IS THE PROFILE'S (#1848), not a second literal: the wait a queued run may spend is spent
+ *  INSIDE the verify stage's own wall clock, so the stage's hang ceiling is derived from this same row
+ *  (`stageBudgets.ctHostSlotWaitMinutes`). Two hand-typed 45s would have drifted the day either moved. */
+function ctHostWaitBaseMs(): number {
+  return readStageBudgets().ctHostWaitMs;
+}
 
 /** THE DOOR the runner uses. TWO caps, in this order, because they answer two different questions:
  *
@@ -131,12 +143,23 @@ export async function acquireCtRunnerSlots(root: string, deps: CtRunnerLockDeps 
   if (local.kind === "busy") {
     return local;
   }
+  // THE ABANDONED SWEEP (#1848), before this run adds its own fleet to the box: a marked process whose
+  // OWNER RUN is gone cannot have anything waiting on it. This is the arm that covers the kill a runner
+  // cannot handle (SIGKILL, an OOM, a lane torn down) — the state that left 72 chrome-headless-shell
+  // processes, some 40h old, alive on this box on 2026-09-06. A LIVE sibling's fleet answers for itself
+  // and is never touched.
+  for (const sweep of await sweepAbandonedRunMarkers(deps.marker)) {
+    const line = describeRunMarkerSweep(sweep);
+    if (line !== null) {
+      deps.notice?.(`CT RUNNER SWEPT   ${line} — its run is gone, so nothing was waiting on them.`);
+    }
+  }
   const host = await acquireHostSlot(
     {
       name: "ct",
       label: `ct:scoped ${checkoutName(root)}`,
       slots: readConcurrencyProfile().ctRunnersHostWide,
-      waitBaseMs: CT_HOST_WAIT_BASE_MS,
+      waitBaseMs: ctHostWaitBaseMs(),
     },
     deps.host,
   );
@@ -182,17 +205,29 @@ export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): 
   }
   const cacheDir = ctCacheDirFor(root, `${String(pid)}-${String(now().getTime())}`);
   mkdirSync(cacheDir, { recursive: true });
+  // INHERIT before minting (#1848): inside `pnpm verify`, the stage child already carries the run's
+  // marker, and stamping a second one over it would hide these browsers from the RUNNER's kill path —
+  // the exact hole being closed. Alone (a lane's `pnpm ct:scoped`), this run is its own owner.
+  const runMarker = inheritedRunMarker() ?? mintRunMarker(pid, now().getTime());
   let released = false;
   return {
     kind: "held",
     lease: {
       cacheDir,
+      runMarker,
       stolenFrom,
       release: (): void => {
         if (released) {
           return;
         }
         released = true;
+        // A browser still carrying this marker after playwright has returned is an ORPHAN by construction:
+        // its run is over. Synchronous SIGKILL, because `release` runs in a `finally` nobody awaits — the
+        // polite TERM+grace form belongs to the timeout path, which has time for it.
+        const line = describeRunMarkerSweep(sweepRunMarkerNow(runMarker, deps.marker));
+        if (line !== null) {
+          deps.notice?.(`CT RUNNER SWEPT   ${line}`);
+        }
         rmSync(cacheDir, { recursive: true, force: true });
         // Only OUR record is removed — a lock a later runner legitimately re-created is not ours to delete.
         const current = readLock(lockPath);

@@ -9,7 +9,7 @@
 // "byte-identical with no contributions" is the property the whole seam is allowed to exist under.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, SLASH_LOCKED_REASON } from "../fixtures.ts";
 import { SlashComposerStory } from "./_slash-command-stories.tsx";
 

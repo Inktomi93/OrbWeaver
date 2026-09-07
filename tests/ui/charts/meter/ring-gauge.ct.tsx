@@ -6,8 +6,8 @@ import { RingGauge } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { partVsSurface } from "../../../support/ct/part-vs-surface.ts";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { partVsSurface } from "../../../support/browser/part-vs-surface.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("the arc fill strokes the requested track-ramp step and the svg is decorative", async ({ mount }) => {
   const component = await mount(<RingGauge value={12} max={20} color={2} label="Sanity" />);

@@ -12,6 +12,9 @@
 //     (whose loading/error/zero arms the `.ct.tsx` drives through `trpcHold`/`trpcError`) and the
 //     "Add to this chat" door's report.
 //   · `RosterMemberEditorStory` — the library editor (`surfaces/roster-member-surface.tsx`).
+//   · `RosterCollectionRowsStory` — the CONFIG COLLECTION's rows (`components/roster-collection-rows.tsx`),
+//     which are a different surface from the picker's: same library, drawn into the CONTENT pane by the
+//     config host, and therefore measured at PANE widths (#1838's ink-void matrix).
 // `notify` is main.tsx-bound in production, so every story binds it to a DOM sink: the apply doors report
 // through `notify`, and a toast that is never rendered is exactly the defect P1-2 filed.
 
@@ -24,10 +27,11 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { RosterCollectionRows } from "../../../../packages/client/src/features/roster-preset/components/roster-collection-rows.tsx";
 import { RosterPicker } from "../../../../packages/client/src/features/roster-preset/components/roster-picker.tsx";
 import { RosterMemberSurface } from "../../../../packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 // The stories' active-chat id — the `.ct.tsx` stubs `chat.getChat`/`automation.listRules` for this same id
 // (a plain module-const, not an export: a story module exports components ONLY).
@@ -111,6 +115,25 @@ function RosterArrival(): ReactElement {
     <button onClick={(): void => void queryClient.invalidateQueries(trpc.rosterPreset.get.pathFilter())} type="button">
       arrive rename
     </button>
+  );
+}
+
+/** The roster COLLECTION's rows, as the config host mounts them (`components/roster-collection-rows.tsx`)
+ *  — the #1838 subject, suspending on `rosterPreset.list`.
+ *
+ *  `width` is the PANE the rows are asked to fill and it is the point of the story: since #1725 these rows
+ *  live in the CONTENT pane, so their ink balance is a WIDTH property. The default is the desktop pane; the
+ *  CT's matrix drives it across `INK_VOID_WIDTHS`. A content-sized mount root would simply grow and agree
+ *  with the bug, so the box is FIXED (the narrowest-real-mount rule). */
+export function RosterCollectionRowsStory({ filter = "", width = 990 }: { readonly filter?: string; readonly width?: number } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", flexDirection: "column", height: 620, overflow: "auto", width }}>
+        <QueryBoundary fallback={<SkeletonRows count={3} shape="avatar-row" />}>
+          <RosterCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
   );
 }
 

@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
+// The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of
+// proc.ts at its line cap); what stays here is the SPAWN/SIGNAL half — the only half proc.ts still owns.
+
 const fake = vi.hoisted(() => ({
   exitCode: null as number | null,
   signalCode: null as NodeJS.Signals | null,
@@ -49,46 +52,7 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-const { inheritedProcessEnv, killPidGroup, processEnvValue, spawnFullPriorityChild, withProcessEnv } = await import("@orb/tooling/_shared/proc");
-
-const ABSENT_ENV_KEY = "ORB_PROC_TEST_ABSENT";
-const PRESENT_ENV_KEY = "ORB_PROC_TEST_PRESENT";
-
-test("withProcessEnv restores an absent key as actual absence across consecutive worker windows", async ({ repoRoot, scratch }) => {
-  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
-  const firstSink = join(scratch, "first.jsonl");
-  const secondSink = join(scratch, "second.jsonl");
-
-  await withProcessEnv(ABSENT_ENV_KEY, firstSink, async () => {
-    expect(processEnvValue(ABSENT_ENV_KEY)).toBe(firstSink);
-    await Promise.resolve();
-  });
-  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
-  expect(processEnvValue(ABSENT_ENV_KEY)).toBeUndefined();
-
-  await withProcessEnv(ABSENT_ENV_KEY, secondSink, async () => {
-    expect(processEnvValue(ABSENT_ENV_KEY)).toBe(secondSink);
-    await Promise.resolve();
-  });
-  expect(Object.hasOwn(inheritedProcessEnv(), ABSENT_ENV_KEY)).toBe(false);
-  expect(processEnvValue(ABSENT_ENV_KEY)).toBeUndefined();
-  expect(() => readFileSync(join(repoRoot, "undefined"), "utf8")).toThrow();
-});
-
-test("withProcessEnv restores a present key byte-for-byte after a rejected worker window", async () => {
-  expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(false);
-  await withProcessEnv(PRESENT_ENV_KEY, "original-value", async () => {
-    await expect(
-      withProcessEnv(PRESENT_ENV_KEY, "temporary-value", async () => {
-        expect(processEnvValue(PRESENT_ENV_KEY)).toBe("temporary-value");
-        await Promise.reject(new Error("planted worker rejection"));
-      }),
-    ).rejects.toThrow("planted worker rejection");
-    expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(true);
-    expect(processEnvValue(PRESENT_ENV_KEY)).toBe("original-value");
-  });
-  expect(Object.hasOwn(inheritedProcessEnv(), PRESENT_ENV_KEY)).toBe(false);
-});
+const { killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
 
 test("kill rethrows a non-ESRCH child.kill failure", () => {
   fake.exitCode = null;

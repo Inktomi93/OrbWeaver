@@ -244,7 +244,8 @@ test("media evidence proves contrast and CDP-only reduced transparency in both d
       actual: { colorScheme: "light", reducedMotion: false, contrast: "no-preference", reducedTransparency: false },
       mismatches: [],
     });
-    expect(await reset.page.evaluate(() => globalThis.matchMedia("(prefers-reduced-transparency: reduce)").matches)).toBe(false);
+    // String-body evaluate — a node-world test cannot type an in-page callback (type-worlds #1351).
+    expect(await reset.page.evaluate<boolean>('matchMedia("(prefers-reduced-transparency: reduce)").matches')).toBe(false);
   } finally {
     await closeProbeSession(reduced);
     await closeProbeSession(reset);

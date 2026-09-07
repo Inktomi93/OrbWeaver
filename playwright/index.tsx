@@ -5,8 +5,8 @@ import { beforeMount } from "@playwright/experimental-ct-react/hooks";
 import "@orb/client/styles";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { CtProvidersProps } from "../tests/support/ct/ct-providers.tsx";
-import { CtProviders } from "../tests/support/ct/ct-providers.tsx";
+import type { CtProvidersProps } from "../tests/support/browser/ct-providers.tsx";
+import { CtProviders } from "../tests/support/browser/ct-providers.tsx";
 
 // THE FONT SETTLE (#1000). The app faces load with `font-display: swap`, and a face only STARTS
 // loading when its first in-range glyph paints — which is AFTER mount. So any CT reading

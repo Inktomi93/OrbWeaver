@@ -134,7 +134,7 @@ findings.
 Full read. The tracker block kit (MeterRow/StatCell/TrackerChip/CastCard/BeatLine/AmbientStrip/GoalLine/
 AddRow/HintEditor), both read-only and editable (display-at-rest → click-to-edit) arms, exhaustively. Every
 commit assertion is the CALLBACK VALUE (`assert-the-mutation-fired`), never a UI reaction to a stubbed
-response. The convergence block at the tail uses `storyShot()` (imported from `tests/support/ct/story-shot.ts`,
+response. The convergence block at the tail uses `storyShot()` (imported from `tests/support/node/story-shot.ts`,
 :18) for all three screenshots — the sanctioned wrapper, not a literal `reports/snaps/` path (the #1201
 class leg 1 found one surviving instance of elsewhere). Hit-target geometry (:602-632) uses
 `elementFromPoint` at ±10px to prove OWNERSHIP of the touch target, not just its bounding box — correctly

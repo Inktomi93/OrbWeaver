@@ -18,7 +18,7 @@
 // five series and the "Other" pool used to be the sixth (see `corpus-charts.ts`'s cap).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusMapTabStory } from "../_ct-stories.tsx";
 
 /** Six genres + a genre-less card: more than the ramp can name, which is what makes the pool a series. */

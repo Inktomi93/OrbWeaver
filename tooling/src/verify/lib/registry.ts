@@ -7,7 +7,7 @@ import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
-import { TOOLING_TOUCHED_REASON, toolingTouched } from "./registry-preconditions.ts";
+import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -285,12 +285,13 @@ const GATING_STAGES: readonly StageDef[] = [
     name: "tests:node",
     group: "tests",
     tiers: ["changed", "push", "full"],
-    // `pnpm test` = the vitest projects && `pnpm test:ct --retries=2` (merged 2026-07-17 — the CT split
-    // existed only for the old single-thread constraint): ONE behavioral lane, so the green-to-commit
-    // ritual (`pnpm check` + `pnpm test`) exercises the CT suite too. The retries flag rides the compound
-    // VISIBLY (gate runs retry parallelism flakes; ad-hoc `pnpm test:ct` keeps the retries:0 config
-    // default for debugging — the CT_GATE env this used to ride was retired 2026-07-17).
-    argv: ["pnpm", "test"],
+    // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
+    // the two halves shared one 45-minute hang ceiling that the sum outgrew the moment #1835 put CT on the
+    // shared worker cap: `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that
+    // was still working. The composite is unchanged as the green-to-commit ritual (and keeps its own
+    // manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its own
+    // runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
+    argv: ["pnpm", "test:node"],
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit + integration + tooling lanes
     // (serial + contract are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
@@ -338,46 +339,54 @@ const GATING_STAGES: readonly StageDef[] = [
     ],
   },
   {
-    // THE INSTRUMENT BATTERY, SPLIT OFF THE PUSH BAR (#1523). Measured 2026-09-04 over 1,867 files:
-    // `tests/tooling` was 71.1 CPU-min across 284 files against 9.0 for tests/server's 1,185 and 1.3 for
-    // everything else — 82% of the node battery, all of it recertifying OUR TOOLS. Owner: "about 30
-    // minutes of tooling recertification, which makes it tedious to run tests… move that to verify
-    // --full". So: `full` unconditionally, and `push` ONLY when this branch actually touched an
-    // instrument. A push that changed no tooling code cannot regress a tooling test that was green on the
-    // base — and a push that DID touch one still pays, at the tier where it matters.
+    // THE INSTRUMENT BATTERY, OFF THE PUSH BAR ENTIRELY (#1523 split it; #1842 finished the cut).
+    // Measured 2026-09-04 over 1,867 files: `tests/tooling` was 71.1 CPU-min across 284 files against 9.0
+    // for tests/server's 1,185 and 1.3 for everything else — 82% of the node battery, all of it
+    // recertifying OUR TOOLS. Owner 2026-09-04: "about 30 minutes of tooling recertification, which makes
+    // it tedious to run tests… move that to verify --full"; owner 2026-09-06: "take tooling out of the
+    // verify push and into full". #1523's first cut kept a CONDITIONAL push rung (run it when the branch
+    // touched an instrument) — that rung is GONE: a tooling diff pays this cost at `--full` or through
+    // `pnpm test:tooling` by hand, and `--push` never spawns it. The `tierPrecondition` MECHANISM stays in
+    // the stage contract (contract/stage.ts) for the next row that needs it; this row's push-tier DATA is
+    // what was deleted, along with the predicate it hung on (lib/registry-preconditions.ts).
     //
-    // WHAT STAYS ON `tests:node`: `tests/tooling`'s SERIAL_INT and LIVE_DRIVE members. Those lists carry
-    // contention semantics (one at a time; the quiet last shard) that this lane does not provide, so the
-    // vitest config keeps them in their own projects and they ride the push bar as before. The split is
-    // by SUBJECT, and it is deliberately not total.
+    // WHAT MOVED WITH IT: `tests/tooling`'s SERIAL_INT and LIVE_DRIVE members. Those lists carry
+    // contention semantics (one at a time; the quiet last shard) that the parallel `tooling` project does
+    // not provide, so they used to ride the PRODUCT serial lanes — which meant `verify --push` kept paying
+    // for the ten heaviest instrument suites through `tests:node` no matter what the diff touched.
+    // `vitest.config.ts` now owns a `tooling-serial` project for them, and `pnpm test:tooling` runs
+    // `tooling` → `tooling-serial` → `live-drive`. The split is by SUBJECT, and it is now total.
     name: "tests:tooling",
     group: "tests",
-    tiers: ["push", "full"],
+    tiers: ["full"],
     argv: ["pnpm", "test:tooling"],
     classify: asViolations,
-    // The predicate is tri-state and `null` (cannot tell) RUNS — see registry-preconditions.ts.
-    tierPrecondition: { tiers: ["push"], reason: TOOLING_TOUCHED_REASON, satisfied: toolingTouched },
     // Whole-only by nature, and that is only HONEST because `tests:node`'s scoped argv names `--project
-    // tooling` (see it above — #1566 restored it). A second row at `changed` would spawn a second vitest
-    // over the same selection; a row at NO tier would be the regression this comment used to describe
-    // away. If that project ever leaves that argv, this stage owes the `changed` tier instead.
+    // tooling` (see it above — #1566 restored it), so a lane editing an instrument still gets its related
+    // tests at `changed`. A second row at `changed` would spawn a second vitest over the same selection.
+    // If that project ever leaves that argv, this stage owes the `changed` tier instead.
   },
   {
     name: "browser:ct",
     group: "browser",
-    // The gate run rides tests:node (`pnpm test` composes `pnpm test:ct --retries=2` — merged 2026-07-17);
-    // a push/full tier row here would run the suite TWICE. It stays at `manual` (the CT-only whole-suite
-    // iteration lane) AND gains `changed` — the scoped inner loop runs only the changed set's CT view
-    // (mirrors + declared sweeps), never the whole suite (LANDED 2026-07-17). This row also keeps the
-    // CT-ONLY lane a named stage (verify-registry-parity arm 1) surfaced in `verify --list`.
-    tiers: ["changed", "manual"],
-    argv: ["pnpm", "test:ct"],
+    // THE WHOLE CT SUITE IS ITS OWN STAGE AGAIN (#1848) — it rode inside `tests:node` from 2026-07-17 (a
+    // merge made for the old single-thread constraint) and shared that stage's hang ceiling with the
+    // vitest projects. It is the ONE stage whose runtime is a function of a worker cap, so it is also the
+    // one that needs a DERIVED ceiling; sharing a constant with a 10-minute suite is what produced a false
+    // `[tool-error]`. `changed` keeps the scoped inner loop (mirrors + declared sweeps, never the whole
+    // suite — LANDED 2026-07-17); push/full run the whole suite, which remains the coverage verdict.
+    tiers: ["changed", "push", "full"],
+    // `--retries=2` rides the argv VISIBLY (parallelism flakes retry instead of blocking a push); ad-hoc
+    // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
+    // composite with the stage.
+    argv: ["pnpm", "test:ct", "--retries=2"],
     classify: asViolations,
+    // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
+    hangCeilingBaseMs: ctSuiteHangCeilingMs(),
     // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
     // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
     // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
     scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "ct:scoped", ...sel.ct.targets]),
-    manualReason: "runs inside tests:node (`pnpm test` composes it with --retries=2); direct lane kept for CT-only iteration at retries:0",
   },
   {
     name: "browser:e2e-smoke",

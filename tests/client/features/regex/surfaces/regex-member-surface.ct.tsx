@@ -11,10 +11,10 @@
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexMemberContentColumnStory, RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -48,7 +48,7 @@ built around these gaps. `tooling/src/verify/lib/selection.ts` is the code home 
 
 An editor (and a naive file-scoped `tsc`) type-checks a file against its NEAREST ancestor tsconfig. But a
 file can be OWNED by a NON-ancestor config that reaches back into it — the browser `.tsx` reach-back trees
-(`tests/ui/**`, `tests/client/**`, `tests/support/ct/**`, `playwright/**`) are claimed WITH dom by the
+(`tests/ui/**`, `tests/client/**`, `tests/support/browser/**`, `playwright/**`) are claimed WITH dom by the
 `ui`/`client` configs, not by any ancestor. File-scoped tsc is therefore unsound (it never sees consumers);
 the honest per-tool floor is the OWNING PACKAGE, not the file (`selection.ts` header). The `types:packages`
 stage runs `tsc -p <owning-config>`, never a file-scoped check.
@@ -103,11 +103,9 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the retire
 ### 3.2 Tier composition (the ladder)
 
 Four runnable tiers + a `manual` bucket. The WHOLE-TREE ladder nests by MEMBERSHIP: **static ⊂ push ⊂ full**
-— each tier ADDS stages, never drops one. Since #1523 one row's membership at ONE rung is CONDITIONAL (see
-the note under the table): the containment above is a statement about the registry, and a `push` run can
-legitimately SKIP `tests:tooling` with a printed reason naming `verify --full` as the tier that runs it
-unconditionally. A skip is a declared, rendered state — never a silent absence. `changed` is the SCOPED
-inner loop and is deliberately NOT ⊆ static:
+— each tier ADDS stages, never drops one, and since #1842 every rung's membership is UNCONDITIONAL data
+(the `tierPrecondition` mechanism survives for the next row that needs it — see the note under the table —
+but no row declares one). `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static:
 it carries related-tests (`tests:node` over vitest's changed-file graph) that static omits by doctrine —
 static is the born-compliant TEST-FREE commit gate. The honest containment for the inner loop is
 **changed ⊆ push**.
@@ -116,14 +114,23 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
 | `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
-| `push` | static + `tests:node` (vitest projects AND the CT suite) + `tests:tooling` **conditionally** (see below) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
-| `full` | push + `tests:tooling` **unconditionally** + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `push` | static + `tests:node` (the PRODUCT vitest projects — never the instrument battery, #1842) + `browser:ct` (the WHOLE CT suite, its own stage again since #1848 so it carries its own profile-derived hang ceiling) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
+| `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling`, `tooling-serial` and `live-drive` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
-**CONDITIONAL TIER MEMBERSHIP (#1523).** One rung of the ladder can be narrowed by a fact about the RUN,
-declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered by
-`verify --list` on the tier it narrows. It exists for exactly one row today: `tests:tooling` runs
-unconditionally at `full`, and at `push` only when the branch diff (vs its merge base with `origin/main`,
-unioned with the working tree) touches `tooling/**` or `tests/tooling/**`.
+**THE INSTRUMENT BATTERY IS `--full`-ONLY (#1523 split it, #1842 cut it loose).** `tests:tooling` runs at
+`full` and at NO other tier. #1523's first cut kept a CONDITIONAL `push` rung — run the battery when the
+branch diff touched `tooling/**` or `tests/tooling/**` — and #1842 deleted that rung on the owner's word
+(2026-09-06: *"take tooling out of the verify push and into full"*). A lane iterating on an instrument
+still gets its RELATED tests at `changed` (`tests:node`'s scoped argv names `--project tooling`) and can
+run the whole battery by hand with `pnpm test:tooling`; the whole-battery verdict is `verify --full`.
+
+**CONDITIONAL TIER MEMBERSHIP, the mechanism (#1523).** One rung of the ladder CAN be narrowed by a fact
+about the RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered
+by `verify --list` on the tier it narrows. **NO ROW DECLARES ONE TODAY** — the field, the runner's
+plan/notice path (`ops/run.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts`
+against a synthetic row) are kept for the next expensive stage that needs a conditional rung, and
+`tests/tooling/verify/lib/registry.test.ts` reds if a row grows one without this text moving. The
+predicate #1523 hung on (`lib/registry-preconditions.ts` + `branchChangedPaths`) went with the rung.
 
 MEASURED 2026-09-04 (`reports/runs/test/main-4188220-2026-09-04T10-13-43-073Z/test-report.json`, 1,867
 files / 17,818 tests): `tests/tooling` was **71.1 CPU-min over 284 files** against **9.0 min over 1,185**
@@ -131,13 +138,13 @@ for `tests/server` and 1.3 min for everything else — 82% of the node battery, 
 own instruments, and bounded by single files that drive a real browser (`ast/cli.int` 7.5 min,
 `snap/ops/session-daemon.int` 5.0, `verify/gates/dangling-refs.int` 3.5). Owner, same day: *"about 30
 minutes of tooling recertification, which makes it tedious to run tests… move that to verify --full."*
-A push that changed no instrument cannot regress an instrument test that was green on its base; a push
-that DID touch one still pays in full.
+A push cannot regress an instrument test that a `--full` run certified on the same code, and the diff that
+DOES touch an instrument pays for it at `--full` (or by hand) rather than on every lane's push.
 
-**The precondition's UNKNOWN answer is RUN, not skip.** `satisfied` returns `boolean | null`, and `null`
-(no usable base ref, a failed git call, a checkout that is not a repo) makes the runner run the stage. An
-expensive gate that goes quiet on a question it could not answer is a false clean wearing a tier's
-clothes. Pinned in `tests/tooling/verify/lib/registry.test.ts`, both directions.
+**If a precondition ever comes back, its UNKNOWN answer is RUN, not skip.** `satisfied` returns
+`boolean | null`, and `null` (no usable base ref, a failed VCS read, a checkout that is not a repo) makes
+the runner run the stage. An expensive gate that goes quiet on a question it could not answer is a false
+clean wearing a tier's clothes. That polarity is the contract's (`contract/stage.ts`), not one row's.
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
 types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
@@ -352,19 +359,25 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 
 The behavioral suites are ONE `tests` concept expressed as stages with tier + scope, not a folklore list:
 
-- **`tests:tooling`** (tiers `push` conditionally / `full` unconditionally) — `pnpm test:tooling` = the
-  `tooling` vitest project, which is `tests/tooling/**/*.test.ts` MINUS the members of `SERIAL_INT` and
-  `LIVE_DRIVE`. Split off `tests:node` by #1523 (the measurement + the ruling are in §3.2). The partition
-  is one glob (`TOOLING` in `vitest.config.ts`): the `tooling` project includes it, `unit` and
-  `integration` subtract it, so a file is in one lane or none and `tests:execution-membership` proves it.
-  It is deliberately NOT total — a tooling file in `SERIAL_INT`/`LIVE_DRIVE` keeps its contention lane
-  (one at a time; the quiet last shard), which this lane does not provide, and therefore keeps riding
-  `tests:node` at push.
-- **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test` = the vitest projects
-  (`unit`/`integration`/`integration-serial`/`live-drive`, and since #1523 NOT `tooling`) AND `pnpm test:ct --retries=2` (the Playwright
-  component-test suite). **CT rides this merged lane (2026-07-17)** — the CT split existed only for the old
-  single-thread constraint; merging it means the green-to-commit ritual (`pnpm check` + `pnpm test`)
-  exercises the CT suite too, and the visible `--retries=2` makes parallelism flakes RETRY instead of blocking (the CT\_GATE env it replaced retired 2026-07-17). At
+- **`tests:tooling`** (tier `full` only) — `pnpm test:tooling` = THREE vitest projects, sharded in this
+  order: `tooling` (the parallel battery — `tests/tooling/**/*.test.ts` minus the two contention sets),
+  `tooling-serial` (`SERIAL_INT_TOOLING`: tree-writers and whole-tree scanners, one at a time, 30s), and
+  `live-drive` (`LIVE_DRIVE`: the real-browser MEASUREMENT suites, one at a time, last shard on the
+  quietest box). Split off `tests:node` by #1523 and taken off the push bar entirely by #1842 (the
+  measurement + both owner rulings are in §3.2). The partition is one glob (`TOOLING` in
+  `vitest.config.ts`) plus the two explicit path sets: `unit`/`integration` subtract them, so a file is in
+  one lane or none and `tests:execution-membership` proves it. It is now TOTAL by tier as well as by
+  subject — no `tests/tooling` file rides a product project, which is what #1523 left behind (the ten
+  serial instrument suites sat in `integration-serial` and every push paid for them through `tests:node`).
+- **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test:node` = the PRODUCT vitest projects
+  (`unit`/`integration`/`integration-serial`/`contract`; since #1523 NOT `tooling`, and since #1842 not
+  `tooling-serial` or `live-drive` either). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
+  2026-07-17, and the merged stage's ONE 45-minute hang ceiling stopped covering the pair once #1835 put CT
+  on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
+  QUIET box for a stage that was still working, which under the exit contract means the run is not a
+  verdict. The CT suite is `browser:ct` again, with a ceiling DERIVED from `tooling/concurrency-profile.json`
+  (§3.7b). `pnpm test` still COMPOSES both halves — that is the green-to-commit ritual and it is unchanged
+  (it is the manual `tests:product-composite` row here, so no tier runs it and nothing double-runs). At
   `changed` scope: vitest's own related-test graph over the unit+integration lanes (serial + contract are
   whole-tree-shaped, deferred to push). **A derived-empty selection there is a CLEAN SKIP, never a red**
   (#1272): the scoped child carries `--passWithNoTests`, so a `--changed` set that resolves to no related
@@ -396,7 +409,8 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   tree burned no CPU across that window — which is precisely the true wedge, every process idle in
   `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling, and it
   runs on its OWN clock: CPU progress pushes the no-CPU timer forward but never the ceiling's, or a busy
-  tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s `SERIAL_INT` row
+  tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s serial-lane row (then one list, split into
+  `SERIAL_INT_PRODUCT` + `SERIAL_INT_TOOLING` by #1842)
   for that suite still spelling its pre-`8931a886c` path, so the heaviest whole-workspace file had been
   running in the PARALLEL lane — repointed in the same commit.) Before
   the kill it writes `<run slot>/test-wedge-<project>-attempt<n>-<ts>.txt` (§3.3b — the shards, the merged
@@ -410,17 +424,40 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   signature) is exit 1, never a false green — and a contained wedge is announced on stderr and recorded in
   the merged report's `orbShards[].wedges` so a green never hides one. Guard:
   `tests/tooling/vitest-supervised.test.ts`.
-- **`browser:ct`** (tiers `changed`/`manual`) — at `manual` it is the CT-ONLY whole-suite iteration lane
-  (`pnpm test:ct`, `retries:0`), kept as a named stage so it surfaces in `verify --list` and satisfies
-  parity arm 1; a `push`/`full` row would run the suite TWICE (it already rides `tests:node`). At `changed`
+- **`browser:ct`** (tiers `changed`/`push`/`full`) — at `push`/`full` it is the WHOLE CT suite
+  (`pnpm test:ct --retries=2`, the visible retries flag so parallelism flakes RETRY instead of blocking a
+  push), and it is the push tier's CT coverage verdict. It carries `hangCeilingBaseMs` DERIVED from the
+  profile (§3.7b): the CT wall clock is a function of `ctWorkers`, which is exactly what a shared constant
+  could not express. At `changed`
   it runs the SCOPED CT view (§3.4 — the mirror map + declared sweeps, LANDED 2026-07-17) via a DIRECT
   `playwright test -c playwright-ct.config.ts <targets>` — TWO deliberate divergences from the `pnpm test:ct`
   script: (1) NO `rm -rf playwright/.cache` (inner-loop speed; the gate lanes keep the nuke for stale-bundle
   correctness — the scoped run's residual stale-cache risk is acceptable because scoped green is never the
   verdict, §3.4), and (2) NO retries flag (the retries:0 config default — small scoped runs don't hit the 500-test
-  parallelism flakes, so the inner loop wants raw signal, not a retry-masked green). It is deliberately NOT
-  at push/full: the WHOLE suite runs there inside `tests:node`, so the push CT coverage verdict rides that
-  lane, not a same-named `browser:ct` row.
+  parallelism flakes, so the inner loop wants raw signal, not a retry-masked green).
+
+#### 3.7b The per-stage hang ceiling is DATA (#1848)
+
+A stage's ceiling is not a performance budget — it is the line past which the stage is WEDGED, after which
+its process group is killed and the classifier scores a TOOL ERROR. `ops/run.ts` carried one hand-typed 45
+minutes for every stage, and that number stopped being true the moment a stage's runtime became a function
+of a worker cap: on 2026-09-06 `pnpm verify --full` killed `tests:node` at 2,700,284 ms on a box at load
+6-8/24 (slot `reports/runs/verify/main-3786947-2026-09-06T18-22-36-535Z`, `stages/tests-node.log:2473`) —
+a false tool error for a suite that was merely still running.
+
+So the ceilings are DERIVED from `tooling/concurrency-profile.json`'s `stageBudgets` row (the same file
+that owns every worker cap, #1835), through `lib/stage-budget.ts`:
+
+- `defaultMinutes` — every stage that does not declare its own.
+- the CT suite — `ceil(ctSuiteWorkerMinutes / ctWorkers × ctCeilingFactor) + ctHostSlotWaitMinutes`, floored
+  at the default. `ctSuiteWorkerMinutes` is MEASURED (2026-09-06: 488 files / 5,121 cases; a 25-file
+  systematic sample cost 1,004 worker-seconds ⇒ \~160 worker-minutes for the suite); the host-slot wait is
+  in the sum because a queued CT run spends it inside the stage's own wall clock, and `ct-runner-lock.ts`
+  reads that same number for the wait it grants.
+
+Change `ctWorkers` and every dependent ceiling moves with it. The runner still passes the result through
+`budget()`, so a contended box stretches it further, never shrinks it.
+
 - **`browser:e2e-smoke`** (`push`/`full`) — the fast `@smoke` model-free subset; the only automated
   per-push browser surface. **`browser:e2e`** (`full`), **`browser:e2e-live`** (`manual` — costs model
   credits), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
@@ -520,7 +557,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
 
 - **pre-commit → `pnpm check` (= `verify --static`).** Type/structure/lint/boundary red ⇒ cannot commit.
 - **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json — static + `tests:node`
-  (incl. CT) + `e2e-smoke`. Replaces the old 4-command piped pipe (run-all-report-all, max-severity exit).
+  - `browser:ct` (the two halves of `pnpm test`, split into their own stages by #1848) + `e2e-smoke`. Replaces the old 4-command piped pipe (run-all-report-all, max-severity exit).
 - **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only (auto-triggers
   disabled 2026-07-05 — the real automated gate is the hooks).
 

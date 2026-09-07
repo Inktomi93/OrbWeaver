@@ -3,9 +3,11 @@
 // should see. The honest floor per tool: biome/eslint/docs = file; tsc = the owning package (file-scoped
 // tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
+
+import { BROWSER_PACKAGES } from "@orb/tooling/_shared/project-worlds";
 import type { CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
-import { BROWSER_PACKAGES, distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
+import { distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
 import { classifyExplicitPaths, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──

@@ -9,8 +9,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
 import { TagMemberSurface } from "../../../../packages/client/src/features/tag/surfaces/tag-member-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The

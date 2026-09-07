@@ -9,7 +9,7 @@
 //     bare counts is closed on the WIRE (chat's `resolveVisibleRooms`), not by hiding names in the client.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { DatabankContextStory, DatabankWorkspaceListModeStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../fixtures.ts";
 

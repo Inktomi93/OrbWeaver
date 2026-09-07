@@ -215,7 +215,7 @@ D-rows to mint (unnumbered here on purpose — the ledger mints): **R-A** the un
 | `lib/registry-contracts.ts` | publish `ConfigContextState` + `ConfigFocus` |
 | `state/config-focus-store.ts` (new G27 mint) | the focused-setting seam |
 | `compose/authed-app.tsx` | `createRegistry("config-groups", …)`; the `config-collections` assembly dies; the ⌘K `CommandPaletteSource` row |
-| CTs (the settings-era paths this row first named moved with the config rename — 2026-09-06 truth-repair): `tests/client/features/config/surfaces/config-content-surface.ct.tsx` + `config-list-surface.ct.tsx` + `tests/client/features/config/_ct-stories.tsx` · `tests/client/state/config-section-registry-context.ct.tsx` · `tests/support/ct/ct-data-providers.tsx` (the door mirror) · `tests/client/state/config-section-registry.test.ts` (partition mirror) · `tests/client/features/app-shell/components/rail.ct.tsx:21` (the "Settings" pin) · `you-sheet.ct.tsx` · `tests/client/features/persona/**` (3 CTs + stories) · `tests/client/state/config-selection-store.ct.tsx` · `tests/e2e/live-settings-render-truth.spec.ts` | move/retarget; new CTs per §4; the test-baseline manifest regenerates in the lane |
+| CTs (the settings-era paths this row first named moved with the config rename — 2026-09-06 truth-repair): `tests/client/features/config/surfaces/config-content-surface.ct.tsx` + `config-list-surface.ct.tsx` + `tests/client/features/config/_ct-stories.tsx` · `tests/client/state/config-section-registry-context.ct.tsx` · `tests/support/browser/ct-data-providers.tsx` (the door mirror) · `tests/client/state/config-section-registry.test.ts` (partition mirror) · `tests/client/features/app-shell/components/rail.ct.tsx:21` (the "Settings" pin) · `you-sheet.ct.tsx` · `tests/client/features/persona/**` (3 CTs + stories) · `tests/client/state/config-selection-store.ct.tsx` · `tests/e2e/live-settings-render-truth.spec.ts` | move/retarget; new CTs per §4; the test-baseline manifest regenerates in the lane |
 | Docs: `UI-Architecture-and-Layout.md` §4.1 (the foot line "Theme · Settings · persona Identity") + §4.2 rows (settings overlay · identity widget · the Configuration grid row) · `client-architecture-lockdown.md` §5 rule 5 · §6d modal list · §8 (the settings host) · §16 G2/G4 · `config-rail-spec.md` (C-5 amendment, §4 superseded) · `config-ia-the-junk-drawer-problem.md` §6.1 · `ui-package-design.md` §2 (`setting-row` listing) · `plugin-ui-plane.md` §4.5 (`settings` anchor rides the Extensions GROUP) · side-eye §14 (rail FOOT count) · the catalog receipts | truth-repair in the landing commits |
 | Home tiles | NONE door into Settings (receipt §2) |
 
@@ -876,7 +876,7 @@ from that one difference, and each divergence from the settings species is marke
 | What does a populated library show with no member open? | Its own LANDING: the library's glance (name · blurb · the ranked preview wall) + one host sentence about where the members are + the create verb. | New. It replaces a fall-through to the four-library welcome, which named every library except the one the reader had just opened. |
 
 The one anatomy the welcome's launcher and the CONTENT landing share is
-`features/config/components/config-library-glance.tsx` — two hosts, one wall, no second spelling.
+`features/config/components/config-pane-glance.tsx` — two hosts, one wall, no second spelling.
 
 **The seam this section left for #1169 is CLOSED (2026-09-05, #1714).** Every row above was priced against
 the tree with the species fence retired (§8.1a) and all six held on their structural reason — members vs a
@@ -957,7 +957,7 @@ open), and a phone never paints CONTENT unpushed by design. The component and it
 NOTHING-active arm is now the section's own two-line teaching frame (`data-slot="config-teaching-frame"`),
 whose copy is `CONFIG_WELCOME` in `config-copy.ts` — still shared with the phone's LIST header, which is
 untouched. What died with it: the launcher grid, the two population arms, the CD3 sibling-focal treatment
-and the settling census, plus six CTs that pinned them. What survives: `config-library-glance.tsx` (name +
+and the settling census, plus six CTs that pinned them. What survives: `config-pane-glance.tsx` (name +
 blurb), because the landing draws it at every arm.
 
 Vocabulary note (orchestrator addendum, and the reason it is worth a line): this surface was informally

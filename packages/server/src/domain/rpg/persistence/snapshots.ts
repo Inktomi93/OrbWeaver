@@ -539,7 +539,11 @@ function snapshotInsertFrom(
  *
  *  Returns `{ok:false, reason}` when the state is contract-INVALID — the caller DROPS the delta (errors-as-data,
  *  mirroring the extraction's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
- *  reason (the drop is observable, never silent). */
+ *  reason (the drop is observable, never silent).
+ *
+ *  @public Test-anchored module surface: the journal-less arm of {@link writeStagedSnapshotAndJournal},
+ *  which is the door `chat-ops/flush.ts` uses. Delegating rather than re-spelling is what keeps the
+ *  suites that drive this one honest about the production write boundary. */
 export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: TurnSnapshotTarget): Promise<WriteStagedSnapshotResult> {
   return writeStagedSnapshotAndJournal(db, state, target, []);
 }

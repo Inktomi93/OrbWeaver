@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, SELECTION_RING_CHECKED, tv } from "#lib";
 
 // picker-cell — the ONE cell anatomy every single-choice PICTURE picker in this app wears (#929 E6).
 //
@@ -44,9 +44,13 @@ export const pickerCellVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:border-ring",
       FOCUS_RING,
-      // `ring-inset` keeps the selected ring INSIDE the border box — a 2px outset ring would grow the
-      // cell's painted footprint and nudge its neighbours on every pick.
-      "data-checked:border-primary data-checked:ring-2 data-checked:ring-inset data-checked:ring-primary",
+      // THE RING IS THE SHARED FRAGMENT (#1840): `SELECTION_RING_CHECKED` is the app-wide selected-CELL
+      // idiom's one spelling, beside `SELECTION_RAIL`'s row half — this cell was its reference carrier and
+      // `MediaGrid` now paints the same two declarations instead of its own four layers. `ring-inset` keeps
+      // the ring INSIDE the border box (a 2px outset ring grows the cell's painted footprint and nudges its
+      // neighbours on every pick); the primary BORDER stays this frame's own, because only this cell has
+      // one to recolour.
+      `data-checked:border-primary ${SELECTION_RING_CHECKED}`,
       DISABLED_STATE,
     ],
     // The art APERTURE: a fixed aspect box, so every cell in a grid reserves the same picture area before

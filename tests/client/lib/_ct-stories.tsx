@@ -25,13 +25,13 @@ import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-q
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { OrbAgentHandles } from "../../../packages/client/src/lib/agent-bridge.ts";
-import { __installAgentDebugHandleForTest } from "../../../packages/client/src/lib/agent-bridge.ts";
+import { installAgentDebugHandle } from "../../../packages/client/src/lib/agent-bridge.ts";
 // Deep, not `@orb/client/lib`: production readiness and the dev bridge stay OUT of the barrel. Keeping
 // their homes separate is the production boot boundary (#995); a barrel re-export could reconnect them.
 import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { appReady, installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
-import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../../packages/client/src/lib/bus-devlog.ts";
+import { busInvalidate, busSubscribe, busUnsubscribe } from "../../../packages/client/src/lib/bus-devlog.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
@@ -48,7 +48,7 @@ import {
 } from "../../../packages/client/src/lib/motion-stats.ts";
 import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
 import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
-import { blockMainThread } from "../../support/ct/block-main-thread.ts";
+import { blockMainThread } from "../../support/node/block-main-thread.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -1170,11 +1170,13 @@ export function AgentBridgeStory(): ReactElement {
       },
       durableLocalUserId: () => null,
     } satisfies OrbAgentHandles;
-    __installAgentDebugHandleForTest(client, handles);
+    installAgentDebugHandle(client, handles);
     installAppReadySignal(client, SETTLED_ROUTE);
     void client.fetchQuery({ queryKey: ["ct-agent-bridge-ready"], queryFn: async () => "ready" });
     globalThis.__orb?.resetEvidence();
-    const busFixture = __createBusDevlogFixtureForTest();
+    // The REAL bus doors, not a test plant: their evidence bookkeeping is unconditional, so a
+    // production-mode CT bundle drives the same counter `use-chat-bus.ts` drives (#1847).
+    busSubscribe(BRIDGE_CHAT_ID, false);
     const motionTarget = motionTargetRef.current;
     const blockStartedAnimation = (): void => blockMainThread(120);
     motionTarget?.addEventListener("animationstart", blockStartedAnimation);
@@ -1193,7 +1195,7 @@ export function AgentBridgeStory(): ReactElement {
     return (): void => {
       live = false;
       motionTarget?.removeEventListener("animationstart", blockStartedAnimation);
-      busFixture.cleanup();
+      busUnsubscribe(BRIDGE_CHAT_ID);
       globalThis.__orb = undefined;
     };
   }, [client]);
@@ -1218,7 +1220,7 @@ export function AgentBridgeStory(): ReactElement {
       <button
         type="button"
         onClick={(): void => {
-          __recordBusEventForTest("ct.bridge", BRIDGE_CHAT_ID, ["chat.list"]);
+          busInvalidate("ct.bridge", BRIDGE_CHAT_ID, ["chat.list"]);
           recordRender("ct:bridge", "mount", 7);
           cssStateRef.current.calls = 1;
           perfMeasureFromLoad("ct-bridge");

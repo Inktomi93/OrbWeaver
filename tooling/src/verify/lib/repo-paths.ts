@@ -4,7 +4,7 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
-import { execNicedSync, runNicedSync } from "@orb/tooling/_shared/proc";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
@@ -73,35 +73,12 @@ export function gitChangedPaths(root: string = ROOT): readonly string[] {
   return gitChangedPathClassification(root).paths;
 }
 
-/** The refs a branch's merge base is taken against, in order of preference. `origin/main` is the real
- *  base for a lane; local `main` is the fallback for a checkout with no remote (the owner pushes by hand,
- *  so `origin/main` can also be far behind — the union with the working tree below covers that). */
-const MERGE_BASE_REFS = ["origin/main", "main"] as const;
-
-/** EVERY PATH THIS BRANCH TOUCHED: the merge-base diff UNIONED with the working tree vs HEAD (#1523).
- *
- *  `null` means the question could not be answered — no usable base ref, or git failed. That is NOT an
- *  empty set: a caller gating expensive work on "did this touch X" must RUN the work when the answer is
- *  unknown, because an uncomputable precondition that reads as "nothing changed" is the exact shape of a
- *  silent false clean. The one caller (the `tests:tooling` stage row) fails safe on `null`. */
-export function branchChangedPaths(root: string = ROOT): readonly string[] | null {
-  // `runNicedSync` over `execNicedSync` DELIBERATELY: the latter returns the child's STDERR on failure,
-  // which a splitter would happily turn into "changed paths". A status check is the only honest read.
-  const git = (args: readonly string[]): string | null => {
-    const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root });
-    return res.status === 0 ? res.stdout : null;
-  };
-  const base = MERGE_BASE_REFS.map((ref) => git(["merge-base", "HEAD", ref])?.trim()).find((sha) => sha !== undefined && /^[0-9a-f]{7,40}$/u.test(sha));
-  if (base === undefined) {
-    return null;
-  }
-  const committed = git(["diff", "--name-only", "-z", base, "HEAD"]);
-  const working = git(["diff", "--name-only", "-z", "HEAD"]);
-  if (committed === null || working === null) {
-    return null;
-  }
-  return [...new Set([...committed.split("\0"), ...working.split("\0")].filter((path) => path !== ""))];
-}
+// THE BRANCH-DIFF READ IS GONE (#1842). `branchChangedPaths` — the merge-base diff unioned with the
+// working tree — existed for ONE caller: #1523's `tests:tooling` push-tier precondition ("did this branch
+// touch an instrument?"). The owner took the instrument battery off `--push` entirely on 2026-09-06, so
+// the predicate (lib/registry-preconditions.ts) and this read went with the rung they served rather than
+// staying as an export nothing calls. `git log -- tooling/src/verify/lib/repo-paths.ts` has it if a future
+// `tierPrecondition` row needs the same question; the FIELD it hung on is still in contract/stage.ts.
 
 /** Explicit changed/file requests carry no git status vocabulary. Classify by the one fact direct tools
  * need: current existence; the deletion-aware views still retain every normalized path. */

@@ -34,7 +34,9 @@ const COOLDOWN_MS = AUTOMATION_NOTICE_COOLDOWN_SECONDS * MS_PER_SECOND;
  *  THE COST, STATED: past the cap the LEAST-RECENTLY-ADMITTED pair is forgotten, so its next notice admits
  *  again. A guest can therefore buy itself one extra notice in a room by notifying 1024 other rooms first —
  *  which is a worse deal for it than simply waiting out the 60s, and the durable half of the posture (WHO may
- *  be notified at all: the domain-resolved participants-only recipient set) is untouched by any of it. */
+ *  be notified at all: the domain-resolved participants-only recipient set) is untouched by any of it.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES = 1024;
 
 /** Bring the map back under {@link PLUGIN_NOTIFY_FLOOR_MAX_ENTRIES}: drop every entry whose cooldown has

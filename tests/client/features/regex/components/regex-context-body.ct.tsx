@@ -12,9 +12,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { readSwitchRowOrientation } from "../../../../support/ct/settings-geometry.ts";
+import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexContextStory } from "../_ct-stories.tsx";
 
 const SCRIPT_ID = "regex_script_000000000000000a";

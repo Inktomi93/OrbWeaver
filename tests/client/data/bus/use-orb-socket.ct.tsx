@@ -17,10 +17,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeImpersonateStream } from "../../../support/ct/route-impersonate-stream.ts";
-import type { SubscriptionErrorPayload } from "../../../support/ct/route-orb-socket.ts";
-import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
-import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { routeImpersonateStream } from "../../../support/node/route-impersonate-stream.ts";
+import type { SubscriptionErrorPayload } from "../../../support/node/route-orb-socket.ts";
+import { routeOrbSocket } from "../../../support/node/route-orb-socket.ts";
+import { routeTrpc } from "../../../support/node/route-trpc.ts";
 import { RpgBusStory, SocketFaultToastStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 

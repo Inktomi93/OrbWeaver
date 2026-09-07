@@ -1,6 +1,6 @@
 // Gate: scroll-container-positioned — a VERTICAL scroll container's own class string must also establish a
 // containing block (`relative`/`absolute`/`fixed`/`sticky`). MECHANISM + measurement: the header of
-// tests/support/ct/scroll-containing-block.ts — a `position:static` scroller establishes no containing block,
+// tests/support/browser/scroll-containing-block.ts — a `position:static` scroller establishes no containing block,
 // so every `position:absolute` descendant (and `sr-only` IS absolute, which is why every Base UI form
 // primitive plants one) resolves its containing block further UP and contributes its static position to that
 // ANCESTOR's scrollable area. The user scrolls past the last row into blank space (owner dogfood 2026-08-13,
@@ -41,12 +41,12 @@ const MESSAGE =
   "bounds announcers, hidden inputs, status lines, AriaAnnouncer) resolves further up and dumps its static " +
   "position into an ANCESTOR's scrollable area. The surface then scrolls past its last row into blank " +
   "space (owner dogfood 2026-08-13; 11 escapees measured on the preset editor). Mechanism + runtime " +
-  "instrument: tests/support/ct/scroll-containing-block.ts.";
+  "instrument: tests/support/browser/scroll-containing-block.ts.";
 
 const FIX =
   "add `relative` to the SAME class string that carries the overflow token (`absolute`/`fixed`/`sticky` " +
   "count too). One class; inert on a box that has no absolute descendants. Verify with " +
-  "`readPhantomScrollers` from tests/support/ct/scroll-containing-block.ts in a CT — a clean document " +
+  "`readPhantomScrollers` from tests/support/browser/scroll-containing-block.ts in a CT — a clean document " +
   "returns [].";
 
 const STALE_ENTRY_MESSAGE_PREFIX =

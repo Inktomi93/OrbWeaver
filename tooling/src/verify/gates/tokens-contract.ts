@@ -1,6 +1,12 @@
 // Gate: tokens-contract (#936) — the canonical token vault, shipped value sets, Resolver manifest,
 // vendored official schemas, Orb extensions, and removed-token ledger are one fail-closed contract.
 // fsBacked is required because JSON and schema bytes are outside the shared ts-morph walk.
+// The validator is reached through the `@orb/ui/token-contract` exports subpath (restored 2026-09-06 after the
+// #1847 fold reached it by relative path — `tooling-front-door` bans relative escapes out of tooling/). It is
+// devtime build/verify machinery (node:fs + node:child_process + ajv) sitting beside tokens.build.ts at the
+// package ROOT; because the subpath is a production-surface declaration to `knip --production`, ajv and
+// ajv-formats are `dependencies` of @orb/ui. The honest home is a tooling `tokens` tool carrying the validator
+// AND tokens.build.ts (packages may not import tooling) — tracked on the board, not done inline.
 import { join, resolve } from "node:path";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenContractTexts, validateTokenContract } from "@orb/ui/token-contract";

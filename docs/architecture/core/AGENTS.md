@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-05
+updated: 2026-09-06
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -151,9 +151,10 @@ is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on s
   one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 - **The ONE verification surface (`UNIFIED-VERIFICATION-DESIGN.md`):** iterate on `pnpm verify --changed`
   (scoped, fast inner loop); claim "done" only after `pnpm verify` (= `--static`, = `pnpm check`); the
-  pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a
-  bare `pnpm check` does NOT run); `pnpm verify --full` is the works. **Tier membership is DATA, never prose — read it from
-  `pnpm verify --list`.**
+  pre-push bar is `pnpm verify --push` (adds the PRODUCT node tests + CT + e2e-smoke — the behavioral
+  suites a bare `pnpm check` does NOT run); the INSTRUMENT battery (`tests/tooling/**`) is `--full`-only
+  since #1842, so `pnpm verify --full` is the works and the only whole-battery verdict on our own tools.
+  **Tier membership is DATA, never prose — read it from `pnpm verify --list`.**
   Exit codes are a hard contract: 0 clean · 1 violations · 2 tool error (a checker BROKE — the run is not
   a verdict) · 3 misuse (bad args). `pnpm verify --list` prints every stage + its tier. **A SCOPED green
   (`--changed`/`--scope`) is NOT done:** it DEFERS every whole-project gate (registry / coverage / parity /

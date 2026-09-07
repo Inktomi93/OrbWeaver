@@ -66,7 +66,7 @@ import {
   CtFakeSectionRegistry,
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
-} from "../../../support/ct/ct-data-providers.tsx";
+} from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
 

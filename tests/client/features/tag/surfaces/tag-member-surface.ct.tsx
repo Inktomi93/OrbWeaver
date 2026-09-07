@@ -16,11 +16,11 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
-import { proseRow, readProseMeasure } from "../../../../support/ct/prose-measure.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { readSwitchRowOrientation } from "../../../../support/ct/settings-geometry.ts";
+import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
+import { proseRow, readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import { readSwitchRowOrientation } from "../../../../support/browser/settings-geometry.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { TagMemberContentColumnStory, TagMemberStory } from "../_ct-stories.tsx";
 
 const TAP_FAIL_PX = 32;

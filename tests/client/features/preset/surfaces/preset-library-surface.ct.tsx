@@ -22,11 +22,11 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
+import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
-import { resolveSpacingPxIn } from "../../../../support/ct/touch-floor.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   PresetLibraryAnnouncedStory,
   PresetLibraryDockedStory,

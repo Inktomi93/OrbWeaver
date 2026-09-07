@@ -12,7 +12,7 @@
 // bug).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { RegexTabAttachableStory, RegexTabSystemDefaultStory } from "./_regex-tab-stories.tsx";
 
 /** The owner's script library — one row in the `RegexScriptRow` wire shape (`@orb/contracts/regex`), so the

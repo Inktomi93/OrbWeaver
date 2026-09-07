@@ -22,7 +22,7 @@
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
 
 const ARIA = mintTypeId(ID_PREFIX.character);

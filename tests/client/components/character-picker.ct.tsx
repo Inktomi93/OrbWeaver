@@ -10,7 +10,7 @@
 // old tail-load is scroll-only; both go RED, which is the defect proof.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CharacterPickerHarness } from "./character-picker.fixtures.tsx";
 

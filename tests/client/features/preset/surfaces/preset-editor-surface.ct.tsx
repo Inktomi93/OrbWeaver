@@ -29,14 +29,14 @@ import { castId } from "@orb/kit/ids";
 import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
-import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
-import { pixelExtremaContrast, pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
+import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/browser/autosave-status-transcript.ts";
+import { pixelExtremaContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
+import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   PresetEditorCapabilityFreshnessStory,
   PresetEditorNarrowStory,
@@ -817,7 +817,7 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
 // The two-level tree is gone: ONE tab strip, five views, Params first. The Actions view is where the
 // guided templates + nudges now live (§3's map moved them out of the Prompt tab's collapsibles), and a
 // template-text editor is exactly the surface the macro-resolution ruling covers — so the re-homed nudge
-// editor carries the SHARED roundtrip assertion (tests/support/ct/assert-token-roundtrip.ts), never a
+// editor carries the SHARED roundtrip assertion (tests/support/node/assert-token-roundtrip.ts), never a
 // hand-rolled one. That gate is import-keyed and blind to this data flow; the helper is its belt.
 test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge editor round-trips a raw {{token}}", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

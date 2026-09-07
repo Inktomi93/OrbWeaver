@@ -8,8 +8,8 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { pixelContrast, pixelSurface } from "../../../support/ct/pixel-contrast.ts";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { pixelContrast, pixelSurface } from "../../../support/browser/pixel-contrast.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

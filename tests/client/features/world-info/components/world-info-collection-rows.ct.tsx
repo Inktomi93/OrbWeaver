@@ -8,8 +8,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { WorldInfoCollectionRowsStory } from "../_ct-stories.tsx";
 
 /** Any row STATE-TOGGLE name (§12's toggle arm) — world-info deliberately has none. */

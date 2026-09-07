@@ -48,7 +48,9 @@ export interface OrbAutomationFiresFilter {
   readonly limit?: number;
 }
 
-/** The one debug-route path this slice reads (see the header). */
+/** The one debug-route path this slice reads (see the header).
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const AUTOMATION_FIRES_ROUTE = "/api/_debug/automation/fires";
 
 /** The durable automation fire log through the debug route — `{count, fires}` on success, `{ok:false, reason}`

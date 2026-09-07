@@ -19,10 +19,10 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
-import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
-import { REGEX_READS_EMPTY } from "../../../../support/ct/regex-reads-empty.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
+import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
 

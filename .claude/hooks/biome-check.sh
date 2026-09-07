@@ -94,12 +94,10 @@ owning_tsconfig() {
   if [[ "$p" == "packages/client/vite.config.ts" ]]; then
     echo "packages/client/tsconfig.json"; return
   fi
-  # 3. the browser reach-back trees (owned WITH dom by a NON-ancestor config — the editor blind spot).
-  if [[ "$p" =~ ^tests/client/.*\.tsx$ || "$p" == "tests/support/ct/ct-data-providers.tsx" ]]; then
-    echo "packages/client/tsconfig.json"; return
-  fi
-  if [[ "$p" =~ ^tests/ui/.*\.tsx$ || ( "$p" =~ ^tests/support/ct/.*\.tsx$ && "$p" != "tests/support/ct/ct-data-providers.tsx" ) || "$p" =~ ^playwright/.*\.(tsx|d\.ts)$ ]]; then
-    echo "packages/ui/tsconfig.json"; return
+  # 3. the browser-tests world (tsconfig.tests-dom.json): browser-subject trees by directory, every tsx under
+  #    tests/ or playwright/ by suffix, the CT mount's .d.ts, and the st-goldens rig (mirror of that config's include).
+  if [[ "$p" =~ ^tests/(client|ui|e2e|support/browser)/ || "$p" =~ ^(tests|playwright)/.*\.tsx$ || "$p" =~ ^playwright/.*\.d\.ts$ || "$p" =~ ^scripts/probes/st-goldens/ ]]; then
+    echo "tsconfig.tests-dom.json"; return
   fi
   # 4. the node graph roots (tests/·scripts/·reset.d.ts — .ts/.mts/.cts; a reach-back .tsx was claimed above).
   if [[ "$p" =~ ^tests/ || "$p" =~ ^scripts/ || "$p" == "reset.d.ts" ]]; then
@@ -134,8 +132,18 @@ pool_run() { # pool_run <name> <cmd...>: take any of the N SHARED slots, else sk
   printf 'pool: all %s host-wide slots busy (%s) — the %s leg was SKIPPED (no output is expected from it)\n' "$slots" "$pooldir" "$name" >>"$diag"
   return 0
 }
-pool_run biome pnpm exec biome check --reporter=concise --diagnostic-level=error \
-  --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
+# THE PER-EDIT LEG RUNS UNDER tooling/biome.edit.jsonc, NOT THE ROOT CONFIG (#1850, 2026-09-06). Three
+# PROJECT-domain rules in biome.json (noImportCycles / noPrivateImports / noUndeclaredDependencies) make
+# every invocation crawl and parse the whole 7,230-file tree to build the module graph — measured 5 s /
+# 25 CPU-s for ONE file on a quiet box, 18 s / 52 CPU-s under load, on EVERY save in EVERY lane. The edit
+# config extends the root (same formatter, same file-local rules — a planted `var` + unused import still
+# red) but turns the project domain off and tells the scanner to ignore the tree
+# (`files.experimentalScannerIgnores`): 84 ms / ~1 CPU-s per file. The three graph rules are the whole-tree
+# `lint:biome` verify stage's, which pays the crawl ONCE per run. `--skip` does NOT avoid the crawl and the
+# daemon (`--use-server`) reported a fresh file as "Checked 0 files" and timed out from a worktree — both
+# were measured and rejected.
+pool_run biome pnpm exec biome check --config-path="$root/tooling/biome.edit.jsonc" --reporter=concise \
+  --diagnostic-level=error --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
 bpid=$!
 
 # dep-cruiser only understands TS/JS source under packages/ — skip configs, scripts, docs, etc. It shares

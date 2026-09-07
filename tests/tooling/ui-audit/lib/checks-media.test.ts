@@ -176,6 +176,23 @@ describe("design-audit distorted-image — only input the rule can actually judg
     expect(disposition.kind === "excluded" ? disposition.reason : "").toBe("objectFitDoesNotScale");
   });
 
+  // `backgroundSizeMode` carries the REAL background-size disposition a background-image sample's
+  // placeholder `objectFit: "fill"` cannot (#1825) — "auto" (every axis auto) is excluded exactly like
+  // `object-fit: none`, and its ABSENCE (an `<img>` sample) must not be mistaken for "auto".
+  test("backgroundSizeMode: auto cannot stretch — excluded, never a finding", () => {
+    const input = distorted({ backgroundSizeMode: "auto" });
+    expect(checkImageDistortion(input)).toBeNull();
+    const disposition = classifyImageDistortion(input);
+    expect(disposition.kind).toBe("excluded");
+    expect(disposition.kind === "excluded" ? disposition.reason : "").toBe("objectFitDoesNotScale");
+  });
+
+  test("backgroundSizeMode: scales still fires — the explicit-length background-size arm is judged like fill", () => {
+    const input = distorted({ backgroundSizeMode: "scales" });
+    expect(checkImageDistortion(input)?.rule).toBe("distorted-image");
+    expect(classifyImageDistortion(input).kind).toBe("judged");
+  });
+
   test("an object-fit value outside the CSS keyword space is WITHHELD by name, not judged as if it stretched", () => {
     // The walker reads `getComputedStyle(img).objectFit || "fill"`; an empty or unrecognised value means
     // the measurement did not arrive, which is missing evidence (NO VERDICT), never a licence to convict.

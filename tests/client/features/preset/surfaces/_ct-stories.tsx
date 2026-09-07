@@ -15,7 +15,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 
 // The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT

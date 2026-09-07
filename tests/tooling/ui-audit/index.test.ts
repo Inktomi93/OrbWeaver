@@ -1317,7 +1317,7 @@ const ACCENT_BASE: AccentBorderInput = {
   badgeLike: false,
   tabContext: false,
   statusContext: false,
-  listRowSelected: false,
+  selectionRail: false,
   artPane: false,
 };
 const ACCENT_RED: Rgb = { r: 220, g: 40, b: 40, a: 1 };
@@ -1392,16 +1392,16 @@ test("a thick chromatic LEFT border on a rounded card fires BOTH tells (issue #1
 });
 
 auditRuleTest(
-  [{ rule: "border-accent-on-rounded", kind: "silent", reason: "the selected ListRow accent is the ratified nearest neighbour" }],
-  "the ratified ListRow selection accent is exempt, and neither half of the predicate exempts alone (issue #485)",
+  [{ rule: "border-accent-on-rounded", kind: "silent", reason: "the selected selection-rail accent is the ratified nearest neighbour" }],
+  "the ratified selection-rail accent is exempt, and neither half of the predicate exempts alone (issue #485)",
   () => {
     // OWNER RULED 2026-08-22: the selected-row left ember bar (a 2px `border-l-primary` on a rounded row) is
-    // the app-wide selection idiom and stands as shipped. The `listRowSelected` sample is the walker's
+    // the app-wide selection idiom and stands as shipped. The `selectionRail` sample is the walker's
     // two-halved verdict — the primitive's own slot AND `data-selected` — and this is the check's half of
     // that contract: the flag exempts, and its absence leaves the identical geometry fully judged.
     const selectedRow = checkAccentBorder({
       ...ACCENT_BASE,
-      listRowSelected: true,
+      selectionRail: true,
       radius: 6,
       widths: { ...ACCENT_BASE.widths, left: 2 },
       colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },

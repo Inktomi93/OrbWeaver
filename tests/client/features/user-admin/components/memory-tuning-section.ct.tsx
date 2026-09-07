@@ -6,9 +6,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { setNumber } from "../../../../support/ct/set-number.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { setNumber } from "../../../../support/node/set-number.ts";
 import { MemoryTuningSectionNarrowStory, MemoryTuningSectionStory } from "../_ct-stories.tsx";
 
 // The section reads its knob VALUES from `overrides` (⊕ the contract floors), not `resolved` — so a plain

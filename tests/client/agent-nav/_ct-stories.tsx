@@ -18,7 +18,7 @@ import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 /** The three declarations one `.shell-panel` can publish — the tri-state `panelAvailability` parses. */
 const DECLARATIONS = ["declared", "unavailable", "unpublished"] as const;

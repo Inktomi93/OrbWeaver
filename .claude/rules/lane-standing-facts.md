@@ -117,7 +117,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **Scoped invocations go through the NICED pnpm scripts, never raw npx** (npx bypasses the nice-19 floor
   that protects the co-hosted homelab): `pnpm test:scoped <paths>` · `pnpm ct:scoped <paths>`, from your
   worktree via `env -C`. **Pass NO `--maxWorkers`/`--workers` unless going LOWER** (#1835): the SHIPPED
-  defaults ARE the shared-host values (vitest 4, CT 2) from `tooling/concurrency-profile.json`, the ONE
+  defaults ARE the shared-host values (vitest 4, CT 4 — CT went 2 → 4 by owner ruling 2026-09-06, #1848: the box-wide bound is `ctRunnersHostWide` + the cpu-fence quota, not the per-run count) from `tooling/concurrency-profile.json`, the ONE
   home for every cap; `ORB_DEDICATED_BOX=1` in the SHELL is the solo-box switch (vitest 14, CT 4 — the
   measured quiet-box numbers). Whole `check`/`verify` runs, the edit hook's legs and CT runners now hold
   HOST-WIDE slots that QUEUE, never refuse, and `.claude/hooks/cpu-fence.sh` caps each session at

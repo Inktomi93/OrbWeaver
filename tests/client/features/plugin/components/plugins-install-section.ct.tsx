@@ -24,9 +24,9 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory, SnippetConsoleStory } from "../_ct-stories.tsx";
 
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';

@@ -76,7 +76,7 @@ function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOp
  * option to "Label gloss…" and break every `getByRole("option", { name, exact })` in the tree), while
  * `aria-describedby` — whose target is used even when hidden, per accname §5.2 — hands the SAME text
  * to assistive tech as the description it is. The repo's own name-quality probe encodes this split:
- * `tests/support/ct/accessible-names.ts` strips the `aria-describedby` target before checking
+ * `tests/support/browser/accessible-names.ts` strips the `aria-describedby` target before checking
  * WCAG 2.5.3, "a description is not a label".
  */
 function optionDescriptionId(idPrefix: string, value: unknown): string {

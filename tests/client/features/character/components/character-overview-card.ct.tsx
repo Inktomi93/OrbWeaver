@@ -11,7 +11,7 @@
 // the settled state on the first response rather than something to wait three backoffs for.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterOverviewCardStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 

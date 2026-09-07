@@ -80,7 +80,7 @@ Read-only recon. No code/board mutated.
     accessible-name computation (the lens `Spine`/issue calls "snap's map op").
   - `tooling/src/ui-audit/lib/checks-a11y.ts` — a separate raw-attribute/DOM-walk a11y checker
     (the "ui-audit's walker" the issue references).
-  - `tests/support/ct/accessible-names.ts` is a THIRD, CT-scoped engine (`ariaTreeFindings` /
+  - `tests/support/browser/accessible-names.ts` is a THIRD, CT-scoped engine (`ariaTreeFindings` /
     `labelInNameFindings`) with its own header explicitly stating "WHY TWO ENGINES" — reinforcing
     that multiple deliberately-separate accname computations are a known, current pattern in this
     repo, not just the two the issue names.

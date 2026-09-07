@@ -20,7 +20,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import {
   SectionEchoStory,
   SectionRefusalStory,

@@ -188,7 +188,6 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
  *  collided with" — a looser predicate here (per-kind, say) would hand back a DIFFERENT unit's run and the
  *  dependent would wait on the wrong thing. `admission_system` is the discriminator the owned/system pair
  *  splits on, and it is derived the same way the insert derives it (`ownerId === null`).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function findActiveAdmittedWorkloadId(
   db: Db,

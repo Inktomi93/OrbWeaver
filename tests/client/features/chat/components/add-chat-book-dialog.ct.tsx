@@ -5,7 +5,7 @@
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { AddChatBookDialogStory } from "../_ct-stories.tsx";
 
 const BOOK = {

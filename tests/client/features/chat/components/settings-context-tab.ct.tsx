@@ -11,10 +11,10 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { setNumber } from "../../../../support/ct/set-number.ts";
+import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { setNumber } from "../../../../support/node/set-number.ts";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the

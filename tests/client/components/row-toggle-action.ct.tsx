@@ -8,7 +8,7 @@
 
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolveSpacingPxIn } from "../../support/ct/touch-floor.ts";
+import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
 import { RowToggleActionHarness } from "./row-toggle-action.fixtures.tsx";
 
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;

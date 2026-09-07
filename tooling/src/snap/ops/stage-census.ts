@@ -14,6 +14,7 @@
 // in the critical section of a lock every sibling lane is waiting on.
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
+import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import type { StageAllocation, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
@@ -35,7 +36,9 @@ const { ORB_STAGE_TTL_MIN: TTL_MIN_ENV, ORB_STAGE_CAP: CAP_ENV } = process.env;
 /** The owner-ruled limits (F5), with any env-parse refusal PRINTED rather than silently defaulted — a TTL
  *  that quietly became 60 min is the strand class the table exists to end. */
 export function stageLimits(): StageLimits {
-  const { limits, errors } = resolveStageLimits({ ttlMinEnv: TTL_MIN_ENV, capEnv: CAP_ENV });
+  // The cap's BASE is the box profile's (#1848 — tooling/concurrency-profile.json is the one home for
+  // every cap since #1835, and this one was missed by it); `ORB_STAGE_CAP` still overrides.
+  const { limits, errors } = resolveStageLimits({ ttlMinEnv: TTL_MIN_ENV, capEnv: CAP_ENV, capBase: readConcurrencyProfile().stageCap });
   for (const error of errors) {
     print(`[snap-stage] ${error} — using the default`);
   }

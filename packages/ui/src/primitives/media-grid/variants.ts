@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { FOCUS_RING, SELECTION_RING_SELECTED, tv } from "#lib";
 
 // The media-grid cell skin (ui-package-design §6.1 / work-order #6). Cells are square (aspect
 // reserved by the grid host, not by the image) so nothing shifts while thumbnails lazy-load. The
@@ -11,10 +11,19 @@ export const mediaGridVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:ring-2 hover:ring-ring/50",
       FOCUS_RING,
-      // Selected cells get the accent ring PLUS the one rationed Ember glow (--shadow-glow) — a
-      // selected thumbnail is exactly the "focus/character moment" that token is reserved for
-      // (DESIGN.md §5). The ring keeps the crisp edge; the glow lifts it off the grid.
-      "data-selected:ring-2 data-selected:ring-primary data-selected:shadow-glow",
+      // ONE RING, THE SHARED ONE (#1840, side-eye 2026-09-06 E2). This cell used to paint FOUR layers for
+      // the state `PickerCell` states in one: an OUTSET accent ring, the rationed `--shadow-glow`, a
+      // gradient `::after` border ring in globals.css, and the check badge below. The census counted that
+      // as a third grid idiom beside the two ruled ones. It now wears `SELECTION_RING_SELECTED` — the same
+      // two declarations the ratified picker cell wears, inset so picking cannot nudge a neighbour — and
+      // the badge stays, because "ring + check" IS the ruled cell idiom.
+      //
+      // THE GLOW'S RULING SURVIVES; ITS INPUT LEFT. `--shadow-glow` is the ONE rationed Ember accent and
+      // the comment here claimed a selected thumbnail is the "focus/character moment" it is reserved for.
+      // A grid where every cell is selectable and one happens to be chosen is not that moment — the token
+      // keeps its other consumers (the avatar's selected ring, the home hearth room, the refinery focal),
+      // which are single focal objects rather than one member of a grid.
+      SELECTION_RING_SELECTED,
     ],
     // THE IMAGE STATES ITS OWN RESERVATION (#1159). The cell above already reserves the square, so
     // nothing can shift here — but "nothing shifts" was true only of the CELL, and the `<img>` itself

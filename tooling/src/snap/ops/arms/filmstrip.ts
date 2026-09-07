@@ -7,7 +7,7 @@ import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { artifactKey, print, routeSlug } from "../../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { EXIT } from "../../../_shared/exit-contract.ts";
-import { processEnvValue } from "../../../_shared/proc.ts";
+import { processEnvValue } from "../../../_shared/process-env.ts";
 import type { ArmArgs, ArmDef, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { FilmstripCaptureReceipt, FilmstripLimits } from "../../contract/filmstrip.ts";
 import { FILMSTRIP_LIMITS } from "../../contract/filmstrip.ts";

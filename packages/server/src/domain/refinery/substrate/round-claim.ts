@@ -43,6 +43,8 @@ import type { RefineryRoundClaim } from "../contract/results.ts";
  * before it aborts a stalled socket — so ~12 minutes of stall tolerance is reachable by a round that is slow
  * but alive, and a shorter lease would expire underneath it. Fifteen clears that with margin while keeping a
  * genuinely dead round's hold to something a person will wait out rather than report as a stuck session.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const REFINERY_ROUND_LEASE_MS = 900_000;
 

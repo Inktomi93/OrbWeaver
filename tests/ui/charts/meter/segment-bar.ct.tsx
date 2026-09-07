@@ -4,7 +4,7 @@
 // never a hardcoded px/hex.
 import { SegmentBar } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const SEGMENTS = [
   { id: "system", value: 25, color: 1 as const },

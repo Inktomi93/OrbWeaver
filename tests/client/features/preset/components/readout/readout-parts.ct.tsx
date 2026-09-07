@@ -27,8 +27,8 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../../support/factories/resolved-connection.ts";
+import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
   EffectiveProfileMissingPresetStory,

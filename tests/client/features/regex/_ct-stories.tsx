@@ -26,8 +26,8 @@ import { RegexContextBody } from "../../../../packages/client/src/features/regex
 import { regexGroup } from "../../../../packages/client/src/features/regex/lib/regex-group.tsx";
 
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The narrow end of the real CONTENT pane: a 752px shell docks the LIST at its measured 307px default and
  *  the pane pays its own `px-section` inset, leaving 397. Stated here so the bulk bar's reachability pin is

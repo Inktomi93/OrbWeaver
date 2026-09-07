@@ -13,7 +13,7 @@ import { Waystone } from "@orb/ui/meter";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { partVsSurface } from "../../../support/ct/part-vs-surface.ts";
+import { partVsSurface } from "../../../support/browser/part-vs-surface.ts";
 
 const ROTATE_RE = /rotate/u;
 const OKLCH_RE = /okl(ab|ch)\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/u;

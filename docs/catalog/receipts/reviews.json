@@ -139,14 +139,15 @@
     },
     {
       "path": "docs/reviews/board-rederive/scout-E1-client-analytics.md",
-      "assignedSha256": "515c1e5e2af149368ba76d3953344e5cfde1f86ec5fbcaa378b3863bcd93be8b",
+      "assignedSha256": "aa5e6fdf87c9e0e3e5026b1c26c1998262be9c13659ce59e43593ea706aaca5d",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "515c1e5e2af149368ba76d3953344e5cfde1f86ec5fbcaa378b3863bcd93be8b",
-      "verifiedCommit": "dff0d33a2849431268da5b4b2ce8c65e3583fcc2",
-      "verifiedAt": "2026-08-29",
+      "verifiedSha256": "aa5e6fdf87c9e0e3e5026b1c26c1998262be9c13659ce59e43593ea706aaca5d",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
       "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "docs/reviews/board-rederive/scout-E1-client-analytics.md:1 (full read by lane cb-scout-receipts; scout re-derivation receipt for #159, #160, #227, #306, #418 (client/analytics rows))"
       ],
       "claims": [
@@ -1313,14 +1314,15 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
-      "assignedSha256": "693f1168efb71d5c770d8c327d1a8f53f32008afa021a0a0463653981a7244bb",
+      "assignedSha256": "12d634274d027af4584e2aa78d956fccb740bfe258142d972681579becd1356f",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "693f1168efb71d5c770d8c327d1a8f53f32008afa021a0a0463653981a7244bb",
-      "verifiedCommit": "d29355b19aec0bce09250b7cfb2e9461d2cf3f71",
-      "verifiedAt": "2026-08-18",
+      "verifiedSha256": "12d634274d027af4584e2aa78d956fccb740bfe258142d972681579becd1356f",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
       "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md authored+full-read this session (stickler research: corpus consolidation, Observatory vs Wing; owner picked Observatory V1 on #159)",
         "git log --oneline -1 -- docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md: d29355b19 docs(reviews): the corpus consolidation proposal (#159)"
       ],
@@ -2407,15 +2409,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
-      "assignedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "assignedSha256": "2d22b48a298159c8bd658a40b5eb0988ec72c92e01ac824ac195ebd80729121b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
-      "verifiedCommit": "e55c7b6991dfcf8eb31229ead7e8ce6254e1d756",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "2d22b48a298159c8bd658a40b5eb0988ec72c92e01ac824ac195ebd80729121b",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
       "summary": "CT corpus audit leg 1 (#1229, lane cb-ct-audit): Phase A structural sweeps over all 469 .ct.tsx files (16 defect classes, planted positive controls, second-method corroboration) + full-reads of the 24 highest-risk files (~26k lines). 2 confirmed findings (P3 reports/snaps literal screenshot write; P4 racy zero-count negative pin), 1 half-tracked product note (bare-Button CTA ring), 0 stale selectors, 0 assertion-free/tautological tests. Shard map + 149-site helper-await triage list for legs 2+.",
       "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "born-reviewed at e55c7b6991dfcf8eb31229ead7e8ce6254e1d756: authored and full-read by lane cb-ct-audit (stickler) in the same session — Phase A table, F1-F3, 24 shard verdicts, Appendix A band map, Appendix B helper-await sites"
       ],
       "claims": [
@@ -2546,15 +2549,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4b-discovery.md",
-      "assignedSha256": "f3eff9e6bdc1f2c4eeda1c6ea6e67fcea09dd43a8d60f1984683c6fa7a5c5e08",
+      "assignedSha256": "49aeb5902c1a5a2a05a39f789df3d366ff9936395502b86fb7b485e2f7cbdeca",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "f3eff9e6bdc1f2c4eeda1c6ea6e67fcea09dd43a8d60f1984683c6fa7a5c5e08",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "49aeb5902c1a5a2a05a39f789df3d366ff9936395502b86fb7b485e2f7cbdeca",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
       "summary": "CT corpus audit leg 4b (#1229, lane cb-ct-audit-4b): one of three parallel shards continuing legs 1-2 — 45 files full-read across 8 commits (discovery/databank surfaces, tracker-blocks/workloads-jobs/actions-view/face-strip/roster-picker, all 5 persona-* files, the full 19-file character-* family including the 1,951-line character-library-surface.ct.tsx, regex-tab, schema-editor-dialog, turn-tool-calls-disclosure, three motion-instrument files, plugin-scripted-surface, connections-roles-section, 4 client/data hook files). Zero findings, campaign ceiling unchanged at leg 1's P3. Process notes: the brief's cited leg3.md shard-map source did not exist in this worktree (numbered leg4b to avoid colliding with sibling shards); one coordination flag on corpus-search-results.ct.tsx's SCENES door-look block, read pre-#1249.",
       "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-4b (stickler) in the same session — the resolved file list, per-file verdicts across 8 chunks, taxonomy sweep receipts, and the #1229 issue summary"
       ],
       "claims": [
@@ -2571,15 +2575,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg4c-primitives.md",
-      "assignedSha256": "0240e4333cec708a8d4ce570b8ff05662d47426fdd4caff17275e1dc0755aa41",
+      "assignedSha256": "ce57417f15fde1bbf9d00591225208409dd0527e619bbd18dc34b2363fc1ced0",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "0240e4333cec708a8d4ce570b8ff05662d47426fdd4caff17275e1dc0755aa41",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "ce57417f15fde1bbf9d00591225208409dd0527e619bbd18dc34b2363fc1ced0",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
       "summary": "CT corpus audit leg 4, shard (c) (#1229, lane cb-ct-audit-4c): 17/17 named UI-primitive files full-read (3,050 lines) — switch, select, macro-textarea, toggle, text, icon, command, popover, drawer, table, avatar-stack, selection-bar, stream-text, art-bleed, weave-veil, stack, layer. Verdict: 16 CLEAN, 1 P4 finding (F1) — macro-textarea.ct.tsx:206-208 carries a structurally un-failable belt-and-suspenders assertion beside an already-correct toHaveAccessibleName pin. Taxonomy sweep zero across the shard (all corroborated by a planted positive control in the same invocation); 27 ONESHOT-OK markers sampled all-true. 0 of 2 permitted CT runs used.",
       "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-4c (stickler) in the same session — the 17-file verdict table, F1 finding, taxonomy sweep receipts, premise-currency spot-checks, and the #1229 issue summary"
       ],
       "claims": [

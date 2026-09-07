@@ -11,7 +11,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
 

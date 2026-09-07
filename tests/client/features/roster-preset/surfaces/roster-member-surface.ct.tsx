@@ -10,9 +10,9 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { measureContentColumn } from "../../../../support/ct/measure-content-column.ts";
-import { readProseMeasure } from "../../../../support/ct/prose-measure.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
+import { readProseMeasure } from "../../../../support/browser/prose-measure.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RosterMemberContentColumnStory, RosterMemberEditorStory, RosterMemberEditorTwoWritersStory } from "../_ct-stories.tsx";
 
 /** `rosterPreset.get`'s view, narrowed to what the editor reads. The stored rule carries a NON-DEFAULT
@@ -175,7 +175,7 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
 // ── #1653 — the editor's two STANDALONE GLOSS PARAGRAPHS take the reading measure ───────────────────────
 // Both live directly inside a `Section` rather than in a control `Row`, so nothing else was capping them:
 // measured on this mount's real 480px container (real Geist, canvas `measureText` over each paragraph's own
-// resolved font — the #1145 method, now read through the shared `tests/support/ct/prose-measure.ts`) they read 95.7
+// resolved font — the #1145 method, now read through the shared `tests/support/browser/prose-measure.ts`) they read 95.7
 // and 95.4 LAW CHARACTERS against the 65-75 design band, while `--reading-measure-prose` resolves to 329px
 // here. The cap rides the PARAGRAPH, never a wrapper: a CSS `ch` resolves in the element's OWN font, which
 // is the #213/#1130 failure the prose token's contract names.
@@ -189,7 +189,7 @@ test("…and a real edit racing a rename SAYS so beside the Save it changes (#15
  *  token value, so passing proves the DERIVATION rather than restating it. */
 const LAW_CHARACTERS_PER_LINE = 75;
 
-// The measurement itself is the SHARED reading-measure reader's (#1683, `tests/support/ct/prose-measure.ts`):
+// The measurement itself is the SHARED reading-measure reader's (#1683, `tests/support/browser/prose-measure.ts`):
 // one home for "how many typographic characters does this paragraph render", so this pin and its siblings
 // cannot drift apart. Each paragraph is still addressed by its own rendered COPY (no test-only attribute) —
 // the reader matches on the OPENING, which is what these snippets already are.

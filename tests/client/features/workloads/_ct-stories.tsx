@@ -17,7 +17,7 @@ import { WorkloadsJobsSection } from "../../../../packages/client/src/features/w
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
 import type { LibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
 import { useLibraryImport } from "../../../../packages/client/src/features/workloads/hooks/use-library-import.ts";
-import { CtConfigGroupBody, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The Backup group's two contributed sections, assembled as at the door. */

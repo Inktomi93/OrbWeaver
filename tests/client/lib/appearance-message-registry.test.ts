@@ -1,10 +1,9 @@
-import { afterEach, describe } from "vitest";
+// Every case here tears down through the REAL door — the disposer `registerAppearanceMessageSnapshot`
+// hands back, which is the same one a MessageRow's effect cleanup calls — so the registry needs no
+// test-only reset export and the suite proves the production cleanup path while it is at it (#1847).
+import { describe } from "vitest";
 import type { AppearanceMessageCarrierSnapshot } from "../../../packages/client/src/lib/appearance-message-registry.ts";
-import {
-  __resetAppearanceMessageRegistryForTest,
-  readAppearanceMessageSnapshots,
-  registerAppearanceMessageSnapshot,
-} from "../../../packages/client/src/lib/appearance-message-registry.ts";
+import { readAppearanceMessageSnapshots, registerAppearanceMessageSnapshot } from "../../../packages/client/src/lib/appearance-message-registry.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const SNAPSHOT_A: AppearanceMessageCarrierSnapshot = {
@@ -39,10 +38,6 @@ const SNAPSHOT_B: AppearanceMessageCarrierSnapshot = {
   metadataVisibility: { ...SNAPSHOT_A.metadataVisibility, showTimestamps: false, showTokenCount: true },
   showInChatAvatars: false,
 };
-
-afterEach(() => {
-  __resetAppearanceMessageRegistryForTest();
-});
 
 describe("live MessageRow appearance registry", () => {
   test("absence is empty and every mounted instance retains its actual nested values", () => {

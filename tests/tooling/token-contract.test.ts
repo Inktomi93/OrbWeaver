@@ -3,6 +3,8 @@
 // exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+// Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847),
+// because an exports entry would declare node-only, ajv-backed code as the package's production surface.
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import {
   FORMAT_SCHEMA_SHA256,

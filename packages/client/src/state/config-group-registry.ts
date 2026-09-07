@@ -165,7 +165,7 @@ export interface ConfigSearchRow {
  *  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 — config-revamp-
  *  design.md §8.2 ruling 3): `automation` graduated to a real surface at `cb8026bfc` and no group literal on
  *  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
- *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/ct/ct-config-groups.ts`)
+ *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/browser/ct-config-groups.ts`)
  *  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if
  *  the design doc's §8 ruling 2 (the LIST-owns-feature-status landing) itself retires — it has not. */
 export type ConfigGroupBody =

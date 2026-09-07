@@ -91,9 +91,10 @@ export type { CtView, Selection, SelectionRequest } from "./contract/selection.t
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
 export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
 export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
+export type { MembershipOutcome, MembershipRow } from "./contract/tests-type-membership.ts";
+export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
 export { VERIFY_VERBS } from "./contract/verbs.ts";
-
 export { readStringValue, unwrapExpression } from "./lib/ast-read.ts";
 export { signatureArity } from "./lib/baseui-expand.ts";
 export {
@@ -169,5 +170,5 @@ export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
-export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership } from "./ops/tests-execution-membership.ts";
-export { findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
+export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
+export { classifyMembership, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";

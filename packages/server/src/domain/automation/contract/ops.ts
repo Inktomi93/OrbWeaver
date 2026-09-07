@@ -329,7 +329,9 @@ export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | nul
  *  tuple to `persona.updated`/`world-info.updated` without widening this would have left both new facts
  *  falling into that default forever: a plugin could DECLARE them, every cheap gate would pass, and delivery
  *  would silently never happen — a dead wire that reads as coverage. Fail-closed is the right DEFAULT and the
- *  wrong ANSWER. */
+ *  wrong ANSWER.
+ *
+ *  @public Test-anchored module surface; its contract test is the tuple's liveness pin. */
 export const DOMAIN_ROW_KINDS = ["character", "asset", "persona", "worldBook"] as const;
 export type DomainRowKind = (typeof DOMAIN_ROW_KINDS)[number];
 

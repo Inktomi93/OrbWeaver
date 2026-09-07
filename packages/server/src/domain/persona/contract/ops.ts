@@ -23,13 +23,13 @@
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaListView } from "./views.ts";
 
-/** Resolve the presentation surface of personas a room's ROSTER consents to.
+/** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.
  *
  *  `personaIds` are the ids the room references (its anchor + its present humans' active personas);
  *  `allowedOwnerIds` are the room's PRESENT human participants. The result carries an entry ONLY for an id
  *  that exists AND is owned by one of `allowedOwnerIds` — a foreign, deleted, or departed-member persona is
  *  simply ABSENT (indistinguishable, no existence oracle). Both lists empty ⇒ an empty map, no query. */
-export type ResolvePersonasForRoster = (args: {
+export type ResolvePersonasForParticipants = (args: {
   readonly personaIds: readonly PersonaId[];
   readonly allowedOwnerIds: readonly UserId[];
 }) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
