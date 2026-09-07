@@ -8,7 +8,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { BackgroundSourceFieldStory } from "./background-source-field.fixtures.tsx";
 
 const ENTRY = { entryId: "e1", assetId: "asset_00000000000000000000000001", assetHash: "hashaaa", mime: "image/png", name: "My dock" };

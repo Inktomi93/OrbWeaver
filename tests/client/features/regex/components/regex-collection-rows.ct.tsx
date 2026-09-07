@@ -11,8 +11,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RegexLibraryGroupStory } from "../_ct-stories.tsx";
 
 /** The kebab's accessible name is `Actions for <subject>`, so only a pattern addresses one row's menu — and

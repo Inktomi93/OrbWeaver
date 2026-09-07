@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AddCredentialDialogStory } from "../_ct-stories.tsx";
 
 test("the credential key is masked by default and has an explicit reveal control", async ({ mount, page }) => {

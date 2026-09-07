@@ -87,7 +87,7 @@ export const FOREGROUND_OPACITY_EPS = 0.999;
  *  with the ui-audit copy carrying a comment asking the two not to drift ("the two instruments must not
  *  disagree about what dimmed is"). A comment is not an enforcer. They now share the declaration, beside
  *  the kernel they already both import, and a third consumer (the CT-browser sampler
- *  `tests/support/ct/pixel-contrast.ts`) takes it from here rather than minting a fourth. */
+ *  `tests/support/browser/pixel-contrast.ts`) takes it from here rather than minting a fourth. */
 export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };

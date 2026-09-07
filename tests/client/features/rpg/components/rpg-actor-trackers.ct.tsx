@@ -16,7 +16,7 @@
 // `pointer` feature); the first assertion PROVES the emulation landed before any geometry is trusted.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hitBoxes, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitBoxes, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { ConditionChipsStory } from "../_ct-stories.tsx";
 
 const REMOVE_BUTTON = /^Remove /;

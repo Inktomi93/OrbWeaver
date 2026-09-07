@@ -12,7 +12,7 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findTripleSlashLibLeaks } from "@orb/tooling/verify";
+import { classifyMembership, findTripleSlashLibLeaks } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function withScratchDir<T>(fn: (dir: string) => T): T {
@@ -87,4 +87,32 @@ test("the real tree carries ZERO triple-slash reference-lib directives (the trip
   // negative assertion below vacuous, not meaningful).
   expect(existsSync(join(root, rel))).toBe(true);
   expect(findTripleSlashLibLeaks(root, [rel])).toEqual([]);
+});
+
+test("classifyMembership (phase-0 report): predicted / drift / import-only / unowned from root + closure sets", () => {
+  const root = "/repo";
+  const abs = (rel: string): string => `${root}/${rel}`;
+  const files = [
+    "tests/server/x.test.ts", // rooted by its predicted program only
+    "tests/client/y.test.ts", // rooted by the OTHER world's program → drift
+    "tests/support/node/helper.ts", // in a closure, a root of nothing → import-only
+    "tests/tooling/z.test.ts", // in no program at all → unowned
+  ];
+  const roots = new Map<string, ReadonlySet<string>>([
+    ["tsconfig.json", new Set(["tests/server/x.test.ts", "tests/client/y.test.ts"])],
+    ["tsconfig.tests-dom.json", new Set<string>()],
+  ]);
+  const closures = new Map<string, ReadonlySet<string>>([
+    ["tsconfig.json", new Set([abs("tests/server/x.test.ts"), abs("tests/client/y.test.ts")])],
+    ["tsconfig.tests-dom.json", new Set([abs("tests/support/node/helper.ts")])],
+  ]);
+  const rows = classifyMembership(root, files, roots, closures);
+  expect(rows.map(({ file, outcome }) => `${file}=${outcome}`)).toEqual([
+    "tests/server/x.test.ts=predicted",
+    "tests/client/y.test.ts=drift",
+    "tests/support/node/helper.ts=import-only",
+    "tests/tooling/z.test.ts=unowned",
+  ]);
+  expect(rows[1]?.predicted).toBe("tsconfig.tests-dom.json");
+  expect(rows[2]?.containedBy).toEqual(["tsconfig.tests-dom.json"]);
 });

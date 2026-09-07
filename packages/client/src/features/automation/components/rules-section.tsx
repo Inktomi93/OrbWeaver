@@ -135,7 +135,9 @@ export function RulesSectionBody({ chatId }: RulesSectionBodyProps): ReactElemen
   );
 }
 
-export interface RulesSectionProps {
+/** Module-local: `RulesSection` below is the only spelling, and it is mounted from this same file's
+ *  boundary wrapper — nothing outside names the props type (#1847). */
+interface RulesSectionProps {
   readonly chatId: ChatId;
 }
 

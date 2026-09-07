@@ -11,7 +11,7 @@
 // composer-text SKIP is the store's half and is pinned in tests/client/state/active-chat-store.ct.tsx.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { HuskReaperStory } from "./_ct-stories.tsx";
 
 const HUSK_ID = "chat_ct_husk_probe";

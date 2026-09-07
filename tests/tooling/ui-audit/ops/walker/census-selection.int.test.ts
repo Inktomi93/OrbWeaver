@@ -211,9 +211,14 @@ test("a withheld selection cohort names its subject in both the population row a
   // The tally is unchanged — one cohort withheld, one judged — so the `withheld(...)` token stays the
   // stable machine surface it was, and the subject rides its own trailing segment.
   expect(res.stdout).toContain("POPULATION   selection-idiom candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1)");
-  expect(res.stdout, "the population row must name the cohort it could not judge").toContain("withheld-at(unmatchedUnselected: #orphan-a)");
+  expect(res.stdout, "the population row must name the cohort it could not judge").toContain("withheld-at(unmatchedUnselected: #orphan-a (0 of 3 chosen))");
   // The line a reader actually acts on: the NO-VERDICT detail carries the subject beside the count.
-  expect(res.stdout, "the refusal must name its subject where the verdict is stated").toMatch(/selection-idiom: unmatchedUnselected=1 at #orphan-a/u);
+  expect(res.stdout, "the refusal must name its subject where the verdict is stated").toMatch(
+    /selection-idiom: unmatchedUnselected=1 at #orphan-a \(0 of 3 chosen\)/u,
+  );
+  // …AND THE COHORT'S CENSUS (#1840), which is what tells the two one-sided shapes apart: three carriers,
+  // none chosen, is a cohort waiting for a drive — not a single-member list nothing can twin.
+  expect(res.stdout, "the subject must carry the cohort census, not just the element").toContain("(0 of 3 chosen)");
   // The remedy no longer asserts that a drive exists — a cohort with no reachable selected state is a
   // correct, final refusal, and saying so is what stops the fourth identical pass.
   expect(res.stdout).toContain("structurally unjudgeable here");
@@ -343,4 +348,30 @@ test("a box-shadow combining an unchanged outer ring with a new inset ring count
   });
   expect(res.stdout, "the unchanged outer ring is not a second treatment beside the new inset ring").toContain("ringx1 · inset-ringx1 · bar-leftx1");
   expect(res.stdout, "the mixed shadow must not register as a compound inset-ring+shadow signature").not.toContain("shadowx");
+});
+
+// THE ALL-CHOSEN COHORT IS THE OTHER ONE-SIDED SHAPE, AND IT NEEDS THE OPPOSITE DRIVE (#1840).
+//
+// Measured on Backup & Restore (side-eye 2026-09-06): eleven checkboxes, every one checked because the
+// group's default is "include everything" (`export-library-section.tsx` seeds every exportable kind), which
+// withheld `unmatchedSelected` and held every Config design-audit at `population-verdict=NO-VERDICT`. The
+// withholding is #987's ruling and is UNCHANGED — with no unselected member there is no delta to measure —
+// but the printed remedy said "a one-row list cannot answer this rule", so a reader following it looked for
+// a one-row list and found eleven. The census in the subject is what tells the two apart.
+test("an ALL-CHOSEN cohort names its census, and its remedy is the DEselect drive", async ({ runCli, scratch }) => {
+  // Four carriers of one authored cohort, every one chosen — the Backup fieldset's shape, reduced.
+  const bulk = `<section data-slot="bulk-group">${["a", "b", "c", "d"]
+    .map(
+      (id) =>
+        `<div id="bulk-${id}" data-slot="bulk-choice" aria-checked="true" style="color:#fff;width:120px;height:40px;background:#111;outline:2px solid orange">${id}</div>`,
+    )
+    .join("")}</section>`;
+  await writeFile(join(scratch, "all-chosen-selection.html"), relationalDocument(bulk));
+  const res = await runCli("snap", ["--file", join(scratch, "all-chosen-selection.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toContain("withheld(unmatchedSelected=1)");
+  expect(res.stdout, "the census distinguishes a bulk-default group from a single-member one").toContain("(4 of 4 chosen)");
+  expect(res.stdout, "the remedy names the DEselect drive, not a one-row list").toContain("drive the surface so one member is DEselected");
+  expect(res.stdout, "the retired text must not survive anywhere").not.toContain("a one-row list cannot answer this rule");
+  await expect(res).toExitWith(2);
 });

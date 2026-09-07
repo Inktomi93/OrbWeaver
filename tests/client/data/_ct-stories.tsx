@@ -1,6 +1,6 @@
 // `_ct-stories.tsx` — the client-CT story convention (core/Spine-Testing.md §7: CT only mounts
 // from a non-test module). One story module per mirror directory; each story wraps its root in
-// <CtDataProviders> (Query + the real tRPC client — tests/support/ct/ct-data-providers.tsx explains
+// <CtDataProviders> (Query + the real tRPC client — tests/support/browser/ct-data-providers.tsx explains
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
@@ -54,7 +54,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtAppDataProviders, CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from

@@ -18,6 +18,10 @@ export type ScopedTestCollection = { readonly files: readonly string[] } | { rea
 interface CtRunnerLease {
   /** The per-invocation build cache — absolute, freshly created (hence COLD), removed by `release`. */
   readonly cacheDir: string;
+  /** THE RUN MARKER this invocation stamps into playwright's environment (#1848), INHERITED when the CT
+   *  run is itself inside a marked run so the outer runner's kill path still reaches these browsers.
+   *  `release` sweeps whatever still carries it — a chromium that outlived its playwright is an orphan. */
+  readonly runMarker: string;
   readonly release: () => void;
   /** Set when a DEAD runner's lock was stolen — the caller prints it, so a self-heal is never silent. */
   readonly stolenFrom: number | null;

@@ -19,7 +19,7 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerChatOptionsStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 

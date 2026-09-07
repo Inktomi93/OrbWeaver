@@ -11,8 +11,8 @@
 //
 // EVIDENCE SOURCE, NOT RE-IMPLEMENTATION: rather than hand-parsing each config's glob strings (which drifts
 // the instant a config changes — the exact disease this stage exists to prevent), it asks each runner its
-// OWN `--list` view: `vitest list --filesOnly --json` (all six projects in one call — unit/integration/
-// integration-serial/live-drive/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
+// OWN `--list` view: `vitest list --filesOnly --json` (every project in one call — unit/integration/
+// integration-serial/tooling/tooling-serial/live-drive/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
 // (e2e; run with `E2E_LIVE=1` so the `@live`-gated specs, which the runner reaches structurally but skips by
 // grep at routine-run time, still count as "reachable" — a grep filter is a SELECTION policy, not a
 // membership question), and the same `--list` against `playwright-ct.config.ts` (CT). Each `--list` also
@@ -44,15 +44,49 @@ type RunnerFiles = { readonly files: ReadonlySet<string> } | { readonly error: s
 // is deliberately excluded: its `test.include` is `[]` (typecheck-ONLY via `typecheck.include`, no runtime
 // pass — see the config's own comment on that project) — so a `.test-d.ts` file listed under `types` is not
 // a second EXECUTOR of anything, and must not count toward the "claimed by two runtime views" direction
-// below. The other six (unit/integration/integration-serial/live-drive/contract/tooling) all run real
-// assertions. `tooling` is the instrument battery, split out of unit+integration by #1523 so `verify
-// --push` can gate it on a diff that touched an instrument; membership here is what keeps that split from
-// silently orphaning a file.
-const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set(["unit", "integration", "integration-serial", "live-drive", "contract", "tooling"]);
+// below. The other seven (unit/integration/integration-serial/tooling-serial/live-drive/contract/tooling)
+// all run real assertions. `tooling` is the instrument battery, split out of unit+integration by #1523;
+// `tooling-serial` is its CONTENTION half, split out of `integration-serial` by #1842 when the battery
+// left `verify --push` entirely. Membership here is what keeps those splits from silently orphaning a
+// file: a project name missing from this set makes every file it owns read as UNRUN.
+const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set([
+  "unit",
+  "integration",
+  "integration-serial",
+  "tooling-serial",
+  "live-drive",
+  "contract",
+  "tooling",
+]);
 
-type VitestFilesResult =
-  | { readonly files: ReadonlySet<string>; readonly runtimeByProject: ReadonlyMap<string, ReadonlySet<string>> }
-  | { readonly error: string };
+/** The vitest projects that run NO runtime pass (`test.include: []`, typecheck-only via
+ *  `typecheck.include`) — the #1313 `.test-d.ts` split. Named, rather than "anything not in the runtime
+ *  set", because the two sets TOGETHER are this stage's claim to have classified the config. */
+const VITEST_TYPECHECK_PROJECTS: ReadonlySet<string> = new Set(["types-node", "types-browser"]);
+
+/** Project names `vitest list` reported that this stage classifies as NEITHER runtime nor typecheck-only.
+ *
+ *  MEASURED FALSE CLEAN (#1842): adding the `tooling-serial` project without adding it to the runtime set
+ *  above left this stage GREEN — its ten files still landed in the direction-2 union (that union is every
+ *  `--list` row, whatever the project), and direction 3 only reds on TWO OR MORE claims, never on ZERO. So
+ *  a whole lane silently vanished from the runtime accounting while the stage printed three ✓ and a
+ *  per-project line that simply did not mention it. A hardcoded classification that cannot notice a name it
+ *  has never seen is exactly the class of defect this stage exists to catch, one level up — so an
+ *  unclassified project is a TOOL ERROR (the run is not a verdict), never a pass. */
+export function unclassifiedVitestProjects(projectNames: Iterable<string>): readonly string[] {
+  return [...new Set(projectNames)]
+    .filter((name) => !(VITEST_RUNTIME_PROJECTS.has(name) || VITEST_TYPECHECK_PROJECTS.has(name)))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+interface VitestFilesOk {
+  readonly files: ReadonlySet<string>;
+  readonly runtimeByProject: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Every project name the listing carried — the input to `unclassifiedVitestProjects`. */
+  readonly projects: ReadonlySet<string>;
+}
+
+type VitestFilesResult = VitestFilesOk | { readonly error: string };
 
 /** Every test SOURCE file under `tests/**` carrying a runner suffix, as repo-relative posix paths (sorted).
  *  `playwright/**` carries no runner-suffixed files (harness/story modules only — CT_ROOT below covers the
@@ -79,8 +113,8 @@ function enumerateTestFiles(root: string): readonly string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-/** `vitest list --filesOnly --json` — the six node projects (unit/integration/integration-serial/live-drive/
- *  contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
+/** `vitest list --filesOnly --json` — every node project (unit/integration/integration-serial/tooling/
+ *  tooling-serial/live-drive/contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
  *  (measured live) makes `list` enumerate every individual TEST CASE across the whole tree instead of one
  *  row per file, pushing a sub-2s call past a 3-minute timeout; each row still carries `projectName`, so
  *  direction 3 below loses nothing by keeping the flag. Absolute paths; normalized to repo-relative posix. */
@@ -102,6 +136,7 @@ function vitestFiles(root: string): VitestFilesResult {
     return { error: "`vitest list --filesOnly --json` did not produce an array" };
   }
   const files = new Set<string>();
+  const projects = new Set<string>();
   const runtimeByProject = new Map<string, Set<string>>();
   for (const entry of parsed) {
     if (
@@ -115,6 +150,7 @@ function vitestFiles(root: string): VitestFilesResult {
       const { file, projectName } = entry as { file: string; projectName: string };
       const rel = relative(root, file).split("\\").join("/");
       files.add(rel);
+      projects.add(projectName);
       if (VITEST_RUNTIME_PROJECTS.has(projectName)) {
         const set = runtimeByProject.get(projectName) ?? new Set<string>();
         set.add(rel);
@@ -122,7 +158,7 @@ function vitestFiles(root: string): VitestFilesResult {
       }
     }
   }
-  return { files, runtimeByProject };
+  return { files, runtimeByProject, projects };
 }
 
 interface PwSuite {
@@ -290,14 +326,27 @@ export function runTestsExecutionMembership(root: string): number {
     return EXIT.toolError; // a broken --list is a broken checker, not "no violations"
   }
 
-  const vitestFilesOk = vitest as { readonly files: ReadonlySet<string>; readonly runtimeByProject: ReadonlyMap<string, ReadonlySet<string>> };
+  const vitestFilesOk = vitest as VitestFilesOk;
+  // THE CLASSIFICATION CHECK, BEFORE ANY DIRECTION RUNS: a project name this stage cannot place is not a
+  // violation of the repo's test layout — it is this stage not knowing what it is looking at, and every
+  // count below would be quietly short by one lane. Refuse loudly instead (exit 2).
+  const unclassified = unclassifiedVitestProjects(vitestFilesOk.projects);
+  if (unclassified.length > 0) {
+    process.stderr.write(
+      `tests-execution-membership: \`vitest list\` reported project(s) this stage cannot classify: ${unclassified.join(", ")}.\n` +
+        "  Add each to VITEST_RUNTIME_PROJECTS (it runs assertions) or VITEST_TYPECHECK_PROJECTS (test.include is []) in\n" +
+        "  tooling/src/verify/ops/tests-execution-membership.ts. An unclassified lane drops out of the runtime accounting\n" +
+        "  silently — the per-project line simply stops mentioning it — so the verdict is withheld rather than guessed.\n",
+    );
+    return EXIT.toolError;
+  }
   const e2eFilesOk = e2e as { readonly files: ReadonlySet<string> };
   const ctFilesOk = ct as { readonly files: ReadonlySet<string> };
 
   // ── direction 1: GLOB→FILE — every runner's --list view must be non-empty (an empty match is the
   // marinara silent-no-op disease: the config resolves, the runner exits 0, and NOTHING ran). ──
   const runnerViews: readonly { readonly label: string; readonly files: ReadonlySet<string> }[] = [
-    { label: "vitest (unit/integration/integration-serial/live-drive/contract/types)", files: vitestFilesOk.files },
+    { label: "vitest (unit/integration/integration-serial/tooling/tooling-serial/live-drive/contract/types)", files: vitestFilesOk.files },
     { label: "playwright e2e (playwright.config.ts)", files: e2eFilesOk.files },
     { label: "playwright-ct (playwright-ct.config.ts)", files: ctFilesOk.files },
   ];

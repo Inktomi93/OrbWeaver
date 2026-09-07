@@ -8,6 +8,7 @@
   },
   "sideEffects": ["**/*.css"],
   "exports": {
+    "./token-contract": "./token-contract.ts",
     "./accordion": "./src/primitives/accordion/index.ts",
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
     "./aria-announcer": "./src/primitives/aria-announcer/index.ts",
@@ -95,7 +96,6 @@
     "./toggle": "./src/primitives/toggle/index.ts",
     "./toggle-group": "./src/primitives/toggle-group/index.ts",
     "./tokens": "./src/tokens/index.ts",
-    "./token-contract": "./token-contract.ts",
     "./tool-call-block": "./src/primitives/tool-call-block/index.ts",
     "./tooltip": "./src/primitives/tooltip/index.ts",
     "./virtual-list": "./src/primitives/virtual-list/index.ts",
@@ -122,6 +122,8 @@
     "@shikijs/engine-javascript": "catalog:",
     "@shikijs/langs": "catalog:",
     "@tanstack/react-virtual": "catalog:",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "cmdk": "catalog:",
     "codemirror": "catalog:",
     "diff": "catalog:",
@@ -134,9 +136,9 @@
     "remark-gfm": "catalog:",
     "remark-math": "catalog:",
     "streamdown": "catalog:",
-    "tailwindcss": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
+    "tailwindcss": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
@@ -146,8 +148,6 @@
   "devDependencies": {
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "ajv": "8.20.0",
-    "ajv-formats": "3.0.1",
     "react": "catalog:",
     "react-dom": "catalog:",
     "style-dictionary": "catalog:"

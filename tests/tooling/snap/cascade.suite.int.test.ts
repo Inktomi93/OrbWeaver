@@ -192,13 +192,15 @@ test("the DevTools cascade observer preserves the rated page media identity", { 
     });
     await withProbeSession({ ...session, cleanup: [runtime.close] }, async ({ page }) => {
       await page.goto(fixture.url, { waitUntil: "load" });
+      // String-body evaluate: this is a NODE-world test (DOM-less program), so an in-page callback cannot be
+      // typed here and a browser-world helper would drag lib.dom in through the import (type-worlds #1351;
+      // the appearance-invariant-runtime precedent).
       const readMedia = async (): Promise<readonly boolean[]> =>
-        await page.evaluate(() => [
-          matchMedia("(prefers-color-scheme: dark)").matches,
-          matchMedia("(prefers-reduced-motion: reduce)").matches,
-          matchMedia("(prefers-contrast: more)").matches,
-          matchMedia("(prefers-reduced-transparency: reduce)").matches,
-        ]);
+        await page.evaluate<boolean[]>(
+          `[${["(prefers-color-scheme: dark)", "(prefers-reduced-motion: reduce)", "(prefers-contrast: more)", "(prefers-reduced-transparency: reduce)"]
+            .map((query) => `matchMedia(${JSON.stringify(query)}).matches`)
+            .join(", ")}]`,
+        );
       expect(await readMedia()).toEqual([true, true, true, true]);
       const [mediaReceipt] = await runtime.query(page, [{ selector: "#media-identity", property: "color" }]);
       expect(mediaReceipt?.computedValue).toBe("rgb(0, 0, 255)");

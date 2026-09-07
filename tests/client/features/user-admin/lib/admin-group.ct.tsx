@@ -10,9 +10,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry.ts";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { AdminGroupStory } from "../_ct-stories.tsx";
 

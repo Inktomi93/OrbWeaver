@@ -329,7 +329,7 @@ export function Table<TData>({
               pageEntries.map(({ row, id, originalIndex }) => {
                 const isSelected = selectedIds.has(id);
                 return (
-                  <tr className={slots.tr()} data-selected={isSelected ? "" : undefined} key={id}>
+                  <tr className={slots.tr()} data-selected={isSelected ? "" : undefined} data-slot="table-row" key={id}>
                     {selectable ? (
                       <td className={slots.td({ align: "center" })} data-slot="table-select-cell">
                         <Checkbox

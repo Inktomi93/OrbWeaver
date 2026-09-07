@@ -60,7 +60,7 @@ export const regexTierKeySchema = z.custom<RegexTierKey>((value): boolean => {
   if (typeof value !== "string") {
     return false;
   }
-  if (value === "global" || value === "preset" || value === "chat") {
+  if ((FIXED_REGEX_TIER_KEYS as readonly string[]).includes(value)) {
     return true;
   }
   return value.startsWith(CHARACTER_TIER_PREFIX) && tierCharacterIdSchema.safeParse(value.slice(CHARACTER_TIER_PREFIX.length)).success;

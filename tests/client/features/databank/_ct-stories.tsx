@@ -30,8 +30,8 @@ import {
   useSelectedCharacterId,
   useSelectedDocumentId,
 } from "../../../../packages/client/src/state/index.ts";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
-import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/ct/measure-content-column.ts";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
  *  a clipped title or a cluster that does not fit is visible here rather than hidden by a roomy story box. */

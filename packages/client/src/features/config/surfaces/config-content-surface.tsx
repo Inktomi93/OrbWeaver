@@ -51,6 +51,7 @@ import {
 } from "#state";
 import { ConfigCollectionLanding } from "../components/config-collection-landing.tsx";
 import { ConfigGroupPlaceholder } from "../components/config-group-placeholder.tsx";
+import { ConfigPaneGlance } from "../components/config-pane-glance.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
 import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
@@ -322,6 +323,17 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
   }
   return (
     <Stack gap="section">
+      {/* THE PANE OPENS ON ITS SUBJECT, IN THE SAME REGISTER A LIBRARY DOES (#1839 · side-eye 2026-09-06
+          F24). A collection pane opened on `ConfigPaneGlance`'s 20px/600 name and a settings pane opened on
+          nothing — its tallest ink was a 16px incidental inside the first section — so the CONTENT column
+          had two opening registers depending on which door you came through, and the review's verdict was
+          that the INCONSISTENCY had become the defect. One component draws both now, so there is one
+          register by construction rather than by two call sites agreeing.
+          THE NAME ONLY, NOT THE BLURB: a settings group's `description` is a SEARCH KEYWORD (the field's
+          own docstring), not landing prose, and this pane's own arm-discriminator reads its absence.
+          IT IS THE `sections` ARM'S ALONE: the placeholder arm draws its own titled body and a collection
+          returns above, so neither can double-print the name. */}
+      <ConfigPaneGlance blurb={false} group={group} level={2} />
       {plain.map((section) => (
         <Fragment key={section.id}>{section.node}</Fragment>
       ))}

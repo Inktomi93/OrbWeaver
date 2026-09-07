@@ -30,10 +30,10 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
-import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
+import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 import { CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
 /** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */

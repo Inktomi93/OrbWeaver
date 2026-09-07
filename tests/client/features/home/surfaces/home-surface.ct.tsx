@@ -9,8 +9,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { pixelExtremaContrast } from "../../../../support/ct/pixel-contrast.ts";
-import { trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
 // room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time
@@ -154,7 +154,7 @@ test("#833 the doorway fold wears the sibling band (kicker register + hairline) 
 // that the curated list REACHES the surface — one named row each, in order, behind one press, with the
 // count the band advertises equal to what opens.
 /** The shipped set, in door order: buddy's 80 leads, then the roadmap tuple's own reading order. */
-const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Expressions", "Reactions", "World state", "Agents of their own", "World maps"];
+const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Expressions", "Reactions", "World state", "Agents of their own", "World maps", "Type-world program"];
 
 test("#834 the fold lists the committed roadmap — a derived count on the band, one named row per program", async ({ mount }) => {
   const home = await mount(<HomeRoadmapStory />);

@@ -1,15 +1,14 @@
 // Distorted/stretched + broken images, and buried rasters. Pure; thresholds cited. Provenance:
 // lib/collect.ts header.
 //
-// WHAT `distorted-image` ACTUALLY JUDGES, stated narrowly (#1808). It judges the `<img>` census, whose
-// `objectFit` is the element's real computed keyword. The BACKGROUND-IMAGE half of the same sample array
-// arrives stamped `"fill"` by `ops/walker/census-text.ts` as a placeholder, so a background raster under
-// the default `background-size: auto` is judged as if it stretched — a live false-positive class this
-// file cannot close, because the sample carries no background sizing mode to read. The limit is stated
-// in that census's header and owed there, not guessed at here.
+// WHAT `distorted-image` ACTUALLY JUDGES, stated narrowly (#1808, closed #1825). It judges the `<img>`
+// census via `objectFit` (the element's real computed keyword) AND the background-image half via
+// `backgroundSizeMode` (the real `background-size` disposition `ops/walker/census-text.ts` samples
+// alongside the "fill" placeholder) — "auto" is excluded exactly like `object-fit: none` (natural size,
+// cannot squish); anything else falls through to the same "fill" math the `<img>` arm already runs.
 import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
-import type { BrokenImageInput, ImageDistortionInput } from "../contract/samples.ts";
-import type { BuriedRasterInput } from "../contract/samples-media.ts";
+import type { BrokenImageInput } from "../contract/samples.ts";
+import type { BuriedRasterInput, ImageDistortionInput } from "../contract/samples-media.ts";
 import { settledPopulationAccounting } from "./population.ts";
 
 // ── Distorted / stretched image ─────────────────────────────────────────────
@@ -67,7 +66,7 @@ export function classifyImageDistortion(input: ImageDistortionInput): CandidateD
   if (CROPPING_OBJECT_FITS.has(input.objectFit)) {
     return { kind: "excluded", reason: "objectFitCropsOrLetterboxes" };
   }
-  if (NON_SCALING_OBJECT_FITS.has(input.objectFit)) {
+  if (NON_SCALING_OBJECT_FITS.has(input.objectFit) || input.backgroundSizeMode === "auto") {
     return { kind: "excluded", reason: "objectFitDoesNotScale" };
   }
   return { kind: "judged", finding: checkImageDistortion(input) };
@@ -87,7 +86,7 @@ export function checkImageDistortion(input: ImageDistortionInput): Finding | nul
   if (naturalWidth <= 0 || naturalHeight <= 0 || renderedWidth <= 0 || renderedHeight <= 0) {
     return null;
   }
-  if (CROPPING_OBJECT_FITS.has(objectFit) || NON_SCALING_OBJECT_FITS.has(objectFit)) {
+  if (CROPPING_OBJECT_FITS.has(objectFit) || NON_SCALING_OBJECT_FITS.has(objectFit) || input.backgroundSizeMode === "auto") {
     return null;
   }
   const naturalRatio = naturalWidth / naturalHeight;

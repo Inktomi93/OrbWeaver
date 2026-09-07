@@ -14,7 +14,7 @@
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { pixelContrast, pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
+import { pixelContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { ContextMetaRailStory, ContextOwnershipStory, ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
 
 test("a claiming region takes the head band: its band renders, the section's own does not, the bracket renders around it", async ({ mount }) => {

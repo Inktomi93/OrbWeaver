@@ -61,7 +61,7 @@ export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRou
  *      populated array, so the unit stays green while the wire header disappears.
  *   2. It breaks the whole CT data layer. The link sends `trpc-accept: application/jsonl` and feeds
  *      `res.body` to `jsonlStreamConsumer` with NO plain-JSON fallback on a 2xx; the CT network stub
- *      (`tests/support/ct/route-trpc.ts`) fulfills a plain JSON array. Probed by swapping it in:
+ *      (`tests/support/node/route-trpc.ts`) fulfills a plain JSON array. Probed by swapping it in:
  *      3/3 of `tests/client/data/query-boundary.ct.tsx` failed with "Stream closed before head was
  *      received" — i.e. every client CT that drives a query, until the stub grows a jsonl producer.
  * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).

@@ -19,7 +19,7 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { STORY_SHOT_DIR } from "../support/ct/story-shot.ts";
+import { STORY_SHOT_DIR } from "../support/node/story-shot.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";

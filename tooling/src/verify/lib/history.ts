@@ -7,10 +7,30 @@
 // the most recent same-tier line. A corrupt or unreadable line is SKIPPED, and any I/O failure is swallowed
 // with a warning: a timing LEDGER must never be able to fail a verification run.
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import process from "node:process";
 import { ensureReportsDir, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry, SlowdownAdvisory } from "../contract/history.ts";
+import type { VerifyReport } from "../contract/stage.ts";
+
+/** This run's history line (#411) — built HERE, beside the store that appends it (moved out of ops/run.ts
+ *  in #1848 when that file reached the tooling line cap; a ledger's row shape belongs with its ledger).
+ *  Recorded BEFORE the comparison so the file is the ledger even when the comparison has nothing to say;
+ *  `runId` ties the line back to the artifact it measured. */
+export function historyEntry(root: string, report: VerifyReport, pid: number = process.pid): RunHistoryEntry {
+  const at = new Date().toISOString();
+  return {
+    runId: `${String(pid)}-${at}`,
+    at,
+    tier: report.tier,
+    scope: report.scope,
+    sha: currentSha(root),
+    exitCode: report.exitCode,
+    totalMs: report.stages.reduce((n, s) => n + s.durationMs, 0),
+    stages: report.stages.map((s) => ({ name: s.name, mode: s.mode, durationMs: s.durationMs })),
+  };
+}
 
 const HISTORY_FILE = "verify-history.jsonl";
 /** The retained window. Deep enough to see a regression that arrived a few runs ago, shallow enough that

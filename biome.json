@@ -466,7 +466,11 @@
       }
     },
     {
-      "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts", "tests/server/foundation/env/index.test.ts", "tests/support/ct/snap-out.ts"],
+      "includes": [
+        "packages/server/src/domain/sessions/substrate/role-policy.ts",
+        "tests/server/foundation/env/index.test.ts",
+        "tests/support/node/snap-out.ts"
+      ],
       "linter": {
         "rules": {
           "style": {

@@ -3,7 +3,7 @@
 // highlight scrolls into view on mount (ui-primitive carve-out work-order item 11).
 import { HighlightedText } from "@orb/ui/highlighted-text";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TEXT = "The quick brown fox jumps over the lazy dog";
 

@@ -18,9 +18,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { expectContainedWithin } from "../../../../support/ct/contained-within.ts";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { expectContainedWithin } from "../../../../support/browser/contained-within.ts";
+import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RegexSectionStory } from "../_ct-stories.tsx";
 
 const ALICE = "character_ct_alice";

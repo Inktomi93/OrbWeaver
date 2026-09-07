@@ -27,7 +27,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
-import { routeTrpc, trpcHold } from "../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";

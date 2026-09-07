@@ -1228,6 +1228,117 @@ auditRuleTest(
   },
 );
 
+// ── #1826: the CHEAPEST SIX of the owed planted RENDERED positive controls ───────────────────
+// `broken-image`/`repeated-container-text`/`edge-flush-cards` already carry the SILENT arm above
+// (`healthyQualityNeighboursPage`); this fixture is their FIRES twin, past each rule's own defect
+// threshold, driven through the same real CLI.
+function defectiveQualityNeighboursPage(): string {
+  return `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>defective quality neighbours</title></head>
+  <body style="margin:0;background:#fff;color:#111"><main style="padding:24px">
+    <img alt="broken" src="">
+    <div style="border:1px solid #222;border-radius:8px;background:#fff">
+      <span class="a">Loading…</span><span class="b">Loading…</span><span class="c">Loading…</span>
+    </div>
+    <div style="width:320px;height:90px;overflow-x:auto"><div style="width:480px"><article style="width:180px;height:48px;border:1px solid #222;background:#fff">Flush card</article></div></div>
+  </main></body></html>`;
+}
+
+auditRuleTest(
+  [
+    { rule: "broken-image", kind: "fires", reason: "an <img> with an empty src is a real broken-image box" },
+    {
+      rule: "repeated-container-text",
+      kind: "fires",
+      reason: "the identical label at three distinct structural signatures inside one decorated container is the defect population",
+    },
+    { rule: "edge-flush-cards", kind: "fires", reason: "a card with no leading gutter sits flush against the scroller's own content edge" },
+  ],
+  "quality candidates past their own defect thresholds fire",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "defective-quality.html"), defectiveQualityNeighboursPage());
+    const res = await runCli("snap", ["--file", join(scratch, "defective-quality.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "broken-image")).toHaveLength(1);
+    expect(findingRows(res.stdout, "repeated-container-text")).toHaveLength(1);
+    expect(findingRows(res.stdout, "edge-flush-cards")).toHaveLength(1);
+  },
+);
+
+// `tabindex-positive`, `justified-text` and `all-caps-body` had NO rendered plant at all (checker-level
+// only) — both directions land here, following the same fires/silent pairing idiom as the block above.
+auditRuleTest(
+  [{ rule: "tabindex-positive", kind: "fires", reason: "a positive tabindex overrides natural DOM order on a real visible control" }],
+  "a positive tabindex fires",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main><button tabindex="1">Positive</button></main></body></html>`;
+    await writeFile(join(scratch, "tabindex-positive.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "tabindex-positive.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "tabindex-positive")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "tabindex-positive", kind: "silent", reason: "tabindex=0 keeps natural DOM order and must not fire" }],
+  "a zero tabindex stays silent",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main><button tabindex="0">Zero</button></main></body></html>`;
+    await writeFile(join(scratch, "tabindex-zero.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "tabindex-zero.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "tabindex-positive")).toHaveLength(0);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "justified-text", kind: "fires", reason: "justified prose with no hyphenation creates rivers of white" }],
+  "justified text without hyphens: auto fires",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
+      <p style="text-align:justify;width:300px">This paragraph is long enough to wrap across several lines so the justified alignment can visibly create rivers of white space between words.</p>
+    </main></body></html>`;
+    await writeFile(join(scratch, "justified-fires.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "justified-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "justified-text")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "justified-text", kind: "silent", reason: "the identical justified prose with hyphens: auto is the ratified exemption" }],
+  "justified text WITH hyphens: auto stays silent",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
+      <p style="text-align:justify;hyphens:auto;width:300px">This paragraph is long enough to wrap across several lines so the justified alignment with hyphenation avoids rivers of white space between words.</p>
+    </main></body></html>`;
+    await writeFile(join(scratch, "justified-silent.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "justified-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "justified-text")).toHaveLength(0);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "all-caps-body", kind: "fires", reason: "a long non-heading uppercase passage past the 30-char floor kills word shapes" }],
+  "a long uppercase paragraph fires",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
+      <p style="text-transform:uppercase">This sentence has more than thirty characters and is not a heading element.</p>
+    </main></body></html>`;
+    await writeFile(join(scratch, "all-caps-fires.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "all-caps-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "all-caps-body")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "all-caps-body", kind: "silent", reason: "a short uppercase label is under the 30-char floor — the micro-caps voice this rule must not convict" }],
+  "a short uppercase label stays silent",
+  async ({ runCli, scratch }) => {
+    const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
+      <p style="text-transform:uppercase">Short caps label</p>
+    </main></body></html>`;
+    await writeFile(join(scratch, "all-caps-silent.html"), body);
+    const res = await runCli("snap", ["--file", join(scratch, "all-caps-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(res.stdout, "all-caps-body")).toHaveLength(0);
+  },
+);
+
 test("a clipped label with NO ellipsis and no full-value affordance is still a text-overflow finding", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
   const res = await runCli("snap", ["--file", join(scratch, "bare-clip.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });

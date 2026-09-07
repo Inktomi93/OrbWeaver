@@ -2,7 +2,7 @@
 // no reading at all for a screen reader, and a token axis that printed raw digits while every figure beside
 // it printed "1.2M" (side-eye ANALYTICS 2026-08-19, P1e + P2f).
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsTimeTabStory } from "../_ct-stories.tsx";
 
 const POINTS = [

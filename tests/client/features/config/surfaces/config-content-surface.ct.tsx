@@ -14,9 +14,9 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { readEscapedAbsolutes } from "../../../../support/ct/settings-geometry.ts";
+import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
@@ -45,6 +45,9 @@ const DISTRIBUTE_DROPZONE_LABEL = "Choose a plugin bundle to distribute";
 const LIST_REGION = "Settings groups";
 /** The group bands — the disclosure buttons, one per group, stamped by the LIST. */
 const BAND = '[data-slot="config-band"]';
+/** The CONTENT scroller. Addressed by SLOT because its region NAME is the active group's ("Appearance
+ *  settings"), so a name-scoped locator changes with the arm under test. */
+const CONTENT_PANE = '[data-slot="config-content"]';
 /** The four collection groups: their bands disclose MEMBER rows, not section rows, so the sweep that expects
  *  "exactly one current section row" skips them. */
 const COLLECTION_GROUPS = new Set(["tags", "regex", "worldInfo", "rosterPreset"]);
@@ -1278,4 +1281,106 @@ test("#1216: the advanced fold's trigger label clears the 11px interactive floor
   await expect
     .poll(async (): Promise<number> => await foldLabel.evaluate((el: Element): number => Number.parseFloat(getComputedStyle(el).fontSize)))
     .toBeGreaterThanOrEqual(11);
+});
+
+// ── #1839 · ONE PANE-TITLE REGISTER ACROSS BOTH PANE KINDS ──────────────────────────────────────────
+// F24, re-derived 2026-09-06: the collection library pane opened on a real 20px/600 subject step while a
+// settings pane opened on NOTHING — its tallest ink was a 16px incidental inside the first section — so
+// which register the CONTENT column opened at depended on which door the reader came through. The review's
+// verdict is that the INCONSISTENCY, not the flatness, is the defect. `ConfigPaneGlance` draws both pane
+// kinds now, so the register is one by construction; this pins that it stays one, at both pane widths, and
+// that it is a genuine SUBJECT step rather than the incidental the settings pane used to top out at.
+/** The heading's type register — resolved, never a class string. */
+async function headingRegister(node: Locator): Promise<{ readonly size: number; readonly weight: string }> {
+  return await node.evaluate((el: Element) => {
+    const style = getComputedStyle(el);
+    return { size: Number.parseFloat(style.fontSize), weight: style.fontWeight };
+  });
+}
+
+/** The step a settings pane used to top out at — the number the subject step must clear (side-eye F24). */
+const OLD_SETTINGS_PANE_MAX_PX = 16;
+
+for (const width of [1440, 990] as const) {
+  test(`#1839: a settings pane and a collection library open at the SAME title register at ${String(width)}px`, async ({ mount, page }) => {
+    // POPULATED, deliberately: at zero the landing is an `EmptyState`, whose own title is a different
+    // element on a different rule — the pane-title register this pins is the one a library with members
+    // opens on, which is the state the review measured.
+    await stub(page, { "tag.listTagsWithUsage": () => [switchTagRow(0), switchTagRow(1)] });
+    const component = await mount(<ConfigHostStory width={width} />);
+    // BY SLOT, NOT BY REGION NAME: the CONTENT region is named for whatever is OPEN in it ("Appearance
+    // settings" · "Tags settings"), so a name-scoped locator would have to change with the arm under test.
+    const content = component.locator(CONTENT_PANE);
+
+    // The arrival default is Appearance, a SETTINGS group: its pane opens on its own name.
+    const settingsTitle = content.getByRole("heading", { level: 2, name: "Appearance" });
+    await expect(settingsTitle).toBeVisible();
+    const settings = await headingRegister(settingsTitle);
+
+    // …and a COLLECTION library, reached the way a reader reaches it, opens at the same step.
+    await component.locator(TAGS_BAND).click();
+    const libraryTitle = content.getByRole("heading", { level: 2, name: "Tags" });
+    await expect(libraryTitle).toBeVisible();
+    const library = await headingRegister(libraryTitle);
+
+    expect(settings, `settings ${JSON.stringify(settings)} vs library ${JSON.stringify(library)}`).toEqual(library);
+    expect(settings.size, "a pane title is a SUBJECT step, not the 16px incidental the settings pane used to max out at").toBeGreaterThan(
+      OLD_SETTINGS_PANE_MAX_PX,
+    );
+  });
+}
+
+// …AND THE THIRD PANE STATE IS THE ZERO ARM, WHICH IS A RECORDED-RULING FORK, NOT A DRIFT.
+//
+// "One register" is a claim about THREE renderings, not two: a library with no members draws no glance at
+// all — it draws an `EmptyState` whose own `titleAs="h2"` IS the pane's heading (the primitive's
+// headingless-`main` note, `config-collection-landing.tsx`'s zero arm) — and that heading measures the
+// DISPLAY step while both other panes measure the headline one. Caught by this file: the first draft of
+// the pin above stubbed the library at zero and read 24px against the settings pane's 20.
+//
+// IT IS DELIBERATE, AND THE DELIBERATION IS OLDER THAN #1839. `globals.css`'s
+// `[data-slot="empty-state-title"][data-title-step="focal"]` is an UNLAYERED rule that holds
+// `var(--text-display)` at every width, and its own header states why (side-eye 2026-08-21 P4): "`focal` is
+// the surface's one focal statement, and a statement that shrinks with its column is not one." Today's
+// F24 says the opposite thing about this surface: the CONFIG pane's title register must be ONE value, and
+// a first-timer opening an empty library is precisely the reader the inconsistency lands on.
+//
+// NEITHER TEXT IS SILENTLY REVERSED HERE. The divergence is PINNED WITH ITS CAUSE — measured against the
+// resolved tokens rather than against 24 and 20 — so the number is visible in the tree instead of absent,
+// and this arm reds the moment either ruling's mechanism moves. The reconciliation (does the zero arm
+// stop being the pane's heading, or does the config surface accept a display-step empty landing?) is the
+// orchestrator's; it is a copy decision as much as a type one, because a glance above the EmptyState would
+// print the library's name twice.
+test("#1839 FORK: the zero-member library keeps the EmptyState focal step, and it is the one pane that differs", async ({ mount, page }) => {
+  await stub(page, { "tag.listTagsWithUsage": () => [] });
+  const component = await mount(<ConfigHostStory width={1440} />);
+  const content = component.locator(CONTENT_PANE);
+
+  const settingsTitle = content.getByRole("heading", { level: 2, name: "Appearance" });
+  await expect(settingsTitle).toBeVisible();
+  const settings = await headingRegister(settingsTitle);
+
+  await component.locator(TAGS_BAND).click();
+  const zeroTitle = content.getByRole("heading", { level: 2, name: "Tags" });
+  await expect(zeroTitle).toBeVisible();
+  const zero = await headingRegister(zeroTitle);
+
+  // Both sides read as RESOLVED TOKENS, never as 20 and 24: the claim is which STEP each pane takes, and a
+  // literal would go stale the moment the ramp is retuned — which is exactly the kind of change this arm
+  // exists to make visible.
+  const steps = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    const px = (name: string): number => {
+      const probe = document.createElement("div");
+      probe.style.fontSize = style.getPropertyValue(name).trim();
+      document.body.append(probe);
+      const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+      probe.remove();
+      return size;
+    };
+    return { display: px("--text-display"), headline: px("--text-headline") };
+  });
+  expect(settings.size, "a config pane's title is the HEADLINE step (voice=focal)").toBe(steps.headline);
+  expect(zero.size, "the zero arm rides the unlayered EmptyState focal rule — the DISPLAY step, at every width").toBe(steps.display);
+  expect(steps.display, "the fork only exists while the two steps differ").toBeGreaterThan(steps.headline);
 });

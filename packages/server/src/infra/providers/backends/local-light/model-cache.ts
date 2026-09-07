@@ -203,6 +203,9 @@ interface ModelMemo<T> {
   withLease: <R>(id: string, use: (value: T) => Promise<R>) => Promise<R>;
 }
 
+/** The lease-counted single-flight memo every model slot below is built from.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => void): ModelMemo<T> {
   const entries = new Map<string, MemoEntry<T>>();
   const disposeEntry = (entry: MemoEntry<T>): void => {

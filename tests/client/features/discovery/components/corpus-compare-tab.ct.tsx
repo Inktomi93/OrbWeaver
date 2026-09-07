@@ -5,7 +5,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusCompareTabStory } from "../_ct-stories.tsx";
 
 const CATALOG = [

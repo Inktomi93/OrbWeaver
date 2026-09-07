@@ -9,7 +9,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { InvalidationStory, StartChatBurstStory } from "./_ct-stories.tsx";
 
 const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");

@@ -28,8 +28,8 @@ import type { Locator, Page } from "@playwright/test";
 // The design-audit exemption's own selector, run against the real carriers rather than re-spelled here —
 // a re-spelling would pass while the instrument matched something else (see the module's header).
 import { SELECTION_RAIL_SEL } from "../../../../../tooling/src/ui-audit/lib/selection-rail-sel.ts";
-import { pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_collection_band", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };

@@ -385,7 +385,9 @@ export interface MacroResolveOptions {
 /** Renderer budget — shared across every nested evaluateString/evaluateAST call and every appended
  *  output chunk for one processMacros run. Once a cap is exceeded the budget stays exceeded
  *  (`tripped` latches true) so subsequent expansions short-circuit instead of partially rendering.
- *  @internal — passed through MacroContext.__budget; macro authors never construct one directly. */
+ *  INTERNAL to the engine: threaded through `MacroContext.__budget`, and macro authors never construct one
+ *  directly. Said in prose rather than a TSDoc release tag: this repo runs no API extractor, so the tag
+ *  decided nothing, while knip reads every JSDoc tag and reds one its `tags` config never acts on (#1847). */
 export interface MacroBudget {
   depth: number;
   maxDepth: number;
@@ -409,7 +411,8 @@ export type MacroHandler = (args: string[], ctx: MacroContext, children?: MacroA
  *  set of volatile names so the static-half cache-buster scan stays in sync with whatever the
  *  registry actually offers — a future macro flagged here is automatically included without a
  *  parallel list to forget.
- *  @internal — `MacroRegistry.register`'s options shape; consumers pass it as a literal. */
+ *  INTERNAL to the registry: `MacroRegistry.register`'s options shape, which consumers pass as an object
+ *  literal. Prose rather than a TSDoc release tag, for the reason stated on {@link MacroBudget}. */
 export interface MacroRegisterOptions {
   delayArgResolution?: boolean;
   volatile?: boolean;

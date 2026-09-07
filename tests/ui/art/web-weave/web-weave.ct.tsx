@@ -8,7 +8,7 @@
 //   • the strand-out / partial states mount and paint (their geometry is proven in the unit test).
 // Token values come from the generated TOKENS map — never a hardcoded color literal (§13.7).
 //
-// The frame-fingerprint instruments live in tests/support/ct/weave-drive.ts, shared with the coarse-
+// The frame-fingerprint instruments live in tests/support/browser/weave-drive.ts, shared with the coarse-
 // pointer suite. A drive verdict is measured against `ambientCeiling`, NEVER a single two-frame
 // reading: the weave's own beat is neither small nor steady (back-to-back idle deltas on one settled
 // mount ranged 16k–136k, the glint sweep dominating), so a one-sample baseline is a lottery that
@@ -19,7 +19,7 @@ import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ambientCeiling, fingerprintDelta, frameFingerprint, waitFrames } from "../../../support/ct/weave-drive.ts";
+import { ambientCeiling, fingerprintDelta, frameFingerprint, waitFrames } from "../../../support/browser/weave-drive.ts";
 import { WeaveBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 /** How far past the worst ambient beat a drive must move the frame to count as a real change. */

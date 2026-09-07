@@ -11,7 +11,7 @@ import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { CtAppDataProviders, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The shell ModalHost's body-swap, narrowed to the three imagery slots — renders whichever the store says is

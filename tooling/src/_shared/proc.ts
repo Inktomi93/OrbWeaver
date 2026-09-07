@@ -4,10 +4,17 @@
 // pid IS the command and timeout kills land on it directly. Three seams: spawnNiced (async, collected,
 // timeout — the runCli shape), runNicedSync (sync, collect or stdio passthrough — the imperative-orchestration
 // shape), execNicedSync (sync, THROWS on non-zero, returns stdout — the git-helper shape).
+//
+// THE AMBIENT-ENV DOOR MOVED OUT (#1848) to ./process-env.ts — same functions, same names, same behaviour
+// — when the run-marker sweep was wired into the transcript door's kill path and this file reached its
+// 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
 import process from "node:process";
 import { budget } from "./load-budget.ts";
+import { inheritedProcessEnv } from "./process-env.ts";
+import type { RunMarkerSweep } from "./run-marker.ts";
+import { armRunMarkerTeardown, describeRunMarkerSweep, sweepRunMarker } from "./run-marker.ts";
 
 function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
@@ -73,40 +80,6 @@ export interface RunNicedSyncResult {
   readonly status: number | null;
   readonly stdout: string;
   readonly stderr: string;
-}
-
-/** Ambient process environment plus explicit child overrides. Tool launchers use this instead of each
- *  growing its own process.env suppression; app configuration is not read here. */
-function ambientProcessEnv(): NodeJS.ProcessEnv {
-  // biome-ignore lint/style/noProcessEnv: the child inherits the AMBIENT env (PATH, HOME — how every spawn works); the rule guards app config reads, and no config is read here.
-  return process.env;
-}
-
-export function inheritedProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
-  return { ...ambientProcessEnv(), ...overrides };
-}
-
-/** Read one ambient tooling/test protocol value without creating another process.env policy site. */
-export function processEnvValue(key: string): string | undefined {
-  return ambientProcessEnv()[key];
-}
-
-/** Temporarily expose one process-environment value to a worker/subprocess protocol, then restore it.
- * This is not an app-config reader; it centralizes the mutation beside the fleet's process doors. */
-export async function withProcessEnv<T>(key: string, value: string, run: () => Promise<T>): Promise<T> {
-  const environment = ambientProcessEnv();
-  const wasPresent = Object.hasOwn(environment, key);
-  const previous = environment[key];
-  environment[key] = value;
-  try {
-    return await run();
-  } finally {
-    if (wasPresent) {
-      environment[key] = previous;
-    } else {
-      delete environment[key];
-    }
-  }
 }
 
 /** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges). */
@@ -347,6 +320,13 @@ export interface TranscriptOptions {
   /** Called with every stdout/stderr chunk AS IT ARRIVES, tagged by stream, so a caller can mirror the
    *  child live (the verify runner's `--verbose`) without giving up the captured transcript. */
   readonly onChunk?: (chunk: string, stream: "stdout" | "stderr") => void;
+  /** THE RUN MARKER this child (and every descendant) carries in its environment — `_shared/run-marker.ts`.
+   *  With it set, the kill paths below stop being blind to a process that LEFT THE GROUP: after the group
+   *  kill they sweep every live pid whose `/proc/<pid>/environ` names this marker. Playwright starts each
+   *  browser in its own session, so without this a timed-out CT stage leaves its whole Chromium fleet
+   *  running (72 of them, up to 40 h old, on 2026-09-06 — #1848). The CALLER passes the value it also put
+   *  in `env`; a caller that sets neither keeps the old group-only behaviour. */
+  readonly runMarker?: string;
 }
 
 export interface TranscriptResult {
@@ -377,10 +357,32 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     // `detached` so the child leads its own group: a stage is `pnpm → node → the tool`, and killing only
     // the direct child leaves the tool running with the pipes open — the promise would never settle.
     const child = spawn("nice", ["-n", "19", cmd, ...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: true });
+    // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
+    // leave the group, so the marker sweep runs AFTER it and the promise waits for that sweep to finish —
+    // otherwise the transcript would resolve before the line saying what it reaped.
+    let sweeping: Promise<RunMarkerSweep> | null = null;
     const timer = setTimeout(() => {
       chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — killed the process group of pid ${child.pid ?? "?"}\n`);
       killPidGroup(child.pid, "SIGKILL");
+      sweeping = opts.runMarker === undefined ? null : sweepRunMarker(opts.runMarker);
     }, opts.timeoutMs);
+    // THE OPERATOR'S Ctrl-C is the other kill path, and it used to reach nothing: the runner died, the
+    // stage child died with the terminal, and the browsers stayed. run-marker.ts owns that policy.
+    const guard = armRunMarkerTeardown(opts.runMarker, () => killPidGroup(child.pid, "SIGKILL"));
+    const settle = async (code: number | null): Promise<void> => {
+      clearTimeout(timer);
+      guard.dispose();
+      const line = sweeping === null ? null : describeRunMarkerSweep(await sweeping);
+      resolvePromise({ code, transcript: `${chunks.join("")}${line === null ? "" : `${line}\n`}` });
+    };
+    /** Settle, and NAME a teardown that itself failed — the promise must resolve on every path, or the one
+     *  door written to end a hang becomes the hang. A failed teardown is `code: null` (a tool error). */
+    const finish = (code: number | null): void => {
+      // @orb-gate-ignore caught-failure-ownership(promise:settle): the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.
+      settle(code).catch((error: unknown) => {
+        resolvePromise({ code: null, transcript: `${chunks.join("")}\n[proc] teardown failed: ${String(error)}\n` });
+      });
+    };
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
@@ -394,14 +396,12 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     // A spawn failure (ENOENT on the bin) never emits `close` with a status — surface it AS a tool error
     // (status null ⇒ every classifier returns 2) with the reason in the transcript, never a silent 0.
     child.on("error", (err: Error) => {
-      clearTimeout(timer);
       chunks.push(`\n[proc] spawn failed: ${err.message}\n`);
-      resolvePromise({ code: null, transcript: chunks.join("") });
+      finish(null);
     });
     // `close` (not `exit`) — it fires after BOTH pipes are drained, so no tail chunk is lost.
     child.on("close", (code: number | null) => {
-      clearTimeout(timer);
-      resolvePromise({ code, transcript: chunks.join("") });
+      finish(code);
     });
   });
 }

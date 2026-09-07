@@ -24,7 +24,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
 import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
 // `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.

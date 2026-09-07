@@ -26,7 +26,7 @@
 // PURE except for `readConcurrencyProfile`'s default env argument. Every judging function takes the raw env
 // VALUE, so a test drives both profiles and the refusal without touching process.env.
 import { readFileSync } from "node:fs";
-import { processEnvValue } from "./proc.ts";
+import { processEnvValue } from "./process-env.ts";
 
 /** The committed data file — exported so the tests and the two bash readers agree on one path. */
 export const CONCURRENCY_PROFILE_PATH = new URL("../../concurrency-profile.json", import.meta.url);
@@ -50,6 +50,11 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
  *  · `hookTs7Checkers`         → the `--checkers` that hook's WHOLE-PROGRAM ts7 leg passes (smaller than
  *                                `ts7Checkers`: it fires on every edit, beside whatever else is running)
  *  · `ctRunnersHostWide`       → tooling/src/verify/lib/ct-runner-lock.ts's host slot pool
+ *  · `stageCap`                → snap's live-stage cap, the BASE `resolveStageLimits` starts from (#1848;
+ *                                `ORB_STAGE_CAP` still overrides it, which is why this is a base and not
+ *                                the answer). It was a hard-coded 3 in lib/stage-bands.ts while every
+ *                                other cap moved here in #1835 — so `ORB_DEDICATED_BOX=1` retuned the
+ *                                workers and left the stages alone.
  *  · `sessionCpuQuotaPct`      → .claude/hooks/cpu-fence.sh `CPUQuota=` (0 = set no ceiling)
  *  · `sessionMemoryHigh`       → .claude/hooks/cpu-fence.sh `MemoryHigh=` ("" = set no ceiling)
  *  · `wholeVerifyQueue`        → tooling/src/verify/ops/run.ts's host-wide whole-run queue */
@@ -63,6 +68,7 @@ export interface ConcurrencyProfile {
   readonly hookPoolSlots: number;
   readonly hookTs7Checkers: number;
   readonly ctRunnersHostWide: number;
+  readonly stageCap: number;
   readonly sessionCpuQuotaPct: number;
   readonly sessionMemoryHigh: string;
   readonly wholeVerifyQueue: boolean;
@@ -129,6 +135,7 @@ function profileFrom(file: ProfileFile, name: ConcurrencyProfileName): Concurren
     hookPoolSlots: intField(row, name, "hookPoolSlots"),
     hookTs7Checkers: intField(row, name, "hookTs7Checkers"),
     ctRunnersHostWide: intField(row, name, "ctRunnersHostWide"),
+    stageCap: intField(row, name, "stageCap"),
     sessionCpuQuotaPct: intField(row, name, "sessionCpuQuotaPct"),
     sessionMemoryHigh: memoryHigh,
     wholeVerifyQueue: queue,
@@ -154,6 +161,69 @@ export function parseConcurrencyProfile(body: string, name: ConcurrencyProfileNa
     return refuse("is not a JSON object");
   }
   return profileFrom(file as ProfileFile, name);
+}
+
+/** THE VERIFY RUNNER'S PER-STAGE HANG CEILINGS, in ms — DERIVED from the caps above, never hand-typed
+ *  (#1848). Every field answers "past this the stage is WEDGED", not "this stage should be faster":
+ *  · `defaultMs`   → every stage without a ceiling of its own
+ *  · `ctSuiteMs`   → the whole-CT-suite stage, which is the one that outgrew the constant
+ *  · `ctHostWaitMs`→ how long a CT run may queue for a host-wide slot (ct-runner-lock.ts reads it too, so
+ *                    the wait a run may spend and the ceiling that must cover it cannot drift apart). */
+export interface StageBudgets {
+  readonly defaultMs: number;
+  readonly ctSuiteMs: number;
+  readonly ctHostWaitMs: number;
+}
+
+const MS_PER_MINUTE = 60_000;
+
+/** PURE + TOTAL: one positive finite number out of the budget row, or the refusal naming the field. Same
+ *  posture as `intField` — no default, no coercion. A budget is allowed to be fractional (the CT ceiling
+ *  factor is 1.5), which is the only reason this is not `intField`. */
+function positiveField(row: Record<string, unknown>, field: string): number {
+  const value = row[field];
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return refuse(`"stageBudgets" field "${field}" is ${JSON.stringify(value)} — expected a positive number`);
+  }
+  return value;
+}
+
+/** PURE: the ceilings implied by one profile's caps and the committed budget row.
+ *
+ *  THE CT DERIVATION, spelled out because a reader will otherwise think it is arbitrary: the suite costs a
+ *  measured number of WORKER-minutes, so its wall clock is that divided by the workers actually running;
+ *  the factor is the slack a HANG detector needs over an honest run (a contended box, a retry pass); and
+ *  the host-slot wait is added because a queued run spends it INSIDE the stage's wall clock. The default
+ *  is a FLOOR, so shrinking the suite can never leave a stage with a ceiling under 45 minutes. */
+export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): StageBudgets {
+  let file: unknown;
+  // Re-raised immediately as `refuse(...)`: same shape as parseConcurrencyProfile — nothing is swallowed.
+  try {
+    file = JSON.parse(body);
+  } catch {
+    return refuse("is not valid JSON");
+  }
+  const row: unknown = typeof file === "object" && file !== null ? (file as Record<string, unknown>)["stageBudgets"] : undefined;
+  if (typeof row !== "object" || row === null || Array.isArray(row)) {
+    return refuse('has no "stageBudgets" object');
+  }
+  const budgets = row as Record<string, unknown>;
+  const defaultMinutes = positiveField(budgets, "defaultMinutes");
+  const hostWaitMinutes = positiveField(budgets, "ctHostSlotWaitMinutes");
+  const ctMinutes =
+    Math.ceil((positiveField(budgets, "ctSuiteWorkerMinutes") / Math.max(1, profile.ctWorkers)) * positiveField(budgets, "ctCeilingFactor")) + hostWaitMinutes;
+  return {
+    defaultMs: defaultMinutes * MS_PER_MINUTE,
+    ctSuiteMs: Math.max(defaultMinutes, ctMinutes) * MS_PER_MINUTE,
+    ctHostWaitMs: hostWaitMinutes * MS_PER_MINUTE,
+  };
+}
+
+/** THE BUDGET DOOR — the ceilings for the profile in force. One file read, like {@link readConcurrencyProfile}. */
+export function readStageBudgets(env?: NodeJS.ProcessEnv): StageBudgets {
+  const body = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
+  const switchValue = env === undefined ? processEnvValue(DEDICATED_BOX_ENV) : env[DEDICATED_BOX_ENV];
+  return stageBudgetsFor(parseConcurrencyProfile(body, profileNameFor(switchValue)), body);
 }
 
 /** THE DOOR. The profile in force for this process: the committed data, selected by the shell env.

@@ -10,7 +10,7 @@ import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import type { OutputInfo } from "sharp";
 import sharp from "sharp";
-import { pixelExtremaContrast } from "../../../support/ct/pixel-contrast.ts";
+import { pixelExtremaContrast } from "../../../support/browser/pixel-contrast.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;

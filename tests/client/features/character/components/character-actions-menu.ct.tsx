@@ -11,8 +11,8 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterActionsMenuStory } from "../_ct-stories.tsx";
 
 // MINTED, never hand-written (`typeIdSchema` validates the 26-char suffix at runtime).

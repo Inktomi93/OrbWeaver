@@ -9,7 +9,7 @@
 // false. The retry re-reads both, and the pin proves it by scripting a fail-then-succeed on each in turn.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CharacterRelationsTabStory } from "../_ct-stories.tsx";
 
 const BOOK = { id: "world_book_relations001", name: "The Ninefold Reach", description: null, role: "auxiliary" };

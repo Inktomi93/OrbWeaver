@@ -6,7 +6,7 @@
 // and appends the next page, and it stays a no-op once the collection is exhausted.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { NotificationsSurfaceStory } from "./_ct-stories.tsx";
 
 const PAGE_1 = {

@@ -2,10 +2,10 @@
 // algebra (tooling/src/verify/lib/selection.ts `staticPrograms`) honest against the compilers' ground truth, so
 // `verify --file/--changed` never type-checks a file against the wrong program (or skips it). For every
 // root file R of program P we assert `staticPrograms(R)` contains P (forward) and its mirror.
-import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { discoverTypePrograms } from "@orb/tooling/_shared/project-worlds";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { staticPrograms } from "../lib/program-routing.ts";
 
@@ -18,22 +18,10 @@ function tsgoBin(): string {
 }
 
 const GRAPH = "tsconfig.json";
-// The programs this gate reconciles: the root graph + every package config. A conformance tree carries a
-// subset; absent configs are skipped via an existence probe.
-const CANDIDATE_TSCONFIGS: readonly string[] = [
-  GRAPH,
-  "packages/ui/tsconfig.json",
-  "packages/client/tsconfig.json",
-  "packages/server/tsconfig.json",
-  "packages/db/tsconfig.json",
-  "packages/kit/tsconfig.json",
-  "packages/contracts/tsconfig.json",
-  "tooling/tsconfig.json",
-  // #1274: the DOM-coupled test-escapee program (tsconfig.tests-dom.json) — omitted before, so its 312
-  // roots never entered this gate's reconciliation universe and the routing algebra was never asked
-  // about them at all (the router carried no route for the config either — see program-routing.ts rule 3d).
-  "tsconfig.tests-dom.json",
-];
+// The programs this gate reconciles are DISCOVERED (type-worlds phase 0, #1351): every tsconfig on the tree
+// that roots a source file, through `_shared/project-worlds.ts`. The hand list this replaced had drifted twice
+// — it omitted tsconfig.tests-dom.json until #1274 (312 roots outside the universe) and never listed
+// packages/showcase-plugins at all. A conformance tree is discovered the same way, so a planted config is in.
 
 const TS_SRC_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const D_TS_RE = /\.d\.ts$/u;
@@ -73,9 +61,9 @@ function programRoots(root: string, cfg: string): ReadonlySet<string> | undefine
   return roots;
 }
 
-/** The tsconfig programs that actually EXIST under root (real repo = the 7; a conformance tree = its subset). */
+/** The tsconfig programs under root — the real repo's ten, or a conformance tree's planted few. */
 function presentConfigs(root: string): readonly string[] {
-  return CANDIDATE_TSCONFIGS.filter((c) => existsSync(join(root, c)));
+  return discoverTypePrograms(root);
 }
 
 interface RootSets {
@@ -167,8 +155,10 @@ export const gate: GateDescriptor = {
       // server. The FORWARD arm reds: "server ROOTS this file but staticPrograms routes it to {client}".
       // Same class as the ct-data-providers / tests-ui bugs (a config include diverging from the algebra).
       files: {
+        // `include: []` marks the template ABSTRACT — discovery (project-worlds) keeps only configs that root a
+        // source file, exactly as the real tsconfig.base.json falls out by rooting nothing but ambient d.ts.
         "tsconfig.base.json":
-          '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" } }\n',
+          '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" }, "include": [] }\n',
         "packages/client/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
         "packages/server/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "include": ["src", "../client/src"] }\n',
         "packages/client/src/a.ts": "export const a = 1;\n",
@@ -184,7 +174,7 @@ export const gate: GateDescriptor = {
       // algebra and real root membership agree → no divergence.
       files: {
         "tsconfig.base.json":
-          '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" } }\n',
+          '{ "compilerOptions": { "noEmit": true, "strict": true, "target": "es2025", "lib": ["es2025"], "module": "esnext", "moduleResolution": "bundler" }, "include": [] }\n',
         "packages/client/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }\n',
         "packages/server/tsconfig.json": '{ "extends": "../../tsconfig.base.json", "include": ["src"] }\n',
         "packages/client/src/a.ts": "export const a = 1;\n",

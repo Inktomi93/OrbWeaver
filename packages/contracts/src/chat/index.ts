@@ -175,7 +175,6 @@ export {
   variableDeltaSchema,
   variablePreconditionSchema,
   variablePreconditionsSchema,
-  variableWriteResultSchema,
   varOpSchema,
 } from "./messages.ts";
 export type {

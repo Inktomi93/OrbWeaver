@@ -18,8 +18,8 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
   readonly updatedAt: number;
 }
 
-/** A persona's PRESENTATION SURFACE for a room whose roster consents to it (the multi-human resolution
- *  widening — the `ResolvePersonasForRoster` op, `contract/ops.ts`). Deliberately NARROWER than {@link PersonaDetail}: name +
+/** A persona's PRESENTATION SURFACE for a room whose participants consent to it (the multi-human resolution
+ *  widening — the `ResolvePersonasForParticipants` op, `contract/ops.ts`). Deliberately NARROWER than {@link PersonaDetail}: name +
  *  description (what `{{user}}`/`{{persona}}` render) + the `metadata` the chat assembly reads for
  *  `descriptionPlacement`, plus `ownerId` so a caller can attribute a resolved persona to the member
  *  playing it. NOT the persona row: `avatarAssetId`/`avatarHash`/`title`/`starred`/timestamps stay behind

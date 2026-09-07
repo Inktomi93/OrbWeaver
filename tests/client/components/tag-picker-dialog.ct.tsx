@@ -18,8 +18,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
-import { touchFloorPx } from "../../support/ct/touch-floor.ts";
+import { touchFloorPx } from "../../support/browser/touch-floor.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
 const tag = (id: string, name: string, total: number): unknown => ({

@@ -20,7 +20,7 @@ import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
 import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove
  *  each mode renders its arm (esp. the forward-header explainer an unauthenticated broken-proxy request

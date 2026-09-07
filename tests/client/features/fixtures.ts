@@ -5,7 +5,7 @@
 //
 // WHY THIS EXISTS. `routeTrpc` answers an unlisted procedure `null` by design, and `null` is not a view —
 // the reader behind it short-circuits to its no-data arm and the whole pipeline runs INERT, so a regression
-// inside it is invisible to that file (`tests/support/ct/route-trpc.ts` header, #629). The viewer identity
+// inside it is invisible to that file (`tests/support/node/route-trpc.ts` header, #629). The viewer identity
 // and viewer-settings reads were unfed in ten `features/**` CT files across seven features; the census
 // (`pnpm debt`, ct-unfed-reads) named each one.
 //

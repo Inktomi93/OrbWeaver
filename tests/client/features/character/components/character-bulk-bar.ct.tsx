@@ -4,8 +4,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
 test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({ mount, page }) => {

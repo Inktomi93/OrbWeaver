@@ -71,7 +71,7 @@
 // proves the pipeline CAN fail.
 //
 // Import direction: tests → @orb/tooling is legal (orchestrator-verified 2026-09-01; the imports:depcruise
-// stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/ct/
+// stage cruises `packages tooling` only, and 38 tests/ precedents exist incl. tests/support/
 // pixel-contrast.ts importing @orb/tooling/_shared/wcag for exactly this kernel). tv objects are deep-
 // imported RELATIVELY from packages/ui/src (the @orb/ui exports map does not re-export variants; the
 // house precedent is tests/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.
@@ -327,7 +327,7 @@ export const WITHHELD_RULES: Readonly<Record<string, string>> = {
   "radial-halo": "same sanctioned-carrier derivation as glow-shadow",
   "radial-spotlight-glow": "same sanctioned-carrier derivation as glow-shadow",
   "border-accent-on-rounded":
-    "badgeLike/tabContext/statusContext/listRowSelected are walker-derived carrier flags (ops/walker/census-decor.ts, under rework) — a thin re-spelling forks the mechanism being fixed",
+    "badgeLike/tabContext/statusContext/selectionRail are walker-derived carrier flags (ops/walker/census-decor.ts, under rework) — a thin re-spelling forks the mechanism being fixed",
   "side-tab": "same walker-derived carrier flags as border-accent-on-rounded",
   "tap-target":
     "the effective hit box needs the walker's hit-extent probe (::before touch-target union, elementFromPoint rings); the coarse floor is already covered per size arm by tests/ui/touch-target-floor.suite.ct.tsx",

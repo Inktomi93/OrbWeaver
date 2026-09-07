@@ -210,7 +210,7 @@ import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "rea
 import { ModalHost } from "../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { NoticeBand } from "../../../packages/client/src/features/app-shell/components/notice-band.tsx";
 import { notify } from "../../../packages/client/src/lib/notify.ts";
-import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../lib/_ct-stories.tsx";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────

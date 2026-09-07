@@ -32,7 +32,7 @@ import { PackBody } from "../../../../packages/client/src/features/rpg/component
 import { RpgCardLightbox, RpgSceneCards } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
-import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 
 /** Five live conditions — the measured shape, and enough to WRAP at 430, which is where the vertical floor

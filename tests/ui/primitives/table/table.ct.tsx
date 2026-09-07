@@ -3,7 +3,6 @@
 // click-to-sort cycle (asc → desc → none) with `aria-sort` + a non-color glyph swap, keyboard
 // activation, pagination, row selection (incl. indeterminate select-all), density, and the R7
 // freshly-derived-array footgun (ui-primitive-contract §13).
-import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   BasicTableStory,
@@ -161,11 +160,30 @@ test("row selection: select-all checks every row and goes indeterminate on a par
   await expect(bram).toHaveAttribute("aria-checked", "false");
 });
 
-test("a selected row wears the accent token background", async ({ mount, page }) => {
+// THE SELECTED ROW LEFT THE ACCENT FILL (#1840, side-eye 2026-09-06 E2). This arm asserted
+// `color.accent` — the exact fill `ACCENT_HOVER` paints on every hovered row, menu item, card and button
+// — so the row that was CHOSEN and the row being POINTED AT were one colour, and the census counted
+// accent-fill as a fifth selection idiom for that reason. A table row is a ROW, so it wears the ruled row
+// idiom (`SELECTION_RAIL`: a 2px left ember rail over a 10% primary tint, owner-ratified #485). The claim
+// is unchanged in shape — a selected row is visibly marked — and the token it names moved.
+//
+// AGAINST THE UNSELECTED TWIN, not against a literal: the tint is an ALPHA composite (`bg-primary/10`),
+// which serializes as `oklab(… / 0.1)` and cannot be spelled from `TOKENS` without re-implementing the
+// compositing. The delta IS the claim.
+test("a selected row wears the ruled row idiom — the rail lights and the row tints", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
-  await page.getByRole("checkbox", { name: "Select Bram" }).click();
   const row = page.locator("tbody tr", { hasText: "Bram" });
-  await expect(row).toHaveCSS("background-color", TOKENS["color.accent"].value);
+  const paint = async (): Promise<{ readonly fill: string; readonly rail: string }> =>
+    await row.evaluate((el: Element) => {
+      const style = getComputedStyle(el);
+      return { fill: style.backgroundColor, rail: style.borderLeftColor };
+    });
+  const rest = await paint();
+  await page.getByRole("checkbox", { name: "Select Bram" }).click();
+  await expect(row).toHaveAttribute("data-selected", /.*/);
+  const selected = await paint();
+  expect(selected.rail, "the reserved rail lights on selection").not.toBe(rest.rail);
+  expect(selected.fill, "…over a tint the unselected row does not carry").not.toBe(rest.fill);
 });
 
 test("compact density is shorter than default density", async ({ mount, page }) => {

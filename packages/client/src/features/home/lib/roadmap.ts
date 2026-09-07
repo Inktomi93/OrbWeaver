@@ -29,10 +29,12 @@
 // test pins the PARTIAL half against the INDEX disposition and refuses a year or a quarter in either line.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Drama, ListChecks, MapIcon, SmilePlus, Swords, UserPlus } from "@orb/ui/icons";
+import { Drama, ListChecks, MapIcon, SmilePlus, Swords, Type, UserPlus } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 
-/** One committed-but-unrealized program, as home says it out loud + the provenance that proves it. */
+/** One committed-but-unrealized program, as home says it out loud + the provenance that proves it.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export interface RoadmapProgram {
   /** Registry key + `data-home-tile` value — bare, like `buddy`, because a doorway names a capability. */
   readonly id: string;
@@ -53,7 +55,9 @@ const ROADMAP_ORDER_BASE = 81;
 
 /** The curated mirror of INDEX.md's FUTURE + PARTIAL rows. ORDER IS READING ORDER — nearest to real first,
  *  largest and least likely last — and it is also the doorways' `order`, so the tuple is the one home for
- *  both. */
+ *  both.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const HOME_ROADMAP: readonly RoadmapProgram[] = [
   {
     id: "rpg",
@@ -108,6 +112,16 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     state: "Not started yet.",
     set: "spatial-maps-design-capture.md",
     sprint: 27,
+  },
+  {
+    id: "type-worlds",
+    title: "Type-world program",
+    icon: Type,
+    gloss:
+      "Which typecheck program a test file belongs to derived from where it lives, not kept by hand — so a moved or new file can't silently fall out of coverage.",
+    state: "Not started yet.",
+    set: "type-worlds-program.md",
+    sprint: 1351,
   },
 ];
 

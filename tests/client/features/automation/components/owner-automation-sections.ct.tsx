@@ -15,8 +15,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcResponder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { OwnerAutomationSectionsStory } from "../_ct-stories.tsx";
 
 /** A FIXED epoch, never `Date.now()` (test-determinism): the row renders relative time. */

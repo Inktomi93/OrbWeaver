@@ -19,7 +19,7 @@ import type { CompareBlock } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 import { AcceptHarness, ReviewHarness } from "./compare-blocks.fixtures.tsx";
 
 /** What the browser computes for `bg-<intent>/10` — resolved in the page, off the live token custom

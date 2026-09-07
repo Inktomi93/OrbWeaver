@@ -15,26 +15,26 @@
   },
   "dependencies": {
     "@orb/contracts": "workspace:*",
-    "@orb/db": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
-    "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
-    "puppeteer-core": "catalog:",
-    "@stryker-mutator/api": "catalog:",
-    "@trpc/client": "catalog:",
     "chrome-devtools-mcp": "catalog:",
-    "drizzle-kit": "catalog:",
-    "drizzle-orm": "catalog:",
-    "lighthouse": "catalog:",
-    "remark": "catalog:",
-    "remark-frontmatter": "catalog:",
-    "remark-gfm": "catalog:",
-    "sharp": "catalog:",
     "ts-morph": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@tailwindcss/oxide": "catalog:"
+    "@orb/db": "workspace:*",
+    "@orb/ui": "workspace:*",
+    "@stryker-mutator/api": "catalog:",
+    "@tailwindcss/oxide": "catalog:",
+    "@trpc/client": "catalog:",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:",
+    "lighthouse": "catalog:",
+    "puppeteer-core": "catalog:",
+    "remark": "catalog:",
+    "remark-frontmatter": "catalog:",
+    "remark-gfm": "catalog:",
+    "sharp": "catalog:"
   }
 }

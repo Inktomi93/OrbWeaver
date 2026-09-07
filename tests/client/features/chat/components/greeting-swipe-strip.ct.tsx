@@ -16,7 +16,7 @@
 // chat-room-surface.ct.tsx; this file is the component's own contract.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GreetingSwipeStripStory } from "../_ct-stories.tsx";
 
 const ALT_0 = "The night market hums.";

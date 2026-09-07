@@ -6,33 +6,30 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { BROWSER_PACKAGES } from "@orb/tooling/_shared/project-worlds";
 import { GIT_READ_PREFIX, ROOT } from "./repo-paths.ts";
 
 const TS_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 
-// ── the reach-back trees owned by NON-ancestor configs (the editor blind spot §2.1). These are the
-// BROWSER tsx surfaces the root graph EXCLUDES by directory; each is claimed WITH dom by the ui/client
-// config that reaches back into it (mirror of packages/{ui,client}/tsconfig.json `include`). ──
+// ── the WORLD partition of the test surface (type-worlds program, #1351). The root graph is the NODE world
+// and EXCLUDES the browser trees by directory + suffix; tsconfig.tests-dom.json is the BROWSER-TESTS world and
+// ROOTS exactly those trees. Nothing here names a file: the tests-dom side is read from that config's own
+// `include` (rule 3d), and the two rules below are the only shapes it uses. ──
 const GRAPH = "tsconfig.json";
 const CLIENT_TSCONFIG = "packages/client/tsconfig.json";
 const UI_TSCONFIG = "packages/ui/tsconfig.json";
 const TESTS_DOM_TSCONFIG = "tsconfig.tests-dom.json";
-// The root graph's `include: packages/*/src` sweeps EVERY package's src EXCEPT the two BROWSER packages it
+
+// The root graph's `include: packages/*/src` sweeps EVERY package's src EXCEPT the BROWSER packages it
 // `exclude`s (ui + client are dom-typechecked by their own tsconfig — never in the DOM-less graph). So a
-// NODE package's src IS a graph root; a browser package's is not. (Mirror of tsconfig.json include/exclude.)
-export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(["ui", "client"]);
-// The client-owned CT files inside tests/support/ct (they import-pull @orb/client — upward-cake, so they
-// can NEVER be in ui's program). Every OTHER tsx under tests/support/ct is ui-owned (ct-providers.tsx).
-// TWO of them since #1228 defused the DOM-lib leak by splitting `ct-config-groups.ts` out as
-// `ct-data-providers.tsx`'s non-`.tsx` sibling: `packages/client/tsconfig.json` lists BOTH explicitly and
-// the root graph EXCLUDES both, so a `.tsx`-only rule dropped the `.ts` half through to the graph arm and
-// the routing algebra disagreed with the compiler in both directions (#1231).
-const CT_CLIENT_OWNED: ReadonlySet<string> = new Set(["tests/support/ct/ct-data-providers.tsx", "tests/support/ct/ct-config-groups.ts"]);
-const TESTS_CLIENT_TSX_RE = /^tests\/client\/.*\.tsx$/u;
-const TESTS_UI_TSX_RE = /^tests\/ui\/.*\.tsx$/u;
-const CT_SUPPORT_TSX_RE = /^tests\/support\/ct\/.*\.tsx$/u;
-const PLAYWRIGHT_TSX_DTS_RE = /^playwright\/.*\.(?:tsx|d\.ts)$/u;
+// NODE package's src IS a graph root; a browser package's is not. The set is the world model's
+// (`_shared/project-worlds.ts` PACKAGE_WORLDS); the selection algebra imports it from there too.
+
+// Every `.tsx` under tests/ or playwright/ is React under playwright-ct, rooted by the browser-tests world
+// (tsconfig.tests-dom.json `tests/**/*.tsx` + `playwright/**/*.tsx`); the CT mount's `.d.ts` rides with it.
+const BROWSER_TSX_RE = /^(?:tests|playwright)\/.*\.tsx$/u;
+const PLAYWRIGHT_DTS_RE = /^playwright\/.*\.d\.ts$/u;
 
 /** Root-level config files JOINED the graph program 2026-08-03 (tsconfig.json `include` — they were
  *  typechecked by NO program, which let two dead Vitest-4 keys survive a major bump). Mirror of that
@@ -69,17 +66,18 @@ const PACKAGE_TSCONFIGS: readonly string[] = [
 // here would be the exact rot class tsconfig-routing-parity exists to catch, so instead we read the config
 // as ground truth and parse its own array). ──
 
-/** A directory-glob `include` entry of the shape `<dir>/**​/*.ts` (the only glob shape this config uses —
- *  see its own header: `tests/client/**​/*.ts` / `tests/ui/**​/*.ts` / `tests/e2e/**​/*.ts`). Captures `<dir>`. */
-const TESTS_DOM_DIR_GLOB_RE = /^(.+)\/\*\*\/\*\.ts$/u;
+/** A directory-glob `include` entry of the shape `<dir>/**​/*.ts` or `<dir>/**​/*.tsx` (the only glob shapes
+ *  this config uses — see its own header). Captures `<dir>` and the extension. */
+const TESTS_DOM_DIR_GLOB_RE = /^(.+)\/\*\*\/\*\.(tsx?)$/u;
 
 interface TestsDomInclude {
   /** Exact repo-relative `include` entries (literal `.ts`/`.tsx` files — never `.d.ts`; those are ambient
    *  and already routed by an earlier rule: rule 1 for package-src, rule 3b for the root ambient pair). */
   readonly literals: ReadonlySet<string>;
-  /** Directory prefixes from a `<dir>/**​/*.ts` entry — matches any `.ts` (not `.tsx`, not `.d.ts`) file
-   *  directly under that directory tree, mirroring tsc's own glob semantics for this program. */
-  readonly dirGlobPrefixes: readonly string[];
+  /** Directory prefixes from a `<dir>/**​/*.ts` / `<dir>/**​/*.tsx` entry, each with the extension its glob
+   *  names — matches any file of THAT extension (never `.d.ts`) under the directory tree, mirroring tsc's own
+   *  glob semantics for this program. */
+  readonly dirGlobs: readonly { readonly prefix: string; readonly ext: "ts" | "tsx" }[];
 }
 
 let testsDomIncludeMemo: TestsDomInclude | undefined;
@@ -98,31 +96,31 @@ function testsDomInclude(): TestsDomInclude {
     .join("\n");
   const parsed = JSON.parse(withoutComments) as { readonly include?: readonly string[] };
   const literals = new Set<string>();
-  const dirGlobPrefixes: string[] = [];
+  const dirGlobs: { readonly prefix: string; readonly ext: "ts" | "tsx" }[] = [];
   for (const entry of parsed.include ?? []) {
     const globMatch = TESTS_DOM_DIR_GLOB_RE.exec(entry);
     if (globMatch?.[1] !== undefined) {
-      dirGlobPrefixes.push(globMatch[1]);
+      dirGlobs.push({ prefix: globMatch[1], ext: globMatch[2] === "tsx" ? "tsx" : "ts" });
     } else if (TS_RE.test(entry) && !entry.endsWith(".d.ts")) {
       literals.add(entry);
     }
     // else: an ambient `.d.ts` entry — already routed by rule 1 (package-src) or rule 3b (the root pair).
   }
-  testsDomIncludeMemo = { literals, dirGlobPrefixes };
+  testsDomIncludeMemo = { literals, dirGlobs };
   return testsDomIncludeMemo;
 }
 
-/** Is `rel` a ROOT of `tsconfig.tests-dom.json` — a literal `include` entry, or a `.ts` (never `.tsx`/
- *  `.d.ts`) file under one of its directory-glob prefixes? */
+/** Is `rel` a ROOT of `tsconfig.tests-dom.json` — a literal `include` entry, or a file of the glob's extension
+ *  (never `.d.ts`) under one of its directory-glob prefixes? */
 function isTestsDomRoot(rel: string): boolean {
-  const { literals, dirGlobPrefixes } = testsDomInclude();
+  const { literals, dirGlobs } = testsDomInclude();
   if (literals.has(rel)) {
     return true;
   }
-  if (!rel.endsWith(".ts") || rel.endsWith(".d.ts")) {
+  if (rel.endsWith(".d.ts")) {
     return false;
   }
-  return dirGlobPrefixes.some((prefix) => rel.startsWith(`${prefix}/`));
+  return dirGlobs.some(({ prefix, ext }) => rel.endsWith(`.${ext}`) && rel.startsWith(`${prefix}/`));
 }
 
 function isGraphOnlyTree(rel: string): boolean {
@@ -156,12 +154,10 @@ export function staticPrograms(rel: string): readonly string[] {
   if (rel === "packages/db/drizzle.config.ts") {
     return ["packages/db/tsconfig.json"];
   }
-  // 3. the browser reach-back trees (owned by NON-ancestor configs — the editor blind spot §2.1).
-  if (TESTS_CLIENT_TSX_RE.test(rel) || CT_CLIENT_OWNED.has(rel)) {
-    return [CLIENT_TSCONFIG];
-  }
-  if (TESTS_UI_TSX_RE.test(rel) || (CT_SUPPORT_TSX_RE.test(rel) && !CT_CLIENT_OWNED.has(rel)) || PLAYWRIGHT_TSX_DTS_RE.test(rel)) {
-    return [UI_TSCONFIG];
+  // 3. browser tsx anywhere under tests/ or playwright/ (+ the CT mount's .d.ts) → the browser-tests world.
+  //    (Also derivable from tests-dom's own include via rule 3d; stated here so the suffix rule reads as law.)
+  if (BROWSER_TSX_RE.test(rel) || PLAYWRIGHT_DTS_RE.test(rel)) {
+    return [TESTS_DOM_TSCONFIG];
   }
   // 3b. the repo-root AMBIENT pair → EVERY program (see ROOT_AMBIENT_DTS: they are in every include, and
   //     a graph-only route lets the graph's @types/node mask per-package errors — a FALSE GREEN).
@@ -181,7 +177,7 @@ export function staticPrograms(rel: string): readonly string[] {
   if (isTestsDomRoot(rel)) {
     return [TESTS_DOM_TSCONFIG];
   }
-  // 4. the node graph roots (a .tsx here is claimed by rule 3 above — today none reach this arm).
+  // 4. the node graph roots (a .tsx never reaches this arm — rule 3 claims every one).
   return isGraphOnlyTree(rel) ? [GRAPH] : [];
 }
 

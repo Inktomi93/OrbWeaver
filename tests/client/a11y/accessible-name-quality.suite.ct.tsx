@@ -7,7 +7,7 @@
 // screen makes a control unreachable no matter how well-formed its attributes are.
 //
 // The convention is `UI-Primitives-and-Reuse.md` §13.10; the mechanical predicates live in
-// `tests/support/ct/accessible-names.ts` (which carries the WHY of each one and the measured ariaSnapshot
+// `tests/support/browser/accessible-names.ts` (which carries the WHY of each one and the measured ariaSnapshot
 // shape it parses). Four predicates, all machine-checkable:
 //
 //   1. nameless-control    — every interactive role carries a non-empty accessible name.
@@ -27,9 +27,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "../../support/ct/accessible-names.ts";
-import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/ct/chat-and-inbox-reads-empty.ts";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { ariaTreeFindings, formatFindings, labelInNameFindings, nameQualityFindings } from "../../support/browser/accessible-names.ts";
+import { CHAT_AND_INBOX_READS_EMPTY } from "../../support/node/chat-and-inbox-reads-empty.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { AppShellStory, RailStory } from "../features/app-shell/_ct-stories.tsx";
 import { CharacterLibrarySurfaceStory } from "../features/character/_ct-stories.tsx";
 import { makeCharacterSummary, makeTagFixture } from "../features/character/fixtures.ts";

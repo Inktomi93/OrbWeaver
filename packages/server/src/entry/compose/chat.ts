@@ -77,7 +77,7 @@ import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
-import type { PersonaService, ResolvePersonasForRoster } from "#domain/persona";
+import type { PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
 import { PersonaNotFoundError } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
@@ -212,7 +212,7 @@ function agentRowText(m: TurnMessage, parts: readonly TurnContentPart[] = m.cont
  * is what a preview wanted all along. The enforcement ladder prefers unrepresentable over thrown (§2.2).
  *
  * Returning an ID (not a resolved persona) is deliberate: the anchor arm then resolves through the SAME
- * roster read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
+ * participants read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
  * `sameProjectedPersona` dedup keeps holding.
  */
 export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
@@ -504,10 +504,10 @@ export interface ChatComposeInput {
   readonly credentials: CredentialsService;
   readonly character: CharacterService;
   readonly persona: PersonaService;
-  /** The persona domain's PRINCIPAL-LESS roster op (`domain/persona/contract/ops.ts`) — the ONE room-plane
+  /** The persona domain's PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) — the ONE room-plane
    *  persona read the FOREIGN-inputs resolver uses. Separate from `persona` because `PersonaService` is
    *  Principal-scoped by contract, and a room's assembly has no single Principal to read as (D106). */
-  readonly resolvePersonasForRoster: ResolvePersonasForRoster;
+  readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
   readonly preset: PresetService;
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
@@ -1592,7 +1592,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
       const activePersonaId = activePersonaIdFor({ trigger, anchorPersonaId });
-      const roster = await input.resolvePersonasForRoster({
+      const resolvedPersonas = await input.resolvePersonasForParticipants({
         personaIds: [anchorPersonaId, activePersonaId].flatMap((id) => (id === null ? [] : [id])),
         allowedOwnerIds: presentHumanUserIds,
       });
@@ -1603,7 +1603,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         description: string;
         placement: PersonaDescriptionPlacement;
       } | null => {
-        const p = personaId === null ? undefined : roster.get(personaId);
+        const p = personaId === null ? undefined : resolvedPersonas.get(personaId);
         return p === undefined
           ? null
           : {

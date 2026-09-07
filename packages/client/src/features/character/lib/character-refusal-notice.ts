@@ -28,17 +28,23 @@ function reasonOf(error: unknown): string {
 
 /** The honest copy for a per-owner handle collision. Names the CAUSE in the user's own vocabulary (the name
  *  they typed, not the derived handle they never saw) and the one next step. The refusal is total — nothing
- *  was written — so it does not hedge about partial state. */
+ *  was written — so it does not hedge about partial state.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const CHARACTER_HANDLE_CONFLICT_COPY = "You already have a character with that name. Pick a different name and try again.";
 
 /** The honest copy for the synthetic group namespace. The app mints `__group__*` handles for group rooms, so
- *  a card may not claim one; again the fix is a different name. */
+ *  a card may not claim one; again the fix is a different name.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const CHARACTER_HANDLE_RESERVED_COPY = "That name is reserved for group rooms. Pick a different name and try again.";
 
 /** The honest copy for `CHARACTER_STALE_BASIS` (#1551) — surfaced wherever a `character.update` carrying
  *  `expectedBasis` refuses (today: the refinery apply path). The refusal is TOTAL — nothing was written, the
  *  OTHER edit stands — so the copy names the fix (reload, re-apply) rather than hedging about partial state,
- *  matching the server's own reason (`domain/character/verbs/update.ts`'s message) in the app's voice. */
+ *  matching the server's own reason (`domain/character/verbs/update.ts`'s message) in the app's voice.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const CHARACTER_STALE_BASIS_COPY = "This character changed elsewhere while that was being prepared. Reload it and try again.";
 
 /**

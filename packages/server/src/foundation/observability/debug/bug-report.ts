@@ -116,7 +116,9 @@ export function secretLiterals(environment: Readonly<Record<string, unknown>>): 
  *  It asks about `secretRedactionLiterals`, not about the raw `secrets` (#1785). This is a SERIALIZE-then-
  *  scrub site: `JSON.stringify` escapes `"` and `\`, so an operator credential holding either is in these
  *  bytes only as `a\"b`. A post-condition that searched for the raw literal would have certified exactly the
- *  bytes it exists to refuse. */
+ *  bytes it exists to refuse.
+ *
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function serializeScrubbed(record: BugReportRecord, secrets: readonly string[]): string | null {
   const json = JSON.stringify(record, null, 2);
   const scrubbed = redactKnownSecrets(json, secrets);

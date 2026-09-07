@@ -13,7 +13,7 @@
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { PluginCommandPaletteStory } from "../_ct-stories.tsx";
 
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");

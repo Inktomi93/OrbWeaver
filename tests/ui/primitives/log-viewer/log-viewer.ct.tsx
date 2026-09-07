@@ -5,7 +5,7 @@ import { LogViewer } from "@orb/ui/log-viewer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 function makeLines(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `line ${index}`);

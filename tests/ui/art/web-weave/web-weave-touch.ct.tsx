@@ -3,7 +3,7 @@
 // The mouse path is proven in web-weave.ct.tsx ("dragging across the silk RINGS it"); a mouse drag
 // says NOTHING about a thumb: touch has no hover, its moves are delivered only while the finger is
 // down, and the browser CANCELS the pointer stream the instant it decides the gesture is a scroll.
-// So this suite drives chromium's real touch pipeline (tests/support/ct/weave-drive.ts) and asserts
+// So this suite drives chromium's real touch pipeline (tests/support/browser/weave-drive.ts) and asserts
 // the same rendered affordance the mouse test does — the painted frame moves beyond its own motion.
 //
 // Four claims that only hold TOGETHER:
@@ -19,7 +19,7 @@
 //     the page).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ambientCeiling, boxCentre, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../support/ct/weave-drive.ts";
+import { ambientCeiling, boxCentre, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../support/browser/weave-drive.ts";
 import { WeaveBox, WeaveScrollBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 // The whole suite runs as a touch device: `hasTouch` flips `matchMedia("(pointer: coarse)")` in

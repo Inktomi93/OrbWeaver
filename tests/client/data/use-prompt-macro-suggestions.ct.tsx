@@ -12,8 +12,8 @@
 //      that opened empty on the first keystroke would read as "this field has no macros".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc.ts";
-import { userSettingsView } from "../../support/ct/user-settings-view.ts";
+import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../support/node/user-settings-view.ts";
 import { PromptMacroSuggestionsStory } from "./_ct-stories.tsx";
 
 const ACTIVE_PRESET_ID = "preset_ct_active";

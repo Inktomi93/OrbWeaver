@@ -8,7 +8,7 @@
 // FORWARD-REF: chat composes BEFORE rpg (the keystone order), yet chat's turn hooks call into rpg's ops. The
 // `ChatRpgOps` object rpg builds here is a forward-ref delegate over the rpg service — it is handed to chat at
 // the same keystone step (the agents-delegate precedent). rpg's own chat-facing ops (getMembership/setRpgPointer/
-// resolveRpgRoster/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
+// resolveRpgParticipants/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 //
 // THE `runExtraction` IMPL (§4.6 — the delivery-model amendment + the crunchy-cluster §1.3
@@ -161,7 +161,7 @@ export interface RpgComposeDeps {
    *  the point: every emit site guards with `deps.trace?.(…)`, and an optional CALL short-circuits its
    *  ARGUMENT, so a traced-off turn never even builds an event object and is byte-identical. */
   readonly trace?: RpgTraceSink;
-  /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) — off chat's
+  /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgParticipants) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];
   /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, built once at the services root)
@@ -216,7 +216,7 @@ const PROMOTE_HANDLE_ATTEMPTS = 25;
 /** R4 — PROMOTION's durable half: mint the card + seat it on the roster, both AS THE ROOM HOST the verb
  *  resolved by role (threaded explicitly — the injected-op caller-gate class; an op that re-derived the owner
  *  here could mint a card into the wrong library). A promoted character MUST be host-owned, because
- *  `resolveRpgRoster` reads roster character cards under the room host's ownership — a card owned by anyone
+ *  `resolveRpgParticipants` reads participant character cards under the room host's ownership — a card owned by anyone
  *  else resolves to no actor at all and the promotion would land the person nowhere.
  *
  *  The handle is uniquified against the owner's library BEFORE the mint, so the reachable failure is a
@@ -317,7 +317,9 @@ function buildPromoteToCharacter(deps: RpgComposeDeps): RpgContext["promoteToCha
 }
 
 /** Existing-column recovery marker for one promotion. The hash obeys character provenance's SHA-256 contract;
- * the source string is operational provenance, not a user-visible card field. */
+ * the source string is operational provenance, not a user-visible card field.
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function rpgPromotionProvenance(chatId: ChatId, sourceActorKey: string): CharacterImportProvenance {
   const importedFrom = `rpg-promotion:v1:${chatId}:${sourceActorKey}`;
   return { importedFrom, importHash: sha256Hex(importedFrom) };
@@ -587,11 +589,11 @@ interface ResolvedRefs {
 
 /** The valid per-call refs the schema constraint + the prompt enumerate. The set MIRRORS what `resolveActor`
  *  (`tools/apply.ts`) can actually resolve, so the enum offers exactly the resolvable targets:
- *   • the semantic `player` token — ADDED only when NO roster member already occupies the name "player"
- *     (`buildActorRefIndex` gives an explicit roster name precedence over the self-alias; a roster char
+ *   • the semantic `player` token — ADDED only when NO participant member already occupies the name "player"
+ *     (`buildActorRefIndex` gives an explicit participant name precedence over the self-alias; a participant char
  *     literally named "Player" therefore OWNS the `player` ref — stickler F10 — and the human is addressed by
  *     their own display name, kept below);
- *   • every roster member's display name (incl. a "Player"-named char and the user's persona name);
+ *   • every participant member's display name (incl. a "Player"-named char and the user's persona name);
  *   • every tracked NPC actor's display name (`baseState.actorState` npc entries — R2 folded the old separate
  *     `presentCharacters[].key` walk into this one, because the scene npcs and the tracked npcs are the same
  *     rows now) — so `scene.presentRemove` can name an NPC the model previously upserted, and
@@ -599,13 +601,13 @@ interface ResolvedRefs {
  *  Deduped case-insensitively. A model can then only target a REAL, resolvable ref under an enforcing backend,
  *  and the npc-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
-  const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgParticipants(chatId), findGameByChat(deps.db, chatId)]);
+  const [participants, game] = await Promise.all([deps.rpgChatOps.resolveRpgParticipants(chatId), findGameByChat(deps.db, chatId)]);
   const config = game?.config ?? rpgGameConfigSchema.parse({});
-  // R6 — the per-actor write surface needs each roster actor's SHEET exceptions (grants/revokes). One read,
+  // R6 — the per-actor write surface needs each participant actor's SHEET exceptions (grants/revokes). One read,
   // only when the game actually defines trackers (a tracker-free game pays nothing for the machinery).
   const sheets = game !== undefined && config.trackers.length > 0 ? await listSheets(deps.db, game.id) : [];
-  const player = roster.find((r) => r.actorRef.kind === "user");
-  const rosterOwnsPlayerName = roster.some((r) => r.name.toLowerCase() === PLAYER_SEMANTIC_REF);
+  const player = participants.find((r) => r.actorRef.kind === "user");
+  const participantOwnsPlayerName = participants.some((r) => r.name.toLowerCase() === PLAYER_SEMANTIC_REF);
   // The CARRIERS and the target-name enum are built from ONE walk, so they can never diverge: every name the
   // enum offers belongs to a carrier whose writable-tracker set the schema then pins (R6), and every carrier
   // is reachable. Insertion-ordered, case-insensitively deduped.
@@ -621,7 +623,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // Every carrier is minted through the ONE derivation the READ surface uses (`actorCarrier`, the tracker
   // view's) — never a second inline spelling of "which class is this person, and what are their exceptions".
   // That is the §1.4 fix made literal: the read surface used to class by which PLANE a row sat on and the
-  // write surface by name-dedup order, so a roster character standing in the scene was `npcs` to one and
+  // write surface by name-dedup order, so a participant character standing in the scene was `npcs` to one and
   // `party` to the other, and a `trust(appliesTo:"npcs")` def was taught on her line and offered on nobody's.
   // One function, both surfaces, class derived from `actorRef.kind` — the drift is unrepresentable.
   const sheetByKey = new Map<string, RpgSheet>(
@@ -631,13 +633,13 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
     ]),
   );
   const carrierFor = (ref: RpgActorRef, name: string): RpgTrackerCarrier => actorCarrier(ref, name, sheetByKey.get(actorRefKey(ref)));
-  // The stable semantic token leads — UNLESS a roster member already claims "player" (that char owns it, F10).
+  // The stable semantic token leads — UNLESS a participant member already claims "player" (that char owns it, F10).
   // It rides as a SECOND carrier over the same actor so it lands in the player's own write-surface group.
-  if (player !== undefined && !rosterOwnsPlayerName) {
+  if (player !== undefined && !participantOwnsPlayerName) {
     add(carrierFor(player.actorRef, PLAYER_SEMANTIC_REF));
   }
-  for (const r of roster) {
-    // every roster display name is valid (persona-name + the F10 "Player"-named char)
+  for (const r of participants) {
+    // every participant display name is valid (persona-name + the F10 "Player"-named char)
     add(carrierFor(r.actorRef, r.name));
   }
   // The tracked NPC actors — on stage or off (F4: party/inventory/wallet reach a tracked NPC either way).
@@ -758,7 +760,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       return empty;
     }
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
-    // semantic `player` token + roster/persona names + existing scene npcs + npc-actor keys + tracker keys)
+    // semantic `player` token + participant/persona names + existing scene npcs + npc-actor keys + tracker keys)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
     // prompt (the fallback arm for a non-enforcing model). `reconcile` (§1.3 cadence) forces establish-
     // EVERYTHING + the reconcile prompt line so a drifted panel self-heals this beat.
@@ -822,14 +824,23 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       );
     }
     logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", event: "rpg.extraction.stripped", stripped });
-    // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
+    // The participant index resolves an extracted party/inventory target NAME to its participant ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+    logExtractionOutcome({
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      actorRefs: refs.actorRefs.length,
+      base: baseState,
+      participantIndex,
+      parsed: extraction,
+      delta,
+    });
     return delta;
   };
 }
@@ -852,13 +863,13 @@ function logExtractionOutcome(args: {
    *  derived from state it already holds — so it never re-resolves the ref bundle just to log. */
   readonly actorRefs: number;
   readonly base: RpgSnapshotState;
-  readonly roster: ActorRefIndex;
+  readonly participantIndex: ActorRefIndex;
   readonly parsed: RpgExtraction;
   readonly delta: { readonly statePatch: Record<string, unknown>; readonly journal: readonly unknown[] };
 }): void {
   // The party/inventory targets naming NOBODY reachable this turn — the SAME predicate the fold drops on (one
   // home, so the log can never disagree with what actually applied).
-  const phantomTargets = ghostTargetRefs(args.base, args.parsed, args.roster);
+  const phantomTargets = ghostTargetRefs(args.base, args.parsed, args.participantIndex);
   if (phantomTargets.length > 0) {
     logger.warn(
       { event: "rpg.extraction.phantom", chatId: args.chatId, model: args.model, api: args.api, phantomTargets },
@@ -1297,9 +1308,18 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // dedicated round was the one vehicle that dropped silently).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
     const extraction = toolCallsToExtraction(calls);
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+    const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+    logExtractionOutcome({
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      actorRefs: refs.actorRefs.length,
+      base: baseState,
+      participantIndex,
+      parsed: extraction,
+      delta,
+    });
     return { ...delta, recordedToolCalls: recordToolCalls(calls) };
   };
 }
@@ -1371,18 +1391,18 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     const extraction = toolCallsToExtraction(toolCalls);
     // ONE db read. The ref bundle (`resolveExtractionRefs`) is the MOUNT's job — it constrains what the model
     // may write, and the model has already written by the time we get here; re-resolving it at flush would be
-    // two more reads (the game row + a SECOND roster) whose only consumer is a log field. The roster index is
-    // genuinely needed (it resolves target names to roster refs and backs the ghost guard), and the log's
+    // two more reads (the game row + a SECOND participant index) whose only consumer is a log field. The participant index is
+    // genuinely needed (it resolves target names to participant refs and backs the ghost guard), and the log's
     // target-menu denominator derives from state we already hold.
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
     logExtractionOutcome({
       chatId,
       model: conn.model,
       api: conn.api,
-      actorRefs: reachableActorRefs(baseState, roster).size,
+      actorRefs: reachableActorRefs(baseState, participantIndex).size,
       base: baseState,
-      roster,
+      participantIndex,
       parsed: extraction,
       delta,
     });
@@ -1482,9 +1502,18 @@ async function resyncViaToolRound(
     events: { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped" },
   });
   const extraction = toolCallsToExtraction(calls);
-  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-  logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+  const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+  logExtractionOutcome({
+    chatId,
+    model: conn.model,
+    api: conn.api,
+    actorRefs: refs.actorRefs.length,
+    base: baseState,
+    participantIndex,
+    parsed: extraction,
+    delta,
+  });
   return { ok: true, delta };
 }
 
@@ -1584,9 +1613,18 @@ async function resyncViaStructured(
     );
   }
   logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
-  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-  logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+  const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+  logExtractionOutcome({
+    chatId,
+    model: conn.model,
+    api: conn.api,
+    actorRefs: refs.actorRefs.length,
+    base: baseState,
+    participantIndex,
+    parsed: extraction,
+    delta,
+  });
   return { ok: true, delta };
 }
 
@@ -1728,9 +1766,18 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
         "rpg populate: plane(s)/entry(ies) did not conform — DROPPED (the rest of the round still applies)",
       );
     }
-    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+    const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+    logExtractionOutcome({
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      actorRefs: refs.actorRefs.length,
+      base: baseState,
+      participantIndex,
+      parsed: extraction,
+      delta,
+    });
     // The wire says `title`; the sheet stores `className` (the takeover has rendered it as the title since the
     // tracked-field unification). ONE mapping, here at the parse seam — the domain never learns two names.
     return {

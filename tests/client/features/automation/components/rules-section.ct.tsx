@@ -17,11 +17,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { ctSnapPath } from "../../../../support/ct/snap-out.ts";
-import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
+import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { ctSnapPath } from "../../../../support/node/snap-out.ts";
 import { RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");

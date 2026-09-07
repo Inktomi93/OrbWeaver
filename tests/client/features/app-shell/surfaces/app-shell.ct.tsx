@@ -8,7 +8,7 @@
 //
 // WHAT THIS FILE CAN AND CANNOT OBSERVE (#1677 — say it here, because a cold reader otherwise reads a
 // green shell CT as covering the whole composition). Every mount here goes through
-// `CtFakeSectionRegistry` (`tests/support/ct/ct-data-providers.tsx`), which is REAL for the shell's own
+// `CtFakeSectionRegistry` (`tests/support/browser/ct-data-providers.tsx`), which is REAL for the shell's own
 // anatomy — rail, `panels`, `panelDefaults`, `placeholder`, the modal/chrome/config registries, and each
 // section's real `selection` store whenever a story injects a `list` — and STORY-INJECTED for everything a
 // section RENDERS: `list`, `content`, `context`, `header` and `listHeader` bodies. So this file is the
@@ -33,7 +33,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
-import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";

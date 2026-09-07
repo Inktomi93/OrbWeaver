@@ -1031,6 +1031,52 @@ export function WalkerTruncationAffordanceStory(): ReactElement {
  *  under the floor, box-carried, so no ancestor may speak for it — and it must keep failing: a ladder rung
  *  that credited it would trade the false positive for a false clean. The stage is inset from the viewport
  *  edges so `probeFrameFits` never withholds a verdict. */
+/** #1829 — THE COARSE TWIN OF THE STORY BELOW, and the rung it exercises is the LADDER'S TOP one.
+ *
+ *  `measureHitExtent` publishes `2 x radius` and sampled the ring AT the radius, so a target of extent
+ *  exactly `2r` — which occupies `[c - r, c + r)` — was asked about the neighbour's first pixel and never
+ *  its own last one. 44 is both the ladder's top rung and `TAP_COARSE_WARN_PX`, so EVERY control whose
+ *  coarse floor is the shared `size-touch-target` pseudo published 32 and filed a `tap-target` P2 that no
+ *  design change could clear. Measured live on the Backup & Restore pane at `--mobile --viewport 430x860`
+ *  (side-eye 2026-09-06, #980 F13): `P2, 11 of 11, short side 32px`, on eleven checkboxes whose ring
+ *  answers `self` on all four cardinals at +/-21.5px and answers a sibling row's label at +/-22px — and
+ *  where a real `page.mouse.click` at 21.5px from centre TOGGLES the control.
+ *
+ *  THE 44px ROW PITCH IS THE FIDELITY, not a tidy number: it puts a text-bearing NON-ancestor exactly at
+ *  the checkbox's +/-22px, which is the only geometry that can tell a boundary probe from an inset one. A
+ *  roomier stage would leave the checkbox's own row answering at both offsets and the arm would pass
+ *  before the fix — a fence, not a defect proof.
+ *
+ *  THE NEGATIVE CONTROL IS BOX-CARRIED AND 40px: comfortably over the 32px hard floor, comfortably under
+ *  the 44px recommended one, and with no pseudo it may borrow no ancestor's extent (#662/#665). A half-pixel
+ *  inset must not promote it — the inset recovers the last pixel a target owns, it does not hand out a rung. */
+export function WalkerCoarseTouchFloorStory(): ReactElement {
+  const row = { alignItems: "center", display: "flex", gap: 24, height: 44 } as const;
+  return (
+    <div style={{ padding: 120, position: "static", width: 520 }}>
+      <div style={row}>
+        <span>the row above, whose prose forwards nothing</span>
+      </div>
+      <div style={row}>
+        <Checkbox aria-label="Include themes" />
+        <span>Themes</span>
+      </div>
+      <div style={row}>
+        <span>the row below, 22px from the checkbox&apos;s centre</span>
+      </div>
+      <div style={row}>
+        <button data-testid="coarse-under-floor-box" style={{ display: "block", height: 40, padding: 0, width: 40 }} type="button">
+          x
+        </button>
+        <span>a box-carried 40px control</span>
+      </div>
+      <div style={row}>
+        <span>the last row of prose</span>
+      </div>
+    </div>
+  );
+}
+
 export function WalkerFinePointerFloorStory(): ReactElement {
   const row = { alignItems: "center", display: "flex", gap: 24, height: 32 } as const;
   return (

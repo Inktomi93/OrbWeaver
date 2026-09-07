@@ -3,7 +3,7 @@
 // raw-string fallback that never blanks; native <details> collapse.
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 test("success: pretty-prints arguments and result JSON, no error styling", async ({ mount, page }) => {
   await mount(
