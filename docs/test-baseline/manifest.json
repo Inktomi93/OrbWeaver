@@ -1701,6 +1701,7 @@
     "tests/server/entry/boot/migrate-plugin-tool-wire-names.int.test.ts",
     "tests/server/entry/boot/migrate-prose-slot-vocab.int.test.ts",
     "tests/server/entry/boot/migrate.int.test.ts",
+    "tests/server/entry/boot/reactivate-plugins.int.test.ts",
     "tests/server/entry/boot/reclaim-locks.int.test.ts",
     "tests/server/entry/boot/seed-atlas-import-outcome.suite.test.ts",
     "tests/server/entry/boot/seed-atlas-realm-dates.suite.test.ts",

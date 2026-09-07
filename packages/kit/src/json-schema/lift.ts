@@ -30,7 +30,10 @@ export const LIFTABLE_JSON_SCHEMA = {
   /** `type` values that lift. `"null"` is NOT here — nullability (type-arrays / `nullable`) is refused in v1
    *  (a guest models an omittable arg by leaving it out of `required`, not by a null union). */
   types: ["object", "array", "string", "number", "integer", "boolean"],
-  /** Keywords honored on ANY node. */
+  /** Keywords honored on ANY node. `enum` is type-DEPENDENT (see {@link liftTypedEnum}): on `string` any
+   *  member count lifts; on `number`/`boolean` TWO OR MORE members lift (a single one projects back as
+   *  `const`, so `const` is how a guest spells that); on `integer` it cannot lift at all, because zod has no
+   *  integer literal and the projection would silently widen the type to `number`. */
   common: ["type", "description", "enum", "const"],
   /** The COMPOSITE keyword: a `type`-less node that is a UNION of member schemas, each lifted exactly
    *  (`z.union`). It is exactly what `projectJsonSchema` emits for a zod union, so it round-trips. It stands
@@ -153,6 +156,44 @@ function liftEnum(values: readonly unknown[], path: string): z.ZodType {
   return z.enum(values as [string, ...string[]]);
 }
 
+/** Lift an `enum` sitting on a TYPED node. The lift is type-dependent because the ROUND-TRIP is: only a form
+ *  `projectJsonSchema` re-emits byte-identically may lift at all (the engine's golden), and zod's projection
+ *  of a literal union is what decides that.
+ *
+ *  · `string` — `z.enum`, any member count. Projects `{type:"string", enum:[…]}`.
+ *  · `number` / `boolean` — zod 4's MULTI-VALUE `z.literal`, which projects `{type:<t>, enum:[…]}` exactly
+ *    (measured, not assumed). Widened 2026-09-07 (#1865): refusing an ordinary `{type:"number", enum:[4,6,8]}`
+ *    was a real gap that cost the story-clocks example its whole activation, and the exact round-trip the
+ *    doctrine demands before any widening was available for it.
+ *  · A SINGLE number/boolean member is REFUSED: `z.literal([6])` projects to `const`, not `enum`, so it cannot
+ *    round-trip — and `const` is precisely how a guest spells one permitted value. Naming that beats emitting
+ *    a different shape than the guest wrote.
+ *  · `integer` is REFUSED: zod has no integer literal, so the projection comes back `type:"number"` and the
+ *    guest's own constraint would silently widen. `type:"number"` with the same members is the lifting spelling.
+ *  · A MIXED-type enum is refused everywhere — no lossy literal union. */
+function liftTypedEnum(values: readonly unknown[], type: string, path: string): z.ZodType {
+  if (values.length === 0) {
+    throw new JsonSchemaLiftError("enum (empty)", path);
+  }
+  if (type === STRING_TYPE) {
+    return liftEnum(values, path);
+  }
+  if (type === INTEGER_TYPE) {
+    throw new JsonSchemaLiftError('enum on type "integer" (no integer literal — use type "number")', path);
+  }
+  if (type !== NUMBER_TYPE && type !== BOOLEAN_TYPE) {
+    throw new JsonSchemaLiftError("enum (non-string type)", path);
+  }
+  const expected = type === NUMBER_TYPE ? "number" : "boolean";
+  if (!values.every((v) => typeof v === expected)) {
+    throw new JsonSchemaLiftError(`enum (members do not match type "${type}")`, path);
+  }
+  if (values.length === 1) {
+    throw new JsonSchemaLiftError(`enum with ONE ${expected} member (projects as \`const\` — spell it \`const\`)`, path);
+  }
+  return z.literal(values as readonly (number | boolean)[]);
+}
+
 function liftConst(value: unknown, path: string): z.ZodType {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return z.literal(value);
@@ -265,12 +306,10 @@ function liftNode(node: Record<string, unknown>, path: string, depth: number): z
   }
   rejectUnsupportedKeys(node, type, path);
 
-  // A typed node may still pin an enum (e.g. type:"string" + enum:[…]) — the enum wins (narrower).
+  // A typed node may still pin an enum (e.g. type:"string" + enum:[…]) — the enum wins (narrower). Which
+  // types may carry one, and why, is `liftTypedEnum`'s own doc.
   if ("enum" in node) {
-    if (type !== STRING_TYPE) {
-      throw new JsonSchemaLiftError("enum (non-string type)", path);
-    }
-    return liftEnum(node["enum"] as readonly unknown[], path);
+    return liftTypedEnum(node["enum"] as readonly unknown[], type, path);
   }
 
   switch (type) {

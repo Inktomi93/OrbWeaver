@@ -1593,7 +1593,7 @@
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::default:catch::1",
       "path": "packages/kit/src/json-schema/lift.ts",
-      "line": 129,
+      "line": 132,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1601,7 +1601,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — the caller (liftString) turns",
-      "markerLine": 124
+      "markerLine": 127
     },
     {
       "siteId": "packages/kit/src/macro/evaluator.ts::empty:err::1",

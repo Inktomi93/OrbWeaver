@@ -1,7 +1,7 @@
 {
   "id": "story-clocks",
   "name": "Story Clocks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "hostVersion": 1,
   "entry": "main.js",
   "description": "Blades-style progress clocks for a room: the host starts them, the narrator ticks them mid-turn, everyone watches them fill — and a filled clock asks the narrator to make it matter. Clocks live in chat variables, so your rules and macros can read them too.",

@@ -9,7 +9,7 @@
 // three-states law: EMPTY teaches, with an action). The hide-when-empty variant is a RECORDED owner knob, priced
 // with per-plugin rail promotion — deliberately NOT built here.
 //
-// "NO PAGES" IS FOUR DIFFERENT FACTS AND THIS FILE USED TO COLLAPSE THEM (#924). One string —
+// "NO PAGES" IS FIVE DIFFERENT FACTS AND THIS FILE USED TO COLLAPSE THEM (#924, fifth arm #1865). One string —
 // "No extension pages yet / Install a plugin with page surfaces and it will appear here." — was rendered for
 // every zero-page state, including the one a FRESH BOOT lands in: nine example plugins ARE installed, each
 // disabled with an empty grant and a standing consent ask (`entry/boot/seed-example-plugins.ts`), so
@@ -19,6 +19,12 @@
 //   · `none-installed`   — nothing to draw from. Go install one.
 //   · `awaiting-consent` — installed, standing on YOUR answer. Go read the ask. (The fresh-boot state.)
 //   · `all-off`          — granted, but nothing is switched on, so nothing registers. Go turn one on.
+//   · `some-errored`     — a plugin FAILED to start. Go read why. (#1865 — the arm the four could not spell:
+//                          an `errored` row is not `enabled`, so a box whose only page-bringing plugin died
+//                          fell through to `all-off`'s "you turned them off" or `no-pages`' "go install one",
+//                          and both blamed the person for a failure that was the software's. It sits ABOVE
+//                          `all-off` deliberately: not turning a plugin on is a choice, a plugin dying is not,
+//                          and the louder fact goes first.)
 //   · `no-pages`         — running plugins, none of which bring a page. The original copy, now honest.
 // Each arm names a DIFFERENT next step and lands at a DIFFERENT config anchor, which is the whole reason
 // they exist separately — the sibling defect this file already argues against for "pick one" vs "there are
@@ -37,10 +43,10 @@ export const EXTENSIONS_PLACEHOLDER = {
 /** One reason's teaching empty: what is true, what to do about it, and WHERE that is done. */
 export interface ExtensionsEmptyCopy {
   readonly title: string;
-  /** `awaiting` is how many installed plugins are standing on the caller's consent. Only the
-   *  `awaiting-consent` arm spends it — the signature stays uniform so the map is one shape and the call
-   *  sites never branch on which arm they drew. */
-  readonly description: (awaiting: number) => string;
+  /** The arm's own COUNT: how many plugins are standing on the caller's consent (`awaiting-consent`), or how
+   *  many failed to start (`some-errored`). The other three ignore it — the signature stays uniform so the map
+   *  is one shape and the call sites never branch on which arm they drew. */
+  readonly description: (count: number) => string;
   readonly action: string;
   /** Where the action lands inside the Plugins config group — a different anchor per reason, because
    *  "install one" and "answer the ask" are not the same screen. */
@@ -79,6 +85,14 @@ export const EXTENSIONS_EMPTY_COPY = {
     action: "Review what they ask for",
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
     setting: PLUGIN_PERMISSIONS_SETTING_ID,
+  },
+  "some-errored": {
+    title: "A plugin failed to start",
+    description: (count: number): string =>
+      `${count === 1 ? "One plugin" : `${count} plugins`} could not start, so whatever ${count === 1 ? "it brings is" : "they bring are"} missing here. Each one records why it failed on the Plugins screen.`,
+    action: "See what went wrong",
+    sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
+    setting: null,
   },
   "all-off": {
     title: "Your plugins are turned off",

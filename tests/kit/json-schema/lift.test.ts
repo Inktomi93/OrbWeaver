@@ -58,6 +58,30 @@ test("round-trip: a const literal survives", () => {
   expect(roundTrip(input)).toEqual(input);
 });
 
+test("round-trip: a NUMBER enum and a BOOLEAN enum survive (#1865)", () => {
+  // The construct that cost the story-clocks example its activation: an ordinary "pick one of these sizes"
+  // arg. `z.literal([4,6,8])` is what lifts it, and its projection is byte-identical to the input — which is
+  // the only reason the subset was allowed to widen here at all.
+  const numeric = { type: "object", properties: { segments: { type: "number", enum: [4, 6, 8] } }, required: ["segments"], additionalProperties: false };
+  expect(roundTrip(numeric)).toEqual(numeric);
+  const flag = { type: "object", properties: { loud: { type: "boolean", enum: [true, false] } }, required: ["loud"], additionalProperties: false };
+  expect(roundTrip(flag)).toEqual(flag);
+});
+
+test("trust boundary: a lifted number enum accepts ONLY its members", () => {
+  const lifted = liftJsonSchema({
+    type: "object",
+    properties: { segments: { type: "number", enum: [4, 6, 8] } },
+    required: ["segments"],
+    additionalProperties: false,
+  });
+  expect(lifted.safeParse({ segments: 6 }).success).toBe(true);
+  // Off-list, and the neighbouring integer — a lift that had widened to a bare `number` would take both.
+  expect(lifted.safeParse({ segments: 5 }).success).toBe(false);
+  expect(lifted.safeParse({ segments: 7 }).success).toBe(false);
+  expect(lifted.safeParse({ segments: "6" }).success).toBe(false);
+});
+
 test("round-trip: a type-less anyOf union survives (the shape a zod union projects to)", () => {
   // The construct the rpg state tools actually carry (`trackerSets[].value`: a number-or-string cell) — the
   // agent-sdk terminal mount lifts these schemas back to zod to DECLARE them, so a refusal here would cost the
@@ -135,7 +159,13 @@ const REFUSALS: ReadonlyArray<{ readonly why: string; readonly schema: Record<st
   { why: "exclusiveMinimum", schema: { type: "object", properties: { x: { type: "number", exclusiveMinimum: 0 } } } },
   { why: "nullable union (type array)", schema: { type: "object", properties: { x: { type: ["string", "null"] } } } },
   { why: "OpenAPI nullable", schema: { type: "object", properties: { x: { type: "string", nullable: true } } } },
-  { why: "number enum (lossy)", schema: { type: "object", properties: { x: { enum: [1, 2, 3] } } } },
+  { why: "type-less number enum (projects a type the guest did not write)", schema: { type: "object", properties: { x: { enum: [1, 2, 3] } } } },
+  // The three shapes the #1865 widening deliberately did NOT take, each because its projection differs from
+  // its input: integer has no zod literal (comes back `number`), and a single non-string member comes back
+  // `const`. A mixed enum has no lossless literal union at all.
+  { why: "integer enum (zod has no integer literal)", schema: { type: "object", properties: { x: { type: "integer", enum: [4, 6, 8] } } } },
+  { why: "single-member number enum (projects as const)", schema: { type: "object", properties: { x: { type: "number", enum: [6] } } } },
+  { why: "mixed-type enum", schema: { type: "object", properties: { x: { type: "number", enum: [1, "a"] } } } },
   { why: "tuple items", schema: { type: "object", properties: { x: { type: "array", items: [{ type: "string" }] } } } },
   { why: "array without items", schema: { type: "object", properties: { x: { type: "array" } } } },
   { why: "uniqueItems", schema: { type: "object", properties: { x: { type: "array", items: { type: "string" }, uniqueItems: true } } } },

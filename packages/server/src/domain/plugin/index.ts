@@ -119,7 +119,10 @@ export type {
   PluginUiOutbox,
 } from "./contract/service.ts";
 export { recordPluginFetchedAsset } from "./persistence/plugin-assets.ts";
-export { isPluginEnabledFor } from "./persistence/plugins.ts";
+// `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
+// un-owner-scoped query in the persistence file, projected to (pluginId, ownerId) so its consumer can only
+// ever drive each row's OWN owner's `setEnabled`. Its whole argument lives on the function's own doc.
+export { isPluginEnabledFor, listEnabledAcrossOwners } from "./persistence/plugins.ts";
 // The #1391 wire-name migration's plugin half: the slug census it reasons over, and the rename set it
 // derives. Both are read by `entry/boot/migrate-plugin-tool-wire-names`, which hands the answer DOWN to
 // chat and automation as plain data — neither of them may import this domain.

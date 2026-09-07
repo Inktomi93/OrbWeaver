@@ -90,6 +90,18 @@ const AWAITING_CONSENT: Readonly<Record<string, unknown>> = {
   "plugin.listSurfaces": () => [],
 };
 
+/** A PLUGIN DIED (#1865): granted and meant to be running, but its activation failed, so the row is
+ *  `errored` and it registers nothing. The second row is `disabled` on purpose — without the fifth arm this
+ *  exact shape satisfies `all-off`'s "nothing is enabled" predicate and the pane blames the reader for a
+ *  failure that was ours. */
+const SOME_ERRORED: Readonly<Record<string, unknown>> = {
+  "plugin.list": () => [
+    pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "errored", lastError: "registration failed: unsupported JSON Schema construct" }),
+    pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", { status: "disabled" }),
+  ],
+  "plugin.listSurfaces": () => [],
+};
+
 /** GRANTED, BUT SWITCHED OFF — nothing is asking and nothing is running, so nothing registers. */
 const ALL_OFF: Readonly<Record<string, unknown>> = {
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "disabled" })],
@@ -200,6 +212,19 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
     await expect(page.getByText("Your plugins are turned off")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+  });
+
+  test("A PLUGIN THAT DIED ⇒ say it failed, never 'you turned them off' or 'go install one' (#1865)", async ({ mount, page }) => {
+    await routeTrpc(page, SOME_ERRORED);
+    await mount(<ExtensionsSwitcherStory />);
+
+    await expect(page.getByText("A plugin failed to start")).toBeVisible();
+    await expect(page.getByRole("button", { name: "See what went wrong" })).toBeVisible();
+    // NON-VACUOUS, and the whole point of the arm: both wrong answers this shape used to produce are gone.
+    // The `errored`+`disabled` mix satisfies `all-off`'s predicate, and one enabled sibling would have
+    // produced `no-pages` instead — so the two are asserted absent, not merely unasserted.
+    await expect(page.getByText("Your plugins are turned off")).toHaveCount(0);
     await expect(page.getByText("No extension pages yet")).toHaveCount(0);
   });
 
