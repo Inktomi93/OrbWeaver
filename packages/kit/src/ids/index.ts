@@ -275,9 +275,9 @@ export function castId<T extends string>(raw: string): T {
 
 /** Zod schema for a non-TypeID branded id at a request boundary: validates non-empty, types output
  *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix. */
-export function brandedId<T extends Branded<string>>(): z.ZodType<T> {
+export function brandedId<T extends Branded<string>>(): z.ZodType<T, string> {
   // Brand is type-only; the runtime value is unchanged (no transform).
-  return z.string().min(1) as unknown as z.ZodType<T>;
+  return z.string().min(1) as unknown as z.ZodType<T, string>;
 }
 
 /** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding brand. The one id-mint

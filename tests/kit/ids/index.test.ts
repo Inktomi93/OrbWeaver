@@ -24,10 +24,12 @@ test("typeIdSchema accepts a matching prefix and rejects a mismatched one", () =
   expect(schema.safeParse("not-a-typeid").success).toBe(false);
 });
 
-test("brandedId rejects the empty string and accepts a non-empty one", () => {
+test("brandedId accepts only non-empty strings", () => {
   const schema = brandedId<ChatId>();
   expect(schema.safeParse("").success).toBe(false);
   expect(schema.safeParse("anything").success).toBe(true);
+  expect(schema.safeParse(42).success).toBe(false);
+  expect(schema.safeParse({ wrong: true }).success).toBe(false);
 });
 
 test("castId brands without altering the runtime value", () => {
