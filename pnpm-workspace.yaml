@@ -47,8 +47,9 @@ catalog:
   # @types/node tracks the RUNTIME (Node 26).
   "@types/node": ^26.1.1
   # --- test ---
-  vitest: ^4.1.11
-  "@vitest/coverage-v8": ^4.1.11
+  # Typecheck integration is experimental; validate upgrades explicitly and keep coverage in lockstep.
+  vitest: 4.1.11
+  "@vitest/coverage-v8": 4.1.11
   "@playwright/test": ^1.61.1
   "@playwright/experimental-ct-react": ^1.61.1
   # --- rendered instruments ---
