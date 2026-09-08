@@ -108,7 +108,7 @@ const ROWS: Row[] = [
   ["allow", "harness-piped", "pnpm test | head -20"],
   ["allow", "harness-piped", "pnpm check 2>&1 | tail -n 40"],
   ["allow", "harness-piped", 'pnpm check 2>&1 | grep -E "error|FAIL" | sort -u'],
-  ["allow", "harness-piped", "pnpm typecheck:graph 2>&1 | grep -c character-card"],
+  ["allow", "harness-piped", "pnpm typecheck 2>&1 | grep -c character-card"],
   ["allow", "harness-piped", "pnpm check | wc -l"],
   ["allow", "harness-piped", "timeout 300 pnpm check | wc -l"],
   ["allow", "harness-piped", "FOO=1 pnpm check 2>&1 | tail -20"],
@@ -118,13 +118,13 @@ const ROWS: Row[] = [
   ["allow", "harness-piped", "pnpm check 2>&1 | tee /tmp/out.log"],
   // ---- harness piped: DENY the shapes with no single safe rewrite ----
   ["deny", "harness-piped", "pnpm check | tail -3 || echo failed"],
-  ["deny", "harness-piped", "npx tsc | head -5; pnpm typecheck:graph 2>&1 | tail -15"],
+  ["deny", "harness-piped", "npx tsc | head -5; pnpm typecheck 2>&1 | tail -15"],
   ["deny", "harness-piped", 'pnpm lint 2>&1 | tail -4; echo "exit: ${PIPESTATUS[0]}"'],
   ["deny", "harness-piped", "(cd packages/ui && pnpm exec tsc --noEmit 2>&1 | head -10); pnpm test:ct 2>&1 | tail -25"],
   ["deny", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
   // ---- harness failure swallowed ----
   ["deny", "harness-swallowed", "pnpm check || true"],
-  ["deny", "harness-swallowed", "pnpm typecheck:graph >/dev/null 2>&1 && echo PASS || echo FAIL"],
+  ["deny", "harness-swallowed", "pnpm typecheck >/dev/null 2>&1 && echo PASS || echo FAIL"],
   // ---- THE HARD FLOOR (load-bearing only because pass now means allow — a hook allow bypasses the
   // owner's auto-mode classifier, so these four shapes would otherwise run with nothing in front of them) ----
   ["ask", "sudo", "sudo apt install ripgrep"],
@@ -659,10 +659,10 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   spawnSync("git", ["-C", forgedRepo, "init", "-q"], { encoding: "utf8" });
   spawnSync("git", ["-C", forgedRepo, "add", "tracked-run.sh", "tracked-big.sh"], { encoding: "utf8" });
   // #617: reviewed-ness decided BEFORE the size cap. The fixture is the LIVE instance the row was filed
-  // for — `tests/tooling/check-gates.int.test.ts` is ~100KB and tracked in THIS repo, and used to be
+  // for — `tests/tooling/check-gates.repo.int.test.ts` is ~100KB and tracked in THIS repo, and used to be
   // refused for its SIZE when named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
   // that the niced door is refused and pushes it onto an ad-hoc unniced one.
-  const trackedBig = `${REPO}/tests/tooling/check-gates.int.test.ts`;
+  const trackedBig = `${REPO}/tests/tooling/check-gates.repo.int.test.ts`;
   const trackedReal = `${REPO}/tooling/src/stack/stack.sh`;
 
   const rows: [string, BatchResult["decision"], string | null, Partial<Omit<BatchCase, "command">>?][] = [

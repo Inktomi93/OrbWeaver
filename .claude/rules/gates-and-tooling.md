@@ -29,7 +29,7 @@ paths:
   caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —
   the barrier regen is now the FIX for a red, not a scheduled guess. Its per-ledger door is
   `cli.ts baseline <kind> --check` (derives and diffs, writes nothing).
-- **`tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself** (shared `__g_`
+- **`tests/tooling/check-gates.repo.int.test.ts` is NOT concurrency-safe with itself** (shared `__g_`
   fixture paths). It must never overlap a sibling lane's floor or a drain battery — during a train it
   is the orchestrator's to run.
 - **A GATE PROBE ON A SHARED TREE IS AN ANNOUNCED OPERATION.** On 2026-08-24 a review lane was probing

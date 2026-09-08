@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -109,7 +109,7 @@ where the repair does not reach: a centred child whose size is NOT ours to deriv
 third-party box, a user-owned continuous multiplier) still halves whatever difference it happens to
 produce, and that stays Law 2/3/4 territory — the runtime `off-grid-transform` / `promoted-layer-offset`
 backstops, not a token the vault can retune. So does an element's ABSOLUTE landing, which is its
-ancestors': #1684's reported 0.484 device px was this control's 0.5 plus ~0.984 inherited from the
+ancestors': #1684's reported 0.484 device px was this control's 0.5 plus \~0.984 inherited from the
 settings row stack, and only the first half was the primitive's to fix. The pins are
 `tests/ui/tokens/index.test.ts` (every snapped spacing token belted on BOTH arms and integer at the 16px
 root) and `tests/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered
@@ -156,8 +156,7 @@ arithmetic (`.orb-lines-N`) — inherits it from one home.
 2026-09-05).** The belt shipped with `round()`'s default `nearest`, which keeps the box integer but
 may shrink it by up to half a pixel while the paired font size scales continuously — so the RESOLVED
 ratio can fall below the ratified leading floor (§6's `LEADING_FLOOR` = `leading.label / text.label`
-= 16/13 ≈ 1.2308) at font scales the authored value cannot see. Measured on `settings:appearance
---appearance-preset reading` (`--font-scale` 1.25, root 20px): `text.micro` resolved 13.125px while
+\= 16/13 ≈ 1.2308) at font scales the authored value cannot see. Measured on `settings:appearance --appearance-preset reading` (`--font-scale` 1.25, root 20px): `text.micro` resolved 13.125px while
 `round(0.8125rem, 1px)` resolved **16px** — ratio **1.219**, four live `tight-leading` findings on
 the setting-row gloss. `nearest` broke `leading.label` on `text.label` too, whose authored ratio IS
 the floor exactly, so half a pixel of slack in either direction is below it. `up` never shrinks the
@@ -256,7 +255,7 @@ the shared project. Four arms:
 
 Coupled sites per GATE-AUTHORING §2: descriptor with ≥1 `mustFlag`/`mustPass` per arm (fractional
 token fixture, unpaired text fixture, banned-vocab fixture, marker-honoured pass, SVG-marker pass);
-`tests/tooling/check-gates.int.test.ts` `writeFixtures()` `__g_` fixture; the
+`tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()` `__g_` fixture; the
 Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test
 `tests/tooling/verify/gates/integer-line-boxes.int.test.ts`. Comment posture: the pairing arm is
 AST-side (comment-safe via the walker); ARM C routes CSS text through `blankCssComments`.
@@ -422,7 +421,7 @@ taken by a scratch playwright probe that sets `deviceScaleFactor` per arm, and p
 ## 12. Laws 2–4 coupled sites
 
 - Gate: `tooling/src/verify/gates/rest-transform-grid.ts` · its `Core-Enforcement-Active-Gates.md` row +
-  the registered-gate count · its `__g_resttransform` fixture in `tests/tooling/check-gates.int.test.ts`.
+  the registered-gate count · its `__g_resttransform` fixture in `tests/tooling/check-gates.repo.int.test.ts`.
 - Instrument: `tooling/src/ui-audit/ops/walker/census-grid.ts` (post-cohort, after `census-tier`) ·
   `ops/walker.ts`'s composition · `ops/walker/returns.ts` · `contract/samples-grid.ts` ·
   `contract/samples-populations.ts` (the `RelationalSamples` + accounting join) · `contract/rules.ts` (three

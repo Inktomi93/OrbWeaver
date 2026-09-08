@@ -35,7 +35,7 @@
 //     in a helper nothing reaches is dead and does not count.
 //
 // Registration: Core-Enforcement-Active-Gates.md (Layer 3) + the `__g_` fixture in
-// tests/tooling/check-gates.int.test.ts. Seam: packages/client/src/data/invalidation.ts.
+// tests/tooling/check-gates.repo.int.test.ts. Seam: packages/client/src/data/invalidation.ts.
 import type { Node, Project, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";

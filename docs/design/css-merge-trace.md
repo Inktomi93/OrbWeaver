@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-31
+updated: 2026-09-08
 ---
 
 # CSS merge trace
@@ -37,7 +37,7 @@ Each recorded call carries ordered input occurrences and final output. Survivors
 | `.dependency-cruiser.cjs` | ban runtime `tailwind-variants` imports outside the sole factory while preserving type-only `VariantProps` imports |
 | `package.json`, `pnpm-lock.yaml` | direct root test ownership of the already-installed Oxide compiler scanner |
 | `tests/tooling/dependency-cruiser.int.test.ts` | planted second-factory pin for the seal |
-| `tests/tooling/css-merge-parity.int.test.ts`, `vitest.config.ts` | serial production-shaped compiler/Oxide parity, #961 exact-evidence consumption, and planted controls |
+| `tests/tooling/css-merge-parity.repo.int.test.ts`, `vitest.config.ts` | repository-resource production-shaped compiler/Oxide parity, #961 exact-evidence consumption, and planted controls |
 | `tests/ui/lib/class-merge.test.ts` | merge behavior, TV, trace, and planted controls |
 
 No CSS generator, theme engine, token source, custom-theme carrier, selector gate, or #956 provenance file changes. The token generator and focused UI behavior remain verification obligations.
@@ -63,7 +63,7 @@ No CSS generator, theme engine, token source, custom-theme carrier, selector gat
 
 The planted pre-fix merge run passed 40 checks and failed exactly the three new aspect/blur/ease controls in both argument orders. A temporary second `createTV` source also cruised green before the resolved-edge seal and red with `ui-tailwind-variants-runtime-seal` after it.
 
-- `pnpm test:scoped tests/tooling/css-merge-parity.int.test.ts --maxWorkers=1 --reporter=verbose` — 7 passed: 1,584 files / 2,326 roots / 2,321 exact #961 values; 1,599 production files / 27,357 Oxide candidates; every generated theme target emitted; compiler/registry equality and omitted/bogus/zero controls passed.
+- `pnpm test:scoped tests/tooling/css-merge-parity.repo.int.test.ts --maxWorkers=1 --reporter=verbose` — 7 passed: 1,584 files / 2,326 roots / 2,321 exact #961 values; 1,599 production files / 27,357 Oxide candidates; every generated theme target emitted; compiler/registry equality and omitted/bogus/zero controls passed.
 - `pnpm test:scoped tests/ui/lib/class-merge.test.ts tests/ui/tokens/index.test.ts --maxWorkers=4` — 107 passed (70 merge + 37 token): every governed family both ways, TV ordinary/slots/extension/empty semantics, bounded occurrence replay, and byte-exact generated theme/tokens/theme-set artifacts.
 - `pnpm test:scoped tests/tooling/dependency-cruiser.int.test.ts --maxWorkers=1` — 65 passed, including the runtime-factory plant and type-only `VariantProps` negative control.
 - `pnpm ct:scoped tests/ui/primitives/button/button.ct.tsx tests/ui/primitives/avatar/avatar.ct.tsx --workers=1` — 42 passed across ordinary and slotted TV consumers.

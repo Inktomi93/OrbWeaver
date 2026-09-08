@@ -2069,7 +2069,7 @@
     "tests/tooling/_shared/variant-matrix.test.ts",
     "tests/tooling/agent-sync/cli.int.test.ts",
     "tests/tooling/agent-sync/ops/sync.int.test.ts",
-    "tests/tooling/ast/cli.int.test.ts",
+    "tests/tooling/ast/cli.repo.int.test.ts",
     "tests/tooling/ast/index.test.ts",
     "tests/tooling/ast/ops/subset-callers.test.ts",
     "tests/tooling/async-policy-config.int.test.ts",
@@ -2078,7 +2078,7 @@
     "tests/tooling/bug-reports/cli.int.test.ts",
     "tests/tooling/bug-reports/ops/show.test.ts",
     "tests/tooling/chat-component-presence.test.ts",
-    "tests/tooling/check-gates.int.test.ts",
+    "tests/tooling/check-gates.repo.int.test.ts",
     "tests/tooling/codemod/cli.int.test.ts",
     "tests/tooling/codemod/index.int.test.ts",
     "tests/tooling/codemod/lib/files.int.test.ts",
@@ -2093,7 +2093,7 @@
     "tests/tooling/cpu-profile/boot-trace.suite.int.test.ts",
     "tests/tooling/cpu-profile/index.test.ts",
     "tests/tooling/cpu-profile/lib/rate.test.ts",
-    "tests/tooling/css-merge-parity.int.test.ts",
+    "tests/tooling/css-merge-parity.repo.int.test.ts",
     "tests/tooling/dependency-cruiser-worlds.int.test.ts",
     "tests/tooling/dependency-cruiser.int.test.ts",
     "tests/tooling/design-audit-walker.ct.tsx",
@@ -2102,8 +2102,8 @@
     "tests/tooling/doc-catalog/index.test.ts",
     "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
     "tests/tooling/eslint-tests-coverage.int.test.ts",
-    "tests/tooling/gate-conformance.int.test.ts",
-    "tests/tooling/gate-ignore-grammar.int.test.ts",
+    "tests/tooling/gate-conformance.repo.int.test.ts",
+    "tests/tooling/gate-ignore-grammar.repo.int.test.ts",
     "tests/tooling/gate-spelling-twins.int.test.ts",
     "tests/tooling/issue-form-guidance-integrity.test.ts",
     "tests/tooling/load-budget.int.test.ts",
@@ -2293,11 +2293,11 @@
     "tests/tooling/verify/gates/bus-fact-health.test.ts",
     "tests/tooling/verify/gates/bus-pair.test.ts",
     "tests/tooling/verify/gates/bus-payload-allowlist.test.ts",
-    "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
+    "tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts",
     "tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts",
     "tests/tooling/verify/gates/contract-verb-presence.test.ts",
     "tests/tooling/verify/gates/css-selector-has-a-writer.int.test.ts",
-    "tests/tooling/verify/gates/dangling-refs.int.test.ts",
+    "tests/tooling/verify/gates/dangling-refs.repo.int.test.ts",
     "tests/tooling/verify/gates/db-structure.int.test.ts",
     "tests/tooling/verify/gates/depcruise-grant-liveness.int.test.ts",
     "tests/tooling/verify/gates/devtools-frontend-assets.int.test.ts",
@@ -2311,7 +2311,7 @@
     "tests/tooling/verify/gates/knob-wire-coverage.test.ts",
     "tests/tooling/verify/gates/ledger-banned-shapes.test.ts",
     "tests/tooling/verify/gates/message-kind-policy-coverage.test.ts",
-    "tests/tooling/verify/gates/no-blanket-suppression.int.test.ts",
+    "tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts",
     "tests/tooling/verify/gates/no-raw-color-in-css.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
     "tests/tooling/verify/gates/open-json-column-key-parity.test.ts",
@@ -2328,8 +2328,8 @@
     "tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts",
     "tests/tooling/verify/gates/schema-fact-wave-1.test.ts",
     "tests/tooling/verify/gates/test-presence-client.int.test.ts",
-    "tests/tooling/verify/gates/test-presence.int.test.ts",
-    "tests/tooling/verify/gates/test-world-browser-contracts.test.ts",
+    "tests/tooling/verify/gates/test-presence.repo.int.test.ts",
+    "tests/tooling/verify/gates/test-world-browser-contracts.repo.int.test.ts",
     "tests/tooling/verify/gates/tooling-front-door.int.test.ts",
     "tests/tooling/verify/gates/tooling-slot-template.test.ts",
     "tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts",
@@ -2402,6 +2402,7 @@
     "tests/tooling/verify/ops/debt.test.ts",
     "tests/tooling/verify/ops/gen/prose.test.ts",
     "tests/tooling/verify/ops/gen/test-baseline-manifest.test.ts",
+    "tests/tooling/verify/ops/gen/type-configs.test.ts",
     "tests/tooling/verify/ops/ledgers-fresh.test.ts",
     "tests/tooling/verify/ops/policy-conformance.test.ts",
     "tests/tooling/verify/ops/ratchet-gate.test.ts",
@@ -2420,6 +2421,7 @@
     "tests/tooling/verify/ops/tests-type-membership.test.ts",
     "tests/tooling/vite-fs-deny.test.ts",
     "tests/tooling/vitest-coverage-scope.test.ts",
+    "tests/tooling/vitest-repository-scheduling.int.test.ts",
     "tests/tooling/vitest-stryker-lane-classification.test.ts",
     "tests/tooling/vitest-supervised.test.ts",
     "tests/tooling/vllm-gen-window-parity.int.test.ts",
@@ -2922,6 +2924,36 @@
     },
     "tests/ui/primitives/message-list/content-growth.test.ts": {
       "why": "Renamed to tests/ui/primitives/message-list/content-growth.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/tooling/check-gates.int.test.ts": {
+      "why": "Renamed to tests/tooling/check-gates.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/gate-ignore-grammar.int.test.ts": {
+      "why": "Renamed to tests/tooling/gate-ignore-grammar.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/css-merge-parity.int.test.ts": {
+      "why": "Renamed to tests/tooling/css-merge-parity.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/gate-conformance.int.test.ts": {
+      "why": "Renamed to tests/tooling/gate-conformance.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts": {
+      "why": "Renamed to tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/ast/cli.int.test.ts": {
+      "why": "Renamed to tests/tooling/ast/cli.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/test-presence.int.test.ts": {
+      "why": "Renamed to tests/tooling/verify/gates/test-presence.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/test-world-browser-contracts.test.ts": {
+      "why": "Renamed to tests/tooling/verify/gates/test-world-browser-contracts.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/no-blanket-suppression.int.test.ts": {
+      "why": "Renamed to tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/dangling-refs.int.test.ts": {
+      "why": "Renamed to tests/tooling/verify/gates/dangling-refs.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
     }
   }
 }

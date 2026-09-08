@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-02
+updated: 2026-09-08
 ---
 
 # UI-Gates-and-Lessons
@@ -324,11 +324,11 @@ To ship a `tooling/src/verify/gates/<name>.ts` gate GREEN you must ALSO do all t
 
 1. **Inline proof (always):** the descriptor exports `gate: GateDescriptor` with `name` == filename, a real
    `docRow`, `status`, `scopeSafety`, a `visit`/`visitFile`/`run` body, and ≥1 `mustFlag` + ≥1 `mustPass`. The
-   loader REFUSES an un-proven gate; `gate-conformance.int.test.ts` runs the synthetic examples — you cannot
+   loader REFUSES an un-proven gate; `gate-conformance.repo.int.test.ts` runs the synthetic examples — you cannot
    ship an always-green fake.
 2. **Registry parity:** add the gate's row to `Core-Enforcement-Active-Gates.md` AND bump the "N registered
    gates" count — `enforcement-registry-parity` reds until the doc matches the loader.
-3. **Live-tree anti-drift** (`tests/tooling/check-gates.int.test.ts`): either (a) add a `__g_` fixture — a
+3. **Live-tree anti-drift** (`tests/tooling/check-gates.repo.int.test.ts`): either (a) add a `__g_` fixture — a
    minimal real-tree violation at the gate's anchor path (most per-node gates) — or (b) add the gate NAME to
    `UNFIXTURABLE_GATES` if it reconciles WHOLE-TREE state and no minimal fixture can trigger it (parity /
    completeness arms). Do NOT force a fake fixture for an unfixturable gate.

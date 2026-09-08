@@ -778,12 +778,6 @@ const ARM4_ALLOW: ExemptionTable = {
   SQLITE_BUSY: {
     why: "Tier-1-DB.md cites SQLite's own C-API error code name (`sqlite3_busy_timeout`), never a repo-declared symbol. Ends if this ever becomes a repo-defined constant.",
   },
-  SERIAL_INT_PRODUCT: {
-    why: "declared in the repo-root `vitest.config.ts` (Spine-Testing.md), outside the gate harness workspace (packages/*/src, tests/, tooling/src/ — harnessGlobs). Was `SERIAL_INT` until #1842 split the serial set into its product and tooling halves. Ends if arm 4's index widens to root config files.",
-  },
-  SERIAL_INT_TOOLING: {
-    why: "the SERIAL_INT_PRODUCT case exactly — the instrument half of the same split (#1842), declared in the same repo-root `vitest.config.ts` and cited by the same law docs. Ends with its twin, when arm 4's index widens to root config files.",
-  },
   HUB_ADAPTERS: { why: CERD_WHY },
   ANTH_DIRECT_SAMPLING: { why: CERD_WHY },
   TAB_EDGE_CLASSES: { why: CERD_WHY },

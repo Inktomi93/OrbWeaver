@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -176,7 +176,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | root `package.json` scripts | the tool's rows repoint; script NAMES never change |
 | root `package.json` depcruise scripts | all five must cruise `packages tooling`, or the tooling stanzas are unfireable |
 | `tsconfig.json` (graph) | `include` carries `"tooling"`; the `scripts` include survives (the research zone is still typechecked) |
-| `vitest.config.ts` `SERIAL_INT_TOOLING` / `SERIAL_INT_PRODUCT` | rows follow their files as tests relocate into the mirror (§4.7) |
+| `tooling/src/_shared/test-kinds.ts` resource registration + `vitest.config.ts` execution groups | repository-resource tests retain their registered kind as they relocate into the mirror (§4.7); runner selectors derive from the kind data, never a filename roster |
 | `.dependency-cruiser.cjs` | the tooling stanzas (§4.6) |
 | `knip.ts` | the `tooling` workspace entry (`entry: ["src/*/cli.ts","src/_shared/index.ts","src/*/index.ts"]`). **A knip workspace boundary is a coupled site**: `scripts/**` is entry-globbed wholesale and was never analysed for unused exports, so anything moving into `tooling/` enters real analysis at once — an fs-discovered corpus needs its OWN entry row or every descriptor reads as dead |
 | `biome.json` | path-named rows repoint at their tool's move. Born-compliant is the default: each relaxation is re-justified against the moved file, never blanket-copied from `scripts/` |
@@ -343,7 +343,7 @@ The serializer's `test()` predicate admits only strings carrying one of those at
 
 ### 5.4 Type tests and serial routing
 
-Every tool's `contract/` ships `tests/tooling/<tool>/contract/index.test-d.ts` (the `types` vitest project already globs `tests/**/*.test-d.ts`). New tool tests default to `plantedTree`-in-scratch and are parallel-safe; a `SERIAL_INT_TOOLING` row is earned only under `vitest.config.ts`'s own admission rules. Standing hazard: `check-gates.int` is not concurrency-safe with itself.
+Every tool's `contract/` ships `tests/tooling/<tool>/contract/index.test-d.ts` (the `types` vitest project already globs `tests/**/*.test-d.ts`). New tool tests default to `plantedTree`-in-scratch and are parallel-safe. A repository-resource test uses the registered `.repo.int.test.ts` kind; `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the normal groups. Standing hazard: `check-gates.repo.int` is not concurrency-safe with itself.
 
 ## 6. The verification floor for a tooling change
 

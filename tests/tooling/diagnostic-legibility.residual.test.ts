@@ -1,6 +1,6 @@
 // RESIDUAL unit test surviving the legacy-oracle burndown (reports/tooling/LEGACY-ORACLE-BURNDOWN.md
 // Phase 1). The rest of diagnostic-legibility's coverage moved into its descriptor's mustFlag/mustPass
-// conformance examples (run by tests/tooling/gate-conformance.int.test.ts). This ONE assertion did not:
+// conformance examples (run by tests/tooling/gate-conformance.repo.int.test.ts). This ONE assertion did not:
 // `hasPointer(text)` is an exported PURE HELPER (a token-matrix over a string), not a dispatch-over-a-tree
 // — it cannot be expressed as a gate example (an example proves the gate FIRES/PASSES on a file, not that
 // a helper returns a boolean for a given string). So it is retained here, deliberately NAMED

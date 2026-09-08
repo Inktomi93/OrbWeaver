@@ -14,21 +14,22 @@
 // also proves the per-project counts the doc's §tests-execution-membership cites are re-derived, not
 // copied — the stage shells out to `vitest list`/`playwright test --list` for real, so this arm runs the
 // actual CLI (`runCli`, process-spawning — `.int.test.ts`), not a fixture.
+
+import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
 import { findMultiMembershipFiles, findUnrunFiles, unclassifiedVitestProjects } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-// #1842 — THE MEASURED FALSE CLEAN this direction was missing. `tooling-serial` was added to
+// #1842 — THE MEASURED FALSE CLEAN this direction was missing. The repository-resource group was added to
 // `vitest.config.ts` and NOT to the stage's runtime-project set; the stage stayed green (three ✓) with the
 // lane's ten files still in the direction-2 union and direction 3 reding only on TWO OR MORE claims, never
 // on zero — the per-project line just stopped mentioning the lane. Planted control, both directions:
 test("a vitest project the stage cannot classify is named — and a known one never is (#1842)", () => {
   // The planted positive control: a project name nobody classified.
-  expect(unclassifiedVitestProjects(["unit", "tooling-serial", "a-lane-nobody-classified"])).toEqual(["a-lane-nobody-classified"]);
+  expect(unclassifiedVitestProjects(["unit", "repository", "a-lane-nobody-classified"])).toEqual(["a-lane-nobody-classified"]);
+  expect(unclassifiedVitestProjects(["typesnode"]), "a type-only group outside the canonical types-* convention must refuse").toEqual(["typesnode"]);
   // The negative arm: every real lane, runtime AND typecheck-only, classifies silently.
-  expect(
-    unclassifiedVitestProjects(["unit", "integration", "integration-serial", "tooling", "tooling-serial", "contract", "types-node", "types-browser"]),
-  ).toEqual([]);
+  expect(unclassifiedVitestProjects([...VITEST_RUNTIME_FAMILY_GROUPS, ...TEST_RESOURCE_NAMES, "tooling", ...VITEST_TYPECHECK_GROUP_NAMES])).toEqual([]);
 });
 
 test("a file claimed by two runtime views REDs naming both views (fixture)", () => {

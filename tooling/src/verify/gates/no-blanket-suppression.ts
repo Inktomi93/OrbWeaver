@@ -589,7 +589,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/styles/x.css": ".a { color: red; }\n",
         "eslint.config.js": "export default [];\n",
       },
-      why: "DECLARED LIMIT — arms B (tracked non-TS corpus) and C (the index) need a git work tree and run only on a root carrying this gate's own module (§4.5); a mini-project has neither, so a clean CSS/JS/config trio is silent here and the git-backed arms are proven by tests/tooling/verify/gates/no-blanket-suppression.int.test.ts (an in-memory example is walked by arm A whatever its extension, so a blanket planted here would be arm A's finding, never a limit)",
+      why: "DECLARED LIMIT — arms B (tracked non-TS corpus) and C (the index) need a git work tree and run only on a root carrying this gate's own module (§4.5); a mini-project has neither, so a clean CSS/JS/config trio is silent here and the git-backed arms are proven by tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts (an in-memory example is walked by arm A whatever its extension, so a blanket planted here would be arm A's finding, never a limit)",
     },
   ],
 };

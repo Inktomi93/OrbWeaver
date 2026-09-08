@@ -19,13 +19,14 @@ Tests prove behavior or type contracts. Their filenames declare kind and compile
 | `.test.ts` | Node | Vitest | Pure behavior and structural assertions |
 | `.dom.test.ts` | DOM + Node | Vitest in Node | Browser-subject behavior that needs DOM declarations but no browser execution |
 | `.int.test.ts` | Node | Vitest | Real persistence, I/O or composed service behavior |
+| `.repo.int.test.ts` | Node | Vitest | Integration behavior that requires the repository resource |
 | `.contract.test.ts` | Node | Vitest | Parsing, serialization and wire contracts |
 | `.test-d.ts` | Node | Vitest typecheck through the shared TS7 wrapper | Type-only contracts |
 | `.dom.test-d.ts` | DOM + Node | Vitest typecheck through the shared TS7 wrapper | Browser type contracts |
 | `.ct.tsx` | DOM + Node | Playwright CT | Rendered component behavior |
 | `.spec.ts` | DOM + Node | Playwright E2E | Full-stack behavior |
 
-`.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and are exempt from a single-module mirror. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
+`.repo.int.test.ts` is the registered integration/Node/module-mirror kind for tests that require the repository resource. `.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and are exempt from a single-module mirror. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
 
 Compiler world follows the contract being checked. Component props, element identities, refs and browser events require real DOM declarations. A successful Node compile alone is insufficient: React provides fallback DOM declarations that can make distinct browser types indistinguishable. Pure logic can remain Node-owned even inside a UI package. Do not classify every test by package directory or maintain per-component exceptions.
 
@@ -36,6 +37,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 - Native compiler membership reports distinguish authored roots, imported closures and intended ownership. Merely appearing in some import closure does not prove that a test has the correct compiler owner.
 - Native Vitest and Playwright collection is the execution oracle. Reconciliation must detect unclaimed tests, duplicate claims and empty views; duplicating config globs in the checker is not independent proof.
 - Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
+- Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/_shared/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
 
 The type-world program owns the migration to these rules. Its remaining target-ownership checks must not be described as enforced until their planted controls pass through the real verification path.
 
@@ -272,6 +274,6 @@ gate requires a fresh calibration run, because `break` is bound to the measured 
 
 - The fixture is the composed *production* wiring with the model scripted — tests exercise the real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.
 - **`isolate: true` for all Node projects** (the Vitest default): each test file receives a fresh module graph. Root mock/global/environment cleanup remains inherited by every project. Database integration fixtures own their in-memory databases; resource isolation is what makes parallel execution correct.
-- Fix shared paths, ports and fixture cleanup before using serialization as a permanent classification. The remaining `SERIAL_INT_PRODUCT` and `SERIAL_INT_TOOLING` assignments live in `vitest.config.ts` while their current resource requirements are revalidated. The dependency-cruiser battery now uses an isolated scratch corpus. The former separate browser-drive shard is retired: its appearance/theme suites assert structural state and pass concurrently in tooling.
+- Repository-resource tests declare that requirement through their registered kind rather than a hand-maintained filename roster. `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the ordinary groups. Other integration tests remain parallel under the shared capacity profile. The dependency-cruiser battery uses an isolated scratch corpus. The former separate browser-drive shard is retired: its appearance/theme suites assert structural state and pass concurrently in tooling.
 - **Timeout scaling and measurement validity differ.** `scaledBudget` stretches completion deadlines. `labelRateLoad` records a measured arm as `load-suspect` when contention prevents judging its threshold; the measurement still runs and its number remains available. The supervisor surfaces the task metadata. A wider deadline cannot make a dropped-frame percentage valid, and a browser dependency alone does not make an assertion a measured-rate test.
 - Determinism is a *correctness* property: the frozen clock is what makes the rolling-pair breakpoint and memory-recall ordering assertions stable turn-to-turn.

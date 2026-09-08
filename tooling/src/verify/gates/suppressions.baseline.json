@@ -1287,7 +1287,7 @@
     "why": "ratified by rule: @ts-expect-error×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/tooling/check-gates.int.test.ts": {
+  "tests/tooling/check-gates.repo.int.test.ts": {
     "count": 4,
     "ratified": 3,
     "why": "ratified by rule: lint/correctness/noProcessGlobal×1 (ruling), lint/style/noProcessEnv×1 (ruling), lint/style/useNamingConvention×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts) · burnable debt: lint/nursery/noUnnecessaryTemplateExpression×1 — no RATIFIED_RULES entry, so these are still a live population",

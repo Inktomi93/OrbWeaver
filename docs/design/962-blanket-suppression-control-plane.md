@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-02
+updated: 2026-09-08
 ---
 
 # #962 — file-wide lint suppression made structurally unavailable
@@ -131,7 +131,7 @@ the precedents, and the cell + `contract/gate.ts`'s comment are updated to name 
   / mid-file / category / `@ts-nocheck` / unclosed eslint block / unclosed start / mismatched start-end
   rule keys / a whole-file closed range), at `packages/`, `tests/`, `tooling/src`, `scripts` paths;
   `mustPass` per sanctioned shape and per declared limit.
-- The permanent pin `tests/tooling/verify/gates/no-blanket-suppression.int.test.ts`, red-first against a
+- The permanent pin `tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts`, red-first against a
   fixture tree: CSS/JS/JSON blankets RED with `file:line`; a biome-ignored path is a declared skip; the
   INDEX control — commit clean, stage a blob carrying a blanket, rewrite the working file clean, run →
   RED naming the staged path and "the working tree does not carry it"; its two twins (staged clean +

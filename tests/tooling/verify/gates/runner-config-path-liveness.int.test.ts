@@ -7,7 +7,7 @@
 //
 // Conformance proves the matcher against synthetic mini-projects; THIS proves the promise against the REAL
 // configs and against planted controls in BOTH directions, so the lie cannot be reintroduced. The
-// load-bearing arm is EXECUTED CONFIG COVERAGE: SERIAL_INT and the kind globs are derived through imports,
+// load-bearing arm is EXECUTED CONFIG COVERAGE: named arrays and kind globs are derived through imports,
 // calls and spreads, so the gate drives Vitest's public native loader through config-snapshot and asserts
 // the resulting denominator rather than teaching a partial AST interpreter more syntax.
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -177,10 +177,10 @@ describe("runner-config-path-liveness — Vitest exact includes select files", (
   });
 });
 
-describe("runner-config-path-liveness — the SERIAL_INT shape a StringLiteral-only reader would miss", () => {
+describe("runner-config-path-liveness — named-array spreads a StringLiteral-only reader would miss", () => {
   test("a dead path behind a named const SPREAD into two projects reds ONCE PER SITE", ({ scratch }) => {
-    // The founding shape: SERIAL_INT is spread into `integration`'s exclude AND `integration-serial`'s
-    // include, so a rename must repoint both — the gate names both sites.
+    // A named array is spread into one execution group's exclude and another's include, so a rename must
+    // repoint both — the gate names both sites.
     plantConfigs(
       scratch,
       `const SERIAL = ["${DEAD_REL}", "${LIVE_REL}"];\n` +
@@ -235,12 +235,12 @@ describe("runner-config-path-liveness — the REAL tree", () => {
     const run = runGate(repoRoot);
     const declared = run.declarations[0];
     expect(declared?.unit).toBe("runner path row");
-    // THE DENOMINATOR IS THE RECEIPT: SERIAL_INT hides behind a const spread, so a low candidate count
+    // THE DENOMINATOR IS THE RECEIPT: kind globs hide behind imports and calls, so a low candidate count
     // would mean the reader went blind even though the verdict looks green.
     expect(declared?.candidates ?? 0).toBeGreaterThanOrEqual(ANCHOR);
-    // Every SERIAL_INT member appears TWICE (the include and the exclude), so the exact-row count is
-    // comfortably above the list length — a collapse to a handful is the classifier rotting.
-    expect(declared?.scanned ?? 0).toBeGreaterThan(ANCHOR);
+    // The current exact selectors are Playwright testDir/globalSetup rows; repository-resource selection
+    // is registry-derived globs, so an exact-row roster is deliberately absent.
+    expect(declared?.scanned ?? 0).toBeGreaterThan(0);
     expect(run.findings).toEqual([]);
   });
 });

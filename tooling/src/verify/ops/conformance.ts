@@ -20,7 +20,7 @@ import type { PassResult } from "../contract/pass.ts";
 import type { ConformanceFailure } from "../contract/scoped.ts";
 import { runPass } from "../lib/pass.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-conformance.int.test.ts");
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-conformance.repo.int.test.ts");
 
 const VROOT = "/repo";
 
@@ -57,7 +57,7 @@ let exampleSeq = 0;
  *  query — substrate, not any gate's logic (gate-free control: fresh project + one `.getType()` = 104.43ms;
  *  the SECOND query on the same project = 0.053ms; a pure AST walk = 0.17ms). Reusing one Project pays that
  *  once. Measured across the whole in-memory corpus: 20.6s → 3.3s; on the standing bite-proof
- *  (`tests/tooling/gate-conformance.int.test.ts`, same box, back-to-back, loadavg ~22): 27.6s → 7.9s.
+ *  (`tests/tooling/gate-conformance.repo.int.test.ts`, same box, back-to-back, loadavg ~22): 27.6s → 7.9s.
  *
  *  THE UNIQUE ROOT IS THE CORRECTNESS HALF, not tidiness. Removing the previous example's files and
  *  re-creating the NEXT one at the SAME virtual path corrupts the language service: a re-created SourceFile

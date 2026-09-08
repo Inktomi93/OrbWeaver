@@ -11,8 +11,8 @@
 //
 // EVIDENCE SOURCE, NOT RE-IMPLEMENTATION: rather than hand-parsing each config's glob strings (which drifts
 // the instant a config changes — the exact disease this stage exists to prevent), it asks each runner its
-// OWN `--list` view: `vitest list --filesOnly --json` (every project in one call — unit/integration/
-// integration-serial/tooling/tooling-serial/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
+// OWN `--list` view: `vitest list --filesOnly --json` (every execution group in one call — unit/
+// integration/repository/tooling/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
 // (e2e; run with `E2E_LIVE=1` so the `@live`-gated specs, which the runner reaches structurally but skips by
 // grep at routine-run time, still count as "reachable" — a grep filter is a SELECTION policy, not a
 // membership question), and the same `--list` against `playwright-ct.config.ts` (CT). Each `--list` also
@@ -24,7 +24,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
+import { classifyTestFilename, TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "@orb/tooling/_shared/test-kinds";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:tests-execution-membership");
 
@@ -40,21 +40,20 @@ type RunnerFiles = { readonly files: ReadonlySet<string> } | { readonly error: s
 // is deliberately excluded: its `test.include` is `[]` (typecheck-ONLY via `typecheck.include`, no runtime
 // pass — see the config's own comment on that project) — so a `.test-d.ts` file listed under `types` is not
 // a second EXECUTOR of anything, and must not count toward the "claimed by two runtime views" direction
-// below. The runtime projects (unit/integration/integration-serial/tooling-serial/contract/tooling)
-// all run real assertions. `tooling` is the instrument battery, split out of unit+integration by #1523;
-// `tooling-serial` is its CONTENTION half, split out of `integration-serial` by #1842 when the battery
-// left `verify --push` entirely. Membership here is what keeps those splits from silently orphaning a
+// below. The runtime execution groups (unit/integration/repository/contract/tooling) all run real
+// assertions. `tooling` is the instrument battery, split out of unit+integration by #1523; `repository`
+// is the resource-owning half that runs after normal groups. Membership here keeps those splits from silently orphaning a
 // file: a project name missing from this set makes every file it owns read as UNRUN.
-const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set(["unit", "integration", "integration-serial", "tooling-serial", "contract", "tooling"]);
+const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set([...VITEST_RUNTIME_FAMILY_GROUPS, ...TEST_RESOURCE_NAMES, "tooling"]);
 
 /** The vitest projects that run NO runtime pass (`test.include: []`, typecheck-only via
  *  `typecheck.include`) — the #1313 `.test-d.ts` split. Named, rather than "anything not in the runtime
  *  set", because the two sets TOGETHER are this stage's claim to have classified the config. */
-const VITEST_TYPECHECK_PROJECTS: ReadonlySet<string> = new Set(["types-node", "types-browser"]);
+const VITEST_TYPECHECK_PROJECTS: ReadonlySet<string> = new Set(VITEST_TYPECHECK_GROUP_NAMES);
 
 /** Project names `vitest list` reported that this stage classifies as NEITHER runtime nor typecheck-only.
  *
- *  MEASURED FALSE CLEAN (#1842): adding the `tooling-serial` project without adding it to the runtime set
+ *  MEASURED FALSE CLEAN (#1842): adding the repository-resource execution group without adding it to the runtime set
  *  above left this stage GREEN — its ten files still landed in the direction-2 union (that union is every
  *  `--list` row, whatever the project), and direction 3 only reds on TWO OR MORE claims, never on ZERO. So
  *  a whole lane silently vanished from the runtime accounting while the stage printed three ✓ and a
@@ -101,8 +100,8 @@ function enumerateTestFiles(root: string): readonly string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-/** `vitest list --filesOnly --json` — every node project (unit/integration/integration-serial/tooling/
- *  tooling-serial/contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
+/** `vitest list --filesOnly --json` — every Node execution group (unit/integration/repository/tooling/
+ *  contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
  *  (measured live) makes `list` enumerate every individual TEST CASE across the whole tree instead of one
  *  row per file, pushing a sub-2s call past a 3-minute timeout; each row still carries `projectName`, so
  *  direction 3 below loses nothing by keeping the flag. Absolute paths; normalized to repo-relative posix. */

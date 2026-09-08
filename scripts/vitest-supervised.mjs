@@ -6,7 +6,7 @@
 // `Pool.run()` does `await testFinish.promise` (node_modules/vitest/dist/chunks/cli-api.*.js — `Pool.run`),
 // and that resolver is settled ONLY by a worker's `testfileFinished` message or by a runner error/exit
 // event. There is a `WORKER_START_TIMEOUT` for starting a worker but NO timeout once a file is running
-// (deliberate — this repo's `tests/tooling/ast/cli.int.test.ts` rows carry explicit 120s/300s budgets). The CLI is
+// (deliberate — this repo's `tests/tooling/ast/cli.repo.int.test.ts` rows carry explicit 120s/300s budgets). The CLI is
 // `const ctx = await startVitest(...); if (!ctx.shouldKeepServer()) await ctx.exit()`, so vitest's OWN
 // safety net — the unref'd `teardownTimeout` force-exit armed inside `ctx.exit()` — is only reached AFTER
 // the run promise resolves. A worker that dies (or whose IPC breaks) without settling its task resolver
@@ -37,7 +37,7 @@
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
 //      gap, the 120s `ast-observability` serial rows". That sentence was wrong TWICE, and it made this
 //      watchdog the primary defect it was written to fix. (i) It cited a file that has not existed since
-//      8931a886c; the suite is `tests/tooling/ast/cli.int.test.ts`, and 120s is its PER-ROW spawn budget
+//      8931a886c; the suite is `tests/tooling/ast/cli.repo.int.test.ts`, and 120s is its PER-ROW spawn budget
 //      (300s for the two typed whole-workspace rows), not the file's cost. (ii) vitest's default reporter
 //      prints NOTHING while a single file runs, so the quiet gap is the WHOLE FILE. A live capture of an
 //      unsupervised battery caught the parent silent in `ep_poll` for 7+ minutes with one idle worker fork
@@ -107,6 +107,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, isAbsolute, join, relative } from "node:path";
 import process from "node:process";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
+import { VITEST_RUNTIME_ONLY_GROUP_FILTER } from "@orb/tooling/_shared/test-kinds";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -127,6 +128,7 @@ const DEFAULT_HARD_CEILING_MS = 1_800_000;
  *  · 3 misuse. A run whose LAST attempt had to be KILLED never finished, so its number is 2 — see the
  *  "A CONTAINED WEDGE IS A TOOL ERROR" note in the header. */
 const EXIT_TOOL_ERROR = 2;
+const RUNTIME_ONLY_FLAG = "--runtime-only";
 
 const root = process.cwd();
 /** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
@@ -201,8 +203,13 @@ function parseArgs() {
   const projects = [];
   const baseArgs = [];
   let report = null;
+  let runtimeOnly = false;
   for (let i = 0; i < vitestArgs.length; i += 1) {
     const a = vitestArgs[i];
+    if (a === RUNTIME_ONLY_FLAG) {
+      runtimeOnly = true;
+      continue;
+    }
     const projectEq = a.match(PROJECT_RE);
     if (projectEq) {
       projects.push(projectEq[1]);
@@ -224,6 +231,9 @@ function parseArgs() {
       continue;
     }
     baseArgs.push(a);
+  }
+  if (runtimeOnly) {
+    baseArgs.push(`--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`);
   }
   return { projects, baseArgs, report: report ?? reportsPath(root, REPORT_NAME) };
 }

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-05
+updated: 2026-09-08
 ---
 
 # 1208 — the instrument substrate: stateful sessions, per-lane stages, one grammar, arms
@@ -394,7 +394,7 @@ Inventory (receipts):
 | `tests/tooling/_shared/browser.int.test.ts` | vitest's 5 s default test timeout for the parallel integration lane (`vitest.config.ts:260` sets 30 s only for the serial project); the suite's own children at 30 s (`:47`) and 5 s (`:231`) | 5 timeouts at loadavg 41 on 2026-09-02 — generic reds, no load receipt |
 | Playwright CT | `expect`/`expect.poll` 5 s and the 30 s test timeout are Playwright defaults (`playwright-ct.config.ts` pins neither; workers pinned at `:41`) | every test times out at `mount()` at loadavg 170 with zero signal (`.claude/rules/browser-and-instruments.md`) |
 | `tests/ui/variant-arm-parity.suite.test.ts:103` | fixed `{ timeout: 30_000 }` | the same class, one file |
-| `tests/tooling/gate-ignore-grammar.int.test.ts:154` | fixed 300 s `beforeAll` hook (\~60 s quiet) | 470–485 s at load 40+ with five lanes live — red on both sides of any change (#1174) |
+| `tests/tooling/gate-ignore-grammar.repo.int.test.ts:154` | fixed 300 s `beforeAll` hook (\~60 s quiet) | 470–485 s at load 40+ with five lanes live — red on both sides of any change (#1174) |
 | `tests/tooling/ui-audit/**` CLI int tests | fixed child budgets, no withhold | different tests exit 2 each run at `--maxWorkers=4` and `=2`, clean standalone (#1222) |
 | the motion-audit CLI suite (deleted at #1315), lines 136,161 | `withholdMeasurement` (now `labelRateLoad`) on the in-budget twin AND the mobile arm (landed after #1040; the brief's "mobile arm lacks it" premise is stale at this tip) | withholds with the loadavg receipt — the shape the rest lacks |
 | `tests/tooling/_load-budget.ts` | THE existing mechanism: `computeLoadFactor` (per-core 1-min loadavg, cap 8), `scaledBudget`, `judgeMeasurementLoad`/`labelRateLoad` (`ORB-LOAD-SUSPECT`; both were `withholdMeasurement`/`ORB-LOAD-WITHHOLD` until #1616), `runNodeWithBudget`/`spawnNodeWithBudget` (`ORB-LOAD-KILL`), `isTimeoutKill` (both node kill shapes); the supervisor counts load-suspect arms per shard (`scripts/vitest-supervised.mjs`) | correct, but TEST-ONLY: 11 suites import it; no instrument, no daemon, no CT config, no launcher reads it |
@@ -1462,16 +1462,16 @@ length is a function of THIS run's own arms and findings. The two run-identity l
 `PROVENANCE` — are EXCLUDED, because their length is a function of how many OTHER snap runs happen to be
 live on this checkout: the racing census names each sibling's run id, pid and start time in both lines.
 That is a property of the box, not of snap's output. Measured (#1675): co-scheduled with
-`design-audit.suite`, an otherwise 8/8-green run gained ~230 bytes of census and the budget arm read
+`design-audit.suite`, an otherwise 8/8-green run gained \~230 bytes of census and the budget arm read
 4204/4096 — a green contract turned red by scheduling alone. Reproduced deterministically 2026-09-05 by
-planting one `.inflight` marker naming the test's own pid: 4154 bytes whole, ~3.9 KB in the body.
+planting one `.inflight` marker naming the test's own pid: 4154 bytes whole, \~3.9 KB in the body.
 
 **Excluded is not unmeasured.** The same arm asserts that the plant reached the census (both lines really
 are carrying it), that the exclusion removes EXACTLY those two lines and nothing else (byte arithmetic
 against the removed lines), and that both lines are present at all — so the budget cannot be widened later
 by relabelling a body line as provenance, and a run that stopped stating its provenance goes red.
 
-**The RESULT line is inside the body and is the thing that will break next.** It is one line of ~40
+**The RESULT line is inside the body and is the thing that will break next.** It is one line of \~40
 `key=value` pairs, one per arm-owned result pair; the fold added 38 bytes and #1538 another 22, leaving
 roughly 200 bytes of headroom on a quiet box. The deliberate decision: **the budget does not move, and the
 RESULT line does not grow without paying for it.** An arm that adds a pair either replaces one, or the arm
@@ -1481,7 +1481,7 @@ paragraph the reader can expand through `--report`). Raising 4096 is not a fix: 
 truncation the budget exists to prevent, one Bash call later.
 
 **What a load-suspect run does NOT do to the budget.** Under #1616 a contended box LABELS rather than
-withholds, and the run-global annotation's ~600-byte reason paragraph IS body — it is about this run. The
+withholds, and the run-global annotation's \~600-byte reason paragraph IS body — it is about this run. The
 suite therefore plants a QUIET box (`BOX_LOAD_ENV`) for every child rather than excusing the bytes: the
 output contract is judged on a quiet box, and the loaded-box arm that needs the annotation asserts its
 NAMING, not its size.

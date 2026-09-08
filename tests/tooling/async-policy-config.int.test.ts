@@ -17,7 +17,7 @@ test("async policy: raw void cannot own a rejecting Promise while await/catch/su
   // ts-morph load: `addSourceFilesAtPaths` walks descendants, and a dir that vanishes mid-walk throws
   // "Directory not found". Measured on a full `verify --push`, that one race produced two unrelated-looking
   // reds — the in-process census in `_shared/entrypoint.int.test.ts` and the spawned `pnpm ast` child in
-  // `ast/cli.int.test.ts`, whose empty stdout then read as a lens that found nothing.
+  // `ast/cli.repo.int.test.ts`, whose empty stdout then read as a lens that found nothing.
   //
   // Churn harness, same rate, three arms: vanishing DIRECTORY 16 fail/19; a `!…/async-policy-fixture-*/**`
   // glob exclusion 14 fail/18 (ts-morph enumerates directories BEFORE applying negative patterns, so an

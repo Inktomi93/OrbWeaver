@@ -355,10 +355,9 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 
 The behavioral suites are ONE `tests` concept expressed as stages with tier + scope, not a folklore list:
 
-- **`tests:tooling`** (tier `full` only) runs the complete instrument battery through the parallel `tooling` project and the remaining `tooling-serial` project. Native configuration owns their populations; `tests:execution-membership` reconciles collection. The former browser-drive shard is retired after its two structural suites passed concurrent execution. Measured-rate metadata remains available independently of project membership.
+- **`tests:tooling`** (tier `full` only) runs the complete instrument battery through the native Vitest execution groups. `tooling/src/_shared/test-kinds.ts` owns test-kind and repository-resource registration; `vitest.config.ts` derives group selectors from it rather than maintaining a filename roster. Normal execution groups use `sequence.groupOrder: 0`; the `repository` group uses order 1 and `fileParallelism: false`, so repository-resource files run afterward and serially within that group. `tests:execution-membership` reconciles collection. The former browser-drive shard is retired after its two structural suites passed concurrent execution. Measured-rate metadata remains available independently of group membership. Vitest's API calls these execution groups projects; they are unrelated to pnpm workspace packages.
 - **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test:node` = the PRODUCT vitest projects
-  (`unit`/`integration`/`integration-serial`/`contract`; since #1523 NOT `tooling`, and since #1842 not
-  `tooling-serial` either). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
+  (`unit`/`integration`/`repository`/`contract`; since #1523 NOT `tooling`). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
   2026-07-17, and the merged stage's ONE 45-minute hang ceiling stopped covering the pair once #1835 put CT
   on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
   QUIET box for a stage that was still working, which under the exit contract means the run is not a
@@ -390,7 +389,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   `reports/test-report.json` contract) and tees each shard's output. **The kill signal is absence of
   PROGRESS, not silence** — a truth repair paid for on 2026-09-01, when the old silence-only rule was
   measured to be the PRIMARY defect: vitest's default reporter prints nothing while a single file runs, and
-  `tests/tooling/ast/cli.int.test.ts` (every row spawns the real `pnpm ast` CLI over the whole ts-morph
+  `tests/tooling/ast/cli.repo.int.test.ts` (every row spawns the real `pnpm ast` CLI over the whole ts-morph
   workspace, on 120s/300s budgets) held a healthy battery silent for 7+ minutes with a grandchild burning
   \~4.5 cores; that run finished naturally 36 minutes later having spent 1,057,996 ms inside that one file.
   So the watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on each
@@ -399,8 +398,8 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   tree burned no CPU across that window — which is precisely the true wedge, every process idle in
   `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling, and it
   runs on its OWN clock: CPU progress pushes the no-CPU timer forward but never the ceiling's, or a busy
-  tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s serial-lane row (then one list, split into
-  `SERIAL_INT_PRODUCT` + `SERIAL_INT_TOOLING` by #1842)
+  tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s now-retired serial-lane row (then one list, split into
+  the now-retired ~~`SERIAL_INT_PRODUCT`~~ + ~~`SERIAL_INT_TOOLING`~~ registries by #1842)
   for that suite still spelling its pre-`8931a886c` path, so the heaviest whole-workspace file had been
   running in the PARALLEL lane — repointed in the same commit.) Before
   the kill it writes `<run slot>/test-wedge-<project>-attempt<n>-<ts>.txt` (§3.3b — the shards, the merged

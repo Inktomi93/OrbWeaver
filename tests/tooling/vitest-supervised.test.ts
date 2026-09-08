@@ -29,6 +29,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { VITEST_RUNTIME_ONLY_GROUP_FILTER } from "@orb/tooling/_shared/test-kinds";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -59,6 +60,8 @@ for (let i = 0; i < args.length; i += 1) {
 }
 if (process.env.FAKE_PID_FILE) writeFileSync(process.env.FAKE_PID_FILE, String(process.pid));
 if (process.env.FAKE_SPAWN_LOG) appendFileSync(process.env.FAKE_SPAWN_LOG, project + "\\n");
+if (process.env.FAKE_ARGS_LOG) writeFileSync(process.env.FAKE_ARGS_LOG, JSON.stringify(args));
+if (args.some((arg) => arg.startsWith("--runtime-only"))) process.exit(1);
 // FAKE_WEDGE_ONCE names a project that wedges on its FIRST spawn and passes on its second — the #1012
 // retry arm. The attempt counter is the spawn log, so the fake needs no state of its own.
 if (process.env.FAKE_WEDGE_ONCE === project) {
@@ -117,6 +120,10 @@ interface SupervisorOptions {
   readonly busyMs?: string;
   /** The absolute silence ceiling — the backstop that fires even while the tree is still burning CPU. */
   readonly hangMaxMs?: string;
+  /** Captures the argv received by the fake Vitest child. */
+  readonly argsLog?: string;
+  /** Additional wrapper argv, used by argument-translation controls. */
+  readonly extraArgs?: readonly string[];
 }
 
 function runSupervisor(options: SupervisorOptions): Promise<RunResult> {
@@ -142,7 +149,16 @@ function runSupervisor(options: SupervisorOptions): Promise<RunResult> {
   if (options.hangMaxMs !== undefined) {
     env["ORB_TEST_HANG_MAX_MS"] = options.hangMaxMs;
   }
-  const args = [SUPERVISOR, "run", ...(options.projects ?? []).flatMap((p) => ["--project", p]), `--outputFile.json=${options.reportFile}`];
+  if (options.argsLog !== undefined) {
+    env["FAKE_ARGS_LOG"] = options.argsLog;
+  }
+  const args = [
+    SUPERVISOR,
+    "run",
+    ...(options.projects ?? []).flatMap((p) => ["--project", p]),
+    ...(options.extraArgs ?? []),
+    `--outputFile.json=${options.reportFile}`,
+  ];
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, { cwd: options.cwd ?? dir, env, stdio: "ignore" });
     child.on("exit", (code, signal) => resolve({ code, signal }));
@@ -192,6 +208,33 @@ test("mirrors a clean child's exit 0", { timeout: scaledBudget(15_000) }, async 
 test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "exit1", reportFile: join(dir, "r1.json") });
   expect(res.code).toBe(1);
+});
+
+test("translates --runtime-only into the canonical native project filter before spawning Vitest", { timeout: scaledBudget(15_000) }, async () => {
+  const argsLog = join(dir, "runtime-only-args.json");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(dir, "runtime-only.json"),
+    argsLog,
+    extraArgs: ["--runtime-only", "tests/product"],
+  });
+  expect(res.code).toBe(0);
+  const childArgs = readJson<readonly string[]>(argsLog);
+  expect(childArgs).toContain(`--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`);
+  expect(childArgs).toContain("tests/product");
+  expect(childArgs).not.toContain("--runtime-only");
+});
+
+test("leaves malformed --runtime-only forms for Vitest to reject", { timeout: scaledBudget(15_000) }, async () => {
+  const argsLog = join(dir, "malformed-runtime-only-args.json");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(dir, "malformed-runtime-only.json"),
+    argsLog,
+    extraArgs: ["--runtime-only=true"],
+  });
+  expect(res.code).toBe(1);
+  expect(readJson<readonly string[]>(argsLog)).toContain("--runtime-only=true");
 });
 
 test("kills a wedged child that wrote a COMPLETE pass and reports exit 2 — TOOL ERROR, never 0 (#1490)", { timeout: scaledBudget(15_000) }, async () => {

@@ -23,7 +23,7 @@
 // "harnessGlobs never loads those files" — was FALSE: harnessGlobs has carried `scripts/**` since the
 // @orb/tooling widening. The boundary survives; its reason is scanRoot, not the fileset); the OVER-EXEMPT arm is NOT conformance-provable (conformance runs
 // ONE gate standalone, so no sibling gate can ever consume a marker in a mini-project) and is proven
-// instead by the real-tree probe in tests/tooling/gate-ignore-grammar.int.test.ts (both roots). Registered
+// instead by the real-tree probe in tests/tooling/gate-ignore-grammar.repo.int.test.ts (both roots). Registered
 // names come from each gate file's FILENAME, not a `name:` literal scan — the loader hard-enforces
 // `descriptor.name === filename`, so the filename is the only source that cannot drift (a gate file can
 // contain other `name:` literals in its own internal config, e.g. no-parallel-section-map.ts's `SectionId`
@@ -279,7 +279,7 @@ export const gate: GateDescriptor = {
         "tooling/src/verify/gates/real-gate.ts": 'export const gate = { name: "real-gate" };\n',
         "tests/tooling/x.ts": 'export const fixture = "// @orb-gate-ignore no-such-gate\\nexport const x = 1;\\n";\n',
       },
-      why: "DECLARED LIMIT: a marker spelled inside a STRING LITERAL is a fixture/doc mention, not a suppression — check-gates.int.test.ts's own gate-ignore fixture is exactly this shape and must not self-flag",
+      why: "DECLARED LIMIT: a marker spelled inside a STRING LITERAL is a fixture/doc mention, not a suppression — check-gates.repo.int.test.ts's own gate-ignore fixture is exactly this shape and must not self-flag",
     },
     {
       files: {

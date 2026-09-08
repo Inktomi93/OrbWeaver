@@ -5,7 +5,7 @@
 // 8931a886c and vitest.config.ts's SERIAL_INT row was not repointed, so the row matched NOTHING for months
 // and the heaviest file in the repo (17.6 min) ran in the PARALLEL lane — the load bomb that row exists to
 // prevent. This is eslint-grant-liveness's shape (GATE-AUTHORING.md §4.4 mode B) on the RUNNER configs,
-// which are CODE: SERIAL_INT and kind globs hide behind imports, calls and spreads, so a bare-StringLiteral
+// which are CODE: kind globs and named selector arrays hide behind imports, calls and spreads, so a bare-StringLiteral
 // reader finds almost nothing. Vitest crosses its public native loader through config-snapshot; the two
 // still-literal Playwright configs use lib/config-static-read.ts and fail loud on unreadable syntax. Arms:
 // DEAD · MISSING-CONFIG ·
@@ -29,8 +29,8 @@ import { extractRows, readConfigSource } from "../lib/config-static-read.ts";
 import type { ExactRow, GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
 import { isFileExact, livenessFindings } from "../lib/grant-liveness.ts";
 
-/** Every runner config carrying a file-SELECTION list. The primary (findings with no config of their own
- *  anchor here) is the vitest config — the one that owns SERIAL_INT. */
+/** Every runner config carrying a file-SELECTION list. Findings with no config of their own anchor on the
+ *  primary Vitest config. */
 const VITEST_REL = "vitest.config.ts";
 const E2E_REL = "playwright.config.ts";
 const CT_REL = "playwright-ct.config.ts";
@@ -85,7 +85,7 @@ const MSG_UNREADABLE =
 
 const MSG_NO_ROWS =
   "the test-runner configs parsed but ZERO file-exact rows were derived from an anchor-sized value set — the " +
-  "glob/exact classifier has rotted past every row (SERIAL_INT alone carries dozens), so this gate is BLIND " +
+  "glob/exact classifier has rotted past every exact testDir/globalSetup row, so this gate is BLIND " +
   "and its ✓ means nothing (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Re-derive the classifier in " +
   "tooling/src/verify/gates/runner-config-path-liveness.ts.";
 
@@ -298,9 +298,8 @@ export const gate: GateDescriptor = {
   message: MESSAGES.dead,
   fix:
     "re-point the row at the file's new path (a rename is a COUPLED SITE: the runner config moves with the " +
-    "file), or delete it if the file is gone. For vitest.config.ts's SERIAL_INT the path appears TWICE by " +
-    "construction — the `integration` project excludes it and `integration-serial` includes it — so both " +
-    "copies come from the one const. If a path is legitimately absent on a clean checkout, add a row to " +
+    "file), or delete it if the file is gone. A named const may spread the same path into several execution " +
+    "groups, so repair every reported site. If a path is legitimately absent on a clean checkout, add a row to " +
     "EXEMPT in tooling/src/verify/gates/runner-config-path-liveness.ts with its `why` + END CONDITION and " +
     "the `cite` that proves it.",
   run: (ctx) => {
@@ -338,7 +337,7 @@ export const gate: GateDescriptor = {
         { [LIVE_REL]: LIVE_SOURCE },
       ),
       expect: { count: 2, token: DEAD_REL },
-      why: "THE SERIAL_INT CASE: the dead path hides behind a named const SPREAD into two projects — invisible to a bare-StringLiteral reader — and it reds ONCE PER SITE, because a rename must repoint both the include and the exclude",
+      why: "the dead path hides behind a named const SPREAD into two execution groups — invisible to a bare-StringLiteral reader — and it reds ONCE PER SITE, because a rename must repoint both the include and the exclude",
     },
     {
       files: configs("export default { test: { include: [resolvePaths()] } };\n"),

@@ -1,5 +1,5 @@
 // The FINDING-ARM half of the `@orb-gate-ignore` suppressor (issue #828). The node arm's grammar is proven
-// by gate-conformance and its CONSUMPTION verdicts by tests/tooling/gate-ignore-grammar.int.test.ts; this
+// by gate-conformance and its CONSUMPTION verdicts by tests/tooling/gate-ignore-grammar.repo.int.test.ts; this
 // pins the arm neither can reach cheaply — a `visitFile` line-scanner reporting through `ctx.report(finding)`,
 // which until #828 bypassed every marker by construction (so `test-determinism` had no per-site escape).
 // The carrier is a SYNTHETIC line-scanner gate driven straight through `runPass` over an in-memory project:

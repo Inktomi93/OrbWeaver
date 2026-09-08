@@ -254,13 +254,14 @@ is active. This is migration evidence, not another runtime gate registry.
 | Browser contracts require the real DOM world | `gates/test-world-browser-contracts.ts`, `verify/lib/browser-contract-reader.ts`, corresponding gate tests and the real InputProps fixture | Canonical browser components, aliases and React DOM contracts reject in Node-intent tests; pure data, ReactNode and genuine Node globals remain legal. Preserve unreadable-origin refusal and migrate the real-corpus proof to the final overlay fixture runtime. |
 | Pass-local semantic reader performance | `verify/lib/pass.ts` and `reference-fact.ts`; 763ddf019 | The existing shared reference cache lasts exactly one dispatcher invocation. Repeated queries reuse it; later invocations cannot reuse stale answers. Compare identical findings and populations as well as timing. |
 | Fresh type verdicts | `scripts/ts7.cjs` and both Vitest type projects; 7d9cd503e / #1892 | Warm baseline, imported ambient change, and restored source produce green/red/green without deleting caches; long and short forced incremental flags cannot bypass the wrapper. |
-| Owned fixture resources | `tests/tooling/check-gates.int.test.ts`, `gate-ignore-grammar.int.test.ts`, and `tests/server/entry/lifecycle.int.test.ts`; #1862 | Concurrent proof instances cannot delete or observe each other's fixtures. Database/assets roots are per instance; any surviving fixed-port restriction remains explicit until repaired. |
+| Owned fixture resources | `tests/tooling/check-gates.repo.int.test.ts`, `gate-ignore-grammar.repo.int.test.ts`, and `tests/server/entry/lifecycle.int.test.ts`; #1862 | Concurrent proof instances cannot delete or observe each other's fixtures. Database/assets roots are per instance. Lifecycle uses an OS-assigned port and independently proves the security and concurrency properties (27126f77e). |
 | Honest abnormal-run artifacts | `tests/tooling/verify/ops/structure.int.test.ts`; #1862 | Kill/OOM controls reach the intended execution state before failure and verify the incomplete-run artifact and exit classification. A startup failure is not equivalent evidence. |
 
 The final runtime may replace an implementation mechanism—for example, virtual overlays replace live-tree
 sentinels—but must retain the behavior and its independent regression proof. Record the successor proof
-when retiring an old harness test. The lifecycle resource and abnormal-run repairs are checkpointed at
-c8ff56723. The owner deferred live-tree gate-fixture redesign/retirement to this program; the two legacy
+when retiring an old harness test. The abnormal-run repair is checkpointed at c8ff56723; the lifecycle
+listener repair landed at 27126f77e with an OS-assigned port and independent security and concurrency
+proofs. The owner deferred live-tree gate-fixture redesign/retirement to this program; the two legacy
 fixture writers still share paths, so this table does not claim they are isolated or safe to parallelize.
 
 ## Acceptance

@@ -1,31 +1,32 @@
+import { TEST_RESOURCE_NAMES, VITEST_RUNTIME_FAMILY_GROUPS, VITEST_TYPECHECK_GROUP_NAMES } from "./tooling/src/_shared/test-kinds.ts";
 import base from "./vitest.config.ts";
 
 // Derive mutation execution from the normal config while preserving its rigor defaults.
 // Every native project must be explicitly kept or excluded with a reason before filtering.
-export const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
+export const RUNTIME_LANES: ReadonlySet<string> = new Set(VITEST_RUNTIME_FAMILY_GROUPS);
 // Every OTHER lane `vitest.config.ts` currently defines, with the reason it does not run under mutation.
 // COUPLED SITE (say so at both ends, per #1340's own hazard note): `vitest.config.ts`'s `test.projects`
 // list is the other half — a lane added there and not added HERE throws at config load (see
 // `assertEveryLaneClassified` below), it does not silently vanish.
 export const DROPPED_LANES = new Map([
-  [
-    "integration-serial",
-    "lifecycle still binds one fixed host port; its database and assets are already private. " +
-      "Serial Vitest execution inside one Stryker worker cannot prevent another worker from binding that port.",
-  ],
-  [
-    "tooling-serial",
-    "repository-fixture writers and coupled corpus readers require exclusive execution until the gate " +
-      "fixture migration. These instrument meta-tests also inspect source that Stryker rewrites in its sandbox.",
-  ],
+  ...TEST_RESOURCE_NAMES.map(
+    (resource) =>
+      [
+        resource,
+        "repository-fixture writers and coupled corpus readers require exclusive execution until the gate " +
+          "fixture migration. These instrument meta-tests also inspect source that Stryker rewrites in its sandbox.",
+      ] as const,
+  ),
   [
     "tooling",
     "the instrument battery (tests/tooling/**, #1523) — same reason `TOOLING_GLOB` excludes it from every " +
       "KEPT lane below: it runs the real tooling over the SOURCE tree, which fails by construction against " +
       "Stryker's mutant-instrumented sandbox copy and would abort the dry run.",
   ],
-  ["types-node", "typecheck-only (vitest.config.ts's `types-node`) — nothing to mutate at runtime, and redundant with Stryker's own TypeScript checker."],
-  ["types-browser", "typecheck-only (vitest.config.ts's `types-browser`, the DOM-having half of the #1313 split) — same reason as `types-node`."],
+  ...VITEST_TYPECHECK_GROUP_NAMES.map(
+    (name) =>
+      [name, `typecheck-only (vitest.config.ts's \`${name}\`) — nothing to mutate at runtime, and redundant with Stryker's own TypeScript checker.`] as const,
+  ),
 ]);
 const TOOLING_GLOB = "tests/tooling/**";
 // GENERATED-FILE FRESHNESS meta-tests: they regenerate a committed generated file and byte-compare it to
