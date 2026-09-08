@@ -3,7 +3,7 @@
 //
 // A gate's conformance rows prove it bites THE SHAPE ITS AUTHOR WROTE. Nothing proved it bites the same
 // semantics written another way — and that is the hole this module closes at the harness level rather than
-// gate by gate: `tests/tooling/gate-conformance.int.test.ts` feeds each twin back through the SAME
+// gate by gate: `tests/tooling/gate-conformance.repo.int.test.ts` feeds each twin back through the SAME
 // `verifyGateProofs` door and requires the gate to stay red.
 //
 //  • BRACKET twin — every `x.foo` in the fixture becomes `x["foo"]`. Same member, different node kind

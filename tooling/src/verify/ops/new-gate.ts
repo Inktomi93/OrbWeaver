@@ -16,7 +16,7 @@ const NAME_TOKEN = "__NAME__";
 const GATES_DIR = "tooling/src/verify/gates";
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 const ENFORCEMENT_DOC = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
-const FIXTURE_TEST = "tests/tooling/check-gates.int.test.ts";
+const FIXTURE_TEST = "tests/tooling/check-gates.repo.int.test.ts";
 
 const TEMPLATE = `// Gate: __NAME__ — <ONE line: what shape is banned and WHY it is a defect, not a preference>.
 // <the ARMS, one line each> · DECLARED LIMITS: <what this reader cannot see — each one owes a mustPass row>.
@@ -173,7 +173,7 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "",
       "  5. verify:",
       "       pnpm check:structure",
-      "       pnpm vitest run tests/tooling/gate-conformance.int.test.ts tests/tooling/check-gates.int.test.ts",
+      "       pnpm vitest run tests/tooling/gate-conformance.repo.int.test.ts tests/tooling/check-gates.repo.int.test.ts",
       "",
       "  6. FIX the live violations it finds, in THIS lane. An allowlist row is for a PERMANENT deliberate",
       "     exemption only (reason + stale arm, both scaffolded above) — never debt parking.",

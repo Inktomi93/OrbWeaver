@@ -5,8 +5,8 @@ test("a package source derives every module-mirrored Vitest kind in stable famil
   expect(mirrorCandidates("packages/server/src/domain/admin/guard.ts")).toEqual([
     "tests/server/domain/admin/guard.dom.test.ts",
     "tests/server/domain/admin/guard.test.ts",
-    "tests/server/domain/admin/guard.test.tsx",
     "tests/server/domain/admin/guard.int.test.ts",
+    "tests/server/domain/admin/guard.repo.int.test.ts",
     "tests/server/domain/admin/guard.contract.test.ts",
   ]);
 });
@@ -21,7 +21,7 @@ test("DOM-capable Vitest mirrors are eligible while suite, type-only, CT, and E2
 });
 
 test("a TSX source only derives registry kinds that declare TSX source compatibility", () => {
-  expect(mirrorCandidates("packages/client/src/app.tsx")).toEqual(["tests/client/app.dom.test.ts", "tests/client/app.test.tsx"]);
+  expect(mirrorCandidates("packages/client/src/app.tsx")).toEqual(["tests/client/app.dom.test.ts"]);
 });
 
 test("a tooling source derives against the tests/tooling mirror", () => {

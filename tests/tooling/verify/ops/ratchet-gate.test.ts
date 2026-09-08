@@ -14,7 +14,7 @@ test("isRatchetShaped: the tooling ratchet/presence/conformance self-tests match
   expect(isRatchetShaped("tests/tooling/chat-component-presence.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/ops/boot-chunk-ratchet.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/ops/ct-unfed-ratchet.test.ts")).toBe(true);
-  expect(isRatchetShaped("tests/tooling/gate-conformance.int.test.ts")).toBe(true);
+  expect(isRatchetShaped("tests/tooling/gate-conformance.repo.int.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/gates/test-presence-client.int.test.ts")).toBe(true);
 });
 
@@ -52,7 +52,7 @@ test("isRatchetShaped: an UNRELATED file that merely CONTAINS 'presence' outside
 });
 
 test("isRatchetShaped: a plain tooling test with no ratchet/presence/conformance in its name does not match", () => {
-  expect(isRatchetShaped("tests/tooling/check-gates.int.test.ts")).toBe(false);
+  expect(isRatchetShaped("tests/tooling/check-gates.repo.int.test.ts")).toBe(false);
   expect(isRatchetShaped("tests/tooling/dependency-cruiser.int.test.ts")).toBe(false);
 });
 
@@ -69,8 +69,8 @@ test("classifyRatchetFiles: EXPLICIT_INCLUDES never fabricates a path absent fro
   expect(included).not.toContain("tests/server/transport/cross-tenant-sweep.suite.int.test.ts");
 });
 
-test("classifyRatchetFiles: check-gates.int.test.ts is excluded WITH a reason, rename-safe against the naming convention", () => {
-  const checkGates = "tests/tooling/check-gates.int.test.ts";
+test("classifyRatchetFiles: check-gates.repo.int.test.ts is excluded WITH a reason, rename-safe against the naming convention", () => {
+  const checkGates = "tests/tooling/check-gates.repo.int.test.ts";
   const { included, excluded } = classifyRatchetFiles([checkGates, "tests/tooling/chat-component-presence.test.ts"]);
   expect(included).not.toContain(checkGates);
   const row = excluded.find((e) => e.path === checkGates);
@@ -78,8 +78,8 @@ test("classifyRatchetFiles: check-gates.int.test.ts is excluded WITH a reason, r
   expect(row?.reason).toContain("concurrency");
 });
 
-test("classifyRatchetFiles: gate-conformance.int.test.ts matches the naming convention but is excluded for budget, WITH a reason", () => {
-  const gateConformance = "tests/tooling/gate-conformance.int.test.ts";
+test("classifyRatchetFiles: gate-conformance.repo.int.test.ts matches the naming convention but is excluded for budget, WITH a reason", () => {
+  const gateConformance = "tests/tooling/gate-conformance.repo.int.test.ts";
   expect(isRatchetShaped(gateConformance)).toBe(true); // matches the convention — this is a DELIBERATE pull-out, not a gap
   const { included, excluded } = classifyRatchetFiles([gateConformance, "tests/tooling/chat-component-presence.test.ts"]);
   expect(included).not.toContain(gateConformance);
@@ -102,7 +102,7 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
     "tests/tooling/workboard/another-new-file.test.ts": "// planted\n",
     "tests/contracts/foo/bar.contract.test.ts": "// planted\n",
     "tests/contracts/foo/bar.suite.test.ts": "// planted, not a .contract.test.ts\n",
-    "tests/tooling/check-gates.int.test.ts": "// planted stand-in for the real excluded file\n",
+    "tests/tooling/check-gates.repo.int.test.ts": "// planted stand-in for the real excluded file\n",
     "tests/tooling/verify/ops/dom-presence.dom.test.ts": "// planted Vitest DOM kind\n",
     "tests/tooling/verify/ops/visual-presence.ct.tsx": "// planted Playwright kind\n",
   });
@@ -115,9 +115,9 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
   expect(included).toContain("tests/contracts/foo/bar.contract.test.ts");
   expect(included).not.toContain("tests/tooling/some-unrelated-tool.test.ts");
   expect(included).not.toContain("tests/contracts/foo/bar.suite.test.ts");
-  expect(included).not.toContain("tests/tooling/check-gates.int.test.ts");
+  expect(included).not.toContain("tests/tooling/check-gates.repo.int.test.ts");
   expect(candidates).toContain("tests/tooling/verify/ops/dom-presence.dom.test.ts");
   expect(candidates).not.toContain("tests/tooling/verify/ops/visual-presence.ct.tsx");
   expect(included).toContain("tests/tooling/verify/ops/dom-presence.dom.test.ts");
-  expect(excluded.map((e) => e.path)).toContain("tests/tooling/check-gates.int.test.ts");
+  expect(excluded.map((e) => e.path)).toContain("tests/tooling/check-gates.repo.int.test.ts");
 });

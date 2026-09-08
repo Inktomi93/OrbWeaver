@@ -5,12 +5,13 @@ import { readFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import process from "node:process";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import vitestConfig from "../../vitest.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const TYPE_PROGRAMS = [
-  { project: "types-node", tsconfig: "tsconfig.json" },
-  { project: "types-browser", tsconfig: "tsconfig.tests-dom.json" },
+  { project: vitestTypecheckGroupName("node"), tsconfig: "tsconfig.json" },
+  { project: vitestTypecheckGroupName("browser"), tsconfig: "tsconfig.tests-dom.json" },
 ] as const;
 const TYPE_CHECKER = "scripts/ts7.cjs";
 const SHOW_CONFIG_MAX_BUFFER = 268_435_456;

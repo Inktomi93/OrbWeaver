@@ -6,7 +6,12 @@ import {
   runtimeForTestFamily,
   TEST_KIND_DEFINITIONS,
   TEST_KIND_SUFFIXES,
+  TEST_RESOURCE_NAMES,
   TYPE_TEST_SUFFIXES,
+  VITEST_RUNTIME_FAMILY_GROUPS,
+  VITEST_RUNTIME_ONLY_GROUP_FILTER,
+  VITEST_TYPECHECK_GROUP_NAMES,
+  vitestTypecheckGroupName,
 } from "@orb/tooling/_shared/test-kinds";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -20,6 +25,10 @@ test("classifies overlapping suffixes by longest match and keeps the source base
     sourceBasename: "shape",
   });
   expect(classifyTestFilename("plain.int.test.ts")?.definition.suffix).toBe(".int.test.ts");
+  expect(classifyTestFilename("corpus.repo.int.test.ts")).toMatchObject({
+    definition: { suffix: ".repo.int.test.ts", family: "integration", compilerWorld: "node", mirror: "module", resource: "repository" },
+    sourceBasename: "corpus",
+  });
 });
 
 test("distinguishes DOM runtime and type kinds from their node-world twins", () => {
@@ -49,6 +58,11 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
   expect(TYPE_TEST_SUFFIXES.every((suffix) => !RUNTIME_TEST_SUFFIXES.includes(suffix))).toBe(true);
   expect(BROWSER_TEST_SUFFIXES).toEqual(expect.arrayContaining([".dom.test.ts", ".dom.test-d.ts", ".ct.tsx", ".spec.ts"]));
   expect(runtimeForTestFamily("integration")).toBe("vitest");
+  expect(TEST_KIND_DEFINITIONS.filter(({ resource }) => resource === "repository").map(({ suffix }) => suffix)).toEqual([".repo.int.test.ts"]);
+  expect(TEST_RESOURCE_NAMES).toEqual(["repository"]);
+  expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
+  expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([vitestTypecheckGroupName("browser"), vitestTypecheckGroupName("node")]);
+  expect(VITEST_RUNTIME_ONLY_GROUP_FILTER).toBe("!types-*");
   expect(runtimeForTestFamily("type")).toBe("vitest-typecheck");
   expect(runtimeForTestFamily("component")).toBe("playwright-ct");
   expect(runtimeForTestFamily("e2e")).toBe("playwright-e2e");

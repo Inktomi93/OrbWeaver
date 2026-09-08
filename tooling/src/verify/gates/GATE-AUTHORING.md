@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # Authoring a structural gate
@@ -195,8 +195,8 @@ nothing-at-all (the worst case) fires.
 | # | Site | What |
 | - | - | - |
 | 1 | `tooling/src/verify/gates/<name>.ts` | the descriptor, with `mustFlag` + `mustPass` (each with a `why`) |
-| 2 | `tests/tooling/check-gates.int.test.ts` `writeFixtures()` | a `__g_` fixture: a minimal REAL-tree violation at the gate's anchor path |
-| 2b | `tests/tooling/check-gates.int.test.ts` `UNFIXTURABLE_GATES` | INSTEAD of 2, with a comment stating WHY no fixture can drive it (whole-corpus ratchets, real-manifest parity). Never fake a fixture |
+| 2 | `tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()` | a `__g_` fixture: a minimal REAL-tree violation at the gate's anchor path |
+| 2b | `tests/tooling/check-gates.repo.int.test.ts` `UNFIXTURABLE_GATES` | INSTEAD of 2, with a comment stating WHY no fixture can drive it (whole-corpus ratchets, real-manifest parity). Never fake a fixture |
 | 3 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | the Layer-3 table row (`\| \`name\` \| what it enforces \|\`) |
 | 4 | same doc, the `(N registered gates)` count line | bump it — `enforcement-registry-parity` reds until doc and loader agree |
 | 5 | `package.json` + `tooling/src/verify/lib/registry.ts` | ONLY if the gate gets its OWN script/tier (like `check:orphan-ratchet`). A normal gate rides `structure:full` and needs neither |
@@ -458,7 +458,7 @@ conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULAR
 
 Where a bare marker could cover two guarded things on one line, case 3 must also prove that ONE bare marker
 across TWO sites reds and names both. Precedents: `brand-in-name-position`, `nullable-column-inequality`,
-and — for the shared `@orb-gate-ignore` marker — `tests/tooling/gate-ignore-grammar.int.test.ts`, which is
+and — for the shared `@orb-gate-ignore` marker — `tests/tooling/gate-ignore-grammar.repo.int.test.ts`, which is
 the probe MADE PERMANENT: it plants the six cases as `__g_` fixtures and runs the REAL gate corpus over the
 REAL workspace. **Prefer that shape.** A one-shot manual probe proves the day it ran; a committed one keeps
 proving. It is also the only substrate that can prove a CONSUMPTION verdict at all: conformance runs ONE
@@ -585,7 +585,7 @@ Run all of these before calling a gate done:
 2. **Plant a REAL violation of the REAL shape** at a real path, watch it RED, remove it. Not a strawman: the
    machine proves the gate self-CONSISTENT, it cannot prove the examples are HONEST. A `mustFlag` that bites
    a toy while the real shape slips through is the failure mode.
-3. `pnpm vitest run tests/tooling/check-gates.int.test.ts tests/tooling/gate-conformance.int.test.ts`.
+3. `pnpm test:scoped tests/tooling/check-gates.repo.int.test.ts tests/tooling/gate-conformance.repo.int.test.ts`.
 4. `pnpm check:structure` — and re-read it after any allowlist edit (stale arms only fire at project scope).
 5. Never git-revert-probe. Never `git stash` / `git checkout <path>` / `git restore`.
 

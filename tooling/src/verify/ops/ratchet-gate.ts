@@ -22,13 +22,13 @@
 //   • `EXCLUDED` — files that WOULD match the convention but are pulled OUT, each with a reason + a measured
 //     wall-clock cost, so an exclusion is an audited decision, never a silent drop.
 //
-// MEASURED (2026-08-24, this tree, `--maxWorkers=4`). WITHOUT `gate-conformance.int.test.ts` (see below):
+// MEASURED (2026-08-24, this tree, `--maxWorkers=4`). WITHOUT `gate-conformance.repo.int.test.ts` (see below):
 // 4 tooling ratchet files, the workboard mirror, 71 contract pins, and the cross-tenant sweep — 87 test
 // files / 990 tests in 36.97s vitest-reported duration (37.7s wall, cold `pnpm test:scoped` invocation).
-// WITH `gate-conformance.int.test.ts` folded in: 56.05s vitest-reported / 67.34s wall through the full
+// WITH `gate-conformance.repo.int.test.ts` folded in: 56.05s vitest-reported / 67.34s wall through the full
 // `pnpm test:ratchets` door (cold node + the barrel import) under SIBLING-LANE CONTENTION — over the
 // sub-minute budget on that run (isolated it measured 22-24s standalone, so the combined total is
-// contention-sensitive, not a fixed cost). `gate-conformance.int.test.ts` is therefore EXCLUDED (below):
+// contention-sensitive, not a fixed cost). `gate-conformance.repo.int.test.ts` is therefore EXCLUDED (below):
 // it is the heaviest single candidate (~20-24s, driving every contract-form gate's mustFlag/mustPass proof
 // over the real registry) and it is ALREADY covered at push-tier — it is an ordinary `.int.test.ts` file
 // under `tests/`, so `pnpm test` (and therefore `pnpm verify --push`) already runs it; dropping it from
@@ -36,7 +36,7 @@
 // cross-tenant sweep stays IN (measured 2.2-9.3s across runs) because it is escape #1's own reproduction,
 // not a discretionary heavy row.
 //
-// `tests/tooling/check-gates.int.test.ts` is NOT a candidate under the naming convention (its basename
+// `tests/tooling/check-gates.repo.int.test.ts` is NOT a candidate under the naming convention (its basename
 // matches none of ratchet/presence/conformance) — it stays out by construction, not because it's listed in
 // `EXCLUDED`. It is listed there anyway, rename-safe: it is NOT concurrency-safe with itself (shared `__g_`
 // fixture paths, `.claude/rules/gates-and-tooling.md`) and stays `check:structure`'s own harness /
@@ -84,18 +84,18 @@ const EXPLICIT_INCLUDES: readonly string[] = [
  *  here still excludes the path even if a future rename would otherwise make it convention-match. */
 const EXCLUDED: readonly RatchetExclusion[] = [
   {
-    path: "tests/tooling/check-gates.int.test.ts",
+    path: "tests/tooling/check-gates.repo.int.test.ts",
     reason:
       "NOT concurrency-safe with itself (shared __g_ fixture paths) — never overlaps a sibling invocation " +
       "or a drain battery. Stays check:structure's own harness / the orchestrator's to run at a train " +
       "(.claude/rules/gates-and-tooling.md).",
   },
   {
-    path: "tests/tooling/gate-conformance.int.test.ts",
+    path: "tests/tooling/gate-conformance.repo.int.test.ts",
     reason:
       "measured 20-24s standalone, the heaviest single candidate — folding it in pushed the aggregate's " +
       "wall time to 67s under sibling-lane contention (over the sub-minute train-gate budget; #667). " +
-      "It is an ordinary .int.test.ts, so pnpm test / pnpm verify --push already run it at push-tier — " +
+      "It is a registered repository-resource integration test, so pnpm test / pnpm verify --push already run it at push-tier — " +
       "excluding it here costs no coverage, only cadence (every-push instead of every-merge).",
   },
 ];

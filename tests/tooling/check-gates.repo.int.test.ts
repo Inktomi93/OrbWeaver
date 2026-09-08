@@ -4,7 +4,7 @@
 // its structural-gate twin. The gate registry is DERIVED from `report.ts`'s own output — the LIVE
 // single-pass run (loadGates → runPass → renderPass); every ACTIVE gate it prints must fire on some
 // fixture, so a new gate added without a fixture FAILS here (anti-drift). This is the live-tree complement
-// to gate-conformance.int.test.ts's synthetic mustFlag/mustPass examples.
+// to gate-conformance.repo.int.test.ts's synthetic mustFlag/mustPass examples.
 //
 // Each fixture is a minimal violation at the path its gate anchors on, all named `__g_*` so cleanup is a
 // single find -prune -rm. We run `check:structure` clean (→ the registry), then with fixtures (→ the
@@ -154,7 +154,7 @@ function writeFixtures(): void {
   // MALFORMED arm stays out of it) naming a gate that isn't registered — the UNREGISTERED arm, which is
   // what this fixture is for. The gate's name-capture regex is `[a-zA-Z0-9-]+` (no underscore), so the
   // fake name is kebab-case, not the `__g_` sentinel form. Every OTHER arm (malformed / stale /
-  // over-exempting) is driven on the real tree by tests/tooling/gate-ignore-grammar.int.test.ts.
+  // over-exempting) is driven on the real tree by tests/tooling/gate-ignore-grammar.repo.int.test.ts.
   fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate: fixture — names a gate that does not exist\nexport const x = 1;\n");
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
