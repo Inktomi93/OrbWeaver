@@ -100,10 +100,10 @@ test("shared fact descriptors are branded, exact, and restricted to entire-popul
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
-  } as never);
+  });
   expect(() => assertGatePolicyDescriptor(policy)).toThrow(/shared facts.*entire population|entire-population/i);
 
-  const duplicate = defineGate({ ...policy, execution: "entire-population", facts: [fact, fact] } as never);
+  const duplicate = defineGate({ ...policy, execution: "entire-population", facts: [fact, fact] });
   expect(() => assertGatePolicyDescriptor(duplicate)).toThrow(/duplicate.*fixture-fact/i);
 });
 

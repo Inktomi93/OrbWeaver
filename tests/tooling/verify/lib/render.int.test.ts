@@ -3,13 +3,55 @@
 // GROUPS by gate → prints the reason (message + fix) ONCE as the group header → lists ALL occurrences
 // beneath as clickable `path:line:col` + the offending token. This pins that grouped shape: reason once,
 // every token under it, distinct columns per token.
-import { Project } from "ts-morph";
-import { gate as noCallerUserIdGate } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
-import { gate as offTokenGate } from "../../../../tooling/src/verify/gates/no-off-token-radius-shadow.ts";
+import { Node, Project, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../../../../tooling/src/verify/index.ts";
 import { renderPass, runPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
+
+const PROOF = { files: "export const fixture = true;\n", why: "test-owned legacy adapter fixture" } as const;
+
+const offTokenGate: GateDescriptor = {
+  name: "no-off-token-radius-shadow",
+  docRow: "test-owned",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: "off-token default-scale radius/shadow utility",
+  fix: "rounded-lg → rounded-card",
+  scanRoot: (path) => path.startsWith("packages/ui/") || path.startsWith("packages/client/"),
+  kinds: [SyntaxKind.StringLiteral],
+  visit: (node, _sourceFile, ctx): void => {
+    if (!Node.isStringLiteral(node)) {
+      return;
+    }
+    for (const token of ["rounded-lg", "shadow-md"]) {
+      const offset = node.getText().indexOf(token);
+      if (offset >= 0) {
+        ctx.report(node, { token, offset });
+      }
+    }
+  },
+  mustFlag: [PROOF],
+  mustPass: [PROOF],
+};
+
+const noCallerUserIdGate: GateDescriptor = {
+  name: "no-caller-user-id",
+  docRow: "test-owned",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: "callerUserId is forbidden",
+  scanRoot: () => true,
+  kinds: [SyntaxKind.Identifier],
+  visit: (node, _sourceFile, ctx): void => {
+    if (Node.isIdentifier(node) && node.getText() === "callerUserId") {
+      ctx.report(node, { token: "callerUserId", offset: 0 });
+    }
+  },
+  mustFlag: [PROOF],
+  mustPass: [PROOF],
+};
 
 function render(files: Readonly<Record<string, string>>, opts?: { readonly zeroScanAlarm: boolean }): string {
   const project = new Project({ useInMemoryFileSystem: true });

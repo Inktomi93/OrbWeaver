@@ -16,6 +16,16 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
     authoredTree: (id) => fact(`authored-tree:${id}`, ["tooling/src/z.ts", "tooling/src/a.ts"], []),
     authoredCss: () => fact("authored-css", ["packages/ui/src/z.css", "packages/client/src/a.css"], []),
     productCss: () => fact("product-css", ["packages/ui/src/theme.css"], []),
+    cssInventory: (request) =>
+      fact(`css-inventory:${request}`, ["packages/ui/src/theme.css"], {
+        files: [{ path: "packages/ui/src/theme.css", text: "", rules: [], atRules: [] }],
+        declarations: [],
+        selectors: [],
+        selectorHooks: [],
+        customPropertyDefinitions: [],
+        customPropertyReferences: [],
+        population: { files: 1, rules: 0, declarations: 0, selectors: 0, selectorHooks: 0, customPropertyDefinitions: 0, customPropertyReferences: 0 },
+      }),
     packageMetadata: (id) =>
       fact(`package:${id}`, [id === "root" ? "package.json" : `${id}/package.json`], {
         id,
