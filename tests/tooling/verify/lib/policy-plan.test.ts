@@ -716,6 +716,7 @@ test.describe("final policy planner", () => {
     if (!planned.ok || planned.plan.mode !== "run") {
       throw new Error("full-roster fixture plan did not resolve");
     }
+    const plan = planned.plan;
     const project = new Project({ useInMemoryFileSystem: true });
     project.createSourceFile(
       "/repo/tooling/src/a.ts",
@@ -744,7 +745,7 @@ test.describe("final policy planner", () => {
     cleanProject.createSourceFile("/repo/tooling/src/b.ts", "export const b = 2;\n");
     const grant = { id: "grant", policyId: reviewed.id, subject: "subject", operation: "read", why: "fixture", endsWhen: "the owner runs" };
     const executeGrants = (reviewedGrants: readonly (typeof grant)[]): ReturnType<typeof executePolicyPlan> =>
-      executePolicyPlan({ root: "/repo", project: cleanProject, corpus, plan: planned.plan, reviewedGrants });
+      executePolicyPlan({ root: "/repo", project: cleanProject, corpus, plan, reviewedGrants });
 
     expect(executeGrants([{ ...grant, policyId: "missing-policy" }])).toMatchObject({
       ok: true,

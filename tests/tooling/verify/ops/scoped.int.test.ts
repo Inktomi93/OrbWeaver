@@ -16,16 +16,51 @@
 // The "full run" oracle here is `runPass` over the SAME in-memory project with scope=project — the exact
 // path `pnpm check:structure` drives — so the scoped verdict is proven against the real full verdict, not
 // a hand-rolled expectation.
-import { Project } from "ts-morph";
-import { gate as busProducerCoverageGate } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
-import { gate as noCallerUserIdGate } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { Node, Project, SyntaxKind } from "ts-morph";
 import { gate as noManualMemoGate } from "../../../../tooling/src/verify/gates/no-manual-memo.ts";
-import type { GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
+import type { GateDescriptor, GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
 import { runPass, runScopedPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/repo";
+const PROOF = { files: "export const fixture = true;\n", why: "test-owned legacy adapter fixture" } as const;
+
+const noCallerUserIdGate: GateDescriptor = {
+  name: "no-caller-user-id",
+  docRow: "test-owned",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: "callerUserId is forbidden",
+  scanRoot: () => true,
+  kinds: [SyntaxKind.Identifier],
+  visit: (node, _sourceFile, ctx): void => {
+    if (Node.isIdentifier(node) && node.getText() === "callerUserId") {
+      ctx.report(node, { token: "callerUserId", offset: 0 });
+    }
+  },
+  mustFlag: [PROOF],
+  mustPass: [PROOF],
+};
+
+const busProducerCoverageGate: GateDescriptor = {
+  name: "bus-producer-coverage",
+  docRow: "test-owned",
+  status: "active",
+  scopeSafety: "whole-project",
+  message: "declared bus member has no producer",
+  run: (ctx): void => {
+    const path = "packages/contracts/src/chat/bus.ts";
+    const source = ctx.project.getSourceFile(`${ROOT}/${path}`);
+    if (source?.getFullText().includes("neverEmitted") === true) {
+      ctx.report({ file: path, line: 1, column: 1, token: "neverEmitted" });
+    }
+  },
+  mustFlag: [PROOF],
+  mustPass: [PROOF],
+};
 
 function project(files: Readonly<Record<string, string>>): Project {
   const p = new Project({ useInMemoryFileSystem: true });
@@ -227,9 +262,21 @@ function inScopeCount(stdout: string): number {
   return Number(m[1]);
 }
 
-test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli }) => {
-  const single = await runCli("verify", ["scoped", "--scope", SCOPE_A], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
-  const union = await runCli("verify", ["scoped", "--scope", `${SCOPE_A},${SCOPE_B}`], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli, scratch }) => {
+  const files = {
+    "tsconfig.json": JSON.stringify({ compilerOptions: { target: "es2022", module: "nodenext", moduleResolution: "nodenext" }, include: ["packages/**/*.ts"] }),
+    [`${SCOPE_A}/switch.ts`]: "export const value = 1;\n",
+    [`${SCOPE_B}/tokens.ts`]: "export const token = 1;\n",
+    "tooling/src/verify/gates/fixture.ts":
+      'export const gate = { name: "fixture", docRow: "test-owned", status: "active", scopeSafety: "incremental-safe", message: "fixture", visitFile() {}, mustFlag: [{ files: "export const bad = 1;", why: "fixture" }], mustPass: [{ files: "export const good = 1;", why: "fixture" }] };\n',
+  };
+  for (const [path, source] of Object.entries(files)) {
+    const absolute = join(scratch, path);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, source);
+  }
+  const single = await runCli("verify", ["scoped", "--scope", SCOPE_A], { cwd: scratch, timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+  const union = await runCli("verify", ["scoped", "--scope", `${SCOPE_A},${SCOPE_B}`], { cwd: scratch, timeoutMs: SCOPED_CLI_TIMEOUT_MS });
 
   // The single-dir control: a real, non-zero slice. Without it the union claim below proves nothing.
   expect(inScopeCount(single.stdout), "the single-dir control must scope a non-zero fileset").toBeGreaterThan(0);
