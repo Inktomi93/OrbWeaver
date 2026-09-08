@@ -3,7 +3,15 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { ts } from "ts-morph";
-import type { CompilerProgram, PolicyPathOwnership, PolicyProgramMembership, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
+import type {
+  CompilerProgram,
+  CompilerSourceOverlay,
+  PolicyPathOwnership,
+  PolicyProgramMembership,
+  PolicyRepositoryInventory,
+  PolicySemanticPath,
+} from "../contract/policy-scope.ts";
+import { createCompilerSourceFilenameReader } from "./compiler-source-filename-overlay.ts";
 import { assertPolicyRepoPath, readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
 const TSCONFIG_RE = /(?:^|\/)tsconfig(?:[.-][^/]*)?\.json$/u;
@@ -21,6 +29,8 @@ interface ParsedConfig {
   readonly raw: Record<string, unknown>;
   readonly parsed: ts.ParsedCommandLine;
 }
+
+type CompilerSourceFilenameReader = ReturnType<typeof createCompilerSourceFilenameReader>;
 
 function compare(left: string, right: string): number {
   if (left === right) {
@@ -63,7 +73,7 @@ function diagnosticText(diagnostic: ts.Diagnostic): string {
   return ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
 }
 
-function parseConfig(inventory: PolicyRepositoryInventory, config: string): ParsedConfig {
+function parseConfig(inventory: PolicyRepositoryInventory, config: string, sourceReader?: CompilerSourceFilenameReader): ParsedConfig {
   const canonical = canonicalConfig(inventory, config);
   const read = ts.readConfigFile(canonical.absolute, ts.sys.readFile);
   if (read.error !== undefined) {
@@ -72,7 +82,7 @@ function parseConfig(inventory: PolicyRepositoryInventory, config: string): Pars
   if (typeof read.config !== "object" || read.config === null || Array.isArray(read.config)) {
     throw new Error(`project config is not an object: ${config}`);
   }
-  const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, dirname(canonical.absolute), undefined, canonical.absolute);
+  const parsed = ts.parseJsonConfigFileContent(read.config, sourceReader?.parseHost ?? ts.sys, dirname(canonical.absolute), undefined, canonical.absolute);
   const fatal = parsed.errors.filter((diagnostic) => !EMPTY_CONFIG_DIAGNOSTICS.has(diagnostic.code));
   if (fatal.length > 0) {
     throw new Error(`could not parse ${config}: ${fatal.map(diagnosticText).join("\n")}`);
@@ -98,10 +108,23 @@ function referenceConfigs(inventory: PolicyRepositoryInventory, parsed: ts.Parse
     .toSorted(compare);
 }
 
-function authoredCompilerFiles(inventory: PolicyRepositoryInventory, parsed: ts.ParsedCommandLine, config: string): readonly string[] {
+function authoredCompilerFiles(
+  inventory: PolicyRepositoryInventory,
+  parsed: ts.ParsedCommandLine,
+  config: string,
+  sourceReader?: CompilerSourceFilenameReader,
+): readonly string[] {
   const authored = new Set(inventory.paths);
+  const authoredPhysical = new Set(inventory.paths.map((path) => realpathSync(resolve(inventory.root, path))));
   const files: string[] = [];
   for (const file of parsed.fileNames) {
+    if (sourceReader?.isDeleted(file) === true) {
+      throw new Error(`compiler member from ${config} cannot be resolved after source deletion: ${sourceReader.repoRelative(file)}`);
+    }
+    if (sourceReader?.isAdded(file) === true) {
+      files.push(sourceReader.repoRelative(file));
+      continue;
+    }
     let canonical: string;
     try {
       canonical = realpathSync(file);
@@ -111,22 +134,31 @@ function authoredCompilerFiles(inventory: PolicyRepositoryInventory, parsed: ts.
     containedRelative(inventory.root, canonical, `compiler member target from ${config}`);
     const lexical = relative(inventory.root, resolve(file)).split(sep).join("/");
     assertPolicyRepoPath(lexical, `compiler member from ${config}`);
-    if (authored.has(lexical)) {
+    if (sourceReader?.isAuthored(file) === true || authored.has(lexical) || authoredPhysical.has(canonical)) {
       files.push(lexical);
     }
   }
   return [...new Set(files)].toSorted(compare);
 }
 
-export function readPolicyProgramMembership(inventory: PolicyRepositoryInventory, config: string): PolicyProgramMembership {
-  const { canonical, parsed } = parseConfig(inventory, config);
-  const files = authoredCompilerFiles(inventory, parsed, config);
+function readProgramMembership(inventory: PolicyRepositoryInventory, config: string, sourceReader?: CompilerSourceFilenameReader): PolicyProgramMembership {
+  const { canonical, parsed } = parseConfig(inventory, config, sourceReader);
+  const files = authoredCompilerFiles(inventory, parsed, config, sourceReader);
   const references = referenceConfigs(inventory, parsed);
   const configPaths = transitiveConfigPaths(inventory, config);
   return { id: canonical.relative, config: canonical.relative, files, references, configPaths };
 }
 
-export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, rootConfigs: readonly string[]): readonly PolicyProgramMembership[] {
+export function readPolicyProgramMembership(inventory: PolicyRepositoryInventory, config: string): PolicyProgramMembership {
+  return readProgramMembership(inventory, config);
+}
+
+function readProgramGraph(
+  inventory: PolicyRepositoryInventory,
+  rootConfigs: readonly string[],
+  sourceReader?: CompilerSourceFilenameReader,
+  allowEmptyPrograms = false,
+): readonly PolicyProgramMembership[] {
   const pending = [...rootConfigs];
   const programs = new Map<string, PolicyProgramMembership>();
   while (pending.length > 0) {
@@ -134,17 +166,23 @@ export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, roo
     if (config === undefined || programs.has(config)) {
       continue;
     }
-    const program = readPolicyProgramMembership(inventory, config);
+    const program = readProgramMembership(inventory, config, sourceReader);
     programs.set(program.id, program);
     pending.push(...program.references);
   }
   const result = [...programs.values()].toSorted((left, right) => compare(left.id, right.id));
   for (const program of result) {
-    if (program.files.length === 0 && program.references.length === 0) {
+    const physicallyNonEmpty =
+      allowEmptyPrograms && program.files.length === 0 && program.references.length === 0 && readProgramMembership(inventory, program.config).files.length > 0;
+    if (program.files.length === 0 && program.references.length === 0 && !physicallyNonEmpty) {
       throw new Error(`project config resolved zero authored files: ${program.config}`);
     }
   }
   return result;
+}
+
+export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, rootConfigs: readonly string[]): readonly PolicyProgramMembership[] {
+  return readProgramGraph(inventory, rootConfigs);
 }
 
 function extendsValues(raw: Record<string, unknown>, config: string): readonly string[] {
@@ -207,12 +245,12 @@ function transitiveConfigPaths(inventory: PolicyRepositoryInventory, config: str
   return [...paths].toSorted(compare);
 }
 
-export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventory): readonly string[] {
+function discoverProgramConfigs(inventory: PolicyRepositoryInventory, sourceReader?: CompilerSourceFilenameReader): readonly string[] {
   const configs = inventory.paths.filter((path) => TSCONFIG_RE.test(path));
   if (configs.length === 0) {
     return [];
   }
-  const parsed = configs.map((config) => parseConfig(inventory, config));
+  const parsed = configs.map((config) => parseConfig(inventory, config, sourceReader));
   const extended = new Set(parsed.flatMap((config) => localExtendsTargets(inventory, config)));
   const referenced = new Set(parsed.flatMap((config) => referenceConfigs(inventory, config.parsed)));
   const candidates = parsed.filter((config) => !extended.has(config.canonical.relative) || referenced.has(config.canonical.relative));
@@ -223,6 +261,10 @@ export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventor
     .filter((config) => !isExplicitTemplate(config))
     .map((config) => config.canonical.relative)
     .toSorted(compare);
+}
+
+export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventory): readonly string[] {
+  return discoverProgramConfigs(inventory);
 }
 
 function isExplicitTemplate(config: ParsedConfig): boolean {
@@ -239,12 +281,26 @@ export function readAvailablePolicyPrograms(inventory: PolicyRepositoryInventory
 }
 
 /** Shares the validated authored graph and native options with transformation tools. */
-export function readCompilerPrograms(root: string): readonly CompilerProgram[] {
+export function readCompilerPrograms(root: string, overlay?: CompilerSourceOverlay): readonly CompilerProgram[] {
   const inventory = readPolicyRepositoryInventory(root);
-  return readAvailablePolicyPrograms(inventory).map((program) => ({
-    ...program,
-    commandLine: parseConfig(inventory, program.config).parsed,
-  }));
+  if (overlay === undefined) {
+    return readAvailablePolicyPrograms(inventory).map((program) => ({
+      ...program,
+      commandLine: parseConfig(inventory, program.config).parsed,
+    }));
+  }
+  const sourceReader = createCompilerSourceFilenameReader(inventory, overlay);
+  const programs = readProgramGraph(inventory, discoverProgramConfigs(inventory, sourceReader), sourceReader, true);
+  return programs.map((program) => {
+    const commandLine = parseConfig(inventory, program.config, sourceReader).parsed;
+    const acceptedEmpty = program.files.length === 0 && program.references.length === 0;
+    return {
+      ...program,
+      commandLine: acceptedEmpty
+        ? { ...commandLine, errors: commandLine.errors.filter((diagnostic) => !EMPTY_CONFIG_DIAGNOSTICS.has(diagnostic.code)) }
+        : commandLine,
+    };
+  });
 }
 
 export function mergePolicyPrograms(

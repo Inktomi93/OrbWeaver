@@ -14,6 +14,34 @@ export function repoAbsolute(fileName: string, repoRoot: string): string | undef
   return absolute;
 }
 
+/** Resolve a compiler-host probe to authored repo identity before judging `node_modules` ownership.
+ * TypeScript reaches workspace package exports through their package-manager symlink, including unborn
+ * descendants that exist only in the transformed overlay. Real dependencies and escaping symlinks stay
+ * on the native host: only an alias whose physical target is authored repo source is admitted here. */
+export function repoPhysicalIdentity(fileName: string, repoRoot: string): string | undefined {
+  const absolute = resolve(fileName);
+  const lexical = relative(repoRoot, absolute);
+  if (lexical === ".." || lexical.startsWith(`..${sep}`) || isAbsolute(lexical)) {
+    return;
+  }
+  let identity: string;
+  let physicalRoot: string;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unresolvable or escaping compiler probe is
+  // outside authored overlay ownership and falls through to the native host. Ends if this result authorizes
+  // a write or suppresses a native diagnostic rather than selecting which host reads the path.
+  try {
+    identity = physicalPathIdentity(absolute, repoRoot);
+    physicalRoot = physicalPathIdentity(repoRoot, repoRoot);
+  } catch {
+    return;
+  }
+  const physical = relative(physicalRoot, identity);
+  if (physical === ".." || physical.startsWith(`..${sep}`) || isAbsolute(physical) || physical.split(sep).includes("node_modules")) {
+    return;
+  }
+  return identity;
+}
+
 function declarationModuleLiteral(node: ts.Node): ts.StringLiteralLike | undefined {
   const moduleSpecifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier : undefined;
   return moduleSpecifier !== undefined && ts.isStringLiteralLike(moduleSpecifier) ? moduleSpecifier : undefined;
@@ -109,15 +137,14 @@ function resolvedProgramTarget(opts: {
   const compilerOptions = program.getCompilerOptions();
   const mode = program.getModeForUsageLocation(sourceFile, literal);
   const resolved = ts.resolveModuleName(literal.text, fileName, compilerOptions, ts.sys, cache, undefined, mode).resolvedModule?.resolvedFileName;
-  const targetPath = resolved === undefined ? undefined : repoAbsolute(resolved, repoRoot);
-  return targetPath === undefined ? undefined : physicalPathIdentity(targetPath, repoRoot);
+  return resolved === undefined ? undefined : repoPhysicalIdentity(resolved, repoRoot);
 }
 
 function collectPathReferenceConsumers(sourceFile: ts.SourceFile, consumer: string, repoRoot: string, consumers: Map<string, Set<string>>): void {
   for (const reference of sourceFile.referencedFiles) {
-    const targetPath = repoAbsolute(resolve(dirname(sourceFile.fileName), reference.fileName), repoRoot);
+    const targetPath = repoPhysicalIdentity(resolve(dirname(sourceFile.fileName), reference.fileName), repoRoot);
     if (targetPath !== undefined) {
-      addConsumer(consumers, physicalPathIdentity(targetPath, repoRoot), consumer);
+      addConsumer(consumers, targetPath, consumer);
     }
   }
 }
@@ -142,14 +169,14 @@ function collectProgramConsumers(opts: {
   const cache = ts.createModuleResolutionCache(repoRoot, (fileName) => (ts.sys.useCaseSensitiveFileNames ? fileName : fileName.toLowerCase()), options);
   for (const sourceFile of program.getSourceFiles()) {
     const fileName = sourceFile.fileName;
-    const consumer = repoAbsolute(fileName, repoRoot);
-    if (consumer === undefined) {
+    const physicalConsumer = repoPhysicalIdentity(fileName, repoRoot);
+    if (physicalConsumer === undefined) {
       continue;
     }
-    const identity = physicalPathIdentity(consumer, repoRoot);
-    addProgramId(containingPrograms, identity, compilerProgram.id);
+    const consumer = repoAbsolute(fileName, repoRoot) ?? physicalConsumer;
+    addProgramId(containingPrograms, physicalConsumer, compilerProgram.id);
     if (hasGlobalEffect(sourceFile)) {
-      addProgramId(globalPrograms, identity, compilerProgram.id);
+      addProgramId(globalPrograms, physicalConsumer, compilerProgram.id);
     }
     for (const literal of moduleSpecifierLiterals(sourceFile)) {
       const target = resolvedProgramTarget({ literal, sourceFile, fileName, program, cache, repoRoot });
