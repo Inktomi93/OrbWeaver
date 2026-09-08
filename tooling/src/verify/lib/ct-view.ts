@@ -4,6 +4,7 @@
 // mirror-only a lying green). This is honest ONLY because a scoped green is never the coverage verdict —
 // the push bar (`tests:node` running the WHOLE `pnpm test:ct --retries=2`) is. Split out of lib/selection.ts
 // at the @orb/tooling P6 move (size cap §4.3); the triggers and the mirror map are unchanged.
+import { classifyTestFilename } from "../../_shared/test-kinds.ts";
 import type { CtView } from "../contract/selection.ts";
 import { existsRel, ROOT } from "./repo-paths.ts";
 
@@ -13,8 +14,7 @@ import { existsRel, ROOT } from "./repo-paths.ts";
 const CT_MIRROR_SRC_RE = /^packages\/(ui|client)\/src\/(.+)\.(?:ts|tsx)$/u;
 // A changed tests/**/*.ct.tsx selects ITSELF — but a `.suite.ct.tsx` (a cross-cutting property suite that
 // mirrors no single module, Spine-Testing §1) is NOT mirror-selected; it rides sweeps only.
-const CT_TEST_RE = /^tests\/(?:ui|client)\/.*\.ct\.tsx$/u;
-const CT_SUITE_RE = /\.suite\.ct\.tsx$/u;
+const CT_TEST_PREFIX_RE = /^tests\/(?:ui|client)\//u;
 
 /** A blast-radius sweep trigger: a changed path matching `test` escalates from mirror-selection to running
  *  every `.ct.tsx` under the `dirs` — because a change to this path class throws in tests the mirror map
@@ -62,8 +62,11 @@ const CT_SWEEP_TRIGGERS: readonly SweepTrigger[] = [
  *  ui/client src file selects its test-layout mirror IFF that mirror exists on disk (no mirror, no
  *  contribution). */
 function ctMirrorFor(rel: string, root: string): string | undefined {
-  if (CT_TEST_RE.test(rel)) {
-    return CT_SUITE_RE.test(rel) || !existsRel(rel, root) ? undefined : rel;
+  if (CT_TEST_PREFIX_RE.test(rel)) {
+    const testKind = classifyTestFilename(rel);
+    if (testKind?.definition.family === "component") {
+      return testKind.definition.mirror === "module" && existsRel(rel, root) ? rel : undefined;
+    }
   }
   const m = CT_MIRROR_SRC_RE.exec(rel);
   if (m === null) {

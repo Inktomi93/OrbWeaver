@@ -18,6 +18,14 @@ test("isRatchetShaped: the tooling ratchet/presence/conformance self-tests match
   expect(isRatchetShaped("tests/tooling/verify/gates/test-presence-client.int.test.ts")).toBe(true);
 });
 
+test("isRatchetShaped: Vitest DOM, suite, and type-only kinds remain eligible while Playwright kinds do not", () => {
+  expect(isRatchetShaped("tests/tooling/verify/ops/dom-presence.dom.test.ts")).toBe(true);
+  expect(isRatchetShaped("tests/tooling/verify/ops/coverage-ratchet.suite.int.test.ts")).toBe(true);
+  expect(isRatchetShaped("tests/tooling/workboard/contract/types.test-d.ts")).toBe(true);
+  expect(isRatchetShaped("tests/tooling/verify/ops/visual-presence.ct.tsx")).toBe(false);
+  expect(isRatchetShaped("tests/tooling/verify/ops/browser-presence.spec.ts")).toBe(false);
+});
+
 test("isRatchetShaped: a fake NEVER-SEEN-BEFORE tooling file matches by NAME alone — the planted control", () => {
   // No row anywhere names this file. If this is false, the convention is a hand list wearing a glob's
   // clothes — the exact rot #667 was filed to end.
@@ -95,6 +103,8 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
     "tests/contracts/foo/bar.contract.test.ts": "// planted\n",
     "tests/contracts/foo/bar.suite.test.ts": "// planted, not a .contract.test.ts\n",
     "tests/tooling/check-gates.int.test.ts": "// planted stand-in for the real excluded file\n",
+    "tests/tooling/verify/ops/dom-presence.dom.test.ts": "// planted Vitest DOM kind\n",
+    "tests/tooling/verify/ops/visual-presence.ct.tsx": "// planted Playwright kind\n",
   });
 
   const candidates = discoverTestFiles(root);
@@ -106,5 +116,8 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
   expect(included).not.toContain("tests/tooling/some-unrelated-tool.test.ts");
   expect(included).not.toContain("tests/contracts/foo/bar.suite.test.ts");
   expect(included).not.toContain("tests/tooling/check-gates.int.test.ts");
+  expect(candidates).toContain("tests/tooling/verify/ops/dom-presence.dom.test.ts");
+  expect(candidates).not.toContain("tests/tooling/verify/ops/visual-presence.ct.tsx");
+  expect(included).toContain("tests/tooling/verify/ops/dom-presence.dom.test.ts");
   expect(excluded.map((e) => e.path)).toContain("tests/tooling/check-gates.int.test.ts");
 });

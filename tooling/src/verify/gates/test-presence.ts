@@ -11,6 +11,8 @@ import type { Expression, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
 import { classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
+import type { TestFamily } from "../../_shared/test-kinds.ts";
+import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";
@@ -60,6 +62,9 @@ const MSG = {
  *  any OTHER arm (verb/persistence/contract/runner/infra) is never budgetable — those surfaces were demanded
  *  before the ledger existed and have no residual to burn down. */
 const BUDGETED_MESSAGES: ReadonlySet<string> = new Set([MSG.domain, MSG.tier]);
+const BEHAVIOR_TEST_FAMILIES = ["unit", "integration"] as const satisfies readonly TestFamily[];
+const PERSISTENCE_TEST_FAMILIES = ["integration"] as const satisfies readonly TestFamily[];
+const SCHEMA_TEST_FAMILIES = ["contract"] as const satisfies readonly TestFamily[];
 
 function serverSrcRel(path: string): string | undefined {
   const parts = path.split(SERVER_SRC);
@@ -71,9 +76,11 @@ function contractsSrcRel(path: string): string | undefined {
   return parts.length > 1 ? parts[1] : undefined;
 }
 
-function hasTest(root: string, pkg: string, rel: string, kinds: readonly string[]): boolean {
+function hasTest(root: string, pkg: string, rel: string, families: readonly TestFamily[]): boolean {
   const base = rel.replace(EXT_RE, "");
-  return kinds.some((kind) => existsSync(join(root, "tests", pkg, `${base}${kind}`)));
+  return TEST_KIND_DEFINITIONS.some(
+    ({ family, mirror, suffix }) => mirror === "module" && families.includes(family) && existsSync(join(root, "tests", pkg, `${base}${suffix}`)),
+  );
 }
 
 // Read from CODE, never file text (issue #117/#132): a contract file whose comment SPELLS `z.object(` while
@@ -166,16 +173,16 @@ function isDomainShapeExempt(rel: string, sf: SourceFile): boolean {
 }
 
 function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (rel.includes("/verbs/") && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (rel.includes("/verbs/") && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.verb));
   }
-  if (rel.includes("/persistence/") && !hasTest(root, "server", rel, [".int.test.ts"])) {
+  if (rel.includes("/persistence/") && !hasTest(root, "server", rel, PERSISTENCE_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.persistence));
   }
-  if (rel.includes("/contract/") && hasSchema(sf) && !hasTest(root, "server", rel, [".contract.test.ts"])) {
+  if (rel.includes("/contract/") && hasSchema(sf) && !hasTest(root, "server", rel, SCHEMA_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.contract));
   }
-  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.runner));
   }
   pushDomainResidual(root, rel, sf, out);
@@ -188,7 +195,7 @@ function pushDomainResidual(root: string, rel: string, sf: SourceFile, out: Viol
   if (SLOTTED_SEGMENTS.some((seg) => rel.includes(seg)) || isDomainShapeExempt(rel, sf)) {
     return;
   }
-  if (hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.domain));
   }
 }
@@ -329,20 +336,20 @@ function pushTiers(root: string, rel: string, sf: SourceFile, out: Violation[]):
   if (rel.endsWith(DECLARATION_EXT) || isPassThroughWiring(sf)) {
     return;
   }
-  if (hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.tier));
   }
 }
 
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
-  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.infra));
   }
 }
 
 function pushContracts(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (hasSchema(sf) && !hasTest(root, "contracts", rel, [".contract.test.ts"])) {
+  if (hasSchema(sf) && !hasTest(root, "contracts", rel, SCHEMA_TEST_FAMILIES)) {
     out.push(missing("contracts", rel, MSG.sharedContract));
   }
 }
@@ -489,6 +496,22 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/server/src/domain/chat/persistence/record.ts": "export const record = 1;\n",
+        "tests/server/domain/chat/persistence/record.dom.test.ts": "export {};\n",
+      },
+      expect: { messageIncludes: "persistence file has no .int.test" },
+      why: "a registered DOM unit mirror is still the wrong family for persistence, which requires integration coverage",
+    },
+    {
+      files: {
+        "packages/contracts/src/chat/schema.ts": "export const S = z.object({});\n",
+        "tests/contracts/chat/schema.test-d.ts": "export {};\n",
+      },
+      expect: { messageIncludes: "shared contract schema has no .contract.test" },
+      why: "a type-only mirror cannot substitute for runtime schema round-trip coverage",
+    },
+    {
+      files: {
         "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",
       },
       expect: { messageIncludes: "verb has no test" },
@@ -594,6 +617,17 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/chat/verbs/preview.ts": "export const preview = 1;\n",
+        "tests/server/domain/chat/verbs/preview.dom.test.ts": "export {};\n",
+        "packages/server/src/domain/chat/persistence/record.ts": "export const record = 1;\n",
+        "tests/server/domain/chat/persistence/record.int.test.ts": "export {};\n",
+        "packages/contracts/src/chat/schema.ts": "export const S = z.object({});\n",
+        "tests/contracts/chat/schema.contract.test.ts": "export {};\n",
+      },
+      why: "registry-derived suffixes retain the distinct unit, integration and contract family obligations",
+    },
     {
       files: {
         "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",

@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { classifyTestFilename, TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 import { blankTsCommentsAndStringsInText, codeTextForScan } from "../lib/comment-spans.ts";
@@ -37,13 +38,13 @@ const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/editor/bound-fields/"];
 const CLIENT_EXCLUDE_FILES = ["data/trpc.ts"];
 // Non-primitive @orb/ui logic groups (primitives/ are covered by ui-primitive-structure's CT clause).
 const UI_LOGIC_GROUPS = ["charts/", "markdown/", "stream/", "content/", "code-editor/", "diff/", "fuzzy-search/"];
-const TEST_KINDS = [".test.ts", ".int.test.ts", ".test.tsx", ".ct.tsx"] as const;
+const TEST_KINDS = TEST_KIND_DEFINITIONS.filter(({ family, mirror }) => family !== "type" && mirror === "module").map(({ suffix }) => suffix);
 const REAL_TREE_ANCHOR = "packages/client/src/index.ts";
 const WORST_ART_ANCHOR = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
 const WORST_ART_STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
 const MSG_CLIENT =
-  "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
+  "client data/forms/state primitive has no test — add a registered runtime test at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
 const MSG_UI = "non-primitive @orb/ui logic module has no test — add a .test.ts / .ct.tsx at its tests/ui mirror (Spine-Testing.md §5).";
 const MSG_STATE_ACTION = (action: string): string =>
   `store action \`${action}\` is not referenced by name in its mirror test (tests/client/state/<store>.{ct.tsx,test.ts,...} + the shared _ct-stories.tsx) — a mirror EXISTING isn't presence for a NEW action (Spine-Testing.md §5). Drive it and assert the resulting store state.`;
@@ -53,7 +54,7 @@ const MSG_STATE_ACTION = (action: string): string =>
  *  judged and the gate reported CLEAN. A clause that CANNOT run must never look like one that ran and found
  *  nothing. Fires when clause A says a mirror exists but clause C read no corpus from it. */
 const MSG_STATE_UNREADABLE =
-  "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619; tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Either the mirror is empty, or it uses a test-kind suffix outside TEST_KINDS in tooling/src/verify/gates/test-presence-client.ts — widen that ONE vocabulary, never special-case it here.";
+  "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619; tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Either the mirror is empty, or its kind is not registered in tooling/src/_shared/test-kinds.ts — fix the shared vocabulary, never special-case it here.";
 const MSG_WORST_ART =
   "the standing DOM-derived worst-legal-art contrast CT is missing — restore tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx. The room's rendered text population must stay sampled across shipped and custom theme polarities (issue #883).";
 
@@ -161,7 +162,10 @@ function hasDirTest(root: string, pkg: string, rel: string): boolean {
   if (!existsSync(mirrorDir)) {
     return false;
   }
-  return readdirSync(mirrorDir, { withFileTypes: true }).some((e) => e.isFile() && TEST_KINDS.some((kind) => e.name.endsWith(kind)));
+  return readdirSync(mirrorDir, { withFileTypes: true }).some((entry) => {
+    const kind = classifyTestFilename(entry.name)?.definition;
+    return entry.isFile() && kind !== undefined && kind.family !== "type" && kind.mirror !== "e2e-only";
+  });
 }
 
 // Clause A — a DIRECT child of a client owner (data/x.ts or forms/editor/x.ts), excluding nested buckets + named
@@ -287,6 +291,14 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/client/src/forms/editor/validate.ts": "export function validate(): boolean { return true; }\n",
+        "tests/client/forms/editor/validate.dom.test-d.ts": "export {};\n",
+      },
+      expect: { messageIncludes: "has no test" },
+      why: "a type-only test cannot substitute for runtime behavior coverage, even when its browser world is registered",
+    },
+    {
+      files: {
         "packages/client/src/forms/editor/focus.ts": "export function focusInvalid(): void {}\n",
         "tests/client/forms/focus.ct.tsx": "export {};\n",
       },
@@ -392,6 +404,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/client/src/forms/editor/validate.ts": "export function validate(): boolean { return true; }\n",
+        "tests/client/forms/editor/validate.dom.test.ts": "export {};\n",
+        "packages/client/src/data/parse.ts": "export function parse(): boolean { return true; }\n",
+        "tests/client/data/parse.contract.test.ts": "export {};\n",
+      },
+      why: "registered DOM and contract runtime tests satisfy their exact source mirrors without another suffix list",
+    },
     {
       files: {
         "packages/client/src/forms/editor/focus.ts": "export function focusInvalid(): void {}\n",
