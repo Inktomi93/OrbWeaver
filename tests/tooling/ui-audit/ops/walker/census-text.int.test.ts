@@ -272,7 +272,7 @@ auditRuleTest(
 
 // ── #1078 (orb-ui audit F6): mask paint is INVISIBLE to getComputedStyle, so a masked ancestor withholds ──
 //
-// SCROLL_FADE_X/Y (packages/ui/src/lib/scroll-fade.ts) put `mask-image` on the SCROLLING CONTAINER, not
+// The scroll-fade recipes in packages/ui/src/styles/globals.css put `mask-image` on the SCROLLING CONTAINER, not
 // on the text — CSS masking composites the whole subtree, so a descendant text node's PAINTED alpha fades
 // toward transparent while its own `color`/`opacity` still report full strength. `hasMaskedAncestor`
 // (census-text.ts) walks the ancestor chain for a live `mask-image`/`-webkit-mask-image`, mirroring the

@@ -582,8 +582,8 @@
  *
  * It is not `[data-slot="message-list-scroll"]` (client globals.css) because that rule is the TRANSCRIPT's,
  * scoped to one slot and carrying the art-arm opt-out that only a chat background needs. This is the
- * generic surface form, homed beside `.scroll-fade-x` so the two axes of one recipe stay one thing; the
- * driver and selector contract for both live beside it in `@orb/ui/lib`'s `scroll-fade.ts`.
+ * generic surface form, homed beside `.scroll-fade-x` so both axes share one recipe. The DOM drivers
+ * live in `@orb/ui/scroll-area`; selector constants remain in `@orb/ui/lib`.
  *
  * SCROLL-AWARE, same contract as the horizontal twin: an edge dissolves ONLY while content is actually
  * scrolled past it, so a surface that fits renders both edges fully opaque instead of dimming a flush
