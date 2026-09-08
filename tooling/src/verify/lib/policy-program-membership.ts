@@ -3,8 +3,8 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { ts } from "ts-morph";
-import type { PolicyPathOwnership, PolicyProgramMembership, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
-import { assertPolicyRepoPath } from "./policy-repo-inventory.ts";
+import type { CompilerProgram, PolicyPathOwnership, PolicyProgramMembership, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
+import { assertPolicyRepoPath, readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
 const TSCONFIG_RE = /(?:^|\/)tsconfig(?:[.-][^/]*)?\.json$/u;
 const EMPTY_FILES_LIST_DIAGNOSTIC = 18_002;
@@ -236,6 +236,15 @@ function isExplicitTemplate(config: ParsedConfig): boolean {
 
 export function readAvailablePolicyPrograms(inventory: PolicyRepositoryInventory): readonly PolicyProgramMembership[] {
   return readPolicyProgramGraph(inventory, discoverPolicyProgramConfigs(inventory));
+}
+
+/** Shares the validated authored graph and native options with transformation tools. */
+export function readCompilerPrograms(root: string): readonly CompilerProgram[] {
+  const inventory = readPolicyRepositoryInventory(root);
+  return readAvailablePolicyPrograms(inventory).map((program) => ({
+    ...program,
+    commandLine: parseConfig(inventory, program.config).parsed,
+  }));
 }
 
 export function mergePolicyPrograms(

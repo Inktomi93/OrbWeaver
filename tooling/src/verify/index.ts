@@ -71,7 +71,7 @@ export type {
 export { POLICY_RUN_TIERS } from "./contract/policy-plan.ts";
 export type { GatePolicyReceipt } from "./contract/policy-primitives.ts";
 export { GATE_POLICY_ANALYSES } from "./contract/policy-primitives.ts";
-export type { PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./contract/policy-scope.ts";
+export type { CompilerProgram, PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./contract/policy-scope.ts";
 export { POLICY_SCOPE_KINDS, POLICY_SEMANTIC_PATH_STATUSES } from "./contract/policy-scope.ts";
 export type { GateResourceRequest } from "./contract/resource-declaration.ts";
 export { GATE_RESOURCE_REQUEST_KINDS } from "./contract/resource-declaration.ts";
@@ -127,6 +127,7 @@ export type { GatePolicyCorpus } from "./lib/policy-loader.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
 export { runPolicyPass } from "./lib/policy-pass.ts";
 export { executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
+export { readCompilerPrograms } from "./lib/policy-program-membership.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";
 export { programsFor, staticPrograms } from "./lib/program-routing.ts";
