@@ -5,6 +5,7 @@
 // the injected `now`; nothing below entry reads ambient time.
 
 import { randomUUID } from "node:crypto";
+import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -251,11 +252,17 @@ function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopO
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
   readonly boot: () => Promise<void>;
+  readonly listeningAddress: () => Readonly<AddressInfo> | null;
   readonly shutdown: () => Promise<void>;
 }
 
+interface LifecycleOptions {
+  /** Composition-root test seam. Production omits it and binds the validated env.PORT unchanged. */
+  readonly listenPort?: number;
+}
+
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
-export function createLifecycle(): Lifecycle {
+export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const log = getLog();
   const now = (): number => Date.now();
 
@@ -263,6 +270,7 @@ export function createLifecycle(): Lifecycle {
   let credentialsKeyOk = false;
   let db: Db | null = null;
   let server: ServerType | null = null;
+  let listenerAddress: Readonly<AddressInfo> | null = null;
   let stopScheduler: (() => void) | null = null;
   let stopScheduleScheduler: (() => void) | null = null;
   let stopOidcGc: (() => void) | null = null;
@@ -667,11 +675,15 @@ export function createLifecycle(): Lifecycle {
       const onBindError = (err: Error): void => {
         reject(err);
       };
-      const handle = serve({ fetch: app.fetch, port: env.PORT, ...(bind.host === undefined ? {} : { hostname: bind.host }) }, (info) => {
-        handle.removeListener("error", onBindError);
-        log.info({ port: info.port, address: info.address }, "boot: listening — healthz live");
-        resolve();
-      });
+      const handle = serve(
+        { fetch: app.fetch, port: options.listenPort ?? env.PORT, ...(bind.host === undefined ? {} : { hostname: bind.host }) },
+        (info: AddressInfo) => {
+          handle.removeListener("error", onBindError);
+          listenerAddress = { address: info.address, family: info.family, port: info.port };
+          log.info({ port: info.port, address: info.address }, "boot: listening — healthz live");
+          resolve();
+        },
+      );
       server = handle;
       handle.once("error", onBindError);
     });
@@ -690,6 +702,7 @@ export function createLifecycle(): Lifecycle {
     if (server !== null) {
       await drainHttpServer(server, log);
       server = null;
+      listenerAddress = null;
     }
     if (stopScheduler !== null) {
       stopScheduler();
@@ -728,5 +741,5 @@ export function createLifecycle(): Lifecycle {
     log.info("shutdown: complete");
   }
 
-  return { boot, shutdown };
+  return { boot, listeningAddress: (): Readonly<AddressInfo> | null => listenerAddress, shutdown };
 }
