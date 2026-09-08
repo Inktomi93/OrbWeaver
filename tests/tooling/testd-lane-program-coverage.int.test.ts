@@ -44,6 +44,7 @@ const D_TS_RE = /\.d\.ts$/u;
 const SHOW_CONFIG_MAX_BUFFER = 268_435_456;
 
 interface TypecheckShape {
+  readonly checker?: string;
   readonly include?: readonly string[];
   readonly exclude?: readonly string[];
   readonly tsconfig?: string;
@@ -59,15 +60,16 @@ function typesProject(name: "types-node" | "types-browser"): {
   readonly include: readonly string[];
   readonly exclude: readonly string[];
   readonly tsconfig: string;
+  readonly checker: string;
 } {
   const projects = (vitestConfig.test?.projects ?? []) as readonly ProjectShape[];
   const found = projects.find((p) => p.test?.name === name)?.test?.typecheck;
-  if (found?.include === undefined || found.tsconfig === undefined) {
+  if (found?.include === undefined || found.tsconfig === undefined || found.checker === undefined) {
     throw new Error(
-      `vitest.config.ts has no \`${name}\` project with a typecheck include + tsconfig — this pin could not measure, which is not the same as the invariant holding`,
+      `vitest.config.ts has no \`${name}\` project with a typecheck include + tsconfig + checker — this pin could not measure, which is not the same as the invariant holding`,
     );
   }
-  return { include: found.include, exclude: found.exclude ?? [], tsconfig: found.tsconfig };
+  return { include: found.include, exclude: found.exclude ?? [], tsconfig: found.tsconfig, checker: found.checker };
 }
 
 /** The repo-relative TS SOURCE files a program ROOTS (its resolved include/files), minus `.d.ts` — the
@@ -113,6 +115,8 @@ test("every `.test-d.ts` is claimed by exactly one `types-*` project, and each p
   const browser = typesProject("types-browser");
   expect(node.tsconfig).toBe(GRAPH);
   expect(browser.tsconfig).toBe(TESTS_DOM);
+  expect(node.checker).toBe("scripts/ts7.cjs");
+  expect(browser.checker).toBe("scripts/ts7.cjs");
 
   // `types-node`'s glob collects the whole `.test-d.ts` census; its `exclude` is what hands the six
   // DOM-touching subjects to `types-browser` instead — the two field values are the ONE coupling site

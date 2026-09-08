@@ -264,6 +264,69 @@ test("CJS wrappers derive shared/dedicated defaults and preserve explicit native
   expect(runWrapper("typecheck.cjs", ["--version"], "1").capture?.args).toContain("--workspace-concurrency=4");
 });
 
+test("the TS7 wrapper removes valid incremental cache options without dropping unrelated compiler argv", () => {
+  const cases = [
+    {
+      argv: ["--incremental", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--noEmit", "-p", "tsconfig.json"],
+      preserved: ["--noEmit", "-p", "tsconfig.json"],
+    },
+    {
+      argv: ["--incremental", "true", "--tsBuildInfoFile=/tmp/vitest-build-info", "--pretty", "false"],
+      preserved: ["--pretty", "false"],
+    },
+    {
+      argv: ["--incremental=false", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--listFilesOnly"],
+      preserved: ["--listFilesOnly"],
+    },
+    {
+      argv: ["--INCREMENTAL=TRUE", "--TSBUILDINFOFILE=/tmp/vitest-build-info", "--version"],
+      preserved: ["--version"],
+    },
+    {
+      argv: ["-i", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--noEmit"],
+      preserved: ["--noEmit"],
+    },
+    {
+      argv: ["-I", "FALSE", "--tsBuildInfoFile=/tmp/vitest-build-info", "--pretty", "false"],
+      preserved: ["--pretty", "false"],
+    },
+  ] as const;
+  for (const { argv, preserved } of cases) {
+    const result = runWrapper("ts7.cjs", argv, undefined);
+    expect(result.status).toBe(0);
+    expect(result.capture).not.toBeNull();
+    expect(
+      result.capture?.args.some((arg) => {
+        const normalized = arg.toLowerCase();
+        return normalized === "--incremental" || normalized.startsWith("--incremental=") || normalized === "-i" || normalized.startsWith("-i=");
+      }),
+    ).toBe(false);
+    expect(result.capture?.args.some((arg) => arg.toLowerCase() === "--tsbuildinfofile" || arg.toLowerCase().startsWith("--tsbuildinfofile="))).toBe(false);
+    for (const arg of preserved) {
+      expect(result.capture?.args).toContain(arg);
+    }
+  }
+});
+
+test("the TS7 wrapper rejects malformed incremental cache options before spawning", () => {
+  const cases = [
+    ["--incremental=maybe"],
+    ["--incremental="],
+    ["-i=true"],
+    ["-I=false"],
+    ["--tsBuildInfoFile"],
+    ["--tsBuildInfoFile", ""],
+    ["--tsBuildInfoFile", "--noEmit"],
+    ["--tsBuildInfoFile="],
+  ] as const;
+  for (const argv of cases) {
+    const result = runWrapper("ts7.cjs", argv, undefined);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/--incremental expects true or false|-i does not accept an equals-form value|--tsBuildInfoFile requires a path value/u);
+    expect(result.capture).toBeNull();
+  }
+});
+
 test("a broken profile file REFUSES loudly and names itself — never a defaulted cap", () => {
   expect(() => parseConcurrencyProfile("{ not json", "shared")).toThrow(/tooling\/concurrency-profile\.json is not valid JSON/u);
   expect(() => parseConcurrencyProfile("[]", "shared")).toThrow(/is not a JSON object/u);
