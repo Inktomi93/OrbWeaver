@@ -21,11 +21,9 @@
 // `client-compose-door-only` gives it exactly three legal importers (main.tsx, routes/router.tsx, a
 // compose/ sibling). Only `#state` readers are reached directly, which the composition tier may do.
 
-import type { AppRouter } from "@orb/server";
 import { cssMergeTrace } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
-import type { TRPCClient } from "@trpc/client";
-import type { Trpc } from "#data";
+import type { Trpc, TrpcClient } from "#data";
 import type { ContributorRegistry } from "#lib";
 import type { ConfigSectionContribution } from "#state";
 import { activeChatId, activeDurableLocalUserId } from "#state";
@@ -43,7 +41,7 @@ import { installAgentDebugHandle } from "../lib/agent-bridge.ts";
  *  here is only the pre-#1638 test/story call shape, never a real boot path. */
 export function installAgentHandles(
   queryClient: QueryClient,
-  trpcClient: TRPCClient<AppRouter>,
+  trpcClient: TrpcClient,
   trpcProxy: Trpc,
   resolveConfigSections?: () => ContributorRegistry<ConfigSectionContribution> | null,
 ): void {

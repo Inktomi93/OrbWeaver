@@ -1,4 +1,4 @@
-// @orb/server — public barrel. TYPE-ONLY surface for `@orb/client` (a devDependency there): the
-// client type-imports the router contract and nothing else — a runtime client→server import fails
-// to resolve (the cake). `AppRouter` has no other possible home (it is `typeof` a server value).
+// @orb/server — public barrel. TYPE-ONLY surface for `@orb/client`: the client imports AppRouter
+// for end-to-end inference, while dependency-cruiser restricts that exact source/target edge and
+// rejects runtime client→server imports. `AppRouter` is `typeof` a server-owned router value.
 export type { AppRouter } from "./transport/trpc/router.ts";

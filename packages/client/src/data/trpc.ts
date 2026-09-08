@@ -1,8 +1,8 @@
 // The tRPC wiring (UI-Arch §2.1 `data/`): the typed client + the React context + the options
 // proxy. The proxy IS the queryKey/queryFn factory — every read key in the app is
 // `trpc.<router>.<proc>.queryOptions(...)`/`.queryKey(...)` (gate `no-array-literal-querykey`);
-// hand-written key arrays are banned. `AppRouter` is a TYPE-ONLY import (`@orb/server` is a
-// devDependency — runtime client→server is unresolvable, the cake).
+// hand-written key arrays are banned. `AppRouter` is the one intentional TYPE-ONLY client→server
+// source edge; dependency-cruiser rejects every other backend type edge and every runtime edge.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppRouter } from "@orb/server";
@@ -18,6 +18,9 @@ const TRPC_URL = "/api/trpc";
 
 /** The typed options proxy — pass around as `Trpc`; it is the app-wide key factory. */
 export type Trpc = TRPCOptionsProxy<AppRouter>;
+
+/** The one wire-client type consumed by client composition. */
+export type TrpcClient = TRPCClient<AppRouter>;
 
 /**
  * The error a tRPC read/write hands up, over THIS router — the `TError` half of a `UseQueryResult`.
@@ -66,7 +69,7 @@ export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRou
  *      received" — i.e. every client CT that drives a query, until the stub grows a jsonl producer.
  * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).
  */
-export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> {
+export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
   return createTRPCClient<AppRouter>({
     links: [
       splitLink({
@@ -91,6 +94,6 @@ export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> 
  * tests that build a `Trpc` outside a React render (`invalidation.test.ts`). Same return shape as
  * `useTRPC()`.
  */
-export function createTrpcProxy(client: TRPCClient<AppRouter>, queryClient: QueryClient): Trpc {
+export function createTrpcProxy(client: TrpcClient, queryClient: QueryClient): Trpc {
   return createTRPCOptionsProxy<AppRouter>({ client, queryClient });
 }

@@ -4,8 +4,9 @@
 // appears in the violations. Real package manifests and resolved dependencies keep package exports and
 // dependency types honest without exposing transient fixtures to any scanner of the checkout.
 //
-// Also asserts the permissive type-only and stylesheet edges stay silent. The real tree being clean is
-// enforced separately by `pnpm depcruise`; a broken regex / backreference / typo reds here.
+// Also asserts the one exact client→server AppRouter type seam and the stylesheet edges stay silent. The
+// real tree being clean is enforced separately by `pnpm depcruise`; a broken regex / backreference / typo
+// reds here.
 
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -37,7 +38,6 @@ const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])].f
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
-const DC_FIXTURE_RE = /(^|\/)__dc/u;
 const CACHE_TRIPWIRE_FIXTURE = "packages/kit/src/__dc_cache_fresh_node.ts";
 let fixtureRoot = "";
 
@@ -80,6 +80,7 @@ function writeNativeSubstrate(): void {
   linkPackageDependency("packages/client", "@orb/ui", join(fixtureRoot, "packages/ui"));
 
   fx("packages/contracts/src/credentials/index.ts", "export interface ResolvedCredential { readonly apiKey: string; }\n");
+  fx("packages/server/src/index.ts", "export type AppRouter = { readonly ping: true };\n");
   fx("packages/client/src/features/app-shell/surfaces/shell.css", ".shell {}\n");
   fx("packages/client/src/main.tsx", VAL);
   fx("packages/client/src/styles/index.ts", `import "../features/app-shell/surfaces/shell.css";\n`);
@@ -91,7 +92,6 @@ function writeNativeSubstrate(): void {
 const EMBEDDINGS = "packages/db/src/schema/embeddings.ts";
 
 let firedRules = new Set<string>();
-let fixtureFiles = new Set<string>();
 
 function writeAllFixtures(): void {
   writeNativeSubstrate();
@@ -101,8 +101,8 @@ function writeAllFixtures(): void {
   // fixtures); a genuinely clean tree made it flake red (2026-07-17).
   fx(`${S}/__dc_orphan.ts`, VAL);
   // shared targets (value exports the violating imports point at)
-  fx(`${S}/foundation/__dc/target.ts`, VAL);
-  fx("packages/db/src/__dc/target.ts", VAL);
+  fx(`${S}/foundation/__dc/target.ts`, `${VAL}export type Ty = number;\n`);
+  fx("packages/db/src/__dc/target.ts", `${VAL}export type DbTy = number;\n`);
   fx("packages/client/src/__dc/target.ts", VAL);
   fx(`${S}/domain/__dc_feat/index.ts`, VAL);
   fx(`${S}/domain/__dc_feat/internal.ts`, VAL);
@@ -126,9 +126,15 @@ function writeAllFixtures(): void {
   fx("packages/client/src/__dc/showcase.ts", `import "../../../showcase-plugins/__dc/target.ts";\n`);
   fx(`${S}/foundation/__dc/toclient.ts`, `import "../../../../client/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/value.ts", `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`);
-  // negative: client→server TYPE-ONLY must NOT fire
-  fx(`${S}/foundation/__dc/ty.ts`, "export type Ty = number;\n");
-  fx("packages/client/src/__dc/typeonly.ts", `import type { Ty } from "../../../server/src/foundation/__dc/ty.ts";\nexport const a: Ty = 1;\n`);
+  fx("packages/client/src/__dc/value-db.ts", `import { t } from "../../../db/src/__dc/target.ts";\nexport const u = t;\n`);
+  // The only legal backend type edge is this file → server root. Its two other imports plant the target
+  // half of the wall; arbitrary client files below plant the source half for both server and DB.
+  fx(
+    "packages/client/src/data/trpc.ts",
+    `import type { AppRouter } from "../../../server/src/index.ts";\nimport type { Ty } from "../../../server/src/foundation/__dc/target.ts";\nimport type { DbTy } from "../../../db/src/__dc/target.ts";\nexport type Client = AppRouter & { readonly server: Ty; readonly db: DbTy };\n`,
+  );
+  fx("packages/client/src/__dc/typeonly-server.ts", `import type { Ty } from "../../../server/src/foundation/__dc/target.ts";\nexport type A = Ty;\n`);
+  fx("packages/client/src/__dc/typeonly-db.ts", `import type { DbTy } from "../../../db/src/__dc/target.ts";\nexport type A = DbTy;\n`);
 
   // ── client feature isolation (UI-Arch §2.1/§11.0; mirrors domain isolation below) ──
   fx("packages/client/src/features/__dc_cfeat/index.ts", VAL);
@@ -340,7 +346,6 @@ beforeAll(() => {
   const violations = runCruise();
   allViolations = violations;
   firedRules = new Set(violations.map((v) => v.rule.name));
-  fixtureFiles = new Set(violations.flatMap((v) => [v.from, v.to]).filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS));
   // The explicit 30s applies to this hook independent of the project's default hookTimeout, and ALL of
   // this suite's work is in this hook. Measured 2026-08-24 at
   // load-avg ~18: a cruise took 9.5s and the hook timed out, which reads as a whole-file FAIL
@@ -373,11 +378,29 @@ test.each(ACTIVE_RULES)("config rule %s fires on its fixture", (rule) => {
   expect(firedRules).toContain(rule);
 });
 
-test("allows client→server TYPE-ONLY (the tRPC bridge) — no client-no-backend-runtime on it", () => {
-  // the type-only fixture imports server but must NOT be reported; the value fixture is the one that does.
-  const all = [...fixtureFiles];
-  expect(all.some((p) => p.includes("client/src/__dc/value.ts"))).toBe(true);
-  expect(all.some((p) => p.includes("client/src/__dc/typeonly.ts"))).toBe(false);
+test("allows only data/trpc.ts → server root as the client backend type seam", () => {
+  const typeSourceViolations = allViolations.filter((violation) => violation.rule.name === "client-backend-types-only-through-trpc");
+  expect(typeSourceViolations.map((violation) => violation.from).toSorted()).toEqual([
+    "packages/client/src/__dc/typeonly-db.ts",
+    "packages/client/src/__dc/typeonly-server.ts",
+  ]);
+
+  const typeTargetViolations = allViolations.filter((violation) => violation.rule.name === "client-trpc-type-target");
+  expect(typeTargetViolations.map((violation) => violation.to).toSorted()).toEqual([
+    "packages/db/src/__dc/target.ts",
+    "packages/server/src/foundation/__dc/target.ts",
+  ]);
+  expect(allViolations.some((violation) => violation.from === "packages/client/src/data/trpc.ts" && violation.to === "packages/server/src/index.ts")).toBe(
+    false,
+  );
+});
+
+test("rejects runtime client edges to both server and DB", () => {
+  const runtimeViolations = allViolations.filter((violation) => violation.rule.name === "client-no-backend-runtime");
+  expect(runtimeViolations.map((violation) => violation.from).toSorted()).toEqual([
+    "packages/client/src/__dc/value-db.ts",
+    "packages/client/src/__dc/value.ts",
+  ]);
 });
 
 test("the TV seal catches the planted runtime factory and preserves type-only VariantProps imports", () => {
