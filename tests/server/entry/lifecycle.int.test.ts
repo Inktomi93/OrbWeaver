@@ -5,30 +5,24 @@
 // `foundation/env` parses the throwaway config (it is frozen at module load).
 
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-// A fixed high port + process-owned temp root (the integration lane runs serially — no INTRA-suite
-// contention; no random ids, the determinism gate bans Math.random). NOT the env-default 8788: a running dev stack holds that,
-// and pre-fix the collision was SILENT — boot's bind failed but `waitForHealthz` polled the DEV server's
-// healthz and got its 200, so the test green-ran against a neighbor process until the shutdown half lied
-// (2026-07-09). Boot now rejects on a failed bind (entry/lifecycle.ts), so a collision here fails loudly
-// at `boot()` instead. The DB, its WAL/SHM siblings and assets all live below TEMP_DIR, so teardown can
-// remove only this invocation's files.
-const PORT = 18_788;
+// The OS assigns this invocation's listener port (`listenPort: 0` below); reserving a port and then
+// rebinding would recreate the race. DB, WAL/SHM siblings and assets remain process-owned too.
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-int-"));
 const DB_PATH = join(TEMP_DIR, "orb.db");
 const ASSETS_DIR = join(TEMP_DIR, "assets");
-const HEALTHZ_URL = `http://localhost:${PORT}/healthz`;
 const OK = 200;
 const SERVICE_UNAVAILABLE = 503;
 const POLL_ATTEMPTS = 30;
 const POLL_DELAY_MS = 100;
 
 vi.stubEnv("DATABASE_URL", `file:${DB_PATH}`);
-vi.stubEnv("PORT", String(PORT));
 vi.stubEnv("AUTH_MODE", "single-user");
 vi.stubEnv("VLLM_DISABLED", "true");
 vi.stubEnv("ASSETS_DIR", ASSETS_DIR);
@@ -45,7 +39,7 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
   throw error;
 });
 
-const lifecycle = createLifecycle();
+const lifecycle = createLifecycle({ listenPort: 0 });
 
 afterAll(async () => {
   try {
@@ -56,10 +50,10 @@ afterAll(async () => {
 });
 
 /** Poll healthz until the freshly-bound listener answers (serve() binds async; a few ms in practice). */
-async function waitForHealthz(): Promise<Response> {
+async function waitForHealthz(url: string): Promise<Response> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     try {
-      const res = await fetch(HEALTHZ_URL);
+      const res = await fetch(url);
       return res;
     } catch {
       await new Promise<void>((resolve) => {
@@ -71,9 +65,19 @@ async function waitForHealthz(): Promise<Response> {
 }
 
 test("boot migrates + serves healthz 200; shutdown flips it to 503 and stops accepting", async () => {
+  expect(lifecycle.listeningAddress()).toBeNull();
   await lifecycle.boot();
 
-  const live = await waitForHealthz();
+  const address = lifecycle.listeningAddress();
+  expect(address).not.toBeNull();
+  if (address === null) {
+    throw new Error("boot completed without publishing the bound listener address");
+  }
+  expect(address.port).toBeGreaterThan(0);
+  process.stdout.write(`lifecycle-int: bound ${address.address}:${String(address.port)}\n`);
+  const healthzUrl = `http://localhost:${String(address.port)}/healthz`;
+
+  const live = await waitForHealthz(healthzUrl);
   expect(live.status).toBe(OK);
   expect(await live.json()).toEqual({ status: "ok", harness: false });
 
@@ -84,9 +88,40 @@ test("boot migrates + serves healthz 200; shutdown flips it to 503 and stops acc
   let refused = false;
   let drainedStatus: number | null = null;
   try {
-    drainedStatus = (await fetch(HEALTHZ_URL)).status;
+    drainedStatus = (await fetch(healthzUrl)).status;
   } catch {
     refused = true;
   }
   expect(refused || drainedStatus === SERVICE_UNAVAILABLE).toBe(true);
+  expect(lifecycle.listeningAddress()).toBeNull();
+  await lifecycle.shutdown();
+  expect(lifecycle.listeningAddress()).toBeNull();
+});
+
+test("boot still rejects a real listener collision and failed boot can release its owned resources", async () => {
+  const blocker = createServer();
+  await new Promise<void>((resolve, reject) => {
+    blocker.once("error", reject);
+    blocker.listen(0, "127.0.0.1", resolve);
+  });
+  const address = blocker.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("port blocker did not publish an IP listener address");
+  }
+  const blocked = createLifecycle({ listenPort: address.port });
+  try {
+    await expect(blocked.boot()).rejects.toMatchObject({ code: "EADDRINUSE" });
+    expect(blocked.listeningAddress()).toBeNull();
+  } finally {
+    await blocked.shutdown();
+    await new Promise<void>((resolve, reject) => {
+      blocker.close((error) => {
+        if (error !== undefined) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
 });
