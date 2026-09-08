@@ -29,7 +29,7 @@ type WriteScope = "binding" | "value";
 // scan (`collectWrites`: every Identifier in the source file + a symbol lookup each) re-ran for every query
 // in a file instead of once per file per pass — measured 2026-09-06 as 29 s of a 76 s composed pass over 119
 // policies (CPU profile: ts-morph descendant iteration + GC, not the checker). The caches now live for
-// exactly one pass: `runPolicyPass` opens them with `beginReferencePass` and closes them with
+// exactly one pass: both dispatchers open them with `beginReferencePass` and close them with
 // `endReferencePass`; a reader called OUTSIDE a pass (a unit test driving the reader directly) still gets
 // fresh per-query maps, so its semantics are unchanged. Keyed by nothing but the open pass — there is one
 // pass per invocation and passes never overlap (the dispatcher is synchronous) — so no module-level cache

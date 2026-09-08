@@ -19,6 +19,7 @@ import type { DeclaredScan, GatePassResult, GatePhase, GateScan, PassResult, Pop
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 import type { PhaseClock } from "./pass-timing.ts";
 import { chargedPhase, inFinalizePhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
+import { beginReferencePass, endReferencePass } from "./reference-fact.ts";
 
 /** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {
@@ -364,6 +365,17 @@ function runFilePhase(runs: readonly GateRun[], ctxBase: Omit<GateRunCtx, "repor
 /** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
  *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
 export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
+  // Both dispatchers share the readers' invocation boundary. Without it every reference query repeats
+  // its source-wide write analysis, even when the checker and parsed workspace are already warm.
+  beginReferencePass();
+  try {
+    return runWithReferenceCache(gates, ctxBase);
+  } finally {
+    endReferencePass();
+  }
+}
+
+function runWithReferenceCache(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
   gateIgnoreLateUse = false;
   const passStartedAt = nowMs();
