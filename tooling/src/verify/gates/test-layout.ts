@@ -4,7 +4,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
-import { classifyTestFilename } from "../../_shared/test-kinds.ts";
+import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
@@ -32,6 +32,13 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   const segs = rel.split("/");
   const pkg = segs[0];
   const classification = classifyTestFilename(name);
+  if (classification === undefined && looksLikeTestFilename(name)) {
+    return {
+      file: `tests/${rel}`,
+      line: 0,
+      message: `unregistered test kind — use a registered suffix: ${TEST_KIND_SUFFIXES.join(", ")}`,
+    };
+  }
   // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright); native e2e is checked first.
   // tooling/ is CONDITIONAL since
   // the @orb/tooling tree exists (docs/architecture/core/Core-Tooling-Law.md §4.7): tests/tooling/<dir>/ MIRRORS
@@ -157,6 +164,19 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      files: {
+        "packages/ui/src/primitives/example.tsx": "export const example = 1;\n",
+        "tests/ui/primitives/example.test.tsx": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "unregistered test kind" },
+      why: "the unused JSX unit kind has no runner; use .ct.tsx for browser execution or .dom.test.ts for a browser-subject Node test",
+    },
+    {
+      files: { "tests/support/shape.ct-d.ts": "export const x = 1;\n" },
+      expect: { messageIncludes: "unregistered test kind" },
+      why: "an unsupported type-test spelling cannot hide in a mirror-exempt helper tree",
+    },
     {
       files: { "tests/server/domain/orphan.test.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "mirror miss" },

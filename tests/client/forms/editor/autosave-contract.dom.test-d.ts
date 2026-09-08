@@ -5,17 +5,8 @@
 // `config.save` (a module-scope factory cannot reach the tRPC client) — so the factory is overloaded: a
 // config without `save` returns a boundary whose props are `{ save } | { readOnly: true }`.
 // Runtime behavior (the backstop refusal + the read-only status fold) lives in the
-// `create-autosave-entity-form.ct.tsx` sibling. The mirror is the `autosave-contract.ts` TYPE home (a `.test-d.ts`
-// mirrors a `.ts` source — `test-layout`), which is where the arms under test are declared; the factory
-// overloads that pair them live in the `.tsx`.
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — tsconfig.tests-dom.json
-// includes `tests/client/**/*.ts`. The vitest `types` project ALSO collects it (its typecheck include is
-// `tests/**/*.test-d.ts`) and prints a green tick, but that green is VACUOUS: that lane's program is
-// `tsconfig.json`, which #1243 excluded `tests/client` from WHOLESALE. Measured 2026-09-02 — a planted
-// `export const x: number = "…"` in this tree was reported `✓ … (n tests)` by `pnpm test:types` and
-// TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
-// The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
+// `create-autosave-entity-form.ct.tsx` sibling. The public factory overloads pair the arms declared in
+// `autosave-contract.ts`; this proof checks their composed browser-facing contract.
 
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { ReactNode } from "react";

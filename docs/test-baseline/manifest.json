@@ -2,13 +2,13 @@
   "testFiles": [
     "tests/client/a11y/accessible-name-quality.suite.ct.tsx",
     "tests/client/a11y/field-control-name.suite.ct.tsx",
-    "tests/client/agent-nav/index.test.ts",
+    "tests/client/agent-nav/index.dom.test.ts",
     "tests/client/agent-nav/panel-request.ct.tsx",
     "tests/client/agent-nav/resolve-config-target.ct.tsx",
-    "tests/client/agent-nav/resolve-config-target.test.ts",
+    "tests/client/agent-nav/resolve-config-target.dom.test.ts",
     "tests/client/agent-plugin/index.test.ts",
-    "tests/client/agent-rpg/index.test.ts",
-    "tests/client/agent-seed/index.test.ts",
+    "tests/client/agent-rpg/index.dom.test.ts",
+    "tests/client/agent-seed/index.dom.test.ts",
     "tests/client/components/background-source-field.ct.tsx",
     "tests/client/components/character-picker.ct.tsx",
     "tests/client/components/confirm-dialog.ct.tsx",
@@ -206,9 +206,9 @@
     "tests/client/features/chat/components/settings-context-tab.ct.tsx",
     "tests/client/features/chat/components/swipe-strip.ct.tsx",
     "tests/client/features/chat/components/variant-wire-viewer.ct.tsx",
-    "tests/client/features/chat/hooks/use-message-items.test.ts",
+    "tests/client/features/chat/hooks/use-message-items.dom.test.ts",
     "tests/client/features/chat/hooks/use-slash-commands.ct.tsx",
-    "tests/client/features/chat/lib/attach-media.test.ts",
+    "tests/client/features/chat/lib/attach-media.dom.test.ts",
     "tests/client/features/chat/lib/attribution.test.ts",
     "tests/client/features/chat/lib/chat-behavior-message-handling-model.test.ts",
     "tests/client/features/chat/lib/chat-books-model.test.ts",
@@ -224,9 +224,9 @@
     "tests/client/features/chat/lib/gen-duration.test.ts",
     "tests/client/features/chat/lib/group-config-model.test.ts",
     "tests/client/features/chat/lib/invite-form-model.test.ts",
-    "tests/client/features/chat/lib/join-token.test.ts",
-    "tests/client/features/chat/lib/member-rows.test.ts",
-    "tests/client/features/chat/lib/message-actions-reveal.test.ts",
+    "tests/client/features/chat/lib/join-token.dom.test.ts",
+    "tests/client/features/chat/lib/member-rows.dom.test.ts",
+    "tests/client/features/chat/lib/message-actions-reveal.dom.test.ts",
     "tests/client/features/chat/lib/message-readout.test.ts",
     "tests/client/features/chat/lib/message-render-context.test.ts",
     "tests/client/features/chat/lib/message-row-variants.test.ts",
@@ -283,7 +283,7 @@
     "tests/client/features/discovery/components/corpus-theme-section.ct.tsx",
     "tests/client/features/discovery/components/corpus-understanding-invitation.ct.tsx",
     "tests/client/features/discovery/lib/corpus-analysis-state.test.ts",
-    "tests/client/features/discovery/lib/corpus-charts.test.ts",
+    "tests/client/features/discovery/lib/corpus-charts.dom.test.ts",
     "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts",
     "tests/client/features/discovery/lib/corpus-faces.test.ts",
     "tests/client/features/discovery/lib/corpus-result-text.test.ts",
@@ -409,7 +409,7 @@
     "tests/client/features/stats/components/analytics-personas-tab.ct.tsx",
     "tests/client/features/stats/components/analytics-time-tab.ct.tsx",
     "tests/client/features/stats/lib/analytics-section.ct.tsx",
-    "tests/client/features/stats/lib/analytics-view-model.test.ts",
+    "tests/client/features/stats/lib/analytics-view-model.dom.test.ts",
     "tests/client/features/stats/surfaces/analytics-character-surface.ct.tsx",
     "tests/client/features/stats/surfaces/analytics-list-surface.ct.tsx",
     "tests/client/features/stats/surfaces/analytics-overview-surface.ct.tsx",
@@ -469,22 +469,22 @@
     "tests/client/lib/appearance-carrier-manifest.ct.tsx",
     "tests/client/lib/appearance-carrier-manifest.test.ts",
     "tests/client/lib/appearance-message-registry.test.ts",
-    "tests/client/lib/bug-report-bundle.test.ts",
+    "tests/client/lib/bug-report-bundle.dom.test.ts",
     "tests/client/lib/chat-title.test.ts",
     "tests/client/lib/client-error-report.test.ts",
     "tests/client/lib/config-search-tokens.test.ts",
-    "tests/client/lib/console-error-ring.test.ts",
+    "tests/client/lib/console-error-ring.dom.test.ts",
     "tests/client/lib/log-clock.test.ts",
     "tests/client/lib/long-task-tracer.ct.tsx",
     "tests/client/lib/message-render.test.ts",
     "tests/client/lib/motion-animation-record.ct.tsx",
-    "tests/client/lib/motion-dead-class-flagger.test.ts",
+    "tests/client/lib/motion-dead-class-flagger.dom.test.ts",
     "tests/client/lib/motion-flaggers.ct.tsx",
     "tests/client/lib/motion-stats.ct.tsx",
     "tests/client/lib/notify.ct.tsx",
     "tests/client/lib/prompt-macros.test.ts",
     "tests/client/lib/regex-placement-labels.test.ts",
-    "tests/client/lib/registry-contracts.test.ts",
+    "tests/client/lib/registry-contracts.dom.test.ts",
     "tests/client/lib/registry.test.ts",
     "tests/client/lib/render-stats.test.ts",
     "tests/client/lib/render-trust.test.ts",
@@ -527,7 +527,7 @@
     "tests/client/state/config-nav-store.ct.tsx",
     "tests/client/state/config-row-annotation.ct.tsx",
     "tests/client/state/config-search-store.ct.tsx",
-    "tests/client/state/config-section-partition.test.ts",
+    "tests/client/state/config-section-partition.dom.test.ts",
     "tests/client/state/config-section-registry-context.ct.tsx",
     "tests/client/state/config-section-registry.test.ts",
     "tests/client/state/config-selection-store.ct.tsx",
@@ -2427,30 +2427,30 @@
     "tests/tooling/worktree-remove-hook.int.test.ts",
     "tests/ui/art/art-bleed/art-bleed.ct.tsx",
     "tests/ui/art/web-weave/weave-veil.ct.tsx",
-    "tests/ui/art/web-weave/web-weave-geometry.test.ts",
-    "tests/ui/art/web-weave/web-weave-glint.test.ts",
-    "tests/ui/art/web-weave/web-weave-physics.test.ts",
-    "tests/ui/art/web-weave/web-weave-prey.test.ts",
-    "tests/ui/art/web-weave/web-weave-render.test.ts",
-    "tests/ui/art/web-weave/web-weave-spider.test.ts",
+    "tests/ui/art/web-weave/web-weave-geometry.dom.test.ts",
+    "tests/ui/art/web-weave/web-weave-glint.dom.test.ts",
+    "tests/ui/art/web-weave/web-weave-physics.dom.test.ts",
+    "tests/ui/art/web-weave/web-weave-prey.dom.test.ts",
+    "tests/ui/art/web-weave/web-weave-render.dom.test.ts",
+    "tests/ui/art/web-weave/web-weave-spider.dom.test.ts",
     "tests/ui/art/web-weave/web-weave-touch.ct.tsx",
     "tests/ui/art/web-weave/web-weave.ct.tsx",
     "tests/ui/charts/bar-list/bar-list.ct.tsx",
-    "tests/ui/charts/bar-list/option.test.ts",
+    "tests/ui/charts/bar-list/option.dom.test.ts",
     "tests/ui/charts/chart/chart.ct.tsx",
     "tests/ui/charts/chart/merge-option.test.ts",
     "tests/ui/charts/chart/use-chart-theme.ct.tsx",
     "tests/ui/charts/heatmap/heatmap.ct.tsx",
     "tests/ui/charts/heatmap/option.test.ts",
     "tests/ui/charts/histogram/histogram.ct.tsx",
-    "tests/ui/charts/histogram/option.test.ts",
+    "tests/ui/charts/histogram/option.dom.test.ts",
     "tests/ui/charts/labeled-chart-frame/labeled-chart-frame.ct.tsx",
     "tests/ui/charts/meter/meter.ct.tsx",
     "tests/ui/charts/meter/ring-gauge.ct.tsx",
     "tests/ui/charts/meter/segment-bar.ct.tsx",
     "tests/ui/charts/meter/segmented-clock.ct.tsx",
     "tests/ui/charts/meter/track-bar.ct.tsx",
-    "tests/ui/charts/meter/waystone-treatment.test.ts",
+    "tests/ui/charts/meter/waystone-treatment.dom.test.ts",
     "tests/ui/charts/meter/waystone.ct.tsx",
     "tests/ui/charts/scatter/option.test.ts",
     "tests/ui/charts/scatter/scatter.ct.tsx",
@@ -2526,7 +2526,7 @@
     "tests/ui/primitives/media-grid/media-grid.ct.tsx",
     "tests/ui/primitives/media-tile-grid/media-tile-grid.ct.tsx",
     "tests/ui/primitives/menu/menu.ct.tsx",
-    "tests/ui/primitives/message-list/content-growth.test.ts",
+    "tests/ui/primitives/message-list/content-growth.dom.test.ts",
     "tests/ui/primitives/message-list/message-list.ct.tsx",
     "tests/ui/primitives/message-list/pin-spacer.test.ts",
     "tests/ui/primitives/number-field/number-field.ct.tsx",
@@ -2840,6 +2840,84 @@
     },
     "tests/client/forms/section-save-status.ct.tsx": {
       "why": "Relocated with its source owner to tests/client/forms/editor/section-save-status.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/agent-nav/index.test.ts": {
+      "why": "Renamed to tests/client/agent-nav/index.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/agent-nav/resolve-config-target.test.ts": {
+      "why": "Renamed to tests/client/agent-nav/resolve-config-target.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/agent-rpg/index.test.ts": {
+      "why": "Renamed to tests/client/agent-rpg/index.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/agent-seed/index.test.ts": {
+      "why": "Renamed to tests/client/agent-seed/index.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/chat/hooks/use-message-items.test.ts": {
+      "why": "Renamed to tests/client/features/chat/hooks/use-message-items.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/chat/lib/attach-media.test.ts": {
+      "why": "Renamed to tests/client/features/chat/lib/attach-media.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/chat/lib/join-token.test.ts": {
+      "why": "Renamed to tests/client/features/chat/lib/join-token.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/chat/lib/member-rows.test.ts": {
+      "why": "Renamed to tests/client/features/chat/lib/member-rows.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/chat/lib/message-actions-reveal.test.ts": {
+      "why": "Renamed to tests/client/features/chat/lib/message-actions-reveal.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/discovery/lib/corpus-charts.test.ts": {
+      "why": "Renamed to tests/client/features/discovery/lib/corpus-charts.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/features/stats/lib/analytics-view-model.test.ts": {
+      "why": "Renamed to tests/client/features/stats/lib/analytics-view-model.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/lib/bug-report-bundle.test.ts": {
+      "why": "Renamed to tests/client/lib/bug-report-bundle.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/lib/console-error-ring.test.ts": {
+      "why": "Renamed to tests/client/lib/console-error-ring.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/lib/motion-dead-class-flagger.test.ts": {
+      "why": "Renamed to tests/client/lib/motion-dead-class-flagger.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/lib/registry-contracts.test.ts": {
+      "why": "Renamed to tests/client/lib/registry-contracts.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/client/state/config-section-partition.test.ts": {
+      "why": "Renamed to tests/client/state/config-section-partition.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-geometry.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-geometry.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-glint.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-glint.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-physics.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-physics.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-prey.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-prey.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-render.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-render.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/art/web-weave/web-weave-spider.test.ts": {
+      "why": "Renamed to tests/ui/art/web-weave/web-weave-spider.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/charts/bar-list/option.test.ts": {
+      "why": "Renamed to tests/ui/charts/bar-list/option.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/charts/histogram/option.test.ts": {
+      "why": "Renamed to tests/ui/charts/histogram/option.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/charts/meter/waystone-treatment.test.ts": {
+      "why": "Renamed to tests/ui/charts/meter/waystone-treatment.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
+    },
+    "tests/ui/primitives/message-list/content-growth.test.ts": {
+      "why": "Renamed to tests/ui/primitives/message-list/content-growth.dom.test.ts in #1862 to declare the DOM compiler world; all test bodies retained. Remove this record if the original path returns."
     }
   }
 }

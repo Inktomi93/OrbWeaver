@@ -43,7 +43,7 @@ import { resolvePanelRequest } from "./panel-request.ts";
 import { resolveConfigTarget } from "./resolve-config-target.ts";
 import { resolveContextTab } from "./resolve-context-tab.ts";
 
-// Re-exported for `tests/client/agent-nav/resolve-config-target.test.ts` — the export map's `"./*":
+// Re-exported for `tests/client/agent-nav/resolve-config-target.dom.test.ts` — the export map's `"./*":
 // "./src/*/index.ts"` (client package.json) means `resolve-config-target.ts` has no subpath a test can
 // reach directly, and this pure function is the unit that earns its own coverage apart from the bridge's
 // dispatch-through-the-store proof below.

@@ -4,58 +4,58 @@ status: active
 updated: 2026-09-08
 ---
 
-# Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
+# Orbweaver — Spine: Testing
 
-Canonical doc for the testing thread every domain doc defers to (`→ test-time` notes). BUILT — current law. The *layout* is locked in `core/Core-0-Architecture-and-Structure.md §5` (one central `tests/` tree mirroring `src/` 1:1 + the `test-layout` gate); this doc is the *policy*: lanes, presence rule, mock/determinism doctrine, factory contract, tags, coverage, mutation.
-**Design choice (intentional):** ONE centralized `tests/` tree, test KIND by **filename suffix** (a lane = a glob/`--project` filter), not a category-directory split; browser tests run on **Playwright, never Vitest browser-mode** (§7). Where each choice came from: `history/spine-testing-archaeology-record.md`.
+Testing policy: central source mirrors, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/_shared/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
 
 ## 0. The principle
 
-The test path is a derivation (prefix-swap mirror), the kind is a suffix, gates force both: `test-layout` (mirror), `test-presence` (§5), `test-determinism` (§3), `test-fixture-imports`/`test-factory-contract` (§4), `test-mock-doctrine` (§3) — all in `tooling/src/verify/gates/`.
+Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. Gates enforce layout, required presence, fixture boundaries, determinism, and runner/compiler membership. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
 
-## 1. The lanes
+## 1. Test kinds and execution
 
-Node lanes are `test.projects` in the ONE `vitest.config.ts`, selected by suffix (`test.projects` IS the modern "workspace" — `vitest.workspace.ts` was deprecated in Vitest 3.2). Browser lanes are separate Playwright runners with their own configs.
+| Suffix | Compiler world | Executor | Purpose |
+| - | - | - | - |
+| `.test.ts` | Node | Vitest | Pure behavior and structural assertions |
+| `.dom.test.ts` | DOM + Node | Vitest in Node | Browser-subject behavior that needs DOM declarations but no browser execution |
+| `.int.test.ts` | Node | Vitest | Real persistence, I/O or composed service behavior |
+| `.contract.test.ts` | Node | Vitest | Parsing, serialization and wire contracts |
+| `.test-d.ts` | Node | Vitest typecheck through the shared TS7 wrapper | Type-only contracts |
+| `.dom.test-d.ts` | DOM + Node | Vitest typecheck through the shared TS7 wrapper | Browser type contracts |
+| `.ct.tsx` | DOM + Node | Playwright CT | Rendered component behavior |
+| `.spec.ts` | DOM + Node | Playwright E2E | Full-stack behavior |
 
-| Suffix | Lane (`--project`) | Runner | Touches | Gates at |
-| - | - | - | - | - |
-| `.test.ts` | unit | Vitest (node) | nothing — pure logic, kit primitives, dispatch, SHAPE | pre-push (`pnpm test`) |
-| `.int.test.ts` | integration / integration-serial / tooling / tooling-serial | Vitest (node) — parallel except the remaining serial sets (§Esoterica) | real libSQL `:memory:` (`freshDb`); instrument suites may drive a real browser | pre-push (`pnpm test`), except the two tooling lanes — `--full` / `pnpm test:tooling` (#1842) |
-| `.contract.test.ts` | contract | Vitest (node) | a stable *shape* — zod round-trip, serde, wire body | pre-push (`pnpm test`) |
-| `.test-d.ts` | types | Vitest typecheck (`tsgo`) | `expectTypeOf` over branded/union contracts, no runtime pass | pre-commit (`pnpm check`) |
-| `.ct.tsx` | component | Playwright CT | a real browser; one component | on-demand (`pnpm test:ct`) |
-| `.spec.ts` | e2e | Playwright | the full running stack | on-demand (`pnpm e2e`) |
+`.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and are exempt from a single-module mirror. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
 
-- `pnpm test` runs the product projects; `pnpm test:tooling` runs the parallel tooling project and its remaining serial project. Type-only projects are separately invoked. Native project definitions in `vitest.config.ts` own collection; the verification registry owns tier admission.
-- Integration tests run in parallel by default using the shared capacity profile. The remaining product/tooling serial assignments are being revalidated against current resource ownership. Browser-driving structural assertions do not require a quiet shard; measured rates still require the load judgment described below.
-- **The commit/push split (`lefthook.yml`, both via the one `pnpm verify` entry):** pre-commit = `pnpm check` (= `verify --static`): Biome + per-package `tsgo` + the type lanes + structure gates + dep-cruiser, \~30s. pre-push = `pnpm verify --push`: the static bundle + `pnpm test` (node lanes) + the Playwright CT suite + `pnpm e2e:smoke`. Behavioral + browser tests are deliberately NOT in `pnpm check` — the static tier can't hold browser (vitest-browser hangs, §7).
-- **The types lane is five `verify` stages, not one** (each catches a class the others miss): `types:packages` (per-package `tsgo` — the honest floor: file-scoped tsc never sees consumers), `types:graph` (the DOM-less root program over `tests/`/`scripts/`), `types:testd` (the vitest `.test-d.ts` typecheck project), `types:tests-dom` (`tsconfig.tests-dom.json` — the home for DOM-coupled NON-`.tsx` tests the root graph excludes), and `types:tests-membership`. **`types:tests-membership` makes a silently un-type-checked test file structurally IMPOSSIBLE** (`tooling/src/verify/ops/tests-type-membership.ts`, landed 2026-07-13): it unions every type program's `tsgo --listFilesOnly` import closure and REDs on any `tests/**`/`playwright/**` TS file that lands in ZERO programs — checked by nothing.
-- **`tests:execution-membership`** (`tooling/src/verify/ops/tests-execution-membership.ts`, #22) is the EXECUTION-lane sibling, in the `tests` group not `types`: it makes a silently un-EXECUTED test file structurally impossible, both directions. It asks vitest's + both Playwright configs' own `--list` for their file view (never re-parses glob strings — drift-proof) and REDs on a `tests/**` runner-suffixed file matched by NO view, or a runner view matching ZERO files (the marinara disease: its server `pnpm test` globs matched nothing, silently).
-- **`.suite.*` — cross-cutting PROPERTY suites.** Not a new lane (the unit/integration/CT globs collect `.suite.test.ts`/`.suite.int.test.ts`/`.suite.ct.tsx`). The suffix marks a **mirror exemption**: a suite validating ONE property spanning MANY modules (the stats drift gate `drift-gate.suite.int.test.ts`, `solo-byte-identical`, the touch-target floor — the former agent-principal containment matrix died with the 2026-07-25 purge) mirrors no single module. Must still sit under a valid package tree (gate: `test-layout`).
-- Client **pure-logic** (`.test.ts`, no DOM) runs in the node unit project and DOES gate — extract DOM-free logic to a function over reaching for a browser (§7).
+Compiler world follows the contract being checked. Component props, element identities, refs and browser events require real DOM declarations. A successful Node compile alone is insufficient: React provides fallback DOM declarations that can make distinct browser types indistinguishable. Pure logic can remain Node-owned even inside a UI package. Do not classify every test by package directory or maintain per-component exceptions.
 
-A file's node lanes sit together at its mirror (`recall.test.ts` beside `recall.int.test.ts`) — never scattered.
+Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declarations but no DOM runtime; code that needs a rendered browser belongs in CT. Test-only helpers live under `tests/support/{iso,node,browser}` according to their dependency needs. Browser stories and component tests retain the DOM compiler world.
+
+- `pnpm test` runs product Vitest projects; `pnpm test:tooling` runs instrument projects. Type-only projects use `pnpm test:types`.
+- `pnpm check` selects the static verification tier. `pnpm verify --push` adds the product behavioral battery, CT and E2E smoke. The verification registry is authoritative for current stage admission.
+- Native compiler membership reports distinguish authored roots, imported closures and intended ownership. Merely appearing in some import closure does not prove that a test has the correct compiler owner.
+- Native Vitest and Playwright collection is the execution oracle. Reconciliation must detect unclaimed tests, duplicate claims and empty views; duplicating config globs in the checker is not independent proof.
+- Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
+
+The type-world program owns the migration to these rules. Its remaining target-ownership checks must not be described as enforced until their planted controls pass through the real verification path.
 
 ## 2. The tree
 
-```
+```text
 tests/
-├── support/            shared substrate (NOT a mirror) — §4
-│   ├── fixtures.ts         the composed `test` (test.extend) — import test/expect from HERE
-│   ├── db.ts               freshDb (migrated libSQL :memory:)
-│   ├── clock.ts            frozen clock + advance() — §3
-│   ├── ids.ts              seeded typeid generator — §3
-│   ├── matchers.ts         the custom matchers (cap 5) — §4
-│   ├── factories/          entity builders (makeX pure + seedX persisted) — §4
-│   ├── fixtures/           static fixture data
-│   ├── chat/               the scripted provider TAPE + scriptedRunner — §3
-│   └── ct/                 Playwright-CT substrate (ct-providers + page.route tRPC stubs) — §7
-├── kit/ contracts/ db/ server/ ui/ client/   mirror packages/<pkg>/src 1:1
-├── tooling/            tests of root configs + @orb/tooling (mirrors tooling/src/<tool>/ per tool)
-└── e2e/                full-stack Playwright .spec.ts (NOT a mirror)
+├── support/                    shared fixtures and data; no source mirror
+│   ├── fixtures.ts             composed product test/expect
+│   ├── tool-fixtures.ts        composed instrument test/expect
+│   ├── factories/              pure makeX and persisted seedX builders
+│   ├── iso/                    platform-independent helpers
+│   ├── node/                   Node drivers, filesystem and network helpers
+│   └── browser/                browser helpers and CT providers
+├── kit/ contracts/ db/ server/ ui/ client/   mirror packages/<pkg>/src
+├── tooling/                    mirror tooling/src where a tool home exists
+└── e2e/                        full-stack Playwright tests
 ```
 
-`support/` and `e2e/` are unconditional non-mirror trees; **`tooling/` is CONDITIONAL** — `tests/tooling/<dir>/` prefix-swap-mirrors `tooling/src/<dir>/` whenever that tool dir exists, and only flat files plus dirs with no `tooling/src/` twin stay exempt (they test root configs and the research zone). The mirror gate (`tooling/src/verify/gates/test-layout.ts`) enforces exactly that, exempts the `.suite` KINDS (§1 — its `.parity` arm went out with the oracle, #428), and treats every other path as a strict prefix-swap mirror. The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root — separate runners, not Vitest projects.
+`support/` and `e2e/` are exempt from source mirroring, but tests there still require valid kinds and runner/compiler ownership. A tooling test mirrors its tool module when that tool directory exists; flat config tests and research subjects without a tool directory retain their documented exemption. Related kinds stay beside one another at the source mirror. The registry defines which source extensions each test kind can mirror.
 
 ## 3. Determinism + mock doctrine
 

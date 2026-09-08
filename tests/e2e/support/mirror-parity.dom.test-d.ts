@@ -33,12 +33,6 @@
 // GROWING IT: a new hand-mirrored shape in `trpc.ts` gets a pin here in the same edit. Shapes whose wire
 // source is a TRANSPORT-LOCAL or DEBUG-ROUTE view (no `@orb/contracts` home) are unpinnable from here and
 // are listed at the bottom — that list is the honest scope statement, not an oversight.
-//
-// WHICH STAGE ENFORCES IT: `types:tests-dom` (tsconfig.tests-dom.json owns `tests/e2e/**/*.ts` by the
-// 2026-07-24 owner ruling), a `pnpm check` static stage — VERIFIED to red on a planted drift. The vitest
-// `types:testd` project also COLLECTS this file (its glob is `tests/**/*.test-d.ts`) and reports it green,
-// but that green is VACUOUS: that lane's program is `tsconfig.json`, which excludes `tests/e2e` entirely, so
-// it checks nothing here. Do not read a `pnpm test:types` pass as this file passing.
 
 import type { ContextFitPreview as ContractContextFitPreview, GroupConfig, GuidedSteer, MessageView, ParticipantView, ShapeTrace } from "@orb/contracts/chat";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";

@@ -44,6 +44,8 @@ Barrel purity is the cause-level repair. `#lib`, `#state`, `#data`, `#forms`, an
 
 The registry owns supported kinds and their interpretation across layout, compiler routing, runtime collection, execution reconciliation, lint surfaces, and job selection. Registration precedes renames. Preserve useful conventional suffixes rather than renaming for appearance alone. Browser-subject runtime tests use `.dom.test.ts`; browser type-only tests use `.dom.test-d.ts`. The earlier `.ct-d.ts` choice is superseded. Keep `.spec.ts` for E2E unless a concrete harness requirement justifies changing it.
 
+Node compilation is necessary but not sufficient evidence for a Node test: React fallback declarations can hide browser element, event, ref and component-prop identity. Such contracts require the real DOM world. Use structural enforcement with planted wrong-world and valid-pure controls for this escape class; do not rely on agents remembering a per-component list.
+
 Compiler world, executor, test purpose, and resource needs are distinct axes. A browser-subject type check does not run a browser. A Node driver can control a real browser. A long-running test is not automatically a correctness-serial test or mutation-ineligible.
 
 Use native Vitest tags for cross-cutting labels and supported test options, with strict registration and derived type vocabulary. Tags do not provide file import isolation, cross-process serialization, or resource locks. Native filtering still imports included files, and `list --filesOnly` does not enumerate tag-filtered test cases. File populations and genuinely different executor settings must therefore be selected before collection where required.

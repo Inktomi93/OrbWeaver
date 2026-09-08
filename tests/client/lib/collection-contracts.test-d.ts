@@ -3,11 +3,6 @@
 // the same value and no host could branch on the difference however carefully it was written. The fix is
 // therefore a compile fact and belongs here — a contribution that hands back a bare number must not
 // type-check, which is what stops the four implementors drifting back one at a time.
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — `tsconfig.tests-dom.json`
-// includes `tests/client/**/*.ts`. The vitest `types` project also collects it and prints a green tick,
-// but that green is VACUOUS (its program excludes `tests/client` wholesale); see the note in
-// `registry.test-d.ts`, which is the one home for that partition.
 
 import type { CollectionContribution, CollectionCount } from "@orb/client/lib";
 import { expectTypeOf, test } from "vitest";

@@ -1,6 +1,7 @@
 import {
   BROWSER_TEST_SUFFIXES,
   classifyTestFilename,
+  looksLikeTestFilename,
   RUNTIME_TEST_SUFFIXES,
   runtimeForTestFamily,
   TEST_KIND_DEFINITIONS,
@@ -32,6 +33,10 @@ test("component mirrors accept TSX or TS sources and unknown suffixes stay uncla
   expect(classifyTestFilename("button.ct.tsx")?.definition.sourceExtensions).toEqual([".tsx", ".ts"]);
   expect(classifyTestFilename("matrix.suite.ct.tsx")?.definition).toMatchObject({ mirror: "suite", compilerWorld: "browser" });
   expect(classifyTestFilename("button.browser.ts")).toBeUndefined();
+  expect(classifyTestFilename("button.test.tsx")).toBeUndefined();
+  expect(looksLikeTestFilename("button.test.tsx")).toBe(true);
+  expect(looksLikeTestFilename("button.ct-d.ts")).toBe(true);
+  expect(looksLikeTestFilename("button.fixtures.tsx")).toBe(false);
 });
 
 test("derived selectors and runtime dispatch cover the registry without duplicate suffixes", () => {

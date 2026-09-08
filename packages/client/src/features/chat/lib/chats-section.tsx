@@ -60,7 +60,7 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
 // SECTION contributors, which arrive at the factory. The list itself is unchanged data — it is built once
 // per `makeChatsSection` call (once per app), not per render.
 //
-// EXPORTED for the CROWN-PARITY pin (#1629, `tests/client/lib/registry-contracts.test.ts`):
+// EXPORTED for the CROWN-PARITY pin (#1629, `tests/client/lib/registry-contracts.dom.test.ts`):
 // `Preview` is one of the three live `crown: true` context tabs, and the other two are already reachable as
 // values (`automationActivityTab`, `makeRpgContextTabs`). Without this export the crowned set could only be
 // hand-copied into a fixture — the exact #898 defect the pin exists to make impossible. It is a pure list

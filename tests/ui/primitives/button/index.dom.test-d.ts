@@ -5,17 +5,7 @@
 //
 // Pinned here because the failure mode is silent in TWO directions: `IconOnlyButtonSize` is an `Extract`
 // over the tv() size axis, so RENAMING a size arm would resolve it to `never` and disarm the rule while
-// every call site still compiled — the membership assertions below are what red that. Mirrors
-// `primitives/button/index.ts` (the barrel exporting the prop types), not `button.tsx`: a `.ts`-kind test
-// may only mirror a `.ts` source (test-layout gate).
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — tsconfig.tests-dom.json
-// includes `tests/ui/**/*.ts`. The vitest `types` project ALSO collects it (its typecheck include is
-// `tests/**/*.test-d.ts`) and prints a green tick, but that green is VACUOUS: that lane's program is
-// `tsconfig.json`, which #1243 excluded `tests/ui` from WHOLESALE. Measured 2026-09-02 — a planted
-// `export const x: number = "…"` in this tree was reported `✓ … (n tests)` by `pnpm test:types` and
-// TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
-// The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
+// every call site still compiled — the membership assertions below are what red that.
 
 import type { ButtonProps, IconOnlyButtonSize } from "@orb/ui/button";
 import { expectTypeOf, test } from "vitest";
