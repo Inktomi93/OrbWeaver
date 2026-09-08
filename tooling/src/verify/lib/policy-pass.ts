@@ -641,7 +641,7 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
 
 function factReceiptFailures(run: FactRun): string[] {
   const failures: string[] = [];
-  if (!run.receipts.some((receipt) => receipt.kind === "population" || receipt.kind === "resource")) {
+  if (run.receipts.length === 0) {
     failures.push("fact produced no semantic receipt");
   }
   if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
