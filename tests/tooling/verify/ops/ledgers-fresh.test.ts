@@ -2,7 +2,7 @@
 //
 //   RED-FIRST, on the UNMODIFIED source: a stale committed ledger was invisible to `pnpm check`. At HEAD
 //   the ONLY consumer of docs/reviews/caught-failure-ownership/population.json was
-//   tests/tooling/verify/gates/caught-failure-ownership.int.test.ts — an `.int.test.ts`, i.e. the
+//   tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts — a `.repo.int.test.ts`, i.e. the
 //   `integration` vitest project, which `pnpm check` never runs (it is the STATIC tier). So main could sit
 //   re-staled by a merge for hours with a green commit bar, three times in one night (2026-08-30).
 //
@@ -26,6 +26,7 @@ import {
   SNAP_FLAGS_INDEX_REL,
   snapFlagsIndexDrift,
   TEST_BASELINE_REL,
+  typeConfigsDrift,
 } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -186,8 +187,20 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
   expect(lines).toContain("fresh  docs/reviews/caught-failure-ownership/population.json");
 });
 
-test("the caught-failure/test-baseline/snap-flags-index ledgers carry a `baseline --check` arm", () => {
-  expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual(["caught-failure-population", "snap-flags-index", "test-baseline-manifest"]);
+test("every generated ledger/config family carries a `baseline --check` arm", () => {
+  expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual([
+    "caught-failure-population",
+    "snap-flags-index",
+    "test-baseline-manifest",
+    "type-configs",
+  ]);
+});
+
+test("generated type-config drift names the exact changed file and writer", ({ repoRoot }) => {
+  const result = typeConfigsDrift(repoRoot);
+  expect(result.drift).toEqual([]);
+  expect(result.regen).toContain("baseline type-configs");
+  expect(result.derived).toBeGreaterThan(10);
 });
 
 // ── the third ledger: the generated snap flag index (#1329) ──

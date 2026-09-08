@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["reset.d.ts", "platform.d.ts", "tests/support/iso/**/*"],
+  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
+}

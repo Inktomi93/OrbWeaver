@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
+  },
+  "files": []
+}

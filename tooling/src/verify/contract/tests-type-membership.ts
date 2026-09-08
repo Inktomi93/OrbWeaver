@@ -1,8 +1,9 @@
 // Full authored TypeScript membership, with unresolved intent exposed instead of counted as clean.
 import type { World } from "../../_shared/project-worlds.ts";
+import type { AmbientScope } from "../../_shared/type-config-intent.ts";
 
-/** Required owner present, wrong root, closure-only, absent, or intent not yet classified. */
-export const MEMBERSHIP_OUTCOMES = ["predicted", "drift", "import-only", "unowned", "unclassified"] as const;
+/** Required owner present, explicit ambient scope, wrong root, closure-only, absent, or unresolved intent. */
+export const MEMBERSHIP_OUTCOMES = ["predicted", "ambient", "drift", "import-only", "unowned", "unclassified"] as const;
 export type MembershipOutcome = (typeof MEMBERSHIP_OUTCOMES)[number];
 export const MEMBERSHIP_ENFORCEMENT = "test-coverage-and-lib-leaks";
 
@@ -10,6 +11,8 @@ export const MEMBERSHIP_ENFORCEMENT = "test-coverage-and-lib-leaks";
 export interface MembershipRow {
   readonly file: string;
   readonly world: World | null;
+  /** Authored distribution label. Phase 6 compares its expected program set; this field alone is not that verdict. */
+  readonly ambientScope: AmbientScope | null;
   /** The required primary owner; null means the model has not assigned one. */
   readonly predicted: string | null;
   /** The programs that ROOT the file (include/files resolution through the compiler's own config reader). */

@@ -1,4 +1,4 @@
-// The `ledgers:fresh` stage (#817) — the STATIC tripwire for the two committed single-writer ledgers that
+// The `ledgers:fresh` stage (#817) — the STATIC tripwire for committed single-writer outputs that
 // lag the tree SILENTLY: `docs/reviews/caught-failure-ownership/population.json` (every row carries the
 // `line`/`markerLine` of a caught-failure site, so ANY merge that inserts lines above one re-stales it) and
 // `docs/test-baseline/manifest.json` (every tracked spec). Both already have a freshness check — but each
@@ -34,12 +34,14 @@ import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
+import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 const REGEN_MANIFEST = "pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
+const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
 
 /** How many drift lines to print before summarising the tail. A re-line after a big merge moves dozens of
  *  rows; the reader needs enough to recognise the shape, not the whole diff (the file is the diff). */
@@ -138,13 +140,35 @@ export function snapFlagsIndexDrift(root: string): LedgerFreshness {
   return { ...base, drift: committedText === derivedText ? [] : ["the committed file differs from a fresh derivation (byte-for-byte)"] };
 }
 
-/** All three ledgers' freshness, cheap half first. The derivations run unconditionally — a stage that
+/** Generated config bytes versus the complete authored-intent derivation. Each config is compared as a
+ * whole file: patching JSONC fragments would preserve stale fields that the generator no longer owns. */
+export function typeConfigsDrift(root: string): LedgerFreshness {
+  const derived = deriveTypeConfigFiles(root);
+  const drift: string[] = [];
+  for (const [path, expected] of Object.entries(derived)) {
+    const absolute = join(root, path);
+    if (!existsSync(absolute)) {
+      drift.push(`missing ${path}`);
+    } else if (readFileSync(absolute, "utf8") !== expected) {
+      drift.push(`changed ${path}`);
+    }
+  }
+  return {
+    ledger: "generated TypeScript configs",
+    regen: REGEN_TYPE_CONFIGS,
+    derived: Object.keys(derived).length,
+    drift,
+  };
+}
+
+/** Every single-writer output's freshness, cheap half first. The derivations run unconditionally — a stage that
  *  short-circuited on the first drift would hide the others from the same barrier run. */
 export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
   const manifest = manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root));
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
-  return [manifest, census, snapFlagsIndex];
+  const typeConfigs = typeConfigsDrift(root);
+  return [manifest, census, snapFlagsIndex, typeConfigs];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -194,7 +218,7 @@ function verdict(results: readonly LedgerFreshness[]): number {
   return results.some((result) => result.drift.length > 0) ? EXIT.violations : EXIT.clean;
 }
 
-/** The `ledgers-fresh` verb — the whole-project stage. Both ledgers, one process, writes nothing. */
+/** The `ledgers-fresh` verb — the whole-project stage. Every output, one process, writes nothing. */
 export function runLedgersFresh(root: string): number {
   return verdict(ledgerFreshness(root));
 }
@@ -206,4 +230,5 @@ export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number>> =
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "test-baseline-manifest": (root) => verdict([manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
+  "type-configs": (root) => verdict([typeConfigsDrift(root)]),
 };

@@ -163,8 +163,18 @@ export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
+export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export { generateUiVariantAxesStampedBaseline } from "./ops/gen/ui-variant-axes-stamped.ts";
-export { censusDrift, LEDGER_CHECKS, ledgerFreshness, ledgerReport, manifestDrift, runLedgersFresh, snapFlagsIndexDrift } from "./ops/ledgers-fresh.ts";
+export {
+  censusDrift,
+  LEDGER_CHECKS,
+  ledgerFreshness,
+  ledgerReport,
+  manifestDrift,
+  runLedgersFresh,
+  snapFlagsIndexDrift,
+  typeConfigsDrift,
+} from "./ops/ledgers-fresh.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";

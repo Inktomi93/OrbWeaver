@@ -179,8 +179,17 @@ const TS_LIVE_SRC = "packages/ui/src/live.ts";
 const TS_LIVE_SOURCE = "export const live = 1;\n";
 /** The gate's RATIFIED keys + cite, restated — a planted config must carry them or the two-sided STALE arm
  *  correctly reds every fixture. */
-const TS_RATIFIED_KEYS = ["**/node_modules", "**/__g_*", "**/__g_*/**"];
-const TS_RATIFIED_CITES = [".gitignore", "tooling/src/verify/gates/GATE-AUTHORING.md"];
+const TS_RATIFIED_KEYS = [
+  "**/node_modules",
+  "**/__g_*",
+  "**/__g_*/**",
+  "scripts/**/*.cts",
+  "scripts/**/*.mts",
+  "scripts/**/*.tsx",
+  "tests/**/*.cts",
+  "tests/support/iso/**/*",
+];
+const TS_RATIFIED_CITES = [".gitignore", "docs/architecture/proposed/type-worlds-program.md", "tooling/src/verify/gates/GATE-AUTHORING.md"];
 
 /** An anchor-sized root tsconfig: `globs` under test, the ratified excludes a real config carries, LIVE
  *  glob filler, and ONE live file-exact entry. */

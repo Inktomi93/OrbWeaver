@@ -64,7 +64,7 @@ const EXEMPT: ExemptionTable<GrantExemption> = {
 /** The committed count of `${configDir}` entries — irreducible because TypeScript expands the token per
  *  INHERITING config, so the entry denotes a different path in each extender and has no single member set.
  *  Two-sided: growth adds unreviewed authority, an uncommitted shrink leaves a budget nobody can trust. */
-const CONFIG_DIR_BUDGET = 3;
+const CONFIG_DIR_BUDGET = 0;
 
 /** The §4.5 real-tree anchor for the BUDGET arm: this gate's own module, which no planted fixture root carries. */
 const GATE_SELF = "tooling/src/verify/gates/tsconfig-entry-liveness.ts";
@@ -78,6 +78,37 @@ const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 /** Glob entries whose members are absent from the tracked corpus BY DESIGN, each with its END CONDITION.
  *  Keyed by the entry AS AUTHORED (the same spelling the config carries), two-sided on both halves. */
 const RATIFIED: ExemptionTable<GrantExemption> = {
+  "scripts/**/*.cts": {
+    why:
+      "the Node root declares every authored TypeScript dialect before its first scripts .cts file. Delete " +
+      "this row when the first scripts/**/*.cts source lands and pattern liveness reports it stale.",
+    cite: "docs/architecture/proposed/type-worlds-program.md",
+  },
+  "scripts/**/*.mts": {
+    why:
+      "the Node root declares every authored TypeScript dialect before its first scripts .mts file. Delete " +
+      "this row when the first scripts/**/*.mts source lands and pattern liveness reports it stale.",
+    cite: "docs/architecture/proposed/type-worlds-program.md",
+  },
+  "scripts/**/*.tsx": {
+    why:
+      "the browser root declares TSX scripts before its first member so a future authored file cannot be " +
+      "silently unowned. Delete this row when the first scripts/**/*.tsx source lands and pattern liveness reports it stale.",
+    cite: "docs/architecture/proposed/type-worlds-program.md",
+  },
+  "tests/**/*.cts": {
+    why:
+      "the Node root declares every authored TypeScript dialect before its first tests .cts file. Delete " +
+      "this row when the first tests/**/*.cts source lands and pattern liveness reports it stale.",
+    cite: "docs/architecture/proposed/type-worlds-program.md",
+  },
+  "tests/support/iso/**/*": {
+    why:
+      "the explicit ISO-helper root exists before its first helper by design; reset.d.ts + platform.d.ts keep " +
+      "the compiler leaf measurable meanwhile. Delete this row when the first tests/support/iso source lands " +
+      "and pattern liveness reports the exemption stale.",
+    cite: "docs/architecture/proposed/type-worlds-program.md",
+  },
   "**/node_modules": {
     why:
       "INSTALLED DEPENDENCIES: node_modules is gitignored, so it is absent from the tracked corpus by " +

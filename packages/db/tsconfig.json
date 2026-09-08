@@ -1,13 +1,5 @@
 {
-  // drizzle.config.ts JOINED 2026-08-03 (drizzle-kit audit): it sat at the package root in NO type
-  // program (base include is `src`), the same no-program hole the dead Vitest-4 keys hid in — a
-  // drizzle-kit Config key drift would never typecheck-red. Mirror: tooling/src/verify/lib/selection.ts
-  // routes it here (the client vite.config.ts precedent).
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
-  // `../../platform.d.ts` = the root ambient pair's second half (node-26 adoption program §1.2) — see
-  // tsconfig.base.json's include note: this array overrides the base's, which carries both.
-  "include": ["src", "drizzle.config.ts", "../../reset.d.ts", "../../platform.d.ts"]
+  "extends": "../../tsconfig.world-node.json",
+  "include": ["src", "drizzle.config.ts", "../../reset.d.ts", "../../platform.d.ts"],
+  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
 }
