@@ -6,9 +6,6 @@
 // receipt re-emitted by raw JSON.stringify, `check:doc-catalog` exited 0 while
 // `biome check docs/catalog` exited 1 on the same tree.
 //
-// Serial lane (vitest.config.ts SERIAL_INT): `stableJson` — the ONE canonical serializer — round-trips
-// through the biome BINARY via a temp file at the FIXED path docs/catalog/catalog.tmp.json, so two
-// concurrent callers would clobber each other's tmp.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ArtifactForm, LaneConfig } from "../../../../tooling/src/doc-catalog/index.ts";

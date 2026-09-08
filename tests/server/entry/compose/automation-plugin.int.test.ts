@@ -15,9 +15,6 @@
 // real execute still runs. That is also a premise check: `ServicesResult.toolUse` and the object
 // `buildAutomationPlugin` closed over are asserted to be one instance by the spy recording at all.
 //
-// ROUTED SERIAL (`vitest.config.ts` SERIAL_INT — the coupled site): a full-`createServices` file whose first
-// test pays the cold whole-server-graph import, measured 5.2s against the parallel lane's 5s timeout.
-//
 // WHAT EACH PIN COSTS TO BREAK, measured by planting the break and watching it red (#691 red-first): the
 // author-scoped resolve, `triggeredBy`, the record→result mapping and the C5 mint clause each red one or more
 // rows on their own. The PAUSE row is the exception and deliberately so — it stayed green until BOTH the

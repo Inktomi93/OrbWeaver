@@ -3,8 +3,7 @@
 // (tests/server/domain/roster-preset/verbs/apply-to-chat.int.test.ts) is re-proven here through the REAL
 // injected ops — chat's actual addCharacterToChat present-seat floor, the actual setSeatKnobs write, the
 // actual setGroupConfig parse-and-persist, and chat's actual requireHost refusal — so a stubbed or
-// mis-mapped compose op cannot pass on fakes alone. SERIAL_INT: full-createServices class (cold graph
-// import on the first test flakes the parallel 5s timeout).
+// mis-mapped compose op cannot pass on fakes alone.
 
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { chatParticipants } from "@orb/db";

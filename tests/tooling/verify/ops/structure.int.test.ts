@@ -38,6 +38,9 @@ const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
 const POLL_DELAY_MS = 50;
 const READINESS_BUDGET_MS = scaledBudget(30_000);
+const SUBPROCESS_CLEANUP_BUDGET_MS = scaledBudget(5000);
+const TIMEOUT_CHILD_BUDGET_MS = scaledBudget(10_000);
+const OOM_CHILD_BUDGET_MS = scaledBudget(60_000);
 const HEAP_OOM_RE = /FATAL ERROR:.*heap out of memory/isu;
 
 function isRealHeapOom(result: { readonly code: number | null; readonly stderr: string; readonly timedOut: boolean }): boolean {
@@ -263,7 +266,10 @@ test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", a
 
 // ── control 4: a deliberate OOM under a tiny heap ceiling ───────────────────────────────────────────
 
-test("readiness followed by a harness timeout is not accepted as an OOM", async ({ plantedTree, runCli }) => {
+test("readiness followed by a harness timeout is not accepted as an OOM", { timeout: TIMEOUT_CHILD_BUDGET_MS + SUBPROCESS_CLEANUP_BUDGET_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
   const readyFile = "planted-timeout-ready";
   const root = await plantedTree({
     ...SCANNED,
@@ -272,13 +278,15 @@ test("readiness followed by a harness timeout is not accepted as an OOM", async 
       `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    while (true) {\n      /* planted timeout */\n    }\n  },`,
     ).replace('"planted-ok"', '"planted-timeout"')}`,
   });
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: scaledBudget(10_000) });
+  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: TIMEOUT_CHILD_BUDGET_MS });
   expect(existsSync(join(root, readyFile)), res.stderr).toBe(true);
   expect(res.timedOut).toBe(true);
   expect(isRealHeapOom(res)).toBe(false);
 });
 
-test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves the in-flight stub", async ({ plantedTree, runCli }) => {
+test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves the in-flight stub", {
+  timeout: OOM_CHILD_BUDGET_MS + SUBPROCESS_CLEANUP_BUDGET_MS,
+}, async ({ plantedTree, runCli }) => {
   const readyFile = "planted-oom-ready";
   const root = await plantedTree({
     ...SCANNED,
@@ -295,7 +303,7 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
     // `spawnNiced` MERGES over the inherited env, so this replaces the workspace's 16GB NODE_OPTIONS
     // ceiling for this child only and leaves PATH (which `nice` needs) alone.
     env: Object.fromEntries([["NODE_OPTIONS", "--max-old-space-size=256"]]),
-    timeoutMs: scaledBudget(60_000),
+    timeoutMs: OOM_CHILD_BUDGET_MS,
   });
   expect(res.code).not.toBe(0);
   expect(res.code).not.toBe(1); // never a VERDICT — an aborted checker is exit-2 class

@@ -10,16 +10,13 @@ export const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
 export const DROPPED_LANES = new Map([
   [
     "integration-serial",
-    "tree-writers + fixed-port/fixed-db-file suites (vitest.config.ts's SERIAL_INT) — Stryker's own " +
-      "`concurrency: 6` worker PROCESSES would collide on those fixed resources — this file's " +
-      "`fileParallelism:false`+`maxWorkers:1` only serializes WITHIN one Stryker worker, never ACROSS them.",
+    "lifecycle still binds one fixed host port; its database and assets are already private. " +
+      "Serial Vitest execution inside one Stryker worker cannot prevent another worker from binding that port.",
   ],
   [
     "tooling-serial",
-    "the instrument battery's CONTENTION half (vitest.config.ts's SERIAL_INT_TOOLING, #1842) — both reasons " +
-      "at once: tree-writers on fixed real-tree paths that Stryker's `concurrency: 6` worker PROCESSES " +
-      "would collide on, AND tests/tooling/** meta-tests that fail by construction against a " +
-      "mutant-instrumented sandbox copy.",
+    "repository-fixture writers and coupled corpus readers require exclusive execution until the gate " +
+      "fixture migration. These instrument meta-tests also inspect source that Stryker rewrites in its sandbox.",
   ],
   [
     "tooling",
