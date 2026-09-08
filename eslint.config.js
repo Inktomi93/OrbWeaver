@@ -50,6 +50,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
@@ -100,7 +101,12 @@ function authorClassIgnores(sheets) {
 }
 // Browser component tests (the ones @orb/ui's / @orb/client's tsconfigs own — real components +
 // hooks). The node `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — no hooks/components.
-const UI_CT = "tests/ui/**/*.ct.tsx";
+const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
+  ({ family, suffix }) =>
+    family === "component" && !TEST_KIND_DEFINITIONS.some((other) => other.family === family && other.suffix !== suffix && suffix.endsWith(other.suffix)),
+).map(({ suffix }) => suffix);
+const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
+const UI_CT = componentTestGlobs("tests/ui");
 const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
 // #1590: `tests/ui/**` grew underscore-prefixed story modules (the same "not a real test file" naming
 // convention as `_ct-stories.tsx` elsewhere) and a `.stories.tsx` suffix of its own — neither had a home
@@ -109,7 +115,7 @@ const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
 // same doctrine as CLIENT_STORIES below.
 const UI_STORIES = "tests/ui/**/_*.tsx";
 const UI_STORIES_SUFFIX = "tests/ui/**/*.stories.tsx";
-const CLIENT_CT = "tests/client/**/*.ct.tsx";
+const CLIENT_CT = componentTestGlobs("tests/client");
 // #1590: widened from the exact `_ct-stories.tsx` filename to every underscore-prefixed `.tsx` under
 // `tests/client/**` — story/fixture modules share that naming convention regardless of their suffix
 // (`_cascade-fixtures.tsx`, `_slash-command-stories.tsx`, …), and a per-filename list here would rot the
@@ -124,10 +130,21 @@ const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
 // Both are React under playwright-ct exactly like the ui/client trees — without these rows the
 // react-hooks/Compiler rules stop at the tests/{ui,client} border while `.ct.tsx` files elsewhere
 // render unchecked. Syntactic parse, same as the rest of CT_SURFACE (no program needed).
-const TOOLING_CT = "tests/tooling/**/*.ct.tsx";
+const TOOLING_CT = componentTestGlobs("tests/tooling");
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
 const SUPPORT_CT = "tests/support/browser/**/*.tsx";
-const CT_SURFACE = [UI_CT, UI_FIXTURES, UI_STORIES, UI_STORIES_SUFFIX, CLIENT_CT, CLIENT_STORIES, CLIENT_FIXTURES, TOOLING_CT, TOOLING_STORIES, SUPPORT_CT];
+const CT_SURFACE = [
+  ...UI_CT,
+  UI_FIXTURES,
+  UI_STORIES,
+  UI_STORIES_SUFFIX,
+  ...CLIENT_CT,
+  CLIENT_STORIES,
+  CLIENT_FIXTURES,
+  ...TOOLING_CT,
+  TOOLING_STORIES,
+  SUPPORT_CT,
+];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
@@ -724,7 +741,7 @@ export default tseslint.config(
     // seam. The canonical `useFooStore((s) => s.foo)` selector usage is unaffected. Dormant until
     // `packages/client/src/state/` exists.
     files: [CLIENT_SRC],
-    ignores: ["packages/client/src/state/**", "**/*.test.{ts,tsx}"],
+    ignores: ["packages/client/src/state/**"],
     rules: {
       "no-restricted-syntax": ["error", NO_STORE_STATICS],
     },
@@ -734,7 +751,7 @@ export default tseslint.config(
     // forms/state/lib/features — UI-Arch §2.1). Client code ASSEMBLES @orb/ui primitives + the layout
     // kit; it never PAINTS: no className/style on a raw intrinsic element. Re-lists NO_STORE_STATICS
     // because flat-config REPLACES no-restricted-syntax per file (no merge) and this block wins over
-    // the CLIENT_SRC zustand block above for every file it matches. Two ignores: app-shell (SHELL-tier
+    // the CLIENT_SRC zustand block above for every file it matches. The app-shell ignore (SHELL-tier
     // layout owner + the one legal @media site, §4.1) paints the frame and keeps only the zustand guard
     // via the CLIENT_SRC block above; state/** is exempt from THIS block's NO_STORE_STATICS re-list for
     // the same reason the zustand block above exempts it — a store's own file legitimately calls its
@@ -746,7 +763,6 @@ export default tseslint.config(
       "packages/client/src/state/**",
       // D62's shared app brand paints hand-authored SVG geometry. Keep the grant on this exact component.
       "packages/client/src/components/weave-glyph.tsx",
-      "**/*.test.{ts,tsx}",
     ],
     rules: {
       "no-restricted-syntax": ["error", NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC],

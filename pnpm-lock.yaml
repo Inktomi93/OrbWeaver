@@ -42,6 +42,9 @@ catalogs:
     '@dnd-kit/react':
       specifier: ^0.5.0
       version: 0.5.0
+    '@eslint/config-array':
+      specifier: 0.23.5
+      version: 0.23.5
     '@hono/node-server':
       specifier: ^2.0.6
       version: 2.1.1
@@ -889,6 +892,9 @@ importers:
 
   tooling:
     dependencies:
+      '@eslint/config-array':
+        specifier: 'catalog:'
+        version: 0.23.5(supports-color@7.2.0)
       '@orb/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
@@ -904,6 +910,9 @@ importers:
       chrome-devtools-mcp:
         specifier: 'catalog:'
         version: 1.8.0(patch_hash=67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.7.0(jiti@2.7.0)(supports-color@7.2.0)
       ts-morph:
         specifier: 'catalog:'
         version: 28.0.0

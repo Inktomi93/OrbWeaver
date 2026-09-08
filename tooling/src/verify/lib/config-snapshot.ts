@@ -3,14 +3,26 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import type { ConfigSelectorSnapshot, ConfigSnapshot, ConfigSnapshotField, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
-import { CONFIG_SNAPSHOT_FIELDS, CONFIG_SNAPSHOT_RUNNERS } from "../contract/config-snapshot.ts";
+import type {
+  ConfigSelectorSnapshot,
+  ConfigSnapshot,
+  ConfigSnapshotByRunner,
+  ConfigSnapshotRunner,
+  EslintConfigSnapshot,
+  EslintSelectorSnapshot,
+  EslintSelectorValue,
+  VitestConfigSnapshot,
+  VitestConfigSnapshotField,
+} from "../contract/config-snapshot.ts";
+import { CONFIG_SNAPSHOT_RUNNERS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
 
 const CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_MS = 30_000;
 const SNAPSHOT_MAX_BUFFER = 16_777_216;
 
-export type ConfigSnapshotRead = { readonly kind: "ok"; readonly snapshot: ConfigSnapshot } | { readonly kind: "unreadable"; readonly detail: string };
+export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =
+  | { readonly kind: "ok"; readonly snapshot: ConfigSnapshotByRunner[R] }
+  | { readonly kind: "unreadable"; readonly detail: string };
 
 function oneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
   return typeof value === "string" && (values as readonly string[]).includes(value);
@@ -25,13 +37,81 @@ function parseSelector(value: unknown): ConfigSelectorSnapshot | undefined {
     return;
   }
   const row = value as { readonly owner?: unknown; readonly field?: unknown; readonly values?: unknown };
-  if (typeof row.owner !== "string" || row.owner === "" || !oneOf<ConfigSnapshotField>(row.field, CONFIG_SNAPSHOT_FIELDS)) {
+  if (typeof row.owner !== "string" || row.owner === "" || !oneOf<VitestConfigSnapshotField>(row.field, VITEST_CONFIG_SNAPSHOT_FIELDS)) {
     return;
   }
-  if (!isStringArray(row.values)) {
+  return isStringArray(row.values) ? { owner: row.owner, field: row.field, values: row.values } : undefined;
+}
+
+function isEslintSelectorValue(value: unknown): value is EslintSelectorValue {
+  return typeof value === "string" || (isStringArray(value) && value.length > 0);
+}
+
+function parseEslintSelector(value: unknown): EslintSelectorSnapshot | undefined {
+  if (typeof value !== "object" || value === null) {
     return;
   }
-  return { owner: row.owner, field: row.field, values: row.values };
+  const row = value as {
+    readonly field?: unknown;
+    readonly members?: unknown;
+    readonly owner?: unknown;
+    readonly position?: unknown;
+    readonly scope?: unknown;
+    readonly value?: unknown;
+  };
+  if (
+    typeof row.owner !== "string" ||
+    row.owner === "" ||
+    (row.field !== "files" && row.field !== "ignores") ||
+    !Number.isSafeInteger(row.position) ||
+    (row.position as number) < 0 ||
+    !isEslintSelectorValue(row.value) ||
+    (row.scope !== "files" && row.scope !== "local-ignore" && row.scope !== "global-ignore") ||
+    !Number.isSafeInteger(row.members) ||
+    (row.members as number) < 0
+  ) {
+    return;
+  }
+  return row as EslintSelectorSnapshot;
+}
+
+function parseVitestSnapshot(snapshot: Record<string, unknown>, config: string): VitestConfigSnapshot | undefined {
+  const values = snapshot["selectors"];
+  if (!Array.isArray(values)) {
+    return;
+  }
+  const selectors = values.map(parseSelector);
+  if (selectors.length === 0 || selectors.some((row) => row === undefined)) {
+    return;
+  }
+  return { version: 1, runner: "vitest", config, selectors: selectors as ConfigSelectorSnapshot[] };
+}
+
+function parseEslintSnapshot(snapshot: Record<string, unknown>, config: string): EslintConfigSnapshot | undefined {
+  const trackedFiles = snapshot["trackedFiles"];
+  const entries = snapshot["entries"];
+  const values = snapshot["selectors"];
+  if (
+    !Number.isSafeInteger(trackedFiles) ||
+    (trackedFiles as number) <= 0 ||
+    !Number.isSafeInteger(entries) ||
+    (entries as number) <= 0 ||
+    !Array.isArray(values)
+  ) {
+    return;
+  }
+  const selectors = values.map(parseEslintSelector);
+  if (selectors.length === 0 || selectors.some((row) => row === undefined)) {
+    return;
+  }
+  return {
+    version: 1,
+    runner: "eslint",
+    config,
+    trackedFiles: trackedFiles as number,
+    entries: entries as number,
+    selectors: selectors as EslintSelectorSnapshot[],
+  };
 }
 
 function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshot | undefined {
@@ -45,25 +125,16 @@ function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: strin
   if (typeof value !== "object" || value === null) {
     return;
   }
-  const snapshot = value as { readonly version?: unknown; readonly runner?: unknown; readonly config?: unknown; readonly selectors?: unknown };
-  if (snapshot.version !== 1 || snapshot.runner !== runner || snapshot.config !== config || !Array.isArray(snapshot.selectors)) {
+  const snapshot = value as Record<string, unknown>;
+  if (snapshot["version"] !== 1 || snapshot["runner"] !== runner || snapshot["config"] !== config) {
     return;
   }
-  const selectors: ConfigSelectorSnapshot[] = [];
-  for (const selectorValue of snapshot.selectors) {
-    const row = parseSelector(selectorValue);
-    if (row === undefined) {
-      return;
-    }
-    selectors.push(row);
-  }
-  if (selectors.length === 0) {
-    return;
-  }
-  return { version: 1, runner, config, selectors };
+  return runner === "vitest" ? parseVitestSnapshot(snapshot, config) : parseEslintSnapshot(snapshot, config);
 }
 
-export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshotRead {
+export function readConfigSnapshot(root: string, runner: "vitest", config: string): ConfigSnapshotRead<"vitest">;
+export function readConfigSnapshot(root: string, runner: "eslint", config: string): ConfigSnapshotRead<"eslint">;
+export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshotRead<ConfigSnapshotRunner> {
   const child = runNicedSync(process.execPath, [CLI, "config-snapshot", runner, config], {
     cwd: root,
     maxBuffer: SNAPSHOT_MAX_BUFFER,
