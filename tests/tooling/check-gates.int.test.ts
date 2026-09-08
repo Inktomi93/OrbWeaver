@@ -205,6 +205,13 @@ function writeFixtures(): void {
   // anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag).
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
+  // test-world-browser-contracts: a Node-intent type test consumes the real browser-authored InputProps
+  // contract through its public primitive barrel. React's empty Node-world DOM declarations must not make
+  // this compile-only mismatch read as a valid Node test.
+  fx(
+    "tests/ui/primitives/input/__g_browser-contract.test-d.ts",
+    'import type { InputProps } from "../../../../packages/ui/src/primitives/input/index.ts";\nexport type Subject = InputProps;\n',
+  );
   // ── @orb/tooling (docs/architecture/core/Core-Tooling-Law.md §4) ──
   // tooling-slot-template: a tool dir with neither front door and a stray root file.
   fx("tooling/src/__g_badtool/stray.ts", "export const x = 1;\n");
@@ -983,11 +990,11 @@ function writeFixtures(): void {
 // mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
 // enforcement-registry-parity: its `__g_` arm is retired (the gate-file-vs-registry job is now the loader's
 // fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance.
-// tsconfig-routing-parity spawns `tsgo --showConfig` over the REAL tsconfig tree (the 7 programs) and
-// reconciles their root membership against selection.ts's routing algebra — a throwaway `__g_` file can't
-// alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
-// conformance mustFlag (a synthetic reach-back-include tree) + a real-tree break-confirm (misroute one
-// file → RED → restore byte-identical).
+// tsconfig-routing-parity spawns native TS7 `--showConfig` over the REAL tsconfig tree and reconciles those
+// roots against the shared compiler-program parser, then requires each test/harness root to have its
+// intended exclusive primary from project-worlds. A throwaway `__g_` file cannot alter a program's
+// resolved include/files, so it can't be fixture-driven. Its bite is proven by its conformance mustFlag
+// (a synthetic test rooted by both Node and browser programs) + a real-tree break-confirm.
 // bus-producer-coverage: MISSING needs an un-emitted REAL union member, which a throwaway `__g_` file can't
 // add to a single-home belt such as `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by its conformance
 // mustFlag rows (synthetic un-emitted members, one per belted bus) in the final policy's own proof set.
@@ -1046,10 +1053,10 @@ function writeFixtures(): void {
 // absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
 // runner-config-path-liveness: the fourth of that family — its units are values inside the REPO-ROOT
 // runner configs (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts), which no `__g_` path
-// can express and which cannot be perturbed without changing WHICH TESTS RUN for every concurrent lane
-// (the fixture would rewrite the very config collecting it). Its bite is proven by conformance (dead row ·
-// the SERIAL_INT const-spread shape reporting once per site · unreadable-shape refusal · a missing config ·
-// an unparseable config · zero-rows) and by its own permanent pin,
+// can express and which cannot be perturbed without changing WHICH TESTS RUN for every concurrent lane.
+// Vitest selectors are observed through the native config-snapshot boundary; the still-literal Playwright
+// fields use the static reader. Its bite is proven by conformance and its permanent pin, including native
+// derived selectors, exact-path containment, field-aware include semantics, and both refusal directions:
 // tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts.
 // tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
 // them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
