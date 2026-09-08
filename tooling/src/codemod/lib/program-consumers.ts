@@ -5,7 +5,7 @@ import type { CompilerProgram } from "#verify";
 import type { ProgramDiagnosticBaseline } from "../contract/types.ts";
 import { physicalPathIdentity } from "./plans.ts";
 
-export function repoAbsolute(fileName: string, repoRoot: string): string | undefined {
+function repoAbsolute(fileName: string, repoRoot: string): string | undefined {
   const absolute = resolve(fileName);
   const rel = relative(repoRoot, absolute);
   if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || rel.split(sep).includes("node_modules")) {
@@ -95,7 +95,7 @@ export function scriptKind(fileName: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
-export function hasGlobalEffect(sourceFile: ts.SourceFile): boolean {
+function hasGlobalEffect(sourceFile: ts.SourceFile): boolean {
   if (sourceFile.isDeclarationFile || !ts.isExternalModule(sourceFile)) {
     return true;
   }
