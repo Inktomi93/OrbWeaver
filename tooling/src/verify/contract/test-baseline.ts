@@ -13,7 +13,7 @@ export interface TestBaselineDeletion {
   readonly why: string;
 }
 
-/** Every tracked spec the runners collect, sorted, plus the deletion ledger that survives every regen. */
+/** Tracked specs plus unaccounted removed members, sorted; accounted deletions survive regeneration. */
 export interface TestBaselineManifest {
   readonly testFiles: readonly string[];
   readonly deletions: Readonly<Record<string, TestBaselineDeletion>>;
