@@ -12,6 +12,8 @@
 // consume as this run's clean verdict.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
+import { spawnNicedChild } from "@orb/tooling/_shared/proc";
 import { GATE_PHASES } from "../../../../tooling/src/verify/contract/pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -34,6 +36,26 @@ const OK_GATE = `export const gate = {
 /** The file the planted gate scans — without it every planted run trips the zero-scan alarm instead. */
 const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
+const POLL_DELAY_MS = 50;
+const READINESS_BUDGET_MS = scaledBudget(30_000);
+const HEAP_OOM_RE = /FATAL ERROR:.*heap out of memory/isu;
+
+function isRealHeapOom(result: { readonly code: number | null; readonly stderr: string; readonly timedOut: boolean }): boolean {
+  return !result.timedOut && result.code !== 0 && result.code !== 1 && HEAP_OOM_RE.test(result.stderr);
+}
+
+async function waitUntil(check: () => boolean, description: string): Promise<void> {
+  const attempts = Math.ceil(READINESS_BUDGET_MS / POLL_DELAY_MS);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (check()) {
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, POLL_DELAY_MS);
+    });
+  }
+  throw new Error(`timed out waiting for ${description}`);
+}
 
 interface RunView {
   /** `<checkout>-<pid>-<timestamp>` (#1029) — the identity the published pointer must resolve to. */
@@ -203,19 +225,33 @@ test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is 
 
 // ── control 3: SIGKILL mid-run (the wall-clock/`kill -9` class) ─────────────────────────────────────
 
-test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", async ({ plantedTree, runCli }) => {
+test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", async ({ plantedTree, repoRoot, runCli }) => {
+  const readyFile = "planted-hang-ready";
   const root = await plantedTree({
     ...SCANNED,
-    // A gate whose `run` never returns. The fixture's own timeout SIGKILLs the child — the same
-    // abnormal-termination class as an operator `kill -9` or a lefthook wall-clock kill.
-    [`${GATE_DIR}/planted-hang.ts`]: OK_GATE.replace(
+    // A gate whose `run` announces entry through a planted readiness file and never returns. The parent
+    // SIGKILLs only after that signal — the same abnormal-termination class as an operator `kill -9` or a
+    // lefthook wall-clock kill, without assuming startup completed inside an arbitrary sleep.
+    [`${GATE_DIR}/planted-hang.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
       "visitFile: () => undefined,",
-      "run: () => {\n    while (true) {\n      /* planted hang */\n    }\n  },",
-    ).replace('"planted-ok"', '"planted-hang"'),
+      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    while (true) {\n      /* planted hang */\n    }\n  },`,
+    ).replace('"planted-ok"', '"planted-hang"')}`,
   });
-  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: 4000 });
-  expect(res.timedOut).toBe(true);
-  expect(res.code).toBeNull(); // signal-killed — ALWAYS tool-error class, never a verdict
+  let output = "";
+  const child = spawnNicedChild(process.execPath, [join(repoRoot, "tooling", "src", "verify", "cli.ts"), "structure"], {
+    cwd: root,
+    onOutput: (chunk) => {
+      output += chunk.toString("utf8");
+    },
+  });
+  try {
+    await waitUntil(() => existsSync(join(root, readyFile)) || child.hasExited(), "the planted gate to enter its run hook");
+    expect(existsSync(join(root, readyFile)), output).toBe(true);
+    expect(child.hasExited(), output).toBe(false);
+  } finally {
+    child.killGroup("SIGKILL");
+    await waitUntil(child.hasExited, "the SIGKILLed structure process to exit");
+  }
   expect(manifest(root).complete).toBe(false);
   // #1029: the stub is PRIVATE to the dead run — no pointer was published, so no reader can mistake it for
   // a verdict, and no concurrent sibling could have clobbered it either.
@@ -227,26 +263,46 @@ test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", a
 
 // ── control 4: a deliberate OOM under a tiny heap ceiling ───────────────────────────────────────────
 
-test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves the in-flight stub", async ({ plantedTree, runCli }) => {
+test("readiness followed by a harness timeout is not accepted as an OOM", async ({ plantedTree, runCli }) => {
+  const readyFile = "planted-timeout-ready";
   const root = await plantedTree({
     ...SCANNED,
-    // Allocation without bound under a 64MB ceiling: node aborts (exit 134 / SIGABRT). The ceiling is
-    // PLANTED so the control costs 64MB and a second — a real-heap OOM control on a co-hosted box is a
-    // load bomb, and the class being proven (abnormal termination mid-run) is identical.
-    [`${GATE_DIR}/planted-oom.ts`]: OK_GATE.replace(
+    [`${GATE_DIR}/planted-timeout.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
       "visitFile: () => undefined,",
-      "run: () => {\n    const hog = [];\n    while (true) {\n      hog.push(new Array(1_000_000).fill(0));\n    }\n  },",
-    ).replace('"planted-ok"', '"planted-oom"'),
+      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    while (true) {\n      /* planted timeout */\n    }\n  },`,
+    ).replace('"planted-ok"', '"planted-timeout"')}`,
+  });
+  const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: scaledBudget(10_000) });
+  expect(existsSync(join(root, readyFile)), res.stderr).toBe(true);
+  expect(res.timedOut).toBe(true);
+  expect(isRealHeapOom(res)).toBe(false);
+});
+
+test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves the in-flight stub", async ({ plantedTree, runCli }) => {
+  const readyFile = "planted-oom-ready";
+  const root = await plantedTree({
+    ...SCANNED,
+    // Allocation without bound under a bounded heap: node aborts (exit 134 / SIGABRT). The readiness
+    // marker proves the loader completed and the planted gate entered `run` before memory exhaustion, so
+    // an ever-heavier startup cannot satisfy this control by crashing before the in-flight stub exists.
+    [`${GATE_DIR}/planted-oom.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
+      "visitFile: () => undefined,",
+      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    const hog = [];\n    while (true) {\n      hog.push(new Array(1_000_000).fill(0));\n    }\n  },`,
+    ).replace('"planted-ok"', '"planted-oom"')}`,
   });
   const res = await runCli("verify", ["structure"], {
     cwd: root,
     // `spawnNiced` MERGES over the inherited env, so this replaces the workspace's 16GB NODE_OPTIONS
     // ceiling for this child only and leaves PATH (which `nice` needs) alone.
-    env: Object.fromEntries([["NODE_OPTIONS", "--max-old-space-size=64"]]),
+    env: Object.fromEntries([["NODE_OPTIONS", "--max-old-space-size=256"]]),
     timeoutMs: scaledBudget(60_000),
   });
   expect(res.code).not.toBe(0);
   expect(res.code).not.toBe(1); // never a VERDICT — an aborted checker is exit-2 class
+  expect(existsSync(join(root, readyFile)), res.stderr).toBe(true);
+  expect(res.timedOut).toBe(false);
+  expect(res.stderr).toMatch(HEAP_OOM_RE);
+  expect(isRealHeapOom(res)).toBe(true);
   expect(manifest(root).complete).toBe(false);
   expect((await runCli("verify", ["show"], { cwd: root })).code).toBe(2);
 });
