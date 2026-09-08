@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # One ts-morph runtime for every Orb gate
@@ -76,7 +76,7 @@ Each module exports exactly one policy and `id` equals its filename. `family` is
 
 Every self-proof row declares its fixture mode and paths explicitly. Source/type fixtures run in the in-memory workspace; resource fixtures materialize their declared files. No default path inferred from population and no fake real-tree anchor decides which substrate a proof receives.
 
-No proof writes `__g_`/`__dc_` files into the developer's working tree. Gitignore is not cleanup: it would hide crash leftovers while filesystem-based gates could still load them and change cross-file populations. Syntax/type proofs use virtual files, resource proofs use auto-cleaned temp roots, and real-corpus controls add a virtual overlay to the loaded Project. The current live-tree planting suite cleans reserved leftovers on entry and in `finally` during migration, then is retired at cutover with the reserved probe-artifact filters.
+No proof writes `__g_`/`__dc_` files into the developer's working tree. Gitignore is not cleanup: it would hide crash leftovers while filesystem-based gates could still load them and change cross-file populations. Syntax/type proofs use virtual files, resource proofs use auto-cleaned temp roots, and real-corpus controls add a virtual overlay to the loaded Project. During migration, each live-tree proof owns a unique reserved namespace and deletes only its own fixtures; it must never reap a concurrent proof’s files. The live-tree planting mechanism retires at cutover with the reserved probe-artifact filters, while its isolation and cleanup guarantees move to the final fixture runtime.
 
 ## Standard capabilities
 
@@ -231,13 +231,39 @@ The 13 mixed-hook modules have been read in full and are ruled before conversion
 
 For all 13, `evaluate` runs after the shared walk and before central waiver/grant liveness reconciliation. This preserves the current load-bearing rule that a post-walk finding consumes its waiver before the waiver auditor judges staleness, without relying on filename order.
 
+## World-program changes that must survive cutover
+
+The world/test program (#1351, phase 4 #1862) continues to repair the production legacy path while this
+cutover is incomplete. Its changes are inputs to conversion, not disposable transitional behavior. Before
+converting a touched policy, re-read its current implementation and proofs on the integrated branch; do not
+restore the older gate-branch copy.
+
+The comparison anchor is tinker commit `6c8424806704ac9322cc2ff5fe0334801b3d1801`, an ancestor of the
+integrated branch. Re-derive the complete delta with `git diff <anchor> HEAD -- tooling/src/verify tests/tooling
+scripts/ts7.cjs vitest.config.ts tsconfig.json tsconfig.tests-dom.json`. Include working-tree changes while
+implementation is active. This is migration evidence, not another runtime gate registry.
+
+| Guarantee to carry forward | Current owners / evidence | Required cutover proof |
+| - | - | - |
+| Test-kind registration and source mirroring | `_shared/test-kinds.ts`; `gates/test-layout.ts`; a8c4461db and #1862 follow-ups | Registered DOM/runtime/type/suite kinds keep their distinct meaning; unsupported test-shaped names fail, including in helper trees. |
+| Presence and mutation/execution population semantics | `gates/test-presence*.ts`, `verify/ops/tests-execution-membership.ts`, `verify/lib/ct-view.ts`, `mutation-probe/lib/mirror.ts`; aefec8d9a | Persistence still requires integration coverage, schema contracts require contract tests, type-only files cannot satisfy runtime presence, native collection remains independent. |
+| Current source ownership and exact grant identities | Forms/editor, rendered components, appearance/session and scroll ownership; 1a77f8d83, 370243fe7, b849e7add | Updated gate subjects and reviewed grants resolve at their current homes; no stale old-path permission survives. |
+| Actual compiler roots and post-transform diagnostics | Shared compiler reader and codemod; 708e709a1, f2d3f1ddc | Native post-transform roots and full affected-program diagnostics detect wrong/missing owners and broken unchanged consumers. |
+| Fresh type verdicts | `scripts/ts7.cjs` and both Vitest type projects; 7d9cd503e / #1892 | Warm baseline, imported ambient change, and restored source produce green/red/green without deleting caches; long and short forced incremental flags cannot bypass the wrapper. |
+| Owned fixture resources | `tests/tooling/check-gates.int.test.ts`, `gate-ignore-grammar.int.test.ts`, and `tests/server/entry/lifecycle.int.test.ts`; #1862 | Concurrent proof instances cannot delete or observe each other's fixtures. Database/assets roots are per instance; any surviving fixed-port restriction remains explicit until repaired. |
+| Honest abnormal-run artifacts | `tests/tooling/verify/ops/structure.int.test.ts`; #1862 | Kill/OOM controls reach the intended execution state before failure and verify the incomplete-run artifact and exit classification. A startup failure is not equivalent evidence. |
+
+The final runtime may replace an implementation mechanism—for example, virtual overlays replace live-tree
+sentinels—but must retain the behavior and its independent regression proof. Record the successor proof
+when retiring an old harness test. Pending #1862 isolation/OOM work is not credited as complete by this table.
+
 ## Acceptance
 
 - all 255 current policies have one live owner or explicit retirement;
 - zero `scanRoot`, `scopeSafety`, `begin`, `finalize`, free-form `run`, direct project/descendant walk, gate-owned Project, or mutable module-state accumulator remains in gate modules;
 - zero gate-owned filesystem glob, path-corpus regex, comment/suppression parser, binding/symbol resolver, static-value parser, resource loader, or workspace cache remains;
 - every registered policy supports all declared command/scope/severity/report/authority capabilities;
-- all source/helper/tests/exemptions were read in full and every current-main delta re-attested;
+- all source/helper/tests/exemptions were read in full and every current-main/world-program delta re-attested, including the carry-forward guarantees above and their successor regression proofs;
 - aliases, namespace/re-export/destructure/computed/wrapper/shadow/write/cycle/dynamic variants are planted wherever identity matters;
 - no baseline JSON or parallel registry remains;
 - full structure, focused behavior, differential, failure/re-entry, broad CPD, and performance/RSS artifacts are read before owner review.
