@@ -1,41 +1,9 @@
-// THE SCOPED TEST FRONT DOOR — `pnpm test:scoped` and `pnpm ct:scoped` enter here instead of reaching a
-// runner directly, so that a path the runner would silently ignore becomes a REFUSAL (#1192).
+// Scoped tests verify explicit path claims before native runner execution. Direct node/CT filters must
+// contribute a collected test; related-source inputs must exist but can have zero runtime dependents.
+// Vitest node runs keep watchdog supervision. CT keeps its exclusive runner lease and private cold build.
 //
-// THE DEFECT THIS EXISTS FOR. Both rows used to be bare package.json commands, and both vitest and
-// playwright read an unmatched path filter as "no tests over here", not as misuse. On 2026-09-02 a merge
-// floor named a CT spec at a path that does not exist; the run printed `CT SUMMARY — PASS  ·  58 passed`
-// and exit 0, and the file it never opened was never mentioned. The counting surface was honest — it
-// counted what ran — but the FLOOR was a lie, because a floor is a claim about a NAMED SET of files.
-// Reproduced on this tree before the fix (two real CT paths + one stale): `PASS · 4 passed`, exit 0.
-// The same probe through `pnpm test:scoped` (one real + one stale vitest path): exit 0, 1 file run.
-// The third door, `pnpm verify --file`, already refused it — hence the shared rule in
-// `_shared/scoped-run-paths.ts` rather than a third hand-rolled existence check here.
-//
-// TWO SPAWNS, DELIBERATELY. The preflight asks the RUNNER what it would collect (`vitest list`,
-// `playwright test --list`) rather than re-implementing either matcher — measured at 0.60s and 0.76s on
-// this tree, against CT runs measured in minutes. Re-deriving "which files does this filter select" from
-// the configs would be a second, drifting copy of the very semantics being audited. The collection pass
-// runs ONLY when the caller named at least one path-shaped operand, so the unfiltered spellings
-// (`pnpm test:ct`) pay nothing.
-//
-// BOTH WRAPPED BEHAVIOURS ARE PRESERVED, and each is load-bearing: a COLD CT build cache on every spawn (a
-// stale cache replays errors that stopped existing), and `nice -n 19` on every child (the box co-hosts a
-// homelab; an un-niced fleet starved it). The nice comes from the ONE subprocess door, `_shared/proc.ts` —
-// this module never touches `node:child_process`.
-//
-// THE COLD-CACHE PROPERTY CHANGED ITS MECHANISM, NOT ITS MEANING (#1581). It used to be `rm -rf
-// playwright/.cache` before the spawn — one SHARED directory per worktree, so two concurrent runners cleared
-// and rebuilt under each other and the first reported reds in tests it never touched (measured: 201/2 with
-// both reds in rpg-context-section.ct.tsx, then 203/203 for the same set alone at the same load). Now each
-// invocation gets its OWN `.cache/ct/build-<pid>-<ms>` (lib/ct-runner-lock.ts) which is empty because it is
-// new and is removed on exit — cold by construction, and unshareable. A per-worktree LOCK sits in front of
-// it as the cheap guard: a second ct runner in the same tree refuses (exit 2) naming the live pid, because
-// the two would still share the box-wide CT vite port.
-//
-// HAZARD, PAID FOR IN THIS LANE: `vitest list --json <path>` reads the FOLLOWING POSITIONAL as the json
-// OUTPUT path. Probing it with `--json tests/tooling/smoke.test.ts` OVERWROTE that test file with a JSON
-// array. The only safe spelling is the `=`-joined `--json=<abs path>` to a scratch file we own; a bare
-// `--json` anywhere near operands is a file-destroying footgun.
+// Native collection owns matching semantics. Use --json=<owned scratch path>: a bare --json followed by
+// a test operand makes Vitest treat that operand as an OUTPUT path and can overwrite the test file.
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -68,8 +36,9 @@ refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm ct
 export const SCOPED_TEST_USAGE =
   `usage: node tooling/src/verify/cli.ts scoped-test <${SCOPED_TEST_RUNNERS.join("|")}> [paths…] [runner flags…]\n` +
   "  node = the vitest projects (pnpm test:scoped) · ct = the playwright CT config (pnpm ct:scoped).\n" +
-  "  Every path-shaped operand must EXIST (else exit 3) and must contribute at least one collected test\n" +
-  "  (else exit 2) — a runner treats an unmatched path filter as silence, which certifies unopened files.";
+  "  node --related <sources…> = Vitest's dependency graph through the supervised node runner.\n" +
+  "  Every path-shaped operand must EXIST (else exit 3). Direct test filters must contribute a collected\n" +
+  "  test (else exit 2); related source inputs may have zero runtime dependents, reported explicitly.";
 
 /** Playwright's `--list --reporter=json` dumps the whole resolved config beside the specs; vitest's list
  *  file is small. 64MiB so a large CT selection can never come back as an ENOBUFS kill read as "no tests". */
@@ -77,6 +46,7 @@ const LIST_MAX_BUFFER = 67_108_864; // 64MiB — matches tests-execution-members
 const MS_PER_SECOND = 1000;
 
 const CT_CONFIG = "playwright-ct.config.ts";
+const NODE_RELATED = "--related";
 
 function vitestBin(root: string): string {
   return join(root, "node_modules", "vitest", "vitest.mjs");
@@ -190,33 +160,59 @@ function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]
   return runner === "node" ? collectNode(root, rest) : collectCt(root, rest);
 }
 
-/** The real run, streamed to the operator's terminal. The CT arm builds in the lease's PER-INVOCATION cache
- *  (#1581) — which also carries the old "clear the cache first" property, since a freshly-minted directory
- *  is an empty cache and nothing else is building in it. */
-function spawnRun(
-  runner: ScopedTestRunner,
-  root: string,
-  rest: readonly string[],
-  lease: { readonly cacheDir: string; readonly runMarker: string } | null,
-): number {
-  if (runner === "ct") {
-    const slot = openRunSlot(root, "ct");
-    const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
-      cwd: root,
-      env: inheritedProcessEnv({
-        [CT_RUN_SLOT_ENV]: slot.dir,
-        [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
-        // THE RUN MARKER (#1848) reaches every browser playwright launches, because a browser inherits the
-        // worker's environment and playwright puts each one in its OWN session — where a process-group
-        // kill can never find it. The lease's `release` and the runner's timeout sweep both read it back.
-        ...(lease === null ? {} : { ...runMarkerEnv(lease.runMarker), [CT_CACHE_DIR_ENV]: lease.cacheDir }),
-      }),
-      stdio: "inherit",
-    });
-    return ct.status ?? EXIT.toolError;
-  }
-  const node = runNicedSync(process.execPath, [vitestBin(root), "run", ...rest], { cwd: root, stdio: "inherit" });
+/** The CT run, streamed to the operator's terminal, in the lease's per-invocation cold cache. */
+function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheDir: string; readonly runMarker: string }): number {
+  const slot = openRunSlot(root, "ct");
+  const ct = runNicedSync(process.execPath, [playwrightBin(root), "test", "-c", CT_CONFIG, ...rest], {
+    cwd: root,
+    env: inheritedProcessEnv({
+      [CT_RUN_SLOT_ENV]: slot.dir,
+      [CT_RUN_RACING_ENV]: slot.racing.join("\n"),
+      ...runMarkerEnv(lease.runMarker),
+      [CT_CACHE_DIR_ENV]: lease.cacheDir,
+    }),
+    stdio: "inherit",
+  });
+  return ct.status ?? EXIT.toolError;
+}
+
+/** The node run always enters the watchdog supervisor. Related-source emptiness is explicit and local to
+ * that mode; direct test claims retain the repo-wide zero-match refusal. */
+function spawnNode(root: string, rest: readonly string[], mode: "run" | "related"): number {
+  const nodeArgs = mode === "related" ? ["related", ...rest, "--run", "--passWithNoTests"] : ["run", ...rest];
+  const node = runNicedSync(process.execPath, [join(root, "scripts", "vitest-supervised.mjs"), ...nodeArgs, "--reporter=default", "--reporter=json"], {
+    cwd: root,
+    stdio: "inherit",
+  });
   return node.status ?? EXIT.toolError;
+}
+
+function runNodeScoped(root: string, rawRest: readonly string[]): number {
+  const related = rawRest[0] === NODE_RELATED;
+  const rest = related ? rawRest.slice(1) : rawRest;
+  if (!related) {
+    const operands = rest.filter(isPathShaped).map((arg) => resolveOperand(root, arg));
+    const refused = preflight("node", root, rest, operands);
+    return refused ?? spawnNode(root, rest, "run");
+  }
+  const firstFlag = rest.findIndex((arg) => arg.startsWith("-"));
+  const sourceArgs = firstFlag === -1 ? rest : rest.slice(0, firstFlag);
+  const operands = sourceArgs.map((arg) => resolveOperand(root, arg));
+  const unresolved = unresolvedOperands(operands, "claim");
+  if (unresolved.length > 0) {
+    throw new UsageError(unresolvedRefusal(unresolved));
+  }
+  const directories = operands.filter((operand) => operand.isDirectory);
+  if (directories.length > 0) {
+    throw new UsageError(
+      `--related accepts source files, not directories: ${directories.map((operand) => operand.raw).join(", ")}\n` +
+        "use verify --scope <folder> or name explicit source files",
+    );
+  }
+  if (operands.length === 0) {
+    throw new UsageError("--related needs at least one source path");
+  }
+  return spawnNode(root, rest, "related");
 }
 
 /** The preflight verdict: `undefined` = cleared to run, otherwise the exit code to return instead. */
@@ -249,15 +245,15 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
  *  refuses instantly and spawns nothing at all, and it is released in a `finally` so a refused preflight
  *  (or a throw) never wedges the tree. The node arm is untouched: vitest runs do not share a build dir. */
 export async function runScopedTest(root: string, argv: readonly string[]): Promise<number> {
-  const [runner, ...rest] = argv;
+  const [runner, ...rawRest] = argv;
   if (runner === undefined || !(SCOPED_TEST_RUNNERS as readonly string[]).includes(runner)) {
     throw new UsageError(`unknown runner ${runner === undefined ? "(none given)" : JSON.stringify(runner)}\n${SCOPED_TEST_USAGE}`);
   }
   const tier = runner as ScopedTestRunner;
+  const rest = rawRest;
   const operands = rest.filter(isPathShaped).map((arg) => resolveOperand(root, arg));
-  if (tier !== "ct") {
-    const refusedNode = preflight(tier, root, rest, operands);
-    return refusedNode ?? spawnRun(tier, root, rest, null);
+  if (tier === "node") {
+    return runNodeScoped(root, rest);
   }
   const lock = await acquireCtRunnerSlots(root, {
     argv: rest,
@@ -293,7 +289,7 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
   }
   try {
     const refused = preflight(tier, root, rest, operands);
-    return refused ?? spawnRun(tier, root, rest, lock.lease);
+    return refused ?? spawnCt(root, rest, lock.lease);
   } finally {
     lock.lease.release();
   }

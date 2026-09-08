@@ -185,7 +185,7 @@ test("a LOAD-SUSPECT arm stamps its reason on the REPORTER-VISIBLE meta channel 
 });
 
 test("labelRateLoad reads the REAL box when no reader is injected", () => {
-  // The default path is what every live-drive suite actually calls; an injected-only proof would leave
+  // The default path is what every measured-rate suite actually calls; an injected-only proof would leave
   // `readBoxLoad` unexercised. The verdict depends on this box's load, so assert the SHAPE and that the
   // two levers agree about it — never a fixed outcome, which would be a flake of exactly the kind #1040
   // is about.

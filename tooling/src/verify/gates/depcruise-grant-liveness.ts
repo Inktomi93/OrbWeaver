@@ -51,7 +51,9 @@ const EXEMPT: ExemptionTable<GrantExemption> = {};
 const BACKREF_RE = /\$\d/u;
 /** The committed count of irreducible backreference rows. Two-sided: growth adds unreviewed authority, and
  *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
-const BACKREF_BUDGET = 15;
+// The helper-world rule adds one paired capture to permit same-world edges while refusing upward ones.
+// dependency-cruiser-worlds.int.test.ts proves that distinction, including transitive and type-only edges.
+const BACKREF_BUDGET = 16;
 
 /** The §4.5 real-tree anchor for the BUDGET arm: this gate's own module, which no planted fixture root
  *  carries. Paired with a tripwire by construction — if it stops resolving the gate cannot run at all. */

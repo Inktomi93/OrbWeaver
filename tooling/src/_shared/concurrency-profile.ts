@@ -1,30 +1,7 @@
-// THE ONE READING OF "HOW MUCH OF THIS BOX MAY I TAKE" (#1835, owner ask 2026-09-06). Sibling of
-// load-budget.ts and deliberately its opposite half: load-budget answers "the box is busy, so stretch this
-// wall clock", this answers "the box is SHARED, so start fewer workers in the first place".
-//
-// THE DEFECT IT ENDS. Every worker cap on the tree was written PER WORKTREE and hard-coded at its call site
-// — vitest 14 forks, CT 4 workers, typecheck 4 packages x 8 checkers, the edit hook's 4-slot biome pool, one
-// CT runner lock per tree. Six lanes across two accounts multiply all of that ~6x, and 14h of Prometheus
-// measured the result: node_load1 peaked at 105.8 on 24 cores, CPU busy sat at 93-99% for hours, and PSI cpu
-// "some" reached 0.6 while the co-hosted homelab containers only ever wanted ~3 cores. `nice` could not save
-// them: under cgroup v2 user.slice and system.slice both carry weight 100, so nice only re-orders tasks
-// INSIDE user.slice and never reached the containers at all.
-//
-// THE DATA LIVES IN JSON, NOT HERE, and that is load-bearing: bash (.claude/hooks/biome-check.sh and
-// cpu-fence.sh, via jq), CommonJS (scripts/ts7.cjs, scripts/typecheck.cjs) and TypeScript (this module, and
-// through it vitest.config.ts / playwright-ct.config.ts / the verify tree) all read the SAME numbers with no
-// build step between them. A TypeScript constant would have forced the two non-TS readers to re-spell the
-// values, which is the "one home" failure this file exists to prevent. This module is the TYPED DOOR onto
-// that data — it owns the shape, the switch and the refusals, never a number.
-//
-// THE SWITCH IS THE SHELL ENVIRONMENT, NEVER `.env` (say it here because it is the one surprising rule):
-// tooling does not read the repo `.env` at all, and a checked-in file that silently retunes the whole fleet
-// for whoever pulls it is exactly the lie this module exists to end. `ORB_DEDICATED_BOX=1` in the shell that
-// launches a run — or in the DEV STACK's own env, which is a different, deliberate thing — is the solo-box
-// opt-in; unset means shared, which is the safe direction.
-//
-// PURE except for `readConcurrencyProfile`'s default env argument. Every judging function takes the raw env
-// VALUE, so a test drives both profiles and the refusal without touching process.env.
+// Capacity policy lives in the committed JSON. TypeScript and CommonJS callers share this validated
+// reader; Bash hooks consume the same data through their documented fail-soft protocol.
+// ORB_DEDICATED_BOX comes from the shell environment, never the repository .env file.
+// Judging functions take explicit values; the public readers load the file and shell switch.
 import { readFileSync } from "node:fs";
 import { processEnvValue } from "./process-env.ts";
 
@@ -94,13 +71,13 @@ export function profileNameFor(raw: string | undefined): ConcurrencyProfileName 
   );
 }
 
-/** PURE + TOTAL: one non-negative integer cap out of a raw row, or the refusal naming the field. A cap that
- *  silently defaulted would spawn `NaN` workers, which vitest reads as "unlimited" — the exact saturation
- *  this module exists to cap — so there is no default and no coercion. */
-function intField(row: Record<string, unknown>, name: ConcurrencyProfileName, field: keyof ConcurrencyProfile): number {
+/** PURE + TOTAL: one integer field at or above its floor, or the refusal naming it. Worker/slot caps use
+ * the positive default; only `sessionCpuQuotaPct` passes zero because zero explicitly means no ceiling. */
+function intField(row: Record<string, unknown>, name: ConcurrencyProfileName, field: keyof ConcurrencyProfile, minimum = 1): number {
   const value = row[field];
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    return refuse(`profile "${name}" field "${field}" is ${JSON.stringify(value)} — expected a non-negative integer`);
+  if (typeof value !== "number" || !Number.isInteger(value) || value < minimum) {
+    const expected = minimum === 0 ? "a non-negative integer" : "a positive integer";
+    return refuse(`profile "${name}" field "${field}" is ${JSON.stringify(value)} — expected ${expected}`);
   }
   return value;
 }
@@ -136,7 +113,7 @@ function profileFrom(file: ProfileFile, name: ConcurrencyProfileName): Concurren
     hookTs7Checkers: intField(row, name, "hookTs7Checkers"),
     ctRunnersHostWide: intField(row, name, "ctRunnersHostWide"),
     stageCap: intField(row, name, "stageCap"),
-    sessionCpuQuotaPct: intField(row, name, "sessionCpuQuotaPct"),
+    sessionCpuQuotaPct: intField(row, name, "sessionCpuQuotaPct", 0),
     sessionMemoryHigh: memoryHigh,
     wholeVerifyQueue: queue,
   };

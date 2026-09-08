@@ -12,7 +12,7 @@
 // EVIDENCE SOURCE, NOT RE-IMPLEMENTATION: rather than hand-parsing each config's glob strings (which drifts
 // the instant a config changes — the exact disease this stage exists to prevent), it asks each runner its
 // OWN `--list` view: `vitest list --filesOnly --json` (every project in one call — unit/integration/
-// integration-serial/tooling/tooling-serial/live-drive/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
+// integration-serial/tooling/tooling-serial/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
 // (e2e; run with `E2E_LIVE=1` so the `@live`-gated specs, which the runner reaches structurally but skips by
 // grep at routine-run time, still count as "reachable" — a grep filter is a SELECTION policy, not a
 // membership question), and the same `--list` against `playwright-ct.config.ts` (CT). Each `--list` also
@@ -44,20 +44,12 @@ type RunnerFiles = { readonly files: ReadonlySet<string> } | { readonly error: s
 // is deliberately excluded: its `test.include` is `[]` (typecheck-ONLY via `typecheck.include`, no runtime
 // pass — see the config's own comment on that project) — so a `.test-d.ts` file listed under `types` is not
 // a second EXECUTOR of anything, and must not count toward the "claimed by two runtime views" direction
-// below. The other seven (unit/integration/integration-serial/tooling-serial/live-drive/contract/tooling)
+// below. The runtime projects (unit/integration/integration-serial/tooling-serial/contract/tooling)
 // all run real assertions. `tooling` is the instrument battery, split out of unit+integration by #1523;
 // `tooling-serial` is its CONTENTION half, split out of `integration-serial` by #1842 when the battery
 // left `verify --push` entirely. Membership here is what keeps those splits from silently orphaning a
 // file: a project name missing from this set makes every file it owns read as UNRUN.
-const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set([
-  "unit",
-  "integration",
-  "integration-serial",
-  "tooling-serial",
-  "live-drive",
-  "contract",
-  "tooling",
-]);
+const VITEST_RUNTIME_PROJECTS: ReadonlySet<string> = new Set(["unit", "integration", "integration-serial", "tooling-serial", "contract", "tooling"]);
 
 /** The vitest projects that run NO runtime pass (`test.include: []`, typecheck-only via
  *  `typecheck.include`) — the #1313 `.test-d.ts` split. Named, rather than "anything not in the runtime
@@ -114,7 +106,7 @@ function enumerateTestFiles(root: string): readonly string[] {
 }
 
 /** `vitest list --filesOnly --json` — every node project (unit/integration/integration-serial/tooling/
- *  tooling-serial/live-drive/contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
+ *  tooling-serial/contract/types) in ONE call. `--filesOnly` is load-bearing for SPEED, not just output shape — dropping it
  *  (measured live) makes `list` enumerate every individual TEST CASE across the whole tree instead of one
  *  row per file, pushing a sub-2s call past a 3-minute timeout; each row still carries `projectName`, so
  *  direction 3 below loses nothing by keeping the flag. Absolute paths; normalized to repo-relative posix. */
@@ -215,7 +207,7 @@ function playwrightFiles(root: string, config: string, testDirRel: string, extra
 }
 
 const FIX_HINT =
-  "a test-suffixed file must be matched by the union of every runner's --list view (vitest's five projects, " +
+  "a test-suffixed file must be matched by the union of every runner's --list view (Vitest's configured projects, " +
   "playwright.config.ts's e2e testMatch, playwright-ct.config.ts's CT testMatch) — else it never runs " +
   "(the silent-green disease). Add it under a runner's testDir/include, or fix the mismatched suffix/path.";
 
@@ -346,7 +338,7 @@ export function runTestsExecutionMembership(root: string): number {
   // ── direction 1: GLOB→FILE — every runner's --list view must be non-empty (an empty match is the
   // marinara silent-no-op disease: the config resolves, the runner exits 0, and NOTHING ran). ──
   const runnerViews: readonly { readonly label: string; readonly files: ReadonlySet<string> }[] = [
-    { label: "vitest (unit/integration/integration-serial/tooling/tooling-serial/live-drive/contract/types)", files: vitestFilesOk.files },
+    { label: "vitest", files: vitestFilesOk.files },
     { label: "playwright e2e (playwright.config.ts)", files: e2eFilesOk.files },
     { label: "playwright-ct (playwright-ct.config.ts)", files: ctFilesOk.files },
   ];

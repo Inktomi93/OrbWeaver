@@ -24,7 +24,7 @@ const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
 // LOAD-SCALED, not fixed (#1040) — the same fixed-ceiling defect as its appearance.int sibling, and the
 // same remedy: a real browser drive's wall clock is the box's to set. No rate arms here (every assertion
-// is a DOM/byte fact), so this file scales its budget and never withholds. Lane: `live-drive`.
+// is a DOM/byte fact), so this file scales its budget and never withholds. It runs in the parallel tooling project.
 const RUN_TIMEOUT_MS = scaledBudget(60_000, 4);
 vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 

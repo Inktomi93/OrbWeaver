@@ -65,6 +65,14 @@ module.exports = {
   extends: "dependency-cruiser/configs/recommended-strict",
 
   forbidden: [
+    {
+      name: "test-helper-world-direction",
+      comment:
+        "Node helpers cannot import browser helpers; isomorphic helpers cannot import either. Type-only edges also carry compiler dependencies, so they obey the same direction.",
+      severity: "error",
+      from: { path: "^tests/support/(iso|node)/" },
+      to: { path: "^tests/support/(node|browser)/", pathNot: "^tests/support/$1/", reachable: true },
+    },
     // ════════════════════════ The package cake (backstop to the resolver) ════════════════════════
     {
       name: "kit-purity",
@@ -744,6 +752,8 @@ module.exports = {
         "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker — plugin-ui-plane #679 U4). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They live in the `@orb/showcase-plugins` workspace package the server declares as a dependency (#1692 — they used to ride `packages/server/src` because that was the only tree the image copies, which is exactly the image-copy dependence the #1238 ruling refused), and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
       severity: "warn",
       from: {
+        // Helper entry roots omit their test consumers; native runner/Knip discovery owns their liveness.
+        path: "^(?:packages|tooling)/",
         orphan: true,
         pathNot: [
           "\\.d\\.ts$",

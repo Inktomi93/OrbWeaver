@@ -24,6 +24,10 @@ import { scaledBudget } from "../../_load-budget.ts";
 const REAL_A = "tests/tooling/smoke.test.ts";
 /** A real FILE under tests/ that declares no test — the BARREN class, not the UNRESOLVED one. */
 const REAL_NO_TESTS = "tests/tooling/_support.ts";
+const RELATED_SOURCE = "packages/contracts/src/assets/index.ts";
+const RELATED_TEST = "tests/contracts/assets/index.contract.test.ts";
+const RELATED_EMPTY_SOURCE = "tooling/src/verify/lib/exit-classifiers.ts";
+const RELATED_DIRECTORY = "tooling/src/verify/lib";
 /** The path the 2026-09-02 merge floor actually named. It has never existed. */
 const STALE_CT = "tests/client/features/discovery/components/character-library-surface.ct.tsx";
 const REAL_CT_A = "tests/client/features/discovery/components/corpus-list-header.ct.tsx";
@@ -62,6 +66,40 @@ test("the passing direction: a real path with real tests still runs and exits cl
   const res = await runCli("verify", ["scoped-test", "node", REAL_A, "--maxWorkers=2"], { timeoutMs: COLLECT_TIMEOUT_MS });
   await expect(res).toExitWith(0);
   expect(res.stdout + res.stderr, "the preflight delegates — it does not replace the runner").toContain(REAL_A);
+});
+
+test("the related-source direction reaches a real runtime test through the supervised door", { timeout: COLLECT_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped-test", "node", "--related", RELATED_SOURCE, RELATED_TEST, "--project", "contract"], {
+    timeoutMs: COLLECT_TIMEOUT_MS,
+  });
+  await expect(res).toExitWith(0);
+  expect(res.stdout + res.stderr).toContain(RELATED_TEST);
+});
+
+test("a source with zero runtime dependents is a visible legitimate derived empty", { timeout: COLLECT_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped-test", "node", "--related", RELATED_EMPTY_SOURCE, "--project", "contract"], {
+    timeoutMs: COLLECT_TIMEOUT_MS,
+  });
+  await expect(res).toExitWith(0);
+  expect(res.stdout + res.stderr).toContain("No test files found, exiting with code 0");
+});
+
+test("--related refuses a directory before native collection or execution", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped-test", "node", "--related", RELATED_DIRECTORY], { timeoutMs: REFUSAL_TIMEOUT_MS });
+  await expect(res).toExitWith(3);
+  expect(res.stderr).toContain(`--related accepts source files, not directories: ${RELATED_DIRECTORY}`);
+  expect(res.stderr).toContain("use verify --scope <folder> or name explicit source files");
+  expect(res.stdout + res.stderr).not.toContain("No test files found");
+  expect(res.stdout + res.stderr).not.toContain("RUN  v");
+});
+
+test("--related forwards a native --dir directory value instead of treating it as a source operand", { timeout: COLLECT_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped-test", "node", "--related", RELATED_EMPTY_SOURCE, "--dir", RELATED_DIRECTORY, "--project", "contract"], {
+    timeoutMs: COLLECT_TIMEOUT_MS,
+  });
+  await expect(res).toExitWith(0);
+  expect(res.stderr).not.toContain("accepts source files, not directories");
+  expect(res.stdout + res.stderr).toContain("No test files found, exiting with code 0");
 });
 
 // ── #1581: a second CT runner in ONE worktree refuses INSTEAD of racing ──────────────────────────────

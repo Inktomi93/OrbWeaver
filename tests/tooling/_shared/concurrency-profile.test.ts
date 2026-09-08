@@ -13,7 +13,11 @@
 // the point of `dedicated` is that it is never STRICTER than `shared`. The handful of absolute numbers below
 // are the ones that OTHER law quotes by value (the shared-host defaults the doctrine text now promises) —
 // changing one of those is a doctrine edit, and this suite is what says so.
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
 import type { ConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import {
   CONCURRENCY_PROFILE_NAMES,
@@ -25,6 +29,7 @@ import {
   readStageBudgets,
   stageBudgetsFor,
 } from "@orb/tooling/_shared/concurrency-profile";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const BODY = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
@@ -164,6 +169,100 @@ function sharedRowWith(field: string, value?: unknown): string {
   }
   return JSON.stringify({ ...file, profiles: { ...file.profiles, shared: Object.fromEntries(entries) } });
 }
+
+test("worker and slot caps reject zero while the dedicated CPU quota may be zero", () => {
+  for (const cap of POSITIVE_CAPS) {
+    expect(() => parseConcurrencyProfile(sharedRowWith(cap, 0), "shared"), `${cap}=0 must refuse`).toThrow(/expected a positive integer/u);
+  }
+  expect(parseConcurrencyProfile(sharedRowWith("sessionCpuQuotaPct", 0), "shared").sessionCpuQuotaPct).toBe(0);
+});
+
+const CAPTURE_PRELOAD = `
+const fs = require("node:fs");
+const childProcess = require("node:child_process");
+childProcess.spawnSync = (command, args, options) => {
+  fs.writeFileSync(process.env.ORB_WRAPPER_CAPTURE, JSON.stringify({ command, args, cwd: options?.cwd ?? null }));
+  return { status: 0 };
+};
+`;
+
+interface WrapperCapture {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly cwd: string | null;
+}
+
+function runWrapper(
+  script: "ts7.cjs" | "eslint.cjs" | "typecheck.cjs",
+  args: readonly string[],
+  box: string | undefined,
+): {
+  readonly status: number | null;
+  readonly stderr: string;
+  readonly capture: WrapperCapture | null;
+} {
+  const dir = mkdtempSync(join(tmpdir(), "orb-cap-wrapper-"));
+  const preload = join(dir, "capture.cjs");
+  const captureFile = join(dir, "capture.json");
+  writeFileSync(preload, CAPTURE_PRELOAD);
+  const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
+  if (box === undefined) {
+    delete env[DEDICATED_BOX_ENV];
+  } else {
+    env[DEDICATED_BOX_ENV] = box;
+  }
+  const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts", script), ...args], {
+    cwd: process.cwd(),
+    env,
+    encoding: "utf8",
+  });
+  const capture = existsSync(captureFile) ? (JSON.parse(readFileSync(captureFile, "utf8")) as WrapperCapture) : null;
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, stderr: result.stderr, capture };
+}
+
+function optionValue(args: readonly string[] | undefined, option: string): string | undefined {
+  if (args === undefined) {
+    return;
+  }
+  const at = args.indexOf(option);
+  return at === -1 ? undefined : args[at + 1];
+}
+
+test("all CJS wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
+  const cases = [
+    ["ts7.cjs", ["--checkers", "1", "--version"]],
+    ["eslint.cjs", ["--concurrency", "off", "--version"]],
+    ["typecheck.cjs", ["--version"]],
+  ] as const;
+  for (const [script, args] of cases) {
+    const result = runWrapper(script, args, "true");
+    expect(result.status, script).not.toBe(0);
+    expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}=\"true\"`);
+    expect(result.capture, `${script} must refuse before spawnSync`).toBeNull();
+  }
+});
+
+test("CJS wrappers derive shared/dedicated defaults and preserve explicit native worker overrides", () => {
+  const tsShared = runWrapper("ts7.cjs", ["--version"], undefined).capture;
+  const tsDedicated = runWrapper("ts7.cjs", ["--version"], "1").capture;
+  const tsExplicit = runWrapper("ts7.cjs", ["--checkers", "1", "--version"], "1").capture;
+  expect(optionValue(tsShared?.args, "--checkers")).toBe("4");
+  expect(optionValue(tsDedicated?.args, "--checkers")).toBe("8");
+  expect(tsExplicit?.args.filter((arg) => arg === "--checkers")).toHaveLength(1);
+  expect(optionValue(tsExplicit?.args, "--checkers")).toBe("1");
+
+  const eslintShared = runWrapper("eslint.cjs", ["--version"], undefined).capture;
+  const eslintDedicated = runWrapper("eslint.cjs", ["--version"], "1").capture;
+  const eslintExplicit = runWrapper("eslint.cjs", ["--concurrency", "off", "--version"], "1").capture;
+  expect(optionValue(eslintShared?.args, "--concurrency")).toBe("4");
+  expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe("8");
+  expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
+  expect(optionValue(eslintExplicit?.args, "--concurrency")).toBe("off");
+
+  expect(runWrapper("typecheck.cjs", ["--version"], undefined).capture?.args).toContain("--workspace-concurrency=1");
+  expect(runWrapper("typecheck.cjs", ["--version"], "1").capture?.args).toContain("--workspace-concurrency=4");
+});
 
 test("a broken profile file REFUSES loudly and names itself — never a defaulted cap", () => {
   expect(() => parseConcurrencyProfile("{ not json", "shared")).toThrow(/tooling\/concurrency-profile\.json is not valid JSON/u);

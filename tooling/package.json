@@ -20,6 +20,7 @@
     "@playwright/test": "catalog:",
     "chrome-devtools-mcp": "catalog:",
     "ts-morph": "catalog:",
+    "typescript": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

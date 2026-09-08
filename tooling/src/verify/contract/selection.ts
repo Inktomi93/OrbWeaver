@@ -47,6 +47,10 @@ export interface Selection {
   /** Current-filesystem subset of `paths`. Every stage that opens concrete argv paths derives from this
    * one view; deletion-aware graph/ledger/type/structure consumers continue to use `paths`. */
   readonly existingPaths: readonly string[];
+  /** Concrete current authored subjects for the runtime test selector. A file selection contributes its
+   * existing files; a folder scope expands through Git's tracked + exclude-standard untracked inventory,
+   * never an unconstrained filesystem walk. */
+  readonly runtimeSubjects: readonly string[];
   /** paths ∩ the eslint surface ∩ EXISTING. A deleted path is dropped here: eslint takes concrete file
    *  args and hard-ERRORS ("No files matching the pattern") on a path that's gone — it stays in `paths`
    *  (the structure walk reasons about deletions) and still drives its owning tsconfig via `tsconfigs`. */

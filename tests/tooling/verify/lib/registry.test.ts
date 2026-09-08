@@ -49,11 +49,9 @@ test("tests:node stays the push bar for everything else, and no longer carries t
   // survives untouched as the green-to-commit ritual and as the manual `tests:product-composite` row.
   expect(stage("push", "tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stagesForTier("push").some((row) => row.name === "tests:node")).toBe(true);
-  // The `changed` inner loop still reaches `tests/tooling` (#1566) — a lane editing an instrument gets its
-  // related tests without the whole battery. That argv is pinned against a REAL Selection in
-  // tests/tooling/verify/ops/run.int.test.ts ("tests:node scopedArgv: --passWithNoTests rides the SCOPED
-  // lane only"), so it is not re-spelled here; if it ever stops naming `--project tooling`, `tests:tooling`
-  // owes the `changed` tier instead — the registry row says so in its own comment.
+  // The `changed` inner loop still reaches `tests/tooling` (#1566) through Vitest's native configured
+  // project population, without copying a project-name list into the registry. The real resolver proof is
+  // in registry.int.test.ts; the composed argv/selection proof is in ops/run.int.test.ts.
   expect(stage("changed", "tests:node").scopedArgv).toBeTypeOf("function");
 });
 

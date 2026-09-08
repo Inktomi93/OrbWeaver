@@ -4,11 +4,11 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { execNicedSync, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import type { Parsed, StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
@@ -51,6 +51,18 @@ test("asViolations: clean 0, any non-zero is a violation (tsc's 2 = type errors,
 
 test("asViolations: a signal-kill (null) is a TOOL error (2), never a violation", () => {
   expect(asViolations(null)).toBe(2);
+});
+
+test("the supervised node stages preserve their owned 0/1/2/3 exit contract through aggregation", () => {
+  for (const name of ["tests:node", "tests:tooling"]) {
+    const classify = stage(name).classify;
+    expect(classify(0), `${name} clean`).toBe(0);
+    expect(classify(1), `${name} assertion failure`).toBe(1);
+    expect(classify(2), `${name} supervisor tool error`).toBe(2);
+    expect(classify(3), `${name} supervisor misuse`).toBe(3);
+    expect(classify(null), `${name} signal`).toBe(2);
+  }
+  expect(aggregateExit([1, stage("tests:node").classify(2), 3])).toBe(2);
 });
 
 test("eslintScheme: its 2 IS a tool error (opposite of tsc's 2), 1 is lint problems", () => {
@@ -290,6 +302,8 @@ test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the sc
   expect(changed.has("browser:ct")).toBe(true);
   expect(push.has("browser:ct")).toBe(true);
   expect(push.has("tests:node")).toBe(true);
+  expect(changed.has("types:graph")).toBe(true);
+  expect(changed.has("structure:full")).toBe(true);
 });
 
 test("the boot-chunk ratchet is a push/full stage, whole-only, speaking the OWN 0/1/2/3 scheme (#460)", () => {
@@ -403,6 +417,58 @@ test("resolveSelection: a DELETED path lints clean — dropped from the tool fil
   expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["node", "tooling/src/verify/cli.ts", "scoped", "--changed", deleted, survivor]);
 });
 
+test("resolveSelection: bare --changed preserves modified, untracked, deleted, and both rename identities", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "orb-selection-git-"));
+  const src = join(scratch, "packages/server/src");
+  const toolingSrc = join(scratch, "tooling/src");
+  mkdirSync(src, { recursive: true });
+  mkdirSync(toolingSrc, { recursive: true });
+  writeFileSync(join(src, "modified.ts"), "export const value = 1;\n");
+  writeFileSync(join(src, "deleted.ts"), "export const deleted = true;\n");
+  writeFileSync(join(src, "rename-old.ts"), "export const renamed = true;\n");
+  writeFileSync(join(toolingSrc, "tracked.ts"), "export const tracked = true;\n");
+  writeFileSync(join(toolingSrc, "deleted.ts"), "export const deleted = true;\n");
+  writeFileSync(join(scratch, ".gitignore"), "tooling/src/ignored.ts\n");
+  execNicedSync("git", ["init", "-q"], { cwd: scratch });
+  execNicedSync("git", ["config", "user.email", "selection-test@example.invalid"], { cwd: scratch });
+  execNicedSync("git", ["config", "user.name", "Selection Test"], { cwd: scratch });
+  execNicedSync("git", ["add", "."], { cwd: scratch });
+  execNicedSync("git", ["commit", "-qm", "fixture"], { cwd: scratch });
+
+  writeFileSync(join(src, "modified.ts"), "export const value = 2;\n");
+  rmSync(join(src, "deleted.ts"));
+  renameSync(join(src, "rename-old.ts"), join(src, "rename-new.ts"));
+  execNicedSync("git", ["add", "-A"], { cwd: scratch });
+  writeFileSync(join(src, "modified.ts"), "export const value = 3;\n");
+  writeFileSync(join(src, "untracked.ts"), "export const untracked = true;\n");
+  rmSync(join(toolingSrc, "deleted.ts"));
+  writeFileSync(join(toolingSrc, "untracked.ts"), "export const untracked = true;\n");
+  writeFileSync(join(toolingSrc, "ignored.ts"), "export const ignored = true;\n");
+
+  try {
+    const selected = resolveSelection({ kind: "changed", paths: [] }, scratch);
+    expect(selected.paths.toSorted()).toEqual([
+      "packages/server/src/deleted.ts",
+      "packages/server/src/modified.ts",
+      "packages/server/src/rename-new.ts",
+      "packages/server/src/rename-old.ts",
+      "packages/server/src/untracked.ts",
+      "tooling/src/deleted.ts",
+      "tooling/src/untracked.ts",
+    ]);
+    expect(selected.existingPaths.toSorted()).toEqual([
+      "packages/server/src/modified.ts",
+      "packages/server/src/rename-new.ts",
+      "packages/server/src/untracked.ts",
+      "tooling/src/untracked.ts",
+    ]);
+    const folder = resolveSelection({ kind: "scope", glob: "tooling/src/**" }, scratch);
+    expect(folder.runtimeSubjects).toEqual(["tooling/src/tracked.ts", "tooling/src/untracked.ts"]);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
@@ -441,6 +507,24 @@ test("types:graph scopedArgv: deferred (whole-only) unless the selection touches
   expect(stage("types:graph").scopedArgv?.(pkgSel)).toBe("whole-only");
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
   expect(stage("types:graph").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck:graph"]);
+});
+
+test("the composed changed-tier plan admits scoped graph and structure stages before their predicates run", () => {
+  const graphSubject = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
+  expect(planStage(stage("types:graph"), graphSubject, "changed", process.cwd())).toMatchObject({
+    mode: "scoped",
+    argv: ["pnpm", "typecheck:graph"],
+  });
+  expect(planStage(stage("structure:full"), graphSubject, "changed", process.cwd())).toMatchObject({
+    mode: "scoped",
+    argv: ["node", "tooling/src/verify/cli.ts", "scoped", "--changed", "tests/tooling/verify/ops/run.int.test.ts"],
+  });
+
+  const browserSubject = resolveSelection({ kind: "file", paths: ["packages/client/src/app.tsx"] });
+  expect(planStage(stage("types:graph"), browserSubject, "changed", process.cwd())).toMatchObject({
+    mode: "deferred",
+    runsAt: "verify --static",
+  });
 });
 
 test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSER package DEFERS it", () => {
@@ -484,17 +568,29 @@ test("types:testd + types:tests-membership + browser:e2e* are whole-only (no sco
   }
 });
 
-test("types:tests-dom scopedArgv: deferred (whole-only) unless the selection touches the program (#1274)", () => {
-  // Before #1274 this stage carried NO scoped route at all (tiers: STATIC, no scopedArgv), so a `--file`/
-  // `--changed` run over a tests-dom-owned file never even considered it — a clean verdict with no type
-  // stage and no deferral notice. Now it defers loudly off-domain and runs on-domain.
-  const offDomain = resolveSelection({ kind: "file", paths: ["packages/client/src/app.tsx"] });
+test("types:tests-dom scopedArgv covers roots and their production consumers, deferring unrelated docs", () => {
+  const offDomain = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
   expect(offDomain.touchesTestsDom).toBe(false);
   expect(stage("types:tests-dom").scopedArgv?.(offDomain)).toBe("whole-only");
 
-  const onDomain = resolveSelection({ kind: "file", paths: ["tests/client/data/auth-config.test.ts"] });
-  expect(onDomain.touchesTestsDom).toBe(true);
-  expect(stage("types:tests-dom").scopedArgv?.(onDomain)).toEqual(["pnpm", "typecheck:tests-dom"]);
+  for (const paths of [["tests/client/data/auth-config.test.ts"], ["packages/client/src/app.tsx"]]) {
+    const selection = resolveSelection({ kind: "file", paths });
+    expect(selection.touchesTestsDom).toBe(true);
+    expect(stage("types:tests-dom").scopedArgv?.(selection)).toEqual(["pnpm", "typecheck:tests-dom"]);
+  }
+  for (const name of ["ui", "kit", "tooling"]) {
+    const selection = resolveSelection({ kind: "package", name });
+    expect(stage("types:tests-dom").scopedArgv?.(selection), name).toEqual(["pnpm", "typecheck:tests-dom"]);
+  }
+});
+
+test("helper-world files and folders reach dependency enforcement without adding unrelated support trees", () => {
+  const helper = "tests/support/node/route-trpc.ts";
+  const selected = resolveSelection({ kind: "file", paths: [helper] });
+  expect(selected.depcruisePaths).toEqual([helper]);
+  expect(stage("imports:depcruise").scopedArgv?.(selected)).toContain(helper);
+  expect(resolveSelection({ kind: "scope", glob: "tests/support/browser/**" }).depcruisePaths).toEqual(["tests/support/browser"]);
+  expect(resolveSelection({ kind: "scope", glob: "tests/support/chat/**" }).depcruisePaths).toEqual([]);
 });
 
 test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface", () => {
@@ -627,50 +723,25 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
 // files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
 
-test("tests:node scopedArgv: --passWithNoTests rides the SCOPED lane only, ordered so --changed's optional ref cannot eat it (#1272)", () => {
-  // The git-derived arm (`--changed` with no explicit paths) carries the ref; the explicit-path and folder
-  // arms carry none. In EVERY arm the flag sits immediately BEFORE `--changed` — `--changed`'s value is
-  // OPTIONAL, so a flag placed after it can be swallowed as that value.
+test("tests:node scopedArgv: git changes stay derived, while explicit source/test/folder/package subjects reach Vitest", () => {
+  // The Git-derived arm keeps Vitest's VCS selector and its derived-empty allowance. Explicit test claims
+  // enter the runner's zero-match preflight; source and mixed claims enter native `related`. Folder
+  // subjects were already expanded from Git's authored inventory by the shared Selection resolver.
   const derived = resolveSelection({ kind: "changed", paths: [] });
-  expect(stage("tests:node").scopedArgv?.(derived)).toEqual([
-    "vitest",
-    "run",
-    "--project",
-    "unit",
-    "--project",
-    "integration",
-    "--project",
-    "tooling",
-    "--passWithNoTests",
-    "--changed",
-    "HEAD",
-  ]);
+  expect(stage("tests:node").scopedArgv?.(derived)).toEqual(["pnpm", "test:scoped", "--passWithNoTests", "--changed", "HEAD"]);
   const explicit = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
-  expect(stage("tests:node").scopedArgv?.(explicit)).toEqual([
-    "vitest",
-    "run",
-    "--project",
-    "unit",
-    "--project",
-    "integration",
-    "--project",
-    "tooling",
-    "--passWithNoTests",
-    "--changed",
-  ]);
+  expect(stage("tests:node").scopedArgv?.(explicit)).toEqual(["pnpm", "test:scoped", "--related", "packages/server/src/index.ts"]);
+  const explicitTest = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/lib/registry.test.ts"] });
+  expect(stage("tests:node").scopedArgv?.(explicitTest)).toEqual(["pnpm", "test:scoped", "tests/tooling/verify/lib/registry.test.ts"]);
   const folder = resolveSelection({ kind: "scope", glob: "tooling/src/verify/ops" });
-  expect(stage("tests:node").scopedArgv?.(folder)).toEqual([
-    "vitest",
-    "run",
-    "--project",
-    "unit",
-    "--project",
-    "integration",
-    "--project",
-    "tooling",
-    "--passWithNoTests",
-    "--changed",
-  ]);
+  const folderArgv = stage("tests:node").scopedArgv?.(folder);
+  expect(folderArgv).not.toBe("whole-only");
+  expect(folderArgv).not.toBe("skip-empty");
+  expect(folderArgv?.slice(0, 3)).toEqual(["pnpm", "test:scoped", "--related"]);
+  expect(folderArgv).toContain("tooling/src/verify/ops/run.ts");
+
+  const packageSelection = resolveSelection({ kind: "package", name: "server" });
+  expect(stage("tests:node").scopedArgv?.(packageSelection)).toEqual(["pnpm", "test:scoped", "tests/server"]);
   // The OTHER half of the ruling: the WHOLE-scope argv asserts the whole suite, where zero test files means
   // the runner broke. It must never carry the flag — that is what keeps PD-115 alive where it applies.
   expect(stage("tests:node").argv).toEqual(["pnpm", "test:node"]);
