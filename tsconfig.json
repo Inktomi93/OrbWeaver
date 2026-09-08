@@ -1,44 +1,37 @@
 {
-  // DOM-less Node test/tooling program. Browser package source has its own programs; imported pure
-  // helpers may enter this closure. Package NodeNext checks separately enforce runtime resolution.
-  "extends": "./tsconfig.base.json",
+  "extends": "./tsconfig.world-node.json",
   "compilerOptions": {
-    "types": ["node"],
-    "jsx": "react-jsx",
-    "module": "esnext",
-    "moduleResolution": "bundler"
+    "jsx": "react-jsx"
   },
   "include": [
-    "packages/*/src",
-    "scripts",
-    "tooling/src",
-    "tests",
     "reset.d.ts",
     "platform.d.ts",
     "aggregator-assets.d.ts",
-    // This script-kind SDK declaration belongs to its conformance test, never the server program.
     "packages/showcase-plugins/bundles/host-v1.d.ts",
-    "packages/client/vite.config.ts",
-    "vitest.config.ts",
-    "vitest.stryker.config.ts",
-    "playwright.config.ts",
-    "knip.ts"
+    "*.config.ts",
+    "knip.ts",
+    "packages/*/*",
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
+    "scripts/**/*.cts",
+    "tests/**/*.ts",
+    "tests/**/*.mts",
+    "tests/**/*.cts",
+    "tests/support/node/**/*"
   ],
-  // Browser tests declare their compiler world by suffix; browser-only drivers and helpers by home.
-  // __g_* is transient gate-fixture state; the foreign capture is not authored repository source.
   "exclude": [
     "**/node_modules",
-    "packages/ui/src",
-    "packages/client/src",
-    "tests/**/*.dom.test.ts",
+    "**/__g_*",
+    "**/__g_*/**",
     "tests/**/*.dom.test-d.ts",
+    "tests/**/*.dom.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/**/*.ct.tsx",
     "tests/e2e",
     "tests/support/browser",
-    "**/*.tsx",
+    "tests/support/iso/**/*",
     "playwright",
     "scripts/probes/st-goldens",
-    "scripts/probes/st-goldens/sillytavern-runtime",
-    "**/__g_*",
-    "**/__g_*/**"
+    "scripts/probes/st-goldens/sillytavern-runtime"
   ]
 }

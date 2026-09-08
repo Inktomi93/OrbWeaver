@@ -8,6 +8,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { ambientScopeOf } from "@orb/tooling/_shared/type-config-intent";
 import type { MembershipOutcome, MembershipReport, MembershipRow } from "../contract/tests-type-membership.ts";
 import { MEMBERSHIP_ENFORCEMENT, MEMBERSHIP_OUTCOMES } from "../contract/tests-type-membership.ts";
 import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
@@ -67,6 +68,29 @@ function unionClosure(closures: ReadonlyMap<string, ReadonlySet<string>>): Reado
   return members;
 }
 
+function membershipOutcome(input: {
+  readonly file: string;
+  readonly predicted: string | null;
+  readonly ambient: boolean;
+  readonly rootedBy: readonly string[];
+  readonly containedBy: readonly string[];
+}): MembershipOutcome {
+  const { file, predicted, ambient, rootedBy, containedBy } = input;
+  if (containedBy.length === 0) {
+    return "unowned";
+  }
+  if (rootedBy.length === 0) {
+    return "import-only";
+  }
+  if (ambient) {
+    return "ambient";
+  }
+  if (predicted === null) {
+    return "unclassified";
+  }
+  return rootedBy.includes(predicted) && (!requiresExclusiveRoot(file) || rootedBy.length === 1) ? "predicted" : "drift";
+}
+
 /** Compare intended primary ownership with actual roots and closures for every authored TS file. */
 export function classifyMembership(
   root: string,
@@ -78,21 +102,11 @@ export function classifyMembership(
   return files.map((file) => {
     const predicted = predictedProgram(file) ?? null;
     const world = worldOf(file) ?? null;
+    const ambientScope = ambientScopeOf(file) ?? null;
     const rootedBy = [...rootsByProgram].filter(([, roots]) => roots.has(file)).map(([cfg]) => cfg);
     const containedBy = [...closuresByProgram].filter(([, closure]) => closure.has(`${prefix}${file}`)).map(([cfg]) => cfg);
-    let outcome: MembershipOutcome;
-    if (containedBy.length === 0) {
-      outcome = "unowned";
-    } else if (rootedBy.length === 0) {
-      outcome = "import-only";
-    } else if (predicted === null) {
-      outcome = "unclassified";
-    } else if (rootedBy.includes(predicted) && (!requiresExclusiveRoot(file) || rootedBy.length === 1)) {
-      outcome = "predicted";
-    } else {
-      outcome = "drift";
-    }
-    return { file, world, predicted, rootedBy, containedBy, outcome };
+    const outcome = membershipOutcome({ file, predicted, ambient: ambientScope !== null, rootedBy, containedBy });
+    return { file, world, ambientScope, predicted, rootedBy, containedBy, outcome };
   });
 }
 
@@ -161,7 +175,7 @@ export function runTestsTypeMembership(root: string, args: readonly string[] = [
   process.stdout.write(`  target ownership is informational; enforcing ${MEMBERSHIP_ENFORCEMENT}\n`);
   for (const row of rows.filter(({ outcome }) => outcome !== "predicted")) {
     process.stdout.write(
-      `      · ${row.outcome} ${row.file} [${row.world ?? "unclassified"}] — predicted ${row.predicted ?? "∅"}, rooted by {${row.rootedBy.join(", ")}}, in {${row.containedBy.join(", ")}}\n`,
+      `      · ${row.outcome} ${row.file} [${row.world ?? row.ambientScope ?? "unclassified"}] — predicted ${row.predicted ?? "∅"}, rooted by {${row.rootedBy.join(", ")}}, in {${row.containedBy.join(", ")}}\n`,
     );
   }
   if (escapees.length === 0) {

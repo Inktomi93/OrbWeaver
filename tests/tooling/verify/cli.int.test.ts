@@ -131,7 +131,7 @@ test("membership JSON exposes every authored TS file, including unresolved confi
   expect(report.rows).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ file: "knip.ts", world: "node", predicted: "tsconfig.json" }),
-      expect.objectContaining({ file: "reset.d.ts", world: null, predicted: null, outcome: "unclassified" }),
+      expect.objectContaining({ file: "reset.d.ts", world: null, predicted: null, ambientScope: "all-programs", outcome: "ambient" }),
     ]),
   );
 });

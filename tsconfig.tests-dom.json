@@ -1,28 +1,30 @@
 {
-  // DOM declarations for browser-subject tests, stories and drivers. Node types belong to their test
-  // harness. Runtime execution is selected separately by Vitest or Playwright.
-  "extends": "./tsconfig.base.json",
+  "extends": "./tsconfig.world-browser.json",
   "compilerOptions": {
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
-    "jsx": "react-jsx",
-    "types": ["node"],
-    "allowImportingTsExtensions": true
+    "types": ["node"]
   },
   "include": [
     "reset.d.ts",
     "platform.d.ts",
-    // A side-effect CSS ambient is not reached through the module's import closure.
     "packages/ui/src/markdown/css-modules.d.ts",
-    "tests/**/*.dom.test.ts",
+    "playwright/globals.d.ts",
     "tests/**/*.dom.test-d.ts",
-    "tests/e2e/**/*.ts",
-    "tests/support/browser/**/*.ts",
+    "tests/**/*.dom.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/**/*.ct.tsx",
     "tests/**/*.tsx",
-    "playwright/**/*.tsx",
-    "playwright/**/*.d.ts",
-    "scripts/probes/st-goldens/**/*.ts"
+    "scripts/**/*.tsx",
+    "tests/e2e/**/*",
+    "tests/support/browser/**/*",
+    "playwright/**/*",
+    "scripts/probes/st-goldens/**/*"
   ],
-  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**", "scripts/probes/st-goldens/sillytavern-runtime"]
+  "exclude": [
+    "**/node_modules",
+    "**/__g_*",
+    "**/__g_*/**",
+    "tests/support/iso/**/*",
+    "tests/support/node/**/*",
+    "scripts/probes/st-goldens/sillytavern-runtime"
+  ]
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  // Shared base. Per-package tsconfigs `extends` this; `${configDir}` (TS 5.5+) resolves
-  // `include`/`tsBuildInfoFile` relative to the LEAF package, so one base serves all five.
+  // Abstract strictness base. Generated world templates compose environment options; generated leaves
+  // own roots and ambient scopes. `files: []` keeps this out of the program roster.
   "compilerOptions": {
     // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
     "noEmit": true,
@@ -43,17 +43,15 @@
     // explicit resource management — `using`/`await using` execute natively under node 26 — but TS's
     // es2025 lib does not declare `Symbol.dispose`/`Disposable`, so the spelling W5 adopts is UNTYPED
     // without this. `esnext.disposable` is the MINIMAL delta that takes it (probe-verified: switching the
-    // whole lib to `esnext` clears the same thing and nothing else we need). The two browser programs
-    // (packages/{ui,client}/tsconfig.json) and tsconfig.tests-dom.json compose their OWN lib arrays and
-    // carry the same entry beside their dom entries. The V8 14.6 surfaces TS ships in NO lib yet
+    // whole lib to `esnext` clears the same thing and nothing else we need). The generated browser-world
+    // template composes its lib array from this authoritative common list plus the DOM delta. The V8 14.6 surfaces TS ships in NO lib yet
     // (Map.getOrInsert, Error.isError, Iterator.concat) come from the root platform.d.ts instead.
     // `esnext.temporal` (2026-08-21): `@orb/kit/time` runs on the platform `Temporal` API. Node 26 and
     // chromium ≥144 both ship it enabled by default, but no `es*` lib declares it — TS 6.0.3 and ts7
     // 7.0.2 BOTH carry `lib.esnext.temporal.d.ts`, so the lib entry is the whole type story and
     // `platform.d.ts` needs no block. Probe-verified with a planted negative control: drop this entry and
-    // a `Temporal.Instant` reference reds `TS2304: Cannot find name 'Temporal'`. The two browser programs
-    // (packages/{ui,client}/tsconfig.json) and tsconfig.tests-dom.json compose their OWN lib arrays and
-    // carry the same entry — cross-package types resolve to SOURCE, so every program that sees kit needs it.
+    // a `Temporal.Instant` reference reds `TS2304: Cannot find name 'Temporal'`. Cross-package types resolve
+    // to SOURCE, so every program that sees kit needs it.
     "lib": ["es2025", "esnext.disposable", "esnext.temporal"],
     // NODENEXT on the node side (tsx-shedding stage 4, 2026-08-03). This is the ENFORCEMENT half of the
     // migration: under `bundler` the checker still ACCEPTS an extensionless relative import, so a missed
@@ -103,20 +101,5 @@
     // package.json `imports` field (`#*`). `types: []` keeps ambient @types out unless a package opts in.
     "types": []
   },
-  // `${configDir}/../../reset.d.ts` → the repo-root ts-reset import; every package lives at
-  // packages/<name>, so `../../` always resolves to root. Declaration-only, no emit.
-  // `platform.d.ts` rides the SAME distribution mechanism (node-26 adoption program §1.2): the V8 14.6
-  // surfaces TypeScript ships in no lib yet. The three programs that OVERRIDE this include
-  // (tsconfig.json, tsconfig.tests-dom.json) and the three package configs that do
-  // (packages/{ui,client,db}) each list BOTH files themselves — an override drops this line entirely.
-  "include": ["${configDir}/src", "${configDir}/../../reset.d.ts", "${configDir}/../../platform.d.ts"],
-  // `__g_*` is the RESERVED sentinel prefix the check-gates self-test (tests/tooling/check-gates.int.test.ts)
-  // materializes throwaway violation fixtures under — they exist for milliseconds inside one test then are
-  // rm'd. tsc/biome/vitest/eslint/depcruise all glob the real tree, so a CONCURRENT typecheck could catch a
-  // fixture mid-lifecycle → a phantom error that vanishes on re-run (the "never run `pnpm test` alongside
-  // `pnpm check`" footgun). Excluding the sentinel here (mirrored in tsconfig.json/biome.json/vitest.config.ts/
-  // eslint.config.js/.dependency-cruiser.cjs) makes the self-test hermetic: the gate harness reads fixtures via
-  // ts-morph's OWN globs (skipAddingFilesFromTsConfig — unaffected by this exclude), so it still fires on them.
-  // Specifying `exclude` overrides tsc's default, so node_modules is re-listed to keep it out.
-  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
+  "files": []
 }

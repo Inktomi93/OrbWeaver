@@ -143,7 +143,7 @@ test("the report covers source and config owners without blessing transitional t
     ["node", "predicted"],
     ["node", "drift"],
     ["node", "unowned"],
-    [null, "unclassified"],
+    [null, "ambient"],
     ["node", "drift"],
     ["browser", "predicted"],
   ]);

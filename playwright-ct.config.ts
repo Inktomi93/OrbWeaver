@@ -7,6 +7,7 @@ import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooli
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
 import { inheritedRunMarker, runMarkerArg } from "@orb/tooling/_shared/run-marker";
+import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -42,6 +43,38 @@ const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
+type CtViteConfig = Exclude<NonNullable<NonNullable<PlaywrightTestConfig["use"]>["ctViteConfig"]>, () => Promise<unknown>>;
+type CtVitePlugin = Extract<Awaited<NonNullable<CtViteConfig["plugins"]>[number]>, { readonly name?: string }>;
+type CtRollupOptions = NonNullable<NonNullable<CtViteConfig["build"]>["rollupOptions"]>;
+type CtTransformHook = Extract<NonNullable<CtVitePlugin["transform"]>, (...args: never[]) => unknown>;
+type CtOnWarn = Extract<NonNullable<CtRollupOptions["onwarn"]>, (...args: never[]) => unknown>;
+
+const CT_CSS_TRANSFORM: CtTransformHook = async function (this: ThisParameterType<CtTransformHook>, ...[code, id]: Parameters<CtTransformHook>) {
+  if (path.resolve(id.split("?", 1)[0] ?? id) !== CLIENT_GLOBALS_CSS) {
+    return;
+  }
+  this.addWatchFile(CT_CSS_EXTENSION);
+  return `${code}\n${await readFile(CT_CSS_EXTENSION, "utf8")}`;
+};
+
+const CT_CSS_SOURCE_PLUGIN: CtVitePlugin = {
+  name: "orb:ct-css-source-extension",
+  enforce: "pre",
+  transform: CT_CSS_TRANSFORM,
+};
+
+const CT_ROLLUP_ONWARN: CtOnWarn = (...[warning, defaultHandler]: Parameters<CtOnWarn>): void => {
+  if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
+    return;
+  }
+  if (warning.message.includes("dynamic import will not move module into another chunk")) {
+    return;
+  }
+  if (warning.code === "SOURCEMAP_ERROR" && warning.id?.includes("/node_modules/") === true) {
+    return;
+  }
+  defaultHandler(warning);
+};
 
 // The one-per-invocation launcher opens the slot. Config evaluation is deliberately adoption-only:
 // Playwright can load this file in several processes, so minting here creates orphan sibling slots.
@@ -79,7 +112,7 @@ export default defineConfig({
   workers: CONCURRENCY.ctWorkers,
   timeout: budget(BASE_TEST_TIMEOUT_MS),
   expect: { timeout: budget(BASE_EXPECT_TIMEOUT_MS) },
-  forbidOnly: process.env.CI !== undefined,
+  forbidOnly: process.env["CI"] !== undefined,
   // retries:0 is the DEFAULT (ad-hoc `pnpm test:ct` / scoped verify runs show a real flake raw while
   // debugging). The GATE lane retries instead of blocking — the drawer/chart/lightbox focus/ResizeObserver
   // parallelism artifacts that only surface after 500+ tests in one page context — but the gate context is
@@ -99,7 +132,7 @@ export default defineConfig({
     ["html", { outputFolder: "reports/ct-report", open: "never" }],
     [
       "./tooling/src/verify/ops/ct-flaky-reporter.ts",
-      { strict: process.env.CT_NO_FLAKES === "1", ...(ctSlot === null ? {} : { slotDir: ctSlot.dir, racing: ctSlot.racing }) },
+      { strict: process.env["CT_NO_FLAKES"] === "1", ...(ctSlot === null ? {} : { slotDir: ctSlot.dir, racing: ctSlot.racing }) },
     ],
   ],
   use: {
@@ -125,7 +158,7 @@ export default defineConfig({
     // `/proc/<pid>/cmdline`. No marker (a bare `npx playwright test`) ⇒ no arg, exactly as before.
     ...(CT_RUN_MARKER === null ? {} : { launchOptions: { args: [runMarkerArg(CT_RUN_MARKER)] } }),
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
-    ctPort: Number(process.env.CT_PORT ?? CT_VITE_PORT),
+    ctPort: Number(process.env["CT_PORT"] ?? CT_VITE_PORT),
     // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this
     // against the config dir and otherwise defaults to `playwright/.cache` — ONE directory per worktree,
     // which is what two concurrent `ct:scoped` runners were clearing and rebuilding under each other
@@ -136,20 +169,7 @@ export default defineConfig({
     ctViteConfig: {
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
-      plugins: [
-        {
-          name: "orb:ct-css-source-extension",
-          enforce: "pre",
-          async transform(code, id) {
-            if (path.resolve(id.split("?", 1)[0] ?? id) !== CLIENT_GLOBALS_CSS) {
-              return;
-            }
-            this.addWatchFile(CT_CSS_EXTENSION);
-            return `${code}\n${await readFile(CT_CSS_EXTENSION, "utf8")}`;
-          },
-        },
-        tailwindcss() as never,
-      ],
+      plugins: [CT_CSS_SOURCE_PLUGIN, tailwindcss() as never],
       // The client's static assets, served at the same absolute paths the stylesheets author. Without
       // this the CT harness resolves `/grain.svg` (client globals.css's film-grain tile) to a 404, so the
       // grain overlay computes exactly as production while painting NOTHING — a computed-style assertion
@@ -188,26 +208,12 @@ export default defineConfig({
           // "use client" module-level directives (meaningless in a CT bundle), the playwright/index.tsx
           // dynamic-vs-static chunk advisories (the harness dynamically imports what fixtures statically
           // import — inherent to CT), and prebuilt-dep sourcemap-trace failures (see the SOURCEMAP_ERROR arm).
-          onwarn(warning, defaultHandler): void {
-            if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
-              return;
-            }
-            if (warning.message.includes("dynamic import will not move module into another chunk")) {
-              return;
-            }
-            // Prebuilt deps (@base-ui/react, @tanstack/*) ship .mjs whose bundled sourcemaps rollup can't
-            // trace back to source when it wants to REPORT another advisory — SOURCEMAP_ERROR "Can't resolve
-            // original location of error" (~dozens/build, 2026-07-20). Benign (their code, their maps, not a
-            // real defect) and it once buried the real cause of a transient CT exit-1. Scoped to node_modules
-            // ids ONLY — our own SOURCEMAP_ERROR (a genuinely broken map we authored) still surfaces.
-            if (warning.code === "SOURCEMAP_ERROR" && warning.id?.includes("/node_modules/") === true) {
-              return;
-            }
-            defaultHandler(warning);
-          },
+          // Prebuilt dependency sourcemap failures and inherent CT bundle advisories are intentionally
+          // filtered; authored sourcemap failures still reach Rollup's public default handler.
+          onwarn: CT_ROLLUP_ONWARN,
         },
       },
-    },
+    } satisfies CtViteConfig,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

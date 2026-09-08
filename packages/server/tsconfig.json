@@ -1,10 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
-  // `exclude` OVERRIDES the base's list wholesale, so its three entries are re-stated. The PUBLISHED
-  // plugin-SDK declaration file used to need a fourth row here; it moved out of this package with the
-  // bundles (#1692 — `packages/showcase-plugins/bundles/host-v1.d.ts`), so the carve-out died with it.
+  "extends": "../../tsconfig.world-node.json",
+  "include": ["src", "../../reset.d.ts", "../../platform.d.ts"],
   "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
 }

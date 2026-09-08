@@ -1,13 +1,5 @@
 {
-  // @orb/tooling — node-context tool fleet (docs/architecture/core/Core-Tooling-Law.md §2.3).
-  // The base's ambient include assumes depth-2 packages (`${configDir}/../../` — tsconfig.base.json's
-  // own note names the overriders); tooling is depth-1, so `include` is overridden ENTIRELY and lists
-  // the root ambient pair at `../`. The `__g_*` exclude is the 7th mirror of the check-gates fixture
-  // sentinel (see tsconfig.base.json's exclude note).
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
+  "extends": "../tsconfig.world-node.json",
   "include": ["src", "../reset.d.ts", "../platform.d.ts"],
   "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
 }
