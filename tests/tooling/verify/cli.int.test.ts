@@ -9,7 +9,9 @@
 // whose help path touches the project fails HERE rather than only on a smaller machine. The verb list is
 // read from the tool's own contract (VERIFY_VERBS), never a copy — a new verb joins this pin the day it is
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
+import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
+import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -64,6 +66,7 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   ["gate-contract", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],
   ["asset-refs", ["extra"], "takes no arguments"],
+  ["tests-membership", ["--scope", "tests"], "accepts only --json"],
   ["orphan-ratchet", ["--updat"], "does not recognize"],
   ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],
   ["baseline", ["prose", "--chekc"], "unexpected argument"],
@@ -105,4 +108,22 @@ test("the 512MB ceiling BITES — the same verb without --help dies under it", {
   // and every green above became a test that cannot fail.
   const res = await runCli("verify", ["structure"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
   expect(res.code, `expected a heap-starved failure, got ${String(res.code)}`).not.toBe(0);
+});
+
+test("membership JSON exposes every authored TS file, including unresolved config and declaration owners", { timeout: HELP_TIMEOUT_MS }, async ({
+  runCli,
+  repoRoot,
+}) => {
+  const res = await runCli("verify", ["tests-membership", "--json"], { timeoutMs: HELP_TIMEOUT_MS });
+  await expect(res).toExitWith(0);
+  const report = JSON.parse(res.stdout) as MembershipReport;
+  expect(report.enforcement).toBe("test-coverage-and-lib-leaks");
+  const expected = readPolicyRepositoryInventory(repoRoot).paths.filter((file) => /\.(?:ts|tsx|mts|cts)$/u.test(file));
+  expect(report.rows.map((row) => row.file).toSorted()).toEqual([...expected].toSorted());
+  expect(report.rows).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ file: "knip.ts", world: "node", predicted: "tsconfig.json" }),
+      expect.objectContaining({ file: "reset.d.ts", world: null, predicted: null, outcome: "unclassified" }),
+    ]),
+  );
 });

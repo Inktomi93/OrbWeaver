@@ -72,7 +72,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "gate-contract": "usage: node tooling/src/verify/cli.ts gate-contract\n  Reports gate modules that bypass the shared ts-morph runtime contract.",
   baseline: BASELINE_HELP,
   "tests-membership":
-    "usage: node tooling/src/verify/cli.ts tests-membership\n  Reconciles which test files each TYPE program compiles — reports the escapees.",
+    "usage: node tooling/src/verify/cli.ts tests-membership [--json]\n  Reports intended and actual compiler ownership for every authored TypeScript file.",
   "tests-execution-membership":
     "usage: node tooling/src/verify/cli.ts tests-execution-membership\n  Reconciles which test files a vitest project actually RUNS — reports the unrun.",
   "db-baseline": "usage: node tooling/src/verify/cli.ts db-baseline\n  Compares the drizzle schema against the committed 0000_baseline.sql.",
@@ -119,7 +119,7 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     case "baseline":
       return runBaseline(root, rest);
     case "tests-membership":
-      return runTestsTypeMembership(root);
+      return runTestsTypeMembership(root, rest);
     case "tests-execution-membership":
       return runTestsExecutionMembership(root);
     case "db-baseline":

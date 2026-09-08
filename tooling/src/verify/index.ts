@@ -91,7 +91,7 @@ export type { CtView, Selection, SelectionRequest } from "./contract/selection.t
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
 export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
 export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
-export type { MembershipOutcome, MembershipRow } from "./contract/tests-type-membership.ts";
+export type { MembershipOutcome, MembershipReport, MembershipRow } from "./contract/tests-type-membership.ts";
 export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
 export { VERIFY_VERBS } from "./contract/verbs.ts";

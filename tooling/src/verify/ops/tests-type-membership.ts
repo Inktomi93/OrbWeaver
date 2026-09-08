@@ -1,19 +1,15 @@
-// The type-membership reconciliation stage: every type-relevant SOURCE file under tests/** +
-// playwright/** must appear in ≥1 type program's import closure — else it is checked by NOTHING. Runs
-// `ts7 --listFilesOnly` (module resolution only, no typecheck — via scripts/ts7.cjs, the same wrapper
-// the typecheck scripts use) for each program, unions the closures, and asserts the enumerated test
-// files are a subset. ALSO runs the #1228 triple-slash-lib-leak tripwire (below) — a second, narrower
-// invariant of the same "type-program hygiene" concern, folded into this stage rather than a new one
-// so both checks report through the one `tests-membership` verb. Speaks the repo's own 0/1/2/3 exit
-// scheme: 0 clean · 1 violations (escapees / a leak) · 2 tool error (a listing broke).
-import { readdirSync, readFileSync } from "node:fs";
+// Reports intended and actual ownership across authored TypeScript sources. During migration only test
+// orphans and program-wide reference-lib leaks enforce; --json retains every row for inspection.
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { predictedTestProgram } from "@orb/tooling/_shared/project-worlds";
-import type { MembershipOutcome, MembershipRow } from "../contract/tests-type-membership.ts";
+import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot, worldOf } from "@orb/tooling/_shared/project-worlds";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { MembershipOutcome, MembershipReport, MembershipRow } from "../contract/tests-type-membership.ts";
+import { MEMBERSHIP_ENFORCEMENT, MEMBERSHIP_OUTCOMES } from "../contract/tests-type-membership.ts";
 import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
@@ -24,8 +20,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:tests-membership");
 
 // The type-relevant test SOURCE roots + the file-extension surface. `.d.ts` is INCLUDED (it's type-bearing);
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
-const TEST_ROOTS: readonly string[] = ["tests", "playwright"];
-const TS_FILE_RE = /\.(?:ts|tsx|mts|cts)$/u;
+const TEST_ROOT_RE = /^(?:tests|playwright)\//u;
 // The reserved throwaway-fixture sentinel the check-gates self-test materializes for milliseconds (mirrored
 // in every tsconfig `exclude`). It is not a real test file — never an escapee.
 const SENTINEL_RE = /(?:^|\/)__g_/u;
@@ -72,16 +67,17 @@ function unionClosure(closures: ReadonlyMap<string, ReadonlySet<string>>): Reado
   return members;
 }
 
-/** Classify every test file. Pure over the given sets (exported for the proof test). */
+/** Compare intended primary ownership with actual roots and closures for every authored TS file. */
 export function classifyMembership(
   root: string,
-  testFiles: readonly string[],
+  files: readonly string[],
   rootsByProgram: ReadonlyMap<string, ReadonlySet<string>>,
   closuresByProgram: ReadonlyMap<string, ReadonlySet<string>>,
 ): readonly MembershipRow[] {
   const prefix = `${root}/`;
-  return testFiles.map((file) => {
-    const predicted = predictedTestProgram(file);
+  return files.map((file) => {
+    const predicted = predictedProgram(file) ?? null;
+    const world = worldOf(file) ?? null;
     const rootedBy = [...rootsByProgram].filter(([, roots]) => roots.has(file)).map(([cfg]) => cfg);
     const containedBy = [...closuresByProgram].filter(([, closure]) => closure.has(`${prefix}${file}`)).map(([cfg]) => cfg);
     let outcome: MembershipOutcome;
@@ -89,40 +85,20 @@ export function classifyMembership(
       outcome = "unowned";
     } else if (rootedBy.length === 0) {
       outcome = "import-only";
-    } else if (predicted !== undefined && rootedBy.length === 1 && rootedBy[0] === predicted) {
+    } else if (predicted === null) {
+      outcome = "unclassified";
+    } else if (rootedBy.includes(predicted) && (!requiresExclusiveRoot(file) || rootedBy.length === 1)) {
       outcome = "predicted";
     } else {
       outcome = "drift";
     }
-    return { file, predicted, rootedBy, containedBy, outcome };
+    return { file, world, predicted, rootedBy, containedBy, outcome };
   });
 }
 
-/** Every type-relevant test SOURCE file under the test roots, as repo-relative posix paths (sorted). */
-function enumerateTestFiles(root: string): readonly string[] {
-  const out: string[] = [];
-  const walk = (relDir: string): void => {
-    for (const entry of readdirSync(join(root, relDir), { withFileTypes: true })) {
-      const rel = `${relDir}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (entry.name !== "node_modules") {
-          walk(rel);
-        }
-      } else if (TS_FILE_RE.test(entry.name) && !SENTINEL_RE.test(rel)) {
-        out.push(rel);
-      }
-    }
-  };
-  for (const testRoot of TEST_ROOTS) {
-    walk(testRoot);
-  }
-  return out.sort((a, b) => a.localeCompare(b));
-}
-
 const FIX_HINT =
-  "add each to tsconfig.tests-dom.json `include` (a DOM-coupled non-`.tsx` test), or to the owning " +
-  "package tsconfig / the root graph include if it belongs there. Every file under tests/** + " +
-  "playwright/** MUST be in ≥1 type program's closure — else it is checked by NOTHING.";
+  "correct the file's world placement and the owning config's directory/suffix roots. " +
+  "Every authored tests/** + playwright/** TS file must belong to a compiler program.";
 
 /** The reconciliation core (exported for a proof test): the test files that appear in NO program closure. */
 export function findEscapees(testFiles: readonly string[], closureAbs: ReadonlySet<string>, root: string): readonly string[] {
@@ -130,48 +106,11 @@ export function findEscapees(testFiles: readonly string[], closureAbs: ReadonlyS
   return testFiles.filter((rel) => !closureAbs.has(`${prefix}${rel}`));
 }
 
-// #1228: the triple-slash-lib-leak tripwire. A `/// <reference lib="…" />` directive is PROGRAM-scoped,
-// not file-scoped (a `<reference lib="dom">` in ONE root-aggregator-swept script silently supplied
-// lib.dom to the ENTIRE `tsconfig.json` program for months, masking every genuinely DOM-coupled escapee
-// riding the leak — see scripts/probes/st-goldens/generate-goldens.ts's history). `tests-type-membership`
-// otherwise only asks "is this file in SOME program's closure" — a leak makes that question answer YES
-// for the wrong reason, so membership alone cannot catch this class; only a direct ban on the mechanism
-// can. The sanctioned way to widen a program's lib set is its tsconfig's `lib` array; a triple-slash
-// directive is never that, so this scans the whole type-relevant surface (wider than TEST_ROOTS above —
-// scripts/ and tooling/src/ carry the mechanism too, and packages/*/src can leak into its OWN per-package
-// program the same way) rather than reusing enumerateTestFiles.
-const LIB_LEAK_ROOTS: readonly string[] = ["scripts", "tooling/src", "tests", "playwright"];
+// A reference-lib directive widens its entire compiler program, including unrelated source files.
 const TRIPLE_SLASH_LIB_RE = /^\/{3}\s*<reference\s+lib=/mu;
 // Currently empty BY DESIGN — no live file needs this escape. A future genuine need adds a row here with
 // a `why` (never just deletes the check); this is the door, not a standing exemption.
 const LIB_LEAK_ALLOWLIST: ReadonlySet<string> = new Set();
-
-/** Every `.ts`/`.tsx`/`.mts`/`.cts` file under the given repo-relative roots, plus every package's `src`
- *  dir (walked separately since it is not one static root), as repo-relative posix paths. */
-function enumerateTypeRelevantFiles(root: string): readonly string[] {
-  const out: string[] = [];
-  const walk = (relDir: string): void => {
-    for (const entry of readdirSync(join(root, relDir), { withFileTypes: true })) {
-      const rel = `${relDir}/${entry.name}`;
-      if (entry.isDirectory()) {
-        if (entry.name !== "node_modules") {
-          walk(rel);
-        }
-      } else if (TS_FILE_RE.test(entry.name) && !SENTINEL_RE.test(rel)) {
-        out.push(rel);
-      }
-    }
-  };
-  for (const leakRoot of LIB_LEAK_ROOTS) {
-    walk(leakRoot);
-  }
-  for (const pkg of readdirSync(join(root, "packages"), { withFileTypes: true })) {
-    if (pkg.isDirectory()) {
-      walk(`packages/${pkg.name}/src`);
-    }
-  }
-  return out.sort((a, b) => a.localeCompare(b));
-}
 
 /** The leak-scan core (exported for a proof test): files carrying a triple-slash `reference lib=`
  *  directive, minus the allowlist. */
@@ -179,31 +118,50 @@ export function findTripleSlashLibLeaks(root: string, files: readonly string[]):
   return files.filter((rel) => !LIB_LEAK_ALLOWLIST.has(rel) && TRIPLE_SLASH_LIB_RE.test(readFileSync(join(root, rel), "utf8")));
 }
 
-/** The `tests-membership` verb — BOTH the closure-membership reconciliation and the triple-slash-lib-leak
- *  tripwire; either finding is a violation. */
-export function runTestsTypeMembership(root: string): number {
-  const memberships = readAvailablePolicyPrograms(readPolicyRepositoryInventory(root));
+function jsonRequested(args: readonly string[]): boolean {
+  if (args.length === 0) {
+    return false;
+  }
+  if (args.length === 1 && args[0] === "--json") {
+    return true;
+  }
+  throw new UsageError("tests-membership accepts only --json");
+}
+
+/** Reports all authored compiler membership while retaining the existing orphan/leak verdict. */
+export function runTestsTypeMembership(root: string, args: readonly string[] = []): number {
+  const json = jsonRequested(args);
+  const inventory = readPolicyRepositoryInventory(root);
+  const files = inventory.paths.filter((file) => isTypeWorldSource(file) && !SENTINEL_RE.test(file));
+  const memberships = readAvailablePolicyPrograms(inventory);
   const programs = memberships.map((program) => program.config);
   const closures = programClosures(root, programs);
   if (closures === undefined) {
     return EXIT.toolError; // a tsgo listing broke — the checker is broken, not the tree
   }
   const closure = unionClosure(closures);
-  const testFiles = enumerateTestFiles(root);
+  const testFiles = files.filter((file) => TEST_ROOT_RE.test(file));
   const escapees = findEscapees(testFiles, closure, root);
-  const leaks = findTripleSlashLibLeaks(root, enumerateTypeRelevantFiles(root));
+  const leaks = findTripleSlashLibLeaks(root, files);
   const rootsByProgram = new Map(memberships.map((program) => [program.config, new Set(program.files)] as const));
-  const rows = classifyMembership(root, testFiles, rootsByProgram, closures);
+  const rows = classifyMembership(root, files, rootsByProgram, closures);
+  const exit = escapees.length === 0 && leaks.length === 0 ? EXIT.clean : EXIT.violations;
+  if (json) {
+    const report: MembershipReport = { enforcement: MEMBERSHIP_ENFORCEMENT, programs, rows, testEscapees: escapees, libLeaks: leaks };
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return exit;
+  }
   const count = (outcome: MembershipOutcome): number => rows.filter((row) => row.outcome === outcome).length;
 
-  process.stdout.write(`tests-type-membership — ${testFiles.length} test file(s) across ${programs.length} type program(s)\n`);
-  // The phase-0 REPORT (type-worlds #1351): actual vs PREDICTED membership. Informational until phase 6 flips
-  // the verdict from "≥1 program" to "the predicted program"; the drift + import-only counts are the escapee
-  // baseline every later phase is measured by.
-  process.stdout.write(`  report: predicted=${count("predicted")} drift=${count("drift")} import-only=${count("import-only")} unowned=${count("unowned")}\n`);
-  for (const row of rows.filter(({ outcome }) => outcome === "drift" || outcome === "import-only")) {
+  process.stdout.write(
+    `type-world membership — ${files.length} authored TS file(s), ${testFiles.length} test/harness file(s), ${programs.length} program(s)\n`,
+  );
+  // Target drift stays informational until placement and config migrations have settled.
+  process.stdout.write(`  report: ${MEMBERSHIP_OUTCOMES.map((outcome) => `${outcome}=${count(outcome)}`).join(" ")}\n`);
+  process.stdout.write(`  target ownership is informational; enforcing ${MEMBERSHIP_ENFORCEMENT}\n`);
+  for (const row of rows.filter(({ outcome }) => outcome !== "predicted")) {
     process.stdout.write(
-      `      · ${row.outcome} ${row.file} — predicted ${row.predicted ?? "∅"}, rooted by {${row.rootedBy.join(", ")}}, in {${row.containedBy.join(", ")}}\n`,
+      `      · ${row.outcome} ${row.file} [${row.world ?? "unclassified"}] — predicted ${row.predicted ?? "∅"}, rooted by {${row.rootedBy.join(", ")}}, in {${row.containedBy.join(", ")}}\n`,
     );
   }
   if (escapees.length === 0) {
@@ -230,5 +188,5 @@ export function runTestsTypeMembership(root: string): number {
     );
   }
 
-  return escapees.length === 0 && leaks.length === 0 ? EXIT.clean : EXIT.violations;
+  return exit;
 }
