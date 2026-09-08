@@ -16,7 +16,8 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import {
   activityHeatmapMatrix,

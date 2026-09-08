@@ -28,8 +28,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
 
 type ThemeLevel = "scene" | "arc";

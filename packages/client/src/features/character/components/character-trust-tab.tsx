@@ -27,7 +27,8 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 

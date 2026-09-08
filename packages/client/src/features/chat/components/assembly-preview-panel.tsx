@@ -30,7 +30,8 @@ import { SeriesRow } from "@orb/ui/series-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useTRPC } from "#data";
 import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics.tsx";
 
 export interface AssemblyPreviewPanelProps {

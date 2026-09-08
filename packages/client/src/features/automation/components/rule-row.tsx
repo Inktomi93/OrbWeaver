@@ -84,9 +84,9 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { RowActionsMenu } from "#components";
+import { QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import {
   armLabel,

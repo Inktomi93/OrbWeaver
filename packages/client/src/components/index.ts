@@ -40,6 +40,8 @@ export {
   REVEAL_AT_COARSE,
   VALUE_ROW_TOUCH_FLOOR_AT_COARSE,
 } from "./pointer-variants.ts";
+export type { QueryBoundaryProps } from "./query-boundary.tsx";
+export { QueryBoundary } from "./query-boundary.tsx";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export type { RegexScriptPickerProps } from "./regex-script-picker.tsx";
@@ -97,3 +99,5 @@ export type { ConfigLeafAddress, ConfigLeafReading, ConfigLeafValue } from "./us
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
+export type { WeaveGlyphProps } from "./weave-glyph.tsx";
+export { WeaveGlyph } from "./weave-glyph.tsx";

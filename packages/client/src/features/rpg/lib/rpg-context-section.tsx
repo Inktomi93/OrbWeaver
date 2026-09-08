@@ -24,7 +24,7 @@ import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@or
 import { Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary } from "#components";
 import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
 import { RpgErrorState } from "../components/rpg-error-state.tsx";
 import { RpgGameDoor } from "../components/rpg-game-door.tsx";

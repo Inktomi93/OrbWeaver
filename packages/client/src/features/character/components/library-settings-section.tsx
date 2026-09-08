@@ -16,8 +16,8 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
-import { SettingRowGroup } from "#components";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, SettingRowGroup } from "#components";
+import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { configAnchorId } from "#state";

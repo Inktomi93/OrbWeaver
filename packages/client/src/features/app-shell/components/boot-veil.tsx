@@ -67,7 +67,7 @@ import type { WeavePhase } from "@orb/ui/web-weave";
 import { WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { WeaveGlyph } from "#lib";
+import { WeaveGlyph } from "#components";
 
 /** The readiness seam (app-ready-signal.ts — presence = stop waiting; value may be "degraded"). */
 const READY_ATTR = "data-app-ready";

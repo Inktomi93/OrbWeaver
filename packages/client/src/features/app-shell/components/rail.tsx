@@ -20,7 +20,7 @@ import { Button } from "@orb/ui/button";
 import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import { WeaveGlyph } from "#lib";
+import { WeaveGlyph } from "#components";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
 import { mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry } from "#state";
 import { RailButton } from "./rail-button.tsx";

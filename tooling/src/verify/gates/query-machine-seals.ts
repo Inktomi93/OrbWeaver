@@ -8,7 +8,7 @@
 // the real home goes unsealed). The `data/` dir exemption stays at the honest weak grain (the tier is the
 // seal home; zero raw mutations inside it is the healthy state, not a dead row) — a dir matching no file is
 // RED. `.test.tsx?` is SCOPE, not an exemption: nothing to ratchet. The arms self-guard on a REAL-TREE
-// ANCHOR (gate-hub #11): the read-side boundary that lives beside these seals.
+// ANCHOR (gate-hub #11): the data tier's public entry.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -18,9 +18,9 @@ const EXEMPT_COLLECTION = /\/packages\/client\/src\/data\/create-collection-surf
 const EXEMPT_TEST = /\.test\.tsx?$/u;
 
 const GATE_SELF = "tooling/src/verify/gates/query-machine-seals.ts";
-/** Real-tree anchor (gate-hub #11): the read-side boundary that lives beside these seals. Deliberately not
+/** Real-tree anchor (gate-hub #11): the data tier's public entry. Deliberately not
  *  one of the seal files themselves — those are example subjects here. */
-const ANCHOR = "packages/client/src/data/query-boundary.tsx";
+const ANCHOR = "packages/client/src/data/index.ts";
 const COLLECTION_REL = "packages/client/src/data/create-collection-surface.ts";
 const INFINITE = "useInfiniteQuery";
 const STALE_COLLECTION_GONE = "stale EXEMPT_COLLECTION — the sole paginated-browse factory is no longer in the project (ratchet down): ";

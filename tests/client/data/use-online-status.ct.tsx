@@ -2,7 +2,7 @@
 // TanStack's `onlineManager` (the same signal `networkMode:"online"` pauses queries on). Pins the
 // live subscription: the hook flips with the context's network emulation (browser online/offline
 // events), both directions. The boundary-level consumer contract (offline line while pending) is
-// query-boundary.ct.tsx's offline test.
+// tested in ../components/query-boundary.ct.tsx.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { OnlineStatusProbeStory } from "./_ct-stories.tsx";

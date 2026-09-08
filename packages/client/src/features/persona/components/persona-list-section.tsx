@@ -7,7 +7,8 @@
 
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows } from "#data";
 import { configAnchorId } from "#state";
 import { PERSONA_LIST_SUBCATEGORY } from "../lib/personas-nav.ts";
 import { PersonaList } from "./persona-list.tsx";

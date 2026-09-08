@@ -24,8 +24,8 @@ import type { PresetId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { RegexScriptPicker } from "#components";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { QueryBoundary, RegexScriptPicker } from "#components";
+import { QueryErrorState, SkeletonRows } from "#data";
 import { openConfigTo } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;

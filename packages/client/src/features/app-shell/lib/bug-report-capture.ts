@@ -21,11 +21,11 @@
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
-import { readAgentDebugHandle } from "./agent-bridge.ts";
-import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "./appearance-carrier-manifest.ts";
-import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "./bug-report-bundle.ts";
-import { bugReportRouteFrom, buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "./bug-report-bundle.ts";
-import { consoleErrorRing } from "./console-error-ring.ts";
+import { readAgentDebugHandle } from "../../../lib/agent-bridge.ts";
+import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "../../../lib/appearance-carrier-manifest.ts";
+import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "../../../lib/bug-report-bundle.ts";
+import { bugReportRouteFrom, buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "../../../lib/bug-report-bundle.ts";
+import { consoleErrorRing } from "../../../lib/console-error-ring.ts";
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
  *  `agent-plugin-bridge.ts` uses for its own debug-route read. */

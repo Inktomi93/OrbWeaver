@@ -4,8 +4,8 @@
 // story lives in the `#data` mirror beside the hook it exercises (`tests/client/data/_ct-stories.tsx`) —
 // the CT bundler registers stories per directory, so a cross-directory story import double-declares.
 
-import { RegexScriptPicker } from "@orb/client/components";
-import { QueryBoundary, useTRPC } from "@orb/client/data";
+import { QueryBoundary, RegexScriptPicker } from "@orb/client/components";
+import { useTRPC } from "@orb/client/data";
 import type { CollectionGroupDefinition } from "@orb/client/state";
 import {
   __resetConfigGroupOpen,

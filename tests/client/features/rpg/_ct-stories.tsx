@@ -10,7 +10,8 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
-import { QueryBoundary, useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
+import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";

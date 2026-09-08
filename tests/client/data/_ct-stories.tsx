@@ -4,12 +4,12 @@
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these
 // exports. This file is the template every client feature agent copies.
 
+import { QueryBoundary } from "@orb/client/components";
 import type { CardFrameRequest, PluginFrameRequest } from "@orb/client/data";
 import {
   __resetSessionFreshness,
   createCollectionSurface,
   createEntityMutation,
-  QueryBoundary,
   SkeletonRows,
   sessionFreshnessAgeMs,
   skeletonRowCountFor,

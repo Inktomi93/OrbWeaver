@@ -40,7 +40,8 @@ import { Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { QueryBoundary, QueryErrorState } from "#data";
+import { QueryErrorState } from "#data";
+import { QueryBoundary } from "./query-boundary.tsx";
 import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
 
 export interface LibrarySurfaceShellProps {

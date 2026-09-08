@@ -1,11 +1,9 @@
-// CT (hygiene): the WeaveGlyph brand mark after its D62 re-home to lib/. Not gate-required (lib/ is
-// outside the @orb/ui primitive-CT contract), but the glyph is now a cross-feature seam, so pin its
-// contract: it renders a labelled SVG, honours `size`, and toggles the silk-shimmer class on `anim`.
+// The shared app-level brand component: labelled/decorative SVG, requested size, and shimmer class.
 // The shimmer's CSS lives in the client globals (not the @orb/ui-only CT stylesheet), so this asserts
 // the CLASS wiring, not the computed animation — the reduced-motion safety rides the global floor.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { WeaveGlyph } from "../../../packages/client/src/lib/weave-glyph.tsx";
+import { WeaveGlyph } from "../../../packages/client/src/components/weave-glyph.tsx";
 
 const SHIMMER_CLASS = /orb-weave-shimmer/u;
 const PRIMARY_CLASS = /text-primary/u;

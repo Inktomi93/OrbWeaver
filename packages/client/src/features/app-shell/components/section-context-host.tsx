@@ -13,7 +13,7 @@
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary } from "#components";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { ContextTabsPanel } from "./context-tabs-panel.tsx";

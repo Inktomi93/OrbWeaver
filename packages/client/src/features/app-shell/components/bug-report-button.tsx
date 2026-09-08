@@ -28,7 +28,7 @@ import { Textarea } from "@orb/ui/textarea";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { captureBugReportBundle, submitBugReport } from "#lib";
+import { captureBugReportBundle, submitBugReport } from "../lib/bug-report-capture.ts";
 
 /** The offered "when did it happen" answers. `null` is "right now / no window" — everything the rings still
  *  hold. The set is coarse on purpose: the ask is a human estimate, and the capture pads it by a minute

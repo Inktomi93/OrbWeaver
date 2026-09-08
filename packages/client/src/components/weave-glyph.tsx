@@ -1,15 +1,5 @@
-// WeaveGlyph — the brand mark, re-skinned to direction A "Open Orb" (owner ruling 2026-08-09;
-// docs/history/design/login-loading-screen.md §8/§9): eight spokes + one OPEN spiral + the hub + a single
-// dew drop — the deliberate asymmetries that make it a WEB instead of a snowflake, and literally the
-// weave loader's settled frame condensed ("one emblem, every scale": favicon = this, static;
-// WebSpinner = this + the silk pulse; the boot weave settles INTO this). RE-HOMED from app-shell to
-// lib/ (D62 §13.9): features cannot import app-shell, but D62's empty-state decorations need the
-// glyph across features, so it lives in the cross-cutting display seam. Still NOT an @orb/ui
-// primitive (brand, not a domain-agnostic primitive — §13.9 adjudicates it app-level). Hand-authored
-// inline SVG — geometry, not an icon glyph — is the sanctioned exception to the no-inline-svg rule
-// for the brand/data-viz allowlist. Ember-tinted via `currentColor` so it inherits the caller's
-// accent without a color literal. GEOMETRY LIVES ONCE: the ui web-weave module's `webGlyph()` — the
-// same maths behind the favicon assets and the icon-seal's OrbWeb.
+// App-level brand display shared across features (D62); the UI package owns its reusable geometry.
+// This component owns the named-image versus decorative-control accessibility contract.
 
 import { WEB_GLYPH_DISPLAY } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";

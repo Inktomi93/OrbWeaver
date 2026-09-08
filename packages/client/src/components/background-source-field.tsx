@@ -29,9 +29,10 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { listSeededBackgrounds } from "#lib";
 import { openConfigTo } from "#state";
+import { QueryBoundary } from "./query-boundary.tsx";
 
 /** The all-blank "no background" source — every non-active field heals to "" (the `themeBackgroundSchema`
  *  fault-isolation defaults), so a pick always rewrites the WHOLE object rather than leaking a stale

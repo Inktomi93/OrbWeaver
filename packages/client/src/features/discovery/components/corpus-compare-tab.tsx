@@ -32,7 +32,8 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { setCorpusCompareA, setCorpusCompareB, useCorpusCompareA, useCorpusCompareAName, useCorpusCompareB, useCorpusCompareBName } from "#state";
 

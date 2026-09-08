@@ -5,7 +5,7 @@
 // "set current" (no nesting, no stopPropagation crutch). The row instantiates `useUpdatePersona`, so it
 // mounts under `CtDataProviders` (the trpc client) — the overlay tests trigger no network call.
 
-import { QueryBoundary } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";

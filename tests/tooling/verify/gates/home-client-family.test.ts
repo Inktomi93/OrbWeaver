@@ -143,9 +143,9 @@ test("selection-store-via-factory REFUSES when the raw store door is gone", () =
 
 test("render-error-via-battery REFUSES when either the boundary or the battery home is gone", () => {
   const gone = passOf(renderErrorViaBattery, {
-    "packages/client/src/data/query-boundary.tsx": "export declare function QueryBoundary(props: { renderError?: unknown }): unknown;\n",
+    "packages/client/src/components/query-boundary.tsx": "export declare function QueryBoundary(props: { renderError?: unknown }): unknown;\n",
     "packages/client/src/features/a/x.tsx":
-      'import { QueryBoundary } from "../../data/query-boundary.tsx";\nexport const G = () => <QueryBoundary renderError={() => null} />;\n',
+      'import { QueryBoundary } from "../../components/query-boundary.tsx";\nexport const G = () => <QueryBoundary renderError={() => null} />;\n',
   });
 
   expect(gone.toolErrors).toMatchObject([{ policyId: "render-error-via-battery", phase: "receipt" }]);

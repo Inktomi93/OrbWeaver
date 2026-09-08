@@ -18,7 +18,7 @@
 //     component that subscribes needs an SSE helper (rides with the chat-surface lane).
 //
 // Unlisted procedures resolve `{result:{data:null}}` AND are recorded, so an incidental query a
-// surface fires never 404s the test. Exemplar usage: tests/client/data/query-boundary.ct.tsx.
+// surface fires never 404s the test. Exemplar usage: tests/client/components/query-boundary.ct.tsx.
 //
 // …BUT `null` IS NOT A VIEW, AND THAT FAILS SILENTLY (#629). A component that suspends on an unstubbed
 // read gets `null` and throws reading it, which its QueryBoundary catches — so the section's BODY is

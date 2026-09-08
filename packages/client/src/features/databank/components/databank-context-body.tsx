@@ -35,7 +35,8 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
@@ -59,7 +60,7 @@ export function DatabankContextBody(): ReactElement {
     // The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
     // panel owns the one its suspending reads need.
     // DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `MeasuredSettle`'s
-    // effect carries NO dependency array (`data/query-boundary.tsx`), so it re-measures the wrapper on
+    // effect carries NO dependency array (`components/query-boundary.tsx`), so it re-measures the wrapper on
     // EVERY commit; a commit in which the child is a one-line pending arm is remembered exactly like a
     // settled one, and the rail thereafter reserves a box that lies about its own content.
     //
