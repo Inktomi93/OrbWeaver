@@ -771,10 +771,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "b9dd49596724ea77eb7cdab4172489a9b0947074dddabe8a3673934c34bc6edf",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "b55b0649948cb7a4c1bde60ad1351e957ceb7da5a400530fabb92413f5d9268a",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
         "re-attested at f0cb81c7d by the orchestrator after reading the #1616 diff in full (p-tooling-lies leg 3): the `isolate: true` bullet’s live-drive sentence now says a rate measured under load is published and labelled load-suspect rather than withheld (owner ruling 2026-09-05); frontmatter dated 2026-09-05; no other line changed.",
@@ -791,16 +792,20 @@
       ],
       "claims": [
         {
-          "claim": "Central test layout.",
+          "claim": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
           "evidence": [
             {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/test-layout.ts:118"
+              "kind": "test",
+              "target": "tests/tooling/dependency-cruiser-worlds.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
             }
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines."
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
@@ -1214,10 +1219,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "049f6c3182386c614e7ee6dfa1e1fd569eb7def8cb06d845e585a0545b48e6c7",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "ed6833bf064bb978607fbaffa684cc2aff5f41da5af73a29dd9bd8c903e2ef7d",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
         "type-worlds phase 1: the dom-claimed tree list names tests/support/browser/** (the ct directory is gone)",
         "#1848 (cb-runner-budget): tests:node split into vitest + browser:ct with a profile-derived budget (stageBudgets), run-marker sweep, stage cap in the profile; re-attested at the merge sha after the lane's pre-rebase sha was orphaned",
         "re-attested at 6395e6a03 (#1848, full delta read): §3.7's `tests:node` row is the vitest half only (`pnpm test:node`), `browser:ct` is a push/full stage again with a profile-DERIVED hang ceiling, the push tier row and the pre-push bullet name both halves, and the new §3.7b states the stageBudgets derivation with its 2026-09-06 measurement. No other text moved.",
@@ -1244,29 +1250,20 @@
       ],
       "claims": [
         {
-          "claim": "The boot ratchet measures the emitted production boot set against the #995 post-boundary calibration.",
+          "claim": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation.",
           "evidence": [
             {
-              "kind": "gate",
-              "target": "tooling/src/verify/ops/boot-chunk-ratchet.ts:83"
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/run.int.test.ts:1"
             },
             {
-              "kind": "issue",
-              "target": "#995"
-            }
-          ]
-        },
-        {
-          "claim": "Verification registry gate.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
             }
           ]
         }
       ],
-      "summary": "Active verification design re-attested for #995: quality:boot-chunk measures the emitted boot set against the 818,188-byte production baseline with the existing five-percent convention."
+      "summary": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",

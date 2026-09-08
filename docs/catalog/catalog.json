@@ -364,8 +364,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 354,
-      "bytes": 68483,
-      "sha256": "d0a3aa6c5ee93f0ce2aa6683a06ca717fb714eb30b00538a0310b20cfea24715",
+      "bytes": 68769,
+      "sha256": "120d3b3e86151980147d19c6d8e363d8902a5bc4e6a80b685325958100c2bc2c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -396,7 +396,7 @@
         ],
         "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
@@ -449,9 +449,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 401,
-      "bytes": 235754,
-      "sha256": "0bc51f1620fa33726e0608d955969fa2bf176d0999e54aea797362a0c3fa84a1",
+      "lines": 408,
+      "bytes": 253747,
+      "sha256": "8a9c1ed6e695684d5c4c0ca2e0ea79fb7fbe84b282c7e2d8990ccef5d52ae1ef",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -596,7 +596,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -723,8 +723,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 305737,
-      "sha256": "77be461070d7c4c3a1a91a595ce373d564e86bd0a14a8363b9f31b7799689cc8",
+      "bytes": 305766,
+      "sha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -814,7 +814,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 carries the total accepted-base foreground contract plus its framebuffer-safe derivation target; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -1211,8 +1211,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 25362,
-      "sha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
+      "bytes": 25368,
+      "sha256": "7285ad45593a0e2114ff316ecb95004ae92bcd620aab5e900dfeb73c54e547b1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1306,22 +1306,22 @@
         ],
         "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 274,
-      "bytes": 32208,
-      "sha256": "b9dd49596724ea77eb7cdab4172489a9b0947074dddabe8a3673934c34bc6edf",
+      "lines": 277,
+      "bytes": 30433,
+      "sha256": "b55b0649948cb7a4c1bde60ad1351e957ceb7da5a400530fabb92413f5d9268a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -1331,10 +1331,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b9dd49596724ea77eb7cdab4172489a9b0947074dddabe8a3673934c34bc6edf",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "b55b0649948cb7a4c1bde60ad1351e957ceb7da5a400530fabb92413f5d9268a",
+        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
           "re-attested at f0cb81c7d by the orchestrator after reading the #1616 diff in full (p-tooling-lies leg 3): the `isolate: true` bullet’s live-drive sentence now says a rate measured under load is published and labelled load-suspect rather than withheld (owner ruling 2026-09-05); frontmatter dated 2026-09-05; no other line changed.",
@@ -1351,16 +1352,20 @@
         ],
         "claims": [
           {
-            "claim": "Central test layout.",
+            "claim": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
             "evidence": [
               {
-                "kind": "gate",
-                "target": "tooling/src/verify/gates/test-layout.ts:118"
+                "kind": "test",
+                "target": "tests/tooling/dependency-cruiser-worlds.int.test.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
               }
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines."
       },
       "receiptCurrent": true
     },
@@ -1843,8 +1848,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 345,
-      "bytes": 29933,
-      "sha256": "4ea26e56a6bd76f82887b35bf592d6c30e9b2b746442a21a68c9d3e665584e7d",
+      "bytes": 29935,
+      "sha256": "3b92c49d830a84393c86f04ca207d0e2907da3e587f390d81c4fdcbc0bf16eb6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1884,15 +1889,15 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
       "lane": "architecture-core",
       "issue": 2,
       "lines": 203,
-      "bytes": 26962,
-      "sha256": "2ccc0e5d2896a9ea8da6e864ab82e85fc949edc322946930f4f470ac698211aa",
+      "bytes": 26963,
+      "sha256": "3b689904dd23c82c80e04053df6a0f4868264df7e5e375eb5830c9bd1ee625ee",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1932,7 +1937,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
@@ -2002,16 +2007,16 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 571,
-      "bytes": 48730,
-      "sha256": "049f6c3182386c614e7ee6dfa1e1fd569eb7def8cb06d845e585a0545b48e6c7",
+      "lines": 558,
+      "bytes": 47664,
+      "sha256": "ed6833bf064bb978607fbaffa684cc2aff5f41da5af73a29dd9bd8c903e2ef7d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -2021,10 +2026,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "049f6c3182386c614e7ee6dfa1e1fd569eb7def8cb06d845e585a0545b48e6c7",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "ed6833bf064bb978607fbaffa684cc2aff5f41da5af73a29dd9bd8c903e2ef7d",
+        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 1: the dom-claimed tree list names tests/support/browser/** (the ct directory is gone)",
           "#1848 (cb-runner-budget): tests:node split into vitest + browser:ct with a profile-derived budget (stageBudgets), run-marker sweep, stage cap in the profile; re-attested at the merge sha after the lane's pre-rebase sha was orphaned",
           "re-attested at 6395e6a03 (#1848, full delta read): §3.7's `tests:node` row is the vitest half only (`pnpm test:node`), `browser:ct` is a push/full stage again with a profile-DERIVED hang ceiling, the push tier row and the pre-push bullet name both halves, and the new §3.7b states the stageBudgets derivation with its 2026-09-06 measurement. No other text moved.",
@@ -2051,29 +2057,20 @@
         ],
         "claims": [
           {
-            "claim": "The boot ratchet measures the emitted production boot set against the #995 post-boundary calibration.",
+            "claim": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation.",
             "evidence": [
               {
-                "kind": "gate",
-                "target": "tooling/src/verify/ops/boot-chunk-ratchet.ts:83"
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/run.int.test.ts:1"
               },
               {
-                "kind": "issue",
-                "target": "#995"
-              }
-            ]
-          },
-          {
-            "claim": "Verification registry gate.",
-            "evidence": [
-              {
-                "kind": "gate",
-                "target": "tooling/src/verify/gates/verify-registry-parity.ts:31"
+                "kind": "provenance",
+                "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
               }
             ]
           }
         ],
-        "summary": "Active verification design re-attested for #995: quality:boot-chunk measures the emitted boot set against the 818,188-byte production baseline with the existing five-percent convention."
+        "summary": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation."
       },
       "receiptCurrent": true
     },
@@ -2082,8 +2079,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 830,
-      "bytes": 142745,
-      "sha256": "2effba02fca446ca970e733295cb20604e5a59fe4778d190654aae4517457b70",
+      "bytes": 143217,
+      "sha256": "c9cfd269df6ae4fb2f5183f5a3e8e215458a56834707bc78a19d931d9e9f87f5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2159,7 +2156,7 @@
         ],
         "summary": "Active client architecture re-attested for #995: app-ready-signal.ts owns production readiness while agent-bridge.ts remains DEV-only and shares the same state."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
@@ -2250,8 +2247,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 523,
-      "bytes": 52293,
-      "sha256": "3c0323470f94d34a7131d8c49748b26076dce31fe84847cf135cbc0f2cadeb8e",
+      "bytes": 52294,
+      "sha256": "bbfe946356ba74179e4e1145a6b1aeb0fbb79371293a277898272c85d40635e1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2291,7 +2288,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/history/BUILD-QUEUE.md",
@@ -10782,16 +10779,16 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 224,
-      "bytes": 15176,
-      "sha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
+      "lines": 106,
+      "bytes": 12167,
+      "sha256": "01b28a6e716c236062c9dee1de753c4a4bd8532976ad021b9b8c5f21a195295e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-07"
         },
         "errors": []
       },
@@ -10801,10 +10798,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
-        "verifiedCommit": "141cbb4335013ab01277d95d7b80f14940df39cd",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "01b28a6e716c236062c9dee1de753c4a4bd8532976ad021b9b8c5f21a195295e",
+        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
           "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
           "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
@@ -10813,18 +10811,22 @@
           "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
           "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
         ],
-        "summary": "Committed-not-built program: make test type-program membership derivable from package + directory + suffix and delete the per-file escapee ledger. Owns durable shape and the delete-ordered phase plan; Project 1 #1351 owns lifecycle.",
+        "summary": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
         "claims": [
           {
-            "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+            "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
             "evidence": [
               {
-                "kind": "issue",
-                "target": "#4"
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
               },
               {
-                "kind": "ruling",
-                "target": "D139"
+                "kind": "provenance",
+                "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+              },
+              {
+                "kind": "issue",
+                "target": "#1351"
               }
             ]
           }
@@ -11759,8 +11761,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 214,
-      "bytes": 20121,
-      "sha256": "f6b4cbceefeb7edd64b566fc3bbde8e74bcdfad06de5c42a808747f4628e6bbd",
+      "bytes": 20215,
+      "sha256": "bfa32714e3e98a2d441f28e15c2a19051a9f17d8c594558ac1d782d258f147af",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11832,7 +11834,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
@@ -12576,15 +12578,15 @@
       "path": "docs/design/gate-config-system.md",
       "lane": "design",
       "issue": 5,
-      "lines": 293,
-      "bytes": 40941,
-      "sha256": "7babcc1649ec7a452a2077f3f8169569d6768c590a81102e75c655ef19ffce6b",
+      "lines": 295,
+      "bytes": 41199,
+      "sha256": "75b7faf694ba81d097d69a3c80d69f39deab5262c5c8a77ac31c67f3e8104f9d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "draft",
+          "status": "superseded",
           "updated": "2026-09-04"
         },
         "errors": []
@@ -12601,6 +12603,26 @@
         "evidence": [],
         "summary": ""
       },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/design/gate-runtime-standardization.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 243,
+      "bytes": 31983,
+      "sha256": "e0b7e5ded35ce9cafddf10b8e6e26062313677da99cd87657838174351ca8484",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
       "receiptCurrent": false
     },
     {
@@ -13678,15 +13700,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 417,
-      "bytes": 35605,
-      "sha256": "e0d2b6413837812c2cfd21e7e987045a5f2cbab4ce053ae0d12f063410ec7a87",
+      "bytes": 35615,
+      "sha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-02"
+          "updated": "2026-09-06"
         },
         "errors": []
       },
@@ -13773,7 +13795,7 @@
           "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/parked-options-config-port.md",
@@ -14045,8 +14067,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 898,
-      "bytes": 92536,
-      "sha256": "0eda401dad61953fb41e23cc2e67ab5553e0fec638a1b9bd0aa502e3b0fb390c",
+      "bytes": 92537,
+      "sha256": "2c0b60d54bd11b765dd38b40212a7c6884bc1accf9f0245eefd8b24505978266",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14105,7 +14127,7 @@
         ],
         "summary": "The #679 design (full-parity revision): plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) on one zod spec vocabulary; one new ui.surface capability; anchors settings/chat-flank/chat-settings-section/tool-card + the dialog surface and host toasts; the ST extension-ability parity register (35 rows — every former deferred row COMMITTED with a phase, U0-U8 stop-anywhere); the ui.frame hatch COMMITTED as phase U7 on the card-frame substrate; §5a = the enablement price sheet for the five default-refused walls (owner-purchasable, other-user walls marked); threat model with security-executor routing; residual owner ask: TTS/STT substrate only. Addendum: ui.page + the Extensions section (U5, browse-genre vocabulary constrained by the purged hub's mined failure list), character.ingest (U8), the hub-browser showcase."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/prod-build-cls-investigation.md",
@@ -29400,6 +29422,446 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/gate-runtime/bus-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 110,
+      "bytes": 12008,
+      "sha256": "a856748e374733d39956ba4b04d8afb2848eb33b251f45343b6afca1d3eed92c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/bus-pair-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 394,
+      "bytes": 29706,
+      "sha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 254,
+      "bytes": 60547,
+      "sha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/exception-authority-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 181,
+      "bytes": 16567,
+      "sha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 228,
+      "bytes": 18883,
+      "sha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 270,
+      "bytes": 23249,
+      "sha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 69,
+      "bytes": 4497,
+      "sha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/mechanical-gates-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 67,
+      "bytes": 6841,
+      "sha256": "22758d4bdea5c4f5aa24204339b1652a2cb63460ffb05fa38d8e9b9ea588d15a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 301,
+      "bytes": 23246,
+      "sha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 1770,
+      "bytes": 73206,
+      "sha256": "834ce90e2fee514ac868177046fe0a63e2db0de57eb9390bd0e29719e7d07258",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 301,
+      "bytes": 22429,
+      "sha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/origin-server-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 240,
+      "bytes": 17746,
+      "sha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 77,
+      "bytes": 7421,
+      "sha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 198,
+      "bytes": 13619,
+      "sha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "handoff",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 309,
+      "bytes": 36980,
+      "sha256": "f7441548020fb3242ed1568b1a59d21decbf9ea8acf46d9271ad36c987f42ce4",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-host-foundation.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 91,
+      "bytes": 13624,
+      "sha256": "9535a9012e9065a0438512d8fd25335f175b609dbdcaab4ba560de203fd9cb0e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-layout-size-inventory.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 112,
+      "bytes": 16330,
+      "sha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/schema-fact-family-1584.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 438,
+      "bytes": 30801,
+      "sha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 140,
+      "bytes": 17577,
+      "sha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 93,
+      "bytes": 24089,
+      "sha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/simple-visitors-n-z.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 128,
+      "bytes": 33417,
+      "sha256": "00c1a0778f5ead75928e1d7655116ad5d6a9925ed8c6be9aab93de5698ab6900",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 230,
+      "bytes": 26462,
+      "sha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
       "lane": "reviews",
       "issue": 7,
@@ -34099,6 +34561,262 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 68,
+      "bytes": 8698,
+      "sha256": "7bac2923bdfa409f4dd7bf5dfb333bfc9f1a72ca98da34b7453c9ac3f2cb0fcb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 202,
+      "bytes": 21962,
+      "sha256": "bad28fe7eae0579d182362083a96bc5993b1401d0b518c28098952f5afce996b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-gate-runtime-core.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 148,
+      "bytes": 13318,
+      "sha256": "7c67087b1b7501938a1cb07bfe682db05c135ac349694a25932e934e6b3b74a9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 149,
+      "bytes": 15561,
+      "sha256": "9d01e28b8fe28114287fdb2a1917d563ce0d8f809d13713b7ae1ecd45748cbc9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 84,
+      "bytes": 11528,
+      "sha256": "38724b46257608c4ff60cf7c1f093394aa7b09bc123b8fe45a54b2e5007f6bfc",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 68,
+      "bytes": 10371,
+      "sha256": "ee0b83eb53db80410a12c61c63218c0a2040b0a00e491e64935f7c4875f0ba0d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 80,
+      "bytes": 8883,
+      "sha256": "5287fd9efe43a20391ed1999ac50f22b15045162fb36e6fbd745e0b48397f73c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-05"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 34,
+      "bytes": 4355,
+      "sha256": "dfdd81f22d081597088bcb801963e45e0824afe8b8e794ff7d913382844a7409",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-06"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-codemod-kit-checkpoint.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 94,
+      "bytes": 11751,
+      "sha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-codemod-kit-checkpoint.md",
+        "assignedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedAt": "2026-09-08",
+        "evidence": [
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
+        ],
+        "claims": [
+          {
+            "claim": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+              }
+            ]
+          }
+        ],
+        "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 99,
+      "bytes": 10618,
+      "sha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
+        "assignedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedAt": "2026-09-08",
+        "evidence": [
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
+        ],
+        "claims": [
+          {
+            "claim": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/scoped-test.int.test.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+              }
+            ]
+          }
+        ],
+        "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
       },
       "receiptCurrent": true
     },

@@ -3325,6 +3325,64 @@
         }
       ],
       "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
+      "assignedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
+      ],
+      "claims": [
+        {
+          "claim": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/scoped-test.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+            }
+          ]
+        }
+      ],
+      "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-codemod-kit-checkpoint.md",
+      "assignedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
+      ],
+      "claims": [
+        {
+          "claim": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+            }
+          ]
+        }
+      ],
+      "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
     }
   ]
 }

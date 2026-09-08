@@ -4334,10 +4334,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
-      "verifiedCommit": "141cbb4335013ab01277d95d7b80f14940df39cd",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "01b28a6e716c236062c9dee1de753c4a4bd8532976ad021b9b8c5f21a195295e",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
         "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
         "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
         "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
@@ -4346,18 +4347,22 @@
         "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
         "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
       ],
-      "summary": "Committed-not-built program: make test type-program membership derivable from package + directory + suffix and delete the per-file escapee ledger. Owns durable shape and the delete-ordered phase plan; Project 1 #1351 owns lifecycle.",
+      "summary": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
       "claims": [
         {
-          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#4"
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
             },
             {
-              "kind": "ruling",
-              "target": "D139"
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+            },
+            {
+              "kind": "issue",
+              "target": "#1351"
             }
           ]
         }
