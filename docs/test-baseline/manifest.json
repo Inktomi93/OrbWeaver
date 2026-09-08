@@ -2061,6 +2061,7 @@
     "tests/tooling/_shared/run-tool.int.test.ts",
     "tests/tooling/_shared/schema-read.test.ts",
     "tests/tooling/_shared/scoped-run-paths.test.ts",
+    "tests/tooling/_shared/test-kinds.test.ts",
     "tests/tooling/_shared/theme.int.test.ts",
     "tests/tooling/_shared/theme.test.ts",
     "tests/tooling/_shared/variant-matrix.test.ts",

@@ -1,4 +1,6 @@
 // Intended worlds are data; compiler membership is owned by verify/lib/policy-program-membership.ts.
+import { classifyTestFilename } from "./test-kinds.ts";
+
 export const WORLDS = ["iso", "node", "browser"] as const;
 export type World = (typeof WORLDS)[number];
 
@@ -47,7 +49,6 @@ const PKG_TOOL_RE = /^packages\/([^/]+)\/[^/]+$/u;
 const TEST_SURFACE_RE = /^(?:tests|scripts|playwright)\//u;
 const TS_SOURCE_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const DECLARATION_RE = /\.d\.(?:ts|mts|cts)$/u;
-const BROWSER_TEST_SUFFIXES = [".tsx", ".dom.test.ts", ".dom.test-d.ts"] as const;
 
 /** The compiler-membership universe includes declaration files and all authored TypeScript dialects. */
 export function isTypeWorldSource(rel: string): boolean {
@@ -72,7 +73,11 @@ export function worldOf(rel: string): World | undefined {
     }
   }
   if (TEST_SURFACE_RE.test(rel)) {
-    return BROWSER_TEST_SUFFIXES.some((suffix) => rel.endsWith(suffix)) || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`)) ? "browser" : "node";
+    const testKind = classifyTestFilename(rel);
+    if (rel.endsWith(".tsx") || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`))) {
+      return "browser";
+    }
+    return testKind?.definition.compilerWorld ?? "node";
   }
   if (DECLARATION_RE.test(rel)) {
     return;

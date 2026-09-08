@@ -23,6 +23,9 @@ test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then
   expect(worldOf("tests/support/node/misplaced.tsx")).toBe("node");
   expect(worldOf("tests/client/data/x.dom.test.ts")).toBe("browser");
   expect(worldOf("tests/client/data/x.dom.test-d.ts")).toBe("browser");
+  expect(worldOf("tests/server/data/x.spec.ts")).toBe("browser");
+  expect(worldOf("tests/server/data/x.test.tsx")).toBe("browser");
+  expect(worldOf("tests/server/data/x.int.test.ts")).toBe("node");
   expect(worldOf("reset.d.ts")).toBeUndefined();
   expect([...BROWSER_PACKAGES].toSorted()).toEqual(["client", "ui"]);
 });
