@@ -2,10 +2,14 @@
 // consumers whose own text did not change. Every assertion drives the public runCodemod harness.
 import { existsSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { createSourceFile, deleteFiles, moveFiles } from "../../../../tooling/src/codemod/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { withTree } from "../_kit-tree.ts";
+
+const DIAGNOSTICS_TIMEOUT_MS = scaledBudget(20_000);
+vi.setConfig({ testTimeout: DIAGNOSTICS_TIMEOUT_MS, hookTimeout: DIAGNOSTICS_TIMEOUT_MS });
 
 const NODE_OPTIONS = {
   target: "es2022",
@@ -136,6 +140,65 @@ describe("compiler-world diagnostics", () => {
         });
         expect(result).toMatchObject({ applied: false, diagnosticErrors: 0 });
         expect(read("packages/ui/src/view.ts")).toBe(original);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a declaration-only diagnostic does not block a program that emits no declarations", async () => {
+    const original = "export const value = 1;\n";
+    const declarationOnly = "export const make = () => class { private value = 1; read(): number { return this.value; } };\n";
+    await withTree(
+      {
+        "tsconfig.json": config(NODE_OPTIONS, ["tests/**/*.ts"]),
+        "tests/probe.ts": original,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "tests/probe.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan({
+              description: "declaration-portability is outside this authored program",
+              touchedFiles: [path],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(path).replaceWithText(declarationOnly);
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("tests/probe.ts")).toBe(declarationOnly);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("the same declaration diagnostic refuses when the authored program enables declarations", async () => {
+    const original = "export const value = 1;\n";
+    const declarationOnly = "export const make = () => class { private value = 1; read(): number { return this.value; } };\n";
+    await withTree(
+      {
+        "tsconfig.json": config({ ...NODE_OPTIONS, declaration: true }, ["tests/**/*.ts"]),
+        "tests/probe.ts": original,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "tests/probe.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "declaration-portability belongs to this authored program",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText(declarationOnly);
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("tests/probe.ts")).toBe(original);
       },
       { skipDiagnosticsCheck: false },
     );
@@ -353,6 +416,109 @@ describe("compiler-world diagnostics", () => {
     );
   });
 
+  test("an unchanged browser-rooted Node-intended consumer uses its actual authored program during transition", async () => {
+    const api = "export const value = 1;\n";
+    const consumer = 'import { value } from "../../../packages/ui/src/lib.ts";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["tests/ui/lib/class-merge.test.ts"] }),
+        "packages/ui/tsconfig.json": config(BROWSER_OPTIONS, ["src/**/*.ts"]),
+        "packages/ui/src/lib.ts": api,
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/ui/lib/class-merge.test.ts": consumer,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "packages/ui/src/lib.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan({
+              description: "safe prerequisite barrel edit",
+              touchedFiles: [path],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(path).addStatements("export const added = 2;\n");
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("packages/ui/src/lib.ts")).toContain("export const added = 2");
+        expect(read("tests/ui/lib/class-merge.test.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("the same transitional consumer still refuses an introduced type error without writes", async () => {
+    const api = "export const value = 1;\n";
+    const consumer = 'import { value } from "../../../packages/ui/src/lib.ts";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["tests/ui/lib/class-merge.test.ts"] }),
+        "packages/ui/tsconfig.json": config(BROWSER_OPTIONS, ["src/**/*.ts"]),
+        "packages/ui/src/lib.ts": api,
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/ui/lib/class-merge.test.ts": consumer,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "packages/ui/src/lib.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "break the unchanged transitional consumer",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText("export const value = 'wrong';\n");
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("packages/ui/src/lib.ts")).toBe(api);
+        expect(read("tests/ui/lib/class-merge.test.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("an existing package source uses its actual transitional root when predictive ownership differs", async () => {
+    const api = "export const value = 1;\n";
+    const consumer = 'import { value } from "./api.ts";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: [] }),
+        "tsconfig.transitional.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["packages/ui/src/consumer.ts"] }),
+        "packages/ui/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/api.ts", "src/anchor.ts"] }),
+        "packages/ui/src/anchor.ts": "export const anchor = 1;\n",
+        "packages/ui/src/api.ts": api,
+        "packages/ui/src/consumer.ts": consumer,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "packages/ui/src/api.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan({
+              description: "safe package prerequisite edit",
+              touchedFiles: [path],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(path).addStatements("export const added = 2;\n");
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("packages/ui/src/api.ts")).toContain("export const added = 2");
+        expect(read("packages/ui/src/consumer.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
   test("replaceGlobs cannot hide an authored unchanged consumer", async () => {
     const api = "export const value = 1;\n";
     const consumer = 'import { value } from "../tests/api.ts";\nexport const expected: number = value;\n';
@@ -416,6 +582,83 @@ describe("compiler-world diagnostics", () => {
         expect(read("packages/server/src/api.ts")).toBe(api);
         expect(read("packages/server/src/middle.ts")).toBe(middle);
         expect(read("packages/server/src/entry.ts")).toBe(entry);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a sparse browser closure keeps its import-only middle in the actual DOM program", async () => {
+    const api = 'export const title = "ok";\ndocument.title = title;\n';
+    const middle = 'import { title } from "../../packages/ui/src/api.ts";\nexport const current: string = title;\n';
+    const entry = 'import { current } from "../shared/middle.ts";\nexport const expected: string = current;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["tests/e2e/entry.ts"] }),
+        "packages/ui/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/api.ts", "src/anchor.ts"] }),
+        "packages/ui/src/api.ts": api,
+        "packages/ui/src/anchor.ts": "export const anchor = 1;\n",
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/e2e/entry.ts": entry,
+        "tests/shared/middle.ts": middle,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "packages/ui/src/api.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan({
+              description: "harmless browser API edit",
+              touchedFiles: [path],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(path).addStatements("export const added = 2;\n");
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("packages/ui/src/api.ts")).toContain("export const added = 2");
+        expect(read("tests/shared/middle.ts")).toBe(middle);
+        expect(read("tests/e2e/entry.ts")).toBe(entry);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a real error through the same sparse browser closure refuses without writes", async () => {
+    const api = 'export const title = "ok";\ndocument.title = title;\n';
+    const middle = 'import { title } from "../../packages/ui/src/api.ts";\nexport const current: string = title;\n';
+    const entry = 'import { current } from "../shared/middle.ts";\nexport const expected: string = current;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["tests/e2e/entry.ts"] }),
+        "packages/ui/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/api.ts", "src/anchor.ts"] }),
+        "packages/ui/src/api.ts": api,
+        "packages/ui/src/anchor.ts": "export const anchor = 1;\n",
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/e2e/entry.ts": entry,
+        "tests/shared/middle.ts": middle,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "packages/ui/src/api.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "break sparse browser consumer",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText("export const title = 42;\ndocument.title = String(title);\n");
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("packages/ui/src/api.ts")).toBe(api);
+        expect(read("tests/shared/middle.ts")).toBe(middle);
+        expect(read("tests/e2e/entry.ts")).toBe(entry);
       },
       { skipDiagnosticsCheck: false },
     );
