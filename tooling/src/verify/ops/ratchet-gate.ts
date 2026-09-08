@@ -47,6 +47,8 @@ import { join, relative } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import type { TestFamily } from "../../_shared/test-kinds.ts";
+import { classifyTestFilename, runtimeForTestFamily } from "../../_shared/test-kinds.ts";
 
 // This is a LIBRARY module — the real door is `pnpm test:ratchets` (→ `cli.ts ratchet-gate`). Refuse being
 // the process entry so `node <this path>` cannot load, run nothing, and print a bare zero a reader trusts.
@@ -56,7 +58,6 @@ const RATCHET_NAME_RE = /(ratchet|presence|conformance)/iu;
 const TOOLING_TESTS_PREFIX = "tests/tooling/";
 const WORKBOARD_PREFIX = "tests/tooling/workboard/";
 const CONTRACT_PIN_PREFIX = "tests/contracts/";
-const CONTRACT_PIN_SUFFIX = ".contract.test.ts";
 const NODE_MODULES = "node_modules";
 const TESTS_DIR = "tests";
 
@@ -103,9 +104,13 @@ function toPosix(p: string): string {
   return p.split("\\").join("/");
 }
 
-/** Recursively walk `tests/` for every `*.test.ts` / `*.int.test.ts` / `*.contract.test.ts` / `*.test-d.ts`
- *  file — the last three all end in `.test.ts`/`.test-d.ts`, so a single suffix check covers the whole
- *  suite-file surface vitest itself would collect. Repo-relative posix paths, sorted. */
+function hasVitestCapability(family: TestFamily): boolean {
+  const runtime = runtimeForTestFamily(family);
+  return runtime === "vitest" || runtime === "vitest-typecheck";
+}
+
+/** Recursively walk `tests/` for every authored kind Vitest can run or typecheck. Playwright CT/E2E kinds
+ *  are outside this aggregate; kind recognition itself comes from the canonical registry. */
 export function discoverTestFiles(root: string): readonly string[] {
   const out: string[] = [];
   const walk = (dir: string): void => {
@@ -118,7 +123,8 @@ export function discoverTestFiles(root: string): readonly string[] {
         walk(abs);
         continue;
       }
-      if (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test-d.ts")) {
+      const testKind = classifyTestFilename(entry.name);
+      if (testKind !== undefined && hasVitestCapability(testKind.definition.family)) {
         out.push(toPosix(relative(root, abs)));
       }
     }
@@ -131,7 +137,11 @@ export function discoverTestFiles(root: string): readonly string[] {
  *  self-tests, the workboard mirror, or a contract exact-tuple pin)? Pure — no filesystem I/O — so a test
  *  can drive it over a synthetic candidate list without touching disk (the planted-control shape). */
 export function isRatchetShaped(relPath: string): boolean {
-  if (relPath.startsWith(CONTRACT_PIN_PREFIX) && relPath.endsWith(CONTRACT_PIN_SUFFIX)) {
+  const testKind = classifyTestFilename(relPath);
+  if (testKind === undefined || !hasVitestCapability(testKind.definition.family)) {
+    return false;
+  }
+  if (relPath.startsWith(CONTRACT_PIN_PREFIX) && testKind.definition.family === "contract") {
     return true;
   }
   if (relPath.startsWith(WORKBOARD_PREFIX)) {

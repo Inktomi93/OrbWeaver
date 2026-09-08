@@ -56,10 +56,13 @@ test("no test file is matched by no runner (fixture, direction 2 unchanged)", ()
   expect(findUnrunFiles(testFiles, runnerUnion)).toEqual(["tests/b.test.ts"]);
 });
 
-test("the real tree is clean: every runtime view is non-empty, every test file is run, and no file is claimed by two runtime views", async ({ runCli }) => {
+test("the real tree is clean against independent native --list oracles: every view is non-empty, every authored kind is run, and no file is multi-claimed", async ({
+  runCli,
+}) => {
   const res = await runCli("verify", ["tests-execution-membership"], { timeoutMs: scaledBudget(110_000) });
   await expect(res).toExitWith(0);
   expect(res.stdout).toContain("every claimed test file is claimed by exactly one runtime view");
+  expect(res.stdout).toContain("every tests/** runner-suffixed file is matched by ≥1 runner view");
   // The per-project counts this pin's own header + the design doc's §tests-execution-membership cite are
   // RE-DERIVED here, not hardcoded — a real tree carries hundreds of files per project; a near-zero count
   // means the derivation stopped reading (`vitest list --json` broke, or the project classification lost

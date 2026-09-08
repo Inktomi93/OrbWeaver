@@ -4,23 +4,39 @@
 // probed against a stale spec and report every mutant as a survivor.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { TestFamily, TestKindDefinition } from "../../_shared/test-kinds.ts";
+import { runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 
-/** The three node kinds a `.ts` source may mirror to (Spine-Testing). CT/`.tsx` kinds are out of scope:
- *  a planted mutant needs a suite this probe can run headlessly. */
-const KINDS = ["test", "int.test", "contract.test"] as const;
+const MUTATION_FAMILY_ORDER = {
+  unit: 0,
+  integration: 1,
+  contract: 2,
+  type: 3,
+  component: 4,
+  e2e: 5,
+} as const satisfies Readonly<Record<TestFamily, number>>;
 
-const PACKAGE_SRC_RE = /^packages\/([^/]+)\/src\/(.+)\.tsx?$/u;
+/** Module mirrors a planted mutant can execute in headless Vitest. Compiler world is deliberately not a
+ * filter: `.dom.test.ts` is browser-typed but still runs in Vitest; typecheck, CT, E2E, and suite mirrors
+ * cannot execute the mutant through this probe. Family order preserves unit → integration → contract. */
+const VITEST_MODULE_KINDS: readonly TestKindDefinition[] = TEST_KIND_DEFINITIONS.filter(
+  (definition) => definition.mirror === "module" && runtimeForTestFamily(definition.family) === "vitest",
+).toSorted((left, right) => MUTATION_FAMILY_ORDER[left.family] - MUTATION_FAMILY_ORDER[right.family] || left.suffix.localeCompare(right.suffix));
+
+const PACKAGE_SRC_RE = /^packages\/([^/]+)\/src\/(.+)(\.tsx?)$/u;
 const TOOLING_SRC_RE = /^tooling\/src\/(.+)\.ts$/u;
 
 /** Repo-relative test paths this source COULD mirror to — existence is not checked. */
 export function mirrorCandidates(sourceRel: string): readonly string[] {
   const pkg = PACKAGE_SRC_RE.exec(sourceRel);
   if (pkg !== null) {
-    return KINDS.map((kind) => `tests/${pkg[1]}/${pkg[2]}.${kind}.ts`);
+    return VITEST_MODULE_KINDS.filter(({ sourceExtensions }) => sourceExtensions.includes(pkg[3] as ".ts" | ".tsx")).map(
+      ({ suffix }) => `tests/${pkg[1]}/${pkg[2]}${suffix}`,
+    );
   }
   const tooling = TOOLING_SRC_RE.exec(sourceRel);
   if (tooling !== null) {
-    return KINDS.map((kind) => `tests/tooling/${tooling[1]}.${kind}.ts`);
+    return VITEST_MODULE_KINDS.filter(({ sourceExtensions }) => sourceExtensions.includes(".ts")).map(({ suffix }) => `tests/tooling/${tooling[1]}${suffix}`);
   }
   return [];
 }

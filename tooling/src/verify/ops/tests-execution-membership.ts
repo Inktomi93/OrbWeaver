@@ -24,13 +24,9 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:tests-execution-membership");
-
-// Most-specific suffix first (so `.int.test.ts` isn't mis-stripped as `.test.ts`) — mirrors test-layout.ts's
-// KIND list (the ONE canonical suffix taxonomy; `.suite.*` files are covered by their base suffix's runner,
-// same lane, just a mirror-exemption — no separate runner glob to enumerate here).
-const RUNNER_SUFFIXES: readonly string[] = [".int.test.ts", ".contract.test.ts", ".test-d.ts", ".ct.tsx", ".spec.ts", ".test.ts"];
 
 // Non-mirror trees test-layout.ts already exempts from the SOURCE-mirror requirement — `tests/support/**`
 // (fixtures/factories, no runner suffix by construction) needs no membership check either; enumerated here
@@ -96,7 +92,7 @@ function enumerateTestFiles(root: string): readonly string[] {
           continue;
         }
         walk(rel);
-      } else if (RUNNER_SUFFIXES.some((s) => entry.name.endsWith(s))) {
+      } else if (classifyTestFilename(entry.name) !== undefined) {
         out.push(`tests/${rel}`);
       }
     }
