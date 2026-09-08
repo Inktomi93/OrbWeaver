@@ -26,7 +26,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { CharacterCreateBandStory } from "../../../forms/_form-identity-stories.tsx";
+import { CharacterCreateBandStory } from "../../../forms/editor/_form-identity-stories.tsx";
 
 const HANDLE_CONFLICT_COPY = "You already have a character with that name. Pick a different name and try again.";
 const HANDLE_RESERVED_COPY = "That name is reserved for group rooms. Pick a different name and try again.";

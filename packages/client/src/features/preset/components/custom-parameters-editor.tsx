@@ -19,7 +19,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import type { CustomParameterRow } from "../lib/custom-parameters-model.ts";
 import { customParameterRecord, customParameterRowError, customParameterRows, newCustomParameterRow } from "../lib/custom-parameters-model.ts";
 

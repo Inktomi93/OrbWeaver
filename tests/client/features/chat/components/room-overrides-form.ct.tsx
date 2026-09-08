@@ -5,7 +5,7 @@
 // keystroke autosaves A's overrides into chat B.
 //
 // The factory obligations (seed/key-remount/onFieldUnmount) are pinned once at the factory level
-// (tests/client/forms/create-autosave-entity-form.ct.tsx); this consumer CT proves the room-overrides
+// (tests/client/forms/editor/create-autosave-entity-form.ct.tsx); this consumer CT proves the room-overrides
 // wiring reseeds on a chat switch. A seeds mainPrompt="A-prompt" (a field the test never edits — the tell
 // of which seed is live); B seeds it empty. Dirty A via the Scenario field, switch to B, edit B's Scenario:
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".

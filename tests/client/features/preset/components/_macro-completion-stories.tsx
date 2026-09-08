@@ -7,8 +7,8 @@
 // The macro is deliberately named so no builtin is a fuzzy match for its prefix — a popover row proving the
 // plane landed must not be satisfiable by the builtin catalog alone.
 
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";

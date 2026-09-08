@@ -606,7 +606,7 @@ export default tseslint.config(
       // #579: `labelAttributes` teaches the rule the house `label` prop (`@orb/ui/select`'s own `label`,
       // e.g. `<Select label="…">`) — a literal JSX attribute the rule can check directly, so a Select that
       // names itself no longer needs a suppression. This does NOT reach every house association: `SelectField`
-      // / `SwitchField` (`packages/client/src/forms/bound-fields/`) associate through Base UI's
+      // / `SwitchField` (`packages/client/src/forms/editor/bound-fields/`) associate through Base UI's
       // `FieldRootContext` — `<Select>`/`<Switch>` consume `BaseField.Control`, which injects
       // `aria-labelledby` at RENDER time from React context, never as a literal prop in this file's JSX
       // (source-verified: `packages/ui/src/primitives/select/select.tsx` — the trigger's `aria-labelledby`

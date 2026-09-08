@@ -28,9 +28,9 @@ const CLIENT_SRC = "/packages/client/src/";
 const UI_SRC = "/packages/ui/src/";
 const EXT_RE = /\.tsx?$/u;
 const STATE_STORE_FACTORY_RE = /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
-// The client tiers this gate reaches, and (for A) the nested buckets it deliberately does NOT.
-const CLIENT_TIERS = ["data/", "forms/", "state/"];
-const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/bound-fields/"];
+// Direct children of these source owners compose independently; bound fields retain their shared CT home.
+const CLIENT_MIRROR_HOMES = ["data/", "forms/", "forms/editor/", "state/"];
+const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/editor/bound-fields/"];
 // `data/trpc.ts`'s two exports are thin `@trpc/client` constructors with no bespoke logic of their
 // own to unit-test in isolation — their wire behavior is exercised end-to-end by every `.ct.tsx` that
 // mounts via `CtDataProviders`, so an isolated test here would just re-assert "the library was called".
@@ -164,15 +164,13 @@ function hasDirTest(root: string, pkg: string, rel: string): boolean {
   return readdirSync(mirrorDir, { withFileTypes: true }).some((e) => e.isFile() && TEST_KINDS.some((kind) => e.name.endsWith(kind)));
 }
 
-// Clause A — a DIRECT child of a client tier (data/x.ts), excluding the nested buckets + the named
+// Clause A — a DIRECT child of a client owner (data/x.ts or forms/editor/x.ts), excluding nested buckets + named
 // per-file exclusions (CLIENT_EXCLUDE_FILES — see its own comment for why each one is there).
 function clientTierRel(rel: string): string | undefined {
-  const tier = CLIENT_TIERS.find((t) => rel.startsWith(t));
-  if (tier === undefined || CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n)) || CLIENT_EXCLUDE_FILES.includes(rel)) {
+  if (CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n)) || CLIENT_EXCLUDE_FILES.includes(rel)) {
     return;
   }
-  // Direct child only: `data/x.ts` (one segment after the tier), not `data/sub/x.ts`.
-  return rel.slice(tier.length).includes("/") ? undefined : rel;
+  return CLIENT_MIRROR_HOMES.some((home) => rel.startsWith(home) && !rel.slice(home.length).includes("/")) ? rel : undefined;
 }
 
 // Clause C — the mirror is resolved over the SHARED `TEST_KINDS` vocabulary (the same list clause A uses:
@@ -289,6 +287,14 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/client/src/forms/editor/focus.ts": "export function focusInvalid(): void {}\n",
+        "tests/client/forms/focus.ct.tsx": "export {};\n",
+      },
+      expect: { messageIncludes: "client data/forms/state primitive has no test" },
+      why: "an editor-owned callable needs its current mirror; a test left under the former forms owner is not coverage",
+    },
+    {
+      files: {
         "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
       },
       why: "a logic-bearing client data hook with no mirror test — an untested surface (§5)",
@@ -388,6 +394,13 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
+        "packages/client/src/forms/editor/focus.ts": "export function focusInvalid(): void {}\n",
+        "tests/client/forms/editor/focus.ct.tsx": "export {};\n",
+      },
+      why: "an editor-owned callable with its exact CT mirror retains the same presence protection as a direct forms child",
+    },
+    {
+      files: {
         "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
         "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
       },
@@ -408,12 +421,12 @@ export const gate: GateDescriptor = {
       why: "clause A: a file with NO callable export (plain value) is not a logic surface — passes",
     },
     {
-      // clause A: the nested buckets (data/bus, forms/bound-fields) are excluded.
+      // clause A: the nested buckets (data/bus, forms/editor/bound-fields) are excluded.
       files: {
         "packages/client/src/data/bus/apply-chat-bus-event.ts": "export function build(): number {\n  return 1;\n}\n",
-        "packages/client/src/forms/bound-fields/text-field.tsx": "export function build(): number {\n  return 1;\n}\n",
+        "packages/client/src/forms/editor/bound-fields/text-field.tsx": "export function build(): number {\n  return 1;\n}\n",
       },
-      why: "clause A: nested buckets (data/bus, forms/bound-fields) are deliberately excluded — passes",
+      why: "clause A: nested buckets (data/bus, forms/editor/bound-fields) are deliberately excluded — passes",
     },
     {
       // clause B dir-level: a sibling test (different basename) in the mirror dir satisfies presence.

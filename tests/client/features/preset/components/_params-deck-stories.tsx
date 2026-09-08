@@ -8,8 +8,8 @@
 // from the resolver and is never written back) — the macro-gate's data-flow blind spot is exactly this
 // hazard, so the `<output>` mirrors the saved key set, not just one field.
 
-import type { AppFormInstance } from "@orb/client/forms";
-import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance } from "@orb/client/forms/editor";
+import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { Container } from "@orb/ui/layout";

@@ -10,7 +10,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "bound-field-via-hook:use-bound-field",
     policyId: "bound-field-via-hook",
-    subject: "packages/client/src/forms/bound-fields/use-bound-field.ts",
+    subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",
     operation: "raw-field-context-read",
     why: "`useBoundField` IS the one home for the bound-field wiring (derive-modernization-audit.md §W3 G28): it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
     endsWhen:
@@ -215,7 +215,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "no-direct-useform:contexts",
     policyId: "no-direct-useform",
-    subject: "packages/client/src/forms/contexts.ts",
+    subject: "packages/client/src/forms/editor/contexts.ts",
     operation: "tanstack-form-mint:createFormHookContexts",
     why: "the ONE `createFormHookContexts()` call the whole toolkit is built on (UI-Lib-TanStack-Form.md §Composition: 'define this once'); it is split from `use-app-form.ts` only so the bound components can import the contexts without a circular edge.",
     endsWhen: "the form toolkit stops minting its own contexts (a vendor change), or the contexts move.",
@@ -223,7 +223,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "no-direct-useform:use-app-form",
     policyId: "no-direct-useform",
-    subject: "packages/client/src/forms/use-app-form.ts",
+    subject: "packages/client/src/forms/editor/use-app-form.ts",
     operation: "tanstack-form-mint:createFormHook",
     why: "the single `createFormHook` instance every multi-field form builds from — `useAppForm` IS this call, and it is what the rule points every surface at instead.",
     endsWhen: "the shared instance is minted somewhere else, which stales this row at its old path.",

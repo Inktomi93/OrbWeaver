@@ -11,7 +11,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { KeyboardEvent, ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

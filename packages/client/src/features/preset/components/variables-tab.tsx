@@ -7,7 +7,7 @@ import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryListEditor } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { notify } from "#lib";
 import { VariableEditorDialog } from "./variable-editor-dialog.tsx";
 

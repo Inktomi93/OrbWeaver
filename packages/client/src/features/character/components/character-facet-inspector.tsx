@@ -18,7 +18,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { openConfigTo, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";

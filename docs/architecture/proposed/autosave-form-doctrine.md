@@ -18,12 +18,12 @@ updated: 2026-07-16
 
 ## §0 The defect class this kills (evidence-grounded)
 
-The autosave factory (`client/src/forms/create-autosave-entity-form.ts`) delegates its ONE
+The autosave factory (`packages/client/src/forms/editor/create-autosave-entity-form.tsx`) delegates its ONE
 load-bearing job — entity identity — to an invisible consumer contract: "put a React `key` above
 the component that calls the hook." The factory freezes its seed in a ref, passes the same identity
 as `defaultValues` every render, and has no other reseed path; form-core's own reseed
 (`FormApi.update` — reseeds only when `defaultValues` CHANGE and the form is untouched,
-form-core@1.33.0 `FormApi.js:94`) can therefore never fire. Four consequences, all observed:
+form-core\@1.33.0 `FormApi.js:94`) can therefore never fire. Four consequences, all observed:
 
 1. **Identity swap renders the previous entity** (stickler F1, live-reproduced): the preset editor
    put the key on the inner `<form>` element — below the hook — so switching presets rendered preset
@@ -50,7 +50,7 @@ except through the boundary that owns identity.** Wrong key placement is no long
 can write.
 
 ```ts
-// mint — packages/client/src/forms/create-autosave-entity-form.tsx
+// mint — packages/client/src/forms/editor/create-autosave-entity-form.tsx
 const PresetForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
 // consumer
@@ -82,7 +82,7 @@ Internals (Boundary → keyed Session):
 - The draft crash-mirror (`config.draft`) contract is unchanged (mirror-on-change, clear-on-save,
   seed-on-mount).
 
-## §2 Identity options evaluated (form-core@1.33.0 semantics, traced)
+## §2 Identity options evaluated (form-core\@1.33.0 semantics, traced)
 
 | option | verdict | evidence |
 | - | - | - |
@@ -207,7 +207,7 @@ Exposure legend: **EXPOSED** = identity can change while the hook-owning compone
 | - | - | - | - | - |
 | preset editor (`preset-editor-surface.tsx` PresetEditor) | presetId | F1/F2 site; tactical patch pending (lane-h) | L1: boundary + `reseed(row.config)` for reset; delete nonce machinery + 7 manual flushes (inspector ⋯ delete/duplicate/move, structure-tabs add, regex/variables add+remove, rack reorder) | M |
 | character editor (`character-editor-surface.tsx` CharacterEditorBody) | characterId | safe-by-key (`key={characterId}`) — the contract this program retires | L2: boundary; delete the parent key + inner `<form key>` | M |
-| character theme (`character-appearance-tab.tsx` ThemeControls) | characterId | safe-by-key **[CORRECTED 2026-07-16: the EXPOSED claim was a false positive** — `character-appearance-tab.tsx:92` already keys `ThemeControls` by `characterId` above the hook; verified twice (lane-h + its verifier)] | L2 (retires the key convention) | S |
+| character theme (`character-appearance-tab.tsx` ThemeControls) | characterId | safe-by-key **\[CORRECTED 2026-07-16: the EXPOSED claim was a false positive** — `character-appearance-tab.tsx:92` already keys `ThemeControls` by `characterId` above the hook; verified twice (lane-h + its verifier)] | L2 (retires the key convention) | S |
 | room-overrides (`room-overrides-form.tsx`, committed + draft arms) | chatId / draftKey | **EXPOSED** — same context-host shape (`chats-section.tsx` Overrides tab) | L3 | S |
 | group-config (`group-config-form.tsx`, committed + draft arms) | chatId / draftKey | **EXPOSED** — same shape (Group tab) | L3 | S |
 | injection rows (`injections-manager.tsx` InjectionRow) | injection.id | safe-by-key by construction (the list `.map` key IS the entity id) | L3: boundary (the list key stays as list identity; harmless) | S |
@@ -223,19 +223,19 @@ compares `serverValues` by IDENTITY against fresh mapper outputs — same §5 st
 ## §9 The program: MINT → MIGRATE → SEAL (atomic per D72)
 
 - [ ] **L0 MINT** — rebuild `create-autosave-entity-form` as the session boundary (§1–§6): store
-      driver, lastSaved baseline, teardown flush, `reseed`, per-session status;
-      `AutosaveStatus.caption`; delete `onFieldUnmount` + the misleading "id change remounts +
-      reseeds" mountKey doc-comment; factory CTs = the canonical scenarios (§10 CT-1..6). The OLD
-      return shape dies here — L0 does not land without L1–L4 in the same wave (no half-migration).
+  driver, lastSaved baseline, teardown flush, `reseed`, per-session status;
+  `AutosaveStatus.caption`; delete `onFieldUnmount` + the misleading "id change remounts +
+  reseeds" mountKey doc-comment; factory CTs = the canonical scenarios (§10 CT-1..6). The OLD
+  return shape dies here — L0 does not land without L1–L4 in the same wave (no half-migration).
 - [ ] **L1 MIGRATE preset** — supersedes the lane-h tactical patch shape (keep its CT pins, port
-      them onto the boundary); reset flow = `reseed(seedConfig(row.config))`.
+  them onto the boundary); reset flow = `reseed(seedConfig(row.config))`.
 - [ ] **L2 MIGRATE character** — editor + theme controls (closes the Options-tab EXPOSED hole).
 - [ ] **L3 MIGRATE per-chat forms** — room-overrides, group-config, injections (closes both
-      EXPOSED holes; committed + draft arms).
+  EXPOSED holes; committed + draft arms).
 - [ ] **L4 MIGRATE settings + persona** — boundary + caption; delete the sibling caption `Text`s.
 - [ ] **SEAL** — G-A `no-manual-autosave-flush` (full ritual); verify `no-form-reset-in-autosave`
-      and `no-direct-useform` still bite the new surface (probe, don't assume); Core-Enforcement
-      row + count bump.
+  and `no-direct-useform` still bite the new surface (probe, don't assume); Core-Enforcement
+  row + count bump.
 
 Lane order is dependency order (L0 blocks all; L1–L4 parallelizable across disjoint file sets).
 Each migration lane: adopt boundary → delete manual keys/flushes → its CTs → `pnpm check` +

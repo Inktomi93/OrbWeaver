@@ -13,7 +13,7 @@
 
 import type { Page } from "@playwright/test";
 
-/** The shared affordance's one slot (`packages/client/src/forms/autosave-status.tsx`) — every arm of it
+/** The shared affordance's one slot (`packages/client/src/forms/editor/autosave-status.tsx`) — every arm of it
  *  carries this, so the recorder follows the readout through a state change that swaps the element. */
 const STATUS_SELECTOR = '[data-slot="autosave-status"]';
 

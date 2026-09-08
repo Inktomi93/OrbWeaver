@@ -159,7 +159,7 @@ const TOOLING = ["tests/tooling/**/*.test.ts"];
 const TYPES_BROWSER = [
   "tests/client/state/durable-local.test-d.ts",
   "tests/client/state/create-gated-store.test-d.ts",
-  "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
+  "tests/client/forms/editor/autosave-contract.test-d.ts",
   "tests/client/lib/registry.test-d.ts",
   "tests/client/lib/collection-contracts.test-d.ts",
   "tests/ui/primitives/input/index.test-d.ts",

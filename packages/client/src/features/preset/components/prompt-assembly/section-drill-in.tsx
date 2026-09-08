@@ -47,7 +47,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { RowActionsMenu } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { notify, useFocusOnSwap } from "#lib";
 import {
   GENERATION_TYPE_ITEMS,

@@ -4,7 +4,7 @@
 // retry at its anchor + a nav-row marker), and the footer's locate-don't-retry affordance (D41).
 //
 // The report/degrade halves ride their own mirrors: tests/client/forms/save-status-seam.ct.tsx (hosted vs
-// unhosted) and tests/client/forms/section-save-status.ct.tsx (the inline error arm + the section's retry).
+// unhosted) and tests/client/forms/editor/section-save-status.ct.tsx (the inline error arm + the section's retry).
 
 import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

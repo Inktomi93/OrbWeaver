@@ -16,7 +16,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations.ts";
 import type { GroupConfigFormValues } from "../lib/group-config-model.ts";
 import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model.ts";
@@ -201,7 +201,7 @@ export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps
       entityId={`${GROUP_CONFIG_ENTITY_PREFIX}${chatId}`}
       config={config}
       // NO `.catch` HERE, AND THAT IS THE CONTRACT (#1501). `createAutosaveEntityForm` decides saved-vs-error
-      // by whether this promise RESOLVES (`forms/create-autosave-entity-form.tsx` onSubmit: it re-baselines,
+      // by whether this promise RESOLVES (`forms/editor/create-autosave-entity-form.tsx` onSubmit: it re-baselines,
       // clears the crash draft and sets "saved" on resolve; on rejection it keeps the draft, sets "error" and
       // lights Retry). A `.catch(() => undefined)` here turned every rejected write into a resolved one, so a
       // failed save re-baselined the form, dropped the edit's only durable copy and printed "Saved". The

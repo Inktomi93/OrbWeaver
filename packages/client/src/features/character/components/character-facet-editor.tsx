@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING } from "#lib";
 import { useSpoilerBlur } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";

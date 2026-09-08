@@ -35,13 +35,12 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
-
 import { StopSequences } from "./stop-sequences.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;

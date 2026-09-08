@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { AutosaveSaveState } from "#forms";
-import { AutosaveStatus } from "#forms";
+import { AutosaveStatus } from "#forms/editor";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 

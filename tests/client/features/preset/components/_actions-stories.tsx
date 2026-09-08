@@ -5,8 +5,8 @@
 // The fixture deliberately CUSTOMIZES one guided template and leaves everything else untouched: the
 // Default/Customized chip's derivation ("empty IS the default") is only observable against both states.
 
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";

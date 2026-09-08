@@ -14,6 +14,8 @@ Every authored TypeScript file has an intended world and explicit compiler owner
 
 A package's source can participate in its own compiler program and a consumer's import closure. Those are different facts. Test/harness roots have one primary owner; declarations need explicit ambient ownership. A file in some program is not necessarily in the correct program, and a correct root does not prove its imported closure is compatible.
 
+`types: []` disables automatic ambient inclusion; it does not prevent imported declarations from adding Node globals. ISO acceptance must inspect the actual declaration closure as well as compiler options and dependency direction.
+
 ## Existing authorities
 
 | Fact | Home |
@@ -55,6 +57,12 @@ Re-derive every old serial/live assignment from current code and the current cap
 - Derive mutation eligibility from actual execution capability and resource requirements, not from membership in an old serial project.
 
 The tests-as-workspace-package fork remains unnecessary by default. Adopt it only if a concrete benefit outweighs its changes to dependency resolution, Knip, lint ownership, and the package graph.
+
+## Intentional API type connection
+
+The client retains the server-owned inferred `AppRouter` contract and the canonical brands in `@orb/kit/ids`. Client data wiring owns the direct server type import; other client consumers use its client-owned types. Runtime backend imports and unrelated backend type reaches remain forbidden. This narrows the direct connection without claiming to remove the router's transitive compiler closure.
+
+The owner accepted the bounded input-typing repair and direct-connection cleanup in [#1889](https://github.com/Inktomi93/orbweaver/issues/1889) and [#1890](https://github.com/Inktomi93/orbweaver/issues/1890), with procedure-liveness adjudication in [#1891](https://github.com/Inktomi93/orbweaver/issues/1891). Generated router declarations, moving the source alias into kit/contracts, and contract-first restructuring are not part of this work. Reconsider generation for a demonstrated independent-client or compiler-performance need, with brand, streaming, freshness and full-surface equivalence proofs; the [tRPC investigation](../../reviews/trpc-walled-garden-2026-09-08.md) records the current API limits and portability findings.
 
 ## Tool configuration and jobs
 

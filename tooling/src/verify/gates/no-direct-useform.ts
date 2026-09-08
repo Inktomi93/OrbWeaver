@@ -26,12 +26,12 @@ const OPERATION_PREFIX = "tanstack-form-mint";
 
 const MESSAGE =
   "TanStack Form's raw mint is called outside the shared form toolkit — use `useAppForm` (and `withForm` / " +
-  "`withFieldGroup`) from `#forms`. The shared instance pre-binds the @orb/ui Field components; calling " +
+  "`withFieldGroup`) from `#forms/editor`. The shared instance pre-binds the @orb/ui Field components; calling " +
   "`useForm`/`createFormHook`/`createFormHookContexts` directly bypasses the bound fields and drifts every " +
   "editor surface apart (UI-Lib-TanStack-Form.md).";
 const UNREADABLE =
   "this call is spelled like a TanStack Form mint but the shared readers cannot place its binding, so whether it is the vendor's own export CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
-const FIX = "build the form with `useAppForm` from #forms; the shared toolkit's own mints are licensed by exact reviewed grants.";
+const FIX = "build the form with `useAppForm` from #forms/editor; the shared toolkit's own mints are licensed by exact reviewed grants.";
 
 /** The callee's leaf name across bare, member and computed-literal spellings. */
 function calleeName(callee: MorphNode): string | null {
@@ -140,7 +140,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...tanstackReactFormProof(),
-        "packages/client/src/forms/use-app-form.ts":
+        "packages/client/src/forms/editor/use-app-form.ts":
           'import { createFormHook } from "@tanstack/react-form";\nexport const { useAppForm } = createFormHook({});\n',
       },
       expect: { count: 1 },
@@ -170,7 +170,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...tanstackReactFormProof(),
-        "packages/client/src/forms/contexts.ts":
+        "packages/client/src/forms/editor/contexts.ts":
           'import { createFormHookContexts, useForm } from "@tanstack/react-form";\nexport const contexts = createFormHookContexts();\nexport const spare = (): unknown => useForm();\n',
       },
       expect: { count: 2 },
@@ -182,9 +182,9 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...tanstackReactFormProof(),
-        "packages/client/src/forms/use-app-form.ts": "export declare const useAppForm: () => unknown;\n",
+        "packages/client/src/forms/editor/use-app-form.ts": "export declare const useAppForm: () => unknown;\n",
         "packages/client/src/features/some-feature/surfaces/editor.tsx":
-          'import { useAppForm } from "../../../forms/use-app-form.ts";\nexport const Editor = (): unknown => useAppForm();\n',
+          'import { useAppForm } from "../../../forms/editor/use-app-form.ts";\nexport const Editor = (): unknown => useAppForm();\n',
       },
       why: "the fix: the surface builds on the shared instance and never touches a vendor mint",
     },

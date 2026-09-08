@@ -295,7 +295,7 @@ export function routingFormDrifted(live: RoutingForm, persisted: RoutingForm): b
 
 /** The chip copy per DRAFTING state — and, as its key set, the ONE home of those states (the row derives
  *  `keyof typeof` from it; a matching row has no state here because it discloses nothing). The save-phase →
- *  state dispatch lives in the row component: mapping it here would need `AutosaveSaveState` from `#forms`,
+ *  state dispatch lives in the row component: mapping it here would need `AutosaveSaveState` from `#forms/editor`,
  *  and this module is imported by node-lane tests that must not drag the DOM form barrel into their program.
  *  No `pending`/"Unsaved" arm: the factory's `save` echo seeds the persisted read from the SAME mutation
  *  resolution that re-baselines the session (`create-autosave-entity-form.tsx` onSubmit), so a row can never

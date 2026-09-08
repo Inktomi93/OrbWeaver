@@ -1,8 +1,8 @@
 // CT: the group-config form (group-config-form.tsx, P3). Reworked onto `createAutosaveEntityForm` — each
 // control debounces a WHOLE rebuilt config through `save` (the story renders the last saved config into the
 // `group-config-saved` readout). The factory OBLIGATIONS (seed-on-load · key-remount · reseed-guard ·
-// onFieldUnmount) are pinned once at the factory level (tests/client/forms/create-autosave-entity-form.ct
-// .tsx) — this consumer CT proves the GROUP-CONFIG wiring: the output discriminator switches the DU arm (+
+// onFieldUnmount) are pinned once at the factory level (tests/client/forms/editor/create-autosave-entity-form.ct.tsx).
+// This consumer CT proves the GROUP-CONFIG wiring: the output discriminator switches the DU arm (+
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 

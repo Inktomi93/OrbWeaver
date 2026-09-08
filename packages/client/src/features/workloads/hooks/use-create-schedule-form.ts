@@ -5,7 +5,7 @@
 // schedule has no server row) so `defaultValues` seeds every open; Base UI unmounts the closed popup, so a
 // reopened dialog never carries the previous pick. No cross-field validation — every field has a default.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
 import { CREATE_SCHEDULE_FORM_DEFAULTS } from "../lib/workloads-schedule-model.ts";
 

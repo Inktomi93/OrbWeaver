@@ -114,8 +114,8 @@ test("every relative import in every proof of this family resolves inside the pr
 // ---------------------------------------------------------------------------------------------------
 test("bound-field-via-hook REFUSES when the form-context home no longer exports the hook", () => {
   const renamed = passOf(boundFieldViaHook, {
-    "packages/client/src/forms/contexts.ts": "export const fieldContext = null;\n",
-    "packages/client/src/forms/bound-fields/x-field.tsx": "export const f = null;\n",
+    "packages/client/src/forms/editor/contexts.ts": "export const fieldContext = null;\n",
+    "packages/client/src/forms/editor/bound-fields/x-field.tsx": "export const f = null;\n",
   });
 
   expect(renamed.toolErrors).toMatchObject([{ policyId: "bound-field-via-hook", phase: "receipt" }]);

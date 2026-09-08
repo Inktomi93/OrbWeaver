@@ -4,7 +4,7 @@
 // projected server values always fully override these seeds.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import { projectWorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 

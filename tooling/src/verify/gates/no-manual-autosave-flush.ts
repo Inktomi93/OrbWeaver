@@ -38,7 +38,7 @@ const FUNCTION_KIND_SET: ReadonlySet<SyntaxKind> = new Set(FUNCTION_KINDS);
 const MESSAGE =
   "this `features/**` function body calls BOTH a structural array op (pushFieldValue / removeFieldValue / insertFieldValue / moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush. The autosave factory's store-subscription driver persists structural array edits automatically now, so the manual `form.handleSubmit()` is at best a redundant double-submit (autosave-form-doctrine.md §7).";
 const FIX =
-  "delete the manual `form.handleSubmit()` — the session-boundary factory's save driver (packages/client/src/forms/create-autosave-entity-form.tsx) autosaves structural array ops; keep `handleSubmit` only in a genuine submit handler that does no array op (autosave-form-doctrine.md §3).";
+  "delete the manual `form.handleSubmit()` — the session-boundary factory's save driver (packages/client/src/forms/editor/create-autosave-entity-form.tsx) autosaves structural array ops; keep `handleSubmit` only in a genuine submit handler that does no array op (autosave-form-doctrine.md §3).";
 const UNREADABLE = `${MESSAGE} One of the two calls has a receiver the checker cannot place, so whether it is the form api CANNOT be established — reported rather than passed.`;
 
 interface FormMember {

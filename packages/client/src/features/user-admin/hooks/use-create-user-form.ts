@@ -10,7 +10,7 @@
 // has no zod dep (package.json); the floors mirror the server verb's guards (invalid_handle /
 // weak_password) as teaching, with the verb remaining the enforcement floor.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
 import { ADMIN_MIN_PASSWORD_LENGTH, CREATE_USER_DEFAULTS } from "../lib/admin-model.ts";
 

@@ -447,22 +447,23 @@
     "tests/client/features/world-info/components/world-info-settings-section.ct.tsx",
     "tests/client/features/world-info/lib/entry-draft-store.test.ts",
     "tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx",
-    "tests/client/forms/autosave-convergence.suite.test.ts",
-    "tests/client/forms/autosave-status.ct.tsx",
-    "tests/client/forms/bound-fields/avatar-upload-field.ct.tsx",
-    "tests/client/forms/bound-fields/use-bound-field.ct.tsx",
     "tests/client/forms/capped-field-model.test.ts",
-    "tests/client/forms/capped-field.ct.tsx",
     "tests/client/forms/create-autosave-entity-form-model.test.ts",
-    "tests/client/forms/create-autosave-entity-form.ct.tsx",
     "tests/client/forms/create-form-handle-bridge.test.ts",
-    "tests/client/forms/create-saved-entity-form.ct.tsx",
-    "tests/client/forms/create-saved-entity-form.test.ts",
+    "tests/client/forms/editor/autosave-convergence.suite.test.ts",
+    "tests/client/forms/editor/autosave-status.ct.tsx",
+    "tests/client/forms/editor/bound-fields/avatar-upload-field.ct.tsx",
+    "tests/client/forms/editor/bound-fields/use-bound-field.ct.tsx",
+    "tests/client/forms/editor/capped-field.ct.tsx",
+    "tests/client/forms/editor/create-autosave-entity-form.ct.tsx",
+    "tests/client/forms/editor/create-saved-entity-form.ct.tsx",
+    "tests/client/forms/editor/create-saved-entity-form.test.ts",
+    "tests/client/forms/editor/focus-invalid-field.ct.tsx",
+    "tests/client/forms/editor/form-identity.suite.ct.tsx",
+    "tests/client/forms/editor/section-save-status.ct.tsx",
     "tests/client/forms/entity-form-base.test.ts",
-    "tests/client/forms/form-identity.suite.ct.tsx",
     "tests/client/forms/save-circuit-breaker.test.ts",
     "tests/client/forms/save-status-seam.ct.tsx",
-    "tests/client/forms/section-save-status.ct.tsx",
     "tests/client/lib/agent-bridge.ct.tsx",
     "tests/client/lib/agent-plugin-bridge.test.ts",
     "tests/client/lib/appearance-carrier-manifest.ct.tsx",
@@ -504,6 +505,7 @@
     "tests/client/state/analytics-search-store.ct.tsx",
     "tests/client/state/analytics-selection-store.ct.tsx",
     "tests/client/state/appearance-boot-hint.ct.tsx",
+    "tests/client/state/appearance-boot-hint.test.ts",
     "tests/client/state/assemble-chrome.test.ts",
     "tests/client/state/character-library-store.ct.tsx",
     "tests/client/state/character-selection-store.ct.tsx",
@@ -2808,6 +2810,36 @@
     },
     "tests/client/lib/weave-glyph.ct.tsx": {
       "why": "Relocated with its component to tests/client/components/weave-glyph.ct.tsx in #1861; all tests retained. Remove this record if the source path returns."
+    },
+    "tests/client/forms/autosave-convergence.suite.test.ts": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/autosave-convergence.suite.test.ts in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/autosave-status.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/autosave-status.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/bound-fields/avatar-upload-field.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/bound-fields/avatar-upload-field.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/bound-fields/use-bound-field.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/bound-fields/use-bound-field.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/capped-field.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/capped-field.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/create-autosave-entity-form.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/create-autosave-entity-form.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/create-saved-entity-form.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/create-saved-entity-form.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/create-saved-entity-form.test.ts": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/create-saved-entity-form.test.ts in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/form-identity.suite.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/form-identity.suite.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
+    },
+    "tests/client/forms/section-save-status.ct.tsx": {
+      "why": "Relocated with its source owner to tests/client/forms/editor/section-save-status.ct.tsx in #1861; coverage retained. Remove this record if the original path returns."
     }
   }
 }

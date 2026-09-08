@@ -44,7 +44,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
 import { Band } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
 import {

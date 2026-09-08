@@ -4,8 +4,8 @@
 // set is a static registry, unlike a preset section id); `resolveCharacterForm` gates on present + id-match.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { AppFormInstance } from "#forms";
 import { createFormHandleBridge } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import type { CharacterCardFormValues } from "./character-card-form-model.ts";
 
 /** The live handle the editor publishes: which character is open + its bound draft-card form instance. */

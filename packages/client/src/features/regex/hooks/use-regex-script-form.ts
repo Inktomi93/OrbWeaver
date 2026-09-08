@@ -9,7 +9,7 @@
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 
 /** THE DEFAULT SCOPE OF A NEW SCRIPT — the two conversational streams, and only those (side-eye X-9,
  *  2026-08-03). It used to be EVERY placement, which meant pressing `Add script` created a live, enabled

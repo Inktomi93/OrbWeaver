@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { GreetingStudio } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { cn, notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";

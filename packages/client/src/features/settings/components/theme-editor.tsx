@@ -28,8 +28,8 @@ import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
 import { lazy, Suspense, useEffect, useState } from "react";
-import type { AppFormInstance, AutosaveSession } from "#forms";
-import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
+import type { AppFormInstance, AutosaveSession } from "#forms/editor";
+import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.

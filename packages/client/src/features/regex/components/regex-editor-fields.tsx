@@ -28,7 +28,7 @@ import { Select } from "@orb/ui/select";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";

@@ -567,7 +567,7 @@ function writeFixtures(): void {
   // no-form-reset-in-autosave: a file importing createAutosaveEntityForm that calls .reset() on a form.
   fx(
     "packages/client/src/features/__g_autoreset/hooks/__g_autoreset.ts",
-    'import { createAutosaveEntityForm } from "#forms";\nexport const useGThing = createAutosaveEntityForm<{ a: string }>({ defaultValues: { a: "" } });\nexport function gBad(form: { reset: () => void }): void {\n  form.reset();\n}\n',
+    'import { createAutosaveEntityForm } from "#forms/editor";\nexport const useGThing = createAutosaveEntityForm<{ a: string }>({ defaultValues: { a: "" } });\nexport function gBad(form: { reset: () => void }): void {\n  form.reset();\n}\n',
   );
   // persist-partialize-and-total-migrate: a bare zustand persist() outside the two minting factories.
   fx(

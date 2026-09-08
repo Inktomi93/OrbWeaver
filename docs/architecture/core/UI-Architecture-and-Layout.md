@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # UI-Architecture-and-Layout
@@ -118,12 +118,13 @@ packages/client/
     routes/             # 2 HAND-WRITTEN routes: / (app-root.tsx) · /login — no file-based codegen; admin
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
-                        #   (ConfirmDialog · LibraryRow · CharacterPicker …); lockdown §3, gate G5
+                        #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary · WeaveGlyph …); lockdown §3, gate G5
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
-      create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts · bus/
-    forms/              # the editor factories — the SINGLE createFormHook instance — §13.1/§13.4
-      use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
+      create-collection-surface.ts · use-gated-query.ts · bus/
+    forms/              # Node-safe models, draft/store helpers and save-status seams — #forms
+      editor/           # browser editor composition — #forms/editor — §13.1/§13.4
+        use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
     state/              # ALL gated Zustand stores, FLAT (gate `state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
                         #   the eleven-row decision table is client-architecture-lockdown.md §12 (the old

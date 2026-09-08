@@ -28,8 +28,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import type { AutosaveSession } from "#forms";
-import { CAPPED_FIELD_MAX_ROWS, CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms";
+import { CAPPED_FIELD_MAX_ROWS } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
+import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
 import {
   PROSE_SETTINGS_SUBCATEGORY,

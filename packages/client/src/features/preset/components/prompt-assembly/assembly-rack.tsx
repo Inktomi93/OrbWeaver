@@ -22,7 +22,7 @@ import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { isPivotSection } from "../../lib/assembly-model.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { MARKER_COPY } from "./marker-copy.ts";

@@ -36,7 +36,7 @@ import { makeCharacterSummary, makeTagFixture } from "../features/character/fixt
 import { ComposerStory, MembersPanelStory, NewChatPickerStory } from "../features/chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
-import { CharacterCreateBandStory, PresetRenameDialogStory } from "../forms/_form-identity-stories.tsx";
+import { CharacterCreateBandStory, PresetRenameDialogStory } from "../forms/editor/_form-identity-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_namecraft", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 

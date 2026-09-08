@@ -114,7 +114,7 @@ describe("form-factory-for-multifield — #620: scope boundaries the collapse mu
   });
 
   test("a file importing an editor factory is exempt whatever the shape", () => {
-    const src = `import { createSavedEntityForm } from "#forms";\nconst use = createSavedEntityForm({});\n${component(`  return (<div>${NUMBER_FIELD}${SWITCH_CTL}${SELECT_CTL}</div>);`)}`;
+    const src = `import { createSavedEntityForm } from "#forms/editor";\nconst use = createSavedEntityForm({});\n${component(`  return (<div>${NUMBER_FIELD}${SWITCH_CTL}${SELECT_CTL}</div>);`)}`;
     expect(run(src)).toEqual([]);
   });
 });

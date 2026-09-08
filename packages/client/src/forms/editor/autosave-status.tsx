@@ -21,7 +21,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { AutosaveSaveState } from "./create-autosave-entity-form-model.ts";
+import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
 
 export interface AutosaveStatusProps {
   /** `draft` is the caller-known pre-persistence arm: no row exists yet, so `saved` would be a lie. */

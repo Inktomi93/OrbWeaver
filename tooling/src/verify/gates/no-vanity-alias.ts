@@ -269,7 +269,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: 'import { ColorField as UiColorField } from "@orb/ui/color-field";\nexport const use = UiColorField;\n',
-      at: "packages/client/src/forms/bound-fields/color-field.tsx",
+      at: "packages/client/src/forms/editor/bound-fields/color-field.tsx",
       why: "an @orb/ui design-system rename (the sealed client vendor) — sanctioned like the Base-UI seal (rule a exempt)",
     },
     {

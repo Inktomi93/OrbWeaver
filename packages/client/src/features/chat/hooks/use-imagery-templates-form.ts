@@ -4,7 +4,7 @@
 // the type-level `defaultValues` seed.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 

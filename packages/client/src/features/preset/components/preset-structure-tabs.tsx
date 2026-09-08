@@ -40,7 +40,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { closePresetSectionDrill, drillPresetSection, selectPresetSection, useDrilledPresetSectionId, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model.ts";
 import { CONTINUE_POSTFIX_ITEMS, continuePostfixLabel, NAMES_BEHAVIOR_ITEMS, namesBehaviorLabel } from "../lib/preset-nav.ts";

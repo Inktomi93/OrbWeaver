@@ -12,7 +12,7 @@
 //
 // IDENTITY, NOT SPELLING. The legacy gate matched an ImportSpecifier whose NAME was `useFieldContext`, so a
 // same-named hook from anywhere else red'd and a namespace/aliased call site was invisible. The subject is
-// the symbol declared by `forms/contexts.ts` — the ONE `createFormHookContexts()` destructure — resolved
+// the symbol declared by `forms/editor/contexts.ts` — the ONE `createFormHookContexts()` destructure — resolved
 // through the shared module-origin reader, and that home is located in the population and receipted so its
 // rename REFUSES the run instead of silently sealing nothing.
 import type { Node as MorphNode } from "ts-morph";
@@ -25,7 +25,7 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 
 const HOOK = "useFieldContext";
 const OPERATION = "raw-field-context-read";
-const CONTEXT_HOME: ProjectHomeDeclaration = { path: "packages/client/src/forms/contexts.ts", names: [HOOK] };
+const CONTEXT_HOME: ProjectHomeDeclaration = { path: "packages/client/src/forms/editor/contexts.ts", names: [HOOK] };
 
 const MESSAGE =
   "a bound field reaches the raw `useFieldContext` form context directly — every bound field's context read, " +
@@ -65,7 +65,7 @@ function candidateNode(node: MorphNode): MorphNode | null {
 }
 
 const HOME_PROOF = {
-  "packages/client/src/forms/contexts.ts":
+  "packages/client/src/forms/editor/contexts.ts":
     "declare function createFormHookContexts(): { fieldContext: unknown; formContext: unknown; useFieldContext: <T>() => T; useFormContext: () => unknown };\nexport const { fieldContext, formContext, useFieldContext, useFormContext } = createFormHookContexts();\n",
 };
 
@@ -79,7 +79,7 @@ export const gate = defineGate({
   // be able to locate it at all. `execution` is entire-population for the same reason the two shipped
   // reviewed-grant policies are: a narrowed selection cannot see the home, and grant liveness is a
   // whole-population verdict — deferring loudly beats staling every row on a scoped run.
-  population: { in: ["@client"], under: ["packages/client/src/forms/bound-fields/**", "packages/client/src/forms/contexts.ts"] },
+  population: { in: ["@client"], under: ["packages/client/src/forms/editor/bound-fields/**", "packages/client/src/forms/editor/contexts.ts"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -133,7 +133,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/x-field.tsx":
+        "packages/client/src/forms/editor/bound-fields/x-field.tsx":
           'import { useFieldContext } from "../contexts.ts";\nexport const f = (): unknown => useFieldContext<string>();\n',
       },
       expect: { count: 1, token: HOOK },
@@ -143,7 +143,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/use-bound-field.ts":
+        "packages/client/src/forms/editor/bound-fields/use-bound-field.ts":
           'import { useFieldContext } from "../contexts.ts";\nexport const useBoundField = <T,>(): unknown => useFieldContext<T>();\n',
       },
       expect: { count: 1 },
@@ -153,7 +153,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/aliased-field.tsx":
+        "packages/client/src/forms/editor/bound-fields/aliased-field.tsx":
           'import { useFieldContext as readField } from "../contexts.ts";\nexport const f = (): unknown => readField<string>();\n',
       },
       expect: { count: 1 },
@@ -163,7 +163,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/namespaced-field.tsx":
+        "packages/client/src/forms/editor/bound-fields/namespaced-field.tsx":
           'import * as forms from "../contexts.ts";\nexport const f = (): unknown => forms.useFieldContext<string>();\n',
       },
       expect: { count: 1 },
@@ -173,7 +173,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/twice.tsx":
+        "packages/client/src/forms/editor/bound-fields/twice.tsx":
           'import { useFieldContext } from "../contexts.ts";\nexport const a = (): unknown => useFieldContext<string>();\nexport const b = (): unknown => useFieldContext<number>();\n',
       },
       expect: { count: 1 },
@@ -185,8 +185,8 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/use-bound-field.ts": "export declare const useBoundField: <T>() => T;\n",
-        "packages/client/src/forms/bound-fields/x-field.tsx":
+        "packages/client/src/forms/editor/bound-fields/use-bound-field.ts": "export declare const useBoundField: <T>() => T;\n",
+        "packages/client/src/forms/editor/bound-fields/x-field.tsx":
           'import { useBoundField } from "./use-bound-field.ts";\nexport const f = (): unknown => useBoundField<string>();\n',
       },
       why: "the fix: a bound field on the hook imports `useBoundField` and never the raw context",
@@ -195,9 +195,9 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/other-field.tsx":
+        "packages/client/src/forms/editor/bound-fields/other-field.tsx":
           'import { useFieldContext } from "./local-context.ts";\nexport const f = (): unknown => useFieldContext<string>();\n',
-        "packages/client/src/forms/bound-fields/local-context.ts": "export function useFieldContext<T>(): T {\n  return null as T;\n}\n",
+        "packages/client/src/forms/editor/bound-fields/local-context.ts": "export function useFieldContext<T>(): T {\n  return null as T;\n}\n",
       },
       why: "THE COUNTERFACTUAL: the SAME NAME exported by a different module is a different symbol — the legacy specifier-name match red this, and only the canonical declaring file separates the two",
     },
@@ -205,7 +205,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/use-app-form.ts":
+        "packages/client/src/forms/editor/use-app-form.ts":
           'import { useFieldContext } from "./contexts.ts";\nexport const f = (): unknown => useFieldContext<string>();\n',
       },
       why: "THE SCOPE COUNTERFACTUAL: the identical read in the form TOOLKIT (outside bound-fields/) is out of subject — G28 seals the bound-field family, and `no-direct-useform` owns the toolkit's own door",
@@ -214,7 +214,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...HOME_PROOF,
-        "packages/client/src/forms/bound-fields/local-shadow.tsx":
+        "packages/client/src/forms/editor/bound-fields/local-shadow.tsx":
           "function useFieldContext<T>(): T {\n  return null as T;\n}\nexport const f = (): unknown => useFieldContext<string>();\n",
       },
       why: "A LOCAL FUNCTION of the same name proves a DIFFERENT identity (case (a) of the refusal classifier) — a bound field that declares its own helper is not reaching the toolkit's context",

@@ -33,7 +33,7 @@
 // `control-has-associated-label`'s `ignoreElements` list (`Input`, `Textarea`, `Select`, `Checkbox` are). The
 // rule is blind to the render-time `FieldRootContext` injection by construction — its own config comment says
 // so — so a bare `<Switch>` inside a `<Field>` is RED at every call site. The house answer is a cited
-// suppression, and the house pays it ONCE at the wrapper (`forms/bound-fields/switch-field.tsx:22`, minted
+// suppression, and the house pays it ONCE at the wrapper (`forms/editor/bound-fields/switch-field.tsx:22`, minted
 // #579), not six times at call sites; six new suppressions also exceed the `suppressions` ratchet's per-file
 // budgets, whose baseline is not this lane's to regenerate. So the attributes stay with the honest comment —
 // they are a LINT obligation, not a name anyone hears — and the class-level fix (teach `jsx-a11y` the house

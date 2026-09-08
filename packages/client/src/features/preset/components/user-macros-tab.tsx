@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { notify, withUserMacros } from "#lib";
 import { MacroBrowser } from "./macro-browser.tsx";
 
