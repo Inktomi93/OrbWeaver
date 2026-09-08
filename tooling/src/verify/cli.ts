@@ -18,7 +18,7 @@
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
-//   config-snapshot          → cli.ts config-snapshot vitest <config>  (internal native-config observation)
+//   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 import process from "node:process";

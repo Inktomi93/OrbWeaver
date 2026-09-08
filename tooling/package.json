@@ -14,11 +14,13 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
+    "@eslint/config-array": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",
     "chrome-devtools-mcp": "catalog:",
+    "eslint": "catalog:",
     "ts-morph": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",

@@ -38,6 +38,7 @@ allowBuilds:
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
 catalog:
   # --- toolchain ---
+  "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
   "@biomejs/biome": 2.5.1
   lefthook: ^2.1.10
