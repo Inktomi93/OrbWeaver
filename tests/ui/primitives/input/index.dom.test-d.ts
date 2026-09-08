@@ -5,17 +5,6 @@
 // Pinned here rather than left to a hand-run probe because the failure mode is silent: React's
 // `HTMLInputTypeAttribute` carries a `(string & {})` arm, so re-widening the prop (or "fixing" the union
 // with an `Exclude<HTMLInputTypeAttribute, "number">`) would accept "number" again while LOOKING narrowed.
-//
-// Mirrors `primitives/input/index.ts` (the barrel that exports `InputProps`), not `input.tsx`: a `.ts`-kind
-// test may only mirror a `.ts` source (test-layout gate), and the pin is on the seal's PUBLIC prop type.
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — tsconfig.tests-dom.json
-// includes `tests/ui/**/*.ts`. The vitest `types` project ALSO collects it (its typecheck include is
-// `tests/**/*.test-d.ts`) and prints a green tick, but that green is VACUOUS: that lane's program is
-// `tsconfig.json`, which #1243 excluded `tests/ui` from WHOLESALE. Measured 2026-09-02 — a planted
-// `export const x: number = "…"` in this tree was reported `✓ … (n tests)` by `pnpm test:types` and
-// TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
-// The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
 import type { InputProps } from "@orb/ui/input";
 import { expectTypeOf, test } from "vitest";

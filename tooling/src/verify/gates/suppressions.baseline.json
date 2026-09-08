@@ -723,7 +723,7 @@
     "count": 1,
     "why": "burnable debt: lint/correctness/useUniqueElementIds×1 — no RATIFIED_RULES entry, so these are still a live population"
   },
-  "tests/client/agent-nav/index.test.ts": {
+  "tests/client/agent-nav/index.dom.test.ts": {
     "count": 2,
     "ratified": 1,
     "why": "ratified by rule: lint/suspicious/noExplicitAny×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts) · burnable debt: lint/performance/noNamespaceImport×1 — no RATIFIED_RULES entry, so these are still a live population",
@@ -735,19 +735,19 @@
     "why": "ratified by rule: lint/suspicious/noExplicitAny×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/client/agent-rpg/index.test.ts": {
+  "tests/client/agent-rpg/index.dom.test.ts": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: lint/suspicious/noExplicitAny×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/client/agent-seed/index.test.ts": {
+  "tests/client/agent-seed/index.dom.test.ts": {
     "count": 3,
     "ratified": 3,
     "why": "ratified by rule: lint/suspicious/noExplicitAny×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/client/forms/editor/autosave-contract.test-d.ts": {
+  "tests/client/forms/editor/autosave-contract.dom.test-d.ts": {
     "count": 2,
     "ratified": 2,
     "why": "ratified by rule: @ts-expect-error×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
@@ -1379,13 +1379,13 @@
     "count": 1,
     "why": "burnable debt: lint/nursery/noPlaywrightWaitForTimeout×1 — no RATIFIED_RULES entry, so these are still a live population"
   },
-  "tests/ui/primitives/button/index.test-d.ts": {
+  "tests/ui/primitives/button/index.dom.test-d.ts": {
     "count": 3,
     "ratified": 3,
     "why": "ratified by rule: @ts-expect-error×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/ui/primitives/input/index.test-d.ts": {
+  "tests/ui/primitives/input/index.dom.test-d.ts": {
     "count": 3,
     "ratified": 3,
     "why": "ratified by rule: @ts-expect-error×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",

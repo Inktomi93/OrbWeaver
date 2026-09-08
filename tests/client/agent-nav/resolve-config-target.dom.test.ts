@@ -1,6 +1,6 @@
 // Unit: `resolveConfigTarget` (agent-nav/resolve-config-target.ts) — #1638's registry-backed validation of
 // an `openConfig` `sub`/`setting` address. Pure over a fixture registry (no store, no bridge); the wiring
-// through the real `__orb.nav.openConfig` handle is `tests/client/agent-nav/index.test.ts`.
+// through the real `__orb.nav.openConfig` handle is `tests/client/agent-nav/index.dom.test.ts`.
 
 import { resolveConfigTarget } from "@orb/client/agent-nav";
 import { createContributorRegistry } from "@orb/client/lib";

@@ -1,30 +1,10 @@
 {
-  // The BROWSER-TESTS world: node harness code (vitest / playwright run under node, so `@types/node` is on)
-  // whose SUBJECT or whose in-page callbacks need lib.dom. MEMBERSHIP IS DERIVABLE — directory + suffix, never
-  // a filename (type-worlds program, #1351): `tests/{client,ui}` (browser-subject tests — five per-file rounds
-  // proved they are not node-context by nature, #1243), `tests/e2e` (owner ruling 2026-07-24), every `.tsx`
-  // under tests/ and playwright/ (React under playwright-ct — formerly reached back into by the ui/client
-  // package programs, now owned here so a package program checks nothing but its own src),
-  // `tests/support/browser/` (helpers whose bodies run INSIDE the page — a helper has no runner-bearing suffix,
-  // so its LOCATION is the only thing that can declare its world; that is why the directory exists), and the
-  // `scripts/probes/st-goldens` rig (browser-driving, on the e2e precedent). The DOM-less root graph
-  // (tsconfig.json) EXCLUDES exactly these trees, so the two programs partition the test surface with no
-  // per-file ledger on either side; `tests-type-membership` reds any file in neither.
-  //
-  // The 2026-06-28 dom-vs-node incident (lib.dom's `BodyInit`/`BlobPart` rejecting `Uint8Array`) was SERVER
-  // src under dom; nothing here is server src, so dom + node coexist honestly. A client unit test that reaches
-  // for `document` compiles here and throws `ReferenceError` the instant it EXECUTES under a node vitest
-  // project (no project sets `environment`, no jsdom is installed) — the guard moved from type time to run
-  // time, not to another type program.
+  // DOM declarations for browser-subject tests, stories and drivers. Node types belong to their test
+  // harness. Runtime execution is selected separately by Vitest or Playwright.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    // BUNDLER, deliberately, while tsconfig.base.json is nodenext: the browser packages' real resolver is vite,
-    // and node-strict resolution over their third-party declaration files picks different files than the ones
-    // that ship (echarts resolved two ways ⇒ phantom type-identity mismatches). Nodenext enforcement lives
-    // where node runs — each of packages/{server,kit,contracts,db} under its OWN program.
     "module": "esnext",
     "moduleResolution": "bundler",
-    // This array OVERRIDES the base's, so the base's entries are repeated beside the dom pair.
     "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "types": ["node"],
@@ -33,12 +13,10 @@
   "include": [
     "reset.d.ts",
     "platform.d.ts",
-    // The ambient side-effect-CSS declaration @orb/ui's own program picks up via `include: ["src"]`; a test here
-    // that reaches a client front door pulls `@orb/ui/markdown/math.ts` (a bare `import "katex/….css"`) into this
-    // closure, and a d.ts is not part of an import closure.
+    // A side-effect CSS ambient is not reached through the module's import closure.
     "packages/ui/src/markdown/css-modules.d.ts",
-    "tests/client/**/*.ts",
-    "tests/ui/**/*.ts",
+    "tests/**/*.dom.test.ts",
+    "tests/**/*.dom.test-d.ts",
     "tests/e2e/**/*.ts",
     "tests/support/browser/**/*.ts",
     "tests/**/*.tsx",
@@ -46,7 +24,5 @@
     "playwright/**/*.d.ts",
     "scripts/probes/st-goldens/**/*.ts"
   ],
-  // `exclude` OVERRIDES the base's list wholesale, so its sentinel rows are re-stated; the rig's GITIGNORED
-  // foreign capture stays out for the same reason tsconfig.json keeps it out.
   "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**", "scripts/probes/st-goldens/sillytavern-runtime"]
 }

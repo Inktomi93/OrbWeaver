@@ -2,14 +2,6 @@
 // 3rd arg) is REQUIRED — a label-less `set`/`setState` is a compile error, both inside the
 // initializer and on the store handle. Runtime behavior lives in the .test.ts sibling; these
 // assertions are typecheck-only (no runtime pass).
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — tsconfig.tests-dom.json
-// includes `tests/client/**/*.ts`. The vitest `types` project ALSO collects it (its typecheck include is
-// `tests/**/*.test-d.ts`) and prints a green tick, but that green is VACUOUS: that lane's program is
-// `tsconfig.json`, which #1243 excluded `tests/client` from WHOLESALE. Measured 2026-09-02 — a planted
-// `export const x: number = "…"` in this tree was reported `✓ … (n tests)` by `pnpm test:types` and
-// TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
-// The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
 import type { GatedSet, GatedStoreHook } from "@orb/client/state";
 import { createGatedStore } from "@orb/client/state";

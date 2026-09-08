@@ -1,48 +1,13 @@
 {
-  // Root AGGREGATING tsconfig — NOT used by `pnpm typecheck` (that runs per-package via `pnpm -r exec
-  // tsc`, each package's own tsconfig.json), and NOT used by dependency-cruiser (verified 2026-06-26:
-  // its resolution + type-only detection are identical with/without it). Its real consumers arrive next:
-  // vitest's type lane (the `.test-d.ts` project) and Stryker's typescript-checker (Phase 4) both default
-  // tsconfigFile to `tsconfig.json`. Extends the base + widens `include` to the whole graph (the base's
-  // `${configDir}/src` would only see a root src/).
-  // This aggregator typechecks node-context code (`scripts/` tooling + `tests/` harnesses use
-  // `node:*`), so it adds `@types/node` on top of the isomorphic base (`types: []`). This does NOT
-  // weaken kit-purity: that is enforced per-package (each package's own `tsconfig` keeps `types: []`)
-  // + the dep-cruiser `kit-purity` gate — never by this root config.
+  // DOM-less Node test/tooling program. Browser package source has its own programs; imported pure
+  // helpers may enter this closure. Package NodeNext checks separately enforce runtime resolution.
   "extends": "./tsconfig.base.json",
-  // `allowImportingTsExtensions` MOVED TO THE BASE 2026-08-03 (tsx-shedding stage 1) — it is no longer a
-  // `scripts/`-only allowance: every relative import in the repo now carries its extension, because node's
-  // type-stripping does not resolve extensionless paths. Kept out of this block deliberately; the base owns it.
-  // `jsx`: the aggregator sweeps some JSX (tests/**/*.test-d.tsx if any); per-package jsx stays local.
-  // NOTE — the aggregator stays DOM-LESS on purpose: it is a NODE program (server code relies on
-  // node's looser `BodyInit`/`BlobPart`, which lib.dom would override and reject `Uint8Array` — the
-  // 2026-06-28 incident). So the browser packages are EXCLUDED: `packages/ui/src` + `packages/client/src`
-  // (each typechecked with `dom` by its OWN tsconfig via per-package `pnpm typecheck`), the `.ct.tsx` mirror + the CT harness
-  // (browser tests — playwright/vite compiles them, never in `pnpm check`; the doctrine). The
-  // NODE-side `tests/ui/tokens/*.test.ts` (which imports the node `tokens.build.ts`) stays in here.
   "compilerOptions": {
     "types": ["node"],
     "jsx": "react-jsx",
-    // BUNDLER here, deliberately, while tsconfig.base.json is nodenext (tsx-shedding stage 4). This
-    // aggregator EXCLUDES packages/{ui,client}/src as roots but still pulls them in TRANSITIVELY, and
-    // those packages' real resolver is vite. Checking them under node-strict resolution makes tsc pick
-    // different third-party declaration files than the ones that actually ship (echarts resolved two ways
-    // => phantom type-identity mismatches). NODENEXT ENFORCEMENT LIVES WHERE NODE RUNS: each of
-    // packages/{server,kit,contracts,db} is checked under nodenext by its OWN tsconfig via the
-    // per-package `pnpm typecheck` — that is the stage-4 guarantee, and it is not weakened here.
     "module": "esnext",
     "moduleResolution": "bundler"
   },
-  // Root-level config files JOINED 2026-08-03: they were typechecked by NO program, which let two
-  // dead vitest keys (`minWorkers`, `poolOptions` — both removed in Vitest 4) sit silently in
-  // vitest.config.ts / vitest.stryker.config.ts across the major bump. Excess-property checking
-  // against the installed types is exactly what catches that class. (packages/client/vite.config.ts
-  // was already owned by the client program; these are their root-level siblings.)
-  // playwright-ct.config.ts is DELIBERATELY absent: @playwright/experimental-ct-react bundles its own
-  // vite@6, so its ctViteConfig types collide with our vite@8-typed plugins (tailwindcss()) under
-  // exactOptionalPropertyTypes — a dual-vite type world no single program can own honestly. Re-add it
-  // the day playwright-ct rides the same vite major.
-  // `platform.d.ts` rides beside `reset.d.ts` — the root ambient pair (node-26 adoption program §1.2).
   "include": [
     "packages/*/src",
     "scripts",
@@ -50,38 +15,22 @@
     "tests",
     "reset.d.ts",
     "platform.d.ts",
-    // AGGREGATOR-ONLY (not in tsconfig.base.json): the `*.css` shorthand for browser asset side-effect
-    // imports this program pulls in TRANSITIVELY (ui/src/markdown/math.ts's katex CSS). Never enters a
-    // per-package program, so no collision with ui's css-modules.d.ts / client's vite/client.
     "aggregator-assets.d.ts",
-    // The PUBLISHED plugin-SDK declaration file (#774) — script-kind, ambient by design (an author drops it
-    // next to their main.js). Included HERE, explicitly, because the per-package server program EXCLUDES it
-    // (its globals must not leak into server src — see packages/server/tsconfig.json) while the conformance
-    // pin `tests/contracts/plugin/host-v1.test-d.ts` needs its globals in THIS program (a /// reference
-    // from the test proved unreliable under the vitest typecheck lane — a stale referenced-file view
-    // survived cache clears; config-level inclusion resolves freshly).
+    // This script-kind SDK declaration belongs to its conformance test, never the server program.
     "packages/showcase-plugins/bundles/host-v1.d.ts",
     "vitest.config.ts",
     "vitest.stryker.config.ts",
     "playwright.config.ts",
     "knip.ts"
   ],
-  // WORLD MEMBERSHIP IS DERIVABLE (type-worlds program, #1351 phase 1 + 5): no entry below names a FILE.
-  // This is the NODE world — DOM-less on purpose (see the header) — and the browser world is claimed by
-  // DIRECTORY + SUFFIX: `tests/{client,ui,e2e}` and `tests/support/browser` are browser-subject trees, every
-  // `.tsx` anywhere is React under playwright-ct, `playwright/` is the CT mount, and `scripts/probes/st-goldens`
-  // is a browser-driving rig (the whole rig, on the `tests/e2e` precedent: its scripts read browser state inside
-  // `page.evaluate` callbacks). All of those are rooted WITH dom by tsconfig.tests-dom.json, and a helper that
-  // needs lib.dom lives under `tests/support/browser/` so its LOCATION declares its world — the per-file
-  // escapee ledger this array used to carry (30 rows at its peak) is gone, and `tests-type-membership` is the
-  // guard that a new file lands in SOME program. `__g_*` is the check-gates self-test's throwaway-fixture
-  // sentinel (tsconfig.base.json's exclude note); `sillytavern-runtime` is the rig's GITIGNORED foreign
-  // capture, whose root `.d.ts` files would otherwise join this program (verified by planting a file: 1 → 0).
+  // Browser tests declare their compiler world by suffix; browser-only drivers and helpers by home.
+  // __g_* is transient gate-fixture state; the foreign capture is not authored repository source.
   "exclude": [
+    "**/node_modules",
     "packages/ui/src",
     "packages/client/src",
-    "tests/client",
-    "tests/ui",
+    "tests/**/*.dom.test.ts",
+    "tests/**/*.dom.test-d.ts",
     "tests/e2e",
     "tests/support/browser",
     "**/*.tsx",

@@ -3,7 +3,6 @@
 
 const RAW_TEST_KIND_DEFINITIONS = [
   { suffix: ".test.ts", family: "unit", compilerWorld: "node", mirror: "module", sourceExtensions: [".ts"] },
-  { suffix: ".test.tsx", family: "unit", compilerWorld: "browser", mirror: "module", sourceExtensions: [".tsx", ".ts"] },
   { suffix: ".dom.test.ts", family: "unit", compilerWorld: "browser", mirror: "module", sourceExtensions: [".ts", ".tsx"] },
   { suffix: ".int.test.ts", family: "integration", compilerWorld: "node", mirror: "module", sourceExtensions: [".ts"] },
   { suffix: ".suite.int.test.ts", family: "integration", compilerWorld: "node", mirror: "suite", sourceExtensions: [".ts"] },
@@ -58,6 +57,11 @@ export function runtimeForTestFamily(family: TestFamily): TestRuntime {
 export interface TestFilenameClassification {
   readonly definition: TestKindDefinition;
   readonly sourceBasename: string;
+}
+
+/** Recognize test-shaped filenames even when their extension/kind is unsupported, so they cannot disappear as helpers. */
+export function looksLikeTestFilename(filename: string): boolean {
+  return /\.(?:test|ct|spec)(?:-d)?\.[^.]+$/u.test(filename);
 }
 
 export function classifyTestFilename(filename: string): TestFilenameClassification | undefined {

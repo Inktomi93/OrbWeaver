@@ -7,14 +7,6 @@
 //
 // The runtime arms (no-op / adopt / switch, and the forged-hint pin) live in the `.test.ts` sibling and are
 // untouched — only a type-level assertion can see the boundary this file guards.
-//
-// WHICH LANE VERDICTS THIS FILE: `types:tests-dom` (`pnpm typecheck:tests-dom`) — tsconfig.tests-dom.json
-// includes `tests/client/**/*.ts`. The vitest `types` project ALSO collects it (its typecheck include is
-// `tests/**/*.test-d.ts`) and prints a green tick, but that green is VACUOUS: that lane's program is
-// `tsconfig.json`, which #1243 excluded `tests/client` from WHOLESALE. Measured 2026-09-02 — a planted
-// `export const x: number = "…"` in this tree was reported `✓ … (n tests)` by `pnpm test:types` and
-// TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
-// The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
 import { bindDurableLocalToUser } from "@orb/client/state";
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";

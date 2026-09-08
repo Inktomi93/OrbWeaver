@@ -998,7 +998,7 @@ function isCrowned(id: string): boolean {
  *  green CT certifies an arrangement the product has never rendered.
  *
  *  THE RULE NOW HAS AN ENFORCER (#1629). The crowned ids moved to `_crowned-tabs.ts` — one home, spelled
- *  once — and `tests/client/lib/registry-contracts.test.ts` derives the LIVE crowned set from the three OWNING definitions
+ *  once — and `tests/client/lib/registry-contracts.dom.test.ts` derives the LIVE crowned set from the three OWNING definitions
  *  (`chatContextTabs`, `makeRpgContextTabs`, `automationActivityTab`) and asserts the two are equal. A
  *  definition that gains or loses a crown now REDS that pin instead of quietly re-greening this story. The
  *  Activity cell also takes its REAL id here: the door mints it as `automation.activity`, and `activity`

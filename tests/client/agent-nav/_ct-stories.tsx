@@ -1,6 +1,6 @@
 // CT story module for `agent-nav/panel-request.ts` (Spine-Testing §7 — a CT mounts ONLY from a non-test
 // module). It exists because the panel arm's REFUSAL is a DOM fact and the agent-nav unit suite has no DOM:
-// `tests/client/agent-nav/index.test.ts` runs in the node "unit" project, which is why its own header says
+// `tests/client/agent-nav/index.dom.test.ts` runs in the node "unit" project, which is why its own header says
 // it proves routing and validation only. What it structurally cannot reach is the arm that reads the shell's
 // published pane declaration (`data-panel-available`, #1122) and names it in the refusal (#1149).
 //
