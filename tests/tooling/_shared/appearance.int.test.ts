@@ -7,7 +7,7 @@
 //   • sibling procedures in the same batch come through untouched.
 // Stub origin rather than the dev stack so the proof runs anywhere and never depends on the owner's row.
 import { spawn } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -113,8 +113,6 @@ async function runSnapAt(
 }
 
 const READ_STATE = "(()=>JSON.stringify(document.documentElement.dataset))()";
-const MANIFEST_SHOT = "/tmp/orb-snap-appearance-manifest.png";
-const MANIFEST_JSON = "/tmp/orb-snap-appearance-manifest.json";
 
 test("the shim changes what the PAGE reads, and the origin's stored settings never move", async () => {
   const bare = await runSnap(["--eval", READ_STATE]);
@@ -144,15 +142,15 @@ test("a non-motion axis renders too — one flag generalizes to every appearance
   expect(compact.stdout).toContain('\\"reducedMotion\\":\\"true\\"');
 });
 
-test("the manifest records WHICH arm was measured, so a report cannot be read against the wrong state", async () => {
-  const shimmed = await runSnap(["--appearance-preset", "compact", "--json", "--out", MANIFEST_SHOT, "--eval", READ_STATE]);
+test("the manifest records WHICH arm was measured, so a report cannot be read against the wrong state", async ({ scratch }) => {
+  const manifestShot = `${scratch}/orb-snap-appearance-manifest.png`;
+  const manifestJson = `${scratch}/orb-snap-appearance-manifest.json`;
+  const shimmed = await runSnap(["--appearance-preset", "compact", "--json", "--out", manifestShot, "--eval", READ_STATE]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
 
-  const manifest = JSON.parse(readFileSync(MANIFEST_JSON, "utf8")) as {
+  const manifest = JSON.parse(readFileSync(manifestJson, "utf8")) as {
     environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null; reducedMotion: boolean };
   };
-  rmSync(MANIFEST_JSON, { force: true });
-  rmSync(MANIFEST_SHOT, { force: true });
 
   // The app-setting arm is recorded as data; the OS media query stays its own separate field.
   expect(manifest.environment.appearance?.["density"]).toBe("compact");
@@ -161,14 +159,14 @@ test("the manifest records WHICH arm was measured, so a report cannot be read ag
   expect(shimmed.stdout).toContain('\\"density\\":\\"compact\\"');
 });
 
-test("the manifest distinguishes a requested appearance patch from one never applied", async () => {
-  const shimmed = await runSnapAt("/no-settings", ["--appearance", '{"density":"compact"}', "--json", "--out", MANIFEST_SHOT]);
+test("the manifest distinguishes a requested appearance patch from one never applied", async ({ scratch }) => {
+  const manifestShot = `${scratch}/orb-snap-appearance-manifest.png`;
+  const manifestJson = `${scratch}/orb-snap-appearance-manifest.json`;
+  const shimmed = await runSnapAt("/no-settings", ["--appearance", '{"density":"compact"}', "--json", "--out", manifestShot]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
-  const manifest = JSON.parse(readFileSync(MANIFEST_JSON, "utf8")) as {
+  const manifest = JSON.parse(readFileSync(manifestJson, "utf8")) as {
     environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null };
   };
-  rmSync(MANIFEST_JSON, { force: true });
-  rmSync(MANIFEST_SHOT, { force: true });
   expect(manifest.environment.appearance).toEqual({ density: "compact" });
   expect(manifest.environment.appearanceApplied).toBe(false);
 });
