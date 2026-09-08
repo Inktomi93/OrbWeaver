@@ -101,7 +101,7 @@ import type {
   ContributorRegistry,
   ToolRenderer,
 } from "@orb/client/lib";
-import { createContributorRegistry, createRegistry } from "@orb/client/lib";
+import { bindSessionDocumentHost, createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
   ChromeRegistry,
@@ -131,6 +131,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment } from "react";
 import { placeholderConfigGroups, realConfigGroups } from "./ct-config-groups.ts";
+
+// Client CTs run outside main.tsx, so this support composition root supplies the same browser document
+// capabilities before any story can mount data/session consumers.
+bindSessionDocumentHost({
+  currentPathname: (): string => globalThis.location.pathname,
+  assign: (path): void => globalThis.location.assign(path),
+  isVisible: (): boolean => globalThis.document.visibilityState === "visible",
+  subscribeVisibility: (listener): (() => void) => {
+    globalThis.document.addEventListener("visibilitychange", listener);
+    return (): void => globalThis.document.removeEventListener("visibilitychange", listener);
+  },
+});
 
 export function CtDataProviders({
   children,

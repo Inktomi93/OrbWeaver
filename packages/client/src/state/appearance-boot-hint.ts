@@ -1,52 +1,7 @@
-// THE APPEARANCE BOOT HINT — this device's remembered answer to the few synced appearance axes the app
-// must be able to answer SYNCHRONOUSLY, at boot, instead of ~1.2s into it: `reducedMotion`, `fontScale`,
-// `density`, and the selected theme's `[data-theme]` value.
-//
-// WHY IT EXISTS (measured; #188 N-1 minted the reduced-motion half, #231 the rest). These are SYNCED
-// settings (the `user_settings` blob) and stay so: this store is a CACHE over the server rows, never
-// their home. But the only writers of the root appearance state are `useAppearanceRootEffects` and the
-// shell's own render, which cannot run until the shell mounts and cannot be RIGHT until
-// `settings.getUserSettings` (and, for the theme, the SECOND chained `settings.getTheme`) resolves.
-// Receipts:
-//   • reduced motion (#188 N-1): an app-pref-ON landing dropped two over-budget frames from the boot
-//     veil ~1.2s before the stamp landed, while the same drive with the OS media query set dropped none.
-//   • font scale (#231, home-delta 2026-08-18): `--font-scale` sets the ROOT font size and every shell
-//     dimension is rem-derived, so the setting's arrival RESIZES THE WHOLE SHELL — html 16→20px, rail
-//     56→70px, topbar 48→60px — for a non-virtualized boot CLS of 0.1963–0.3398 on the reading arm
-//     (2–3.4× the budget), landing 209ms AFTER `data-app-ready`, i.e. after the boot veil has already
-//     lifted. Density is the same class one layer in (`[data-density]` on the shell's `ThemeScope`).
-//   • theme (#231): `data-theme` arrives from a chained query, so a Light user cold-loads the DARK
-//     palette and then swaps — a colour transition on `color`/`background-color`/`border-*-color` with
-//     measured 100–167ms frame gaps, on the first screen of every visit.
-//
-// SO THE ANSWER IS PERSISTED HERE AND REPLAYED BEFORE REACT MOUNTS. `stampAppearanceBootHint()` runs from
-// the composition root (`main.tsx`) ahead of `createRoot(...).render`; there is no inline pre-hydration
-// script to do this in `index.html`, because the strict CSP forbids one — the entry module IS the
-// pre-paint window. `useAppearance`/`useSelectedTheme` seed the same values into the PENDING arm of their
-// reads so the shell's own first commit cannot CLOBBER the replay back to the schema default (that
-// clobber is the bug the #188 home-repass fixed, and it is re-armed here for every axis this store
-// carries).
-//
-// THE SERVER ALWAYS WINS. The hint answers only while the authoritative read is unresolved; the instant
-// the read lands, its value is both what the app renders from and what is written back here
-// (`rememberAppearanceBootHint` / `rememberDataThemeHint`, called from the one seam per axis that knows
-// the value is authoritative). Durable-local staleness is a real class, so the hint is never consulted
-// beside a resolved read, and a device that has never been told an axis stamps NOTHING for it: absent ⇒
-// unstamped ⇒ the pre-existing floor (the OS motion query, the 1.0 root scale, the Hearth palette), which
-// is the honest default for a fresh device.
-//
-// VALIDATION IS THE CONTRACT'S, NOT A SECOND COPY: a persisted blob is untrusted input, and the bounds
-// for these axes already live in `appearanceSettingsSchema` (every key `.catch()`es, so parsing is
-// TOTAL). `dataTheme` is checked against the SEED value-set names the `[data-theme]` blocks are generated
-// from, so a stale/hand-edited value can never stamp an attribute no stylesheet defines.
-// The schema comes through `@orb/contracts/settings/appearance` — the section's own module — rather than the
-// `settings` barrel: the barrel composes the whole `UserSettings` tree, and zod construction is not
-// statically pure, so reaching it for this one schema dragged the entire contracts prose corpus into the
-// boot chunk every visitor evaluates before the login form can paint (#448). Same schema object, same
-// ownership (settings re-exports it verbatim); only the door is narrower.
-//
-// ONE ATTRIBUTE, ONE SPELLING: `REDUCED_MOTION_ATTR` / `DATA_THEME_ATTR` / `FONT_SCALE_VAR` are imported
-// by the root-effects hook rather than re-spelled, because two writers of one DOM name must not drift.
+// Device-local cache of authoritative appearance values. The server wins once its read resolves;
+// pending reads and the composition root use this synchronous hint to avoid boot motion/layout flashes.
+// Import the appearance schema directly: the settings barrel pulls unrelated schema construction into boot.
+// Validation and defaults belong to the contract; dataTheme must name a generated seed palette.
 
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
@@ -77,6 +32,7 @@ export interface AppearanceBootHintState extends AppearanceBootAxes {
 
 /** The schema's own defaults — what a device that has never been told anything replays (i.e. nothing). */
 const DEFAULT_AXES: AppearanceBootAxes = appearanceSettingsSchema.parse({});
+export const DEFAULT_APPEARANCE_FONT_SCALE = DEFAULT_AXES.fontScale;
 
 const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: null };
 
@@ -128,30 +84,9 @@ export function rememberDataThemeHint(dataTheme: SeedThemeName | null): void {
   useAppearanceBootHintStore.setState({ dataTheme }, false, "appearanceBootHint/rememberTheme");
 }
 
-/**
- * Replay the hint onto `<html>` BEFORE React mounts (called from `main.tsx`, ahead of `createRoot`).
- * localStorage is synchronous, so this lands in the same tick the document does — ahead of the boot
- * veil's first frame and ahead of the first shell layout, which is the whole point.
- *
- * Each axis stamps only when this device has actually been told something OTHER than the shipped floor:
- * an absent/default hint leaves the attribute or property alone, so a fresh device boots exactly as it
- * does today rather than asserting a preference nobody has expressed.
- */
-export function stampAppearanceBootHint(): void {
-  const { reducedMotion, fontScale, dataTheme } = useAppearanceBootHintStore.getState();
-  const root = document.documentElement;
-  if (reducedMotion) {
-    root.setAttribute(REDUCED_MOTION_ATTR, "true");
-  }
-  if (fontScale !== DEFAULT_AXES.fontScale) {
-    root.style.setProperty(FONT_SCALE_VAR, String(fontScale));
-  }
-  if (dataTheme !== null) {
-    root.setAttribute(DATA_THEME_ATTR, dataTheme);
-  }
-  // `density` is deliberately NOT stamped here: it is rendered as `[data-density]` on the shell's
-  // `ThemeScope`, which does not exist until React commits. Its hint exists for the PENDING ARM
-  // (useAppearance), so the first shell and portal carrier React paints already has the right density.
+/** Synchronous read for the composition root's pre-paint replay. */
+export function readAppearanceBootHint(): AppearanceBootHintState {
+  return useAppearanceBootHintStore.getState();
 }
 
 /** Test seam: forget the remembered answers (a CT/unit run must not inherit another test's device). */

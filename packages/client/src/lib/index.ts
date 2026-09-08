@@ -209,6 +209,8 @@ export {
 export { rowActionSubject, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
+export type { SessionDocumentHost } from "./session-document-host.ts";
+export { bindSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
 export type { UnreadableConfigCause, UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";

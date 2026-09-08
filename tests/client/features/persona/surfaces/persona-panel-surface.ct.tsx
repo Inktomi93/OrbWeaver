@@ -210,6 +210,30 @@ test("the foot renders the viewer identity + Log out in a cookie mode (local)", 
   await expect(page.getByTestId("account-logout")).toBeVisible();
 });
 
+test("Log out reaches the bound document host after the CSRF-protected revoke", async ({ mount, page }) => {
+  let csrfHeader: string | undefined;
+  let navigations = 0;
+  await stub(page);
+  await stubAuth(page, "local");
+  await page.route("**/api/auth/logout", (route) => {
+    csrfHeader = route.request().headers()["x-orb-csrf"];
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ endSessionUrl: "/signed-out" }) });
+  });
+  await page.route(
+    (url) => url.pathname === "/signed-out",
+    (route) => {
+      navigations += 1;
+      return route.abort("aborted");
+    },
+  );
+  await mount(<PersonaYouSheetStory />);
+
+  await page.getByTestId("account-logout").click();
+
+  await expect.poll(() => navigations).toBe(1);
+  expect(csrfHeader).toBe("1");
+});
+
 test("forward-header mode shows the proxy sign-out note instead of a Log out button (no cookie session)", async ({ mount, page }) => {
   await stub(page);
   await stubAuth(page, "forward-header");

@@ -9,7 +9,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { postSessionMessage } from "#lib";
+import { postSessionMessage, sessionDocument } from "#lib";
 
 /** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
 export interface AuthMe {
@@ -110,7 +110,7 @@ interface LogoutResult {
 export async function signOut(): Promise<void> {
   const { endSessionUrl } = await logout();
   postSessionMessage({ kind: "signed-out" });
-  globalThis.location.assign(endSessionUrl ?? "/login");
+  sessionDocument.assign(endSessionUrl ?? "/login");
 }
 
 /** Revoke the session + clear the cookie (idempotent server-side). The caller owns the post-logout

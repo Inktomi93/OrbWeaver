@@ -36,7 +36,7 @@
 // mounted yet, and the ladder correctly degrades to rung 2.
 
 import type { ChatId, Handle } from "@orb/kit/ids";
-import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "#lib";
+import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight, sessionDocument } from "#lib";
 import { fetchAuthMe } from "./auth-bootstrap.ts";
 import { fetchAuthConfig } from "./auth-config.ts";
 import { markSessionFresh } from "./session-freshness.ts";
@@ -88,7 +88,8 @@ function isUnauthorized(error: unknown): boolean {
 }
 
 function canNavigate(): boolean {
-  return typeof globalThis.location !== "undefined" && globalThis.location.pathname !== LOGIN_PATH;
+  const pathname = sessionDocument.currentPathname();
+  return pathname !== null && pathname !== LOGIN_PATH;
 }
 
 /** Order a whole-document navigation, exactly once. */
@@ -97,7 +98,7 @@ function navigateTo(path: string): void {
     return;
   }
   navigated = true;
-  globalThis.location.assign(path);
+  sessionDocument.assign(path);
 }
 
 /** Rung 2 — the interactive-login reset, broadcast so sibling tabs land with it instead of stampeding. */

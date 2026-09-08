@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 const MODULE = "../../../packages/client/src/data/stale-session.ts";
+const DOCUMENT_HOST_MODULE = "../../../packages/client/src/lib/session-document-host.ts";
 const UNAUTHORIZED = { data: { code: "UNAUTHORIZED" } };
 const OWNER = castId<Handle>("owner");
 const SOMEONE_ELSE = castId<Handle>("someone-else");
@@ -71,7 +72,13 @@ async function ladderFor(scenario: Scenario): Promise<{ readonly ladder: Ladder;
   vi.stubGlobal("sessionStorage", undefined);
 
   const assign = vi.fn();
-  vi.stubGlobal("location", { pathname: scenario.pathname ?? "/", assign });
+  const documentHost = await import(DOCUMENT_HOST_MODULE);
+  documentHost.bindSessionDocumentHost({
+    currentPathname: (): string => scenario.pathname ?? "/",
+    assign,
+    isVisible: (): false => false,
+    subscribeVisibility: (): (() => void) => (): void => undefined,
+  });
 
   let authMeCalls = 0;
   vi.stubGlobal(
