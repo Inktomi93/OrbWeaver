@@ -3383,6 +3383,122 @@
         }
       ],
       "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-appearance-boot-split.md",
+      "assignedSha256": "d958fd4a55c765a03c5e8611c5e13d42ca6d363b33709cc54c868281d6c0f163",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d958fd4a55c765a03c5e8611c5e13d42ca6d363b33709cc54c868281d6c0f163",
+      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+      ],
+      "claims": [
+        {
+          "claim": "The appearance DOM writer moved to composition with pre-paint semantics and carrier-gate coverage preserved.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/state/appearance-boot-hint.ct.tsx:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
+            }
+          ]
+        }
+      ],
+      "summary": "The appearance DOM writer moved to composition with pre-paint semantics and carrier-gate coverage preserved."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-session-document-host.md",
+      "assignedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
+      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+      ],
+      "claims": [
+        {
+          "claim": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/lib/session-document-host.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-symbol-routing.md",
+      "assignedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
+      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+      ],
+      "claims": [
+        {
+          "claim": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/codemod/lib/imports.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
+            }
+          ]
+        }
+      ],
+      "summary": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-codemod-authored-programs.md",
+      "assignedSha256": "cda825d0ba4fd291b3d841c503fe8d23d00f412021282ba16d8290fbb5c22be3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cda825d0ba4fd291b3d841c503fe8d23d00f412021282ba16d8290fbb5c22be3",
+      "verifiedCommit": "4c846987b129ecaa342557a3b3c7789d39d832da",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full review read at 4c846987b129ecaa342557a3b3c7789d39d832da; 24 diagnostic regressions, exact sparse-closure probe and real zero-diagnostic scroll preview verified."
+      ],
+      "claims": [
+        {
+          "claim": "Codemod diagnostics preserve actual authored roots and native import closures during migration, while honoring declaration options and refusing invalid destination worlds.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:4c846987b129ecaa342557a3b3c7789d39d832da"
+            }
+          ]
+        }
+      ],
+      "summary": "Codemod diagnostics preserve actual authored roots and native import closures during migration, while honoring declaration options and refusing invalid destination worlds."
     }
   ]
 }

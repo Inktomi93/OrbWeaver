@@ -4334,10 +4334,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "01b28a6e716c236062c9dee1de753c4a4bd8532976ad021b9b8c5f21a195295e",
-      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedSha256": "46f9885c179e39f71cdd510454bf404e657f52f42ae134ced9691f02525d17ff",
+      "verifiedCommit": "4c846987b129ecaa342557a3b3c7789d39d832da",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
         "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
         "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
         "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
@@ -4358,7 +4359,7 @@
             },
             {
               "kind": "provenance",
-              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+              "target": "git:4c846987b129ecaa342557a3b3c7789d39d832da"
             },
             {
               "kind": "issue",
