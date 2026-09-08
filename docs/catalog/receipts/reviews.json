@@ -3561,6 +3561,120 @@
         }
       ],
       "summary": "Native source filename overlays, actual destination ownership and full affected-program diagnostics reviewed; all four reproduced defect families repaired and cold verified."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-forms-editor-ownership-split.md",
+      "assignedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "Independent forms re-review closes the three ownership, regression and documentation findings.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent forms re-review closes the three ownership, regression and documentation findings."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
+      "assignedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection."
+    },
+    {
+      "path": "docs/reviews/trpc-walled-garden-2026-09-08.md",
+      "assignedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations."
+    },
+    {
+      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
+      "assignedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+      "verifiedCommit": "21f62021f60f9ae53e0f30a0ca4e4f993bb64e10",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full report read and root disposition checked at 21f62021f60f9ae53e0f30a0ca4e4f993bb64e10; the surviving DiscoveryService.themes coverage row is explicitly retained."
+      ],
+      "claims": [
+        {
+          "claim": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ast/ops/wiring.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#1891"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:21f62021f60f9ae53e0f30a0ca4e4f993bb64e10"
+            }
+          ]
+        }
+      ],
+      "summary": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction."
     }
   ]
 }

@@ -864,15 +864,16 @@
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "901d620fed984eddfd0c202b95d2e8a7f8b1774edcf0e9078bbe1c2db3f682b3",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "ccb5087e4df04985b41c21b2e964abbda55ea7ac8c8b9791207a18b9b6996aac",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
       "evidence": [
+        "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "docs/architecture/proposed/autosave-form-doctrine.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:27 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27.",
+      "summary": "The autosave doctrine names the current editor-owned factory without changing its persistence or validation behavior.",
       "claims": [
         {
           "claim": "Committed autosave-form future-program inventory is tracked by #16; it is not current implementation authority and must be revalidated at activation.",
@@ -897,6 +898,27 @@
             {
               "kind": "ruling",
               "target": "D139"
+            }
+          ]
+        },
+        {
+          "claim": "The autosave doctrine names the current editor-owned factory without changing its persistence or validation behavior.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            },
+            {
+              "kind": "issue",
+              "target": "#1861"
             }
           ]
         }
@@ -4334,10 +4356,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
-      "verifiedCommit": "f2d3f1ddcd1ed5862b282a320f032f0957402ffa",
+      "verifiedSha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
         "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
         "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
@@ -4349,7 +4372,7 @@
         "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
         "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
       ],
-      "summary": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
+      "summary": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
       "claims": [
         {
           "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
@@ -4369,6 +4392,27 @@
             {
               "kind": "issue",
               "target": "#1351"
+            }
+          ]
+        },
+        {
+          "claim": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            },
+            {
+              "kind": "issue",
+              "target": "#1861"
             }
           ]
         }

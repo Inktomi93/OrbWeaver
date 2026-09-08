@@ -174,10 +174,11 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "fe59c5d80f3df3ea46b2fee602422ad1395770fc0c8781b46285049f6796be2e",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+      "verifiedSha256": "ee18722adf1f241ad35bf92d714e802c0827dfe0d9fab4f610a174b6d20d54e7",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "#1844 (cb-push-reds): the last bare SERIAL_INT cite struck (~~SERIAL_INT~~) per dangling-refs arm 4; row re-read against the #1842 split names",
@@ -299,9 +300,30 @@
               "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
             }
           ]
+        },
+        {
+          "claim": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            },
+            {
+              "kind": "issue",
+              "target": "#1861"
+            }
+          ]
         }
       ],
-      "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
+      "summary": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -1044,10 +1066,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
-      "verifiedCommit": "aab83d0a20bfc3da3417afbc0d8c38c744ffcd8e",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "1068558e243e63c1734eaf2f62a9a72e9fcaf6be9f56407d4196946a1323b657",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
       "evidence": [
+        "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "aab83d0a2 (#1794 cb-shell-stacking §3 + §4.1a; #1795 cb-vt-floats §4a/§6.1 — the stacking scope and the content-float lifetime contract) — re-attested at the fold",
         "b51080bbd (#1801 cb-shell-law-line: the rail line no longer names the retired Theme modal trigger as rail.end; modal triggers derive by placement, none rail.end today) — re-attested at the fold",
         "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
@@ -1069,9 +1092,30 @@
               "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
             }
           ]
+        },
+        {
+          "claim": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            },
+            {
+              "kind": "issue",
+              "target": "#1861"
+            }
+          ]
         }
       ],
-      "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
+      "summary": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components."
     },
     {
       "path": "docs/architecture/core/UI-Density-Law.md",

@@ -449,9 +449,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 408,
-      "bytes": 253753,
-      "sha256": "fe59c5d80f3df3ea46b2fee602422ad1395770fc0c8781b46285049f6796be2e",
+      "lines": 413,
+      "bytes": 254180,
+      "sha256": "ee18722adf1f241ad35bf92d714e802c0827dfe0d9fab4f610a174b6d20d54e7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -468,10 +468,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "fe59c5d80f3df3ea46b2fee602422ad1395770fc0c8781b46285049f6796be2e",
-        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedSha256": "ee18722adf1f241ad35bf92d714e802c0827dfe0d9fab4f610a174b6d20d54e7",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1844 (cb-push-reds): the last bare SERIAL_INT cite struck (~~SERIAL_INT~~) per dangling-refs arm 4; row re-read against the #1842 split names",
@@ -593,9 +594,30 @@
                 "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
               }
             ]
+          },
+          {
+            "claim": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              },
+              {
+                "kind": "issue",
+                "target": "#1861"
+              }
+            ]
           }
         ],
-        "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
+        "summary": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration."
       },
       "receiptCurrent": true
     },
@@ -1737,16 +1759,16 @@
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 468,
-      "bytes": 65416,
-      "sha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
+      "lines": 469,
+      "bytes": 65509,
+      "sha256": "1068558e243e63c1734eaf2f62a9a72e9fcaf6be9f56407d4196946a1323b657",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -1756,10 +1778,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
-        "verifiedCommit": "aab83d0a20bfc3da3417afbc0d8c38c744ffcd8e",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "1068558e243e63c1734eaf2f62a9a72e9fcaf6be9f56407d4196946a1323b657",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "aab83d0a2 (#1794 cb-shell-stacking §3 + §4.1a; #1795 cb-vt-floats §4a/§6.1 — the stacking scope and the content-float lifetime contract) — re-attested at the fold",
           "b51080bbd (#1801 cb-shell-law-line: the rail line no longer names the retired Theme modal trigger as rail.end; modal triggers derive by placement, none rail.end today) — re-attested at the fold",
           "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
@@ -1781,9 +1804,30 @@
                 "target": "packages/ui/src/primitives/dialog/dialog.tsx:18"
               }
             ]
+          },
+          {
+            "claim": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              },
+              {
+                "kind": "issue",
+                "target": "#1861"
+              }
+            ]
           }
         ],
-        "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
+        "summary": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components."
       },
       "receiptCurrent": true
     },
@@ -5958,8 +6002,8 @@
       "lane": "architecture-proposed",
       "issue": 4,
       "lines": 280,
-      "bytes": 20856,
-      "sha256": "901d620fed984eddfd0c202b95d2e8a7f8b1774edcf0e9078bbe1c2db3f682b3",
+      "bytes": 20851,
+      "sha256": "ccb5087e4df04985b41c21b2e964abbda55ea7ac8c8b9791207a18b9b6996aac",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -5976,15 +6020,16 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "901d620fed984eddfd0c202b95d2e8a7f8b1774edcf0e9078bbe1c2db3f682b3",
-        "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "ccb5087e4df04985b41c21b2e964abbda55ea7ac8c8b9791207a18b9b6996aac",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "docs/architecture/proposed/autosave-form-doctrine.md:1 (full read; lifecycle/frontmatter evaluated)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
           "docs/architecture/proposed/INDEX.md:27 (FUTURE disposition and stated wake/dependencies)"
         ],
-        "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27.",
+        "summary": "The autosave doctrine names the current editor-owned factory without changing its persistence or validation behavior.",
         "claims": [
           {
             "claim": "Committed autosave-form future-program inventory is tracked by #16; it is not current implementation authority and must be revalidated at activation.",
@@ -6009,6 +6054,27 @@
               {
                 "kind": "ruling",
                 "target": "D139"
+              }
+            ]
+          },
+          {
+            "claim": "The autosave doctrine names the current editor-owned factory without changing its persistence or validation behavior.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              },
+              {
+                "kind": "issue",
+                "target": "#1861"
               }
             ]
           }
@@ -10784,9 +10850,9 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 109,
-      "bytes": 13197,
-      "sha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
+      "lines": 117,
+      "bytes": 14599,
+      "sha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10803,10 +10869,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
-        "verifiedCommit": "f2d3f1ddcd1ed5862b282a320f032f0957402ffa",
+        "verifiedSha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
           "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
           "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
@@ -10818,7 +10885,7 @@
           "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
           "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
         ],
-        "summary": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
+        "summary": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
         "claims": [
           {
             "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
@@ -10838,6 +10905,27 @@
               {
                 "kind": "issue",
                 "target": "#1351"
+              }
+            ]
+          },
+          {
+            "claim": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/client-pure-doors.test-d.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              },
+              {
+                "kind": "issue",
+                "target": "#1861"
               }
             ]
           }
@@ -34929,6 +35017,52 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-08-forms-editor-ownership-split.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 131,
+      "bytes": 8280,
+      "sha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-forms-editor-ownership-split.md",
+        "assignedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedAt": "2026-09-08",
+        "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+        "claims": [
+          {
+            "claim": "Independent forms re-review closes the three ownership, regression and documentation findings.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              }
+            ]
+          }
+        ],
+        "summary": "Independent forms re-review closes the three ownership, regression and documentation findings."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-08-native-compiler-overlay.md",
       "lane": "reviews",
       "issue": 7,
@@ -35077,6 +35211,52 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 106,
+      "bytes": 7037,
+      "sha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
+        "assignedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedAt": "2026-09-08",
+        "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+        "claims": [
+          {
+            "claim": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              }
+            ]
+          }
+        ],
+        "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
       "lane": "reviews",
       "issue": 7,
@@ -35121,6 +35301,104 @@
           }
         ],
         "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 98,
+      "bytes": 15868,
+      "sha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
+        "assignedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+        "verifiedCommit": "21f62021f60f9ae53e0f30a0ca4e4f993bb64e10",
+        "verifiedAt": "2026-09-08",
+        "evidence": [
+          "Full report read and root disposition checked at 21f62021f60f9ae53e0f30a0ca4e4f993bb64e10; the surviving DiscoveryService.themes coverage row is explicitly retained."
+        ],
+        "claims": [
+          {
+            "claim": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/ast/ops/wiring.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#1891"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:21f62021f60f9ae53e0f30a0ca4e4f993bb64e10"
+              }
+            ]
+          }
+        ],
+        "summary": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/trpc-walled-garden-2026-09-08.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 217,
+      "bytes": 33298,
+      "sha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/trpc-walled-garden-2026-09-08.md",
+        "assignedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedAt": "2026-09-08",
+        "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+        "claims": [
+          {
+            "claim": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              }
+            ]
+          }
+        ],
+        "summary": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations."
       },
       "receiptCurrent": true
     },
