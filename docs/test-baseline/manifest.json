@@ -2350,6 +2350,7 @@
     "tests/tooling/verify/lib/near-cap.test.ts",
     "tests/tooling/verify/lib/ordinary-waiver.test.ts",
     "tests/tooling/verify/lib/origin-verdict.test.ts",
+    "tests/tooling/verify/lib/pass.test.ts",
     "tests/tooling/verify/lib/policy-command.test.ts",
     "tests/tooling/verify/lib/policy-loader.test.ts",
     "tests/tooling/verify/lib/policy-pass-readers.suite.test.ts",
