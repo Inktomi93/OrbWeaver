@@ -173,8 +173,8 @@ export interface CodemodResult {
  *     preview, so the operator would review an incomplete change)
  *   - Catching ts-morph manipulation errors (which leave the project in a
  *     bad state) and refusing to save when one happens
- *   - Post-transform diagnostics in each affected file's authored compiler program, including
- *     unchanged TypeScript-resolved consumers (catch broken TS before it hits disk)
+ *   - Full native post-transform diagnostics in every authored compiler program reached by affected files,
+ *     including unchanged TypeScript-resolved consumers (catch broken closure TS before it hits disk)
  *   - Per-file diff rendering for the preview
  *
  * Pass `name` for the log header. Pass `setup` to customize the project.

@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 584,
-    "enforced": 579,
+    "sites": 587,
+    "enforced": 582,
     "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 563,
+      "deliberate-absorb": 566,
       "detached-owned": 5,
       "unproven": 16
     },
     "byGrammar": {
       "promise": 143,
-      "default": 158,
-      "empty": 283
+      "default": 159,
+      "empty": 285
     }
   },
   "rows": [
@@ -4945,6 +4945,19 @@
       "markerLine": 79
     },
     {
+      "siteId": "tooling/src/codemod/lib/program-consumers.ts::default:catch::1",
+      "path": "tooling/src/codemod/lib/program-consumers.ts",
+      "line": 35,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unresolvable or escaping compiler probe is",
+      "markerLine": 29
+    },
+    {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::promise:detach::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
       "line": 86,
@@ -7088,6 +7101,32 @@
       "verdict": "deliberate-absorb",
       "reason": "returns undefined, which measure() routes into `toolError` — a tsgo/config failure is a tool error, not a clean parity verdict (per the doc comment above). Ends if measure() stops reading undefined as a tool error.",
       "markerLine": 43
+    },
+    {
+      "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::empty:catch::1",
+      "path": "tooling/src/verify/lib/compiler-source-filename-overlay.ts",
+      "line": 108,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys.readDirectory treats an unreadable",
+      "markerLine": 104
+    },
+    {
+      "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::empty:catch::2",
+      "path": "tooling/src/verify/lib/compiler-source-filename-overlay.ts",
+      "line": 121,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "native ts.sys directory reads skip dangling",
+      "markerLine": 117
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",

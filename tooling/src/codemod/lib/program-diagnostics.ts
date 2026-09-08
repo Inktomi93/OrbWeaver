@@ -8,7 +8,7 @@ import type { CompilerProgram } from "#verify";
 import type { FileSnapshot, ProgramDiagnosticBaseline } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 import { physicalPathIdentity, repoRelative } from "./plans.ts";
-import { hasGlobalEffect, repoAbsolute, scriptKind } from "./program-consumers.ts";
+import { repoPhysicalIdentity, scriptKind } from "./program-consumers.ts";
 
 interface DiagnosticScope {
   readonly rootAdditionsByProgram: ReadonlyMap<string, ReadonlySet<string>>;
@@ -46,15 +46,28 @@ function addProgramPath(pathsByProgram: Map<string, Set<string>>, programId: str
   pathsByProgram.set(programId, paths);
 }
 
-function relocatedProgramIds(relativePath: string, originalRelativePath: string, available: ReadonlySet<string>): readonly string[] {
-  const intended = predictedProgram(relativePath);
-  if (intended === undefined || !available.has(intended)) {
+function addProgramRoot(rootsByPath: Map<string, string[]>, programId: string, file: string, repoRoot: string): void {
+  const identities = new Set([file, repoRelative(physicalPathIdentity(resolve(repoRoot, file), repoRoot), repoRoot)]);
+  for (const identity of identities) {
+    const owners = rootsByPath.get(identity) ?? [];
+    if (!owners.includes(programId)) {
+      owners.push(programId);
+    }
+    rootsByPath.set(identity, owners);
+  }
+}
+
+function strictPostRootProgramIds(relativePath: string, subject: string, rooted: readonly string[]): readonly string[] {
+  if (rooted.length === 0) {
+    throw new CodemodError(`No authored compiler program owns ${subject} ${relativePath}.`, "The post-transform authored config roots do not include it.");
+  }
+  if (requiresExclusiveRoot(relativePath) && rooted.length > 1) {
     throw new CodemodError(
-      `No authored compiler program owns moved destination ${relativePath}.`,
-      `Move it to a path with a declared compiler world; previous path was ${originalRelativePath}.`,
+      `Conflicting compiler ownership for ${relativePath}: rooted=${rooted.join(", ")}.`,
+      "A moved test/harness destination must have exactly one post-transform authored root owner.",
     );
   }
-  return [intended];
+  return rooted;
 }
 
 /** Existing exclusive roots are current authored truth during a staged migration; the predictive world
@@ -82,7 +95,7 @@ function exclusiveProgramIds(opts: {
   }
   throw new CodemodError(
     `Conflicting compiler ownership for ${relativePath}: intended=${intended ?? "none"}, rooted=none.`,
-    "An existing test/harness path must have one rooted compiler owner; intended ownership is used only when no authored root owns a new destination.",
+    "An unchanged existing test/harness path must have one rooted compiler owner; intended ownership is the final fallback only when no authored root or containing closure owns that existing path.",
   );
 }
 
@@ -115,16 +128,20 @@ function rootedProgramIds(opts: {
 function programIdsForPath(opts: {
   relativePath: string;
   originalRelativePath?: string;
+  created: boolean;
   programs: readonly CompilerProgram[];
   programsByRootFile: ReadonlyMap<string, readonly string[]>;
   containingProgramIds: readonly string[];
 }): readonly string[] {
-  const { relativePath, originalRelativePath, programs, programsByRootFile, containingProgramIds } = opts;
+  const { relativePath, originalRelativePath, created, programs, programsByRootFile, containingProgramIds } = opts;
   const available = new Set(programs.map((program) => program.id));
-  if (originalRelativePath !== undefined) {
-    return relocatedProgramIds(relativePath, originalRelativePath, available);
-  }
   const actual = programsByRootFile.get(relativePath) ?? [];
+  if (originalRelativePath !== undefined) {
+    return strictPostRootProgramIds(relativePath, "moved destination", actual);
+  }
+  if (created) {
+    return strictPostRootProgramIds(relativePath, "created path", actual);
+  }
   return rootedProgramIds({ relativePath, actual, containing: containingProgramIds, intended: predictedProgram(relativePath), available });
 }
 
@@ -147,9 +164,7 @@ function diagnosticScope(opts: {
   const programsByRootFile = new Map<string, string[]>();
   for (const program of programs) {
     for (const file of program.files) {
-      const owners = programsByRootFile.get(file) ?? [];
-      owners.push(program.id);
-      programsByRootFile.set(file, owners);
+      addProgramRoot(programsByRootFile, program.id, file, repoRoot);
     }
   }
   const rootAdditionsByProgram = new Map<string, Set<string>>();
@@ -159,9 +174,11 @@ function diagnosticScope(opts: {
     affected.add(absolutePath);
     const relativePath = repoRelative(absolutePath, repoRoot);
     const original = relocations.get(absolutePath);
+    const created = snapshots.get(absolutePath)?.wasCreated === true && original === undefined;
     const ids = programIdsForPath({
       relativePath,
       ...(original !== undefined ? { originalRelativePath: repoRelative(original, repoRoot) } : {}),
+      created,
       programs,
       programsByRootFile,
       containingProgramIds: [...(containingProgramIdsByPath.get(physicalPathIdentity(absolutePath, repoRoot)) ?? [])],
@@ -173,7 +190,8 @@ function diagnosticScope(opts: {
   const deletedPaths = new Set([...snapshots.keys()].filter((path) => !currentByPath.has(path)));
   const fullProgramIds = new Set<string>();
   for (const path of affected) {
-    for (const programId of globalProgramIdsByPath.get(physicalPathIdentity(path, repoRoot)) ?? []) {
+    const baselinePath = relocations.get(path) ?? path;
+    for (const programId of globalProgramIdsByPath.get(physicalPathIdentity(baselinePath, repoRoot)) ?? []) {
       fullProgramIds.add(programId);
     }
   }
@@ -183,7 +201,10 @@ function diagnosticScope(opts: {
 function transformedOverlay(project: Project, repoRoot: string): ReadonlyMap<string, string> {
   const entries = new Map<string, { readonly text: string; readonly changed: boolean }>();
   for (const sourceFile of project.getSourceFiles()) {
-    const identity = physicalPathIdentity(sourceFile.getFilePath(), repoRoot);
+    const identity = repoPhysicalIdentity(sourceFile.getFilePath(), repoRoot);
+    if (identity === undefined) {
+      continue;
+    }
     const changed = !sourceFile.isSaved();
     const existing = entries.get(identity);
     if (existing?.changed === true && !changed) {
@@ -215,23 +236,26 @@ function transformedCompilerHost(opts: { project: Project; program: CompilerProg
   const baseReadFile = host.readFile.bind(host);
   const baseGetSourceFile = host.getSourceFile.bind(host);
   const baseDirectoryExists = host.directoryExists?.bind(host);
+  const baseRealpath = host.realpath?.bind(host);
+  const authoredIdentity = (fileName: string): string | undefined => repoPhysicalIdentity(fileName, repoRoot);
   host.fileExists = (fileName): boolean => {
-    const authored = repoAbsolute(fileName, repoRoot);
-    const identity = authored === undefined ? undefined : physicalPathIdentity(authored, repoRoot);
+    const identity = authoredIdentity(fileName);
     return (identity === undefined || !deleted.has(identity)) && (identity !== undefined && overlay.has(identity) ? true : baseFileExists(fileName));
   };
   host.readFile = (fileName): string | undefined => {
-    const authored = repoAbsolute(fileName, repoRoot);
-    const identity = authored === undefined ? undefined : physicalPathIdentity(authored, repoRoot);
+    const identity = authoredIdentity(fileName);
     if (identity !== undefined && deleted.has(identity)) {
       return;
     }
     return (identity === undefined ? undefined : overlay.get(identity)) ?? baseReadFile(fileName);
   };
-  host.directoryExists = (directoryName): boolean => virtualDirectories.has(resolve(directoryName)) || baseDirectoryExists?.(directoryName) === true;
+  host.directoryExists = (directoryName): boolean => {
+    const identity = authoredIdentity(directoryName);
+    return (identity !== undefined && virtualDirectories.has(identity)) || baseDirectoryExists?.(directoryName) === true;
+  };
+  host.realpath = (fileName): string => authoredIdentity(fileName) ?? baseRealpath?.(fileName) ?? fileName;
   host.getSourceFile = (fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile): ts.SourceFile | undefined => {
-    const authored = repoAbsolute(fileName, repoRoot);
-    const identity = authored === undefined ? undefined : physicalPathIdentity(authored, repoRoot);
+    const identity = authoredIdentity(fileName);
     if (identity !== undefined && deleted.has(identity)) {
       return;
     }
@@ -266,26 +290,12 @@ function hasLocation(diagnostic: ts.Diagnostic): diagnostic is ts.DiagnosticWith
   return file !== undefined && start !== undefined && length !== undefined;
 }
 
-function affectedProgramSources(
-  program: ts.Program,
-  affectedPaths: ReadonlySet<string>,
-  repoRoot: string,
-  forceFullProgram: boolean,
-): readonly ts.SourceFile[] {
-  const sourceByPhysicalPath = new Map(
-    program.getSourceFiles().flatMap((sourceFile) => {
-      const authored = repoAbsolute(sourceFile.fileName, repoRoot);
-      return authored === undefined ? [] : [[physicalPathIdentity(authored, repoRoot), sourceFile] as const];
-    }),
-  );
-  const affected = [...affectedPaths].flatMap((path) => {
-    const sourceFile = sourceByPhysicalPath.get(physicalPathIdentity(path, repoRoot));
-    return sourceFile === undefined ? [] : [sourceFile];
+function programContainsAffectedPath(program: ts.Program, affectedPaths: ReadonlySet<string>, repoRoot: string): boolean {
+  const affected = new Set([...affectedPaths].map((path) => physicalPathIdentity(path, repoRoot)));
+  return program.getSourceFiles().some((sourceFile) => {
+    const identity = repoPhysicalIdentity(sourceFile.fileName, repoRoot);
+    return identity !== undefined && affected.has(identity);
   });
-  if (!(forceFullProgram || affected.some(hasGlobalEffect))) {
-    return affected;
-  }
-  return program.getSourceFiles().filter((sourceFile) => repoAbsolute(sourceFile.fileName, repoRoot) !== undefined);
 }
 
 function collectProgramErrors(opts: {
@@ -296,7 +306,9 @@ function collectProgramErrors(opts: {
 }): ReadonlyMap<string, string> {
   const { compilerProgram, scope, project, repoRoot } = opts;
   const rootAdditions = scope.rootAdditionsByProgram.get(compilerProgram.id) ?? [];
-  const rootNames = [...new Set([...compilerProgram.commandLine.fileNames.filter((path) => !scope.deletedPaths.has(resolve(path))), ...rootAdditions])];
+  const configuredRoots = compilerProgram.commandLine.fileNames.filter((path) => !scope.deletedPaths.has(resolve(path)));
+  const configuredIdentities = new Set(configuredRoots.map((path) => physicalPathIdentity(path, repoRoot)));
+  const rootNames = [...configuredRoots, ...[...rootAdditions].filter((path) => !configuredIdentities.has(physicalPathIdentity(path, repoRoot)))];
   const host = transformedCompilerHost({ project, program: compilerProgram, deletedPaths: scope.deletedPaths, repoRoot });
   const program = ts.createProgram({
     rootNames,
@@ -306,25 +318,27 @@ function collectProgramErrors(opts: {
     configFileParsingDiagnostics: compilerProgram.commandLine.errors,
   });
   const errors = new Map<string, string>();
-  for (const sourceFile of affectedProgramSources(program, scope.affectedPaths, repoRoot, scope.fullProgramIds.has(compilerProgram.id))) {
-    // Match TypeScript's authored pre-emit contract: declaration portability is checked only when the
-    // program enables declaration/composite output, even when `noEmit` is also set.
-    const diagnostics = ts.getPreEmitDiagnostics(program, sourceFile);
-    for (const diagnostic of diagnostics) {
-      if (diagnostic.category !== ts.DiagnosticCategory.Error || !hasLocation(diagnostic)) {
-        continue;
-      }
-      errors.set(
-        errorIdentity(compilerProgram.id, diagnostic),
-        `${compilerProgram.id}: ${repoRelative(diagnostic.file.fileName, repoRoot)}@${diagnostic.start} TS${diagnostic.code} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`,
-      );
+  if (!(scope.fullProgramIds.has(compilerProgram.id) || programContainsAffectedPath(program, scope.affectedPaths, repoRoot))) {
+    return errors;
+  }
+  // One native verdict over the affected program keeps conditional exports, resolution attributes,
+  // path/type references and every imported closure in TypeScript's own dependency vocabulary.
+  for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
+    if (diagnostic.category !== ts.DiagnosticCategory.Error) {
+      continue;
     }
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+    const location = hasLocation(diagnostic) ? `${repoRelative(diagnostic.file.fileName, repoRoot)}@${diagnostic.start}` : "<program>";
+    const identity = hasLocation(diagnostic)
+      ? errorIdentity(compilerProgram.id, diagnostic)
+      : `${compilerProgram.id}\0<program>\0${diagnostic.code}\0${message}`;
+    errors.set(identity, `${compilerProgram.id}: ${location} TS${diagnostic.code} ${message}`);
   }
   return errors;
 }
 
-/** Count post-transform TypeScript errors in the files and real consumers affected by the transform,
- *  under each authored compiler program that owns those paths. */
+/** Count the full native post-transform TypeScript errors in every authored compiler program reached by
+ *  a changed path, its pre-transform consumers, or a global-effect source. */
 export function countProgramDiagnostics(opts: {
   project: Project;
   snapshots: ReadonlyMap<string, FileSnapshot>;
@@ -332,12 +346,12 @@ export function countProgramDiagnostics(opts: {
   affectedPaths: ReadonlySet<string>;
   repoRoot: string;
   baseline: ProgramDiagnosticBaseline;
+  postPrograms: readonly CompilerProgram[];
 }): number {
-  const { project, snapshots, relocations, affectedPaths, repoRoot, baseline } = opts;
+  const { project, snapshots, relocations, affectedPaths, repoRoot, baseline, postPrograms } = opts;
   if (snapshots.size === 0) {
     return 0;
   }
-  const { programs } = baseline;
   const scope = diagnosticScope({
     project,
     snapshots,
@@ -346,10 +360,10 @@ export function countProgramDiagnostics(opts: {
     globalProgramIdsByPath: baseline.globalProgramIdsByPath,
     containingProgramIdsByPath: baseline.containingProgramIdsByPath,
     repoRoot,
-    programs,
+    programs: postPrograms,
   });
   const errors = new Map<string, string>();
-  for (const compilerProgram of programs) {
+  for (const compilerProgram of postPrograms) {
     for (const [identity, detail] of collectProgramErrors({ compilerProgram, scope, project, repoRoot })) {
       errors.set(identity, detail);
     }

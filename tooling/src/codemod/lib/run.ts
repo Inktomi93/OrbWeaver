@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import type { Project, SourceFile } from "ts-morph";
-import type { CompilerProgram } from "#verify";
+import type { CompilerProgram, CompilerSourceOverlay } from "#verify";
 import { print } from "../../_shared/artifacts.ts";
 import { warn } from "../../_shared/log.ts";
 import type { CodemodContext, CodemodResult, FileSnapshot, Plan, RunCodemodOptions } from "../contract/types.ts";
@@ -16,7 +16,7 @@ import { countProgramDiagnostics } from "./program-diagnostics.ts";
 import { createCodemodProject } from "./project.ts";
 
 type DiagnosticBaseline = ReturnType<typeof createProgramDiagnosticBaseline>;
-type CompilerProgramReader = (repoRoot: string) => readonly CompilerProgram[];
+type CompilerProgramReader = (repoRoot: string, overlay?: CompilerSourceOverlay) => readonly CompilerProgram[];
 
 /** Reconcile the `--apply` / `--dry-run` CLI flags (and the `forceApply` escape hatch) into a
  *  single dry-run flag. Throws if both flags were passed — they're mutually exclusive. */
@@ -177,6 +177,14 @@ function actualChangedPaths(project: Project, ledger: MutationLedger): readonly 
   return [...changed];
 }
 
+function compilerSourceOverlay(project: Project, ledger: MutationLedger, repoRoot: string): CompilerSourceOverlay {
+  const current = new Set(project.getSourceFiles().map((sourceFile) => sourceFile.getFilePath()));
+  return {
+    addedPaths: [...current].filter((path) => !ledger.baseline.has(path)).map((path) => repoRelative(path, repoRoot)),
+    deletedPaths: [...ledger.baseline.keys()].filter((path) => !current.has(path)).map((path) => repoRelative(path, repoRoot)),
+  };
+}
+
 function buildCodemodContext(opts: {
   project: Project;
   repoRoot: string;
@@ -227,9 +235,9 @@ function buildCodemodContext(opts: {
   return ctx;
 }
 
-/** Post-transform diagnostics. Routes transformed files and their real consumers through the
- *  authored compiler programs that own them, using in-memory bytes so disk stays untouched until
- *  the verdict. Throws if applying (not dry-run) and any diagnostics were found. */
+/** Post-transform diagnostics. Routes transformed files and their real consumers through the authored
+ *  compiler programs that own them, then runs each affected program's full native diagnostics against
+ *  in-memory bytes so disk stays untouched until the verdict. */
 function checkDiagnostics(opts: {
   project: Project;
   snapshots: ReadonlyMap<string, FileSnapshot>;
@@ -239,8 +247,9 @@ function checkDiagnostics(opts: {
   options: RunCodemodOptions;
   argv: readonly string[];
   baseline?: DiagnosticBaseline;
+  postPrograms?: readonly CompilerProgram[];
 }): number {
-  const { project, snapshots, ledger, repoRoot, isDryRun, options, argv, baseline } = opts;
+  const { project, snapshots, ledger, repoRoot, isDryRun, options, argv, baseline, postPrograms } = opts;
   // Skip via the per-script option OR the `--no-diagnostics-check` CLI flag. The flag is the
   // run-time opt-out for codemods that INTENTIONALLY leave a residual cascade frontier (e.g. a
   // per-entity TypeID pass that clears the mechanical bulk and leaves the edges for a follow-up
@@ -251,6 +260,9 @@ function checkDiagnostics(opts: {
     if (baseline === undefined) {
       throw new CodemodError("Diagnostics baseline was not captured before the codemod ran.", "The harness cannot establish pre-transform consumers safely.");
     }
+    if (postPrograms === undefined) {
+      throw new CodemodError("Post-transform compiler programs were not captured.", "The harness cannot establish moved and created path ownership safely.");
+    }
     diagnosticErrors = countProgramDiagnostics({
       project,
       snapshots,
@@ -258,6 +270,7 @@ function checkDiagnostics(opts: {
       affectedPaths: ledger.diagnosticPaths,
       repoRoot,
       baseline,
+      postPrograms,
     });
   }
   if (diagnosticErrors > 0) {
@@ -323,6 +336,10 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
   // invisibility, same refusal — with `ctx.snapshot(sf)` as the documented way to do it legitimately.
   assertPlanDeclaredItsMutations({ project, ledger, repoRoot, label: DIRECT_MUTATION_LABEL });
   assertUniquePhysicalMutationPaths(actualChangedPaths(project, ledger), repoRoot);
+  const postPrograms =
+    diagnosticBaseline !== undefined && readCompilerPrograms !== undefined
+      ? readCompilerPrograms(repoRoot, compilerSourceOverlay(project, ledger, repoRoot))
+      : undefined;
   const diagnosticErrors = checkDiagnostics({
     project,
     snapshots,
@@ -332,6 +349,7 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
     options,
     argv,
     ...(diagnosticBaseline !== undefined ? { baseline: diagnosticBaseline } : {}),
+    ...(postPrograms !== undefined ? { postPrograms } : {}),
   });
 
   // Render the diff summary.

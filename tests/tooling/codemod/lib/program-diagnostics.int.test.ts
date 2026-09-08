@@ -1,6 +1,7 @@
 // The codemod apply guard runs transformed bytes in their authored compiler world and includes real
 // consumers whose own text did not change. Every assertion drives the public runCodemod harness.
-import { existsSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, vi } from "vitest";
 import { createSourceFile, deleteFiles, moveFiles } from "../../../../tooling/src/codemod/index.ts";
@@ -89,6 +90,300 @@ describe("compiler-world diagnostics", () => {
     );
   });
 
+  test("an autosave type contract relocated within the DOM tree keeps its actual post-move owner", async () => {
+    const original = "export const title = document.title;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, include: ["tests/client/**/*.ts"] }),
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/client/forms/autosave-model.test-d.ts": original,
+      },
+      async ({ run, read }) => {
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan(moveFiles(ctx, [["tests/client/forms/autosave-model.test-d.ts", "tests/client/forms/editor/autosave-contract.test-d.ts"]]));
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("tests/client/forms/editor/autosave-contract.test-d.ts")).toBe(original);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a post-move root reached through an in-repo config alias owns the physical destination", async () => {
+    const original = "export const title = document.title;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, include: ["client-alias/**/*.ts"] }),
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/client/forms/autosave-model.test-d.ts": original,
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "tests/client"), join(root, "client-alias"), "dir");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan(moveFiles(ctx, [["tests/client/forms/autosave-model.test-d.ts", "tests/client/forms/editor/autosave-contract.test-d.ts"]]));
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("tests/client/forms/editor/autosave-contract.test-d.ts")).toBe(original);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("canonical and alias roots in one program count as one exclusive owner", async () => {
+    const original = "export const value = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/client/existing.ts", "client-alias/existing.ts"] }),
+        "tests/client/existing.ts": original,
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "tests/client"), join(root, "client-alias"), "dir");
+        const path = join(root, "tests/client/existing.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan({
+              description: "edit one physical test through its canonical root",
+              touchedFiles: [path],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(path).addStatements("export const added = 2;\n");
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("tests/client/existing.ts")).toContain("export const added = 2");
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a browser helper relocated into the Node root reports its real DOM error without writes", async () => {
+    const original = "export const title = document.title;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"], include: ["tests/support/node/**/*.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, include: ["tests/support/browser/**/*.ts"] }),
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/support/browser/helper.ts": original,
+      },
+      async ({ run, read, root }) => {
+        const plan = (ctx: Parameters<Parameters<typeof run>[0]>[0]): void => {
+          ctx.plan(moveFiles(ctx, [["tests/support/browser/helper.ts", "tests/support/node/helper.ts"]]));
+        };
+        const preview = await run(plan);
+        expect(preview.result).toMatchObject({ applied: false, diagnosticErrors: 1 });
+        expect(preview.output).toContain("TS2584");
+        await expect(run(plan, { apply: true })).rejects.toThrow("Refused to apply");
+        expect(read("tests/support/browser/helper.ts")).toBe(original);
+        expect(existsSync(join(root, "tests/support/node/helper.ts"))).toBe(false);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a moved test with no actual post-move root owner is refused", async () => {
+    const original = "export const value = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, include: ["tests/client/**/*.ts"] }),
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/client/original.test-d.ts": original,
+      },
+      async ({ run, read, root }) => {
+        await expect(
+          run((ctx) => {
+            ctx.plan(moveFiles(ctx, [["tests/client/original.test-d.ts", "tests/unowned/moved.test.ts"]]));
+          }),
+        ).rejects.toThrow("No authored compiler program owns moved destination tests/unowned/moved.test.ts");
+        expect(read("tests/client/original.test-d.ts")).toBe(original);
+        expect(existsSync(join(root, "tests/unowned/moved.test.ts"))).toBe(false);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a moved test with overlapping actual post-move roots is refused", async () => {
+    const original = "export const value = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/node-anchor.ts"], include: ["tests/shared/**/*.ts"] }),
+        "tsconfig.other.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/other-anchor.ts"], include: ["tests/shared/**/*.ts"] }),
+        "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, include: ["tests/client/**/*.ts"] }),
+        "tests/node-anchor.ts": "export const node = 1;\n",
+        "tests/other-anchor.ts": "export const other = 1;\n",
+        "tests/client/original.test-d.ts": original,
+      },
+      async ({ run, read, root }) => {
+        await expect(
+          run((ctx) => {
+            ctx.plan(moveFiles(ctx, [["tests/client/original.test-d.ts", "tests/shared/moved.test.ts"]]));
+          }),
+        ).rejects.toThrow("Conflicting compiler ownership");
+        expect(read("tests/client/original.test-d.ts")).toBe(original);
+        expect(existsSync(join(root, "tests/shared/moved.test.ts"))).toBe(false);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a created file excluded from every post-transform root is refused without writes", async () => {
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/anchor.ts"] }),
+        "tests/anchor.ts": "export const anchor = 1;\n",
+      },
+      async ({ run, root }) => {
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan(createSourceFile(ctx, "tests/unowned.ts", "export const value: number = 1;\n"));
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("No authored compiler program owns created path tests/unowned.ts");
+        expect(existsSync(join(root, "tests/unowned.ts"))).toBe(false);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a created file included by an actual post-transform root applies", async () => {
+    await withTree(
+      {
+        "tsconfig.json": config(NODE_OPTIONS, ["tests/**/*.ts"]),
+        "tests/anchor.ts": "export const anchor = 1;\n",
+      },
+      async ({ run, read }) => {
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan(createSourceFile(ctx, "tests/included.ts", "export const value: number = 1;\n"));
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, filesCreated: 1, diagnosticErrors: 0 });
+        expect(read("tests/included.ts")).toBe("export const value: number = 1;\n");
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("an existing source excluded as a root is still diagnosed through a post-transform import closure", async () => {
+    const consumer = "export const before = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/consumer.ts"] }),
+        "packages/client/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/anchor.ts"] }),
+        "packages/client/src/anchor.ts": "export const anchor = 1;\n",
+        "packages/client/src/excluded.ts": "export const title = document.title;\n",
+        "tests/consumer.ts": consumer,
+      },
+      async ({ run, read, root }) => {
+        const consumerPath = join(root, "tests/consumer.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "import the virtual browser leaf from the Node root",
+                touchedFiles: [consumerPath],
+                transform(inner): void {
+                  inner.project
+                    .getSourceFileOrThrow(consumerPath)
+                    .replaceWithText('import { title } from "../packages/client/src/excluded.ts";\nexport const current: string = title;\n');
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("tests/consumer.ts")).toBe(consumer);
+        expect(read("packages/client/src/excluded.ts")).toBe("export const title = document.title;\n");
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a resolution-mode change diagnoses the newly selected conditional export", async () => {
+    const before = 'import type { Value } from "@orb/lib" with { "resolution-mode": "import" };\nexport const value: Value = 1;\n';
+    const after = 'import type { Value } from "@orb/lib" with { "resolution-mode": "require" };\nexport const value: Value = 1;\n';
+    const nodeNext = { target: "es2022", module: "nodenext", moduleResolution: "nodenext", strict: true, noEmit: true } as const;
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: nodeNext, files: ["tests/consumer.ts"] }),
+        "packages/lib/package.json": JSON.stringify({ name: "@orb/lib", exports: { ".": { import: "./src/good.ts", require: "./src/bad.ts" } } }),
+        "packages/lib/tsconfig.json": JSON.stringify({ compilerOptions: nodeNext, files: ["src/anchor.ts"] }),
+        "packages/lib/src/anchor.ts": "export const anchor = 1;\n",
+        "packages/lib/src/good.ts": "export type Value = number;\n",
+        "packages/lib/src/bad.ts": 'export type Value = number;\nexport const broken: number = "wrong";\n',
+        "tests/consumer.ts": before,
+        "node_modules/@orb/.keep": "",
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "packages/lib"), join(root, "node_modules/@orb/lib"), "dir");
+        const path = join(root, "tests/consumer.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "select the require conditional export",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText(after);
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("tests/consumer.ts")).toBe(before);
+        expect(read("packages/lib/src/bad.ts")).toContain('broken: number = "wrong"');
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("an added triple-slash path diagnoses the referenced authored source", async () => {
+    const before = "export const loaded = true;\n";
+    const after = '/// <reference path="./excluded/bad.ts" />\nexport const loaded = true;\n';
+    const bad = 'export const broken: number = "wrong";\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: NODE_OPTIONS, files: ["tests/consumer.ts"] }),
+        "tests/consumer.ts": before,
+        "tests/excluded/bad.ts": bad,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "tests/consumer.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "add an authored path reference",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText(after);
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("tests/consumer.ts")).toBe(before);
+        expect(read("tests/excluded/bad.ts")).toBe(bad);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
   test("a new browser-world error refuses and the failed apply writes nothing", async () => {
     const original = "export const title = 'ok';\n";
     await withTree(
@@ -140,6 +435,33 @@ describe("compiler-world diagnostics", () => {
         });
         expect(result).toMatchObject({ applied: false, diagnosticErrors: 0 });
         expect(read("packages/ui/src/view.ts")).toBe(original);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a locationless native program error is reported with config and code context", async () => {
+    const original = "export const value = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: { ...NODE_OPTIONS, types: ["missing-codemod-type"] }, files: ["tests/probe.ts"] }),
+        "tests/probe.ts": original,
+      },
+      async ({ run, read, root }) => {
+        const path = join(root, "tests/probe.ts");
+        const plan = (ctx: Parameters<Parameters<typeof run>[0]>[0]): void => {
+          ctx.plan({
+            description: "exercise the affected program's native diagnostics",
+            touchedFiles: [path],
+            transform(inner): void {
+              inner.project.getSourceFileOrThrow(path).addStatements("export const added = 2;\n");
+            },
+          });
+        };
+        const preview = await run(plan);
+        expect(preview.output).toContain("tsconfig.json: <program> TS2688");
+        await expect(run(plan, { apply: true })).rejects.toThrow("Refused to apply");
+        expect(read("tests/probe.ts")).toBe(original);
       },
       { skipDiagnosticsCheck: false },
     );
@@ -732,6 +1054,226 @@ describe("compiler-world diagnostics", () => {
       },
       { skipDiagnosticsCheck: false },
     );
+  });
+
+  test("a workspace package wildcard export resolves a new virtual subpath with preserveSymlinks", async () => {
+    const consumer = 'import { value } from "../packages/client/src/legacy.ts";\nexport const expected: number = value;\n';
+    const routedConsumer = 'import { value } from "@orb/client/forms/editor";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": config({ ...NODE_OPTIONS, preserveSymlinks: true }, ["tests/**/*.ts"]),
+        "packages/client/package.json": JSON.stringify({ name: "@orb/client", exports: { "./*": "./src/*/index.ts" } }),
+        "packages/client/tsconfig.json": config(BROWSER_OPTIONS, ["src/**/*.ts"]),
+        "packages/client/src/legacy.ts": "export const value = 1;\n",
+        "tests/consumer.ts": consumer,
+        "node_modules/@orb/.keep": "",
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "packages/client"), join(root, "node_modules/@orb/client"), "dir");
+        const consumerPath = join(root, "tests/consumer.ts");
+        const { result } = await run(
+          (ctx) => {
+            ctx.plan(createSourceFile(ctx, "packages/client/src/forms/editor/index.ts", 'export { value } from "../../legacy.ts";\n'));
+            ctx.plan({
+              description: "route the consumer through the new package export",
+              touchedFiles: [consumerPath],
+              transform(inner): void {
+                inner.project.getSourceFileOrThrow(consumerPath).replaceWithText(routedConsumer);
+              },
+            });
+          },
+          { apply: true },
+        );
+        expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+        expect(read("packages/client/src/forms/editor/index.ts")).toContain('from "../../legacy.ts"');
+        expect(read("tests/consumer.ts")).toBe(routedConsumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a real error behind a new workspace export refuses without materializing the subpath", async () => {
+    const consumer = 'import { value } from "../packages/client/src/legacy.ts";\nexport const expected: number = value;\n';
+    const routedConsumer = 'import { value } from "@orb/client/forms/editor";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": config(NODE_OPTIONS, ["tests/**/*.ts"]),
+        "packages/client/package.json": JSON.stringify({ name: "@orb/client", exports: { "./*": "./src/*/index.ts" } }),
+        "packages/client/tsconfig.json": config(BROWSER_OPTIONS, ["src/**/*.ts"]),
+        "packages/client/src/legacy.ts": "export const value = 1;\n",
+        "tests/consumer.ts": consumer,
+        "node_modules/@orb/.keep": "",
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "packages/client"), join(root, "node_modules/@orb/client"), "dir");
+        const consumerPath = join(root, "tests/consumer.ts");
+        const invalidEntry = 'export const value: number = "wrong";\n';
+        const plan = (ctx: Parameters<Parameters<typeof run>[0]>[0]): void => {
+          ctx.plan(createSourceFile(ctx, "packages/client/src/forms/editor/index.ts", invalidEntry));
+          ctx.plan({
+            description: "route the consumer through the invalid package export",
+            touchedFiles: [consumerPath],
+            transform(inner): void {
+              inner.project.getSourceFileOrThrow(consumerPath).replaceWithText(routedConsumer);
+            },
+          });
+        };
+        const preview = await run(plan);
+        expect(preview.result).toMatchObject({ applied: false, diagnosticErrors: 2 });
+        expect(preview.output).toContain("TS2322");
+        expect(preview.output).not.toContain("TS2307");
+        await expect(run(plan, { apply: true })).rejects.toThrow("Refused to apply");
+        expect(existsSync(join(root, "packages/client/src/forms"))).toBe(false);
+        expect(read("tests/consumer.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("preserveSymlinks retains an existing workspace target's unchanged consumer", async () => {
+    const api = "export const value = 1;\n";
+    const consumer = 'import { value } from "@orb/client/api";\nexport const expected: number = value;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: { ...NODE_OPTIONS, preserveSymlinks: true }, files: ["tests/consumer.ts"] }),
+        "packages/client/package.json": JSON.stringify({ name: "@orb/client", exports: { "./*": "./src/*.ts" } }),
+        "packages/client/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/anchor.ts"] }),
+        "packages/client/src/anchor.ts": "export const anchor = 1;\n",
+        "packages/client/src/api.ts": api,
+        "tests/consumer.ts": consumer,
+        "node_modules/@orb/.keep": "",
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "packages/client"), join(root, "node_modules/@orb/client"), "dir");
+        const path = join(root, "packages/client/src/api.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "break the workspace target behind an unchanged alias consumer",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText("export const value = 'wrong';\n");
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("packages/client/src/api.ts")).toBe(api);
+        expect(read("tests/consumer.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a narrowed edit diagnoses an alias-only unchanged intermediate consumer", async () => {
+    const api = "export const value = 1;\n";
+    const middle = 'import { value } from "./api.ts";\nexport const expected: number = value;\n';
+    const entry = 'import "@orb/client/middle";\nexport const loaded = true;\n';
+    await withTree(
+      {
+        "tsconfig.json": JSON.stringify({ compilerOptions: { ...NODE_OPTIONS, preserveSymlinks: true }, files: ["tests/entry.ts"] }),
+        "packages/client/package.json": JSON.stringify({ name: "@orb/client", exports: { "./*": "./src/*.ts" } }),
+        "packages/client/tsconfig.json": JSON.stringify({ compilerOptions: BROWSER_OPTIONS, files: ["src/anchor.ts"] }),
+        "packages/client/src/anchor.ts": "export const anchor = 1;\n",
+        "packages/client/src/api.ts": api,
+        "packages/client/src/middle.ts": middle,
+        "tests/entry.ts": entry,
+        "node_modules/@orb/.keep": "",
+      },
+      async ({ run, read, root }) => {
+        symlinkSync(join(root, "packages/client"), join(root, "node_modules/@orb/client"), "dir");
+        const path = join(root, "packages/client/src/api.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "break the workspace leaf behind an alias-only intermediate",
+                touchedFiles: [path],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(path).replaceWithText("export const value = 'wrong';\n");
+                },
+              });
+            },
+            { apply: true, replaceGlobs: [path] },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("packages/client/src/api.ts")).toBe(api);
+        expect(read("packages/client/src/middle.ts")).toBe(middle);
+        expect(read("tests/entry.ts")).toBe(entry);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("a real third-party package remains visible to native diagnostics", async () => {
+    const consumer = "export const before = 1;\n";
+    await withTree(
+      {
+        "tsconfig.json": config(NODE_OPTIONS, ["tests/**/*.ts"]),
+        "tests/consumer.ts": consumer,
+        "node_modules/vendor/package.json": JSON.stringify({ name: "vendor", exports: "./index.d.ts" }),
+        "node_modules/vendor/index.d.ts": 'export declare const value: "wrong";\n',
+      },
+      async ({ run, read, root }) => {
+        const consumerPath = join(root, "tests/consumer.ts");
+        await expect(
+          run(
+            (ctx) => {
+              ctx.plan({
+                description: "introduce a third-party type error",
+                touchedFiles: [consumerPath],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(consumerPath).replaceWithText('import { value } from "vendor";\nexport const expected: number = value;\n');
+                },
+              });
+            },
+            { apply: true },
+          ),
+        ).rejects.toThrow("Refused to apply");
+        expect(read("tests/consumer.ts")).toBe(consumer);
+      },
+      { skipDiagnosticsCheck: false },
+    );
+  });
+
+  test("an external package symlink stays on the native host", async () => {
+    const external = mkdtempSync(join(realpathSync(tmpdir()), "orb-codemod-external-"));
+    try {
+      writeFileSync(join(external, "package.json"), JSON.stringify({ name: "external", exports: "./index.d.ts" }));
+      writeFileSync(join(external, "index.d.ts"), "export declare const value: number;\n");
+      await withTree(
+        {
+          ".gitignore": "node_modules/\n",
+          "tsconfig.json": config(NODE_OPTIONS, ["tests/**/*.ts"]),
+          "tests/consumer.ts": "export const before = 1;\n",
+          "node_modules/.keep": "",
+        },
+        async ({ run, read, root }) => {
+          symlinkSync(external, join(root, "node_modules/external"), "dir");
+          const consumerPath = join(root, "tests/consumer.ts");
+          const transformed = 'import { value } from "external";\nexport const expected: number = value;\n';
+          const { result } = await run(
+            (ctx) => {
+              ctx.plan({
+                description: "read an external package through the native host",
+                touchedFiles: [consumerPath],
+                transform(inner): void {
+                  inner.project.getSourceFileOrThrow(consumerPath).replaceWithText(transformed);
+                },
+              });
+            },
+            { apply: true },
+          );
+          expect(result).toMatchObject({ applied: true, diagnosticErrors: 0 });
+          expect(read("tests/consumer.ts")).toBe(transformed);
+        },
+        { skipDiagnosticsCheck: false },
+      );
+    } finally {
+      rmSync(external, { recursive: true, force: true });
+    }
   });
 
   test("a failed create apply does not even materialize its destination directory", async () => {

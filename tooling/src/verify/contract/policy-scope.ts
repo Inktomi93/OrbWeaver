@@ -39,6 +39,13 @@ export interface CompilerProgram extends PolicyProgramMembership {
   readonly commandLine: ts.ParsedCommandLine;
 }
 
+/** In-memory source filenames presented to native config expansion. Config JSON and its inheritance graph
+ * remain physical authored inputs; this overlay describes only the transaction's final source tree. */
+export interface CompilerSourceOverlay {
+  readonly addedPaths: readonly string[];
+  readonly deletedPaths: readonly string[];
+}
+
 export const POLICY_PATH_OWNERSHIP_REASONS = ["compiler-membership", "outside-compiler-programs", "deleted-conservative-all-programs"] as const;
 export type PolicyPathOwnershipReason = (typeof POLICY_PATH_OWNERSHIP_REASONS)[number];
 

@@ -22,6 +22,7 @@ A package's source can participate in its own compiler program and a consumer's 
 | Authored files and Git change identity | `tooling/src/verify/lib/policy-repo-inventory.ts` |
 | Compiler roots, references and inherited config inputs | `tooling/src/verify/lib/policy-program-membership.ts` |
 | Intended world and primary compiler owner | `tooling/src/_shared/project-worlds.ts` |
+| Test kinds, families, compiler intent and mirror compatibility | `tooling/src/_shared/test-kinds.ts` |
 | Native compiler import closures | the TS7 listing used by `tooling/src/verify/ops/tests-type-membership.ts` |
 | Verification stages, tiers and execution adapters | `tooling/src/verify/lib/registry.ts` |
 | Capacity policy | `tooling/concurrency-profile.json` and its validated readers |
@@ -87,7 +88,7 @@ Hard dependencies: phase 0's instrument before migration measurements; phase 2 b
 
 The codemod-kit repair [#1860](https://github.com/Inktomi93/orbweaver/issues/1860) is a prerequisite to bulk moves. Preserve dry-run/preview integrity, path/overwrite guards, extensionful reference rewrites and apply refusal. Fix bulk-move cost and wrong-world diagnostics before relying on the kit. A delta measured under the wrong compiler world is not sufficient protection if that world already hides the relevant type error.
 
-Codemod diagnostics check existing files under their actual authored programs and every containing compiler closure. Target ownership drift must not prevent the barrel repair that precedes test reclassification. New or moved destinations still require an available intended compiler owner; multiple exclusive roots and missing ownership still refuse. Final ownership enforcement belongs to phase 6, independently of the diagnostic guard.
+Codemod diagnostics check existing files under their actual authored programs and every containing compiler closure, then re-read native config membership over the transaction's final source filenames. Every affected program runs its full native post-transform diagnostics, so conditional exports, path/type references and imported closures stay in TypeScript's own dependency vocabulary. A newly created path or moved destination is routed only by its actual post-transform authored root; old ownership is not transferred and predicted ownership is not injected. Multiple exclusive roots and missing required roots refuse. Unchanged existing files retain their pre-transform consumer, containing-program and global-effect closures, with predictive ownership used only as the final fallback when those actual owners are absent. Final intended-ownership enforcement belongs to phase 6, independently of the diagnostic guard.
 
 ## Membership report
 
