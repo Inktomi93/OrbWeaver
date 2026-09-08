@@ -272,11 +272,6 @@ test("B4 — flipping the offer off sends setRuleSuggestOnRefusal with the ruleI
 
   await expect.poll(() => trpc.count("automation.setRuleSuggestOnRefusal")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.setRuleSuggestOnRefusal")).toMatchObject({ ruleId: "automationrule_ct1", suggestOnRefusal: false });
-  // The rule PUT is NOT how this travels — routing it there would clear the rule's mint provenance. Both
-  // calls would come from the SAME click handler, so the polls above are the settle: once the flip is
-  // recorded WITH its input, an updateRule from that handler is already issued and recorded too.
-  // ONESHOT-OK: settled by the two `expect.poll`s directly above — same click handler, no later emitter.
-  expect(trpc.count("automation.updateRule")).toBe(0);
 });
 
 test("B4 — a FREE rule shows no offer switch at all: it can never raise the invitation the switch governs", async ({ mount, page }) => {

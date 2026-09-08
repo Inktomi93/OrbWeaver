@@ -51,9 +51,6 @@
 //   • THE "ALL STORY THEMES" BAR CHART (400px) was the non-interactive twin of the theme ROWS 400px above
 //     it. The rows survive, and they are now COMPLETE rather than a top-8 slice (`discovery.home`), because
 //     with the chart gone they are the only place a theme is met.
-// The `discovery.themes` and `discovery.catalog.topTags` reads are untouched — the browse view and the
-// context tabs are their real consumers.
-//
 // ── THE TIER IS `form`, DELIBERATELY (UI-Density-Law.md §3.1) ───────────────────────────────────────
 // Corpus reads like analytics but it is a surface you LAND on and act from — prose, a focal island, one
 // primary door — which is home's own reasoning verbatim. It is the tier that resolves the island's

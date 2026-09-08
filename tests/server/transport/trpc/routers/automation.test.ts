@@ -1,9 +1,9 @@
-// automation.{listRules,createRule,setBudgets,…} — the A8 rule-lifecycle wire-through (core/Tier-4-Transport.md).
+// automation.{listRules,createRuleFromPreset,runRuleNow,…} — the live rule-lifecycle wire-through (core/Tier-4-Transport.md).
 // The router is a THIN driver: it validates the wire schema, injects `principal: ctx.auth` (NEVER from input —
 // the acting identity is the resolved Principal), and delegates to `ctx.services.automation.<verb>`. The trigger/
-// action VOCABULARY rides `@orb/contracts/automation` (not re-spelled). These assert the pass-through (the mapped
-// fields reach the verb, the principal is the caller's) + that the contract action schema bites at the wire —
-// driven through the real ladder via `createCaller`. Host authority + leak-free collapse are the domain guard's
+// preset VOCABULARY rides `@orb/contracts/automation` (not re-spelled). These assert the pass-through (the mapped
+// fields reach the verb, the principal is the caller's) + that the contract preset id bites at the wire — driven
+// through the real ladder via `createCaller`. Host authority + leak-free collapse are the domain guard's
 // job (proven in the cross-tenant sweep + the automation domain tests), not re-tested here.
 
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
@@ -54,53 +54,6 @@ describe("automation.listRules — chat wire-through", () => {
   });
 });
 
-describe("automation.createRule — editable-field wire-through", () => {
-  test("injects the caller's principal (never from input) + maps the mandatory + present optional fields", async () => {
-    const createRule = vi.fn<AutomationService["createRule"]>(async () => RULE);
-    await caller(ctxWith({ createRule })).automation.createRule({
-      chatId: CHAT,
-      name: "Greet",
-      trigger: { bus: "chat", type: "messageCommitted" },
-      actions: [{ type: "set_variable", scope: "chat", key: "greeted", op: "set", value: "1" }],
-      cooldownSeconds: 60,
-    });
-    expect(createRule).toHaveBeenCalledWith({
-      principal: expect.objectContaining({ userId: OWNER }),
-      chatId: CHAT,
-      name: "Greet",
-      trigger: { bus: "chat", type: "messageCommitted" },
-      actions: [{ type: "set_variable", scope: "chat", key: "greeted", op: "set", value: "1" }],
-      cooldownSeconds: 60,
-    });
-  });
-
-  test("omits an absent optional rather than passing it as undefined (exactOptional discipline)", async () => {
-    const createRule = vi.fn<AutomationService["createRule"]>(async () => RULE);
-    await caller(ctxWith({ createRule })).automation.createRule({
-      chatId: CHAT,
-      name: "Greet",
-      trigger: { bus: "chat", type: "messageCommitted" },
-      actions: [{ type: "set_variable", scope: "chat", key: "greeted", op: "set", value: "1" }],
-    });
-    const [args] = createRule.mock.calls[0] ?? [];
-    expect(args && "cooldownSeconds" in args).toBe(false);
-    expect(args && "description" in args).toBe(false);
-  });
-
-  test("rejects an empty action list at the wire (the contract action-arm min bites before the verb)", async () => {
-    const createRule = vi.fn<AutomationService["createRule"]>(async () => RULE);
-    await expect(
-      caller(ctxWith({ createRule })).automation.createRule({
-        chatId: CHAT,
-        name: "Greet",
-        trigger: { bus: "chat", type: "messageCommitted" },
-        actions: [],
-      }),
-    ).rejects.toThrow();
-    expect(createRule).not.toHaveBeenCalled();
-  });
-});
-
 describe("automation.listRulePresets — catalogue read wire-through", () => {
   test("delegates to the static projection verb (no principal, no chat)", async () => {
     const listRulePresets = vi.fn<AutomationService["listRulePresets"]>(() => []);
@@ -139,24 +92,6 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
       caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ chatId: CHAT, presetId: "notAPreset" }),
     ).rejects.toThrow();
     expect(createRuleFromPreset).not.toHaveBeenCalled();
-  });
-});
-
-describe("automation.setBudgets — fire-rate cap wire-through", () => {
-  test("threads maxFiresPerHour through to the verb", async () => {
-    const setBudgets = vi.fn<AutomationService["setBudgets"]>(async () => undefined);
-    await caller(ctxWith({ setBudgets })).automation.setBudgets({ chatId: CHAT, maxFiresPerHour: 30 });
-    expect(setBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT, maxFiresPerHour: 30 });
-  });
-});
-
-describe("automation.getBudgets — chat wire-through", () => {
-  test("passes the validated chatId + the caller's principal to the verb", async () => {
-    const getBudgets = vi.fn<AutomationService["getBudgets"]>(async () => ({
-      maxFiresPerHour: 120,
-    }));
-    await caller(ctxWith({ getBudgets })).automation.getBudgets({ chatId: CHAT });
-    expect(getBudgets).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT });
   });
 });
 

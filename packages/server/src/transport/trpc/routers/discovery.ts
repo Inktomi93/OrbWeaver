@@ -133,10 +133,6 @@ export const discoveryRouter = t.router({
   // PD-40 corpus galaxy: the owner's cards projected to 2D (PCA) — the semantic map.
   corpusProjection: authedProcedure.query(({ ctx }) => ctx.services.discovery.corpusProjection(ctx.auth.userId)),
 
-  themes: authedProcedure
-    .input(z.object({ level: z.enum(THEME_LEVELS).optional() }).optional())
-    .query(({ ctx, input }) => ctx.services.discovery.themes(ctx.auth.userId, input?.level)),
-
   // PD-40 insights (pure-semantics half): story-time theme drift + never-played characters. Owner-scoped.
   themeDrift: authedProcedure
     .input(z.object({ level: z.enum(THEME_LEVELS).optional() }).optional())
