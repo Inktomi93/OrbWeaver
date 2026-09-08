@@ -4,7 +4,7 @@
 // contribution. Every story wraps the real client data layer (<CtDataProviders> — Query + real tRPC over the
 // routeTrpc-stubbed network).
 
-import { QueryBoundary } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
 import { selectCollectionMember, useCollectionSelection } from "@orb/client/state";
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";

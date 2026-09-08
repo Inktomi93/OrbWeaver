@@ -26,11 +26,11 @@ import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Component, isValidElement, Suspense, useEffect, useRef } from "react";
 import { rememberSurfaceBox, useSurfaceBox } from "#state";
-import { QueryErrorState } from "./query-error-state.tsx";
-import { skeletonRowCountFor } from "./skeleton-row-metrics.ts";
-import type { SkeletonRowsProps } from "./skeleton-rows.tsx";
-import { SkeletonRows } from "./skeleton-rows.tsx";
-import { useOnlineStatus } from "./use-online-status.ts";
+import { QueryErrorState } from "../data/query-error-state.tsx";
+import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
+import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
+import { SkeletonRows } from "../data/skeleton-rows.tsx";
+import { useOnlineStatus } from "../data/use-online-status.ts";
 
 export interface QueryBoundaryProps {
   /** The suspense fallback (a skeleton, never a spinner-only flash). */

@@ -744,11 +744,8 @@ export default tseslint.config(
     ignores: [
       "packages/client/src/features/app-shell/**",
       "packages/client/src/state/**",
-      // The brand mark — a hand-authored inline-SVG geometry painter (the sanctioned no-inline-svg
-      // exception), RE-HOMED here from app-shell chrome by D62/§13.9 as the cross-cutting display
-      // seam. Like app-shell it legitimately paints (className on the raw <svg>); it is the ONE lib/
-      // painter, exempted by exact path — never a lib/** wildcard.
-      "packages/client/src/lib/weave-glyph.tsx",
+      // D62's shared app brand paints hand-authored SVG geometry. Keep the grant on this exact component.
+      "packages/client/src/components/weave-glyph.tsx",
       "**/*.test.{ts,tsx}",
     ],
     rules: {

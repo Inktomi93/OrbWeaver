@@ -369,6 +369,19 @@
       "markerLine": 119
     },
     {
+      "siteId": "packages/client/src/features/app-shell/lib/bug-report-capture.ts::default:catch::1",
+      "path": "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
+      "line": 214,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
+      "markerLine": 208
+    },
+    {
       "siteId": "packages/client/src/features/auth/lib/route-guards.ts::empty:catch::1",
       "path": "packages/client/src/features/auth/lib/route-guards.ts",
       "line": 34,
@@ -540,7 +553,7 @@
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/credentials/components/add-credential-dialog.tsx",
-      "line": 290,
+      "line": 289,
       "column": 10,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -548,7 +561,7 @@
       "snippet": "void fetchModels",
       "verdict": "deliberate-absorb",
       "reason": "an advisory-only reachability check —",
-      "markerLine": 287
+      "markerLine": 286
     },
     {
       "siteId": "packages/client/src/features/credentials/components/endpoint-inspector-dialog.tsx::promise:mutateAsync::1",
@@ -657,7 +670,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 112,
+      "line": 113,
       "column": 5,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -665,12 +678,12 @@
       "snippet": "distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useDistributePlugin carries",
-      "markerLine": 109
+      "markerLine": 110
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::2",
       "path": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
-      "line": 215,
+      "line": 216,
       "column": 23,
       "grammar": "promise",
       "position": "promise:mutateAsync",
@@ -678,7 +691,7 @@
       "snippet": "withdraw.mutateAsync({ slug: row.slug }).then(",
       "verdict": "deliberate-absorb",
       "reason": "useWithdrawPlugin carries",
-      "markerLine": 212
+      "markerLine": 213
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-frame.tsx::promise:hostCall::1",
@@ -1316,19 +1329,6 @@
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`.",
       "markerLine": 128
-    },
-    {
-      "siteId": "packages/client/src/lib/bug-report-capture.ts::default:catch::1",
-      "path": "packages/client/src/lib/bug-report-capture.ts",
-      "line": 214,
-      "column": 5,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
-      "markerLine": 208
     },
     {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",

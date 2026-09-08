@@ -246,7 +246,7 @@ factories are inventoried here because this package is their substrate and their
 | `createEntityMutation` | `client/data` | Query/tRPC types | the canonical 4-phase optimistic flow (`onMutate`: cancel → snapshot → `setQueryData` → return rollback; `onError` restore; `onSettled` → `invalidate(event)` through the seam); the **`context.client`** arg (provider-clean); a variables-render lightweight mode; **v5 sticky-error reset on next `mutate`**; ONE error slot per mutation (gate `no-multiplexed-mutation-error`); callback order `onMutate → onError → onSettled` (lint `mutation-property-order`). |
 | `createCollectionSurface` | `client/data` | Query + the virtual-list seal | `useInfiniteQuery` + `maxPages` + `placeholderData: keepPreviousData` gated on `isPlaceholderData`; tail-fetch off the VIRTUALIZER's range (no `react-intersection-observer`); selection store; empty/loading/error. |
 | `useGatedQuery` | `client/data` | Query types | null id → `skipToken` (kills `castId("")` — gate `no-fake-disabled-id`); documents the `refetch()`-with-skipToken caveat. |
-| `<QueryBoundary>` | `client/data` | Query + Suspense | the `QueryErrorResetBoundary` → `ErrorBoundary onReset={reset}` handshake (retry that actually refetches); `useSuspenseQueries` for parallel; `startTransition` around pane switches (pairs `<Activity>`). |
+| `<QueryBoundary>` | `client/components` | Query + Suspense | the `QueryErrorResetBoundary` → `ErrorBoundary onReset={reset}` handshake (retry that actually refetches); `useSuspenseQueries` for parallel; `startTransition` around pane switches (pairs `<Activity>`). |
 | `invalidation.ts` (the seam) | `client/data` | tRPC queryFilters | ONE domain-event → `queryFilter()` map; mutations' `onSettled` + bus handlers call `invalidate(event)` (gate `no-inline-invalidate-outside-seam`); keys are always `trpc.*.queryKey(args)` — the same key the reader uses. |
 | bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (gates `bus-on-data-no-store-write`, `chat-stream-writes-in-bus-only` (plan-time `no-inline-cache-surgery-in-stream`) — scoped to subscription bodies so `onMutate` doesn't trip). |
 | `createEntityDraftStore` | `client/state` | Zustand persist | frozen `EMPTY` stable default (the v5 `?? CONSTANT` pattern) + `useShallow` for multi-field selectors (different jobs — keep both); `persist` with `partialize: (s)=>({drafts:s.drafts})` + `version` + a **total, crash-proof `migrate`** (gate `persist-partialize-and-total-migrate`); DU lifecycle transitions via `set(next, true)` replace. |
@@ -338,7 +338,8 @@ is `packages/ui/package.json#exports` (the truth), not a list here. Inclusion ru
 any new primitive): **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `CharacterCard`) AND
 referenced by ≥1 committed design; domain components live in `client/features`. The **proposal-diff**
 pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive; `weave-glyph` is
-app-level (`client/src/lib/weave-glyph.tsx`, §13.9). The derivation table + the deliberately-excluded
+app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the `#components`
+public door. The derivation table + the deliberately-excluded
 list (`resizable`/`sheet`/`label`/…) are in `../history/ui-package-design-archaeology-record.md`.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)

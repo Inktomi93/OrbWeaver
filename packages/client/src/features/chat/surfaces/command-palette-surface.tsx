@@ -26,9 +26,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { use, useEffect, useRef } from "react";
-
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";

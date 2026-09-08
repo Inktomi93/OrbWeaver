@@ -17,6 +17,7 @@
     "tests/client/components/greeting-studio.ct.tsx",
     "tests/client/components/library-surface.ct.tsx",
     "tests/client/components/list-pane-header.ct.tsx",
+    "tests/client/components/query-boundary.ct.tsx",
     "tests/client/components/regex-scope-order.ct.tsx",
     "tests/client/components/regex-script-picker.ct.tsx",
     "tests/client/components/row-actions-menu.ct.tsx",
@@ -25,6 +26,7 @@
     "tests/client/components/setting-teach-row.ct.tsx",
     "tests/client/components/tag-picker-dialog.ct.tsx",
     "tests/client/components/tracker-blocks/tracker-blocks.ct.tsx",
+    "tests/client/components/weave-glyph.ct.tsx",
     "tests/client/data/auth-bootstrap.test.ts",
     "tests/client/data/auth-config.test.ts",
     "tests/client/data/bounded-memo.test.ts",
@@ -48,7 +50,6 @@
     "tests/client/data/invalidation-reads.test.ts",
     "tests/client/data/invalidation.test.ts",
     "tests/client/data/peek-query.test.ts",
-    "tests/client/data/query-boundary.ct.tsx",
     "tests/client/data/query-client.test.ts",
     "tests/client/data/query-error-state.ct.tsx",
     "tests/client/data/query-inline-states.ct.tsx",
@@ -496,7 +497,6 @@
     "tests/client/lib/turn-abort-notice.test.ts",
     "tests/client/lib/upload-cap-check.test.ts",
     "tests/client/lib/view-transition.test.ts",
-    "tests/client/lib/weave-glyph.ct.tsx",
     "tests/client/routes/app-root.ct.tsx",
     "tests/client/routes/route-pending.ct.tsx",
     "tests/client/state/active-chat-store.ct.tsx",
@@ -2801,6 +2801,12 @@
     },
     "tests/tooling/warning-code-coverage.residual.test.ts": {
       "why": "RETIRED WITH ITS INJECTION SEAM (#1584). Every arm in this file was driven through `createWarningCodeCoverage([channel])`, an exported factory whose only purpose was to inject a channel carrying a NON-EMPTY `deferred` map, because the live channels both declared `deferred: {}` and the conformance runner can only drive the live descriptor. The #1584 conversion deletes both empty `deferred` tables (an empty exemption table whose stale/orphan arms are structurally unprovable is not a table) and the exported factory with them, so the two DEFERRED-ratchet arms have no subject left to test. The file's seven other arms were never blocked and are now proof rows on the final policy: the unrelated accumulator, the arbitrary matching literal, the aliased warnings sink, the quiet chat emitter, the returned warning payload, the tuple home excluded from its own emit corpus, and the #1440 mapper-rename tripwire. Un-deletes if a real deferral ever returns — but the destination law routes that to a warning `workItem` or an exact reviewed grant, neither of which needs a gate-owned map or an injected check."
+    },
+    "tests/client/data/query-boundary.ct.tsx": {
+      "why": "Relocated with its component to tests/client/components/query-boundary.ct.tsx in #1861; all tests retained. Remove this record if the source path returns."
+    },
+    "tests/client/lib/weave-glyph.ct.tsx": {
+      "why": "Relocated with its component to tests/client/components/weave-glyph.ct.tsx in #1861; all tests retained. Remove this record if the source path returns."
     }
   }
 }

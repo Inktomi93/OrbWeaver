@@ -29,7 +29,7 @@ the counted tail (§5).
 
 ### 1.1 Chosen shape
 
-`QueryBoundaryProps` gains two props (`packages/client/src/data/query-boundary.tsx`):
+`QueryBoundaryProps` gains two props (`packages/client/src/components/query-boundary.tsx`):
 
 - `reserveKey?: string` — the surface-box id (`surface-box-store` vocabulary). Presence opts the
   boundary into measure-then-remember: the fallback is wrapped in the remembered box and the settled
@@ -122,7 +122,7 @@ interactions reviewed per site).
   both sites (copy-paste keying is the sweep's failure mode).
 - **Arm C (marker two-sidedness):** a `@first-boot-only` marker adjacent to no guarded violation ⇒
   stale RED; a marker with no reason ⇒ malformed RED.
-- **Arm D (blindness tripwire):** `data/query-boundary.tsx` no longer spelling `reserveKey`, or
+- **Arm D (blindness tripwire):** `components/query-boundary.tsx` no longer spelling `reserveKey`, or
   `data/skeleton-rows.tsx` gone ⇒ the vocabulary rotted, RED (§4.6).
 - Declared limits (each with a mustPass row): dynamic counts (props/calls/ternaries) pass; a
   SkeletonRows reached through a wrapper component is invisible; `tests/` is scope, not exemption.
@@ -133,7 +133,7 @@ interactions reviewed per site).
 
 ### 1.6 Test plan (#885)
 
-- `tests/client/data/query-boundary.ct.tsx` + `_ct-stories.tsx` grow the reservation pins (real
+- `tests/client/components/query-boundary.ct.tsx` + `tests/client/data/_ct-stories.tsx` grow the reservation pins (real
   `createPersistedStore` mint — the #837 hazard; no store doubles):
   1. **Seed→boot→reserve (the #837 sentinel at the boundary tier):** seed a box + a sentinel key via
      the real store, mount a `trpcHold`-parked boundary, assert `[data-tile-reserved]` equals the

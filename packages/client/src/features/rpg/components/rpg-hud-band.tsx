@@ -32,7 +32,7 @@
 
 import { Stack, Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary } from "#components";
 import { useActiveChatId } from "#state";
 import { RpgHeaderBand } from "./rpg-header-band.tsx";
 

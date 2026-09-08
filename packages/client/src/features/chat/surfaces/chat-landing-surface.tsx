@@ -15,7 +15,8 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { useFocusOnMount, WeaveGlyph } from "#lib";
+import { WeaveGlyph } from "#components";
+import { useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode } from "#state";
 
 const WEAVE_SIZE = 48;

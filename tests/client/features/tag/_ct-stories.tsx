@@ -3,7 +3,7 @@
 // precedent): the tag collection's rows and member editor are mounted by the CONFIG host through
 // `tagCollection`, never exported standalone.
 
-import { QueryBoundary } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
 import { setTagPruneConfirmOpen, setTagSortMode } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useState } from "react";

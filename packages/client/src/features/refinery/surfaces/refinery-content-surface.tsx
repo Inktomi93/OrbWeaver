@@ -39,8 +39,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import {
   clearRefineryWorkbenchDoor,

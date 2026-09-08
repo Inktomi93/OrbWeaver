@@ -64,8 +64,8 @@ import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows } from "#data";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */

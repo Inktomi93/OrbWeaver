@@ -8,7 +8,7 @@
 
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { WeaveGlyph } from "#lib";
+import { WeaveGlyph } from "#components";
 
 /** Full-viewport brand loading mark — shown while a route's `beforeLoad` auth gate resolves. */
 export function RoutePending(): ReactElement {

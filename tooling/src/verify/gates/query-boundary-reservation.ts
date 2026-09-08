@@ -28,7 +28,7 @@ const MARKER = "@first-boot-only";
 /** The marker must OPEN its comment (the mention fence): a line whose first non-space run is a comment
  *  opener immediately followed by the marker. Reason after the colon is REQUIRED (house grammar §4.3). */
 const MARKER_LINE_RE = /^\s*\{?\s*(?:\/\/|\/\*+)\s*@first-boot-only(?<colon>:\s*\S)?/u;
-const BOUNDARY_HOME = `${CLIENT_SRC}data/query-boundary.tsx`;
+const BOUNDARY_HOME = `${CLIENT_SRC}components/query-boundary.tsx`;
 const GATE_SELF = "tooling/src/verify/gates/query-boundary-reservation.ts";
 
 const MESSAGE =
@@ -112,7 +112,7 @@ function reportDuplicateKeys(ctx: GateRunCtx): void {
         line: site.line,
         column: site.col,
         token: value,
-        message: `duplicate reserveKey "${value}" — also minted at ${others}. Two mounts sharing one box overwrite each other's memory; mint one key per surface, or hoist a deliberately shared surface's key into ONE exported const (packages/client/src/data/query-boundary.tsx).`,
+        message: `duplicate reserveKey "${value}" — also minted at ${others}. Two mounts sharing one box overwrite each other's memory; mint one key per surface, or hoist a deliberately shared surface's key into ONE exported const (packages/client/src/components/query-boundary.tsx).`,
       });
     }
   }

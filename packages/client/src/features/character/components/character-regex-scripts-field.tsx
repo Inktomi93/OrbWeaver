@@ -16,8 +16,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { RegexScriptPicker } from "#components";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { QueryBoundary, RegexScriptPicker } from "#components";
+import { QueryErrorState, SkeletonRows } from "#data";
 import { openConfigTo } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;

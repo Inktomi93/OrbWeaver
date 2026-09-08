@@ -190,7 +190,7 @@ declare global {
  *  quietly becomes `false` and a shell that published nothing gets accused of declaring nothing. */
 /** The ONE read seam for the installed handle. Readers depend on THIS module rather than on the bare
  *  `globalThis.__orb`: the global's type is an augmentation declared here, so a reader compiled in a program
- *  that never pulls this file (the tests-dom closure reached `bug-report-capture.ts` through the lib barrel)
+ *  that never pulls this file (the tests-dom closure reaches it through app-shell's bug-report capture)
  *  sees an untyped index and REDs — a value import makes the augmentation part of every closure that reads. */
 export function readAgentDebugHandle(): OrbDebugHandle | undefined {
   return globalThis.__orb;

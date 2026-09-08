@@ -477,7 +477,7 @@ property, not the `transform` matrix) at `--motion-fast`.
 so a revisit never flashes a fallback (`features/app-shell/surfaces/app-shell.tsx`,
 `components/section-content.tsx`); a first-visit mount legitimately shows its skeleton (the
 suspense fallback IS a skeleton, never a spinner flash —
-`packages/client/src/data/query-boundary.tsx`), and React's `startTransition` can't suppress
+`packages/client/src/components/query-boundary.tsx`), and React's `startTransition` can't suppress
 an initial-mount fallback anyway. No cross-fade to wire.
 
 **6. Success/save confirmation.** DECIDED-AGAINST (as a shared keyframe). The portrait save

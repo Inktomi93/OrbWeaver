@@ -8,8 +8,8 @@ import { Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { SettingSwitchRow } from "#components";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, SettingSwitchRow } from "#components";
+import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
 

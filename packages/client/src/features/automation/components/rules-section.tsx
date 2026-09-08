@@ -30,8 +30,9 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useBusRoom, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useBusRoom, useInvalidation, useTRPC } from "#data";
 import { RulePresetPicker } from "./rule-preset-picker.tsx";
 import { RuleRow } from "./rule-row.tsx";
 

@@ -12,7 +12,8 @@ import { Card } from "@orb/ui/card";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { testId, WeaveGlyph } from "#lib";
+import { WeaveGlyph } from "#components";
+import { testId } from "#lib";
 import { LoginWeaveBackdrop } from "../components/login-weave-backdrop.tsx";
 
 export interface LoginShellAnchorProps {

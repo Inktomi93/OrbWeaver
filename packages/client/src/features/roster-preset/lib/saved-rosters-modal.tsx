@@ -7,7 +7,8 @@
 
 import { Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { QueryBoundary, SkeletonRows } from "#data";
+import { QueryBoundary } from "#components";
+import { SkeletonRows } from "#data";
 import type { ModalDefinition } from "#state";
 import { RosterPicker } from "../components/roster-picker.tsx";
 

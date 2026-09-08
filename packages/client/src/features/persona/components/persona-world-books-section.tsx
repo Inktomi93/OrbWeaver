@@ -12,7 +12,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useAttachBookToPersona, useDetachBookFromPersona } from "../hooks/use-persona-lorebooks.ts";
 
 const NONE_VALUE = "none";

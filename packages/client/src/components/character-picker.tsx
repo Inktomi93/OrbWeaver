@@ -57,8 +57,9 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, UIEvent } from "react";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnSwap } from "#lib";
+import { QueryBoundary } from "./query-boundary.tsx";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
  *  library taken before the question was asked — and since #157 it is a PAGE of a keyset walk, not the

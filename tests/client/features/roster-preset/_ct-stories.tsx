@@ -18,7 +18,8 @@
 // `notify` is main.tsx-bound in production, so every story binds it to a DOM sink: the apply doors report
 // through `notify`, and a toast that is never rendered is exactly the defect P1-2 filed.
 
-import { QueryBoundary, SkeletonRows, useTRPC } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
+import { SkeletonRows, useTRPC } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat } from "@orb/client/state";

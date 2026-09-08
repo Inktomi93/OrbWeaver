@@ -82,7 +82,7 @@ The UI enforcement families:
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
   the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
   `packages/client/src`, three exact exemptions: `features/app-shell/**` (the SHELL-tier painter),
-  `state/**` (store-internal setState re-list mechanics), `lib/weave-glyph.tsx` (the one lib painter,
+  `state/**` (store-internal setState re-list mechanics), `components/weave-glyph.tsx` (the app-level brand,
   exact path) — `client-architecture-lockdown.md` §4/§15. Plus the zustand static-`setState`/`getState`
   escape-hatch ban, the react-hooks v7 React-Compiler diagnostics (`exhaustive-deps` +
   `unsupported-syntax` at error), the `@tanstack/query` + `@tanstack/router` discipline, and

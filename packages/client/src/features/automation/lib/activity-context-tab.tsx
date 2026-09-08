@@ -13,7 +13,8 @@
 
 import { History } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import { QueryBoundary, SkeletonRows } from "#data";
+import { QueryBoundary } from "#components";
+import { SkeletonRows } from "#data";
 import type { ChatContextState, ContextTabDef } from "#lib";
 import { RoomActivityLog } from "../components/room-activity-log.tsx";
 

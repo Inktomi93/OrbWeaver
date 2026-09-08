@@ -10,7 +10,8 @@
 // the only place the seam can be proven: the tab body is a chat component, the contribution is automation's,
 // and the wiring between them exists only at the composition root.
 
-import { QueryBoundary, QueryErrorState } from "@orb/client/data";
+import { QueryBoundary } from "@orb/client/components";
+import { QueryErrorState } from "@orb/client/data";
 import {
   automationBudgetSection,
   automationLibraryRulesSection,

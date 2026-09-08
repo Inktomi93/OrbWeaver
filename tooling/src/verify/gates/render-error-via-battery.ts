@@ -30,7 +30,7 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 
 const ATTRIBUTE = "renderError";
 const OPERATION = "custom-render-error";
-const BOUNDARY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/data/query-boundary.tsx", names: ["QueryBoundary"] };
+const BOUNDARY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/components/query-boundary.tsx", names: ["QueryBoundary"] };
 const BATTERY_HOME: ProjectHomeDeclaration = { path: "packages/client/src/data/query-error-state.tsx", names: ["QueryErrorState"] };
 
 const MESSAGE =
@@ -195,12 +195,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/x.tsx":
-          'import { QueryBoundary } from "../../data/query-boundary.tsx";\nexport const G = () => <QueryBoundary renderError={() => <span>failed</span>} />;\n',
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nexport const G = () => <QueryBoundary renderError={() => <span>failed</span>} />;\n',
       },
       expect: { count: 1, token: ATTRIBUTE },
       why: "the founding shape — an inline arm rendering a hand-rolled surface where the battery belongs",
@@ -208,12 +208,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/rpg/lib/rpg-context-section.tsx":
-          'import { QueryBoundary } from "../../../data/query-boundary.tsx";\nexport const A = () => <QueryBoundary renderError={() => <span>alert</span>} />;\nexport const B = () => <QueryBoundary renderError={() => <span>alert</span>} />;\n',
+          'import { QueryBoundary } from "../../../components/query-boundary.tsx";\nexport const A = () => <QueryBoundary renderError={() => <span>alert</span>} />;\nexport const B = () => <QueryBoundary renderError={() => <span>alert</span>} />;\n',
       },
       expect: { count: 1 },
       why: "GRANT GRANULARITY, and the exact shape the legacy file allowlist could not express: the rpg pane's TWO custom arms in one file are ONE `(subject, operation)` finding and therefore ONE reviewed row, where the legacy row silently licensed every occurrence in the file",
@@ -221,12 +221,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/wrapped.tsx":
-          'import { QueryBoundary } from "../../data/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => <QueryBoundary renderError={() => <div><QueryErrorState label="x" /></div>} />;\n',
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => <QueryBoundary renderError={() => <div><QueryErrorState label="x" /></div>} />;\n',
       },
       expect: { count: 1 },
       why: "A WRAPPER AROUND the battery is not the battery: the arm must ROOT in it. This is the narrowing the live message-list plate was written against, kept deliberately",
@@ -234,12 +234,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/impostor.tsx":
-          'import { QueryBoundary } from "../../data/query-boundary.tsx";\nfunction QueryErrorState(): unknown {\n  return null;\n}\nexport const G = () => <QueryBoundary renderError={() => <QueryErrorState />} />;\n',
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nfunction QueryErrorState(): unknown {\n  return null;\n}\nexport const G = () => <QueryBoundary renderError={() => <QueryErrorState />} />;\n',
       },
       expect: { count: 1 },
       why: "THE COUNTERFACTUAL ON THE ARM: a LOCAL component with the battery's name satisfied the legacy tag-TEXT check exactly. Only the canonical declaration separates the real battery from a lookalike",
@@ -249,42 +249,42 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
-        "packages/client/src/features/a/x.tsx": 'import { QueryBoundary } from "../../data/query-boundary.tsx";\nexport const G = () => <QueryBoundary />;\n',
+        "packages/client/src/features/a/x.tsx": 'import { QueryBoundary } from "../../components/query-boundary.tsx";\nexport const G = () => <QueryBoundary />;\n',
       },
       why: "no `renderError` prop at all — QueryBoundary defaults to the battery, which is the ideal case",
     },
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/y.tsx":
-          'import { QueryBoundary } from "../../data/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => <QueryBoundary renderError={(retry: () => void) => <QueryErrorState label="x" onRetry={retry} />} />;\n',
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => <QueryBoundary renderError={(retry: () => void) => <QueryErrorState label="x" onRetry={retry} />} />;\n',
       },
       why: "the sanctioned arm: it roots in the canonical battery",
     },
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/chat/surfaces/command-palette-surface.tsx":
-          'import { QueryBoundary } from "../../../data/query-boundary.tsx";\nimport { QueryErrorState } from "../../../data/query-error-state.tsx";\nexport const G = () => (\n  <QueryBoundary\n    renderError={(retry: () => void) => (\n      <QueryErrorState label="recent threads" onRetry={retry} renderRetry={() => <button type="button">Retry</button>} />\n    )}\n  />\n);\n',
+          'import { QueryBoundary } from "../../../components/query-boundary.tsx";\nimport { QueryErrorState } from "../../../data/query-error-state.tsx";\nexport const G = () => (\n  <QueryBoundary\n    renderError={(retry: () => void) => (\n      <QueryErrorState label="recent threads" onRetry={retry} renderRetry={() => <button type="button">Retry</button>} />\n    )}\n  />\n);\n',
       },
       why: "THE DELETED ROW, as it stands today: the command palette's arm roots in the battery with a custom retry BUTTON, so it is not a finding and a grant row for it would be STALE. The legacy allowlist row survived only because its mode-A sweep asked whether the file still had a `renderError`, never whether that arm was still custom",
     },
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryErrorCatch(props: { renderError?: unknown }): unknown;\nexport declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\nexport const Inner = (renderError: unknown) => <QueryErrorCatch renderError={renderError} />;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
@@ -294,7 +294,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
@@ -306,12 +306,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/client/src/data/query-boundary.tsx":
+        "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/block.tsx":
-          'import { QueryBoundary } from "../../data/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => (\n  <QueryBoundary\n    renderError={(retry: () => void) => {\n      return <QueryErrorState label="x" onRetry={retry} />;\n    }}\n  />\n);\n',
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport const G = () => (\n  <QueryBoundary\n    renderError={(retry: () => void) => {\n      return <QueryErrorState label="x" onRetry={retry} />;\n    }}\n  />\n);\n',
       },
       why: "a BLOCK-bodied arm returning the battery is the same sanctioned shape — the return index is what a policy uses where the legacy gate walked descendants",
     },

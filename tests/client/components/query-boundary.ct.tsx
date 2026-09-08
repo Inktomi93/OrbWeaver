@@ -4,7 +4,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
-import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "./_ct-stories.tsx";
+import { BatchedHoldStory, DeferredEchoBoundaryStory, EchoBoundaryStory, ReservedBoundaryStory } from "../data/_ct-stories.tsx";
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
