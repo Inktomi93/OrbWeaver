@@ -3,8 +3,65 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { readConcurrencyProfile } = require("@orb/tooling/_shared/concurrency-profile");
 
+const INCREMENTAL_OPTION = "--incremental";
+const INCREMENTAL_SHORT_OPTION = "-i";
+const BUILD_INFO_OPTION = "--tsBuildInfoFile";
+
+// Vitest unconditionally adds incremental flags to typecheck projects. Native TS7 can retain a stale
+// semantic verdict when an imported `/// <reference lib>` widens the global program, so this wrapper keeps
+// every TS7 invocation on the repo's cold-check policy regardless of the caller's defaults.
+function incrementalOptionWidth(arg, next) {
+  const normalized = arg.toLowerCase();
+  const normalizedNext = next?.toLowerCase();
+  if (normalized === INCREMENTAL_OPTION.toLowerCase() || normalized === INCREMENTAL_SHORT_OPTION) {
+    return normalizedNext === "true" || normalizedNext === "false" ? 2 : 1;
+  }
+  if (normalized.startsWith(`${INCREMENTAL_SHORT_OPTION}=`)) {
+    throw new Error(`${INCREMENTAL_SHORT_OPTION} does not accept an equals-form value; use a bare flag or a separate true/false value`);
+  }
+  if (!normalized.startsWith(`${INCREMENTAL_OPTION.toLowerCase()}=`)) {
+    return 0;
+  }
+  const value = normalized.slice(INCREMENTAL_OPTION.length + 1);
+  if (value !== "true" && value !== "false") {
+    throw new Error(`${INCREMENTAL_OPTION} expects true or false, received ${JSON.stringify(value)}`);
+  }
+  return 1;
+}
+
+function buildInfoOptionWidth(arg, next) {
+  const normalized = arg.toLowerCase();
+  if (normalized === BUILD_INFO_OPTION.toLowerCase()) {
+    if (next === undefined || next.length === 0 || next.startsWith("-")) {
+      throw new Error(`${BUILD_INFO_OPTION} requires a path value`);
+    }
+    return 2;
+  }
+  if (!normalized.startsWith(`${BUILD_INFO_OPTION.toLowerCase()}=`)) {
+    return 0;
+  }
+  const value = normalized.slice(BUILD_INFO_OPTION.length + 1);
+  if (value.length === 0) {
+    throw new Error(`${BUILD_INFO_OPTION} requires a path value`);
+  }
+  return 1;
+}
+
+function withoutIncremental(rawArgs) {
+  const args = [];
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const width = incrementalOptionWidth(rawArgs[index], rawArgs[index + 1]) || buildInfoOptionWidth(rawArgs[index], rawArgs[index + 1]);
+    if (width === 0) {
+      args.push(rawArgs[index]);
+    } else {
+      index += width - 1;
+    }
+  }
+  return args;
+}
+
 // biome-ignore lint/correctness/noProcessGlobal: CLI script
-const args = process.argv.slice(2);
+const args = withoutIncremental(process.argv.slice(2));
 const tscPath = path.resolve(__dirname, "../node_modules/ts7/bin/tsc");
 
 // THE CHECKER CAP COMES FROM THE ONE PROFILE (tooling/concurrency-profile.json, #1835) — 4 checkers on a
