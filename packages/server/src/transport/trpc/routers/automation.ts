@@ -1,15 +1,14 @@
-// transport/trpc/routers/automation — the client-facing surface of the automation LEAF (the rule editor +
-// list/reorder + fire log + budget panels the chat Rules section and the Automation settings pane consume).
+// transport/trpc/routers/automation — the client-facing surface of the automation LEAF (rule lists + preset
+// minting + lifecycle actions + fire logs for chat Rules and the Automation settings pane).
 // AUTHORITY FOLLOWS THE RULE'S SCOPE, decided in the domain guard, never here:
 //   • a CHAT-scoped rule — `can(principal, "host", {kind:"chat", membership})` over the chat's membership; a
 //     non-member collapses to a leak-free NOT_FOUND, a member-not-host propagates `can()`'s FORBIDDEN.
 //   • an OWNER-GLOBAL rule (C5) — the caller must BE the author; anyone else gets NOT_FOUND, because that
 //     lane is visible to exactly one person and FORBIDDEN would make a rule id an existence oracle.
 // Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
-// The trigger/action VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
-// `automationTriggerSchema` + `automationActionsSchema` (one home per shape — `no-inline-union-redecl`); the
-// scalar rule fields + budget knobs are inline wire wrappers (imagery router precedent). testRule's optional
-// `sampleEvent` (a `TriggerFact`) has no wire schema home — the pane's dry-run synthesizes from the rule's
+// The preset VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
+// preset id + knob schemas (one home per shape — `no-inline-union-redecl`). testRule's optional `sampleEvent`
+// (a `TriggerFact`) has no wire schema home — the pane's dry-run synthesizes from the rule's
 // trigger, so the wire omits it (the verb's `sampleEvent?` absent path). The per-user global-variable verbs
 // are NOT exposed here (this pane is rule-scoped; globals are a later settings surface). Result shapes flow
 // to the client via tRPC `inferOutput` — no domain result type (RuleView/FireView/TestRunResult) duplicated.
@@ -20,8 +19,6 @@
 import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
-  automationActionsSchema,
-  automationTriggerSchema,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
 } from "@orb/contracts/automation";
@@ -30,75 +27,19 @@ import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-// The editable rule fields shared by create + update (the PUT-style replace — updateRule re-runs the same
-// validation). The trigger + action shapes ride the contract vocabulary; the scalars are wire wrappers. `name`
-// is non-empty (the notNull column); its length + the description/predicate bounds are the domain/DB CHECK's
-// concern (the verb owns validation — a thin router never re-decides it).
-const ruleEditableSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  trigger: automationTriggerSchema,
-  predicateCel: z.string().nullish(),
-  actions: automationActionsSchema,
-  matchAutomationEvents: z.boolean().optional(),
-  cooldownSeconds: z.number().int().min(0).optional(),
-  maxFiresPerHour: z.number().int().min(0).optional(),
-});
-
 export const automationRouter = t.router({
-  // The rule list + reorder surface (host-only). listRules is position-ordered; reorderRules is a TOTAL rewrite.
+  // The host-only rule list is position-ordered.
   listRules: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.automation.listRules({ principal: ctx.auth, chatId: input.chatId })),
-
-  reorderRules: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), orderedIds: z.array(brandedId<AutomationRuleId>()) }))
-    .mutation(({ ctx, input }) => ctx.services.automation.reorderRules({ principal: ctx.auth, chatId: input.chatId, orderedIds: input.orderedIds })),
-
-  // The rule editor (host-only). createRule is born DISABLED (enabling is the consent act); updateRule replaces
-  // the editable field set + resets `consecutive_errors`. Both run the full write-edge validation in the verb
-  // (trigger liveness · CEL parse · action shapes/caps/reserved-arm refusal · book attachment · cooldown floor).
-  // `chatId` is NULLABLE on the wire (C5): null = the caller's owner-GLOBAL lane. Nullable rather than
-  // optional so an omitted field is a BAD_REQUEST instead of silently minting a global rule — a caller must
-  // say which lane it means.
-  createRule: authedProcedure.input(ruleEditableSchema.extend({ chatId: brandedId<ChatId>().nullable() })).mutation(({ ctx, input }) =>
-    ctx.services.automation.createRule({
-      principal: ctx.auth,
-      chatId: input.chatId,
-      name: input.name,
-      trigger: input.trigger,
-      actions: input.actions,
-      ...(input.description === undefined ? {} : { description: input.description }),
-      ...(input.predicateCel === undefined ? {} : { predicateCel: input.predicateCel }),
-      ...(input.matchAutomationEvents === undefined ? {} : { matchAutomationEvents: input.matchAutomationEvents }),
-      ...(input.cooldownSeconds === undefined ? {} : { cooldownSeconds: input.cooldownSeconds }),
-      ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
-    }),
-  ),
-
-  updateRule: authedProcedure.input(ruleEditableSchema.extend({ ruleId: brandedId<AutomationRuleId>() })).mutation(({ ctx, input }) =>
-    ctx.services.automation.updateRule({
-      principal: ctx.auth,
-      ruleId: input.ruleId,
-      name: input.name,
-      trigger: input.trigger,
-      actions: input.actions,
-      ...(input.description === undefined ? {} : { description: input.description }),
-      ...(input.predicateCel === undefined ? {} : { predicateCel: input.predicateCel }),
-      ...(input.matchAutomationEvents === undefined ? {} : { matchAutomationEvents: input.matchAutomationEvents }),
-      ...(input.cooldownSeconds === undefined ? {} : { cooldownSeconds: input.cooldownSeconds }),
-      ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
-    }),
-  ),
 
   setRuleEnabled: authedProcedure
     .input(z.object({ ruleId: brandedId<AutomationRuleId>(), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.automation.setRuleEnabled({ principal: ctx.auth, ruleId: input.ruleId, enabled: input.enabled })),
 
   // RULED F4's per-rule OPT-OUT (spec row B4) — whether a RATE REFUSAL of this rule still offers the host
-  // the "run it now?" invitation. Its OWN procedure rather than a field on `ruleEditableSchema`, because the
-  // PUT clears the rule's mint provenance: a preference toggle must not cost a host their saved-cast
-  // lineage. Same rule-scoped host gate as `setRuleEnabled`, which is the procedure this one is shaped on.
+  // the "run it now?" invitation. Its OWN procedure preserves the rule's mint provenance when the preference
+  // flips. Same rule-scoped host gate as `setRuleEnabled`, which is the procedure this one is shaped on.
   setRuleSuggestOnRefusal: authedProcedure
     .input(z.object({ ruleId: brandedId<AutomationRuleId>(), suggestOnRefusal: z.boolean() }))
     .mutation(({ ctx, input }) =>
@@ -182,32 +123,6 @@ export const automationRouter = t.router({
       }),
     ),
 
-  // The per-chat fire-rate cap (host-only; the loop-safety belt). An absent field keeps the current value.
-  setBudgets: authedProcedure
-    .input(
-      z.object({
-        chatId: brandedId<ChatId>(),
-        // The WIRE MIRROR of the domain verb's authoritative bound (#1430) — the belt had a floor and no
-        // ceiling, so a host could set a nine-digit "cap" that bounds nothing. `substrate/validate.ts`'s
-        // `assertFireRateCap` is the authority (compose can reach the verb without this schema); this makes
-        // the same refusal a BAD_REQUEST at the trust boundary instead of a domain throw.
-        maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional(),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.automation.setBudgets({
-        principal: ctx.auth,
-        chatId: input.chatId,
-        ...(input.maxFiresPerHour === undefined ? {} : { maxFiresPerHour: input.maxFiresPerHour }),
-      }),
-    ),
-
-  // The rate-cap panel READ (host-only) — the per-chat fire-rate ceiling the panel renders. Same
-  // requireChatHost chokepoint as listRules; an absent budget row projects to the defaulted view.
-  getBudgets: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>() }))
-    .query(({ ctx, input }) => ctx.services.automation.getBudgets({ principal: ctx.auth, chatId: input.chatId })),
-
   // ── C5: the OWNER-GLOBAL lane (the Automation settings pane's three procedures) ──────────────────
   // NONE OF THEM TAKES AN ID, and that is the whole authority story rather than a missing gate: the plane is
   // single-owned (D18), so the scope IS `ctx.auth.userId` and there is no other lane a caller could name.
@@ -219,7 +134,7 @@ export const automationRouter = t.router({
 
   getOwnerBudgets: authedProcedure.query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
 
-  // The owner-plane twin of the per-chat mirror above (#1430) — same authority, same ceiling.
+  // The owner-wide fire-rate cap (#1430) mirrors the domain verb's authoritative ceiling at the wire edge.
   setOwnerBudgets: authedProcedure
     .input(z.object({ maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))
     .mutation(({ ctx, input }) =>

@@ -18,6 +18,12 @@ The pre-cleanup `pnpm ast unwired --json` census reports 15 candidates from 424 
 
 This review itself made no source changes. The owner subsequently authorized the worthwhile cleanup; root approved the nine listed wrapper removals and their coupled tests/comments under #1891. The six intentional surfaces and independently consumed domain behavior remain preserved.
 
+## Cleanup outcome
+
+The nine approved RPC wrappers are removed. A fresh native census reports 415 procedures and the same six intentional candidates. Domain/service implementations and their business tests remain; the cross-tenant sweep still compares every registered procedure against its complete probe/exemption union. The surviving `DiscoveryService.themes` coverage row is retained because it governs the domain method.
+
+Independent review found no remaining defect: 70 cross-tenant/domain tests plus 11 discovery-view tests passed, with native typechecks and census checks. The builder also passed 108 focused Node tests and 106 affected browser tests. The two connection catalog wrappers remain under their earlier owner ruling; no new liveness annotation hides them.
+
 ## Search boundary
 
 `pnpm ast unwired --json` re-derived the same 15 names as the prior snapshot, with a fresher corpus count: `dts:3`, `mts:1`, `ts:5917`, `tsx:1405`, `scanned:7326`, `skipped:0`, `status:complete`. The lens reads production client files only and recognizes dot, optional-dot, string-indexed value access, and `Trpc["namespace"]["procedure"]`; its implementation and declared blind spot are at `tooling/src/ast/ops/wiring.ts:13-31`, `:153-217`, and `:243-277`. It deliberately does not count tests or computed keys whose value cannot be known statically.

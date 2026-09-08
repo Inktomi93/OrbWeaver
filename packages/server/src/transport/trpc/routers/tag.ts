@@ -94,24 +94,4 @@ export const tagRouter = t.router({
         targetId: input.targetId,
       }),
     ),
-
-  bulkAttachTag: authedProcedure
-    .input(
-      z.object({
-        tagIds: z.array(brandedId<TagId>()).min(1),
-        targetType: tagTargetTypeSchema,
-        // @orb-waive no-raw-id(targetId): polymorphic ref — targetId is a plain wire string, branded per targetType at the junction dispatch (tag params).
-        targetId: z.string().min(1),
-        status: tagStatusSchema.optional(),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.tag.bulkAttachTag({
-        principal: ctx.auth,
-        tagIds: input.tagIds,
-        targetType: input.targetType,
-        targetId: input.targetId,
-        ...(input.status !== undefined ? { status: input.status } : {}),
-      }),
-    ),
 });

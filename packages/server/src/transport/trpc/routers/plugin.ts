@@ -98,7 +98,7 @@ export const pluginRouter = t.router({
     .input(z.object({ pluginId: pluginIdSchema, bundleBase64: z.string() }))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgrade({ caller: ctx.auth, pluginId: input.pluginId, bundle: decodeBundle(input.bundleBase64) })),
 
-  // ── URL INSTALL / UPDATE (plugin-ui-plane #679 U8, seam 15 — the security-review subject). All three are
+  // ── URL INSTALL / PREVIEW (plugin-ui-plane #679 U8, seam 15 — the security-review subject). Both are
   //    MUTATIONS, not queries, and that is deliberate the same way `uiHostCall` is: each triggers SERVER EGRESS
   //    to a caller-supplied URL, and a GET-shaped door onto egress is both cacheable and outside the CSRF belt
   //    (which covers mutations only) — exactly the shape that belt exists to close. The URL is bounded at the
@@ -107,9 +107,7 @@ export const pluginRouter = t.router({
   //
   //    `previewFromUrl` fetches+parses and returns the MANIFEST (the consent-screen + update-version primitive):
   //    no owned id, SELF-authority ⇒ sweep-EXEMPT. `installFromUrl` mints the CALLER's own row (no foreign id ⇒
-  //    EXEMPT). `upgradeFromUrl` takes a FOREIGN pluginId and joins the PROBED sweep set: the service loads the
-  //    owner-scoped row and NOT_FOUNDs a stranger BEFORE any fetch (a stranger never triggers egress), and #615's
-  //    reach-widening→disabled re-consent wall applies to the fetched bundle unchanged (never a silent update).
+  //    EXEMPT).
   previewFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ caller: ctx.auth, url: input.url })),
@@ -118,19 +116,15 @@ export const pluginRouter = t.router({
     .input(z.object({ url: bundleUrlSchema, grant: grantSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, grant: input.grant })),
 
-  upgradeFromUrl: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, url: bundleUrlSchema }))
-    .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromUrl({ caller: ctx.auth, pluginId: input.pluginId, url: input.url })),
-
   // ── AUTO UPDATE-CHECK + TRUE ONE-CLICK UPGRADE (plugin-ui-plane #679 U8 2b). BOTH are MUTATIONS for the same
-  //    reason `previewFromUrl`/`upgradeFromUrl` are: each triggers SERVER EGRESS to a plugin's remembered URL,
+  //    reason the URL preview is: each triggers SERVER EGRESS to a plugin's remembered URL,
   //    and a GET-shaped door onto egress is cacheable + outside the CSRF belt (which covers mutations only).
   //
   //    `checkForUpdates` takes NO input — it walks the CALLER's own plugins (`listOwned` filters
   //    owner_id = caller), re-fetching each `url`-origin remote manifest through `ctx.fetchBundle` and reading
   //    each SEEDED SHOWCASE row's version off the bundle this build ships (#1740) — so it is sweep-EXEMPT
   //    like `list`/`listSurfaces` (no foreign id). `upgradeFromStoredUrl` takes a FOREIGN pluginId and joins the
-  //    PROBED sweep set exactly like `upgradeFromUrl`: the service loads the owner-scoped row and NOT_FOUNDs a
+  //    PROBED sweep set: the service loads the owner-scoped row and NOT_FOUNDs a
   //    stranger BEFORE any fetch (a stranger never triggers egress on someone else's stored URL), and #615's
   //    reach-widening→disabled re-consent wall applies to the re-fetched bundle unchanged (never a silent update).
   checkForUpdates: authedProcedure.mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),

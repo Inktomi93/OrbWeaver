@@ -90,7 +90,6 @@ const UNANALYSED: TrpcRoutes = {
   "discovery.forgottenGems": [],
   "discovery.unusedCharacters": [],
   "discovery.modelRouting": [],
-  "discovery.themes": [],
   "discovery.topKeywords": [],
   "discovery.themeDrift": [],
   // The chain reads BOTH of these now (issue #166): memory's switch decides whether the pass has a themes
@@ -389,7 +388,6 @@ const POPULATED: TrpcRoutes = {
     tones: [{ value: "melancholic", count: 4 }],
     topTags: [{ tag: "tsundere", count: 9 }],
   },
-  "discovery.themes": [{ id: "theme_1", clusterIdx: 0, level: "scene", name: "The long road", size: 7 }],
 };
 
 test("THE UN-DRAWN TAIL IS GONE: no facet bars, no duplicate theme chart (forensics R4)", async ({ mount, page }) => {

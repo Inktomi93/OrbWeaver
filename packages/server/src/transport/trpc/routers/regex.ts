@@ -3,7 +3,7 @@
 // `@orb/contracts/regex` (the ONE wire home — this file re-spells nothing).
 //
 // CROSS-TENANT SWEEP CLASSIFICATION (the new-router rule — every proc classified):
-//   • PROBED (owner-scoped, `principal.userId` in the WHERE): listScripts, getScript, createScript,
+//   • PROBED (owner-scoped, `principal.userId` in the WHERE): listScripts, createScript,
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
 //     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
@@ -44,8 +44,6 @@ const scriptIdsInput = z.array(brandedId<RegexScriptId>()).max(MAX_BULK_SCRIPTS)
 
 export const regexRouter = t.router({
   listScripts: authedProcedure.query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
-
-  getScript: authedProcedure.input(scriptIdInput).query(({ ctx, input }) => ctx.services.regex.getScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
   createScript: authedProcedure
     .input(z.object({ input: createRegexScriptSchema }))

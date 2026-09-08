@@ -41,11 +41,13 @@ import type {
   WorkloadScheduleId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { AutomationService } from "@orb/server/domain/automation";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
+import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
@@ -281,13 +283,6 @@ const OWNER_BUDGET_STRANGER = 99;
 // numbers rule (C5) generalized — a re-read is only a witness if the seeded value and the attacker's value
 // differ. Each constant below is away from BOTH the schema default and the attacker's payload.
 
-/** A's per-CHAT fire ceiling. Distinct from `AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour` (120) AND from
- *  the stranger's `setBudgets` probe payload (`CHAT_BUDGET_HACK`), so the post-sweep re-read separates three
- *  outcomes a single value could not: A's row intact, A's row overwritten, or a verb projecting the DDL
- *  default instead of the stored row. */
-const CHAT_BUDGET_A = 11;
-/** What the stranger's `automation.setBudgets` probe writes at A's chat. */
-const CHAT_BUDGET_HACK = 5;
 /** A's preset's distinctive generation knob. `preset.resetToDefault` REPLACES the config while KEEPING the
  *  name, so the existing `presetStill.name` pin is structurally blind to it — a default-configured preset
  *  reads identical before and after a hijacked reset. This knob is the only witness. */
@@ -661,10 +656,6 @@ const PROBES: readonly Probe[] = [
   {
     path: "tag.detachTag",
     call: (c, i) => c.tag.detachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
-  },
-  {
-    path: "tag.bulkAttachTag",
-    call: (c, i) => c.tag.bulkAttachTag({ tagIds: [i.tagId], targetType: "character", targetId: i.characterId }),
   },
   // #795 — the tag EXECUTION-ORDER arm, the `regex.applyScopeOrder` global-scope shape one plane over. The old
   // payload named A's ONE tag, so "reordered" and "refused" produced the identical single-element order and the
@@ -1195,33 +1186,13 @@ const PROBES: readonly Probe[] = [
   { path: "imagery.readProvenance", call: (c) => c.imagery.readProvenance({ assetId: mintTypeId(ID_PREFIX.asset) }) },
 
   // ── automation (A8): every rule-lifecycle verb is host-authored room authority (04 §2). The chat-scoped
-  //    verbs (listRules/createRule/reorderRules/setBudgets/getBudgets) gate `requireChatHost(chatId)` — a non-member
+  //    verbs (listRules/createRuleFromPreset/listChatActivity) gate `requireChatHost(chatId)` — a non-member
   //    stranger passing A's chatId collapses to a leak-free AutomationChatNotFoundError → NOT_FOUND. The
-  //    rule-scoped verbs (updateRule/setRuleEnabled/deleteRule/testRule/listFires) load A's REAL ruleId then
+  //    rule-scoped verbs (setRuleEnabled/deleteRule/testRule/listFires) load A's REAL ruleId then
   //    gate its chat's host — a stranger (not a present member) collapses to RuleNotFoundError → NOT_FOUND
   //    BEFORE any write, so the seeded rule's name (MARK.automationRule) never leaks and its body is untouched
-  //    (the post-sweep integrity re-read proves create/update/delete/reorder/setRuleEnabled mutated nothing). ──
+  //    (the post-sweep integrity re-read proves preset-mint/delete/setRuleEnabled mutated nothing). ──
   { path: "automation.listRules", call: (c, i) => c.automation.listRules({ chatId: i.chatId }) },
-  {
-    path: "automation.createRule",
-    call: (c, i) =>
-      c.automation.createRule({
-        chatId: i.chatId,
-        name: "hacked",
-        trigger: { bus: "chat", type: "messageCommitted" },
-        actions: [{ type: "set_variable", scope: "chat", key: "x", op: "set", value: "1" }],
-      }),
-  },
-  {
-    path: "automation.updateRule",
-    call: (c, i) =>
-      c.automation.updateRule({
-        ruleId: i.automationRuleId,
-        name: "hacked",
-        trigger: { bus: "chat", type: "messageCommitted" },
-        actions: [{ type: "set_variable", scope: "chat", key: "x", op: "set", value: "1" }],
-      }),
-  },
   { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationRuleId, enabled: true }) },
   // B4's per-rule F4 opt-out — rule-scoped like `setRuleEnabled`, so it takes the SAME `requireRuleAuthority`
   // chokepoint and a stranger collapses to RuleNotFoundError → NOT_FOUND before the one-column write. Probed
@@ -1232,7 +1203,6 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.automation.setRuleSuggestOnRefusal({ ruleId: i.automationRuleId, suggestOnRefusal: false }),
   },
   { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationRuleId }) },
-  { path: "automation.reorderRules", call: (c, i) => c.automation.reorderRules({ chatId: i.chatId, orderedIds: [i.automationRuleId] }) },
   { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationRuleId }) },
   // R7 + S4 (interaction-direction-spec §6 R7 / §3-S4). `runRuleNow` is rule-scoped — same `requireRuleHost`
   // chokepoint as testRule, so a stranger collapses to RuleNotFoundError → NOT_FOUND BEFORE any dispatch (no
@@ -1261,19 +1231,11 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.automation.createRuleFromPreset({ chatId: i.chatId, presetId: "autoAddLore", knobs: { bookId: i.bookId } }),
   },
   { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationRuleId }) },
-  // B11 — the room Activity read is chat-scoped (like `listRules`/`getBudgets`): `requireChatHost(chatId)`
+  // B11 — the room Activity read is chat-scoped like `listRules`: `requireChatHost(chatId)`
   // gates it, so a non-member stranger passing A's chatId collapses to a leak-free AutomationChatNotFoundError
   // → NOT_FOUND before any fire row is read. A no-id proc is NOT auto-exempt — it is PROBED because it takes
   // A's chatId, the foreign handle a leak would ride.
   { path: "automation.listChatActivity", call: (c, i) => c.automation.listChatActivity({ chatId: i.chatId }) },
-  // #795 — the per-CHAT rate belt, the owner-global `setOwnerBudgets` shape one scope down. Unlike its owner
-  // twin the stranger CANNOT name its own row here (the key is A's chatId), so a resolve is already a leak; but
-  // the verb answers void, so the write half needs the post-sweep number back. `CHAT_BUDGET_HACK` is away from
-  // both A's seeded `CHAT_BUDGET_A` and the 120 DDL default, so the re-read separates intact / overwritten /
-  // default-projected.
-  { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: CHAT_BUDGET_HACK }) },
-  { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
-
   // ── automation C5 — the OWNER-GLOBAL lane (cb8026bfc). These three take NO id, which is exactly why they
   //    are PROBED rather than exempted as "self-scoped": their partition is a WHERE clause, not a parameter,
   //    so the only thing separating two users' private global lanes is `ownerId = principal.userId` inside
@@ -1295,20 +1257,7 @@ const PROBES: readonly Probe[] = [
   // …and the OTHER half of C5's surface: the rule-lifecycle verbs are SHARED between the two lanes, so A's
   // owner-global ruleId is a foreign id a stranger CAN aim — at `requireRuleAuthority`'s global arm
   // (`rule.ownerId !== principal.userId` → RuleNotFoundError → NOT_FOUND, never the chat arm's FORBIDDEN).
-  // The guard runs FIRST in each of these verbs (before payload validation and before any write), so the
-  // update payload below is deliberately a VALID global-lane payload (domain bus + a `global`-scope variable
-  // arm): a chat-shaped payload would be refused by the arm matrix and make a broken guard read as a pass.
-  // The post-sweep re-read proves the writes never landed on A's row.
-  {
-    path: "automation.updateRule",
-    call: (c, i) =>
-      c.automation.updateRule({
-        ruleId: i.automationOwnerRuleId,
-        name: "hacked",
-        trigger: { bus: "domain", type: "character.updated" },
-        actions: [{ type: "set_variable", scope: "global", key: "x", op: "set", value: "1" }],
-      }),
-  },
+  // The guard runs before validation or writes; the post-sweep re-read proves A's row stays intact.
   { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationOwnerRuleId, enabled: true }) },
   {
     path: "automation.setRuleSuggestOnRefusal",
@@ -1328,14 +1277,6 @@ const PROBES: readonly Probe[] = [
   //    the returned view). setGrant asks for the widest reach; setEnabled would BOOT A's guest code under the
   //    stranger's principal, which is the confused-deputy case D147 exists to close. ──
   { path: "plugin.upgrade", call: (c, i) => c.plugin.upgrade({ pluginId: i.pluginId, bundleBase64: hostileBundleBase64("alpha-plugin") }) },
-  // ── plugin.upgradeFromUrl (plugin-ui-plane #679 U8, seam 15) — the URL-upgrade twin, owner-scoped the SAME
-  //    way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND. The security
-  //    ordering the verb enforces is exactly what this probe pins — the owner-scoped row load runs BEFORE any
-  //    fetch, so a stranger gets NOT_FOUND and the `url` here is NEVER fetched (a dropped pre-check would instead
-  //    make the server fetch on a stranger's behalf AND expose A's row to the #615 upgrade path). The url points
-  //    at an unreachable `.invalid` host precisely to prove it is never reached: if the ownership gate regressed,
-  //    this probe would surface a `plugin_bundle_fetch_failed` (a distinguishable non-NOT_FOUND) and go RED. ──
-  { path: "plugin.upgradeFromUrl", call: (c, i) => c.plugin.upgradeFromUrl({ pluginId: i.pluginId, url: "https://plugins.example.invalid/alpha.zip" }) },
   // ── plugin.upgradeFromStoredUrl (plugin-ui-plane #679 U8 2b) — the one-click-from-remembered-URL twin, owner-
   //    scoped the SAME way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND
   //    BEFORE the owner-scoped row load hands the verb A's `source_url` to fetch. A dropped pre-check would make
@@ -1548,7 +1489,6 @@ const PROBES: readonly Probe[] = [
   // ── regex (owner-scoped script library, D121-E) — id-taking verbs owner-belted via `RegexNotFoundError`
   //    → NOT_FOUND (see the router's own classification header). The chat scope has no ownerId (D18) so
   //    attach/detach/listForChat/listRoomDisplayScripts are gated via chat's own host/member guards instead. ──
-  { path: "regex.getScript", call: (c, i) => c.regex.getScript({ scriptId: i.regexScriptId }) },
   // listScriptUsage takes a SCRIPT id and answers with the carriers attaching it — a stranger naming
   // A's script must learn nothing (the verb loads the owned script first; rooms ride the injected
   // present-membership op, so a foreign room never appears either).
@@ -1747,7 +1687,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "owner-belted-per-scope: ids in `scope` are owner-belted; unprobeable under vllmDisabled (needs an embedder). Belt proven in search.int.test.ts. The `documents` target (DB5) is owner-ONLY on the omnibox (requireOwnerScope → scope `{ownerId: principal.userId}`); the chat/character scopes are reached only via the compose-injected op (chat's already-authorized GATHER), never the wire — the databank scope-leak belt is proven in search/verbs/documents.int.test.ts (gate-8).",
   "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
   "discovery.duplicateChats": "self-scoped: userId = principal.userId (owner via present-host EXISTS)",
-  "discovery.themes": "self-scoped: userId = principal.userId",
   "discovery.browseCharacters": "self-scoped: userId = principal.userId (owner via characters join)",
   "discovery.characterFacets": "self-scoped: userId = principal.userId",
   "discovery.catalog": "self-scoped: userId = principal.userId (owner via characters join)",
@@ -1911,7 +1850,7 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
 
 describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
   /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
-  async function seedOwnerWorld(owner: AppCaller, db: Parameters<typeof seedChat>[0]): Promise<OwnerIds> {
+  async function seedOwnerWorld(owner: AppCaller, db: Parameters<typeof seedChat>[0], automation: AutomationService): Promise<OwnerIds> {
     const character = await owner.character.create({
       input: { handle: "alpha-hero", name: MARK.character, description: "owned by A" },
     });
@@ -1989,11 +1928,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       content: MARK.message,
     });
 
-    // A host-authored automation rule on A's chat (front door — A is the chat's host). Its `name` (MARK.
-    // automationRule) is A's marker, so a broken `automation.listRules`/`testRule`/`listFires` host gate that
-    // resolved A's rule for a stranger leaks it; the rule is born DISABLED, and the ruleId feeds every
-    // rule-scoped probe (update/setRuleEnabled/delete/testRule/listFires collapse a stranger to NOT_FOUND).
-    const automationRule = await owner.automation.createRule({
+    // A host-authored automation rule on A's chat. The tRPC hand-authoring wrapper is gone, so fixture setup
+    // uses the composed domain front door directly; this preserves the unique marker without reintroducing a
+    // privileged transport bypass. The rule is born DISABLED, and its id feeds every surviving wire probe.
+    const automationRule = await automation.createRule({
+      principal: automationPrincipal(OWNER_USER_ID),
       chatId,
       name: MARK.automationRule,
       trigger: { bus: "chat", type: "messageCommitted" },
@@ -2007,17 +1946,14 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //    variable arm (a `chat`-scope one is refused) — a payload the matrix rejects would throw HERE, at the
     //    seed, rather than quietly leaving the probes below with no row to aim at. Born disabled like every
     //    rule, which is the baseline the stranger's setRuleEnabled probe must not move.
-    const automationOwnerRule = await owner.automation.createRule({
+    const automationOwnerRule = await automation.createRule({
+      principal: automationPrincipal(OWNER_USER_ID),
       chatId: null,
       name: MARK.automationOwnerRule,
       trigger: { bus: "domain", type: "character.updated" },
       actions: [{ type: "set_variable", scope: "global", key: "probe", op: "set", value: "1" }],
     });
     await owner.automation.setOwnerBudgets({ maxFiresPerHour: OWNER_BUDGET_A });
-    // #795 — A's per-CHAT rate ceiling, seeded AWAY from the 120 DDL default (the C5 owner-budget posture one
-    // scope down). Without a stored row the post-sweep pin would read the projected default and pass whether
-    // the stranger's `setBudgets` landed or not; with it, the three outcomes are separable.
-    await owner.automation.setBudgets({ chatId, maxFiresPerHour: CHAT_BUDGET_A });
 
     // A workload owned by A — a USER-scope kind, `failed` so `retry` is meaningful. Its `error` carries A's
     // marker (a leaked `get`/`retry` result would surface it), so the probe has teeth (F3 owner-scoping).
@@ -2263,8 +2199,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     };
   }
 
-  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller }) => {
-    const ids = await seedOwnerWorld(ownerCaller, db);
+  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services }) => {
+    const ids = await seedOwnerWorld(ownerCaller, db, services.automation);
 
     // CONTROL: the owner's OWN read carries the marker — proving the detector below is not blind.
     const ownView = JSON.stringify(await ownerCaller.character.get({ characterId: ids.characterId }));
@@ -2295,8 +2231,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const docAttachments = await ownerCaller.databank.listAttachments({ id: ids.documentId });
     expect(docAttachments.characters.map((c) => c.id)).toEqual([ids.characterId]); // the character junction survived detachFromCharacter
     const rulesStill = await ownerCaller.automation.listRules({ chatId: ids.chatId });
-    expect(rulesStill).toHaveLength(1); // the stranger's createRule enqueued no rule into A's chat
-    expect(rulesStill[0]?.name).toBe(MARK.automationRule); // untouched by the stranger's automation.updateRule probe
+    expect(rulesStill).toHaveLength(1); // the stranger's createRuleFromPreset enqueued no rule into A's chat
+    expect(rulesStill[0]?.name).toBe(MARK.automationRule);
     expect(rulesStill[0]?.enabled).toBe(false); // born disabled — untouched by the stranger's setRuleEnabled probe
     // B4 — the stranger's `setRuleSuggestOnRefusal(false)` probe never muted A's F4 invitations. A write-IDOR
     // here returns void and leaks nothing, so the ONLY way to see it is to re-read the column.
@@ -2309,7 +2245,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(strangerOwnerRules).toEqual([]); // the stranger's global lane is its own and it is EMPTY — A's rule is not in it
     const ownerRulesStill = await ownerCaller.automation.listOwnerRules();
     expect(ownerRulesStill).toHaveLength(1); // survived the stranger's deleteRule probe on A's global ruleId
-    expect(ownerRulesStill[0]?.name).toBe(MARK.automationOwnerRule); // untouched by the stranger's updateRule probe
+    expect(ownerRulesStill[0]?.name).toBe(MARK.automationOwnerRule);
     expect(ownerRulesStill[0]?.enabled).toBe(false); // born disabled — the stranger's setRuleEnabled never flipped A's consent
     expect(ownerRulesStill[0]?.suggestOnRefusal).toBe(true); // B4 — nor did its setRuleSuggestOnRefusal probe mute A's lane
     const strangerBudget = await otherCaller.automation.getOwnerBudgets();
@@ -2333,10 +2269,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // (true) against the stranger's `bulkSetEnabled({enabled:false})`; A's global tier is empty against
     // `bulkSetGlobal({global:true})` + the single `attachGlobal` probe — `global_regex_scripts` has no owner
     // column (its scope IS the script's ownership), so a dropped belt parks A's script in A's own global tier.
-    const regexScriptStill = await ownerCaller.regex.getScript({ scriptId: ids.regexScriptId });
-    expect(regexScriptStill.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach/bulkRemove probes
-    expect(regexScriptStill.enabled).toBe(true); // untouched by the stranger's regex.bulkSetEnabled probe
-    expect(regexScriptStill.placement).toEqual(["AI_OUTPUT"]); // A's seeded placement — untouched by the stranger's regex.bulkSetPlacement probe
+    const regexScriptStill = (await ownerCaller.regex.listScripts()).find((script) => script.id === ids.regexScriptId);
+    expect(regexScriptStill, "A's regex script survived the stranger's remove/bulkRemove probes").toBeDefined();
+    expect(regexScriptStill?.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach/bulkRemove probes
+    expect(regexScriptStill?.enabled).toBe(true); // untouched by the stranger's regex.bulkSetEnabled probe
+    expect(regexScriptStill?.placement).toEqual(["AI_OUTPUT"]); // A's seeded placement — untouched by the stranger's regex.bulkSetPlacement probe
     const regexGlobalStill = await ownerCaller.regex.listGlobal();
     expect(regexGlobalStill.map((s) => s.id)).not.toContain(ids.regexScriptId); // no stranger attachGlobal/bulkSetGlobal reached A's tier
     // #708 — A's global EXECUTION ORDER is intact: the stranger's `applyScopeOrder({scope:global})` [B,A] reversal
@@ -2450,12 +2387,12 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       hijackVerdict("rpg.listJournal", rpgJournalStill), // rpg.addJournalEntry / editJournalEntry
       hijackVerdict("rpg.listCheckpoints", rpgCheckpointsStill), // rpg.createCheckpoint
       hijackVerdict("rpg.getConfigView", rpgConfigStill), // rpg.updateConfig
-      hijackVerdict("automation.listRules", rulesStill), // automation.createRule / updateRule
-      hijackVerdict("automation.listOwnerRules", ownerRulesStill), // the C5 owner-global updateRule arm
+      hijackVerdict("automation.listRules", rulesStill),
+      hijackVerdict("automation.listOwnerRules", ownerRulesStill),
       hijackVerdict("refinery.getSession", sessionStill), // refinery.updateSession / submitManualRewrite
       hijackVerdict("refinery.listSchemas", schemasStill), // refinery.updateSchema
       hijackVerdict("plugin.list", pluginStill), // plugin.upgrade (the hostile bundle's "Hijacked" name)
-      hijackVerdict("regex.getScript", regexScriptStill), // regex.updateScript
+      hijackVerdict("regex.listScripts", regexScriptStill), // regex.updateScript
       hijackVerdict("rosterPreset.get", partyStill), // rosterPreset.update
       hijackVerdict("persona.get", personaStill), // persona.update
       hijackVerdict("preset.get", presetStill), // preset.update
@@ -2533,16 +2470,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //    values a turn assembles against, and neither had a witness. ──
     expect(await ownerCaller.chat.getRuntimeVariables({ chatId: ids.chatId })).toEqual({}); // chat.setVariables({mood:"grim"}) never landed
 
-    // ── AUTOMATION per-chat rate belt (the C5 owner-budget pin one scope down). `setBudgets` returns void, so
-    //    A's number is the only evidence; seeded away from BOTH the default and the attacker's payload. ──
-    const chatBudgetStill = await ownerCaller.automation.getBudgets({ chatId: ids.chatId });
-    expect(chatBudgetStill.maxFiresPerHour).toBe(CHAT_BUDGET_A); // not CHAT_BUDGET_HACK (hijacked) and not 120 (default projected)
-
     // ── CHARACTER non-text state. `update`'s text arm is witnessed by the name; these two bulk arms move a
     //    FLAG and a JUNCTION, and `snapshot` MINTS a row — none leaves text, so all three were unwitnessed. ──
     expect(stillThere.archived).toBe(false); // character.bulkArchive({archived:true}) never landed
     expect(stillThere.tags.map((t) => t.name)).not.toContain("x"); // character.bulkAddCardTag({tagName:"x"}) never tagged A's card
-    expect(stillThere.tags.map((t) => t.id)).not.toContain(ids.tagId); // tag.attachTag/bulkAttachTag never attached A's tag to A's card
+    expect(stillThere.tags.map((t) => t.id)).not.toContain(ids.tagId); // tag.attachTag never attached A's tag to A's card
     expect(await ownerCaller.character.listSnapshots({ characterId: ids.characterId })).toHaveLength(1); // character.snapshot minted nothing on A's card
 
     // ── PRESET config. `resetToDefault` REPLACES the config and KEEPS the name, so the `presetStill.name` pin
