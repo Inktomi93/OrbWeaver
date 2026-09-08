@@ -1,7 +1,7 @@
 import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId, VerifiedUserId, WorldBookId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { assertType, expectTypeOf, test } from "vitest";
-import type { z } from "zod";
+import { z } from "zod";
 
 // The brands are the 446-importer universal leaf — a collision (e.g. a `Branded`/`TypeIdOf`
 // regression that makes two entity ids structurally equal) is a SILENT type hole no runtime
@@ -50,8 +50,15 @@ test("mintTypeId infers TypeIdOf<prefix> from the ID_PREFIX value", () => {
   expectTypeOf(ID_PREFIX.chat).toEqualTypeOf<"chat">();
 });
 
-test("brandedId<T> yields a zod schema whose output is the brand", () => {
+test("brandedId<T> accepts plain strings and yields the requested brand", () => {
   const schema = brandedId<UserId>();
+  const wrapped = z.object({ userId: schema });
+  expectTypeOf<z.input<typeof schema>>().toEqualTypeOf<string>();
+  expectTypeOf<number>().not.toExtend<z.input<typeof schema>>();
+  expectTypeOf<{ readonly wrong: true }>().not.toExtend<z.input<typeof schema>>();
+  expectTypeOf<z.infer<typeof schema>>().toEqualTypeOf<UserId>();
+  expectTypeOf<z.input<typeof wrapped>>().toEqualTypeOf<{ userId: string }>();
+  expectTypeOf<z.infer<typeof wrapped>>().toEqualTypeOf<{ userId: UserId }>();
   expectTypeOf(schema.parse("u")).toEqualTypeOf<UserId>();
   assertType<UserId>(schema.parse("u"));
 });
