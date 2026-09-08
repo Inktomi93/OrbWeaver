@@ -27,7 +27,7 @@ const CONFIG: AuthConfig = {
   uploads: DEFAULT_UPLOAD_CAPS,
 };
 
-type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config").fetchAuthConfig;
+type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config.ts").fetchAuthConfig;
 
 async function freshFetchAuthConfig(): Promise<FetchAuthConfig> {
   vi.resetModules();
