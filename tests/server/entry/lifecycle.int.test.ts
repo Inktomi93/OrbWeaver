@@ -4,30 +4,28 @@
 // box: healthz reports 503 and the listener stops accepting. env is stubbed BEFORE the dynamic import so
 // `foundation/env` parses the throwaway config (it is frozen at module load).
 
-import { rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-// A fixed high port + temp db (the integration lane runs serially — no INTRA-suite contention; no random
-// ids, the determinism gate bans Math.random). NOT the env-default 8788: a running dev stack holds that,
+// A fixed high port + process-owned temp root (the integration lane runs serially — no INTRA-suite
+// contention; no random ids, the determinism gate bans Math.random). NOT the env-default 8788: a running dev stack holds that,
 // and pre-fix the collision was SILENT — boot's bind failed but `waitForHealthz` polled the DEV server's
 // healthz and got its 200, so the test green-ran against a neighbor process until the shutdown half lied
 // (2026-07-09). Boot now rejects on a failed bind (entry/lifecycle.ts), so a collision here fails loudly
-// at `boot()` instead. Cleaned up in afterAll.
+// at `boot()` instead. The DB, its WAL/SHM siblings and assets all live below TEMP_DIR, so teardown can
+// remove only this invocation's files.
 const PORT = 18_788;
-const DB_PATH = "/tmp/orb-lifecycle-int.db";
-const ASSETS_DIR = "/tmp/orb-lifecycle-int-assets";
+const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-int-"));
+const DB_PATH = join(TEMP_DIR, "orb.db");
+const ASSETS_DIR = join(TEMP_DIR, "assets");
 const HEALTHZ_URL = `http://localhost:${PORT}/healthz`;
 const OK = 200;
 const SERVICE_UNAVAILABLE = 503;
 const POLL_ATTEMPTS = 30;
 const POLL_DELAY_MS = 100;
-
-function cleanupDbFiles(): void {
-  for (const suffix of ["", "-wal", "-shm"]) {
-    rmSync(`${DB_PATH}${suffix}`, { force: true });
-  }
-}
 
 vi.stubEnv("DATABASE_URL", `file:${DB_PATH}`);
 vi.stubEnv("PORT", String(PORT));
@@ -40,17 +38,21 @@ vi.stubEnv("ASSETS_DIR", ASSETS_DIR);
 // exact mechanism for "an internal host you legitimately need to reach" (here, the server under test).
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
-cleanupDbFiles();
-
-// Dynamic import AFTER the env stubs so `foundation/env` freezes the throwaway config.
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts");
+// Dynamic import AFTER the env stubs so `foundation/env` freezes the throwaway config. A module-load
+// failure happens before Vitest can run afterAll, so release the owned root on that path here.
+const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+  rmSync(TEMP_DIR, { force: true, recursive: true });
+  throw error;
+});
 
 const lifecycle = createLifecycle();
 
 afterAll(async () => {
-  await lifecycle.shutdown();
-  cleanupDbFiles();
-  rmSync(ASSETS_DIR, { force: true, recursive: true });
+  try {
+    await lifecycle.shutdown();
+  } finally {
+    rmSync(TEMP_DIR, { force: true, recursive: true });
+  }
 });
 
 /** Poll healthz until the freshly-bound listener answers (serve() binds async; a few ms in practice). */
