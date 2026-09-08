@@ -25,6 +25,7 @@ export const VERIFY_VERBS = [
   "ratchet-gate",
   "config-snapshot",
   "typecheck-plan",
+  "typecheck",
 ] as const;
 
 export type VerifyVerb = (typeof VERIFY_VERBS)[number];

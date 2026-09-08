@@ -37,18 +37,12 @@ export function vitestScopedArgv(selection: Selection): ScopedArgv {
   return ["pnpm", "test:scoped", "--related", ...subjects];
 }
 
-/** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
- *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7
- *  native) — the CLI type lanes moved off tsc6 (ts-morph/typescript-eslint keep the TS6 API). */
+/** The unified typecheck door receives the complete affected native-program plan. */
 export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
-  const sole = tsconfigs[0];
-  if (sole === undefined) {
+  if (tsconfigs.length === 0) {
     return "skip-empty";
   }
-  if (tsconfigs.length > 1) {
-    return ["pnpm", "typecheck"];
-  }
-  return ["pnpm", "exec", "node", "scripts/ts7.cjs", "--noEmit", "--pretty", "false", "-p", sole];
+  return ["pnpm", "typecheck", ...tsconfigs.flatMap((config) => ["--config", config])];
 }
 
 /** eslint scoped invocation.

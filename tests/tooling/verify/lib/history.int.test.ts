@@ -50,8 +50,8 @@ test("slowdowns: sub-second jitter is NEVER an advisory (3ms → 30ms is 10x and
 });
 
 test("slowdowns: a DEFERRED stage is never compared — its 0ms would make every later run read as ∞x slower", () => {
-  const before = entry({ runId: "a", stages: [{ name: "types:graph", mode: "deferred", durationMs: 0 }] });
-  const now = entry({ runId: "b", stages: [{ name: "types:graph", mode: "full", durationMs: 5000 }] });
+  const before = entry({ runId: "a", stages: [{ name: "types:native", mode: "deferred", durationMs: 0 }] });
+  const now = entry({ runId: "b", stages: [{ name: "types:native", mode: "full", durationMs: 5000 }] });
   expect(slowdowns(before, now)).toEqual([]);
 });
 

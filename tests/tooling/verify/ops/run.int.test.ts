@@ -20,6 +20,7 @@ import {
   parse,
   printSummary,
   REGISTRY,
+  readCompilerPrograms,
   resolveSelection,
   stagesForTier,
 } from "../../../../tooling/src/verify/index.ts";
@@ -168,7 +169,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
   expect(skipped.notices).toEqual([`tier precondition: ${reason}`]);
   expect(skipped.ok, "a skip is not a failure").toBe(true);
   // …and a stage with NO precondition gets no notice, so the line above is conditional, not unconditional.
-  expect(nonRunningStageResult(stage("types:graph"), { mode: "deferred", runsAt: "verify --static" }).notices).toEqual([]);
+  expect(nonRunningStageResult(stage("types:native"), { mode: "deferred", runsAt: "verify --static" }).notices).toEqual([]);
 
   const report = { tier: "push", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [skipped] } as const;
   const out = captureStdout(() => {
@@ -239,20 +240,16 @@ test("aggregateExit: violations (1) when the worst is a violation, no tool error
 // ── tier composition (§3.2) — the registry is the ONE spelling of "run everything" ──
 
 test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pnpm check` battery)", () => {
-  // The legacy `pnpm check` was 8 stages; the type-membership floor (UNIFIED-VERIFICATION-DESIGN.md §3)
-  // adds two more type stages IN the types group: `types:tests-dom` (the DOM-coupled non-`.tsx` test home)
-  // and `types:tests-membership` (the reconciliation guard that makes a silently-un-type-checked test file
-  // structurally impossible). Both are whole-tree invariants → static/push/full. `tests:execution-membership`
+  // One native stage discovers and runs every concrete compiler program. The separate membership guard
+  // makes a silently-un-type-checked test file structurally impossible. `tests:execution-membership`
   // (GitHub issue #22) is its EXECUTION-lane sibling — same whole-tree-invariant shape, in the
   // `tests` group (it reconciles RUNNER coverage, not type-program coverage).
   const staticNames = stagesForTier("static").map((s) => s.name);
   expect(staticNames).toEqual([
     "lint:biome",
     "lint:eslint",
-    "types:packages",
-    "types:graph",
+    "types:native",
     "types:testd",
-    "types:tests-dom",
     "types:tests-membership",
     "tests:execution-membership",
     // The db-baseline parity stage (2026-08-02): the committed squashed baseline vs the live schema.
@@ -275,6 +272,20 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "docs:format",
     "docs:catalog",
   ]);
+});
+
+test("one native stage and one package script replace the three legacy compiler lanes", () => {
+  const native = stage("types:native");
+  expect(native.argv).toEqual(["pnpm", "typecheck"]);
+  expect(native.classify).toBe(ownScheme);
+  for (const retired of ["types:packages", "types:graph", "types:tests-dom"]) {
+    expect(REGISTRY.some(({ name }) => name === retired)).toBe(false);
+  }
+  const scripts = (JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as { readonly scripts: Record<string, string> })
+    .scripts;
+  expect(scripts["typecheck"]).toBe("node tooling/src/verify/cli.ts typecheck");
+  expect(scripts["typecheck:graph"]).toBeUndefined();
+  expect(scripts["typecheck:tests-dom"]).toBeUndefined();
 });
 
 test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the scoped inner loop)", () => {
@@ -303,7 +314,7 @@ test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the sc
   expect(changed.has("browser:ct")).toBe(true);
   expect(push.has("browser:ct")).toBe(true);
   expect(push.has("tests:node")).toBe(true);
-  expect(changed.has("types:graph")).toBe(true);
+  expect(changed.has("types:native")).toBe(true);
   expect(changed.has("structure:full")).toBe(true);
 });
 
@@ -480,22 +491,20 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
   }
 });
 
-test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+test("resolveSelection carries root programs directly in the complete affected plan", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
-  expect(sel.touchesGraphOnlyTrees).toBe(true);
-  // …and a packages/ src file NOT import-pulled into the DOM-less graph does NOT (`app.tsx` is the client
-  // browser root, so the graph program never sees it via a tests/scripts import pull).
+  expect(sel.tsconfigs).toContain("tsconfig.json");
   const pkg = resolveSelection({
     kind: "file",
     paths: ["packages/client/src/main.tsx"],
   });
-  expect(pkg.touchesGraphOnlyTrees).toBe(false);
+  expect(pkg.tsconfigs).not.toContain("tsconfig.json");
 });
 
 test("resolveSelection: an import-pulled src file DOES flag the graph (the TS2584 overlay, rule 5)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // tokens/index.ts is transitively imported by the DOM-less root graph (confirmed via tsgo
   // --listFilesOnly) — so it belongs to TWO programs (packages/ui WITH dom AND the graph DOM-less). Editing
-  // it must run types:graph, or the TS2584-class break (a graph consumer of a dom-typed export) escapes at
+  // it must include the root Node program, or the TS2584-class break (a graph consumer of a DOM-typed export) escapes at
   // verify --file. Its per-package owner stays ui (the graph is a separate stage, not a tsc -p owner).
   // THE SUBJECT MOVED (#1231, #1243 fallout): this pinned `primitives/button/variants.ts` until #1243
   // excluded `tests/ui` from the root program — those two specs were its ONLY graph-rooted importers, so
@@ -506,52 +515,58 @@ test("resolveSelection: an import-pulled src file DOES flag the graph (the TS258
     kind: "file",
     paths: ["packages/ui/src/tokens/index.ts"],
   });
-  expect(sel.touchesGraphOnlyTrees).toBe(true);
-  expect(sel.tsconfigs).toEqual(["packages/client/tsconfig.json", "packages/ui/tsconfig.json", "tooling/tsconfig.json"]);
+  expect(sel.tsconfigs).toEqual([
+    "packages/client/tsconfig.json",
+    "packages/ui/tsconfig.json",
+    "tooling/tsconfig.json",
+    "tsconfig.json",
+    "tsconfig.tests-dom.json",
+  ]);
 });
 
-test("types:graph scopedArgv: deferred (whole-only) unless the selection touches the graph program", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+test("types:native scopedArgv forwards every affected program and skips a docs-only selection", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const pkgSel = resolveSelection({
     kind: "file",
     paths: ["packages/client/src/main.tsx"],
   });
-  expect(stage("types:graph").scopedArgv?.(pkgSel)).toBe("whole-only");
+  expect(stage("types:native").scopedArgv?.(pkgSel)).toEqual(["pnpm", "typecheck", ...pkgSel.tsconfigs.flatMap((config) => ["--config", config])]);
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
-  expect(stage("types:graph").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck:graph"]);
+  expect(stage("types:native").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck", ...testSel.tsconfigs.flatMap((config) => ["--config", config])]);
+  const docs = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
+  expect(stage("types:native").scopedArgv?.(docs)).toBe("skip-empty");
 });
 
-test("the composed changed-tier plan admits scoped graph and structure stages before their predicates run", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+test("a shared ambient selects every runnable native program", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  const selection = resolveSelection({ kind: "file", paths: ["reset.d.ts"] });
+  const runnable = readCompilerPrograms(process.cwd())
+    .filter(({ files }) => files.length > 0)
+    .map(({ config }) => config)
+    .toSorted();
+  expect(selection.tsconfigs).toEqual(runnable);
+  expect(stage("types:native").scopedArgv?.(selection)).toEqual(["pnpm", "typecheck", ...runnable.flatMap((config) => ["--config", config])]);
+});
+
+test("the composed changed-tier plan executes the complete native plan", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const graphSubject = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
-  expect(planStage(stage("types:graph"), graphSubject, "changed", process.cwd())).toMatchObject({
+  expect(planStage(stage("types:native"), graphSubject, "changed", process.cwd())).toMatchObject({
     mode: "scoped",
-    argv: ["pnpm", "typecheck:graph"],
+    argv: ["pnpm", "typecheck", ...graphSubject.tsconfigs.flatMap((config) => ["--config", config])],
   });
   expect(planStage(stage("structure:full"), graphSubject, "changed", process.cwd())).toMatchObject({
     mode: "scoped",
     argv: ["node", "tooling/src/verify/cli.ts", "scoped", "--changed", "tests/tooling/verify/ops/run.int.test.ts"],
   });
-
-  const browserSubject = resolveSelection({ kind: "file", paths: ["packages/client/src/main.tsx"] });
-  expect(planStage(stage("types:graph"), browserSubject, "changed", process.cwd())).toMatchObject({
-    mode: "deferred",
-    runsAt: "verify --static",
-  });
 });
 
-test("types:graph per --package follows affected closures for every package", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  // kit/server/db/contracts src ARE graph roots (tsconfig.json include: packages/*/src) → --package must
-  // run types:graph, or the DOM-less TS2584 class escapes a whole-package scope exactly as it did --file.
-  for (const nodePkg of ["kit", "server", "db", "contracts"]) {
-    const sel = resolveSelection({ kind: "package", name: nodePkg });
-    expect(sel.touchesGraphOnlyTrees).toBe(true);
-    expect(stage("types:graph").scopedArgv?.(sel)).toEqual(["pnpm", "typecheck:graph"]);
-  }
-  // ui/client roots are graph-excluded, but a whole package includes pure sources consumed by Node tests
-  // and tooling. Affected planning therefore runs the graph rather than dropping those consumers.
-  for (const browserPkg of ["ui", "client"]) {
-    const sel = resolveSelection({ kind: "package", name: browserPkg });
-    expect(sel.touchesGraphOnlyTrees).toBe(true);
-    expect(stage("types:graph").scopedArgv?.(sel)).toEqual(["pnpm", "typecheck:graph"]);
+test("types:native per --package runs every imported consumer exactly once", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  for (const name of ["kit", "server", "db", "contracts", "ui", "client"]) {
+    const selection = resolveSelection({ kind: "package", name });
+    expect(stage("types:native").scopedArgv?.(selection), name).toEqual([
+      "pnpm",
+      "typecheck",
+      ...selection.tsconfigs.flatMap((config) => ["--config", config]),
+    ]);
+    expect(new Set(selection.tsconfigs).size).toBe(selection.tsconfigs.length);
   }
 });
 
@@ -559,7 +574,7 @@ test("types:testd + types:tests-membership + browser:e2e* are whole-only (no sco
   for (const name of [
     "types:testd",
     // The whole-tree type-membership reconciliation: unions every type program's closure — no honest
-    // scoped form (§3.4). types:tests-dom is NO LONGER here — see its own scopedArgv test below (#1274).
+    // scoped form (§3.4).
     "types:tests-membership",
     // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
     // runner's --list view), no honest scoped form.
@@ -580,19 +595,15 @@ test("types:testd + types:tests-membership + browser:e2e* are whole-only (no sco
   }
 });
 
-test("types:tests-dom scopedArgv follows real roots and imported production consumers, deferring unrelated docs", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  const offDomain = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
-  expect(offDomain.touchesTestsDom).toBe(false);
-  expect(stage("types:tests-dom").scopedArgv?.(offDomain)).toBe("whole-only");
-
+test("types:native includes DOM roots and imported production consumers", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   for (const paths of [["tests/client/agent-nav/index.dom.test.ts"], ["packages/kit/src/ids/index.ts"]]) {
     const selection = resolveSelection({ kind: "file", paths });
-    expect(selection.touchesTestsDom).toBe(true);
-    expect(stage("types:tests-dom").scopedArgv?.(selection)).toEqual(["pnpm", "typecheck:tests-dom"]);
+    expect(selection.tsconfigs).toContain("tsconfig.tests-dom.json");
+    expect(stage("types:native").scopedArgv?.(selection)).toEqual(["pnpm", "typecheck", ...selection.tsconfigs.flatMap((config) => ["--config", config])]);
   }
   for (const name of ["ui", "kit", "tooling"]) {
     const selection = resolveSelection({ kind: "package", name });
-    expect(stage("types:tests-dom").scopedArgv?.(selection), name).toEqual(["pnpm", "typecheck:tests-dom"]);
+    expect(selection.tsconfigs, name).toContain("tsconfig.tests-dom.json");
   }
 });
 
@@ -791,7 +802,7 @@ test("parse: a value option with NO value (or a flag as its value) is misuse", (
   expect(isMisuse(["--tier"])).toBe(true);
 });
 
-test("parse: --package=db (inline value) parses and runs (not misuse)", () => {
+test("parse: --package=db (inline value) parses and runs (not misuse)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const r = parse(["--package=db", "--list"]);
   expect("error" in r).toBe(false);
 });

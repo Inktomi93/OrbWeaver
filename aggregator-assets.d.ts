@@ -4,5 +4,5 @@
 // or client's vite/client). The aggregator EXCLUDES packages/{ui,client}/src as roots but pulls them in
 // TRANSITIVELY (moduleResolution: bundler), so it does not inherit those packages' local CSS ambients;
 // without this, a transitively-reached `import "katex/dist/katex.min.css"` (ui/src/markdown/math.ts) reds
-// types:graph with TS2882 "Cannot find module … side-effect import". Declaration-only, zero emit.
+// the root Node program with TS2882 "Cannot find module … side-effect import". Declaration-only, zero emit.
 declare module "*.css";

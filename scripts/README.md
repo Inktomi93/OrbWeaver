@@ -48,7 +48,7 @@
 
 | path | why it did not move |
 | - | - |
-| `ts7.cjs` | the TS7 wrapper. `package.json`'s three `typecheck*` rows, the verify registry, and every brief's `types:graph` spelling depend on this exact path; it is a `.cjs` launcher, not a tool |
+| `ts7.cjs` | the cold native TS7 wrapper. The unified `pnpm typecheck [--config <path>]...` executor invokes it once per runnable config; it is a `.cjs` launcher, not a tool |
 | `worktree-bootstrap.sh` | `pnpm worktree:bootstrap`'s target |
 
 ### Operator one-offs
