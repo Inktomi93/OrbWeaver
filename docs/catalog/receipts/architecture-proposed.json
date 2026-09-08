@@ -4356,10 +4356,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
-      "verifiedCommit": "dc8ccbd0bac24c2e48c463193974d4d59a3a9801",
+      "verifiedSha256": "ab7a9604dce98511b145f38186c727b39269c27570fb422a361204b3049fd765",
+      "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
         "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",

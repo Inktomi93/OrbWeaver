@@ -450,15 +450,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 414,
-      "bytes": 254413,
-      "sha256": "47ceeec9145c4ce66d6b0a9ed3670f2e8b4d07a7b0e47d94846ad35881d02ea8",
+      "bytes": 253355,
+      "sha256": "6dfafecb37ca928b0e9a9bce4da6f37d48054167674c84bb521ddaca9397d11e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -620,7 +620,7 @@
         ],
         "summary": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -989,15 +989,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 425,
-      "bytes": 49137,
-      "sha256": "054ca22f868a4ad311e0917259f0c3d7c32dced1d7602f5a37aa2025e8cd665f",
+      "bytes": 49467,
+      "sha256": "b0433b968839157290b06c882e904b5d3a6ba275c6dbf76126e4cb96cb8597a6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -1007,10 +1007,11 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "054ca22f868a4ad311e0917259f0c3d7c32dced1d7602f5a37aa2025e8cd665f",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "b0433b968839157290b06c882e904b5d3a6ba275c6dbf76126e4cb96cb8597a6",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
           "ENGINE-dir arm (ea1952de5, from the #1584 program) + the three stub doors deleted at 7ce93bad4233a41c97ee255c48e1fa60a12c8623: §2.5 + §4.1 + the ui-audit roster row",
@@ -1336,9 +1337,9 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 277,
-      "bytes": 28133,
-      "sha256": "5233f614a5f506084466be112c3949fd11fcf3e3d8de8cd78dcd049c7278e887",
+      "lines": 280,
+      "bytes": 29188,
+      "sha256": "f521127df0cd8cf34503c76858a36c719ccde9dec0690d06693dea2d52571d05",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1355,10 +1356,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "5233f614a5f506084466be112c3949fd11fcf3e3d8de8cd78dcd049c7278e887",
-        "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
+        "verifiedSha256": "f521127df0cd8cf34503c76858a36c719ccde9dec0690d06693dea2d52571d05",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full current 277-line document read by the orchestrator; registered test kinds and phase-4 native reclassification receipts checked against f6c2ae500. Remaining serial lists, tags and predictive ownership are explicitly transitional; this receipt does not claim those migrations complete.",
           "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -1895,15 +1897,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 345,
-      "bytes": 29942,
-      "sha256": "bdac09ecdfee367d0808fa7139ccede65c7302f42727a32bb322833394a3a680",
+      "bytes": 29952,
+      "sha256": "5c27ca6db4d33dbff1f96583db1734c245f51ce9806ad539f31dca81c1c1b27c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -1913,10 +1915,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "bdac09ecdfee367d0808fa7139ccede65c7302f42727a32bb322833394a3a680",
-        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedSha256": "5c27ca6db4d33dbff1f96583db1734c245f51ce9806ad539f31dca81c1c1b27c",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "re-attested at 0b7fd3933 (#1069): reduced-motion FLIP row + the §1.5 pointer",
           "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
@@ -2055,9 +2058,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 558,
-      "bytes": 47664,
-      "sha256": "ed6833bf064bb978607fbaffa684cc2aff5f41da5af73a29dd9bd8c903e2ef7d",
+      "lines": 551,
+      "bytes": 47233,
+      "sha256": "4ba7faf2cd4a671fd66dff022a128d9852d90671e02a060c1de67046fbf607d8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2074,10 +2077,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ed6833bf064bb978607fbaffa684cc2aff5f41da5af73a29dd9bd8c903e2ef7d",
-        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedSha256": "4ba7faf2cd4a671fd66dff022a128d9852d90671e02a060c1de67046fbf607d8",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 1: the dom-claimed tree list names tests/support/browser/** (the ct directory is gone)",
           "#1848 (cb-runner-budget): tests:node split into vitest + browser:ct with a profile-derived budget (stageBudgets), run-marker sweep, stage cap in the profile; re-attested at the merge sha after the lane's pre-rebase sha was orphaned",
@@ -10852,9 +10856,9 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 123,
-      "bytes": 16107,
-      "sha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
+      "lines": 127,
+      "bytes": 17220,
+      "sha256": "ab7a9604dce98511b145f38186c727b39269c27570fb422a361204b3049fd765",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10871,10 +10875,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
-        "verifiedCommit": "dc8ccbd0bac24c2e48c463193974d4d59a3a9801",
+        "verifiedSha256": "ab7a9604dce98511b145f38186c727b39269c27570fb422a361204b3049fd765",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
           "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
@@ -11206,15 +11211,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 1539,
-      "bytes": 192986,
-      "sha256": "7abd17ff62b95ca13bfbcd60b1ece4b2fa4c909c2b955bc6cddc3dfb046c4a0c",
+      "bytes": 192977,
+      "sha256": "8124e7495718ea7020da9b34ef3546d629f68bfc80025e8e28982feba35c54de",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-05"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -11224,10 +11229,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "7abd17ff62b95ca13bfbcd60b1ece4b2fa4c909c2b955bc6cddc3dfb046c4a0c",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "8124e7495718ea7020da9b34ef3546d629f68bfc80025e8e28982feba35c54de",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "proof-corpus rename cli.int→index.int (stub doors deleted 7ce93bad4)",
           "re-attested at fc67b1acb by the orchestrator after reading NEW §10.11 in full (p-snap-honesty, #1556/#1675) — CORRECTS the premature 257eb27cc receipt, which attested be92a52e1's blob before the fold had landed: the 4 KB agent-readable budget measures the BODY; CONCURRENT and PROVENANCE lines are excluded because their length is a function of how many other runs are live; RESULT-line growth policy (the budget does not move; a new pair replaces one or folds behind a derived token).",
@@ -11864,15 +11870,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 214,
-      "bytes": 20215,
-      "sha256": "bfa32714e3e98a2d441f28e15c2a19051a9f17d8c594558ac1d782d258f147af",
+      "bytes": 20220,
+      "sha256": "d97f221a238f8c5b03b8b03f82bbd0e033209a8ab72ca7a4a6bd3e8e83c97a7b",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-02"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -11882,11 +11888,12 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "f6b4cbceefeb7edd64b566fc3bbde8e74bcdfad06de5c42a808747f4628e6bbd",
-        "verifiedCommit": "7400b4d38c7339c038801bb255c3d97d8ee43950",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "d97f221a238f8c5b03b8b03f82bbd0e033209a8ab72ca7a4a6bd3e8e83c97a7b",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
+        "verifiedAt": "2026-09-08",
         "summary": "#962 design record (lane p-biome-zero, forge, 2026-09-02): file-wide lint suppression made structurally unavailable in authored code AND tests — the law (one home for a whole-file suppression = a biome.json override row stale-armed by biome-grant-liveness; inside a file a suppression is a named line or closed range, counted by the suppressions ledger in tests exactly as in source), the new no-blanket-suppression gate (spelling census incl. biome 2.5.1's hidden-warning behaviours; three arms — harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path with the #954 wording; markerImmune argued per GATE-AUTHORING §1; blindness tripwires), the per-rule-class migration decision procedure (74 directives: 10 dead barrels deleted, 1 filename grant, 23 file-subject naming tests moved under a CORRECTED conventions override that had been silently stricter than biome's default, ranges/lines elsewhere, 23 describe-scoped CONSTANT_CASE consts renamed), tests joining the suppressions ledger with RATIFIED_TEST_RULES, the deferred dead-bounded-directive arm (--error-on-warnings cannot resurrect a level-filtered warning), and the enumerated coupled sites.",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "born-reviewed at 5253ba772 (fold of the p-biome-zero lane): full read by the primary orchestrator — §0 premise re-derivation (four premises, one refuted for 10/74, one amended), §1 the law and its three enforcers, §2 the gate (spelling census, three arms, why an arm and not a stage, markerImmune, proof plan), §3 the migration table, §4 the ledger widening, §5 deferrals, §6 coupled sites. The doc's line 11 says the probe transcripts 'were reproduced by the orchestrator's verifier' — that verification (lane p-verify-962) was dispatched at this fold and its verdict lands on #962; the receipt here is for the design text, not for the verifier's outcome.",
           "re-attested at 7400b4d38 — the §2.5 proof-plan bullet's fixture path reworded (a runtime-planted `__g_blanket` test file, never on disk; dangling-refs finding on the fold tip); no other text moved."
         ],
@@ -11937,7 +11944,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
@@ -12395,15 +12402,15 @@
       "lane": "design",
       "issue": 5,
       "lines": 100,
-      "bytes": 8944,
-      "sha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
+      "bytes": 8967,
+      "sha256": "934d9c07af3edda26f318d76fd8ce40480f5f9eaebd827a6ef7bea07f3790b99",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-31"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -12413,10 +12420,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
-        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "934d9c07af3edda26f318d76fd8ce40480f5f9eaebd827a6ef7bea07f3790b99",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "re-attested at 7b7eb54b2 under #950 — the full design/delta keeps class-list merge separate from the revision-matched official DevTools frontend SDK browser-cascade tier and rejects direct CDP inference",
           "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
           "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
@@ -12712,9 +12720,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 275,
-      "bytes": 37288,
-      "sha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+      "lines": 276,
+      "bytes": 37440,
+      "sha256": "c2afe7d65684f00b2f5874248cd4e357cdbe79955cf38b30d47309a19161d62f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12731,8 +12739,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
-        "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
+        "verifiedSha256": "c2afe7d65684f00b2f5874248cd4e357cdbe79955cf38b30d47309a19161d62f",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
         "verifiedAt": "2026-09-08",
         "claims": [
           {
@@ -12751,6 +12759,7 @@
         ],
         "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred."
         ]
       },
@@ -12811,16 +12820,16 @@
       "path": "docs/design/integer-line-boxes.md",
       "lane": "design",
       "issue": 5,
-      "lines": 433,
-      "bytes": 31883,
-      "sha256": "123b3a135e48b6e7b7eb355d5fedd90329665d3007fc1d7c97fdff166694f3b3",
+      "lines": 432,
+      "bytes": 31895,
+      "sha256": "739deec10b16f0db775c832841ef1d62b4c1729988d0a19d9ff46602b403ec70",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
@@ -12830,10 +12839,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "123b3a135e48b6e7b7eb355d5fedd90329665d3007fc1d7c97fdff166694f3b3",
-        "verifiedCommit": "1416f2c98710acc454360efdeb52e939524aed36",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "739deec10b16f0db775c832841ef1d62b4c1729988d0a19d9ff46602b403ec70",
+        "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "1416f2c98710acc454360efdeb52e939524aed36 (#1684, owner arm 1): §2's #1640 'unreachable residual' truth-repaired — the ruling survives, its input changed (the thumb is derived, --spacing-switch-thumb retired)",
           "re-attested at 89514942d by the orchestrator after reading the §2 amendment in full (cb-token-belts, #1640): the residual sentence ('--spacing-* offsets are fractional regardless') is REPLACED — all 27 spacing tokens + the 8 pointerFine arms carry orb.output: snapped (integer at the 16px root, identity at scale 1, both pointer arms through one serialization); the remaining residual is restated with the switch matrix (odd container−content → a half-pixel centred offset, 1.25 row DPR-2-only) and its pins named.",
           "re-attested at d17bebced by the orchestrator after reading the #1160 diff in full (cb-rendered-polish): §3b retitled and records the snapped belt’s ROUND-UP strategy as a second invariant (round(up, <rem>, 1px) in tokens.build.ts; nearest-rounding shrank a leading box by up to half a pixel while the font scaled continuously, dropping the ratio below LEADING_FLOOR at scales no authored value can see); identity at scale 1 for all seven snapped tokens; frontmatter dated 2026-09-05.",
