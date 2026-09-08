@@ -174,7 +174,7 @@ function mergeNamedImportInto(existing: ImportDeclaration, named: { readonly nam
   existing.addNamedImport({
     name: named.name,
     ...(named.alias !== undefined ? { alias: named.alias } : {}),
-    ...(named.isTypeOnly !== undefined ? { isTypeOnly: named.isTypeOnly } : {}),
+    ...(named.isTypeOnly !== undefined && !existing.isTypeOnly() ? { isTypeOnly: named.isTypeOnly } : {}),
   });
 }
 
@@ -356,11 +356,15 @@ export function makeImportTypeOnly(ctx: CodemodContext, moduleSpecifier: string,
  */
 /** Group a declaration's named imports by which new module specifier they route to (skipping any
  *  name not in the map — those stay on the original declaration). */
-function groupImportsByDestination(decl: ImportDeclaration, symbolToNewSpecifier: Readonly<Record<string, string>>): Map<string, ImportSpecifier[]> {
+function groupImportsByDestination(
+  decl: ImportDeclaration,
+  fromSpecifier: string,
+  symbolToNewSpecifier: Readonly<Record<string, string>>,
+): Map<string, ImportSpecifier[]> {
   const groups = new Map<string, ImportSpecifier[]>();
   for (const spec of decl.getNamedImports()) {
     const dest = symbolToNewSpecifier[spec.getName()];
-    if (dest === undefined) {
+    if (dest === undefined || dest === fromSpecifier) {
       continue;
     }
     const bucket = groups.get(dest) ?? [];
@@ -373,19 +377,25 @@ function groupImportsByDestination(decl: ImportDeclaration, symbolToNewSpecifier
 /** Add-or-merge an import declaration for `dest` carrying `specs`, then remove the specifiers
  *  from their original declaration now that they've moved. */
 function routeSpecifiersToDestination(sf: SourceFile, dest: string, specs: readonly ImportSpecifier[]): void {
-  const target = sf.getImportDeclaration(dest);
+  const sourceDecl = specs[0]?.getImportDeclaration();
   const incoming = specs.map((s) => {
     const aliasNode = s.getAliasNode();
     return {
       name: s.getName(),
       ...(aliasNode !== undefined ? { alias: aliasNode.getText() } : {}),
-      isTypeOnly: s.isTypeOnly(),
+      isTypeOnly: sourceDecl?.isTypeOnly() === true || s.isTypeOnly(),
     };
   });
+  const target = sf
+    .getImportDeclarations()
+    .find(
+      (decl) =>
+        decl.getModuleSpecifierValue() === dest && decl.getNamespaceImport() === undefined && !(decl.isTypeOnly() && decl.getDefaultImport() !== undefined),
+    );
   if (target !== undefined) {
-    // Don't duplicate symbols already imported.
-    const haveNames = new Set(target.getNamedImports().map((n) => n.getName()));
-    target.addNamedImports(incoming.filter((i) => !haveNames.has(i.name)));
+    for (const named of incoming) {
+      mergeNamedImportInto(target, named);
+    }
   } else {
     sf.addImportDeclaration({ moduleSpecifier: dest, namedImports: incoming });
   }
@@ -403,7 +413,7 @@ export function routeSymbolsByMap(
   const symbols = Object.keys(symbolToNewSpecifier);
 
   assert(symbols.length > 0, "routeSymbolsByMap: empty map");
-  const matches = findImporters(ctx.project, fromSpecifier);
+  const matches = findImporters(ctx.project, fromSpecifier).filter((decl) => groupImportsByDestination(decl, fromSpecifier, symbolToNewSpecifier).size > 0);
 
   return {
     description: `Route ${symbols.length} symbols from "${fromSpecifier}" to per-symbol destinations across ${matches.length} importer(s)${noteSuffix(opts)}`,
@@ -411,7 +421,7 @@ export function routeSymbolsByMap(
     transform(): void {
       for (const decl of matches) {
         const sf = decl.getSourceFile();
-        const groups = groupImportsByDestination(decl, symbolToNewSpecifier);
+        const groups = groupImportsByDestination(decl, fromSpecifier, symbolToNewSpecifier);
         for (const [dest, specs] of groups) {
           routeSpecifiersToDestination(sf, dest, specs);
         }
