@@ -88,7 +88,7 @@ const FRESHNESS_GLOBS = ["tests/ui/tokens/**"];
 // covering test could only let mutants SURVIVE (a lower score), never inflate one.
 const WORKER_INCOMPATIBLE_GLOBS = ["tests/server/foundation/env/index.test.ts", "tests/server/foundation/observability/debug/wire-capture.suite.test.ts"];
 
-const cfg = base as unknown as {
+const source = base as unknown as {
   test: {
     projects: Array<{ test: { name?: string; exclude?: readonly string[] } }>;
     fileParallelism?: boolean;
@@ -114,28 +114,25 @@ export function assertEveryLaneClassified(projectNames: readonly string[]): void
     );
   }
 }
-assertEveryLaneClassified(cfg.test.projects.map((p) => p.test.name ?? ""));
+assertEveryLaneClassified(source.test.projects.map((project) => project.test.name ?? ""));
 
-cfg.test.projects = cfg.test.projects
-  .filter((p) => RUNTIME_LANES.has(p.test.name ?? ""))
-  .map((p) => ({
-    ...p,
-    test: {
-      ...p.test,
-      exclude: [...(p.test.exclude ?? []), TOOLING_GLOB, ...FRESHNESS_GLOBS, ...WORKER_INCOMPATIBLE_GLOBS],
-    },
-  }));
+// Each Stryker process owns one Vitest worker; deriving this overlay must not alter other base consumers.
+const cfg = {
+  ...base,
+  test: {
+    ...base.test,
+    fileParallelism: false,
+    maxWorkers: 1,
+    projects: source.test.projects
+      .filter((project) => RUNTIME_LANES.has(project.test.name ?? ""))
+      .map((project) => ({
+        ...project,
+        test: {
+          ...project.test,
+          exclude: [...(project.test.exclude ?? []), TOOLING_GLOB, ...FRESHNESS_GLOBS, ...WORKER_INCOMPATIBLE_GLOBS],
+        },
+      })),
+  },
+};
 
-// CRITICAL FIX: Stryker spins up N concurrent worker processes (`concurrency` in stryker.config.json /
-// stryker.gate.config.json — 6 since 2026-08-27, the value every calibration was measured at). If Vitest is allowed
-// to parallelize internally (via fileParallelism / maxWorkers), you get NxM core explosion.
-// Force Vitest to run serially within each Stryker worker. BOTH knobs are the live v4 surface:
-// fileParallelism:false forces one file at a time, maxWorkers:1 caps the fork pool. (The former
-// `poolOptions = { forks: …, threads: … }` spelling here was DEAD config — Vitest 4 removed
-// `poolOptions` from InlineConfig entirely; caught by the 2026-08-03 installed-surface audit.)
-cfg.test.fileParallelism = false;
-cfg.test.maxWorkers = 1;
-
-// Export the (mutated-in-place) local binding, not the raw import — `cfg` aliases the same object, so the
-// lane edits above are applied. (Re-exporting the import directly trips biome's noExportedImports.)
 export default cfg;

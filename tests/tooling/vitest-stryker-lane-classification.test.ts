@@ -1,31 +1,16 @@
-// THE TOTALITY PIN for #1340. `vitest.stryker.config.ts` used to narrow the mutation lane by ALLOWLIST
-// (`RUNTIME_LANES`) alone — which drops any project not named, silently, with zero signal. That let
-// `integration-serial` (22 files) and `live-drive` (4 files) vanish from mutation coverage while the
-// file's own comment named a THIRD, already-DEAD lane (`parity`, purged 2026-08-22 with #428) instead of
-// either real one. The fix pairs the allowlist with a `DROPPED_LANES` map (name → reason) and an
-// `assertEveryLaneClassified` guard that throws at Stryker's own config load if any `vitest.config.ts`
-// project is in neither — so a lane ADDED to the base config and never classified here reds immediately
-// instead of quietly losing mutation coverage. This pins BOTH the mechanism (it really throws) and the
-// CURRENT state (every real lane is, in fact, classified).
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { assertEveryLaneClassified, DROPPED_LANES, RUNTIME_LANES } from "../../vitest.stryker.config.ts";
+// Native config imports must retain the base population and mutation-specific rigor.
+import base from "../../vitest.config.ts";
+import mutation, { assertEveryLaneClassified, DROPPED_LANES, RUNTIME_LANES } from "../../vitest.stryker.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
-/** The base config's OWN project-name list, read from `vitest.config.ts`'s SOURCE TEXT (never by
- *  importing the module): `vitest.stryker.config.ts` MUTATES the base config's `test.projects` array
- *  IN PLACE (same object identity — `const cfg = base as unknown as {…}`), so a second `import` of
- *  `vitest.config.ts` in the SAME process resolves to the already-filtered singleton, not the original
- *  8-lane list — measured live: the assertion below failed with only the 3 kept lanes visible until this
- *  was switched to a text read. A regex over the source is also what the row's own Definition-of-Done
- *  script does (`/name:\s*"([a-z-]+)"/g`), so this pin agrees with the row's own oracle by construction. */
-function baseLaneNames(root: string): readonly string[] {
-  const source = readFileSync(join(root, "vitest.config.ts"), "utf8");
-  return [...source.matchAll(/name:\s*"([a-z-]+)"/g)].map((m) => m[1]).filter((name): name is string => name !== undefined);
+function baseLaneNames(): readonly string[] {
+  return (base.test?.projects ?? []).flatMap((project) =>
+    typeof project === "object" && "test" in project && project.test.name !== undefined ? [String(project.test.name)] : [],
+  );
 }
 
-test("every base-config lane is classified as EXACTLY one of kept or dropped — no overlap, no gap", ({ repoRoot }) => {
-  const lanes = baseLaneNames(repoRoot);
+test("every base-config lane is classified as EXACTLY one of kept or dropped — no overlap, no gap", () => {
+  const lanes = baseLaneNames();
   expect(lanes.length).toBeGreaterThan(0);
 
   for (const name of lanes) {
@@ -56,6 +41,32 @@ test("assertEveryLaneClassified: a lane absent from both maps throws (the guard 
   expect(() => assertEveryLaneClassified(["unit", "a-lane-nobody-classified"])).toThrow(/a-lane-nobody-classified/);
 });
 
-test("assertEveryLaneClassified: every real base-config lane passes silently (no false-positive throw)", ({ repoRoot }) => {
-  expect(() => assertEveryLaneClassified(baseLaneNames(repoRoot))).not.toThrow();
+test("assertEveryLaneClassified: every real base-config lane passes silently (no false-positive throw)", () => {
+  expect(() => assertEveryLaneClassified(baseLaneNames())).not.toThrow();
+});
+
+test("Stryker import preserves the base population and creates independent override objects", () => {
+  expect(mutation).not.toBe(base);
+  expect(mutation.test).not.toBe(base.test);
+  expect(base.test?.projects?.length).toBe(RUNTIME_LANES.size + DROPPED_LANES.size);
+  expect(base.test?.fileParallelism).toBeUndefined();
+  expect(mutation.test.projects.map((project) => project.test.name)).toEqual(baseLaneNames().filter((name) => RUNTIME_LANES.has(name)));
+  expect(mutation.test.fileParallelism).toBe(false);
+  expect(mutation.test.maxWorkers).toBe(1);
+  for (const project of mutation.test.projects) {
+    const original = base.test?.projects?.find(
+      (candidate) => typeof candidate === "object" && "test" in candidate && candidate.test.name === project.test.name,
+    );
+    expect(project).not.toBe(original);
+    expect(project.test.exclude).toContain("tests/tooling/**");
+  }
+  expect(mutation.test).toMatchObject({
+    restoreMocks: true,
+    clearMocks: true,
+    unstubGlobals: true,
+    unstubEnvs: true,
+    allowOnly: false,
+    passWithNoTests: false,
+    expect: { requireAssertions: true },
+  });
 });
