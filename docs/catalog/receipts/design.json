@@ -213,11 +213,12 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
-      "verifiedCommit": "720f4439316842c7c1fb62c60901d9a93070502e",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "7e66d0b528fb6a4e6ec570e0909a88c94157a9d89ebf840db8cf72ad41d60a87",
+      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+      "verifiedAt": "2026-09-08",
       "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
       "evidence": [
+        "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
         "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
       ],
       "claims": [
@@ -226,11 +227,11 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/client/src/data/query-boundary.tsx:130"
+              "target": "packages/client/src/components/query-boundary.tsx:134"
             },
             {
               "kind": "test",
-              "target": "tests/client/data/query-boundary.ct.tsx:126"
+              "target": "tests/client/components/query-boundary.ct.tsx:126"
             },
             {
               "kind": "issue",

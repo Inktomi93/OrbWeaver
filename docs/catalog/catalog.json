@@ -450,8 +450,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 408,
-      "bytes": 253747,
-      "sha256": "8a9c1ed6e695684d5c4c0ca2e0ea79fb7fbe84b282c7e2d8990ccef5d52ae1ef",
+      "bytes": 253753,
+      "sha256": "fe59c5d80f3df3ea46b2fee602422ad1395770fc0c8781b46285049f6796be2e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -468,10 +468,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "0bc51f1620fa33726e0608d955969fa2bf176d0999e54aea797362a0c3fa84a1",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "fe59c5d80f3df3ea46b2fee602422ad1395770fc0c8781b46285049f6796be2e",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1844 (cb-push-reds): the last bare SERIAL_INT cite struck (~~SERIAL_INT~~) per dangling-refs arm 4; row re-read against the #1842 split names",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -596,7 +597,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -1848,8 +1849,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 345,
-      "bytes": 29935,
-      "sha256": "3b92c49d830a84393c86f04ca207d0e2907da3e587f390d81c4fdcbc0bf16eb6",
+      "bytes": 29942,
+      "sha256": "bdac09ecdfee367d0808fa7139ccede65c7302f42727a32bb322833394a3a680",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1866,10 +1867,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "4ea26e56a6bd76f82887b35bf592d6c30e9b2b746442a21a68c9d3e665584e7d",
-        "verifiedCommit": "0b7fd3933a8041b9b1c07ab22e1cd9b54ce3127e",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "bdac09ecdfee367d0808fa7139ccede65c7302f42727a32bb322833394a3a680",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "re-attested at 0b7fd3933 (#1069): reduced-motion FLIP row + the §1.5 pointer",
           "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1889,7 +1891,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
@@ -2079,8 +2081,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 830,
-      "bytes": 143217,
-      "sha256": "c9cfd269df6ae4fb2f5183f5a3e8e215458a56834707bc78a19d931d9e9f87f5",
+      "bytes": 143237,
+      "sha256": "61a42fdad37c7512f3eb738dd88280bba30d22ed6774f56db7dff17ec2e90502",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2097,10 +2099,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "2effba02fca446ca970e733295cb20604e5a59fe4778d190654aae4517457b70",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "61a42fdad37c7512f3eb738dd88280bba30d22ed6774f56db7dff17ec2e90502",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "re-attested after the #1752 fold (218eb212b: @orb/client's sideEffects allowlist dropped — prod shipped unstyled; owner-ruled boot ceiling raise) at 218eb212b",
           "re-attested at 561ea5ec3 (#1292, full delta read): the ENFORCED TODAY appearance-floor bullet narrows `variant-matrix.ts`'s consumers to the public Snap and design-audit verdict consumers; Snap's `--matrix --motion <selector>` reuses the retained pure planner/verdict engine in `tooling/src/motion-audit` without a second parser or browser path. No other text moved.",
@@ -2156,15 +2159,15 @@
         ],
         "summary": "Active client architecture re-attested for #995: app-ready-signal.ts owns production readiness while agent-bridge.ts remains DEV-only and shares the same state."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
       "lines": 542,
-      "bytes": 36948,
-      "sha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
+      "bytes": 36954,
+      "sha256": "70ade8fe9c45797f43e898517145f040858c2977a8614a07c69a422e60f3223c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2181,10 +2184,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
-        "verifiedCommit": "aab83d0a20bfc3da3417afbc0d8c38c744ffcd8e",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "70ade8fe9c45797f43e898517145f040858c2977a8614a07c69a422e60f3223c",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "aab83d0a2 (#1795 cb-vt-floats: CONTENT-only View Transition contract — only captured content loses painting/hit-testing) — re-attested at the fold",
           "re-attested after #1647 (§4.1.2: the bounded input-dispatch layout-frame exemption's home) at ebaab6f0a",
           "re-attested at 561ea5ec3 (#1292, full delta read): three `motion-audit` command references retire to their Snap replacements - the #1069 allowance note's \"pnpm motion-audit's (pull) half\" becomes \"the former motion CLI's pull half\"; the LoAF-pairing paragraph's \"motion-audit pairs those\" becomes \"pnpm snap --motion [selector] pairs those\"; the CDP-suspend paragraph's \"motion-audit asks the dev bridge\" becomes \"Snap's motion arm asks the dev bridge\". No other text moved.",
@@ -2246,9 +2250,9 @@
       "path": "docs/architecture/core/ui-package-design.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 523,
-      "bytes": 52294,
-      "sha256": "bbfe946356ba74179e4e1145a6b1aeb0fbb79371293a277898272c85d40635e1",
+      "lines": 524,
+      "bytes": 52356,
+      "sha256": "5be11732d86165dcaf53ea2e6b5679757f154b115e57df8c84952bc513b93d48",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -2265,10 +2269,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "3c0323470f94d34a7131d8c49748b26076dce31fe84847cf135cbc0f2cadeb8e",
-        "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "5be11732d86165dcaf53ea2e6b5679757f154b115e57df8c84952bc513b93d48",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2288,7 +2293,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/history/BUILD-QUEUE.md",
@@ -11529,8 +11534,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 270,
-      "bytes": 19902,
-      "sha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "bytes": 19938,
+      "sha256": "7e66d0b528fb6a4e6ec570e0909a88c94157a9d89ebf840db8cf72ad41d60a87",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11547,11 +11552,12 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
-        "verifiedCommit": "720f4439316842c7c1fb62c60901d9a93070502e",
-        "verifiedAt": "2026-09-02",
+        "verifiedSha256": "7e66d0b528fb6a4e6ec570e0909a88c94157a9d89ebf840db8cf72ad41d60a87",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
         "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
         "evidence": [
+          "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
         ],
         "claims": [
@@ -11560,11 +11566,11 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/client/src/data/query-boundary.tsx:130"
+                "target": "packages/client/src/components/query-boundary.tsx:134"
               },
               {
                 "kind": "test",
-                "target": "tests/client/data/query-boundary.ct.tsx:126"
+                "target": "tests/client/components/query-boundary.ct.tsx:126"
               },
               {
                 "kind": "issue",
@@ -34770,6 +34776,54 @@
           }
         ],
         "summary": "The appearance DOM writer moved to composition with pre-paint semantics and carrier-gate coverage preserved."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-client-component-ownership.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 45,
+      "bytes": 7027,
+      "sha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-client-component-ownership.md",
+        "assignedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+        "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+        "verifiedAt": "2026-09-08",
+        "evidence": [
+          "Full review read against 370243fe7a30d10328d9ba98d766731688fe074f; body/import identity proofs, behavioral tests and immutable build comparison retained in task artifacts."
+        ],
+        "claims": [
+          {
+            "claim": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/components/query-boundary.ct.tsx:126"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:370243fe7a30d10328d9ba98d766731688fe074f"
+              }
+            ]
+          }
+        ],
+        "summary": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired."
       },
       "receiptCurrent": true
     },

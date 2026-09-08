@@ -3499,6 +3499,35 @@
         }
       ],
       "summary": "Codemod diagnostics preserve actual authored roots and native import closures during migration, while honoring declaration options and refusing invalid destination worlds."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-client-component-ownership.md",
+      "assignedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full review read against 370243fe7a30d10328d9ba98d766731688fe074f; body/import identity proofs, behavioral tests and immutable build comparison retained in task artifacts."
+      ],
+      "claims": [
+        {
+          "claim": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/components/query-boundary.ct.tsx:126"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:370243fe7a30d10328d9ba98d766731688fe074f"
+            }
+          ]
+        }
+      ],
+      "summary": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired."
     }
   ]
 }
