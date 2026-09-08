@@ -6,11 +6,46 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { afterEach, vi } from "vitest";
-import { fetchAuthMe, login, logout } from "../../../packages/client/src/data/auth-bootstrap.ts";
+import { afterEach, beforeEach, vi } from "vitest";
+import { fetchAuthMe, login, logout, signOut } from "../../../packages/client/src/data/auth-bootstrap.ts";
+import { bindSessionDocumentHost } from "../../../packages/client/src/lib/session-document-host.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
+const signOutOrder: string[] = [];
+const assigned: string[] = [];
+
+class FakeBroadcastChannel {
+  static posted: unknown[] = [];
+  addEventListener(): void {
+    /* no sibling messages in this suite */
+  }
+  postMessage(message: unknown): void {
+    FakeBroadcastChannel.posted.push(message);
+    signOutOrder.push("broadcast");
+  }
+  unref(): void {
+    /* node test handle */
+  }
+}
+
+beforeEach(() => {
+  signOutOrder.length = 0;
+  assigned.length = 0;
+  FakeBroadcastChannel.posted = [];
+  vi.stubGlobal("BroadcastChannel", FakeBroadcastChannel);
+  bindSessionDocumentHost({
+    currentPathname: (): string => "/",
+    assign: (path): void => {
+      assigned.push(path);
+      signOutOrder.push("navigate");
+    },
+    isVisible: (): true => true,
+    subscribeVisibility: (): (() => void) => (): void => undefined,
+  });
+});
+
 afterEach(() => {
+  bindSessionDocumentHost(null);
   vi.unstubAllGlobals();
 });
 
@@ -54,4 +89,44 @@ test("logout carries the CSRF header (the cookie-mutation belt) and throws on re
 
   vi.stubGlobal("fetch", () => Promise.resolve(new Response("", { status: 403 })));
   await expect(logout()).rejects.toThrow("logout failed (HTTP 403)");
+});
+
+test("signOut revokes with CSRF, broadcasts, then hard-navigates to the IdP end-session URL", async () => {
+  const requests: { readonly url: string; readonly init: RequestInit | undefined }[] = [];
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    requests.push({ url, init });
+    signOutOrder.push("logout");
+    return Promise.resolve(new Response(JSON.stringify({ endSessionUrl: "/oidc/end-session" }), { status: 200 }));
+  });
+
+  await signOut();
+
+  const request = requests[0];
+  expect(request).toBeDefined();
+  if (request === undefined) {
+    throw new Error("logout request was not captured");
+  }
+  expect(request.url).toBe("/api/auth/logout");
+  expect(request.init).toMatchObject({ method: "POST", credentials: "same-origin", headers: { "x-orb-csrf": "1" } });
+  expect(FakeBroadcastChannel.posted).toEqual([{ kind: "signed-out" }]);
+  expect(assigned).toEqual(["/oidc/end-session"]);
+  expect(signOutOrder).toEqual(["logout", "broadcast", "navigate"]);
+});
+
+test("signOut falls back to /login when logout returns no IdP end-session URL", async () => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response("{}", { status: 200 })));
+
+  await signOut();
+
+  expect(FakeBroadcastChannel.posted).toEqual([{ kind: "signed-out" }]);
+  expect(assigned).toEqual(["/login"]);
+});
+
+test("a failed logout neither broadcasts nor navigates", async () => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response("", { status: 403 })));
+
+  await expect(signOut()).rejects.toThrow("logout failed (HTTP 403)");
+
+  expect(FakeBroadcastChannel.posted).toEqual([]);
+  expect(assigned).toEqual([]);
 });

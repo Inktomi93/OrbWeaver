@@ -1,3 +1,4 @@
+import { stampAppearanceBootHint } from "../../../packages/client/src/compose/stamp-appearance-boot-hint.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
@@ -124,7 +125,6 @@ import {
   setPresetSearchQuery,
   setTagPruneConfirmOpen,
   setTagSortMode,
-  stampAppearanceBootHint,
   subscribeConfigNav,
   subscribeHuskAbandoned,
   subscribeShellState,

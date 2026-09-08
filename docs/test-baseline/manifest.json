@@ -489,6 +489,7 @@
     "tests/client/lib/resolve-theme-scope-tokens.test.ts",
     "tests/client/lib/row-qualifiers.test.ts",
     "tests/client/lib/session-channel.test.ts",
+    "tests/client/lib/session-document-host.test.ts",
     "tests/client/lib/tag-filter-state.test.ts",
     "tests/client/lib/tag-sort.test.ts",
     "tests/client/lib/trpc-devlog.test.ts",

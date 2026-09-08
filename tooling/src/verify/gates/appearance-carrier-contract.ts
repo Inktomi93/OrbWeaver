@@ -10,7 +10,7 @@ import { fileLoaded, repoRel } from "../lib/pass.ts";
 
 const MANIFEST_FILE = "packages/client/src/lib/appearance-carrier-manifest.ts";
 const SCHEMA_FILE = "packages/contracts/src/settings/appearance.ts";
-const BOOT_FILE = "packages/client/src/state/appearance-boot-hint.ts";
+const BOOT_FILE = "packages/client/src/compose/stamp-appearance-boot-hint.ts";
 const USE_APPEARANCE_FILE = "packages/client/src/features/app-shell/hooks/use-appearance.ts";
 const SNAP_APPEARANCE_FILE = "tooling/src/_shared/appearance.ts";
 const MANIFEST_SYMBOL = "APPEARANCE_CARRIER_MANIFEST";

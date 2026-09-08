@@ -37,7 +37,6 @@ export {
   REDUCED_MOTION_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
-  stampAppearanceBootHint,
   useAppearanceBootHint,
 } from "./appearance-boot-hint.ts";
 export type { AssembleChromeInput } from "./assemble-chrome.ts";

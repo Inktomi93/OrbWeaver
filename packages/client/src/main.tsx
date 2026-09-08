@@ -31,10 +31,10 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
 import type { ContributorRegistry } from "#lib";
-import { AppErrorBoundary, AppFailureSurface, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
+import { AppErrorBoundary, AppFailureSurface, bindNotify, bindSessionDocumentHost, buildClientErrorPayload, createToastNotify } from "#lib";
 import type { ConfigSectionContribution } from "#state";
-import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
+import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
 import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
@@ -56,6 +56,18 @@ import "./styles/index.ts";
 /** Type-only — the erased shape `compose/config-sections.ts`'s `configSections` returns. Named here so
  *  the thunk below doesn't restate `ContributorRegistry<ConfigSectionContribution>` twice. */
 type ConfigSectionRegistry = ContributorRegistry<ConfigSectionContribution>;
+
+// Bind the session browser port before RouterProvider can start a route read or the QueryClient/socket can
+// surface an auth failure. Data owns every target and recovery decision; this adapter supplies only DOM I/O.
+bindSessionDocumentHost({
+  currentPathname: (): string => globalThis.location.pathname,
+  assign: (path): void => globalThis.location.assign(path),
+  isVisible: (): boolean => globalThis.document.visibilityState === "visible",
+  subscribeVisibility: (listener): (() => void) => {
+    globalThis.document.addEventListener("visibilitychange", listener);
+    return (): void => globalThis.document.removeEventListener("visibilitychange", listener);
+  },
+});
 
 // #1638 — `openConfig`'s config-section registry, for `agent-handles/index.ts`'s `installAgentHandles`.
 // `configSectionsForNav` is `null` until the dynamic import below resolves; `agent-nav/index.ts`'s

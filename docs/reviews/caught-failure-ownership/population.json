@@ -254,7 +254,7 @@
     {
       "siteId": "packages/client/src/data/stale-session.ts::promise:fetchAuthConfig::1",
       "path": "packages/client/src/data/stale-session.ts",
-      "line": 188,
+      "line": 189,
       "column": 24,
       "grammar": "promise",
       "position": "promise:fetchAuthConfig",
@@ -262,12 +262,12 @@
       "snippet": "const config = await fetchAuthConfig().catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a null config falls through every mode branch to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if a branch after this stops reaching signOut().",
-      "markerLine": 187
+      "markerLine": 188
     },
     {
       "siteId": "packages/client/src/data/stale-session.ts::promise:fetchAuthMe::1",
       "path": "packages/client/src/data/stale-session.ts",
-      "line": 171,
+      "line": 172,
       "column": 20,
       "grammar": "promise",
       "position": "promise:fetchAuthMe",
@@ -275,12 +275,12 @@
       "snippet": "const me = await fetchAuthMe().catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the server is unreachable, not the session dead (see the comment below) — the tab is left exactly as it is and the next real edge re-enters the ladder. Ends if unreachable must be distinguished from dead here.",
-      "markerLine": 170
+      "markerLine": 171
     },
     {
       "siteId": "packages/client/src/data/stale-session.ts::promise:fetchAuthMe::2",
       "path": "packages/client/src/data/stale-session.ts",
-      "line": 196,
+      "line": 197,
       "column": 28,
       "grammar": "promise",
       "position": "promise:fetchAuthMe",
@@ -288,7 +288,7 @@
       "snippet": "const reauthed = await fetchAuthMe().catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut().",
-      "markerLine": 195
+      "markerLine": 196
     },
     {
       "siteId": "packages/client/src/data/use-card-frame.ts::default:catch::1",
@@ -345,7 +345,7 @@
     {
       "siteId": "packages/client/src/data/use-session-recovery.ts::promise:bindDurableLocalToUser::1",
       "path": "packages/client/src/data/use-session-recovery.ts",
-      "line": 91,
+      "line": 79,
       "column": 10,
       "grammar": "promise",
       "position": "promise:bindDurableLocalToUser",
@@ -353,7 +353,7 @@
       "snippet": "void bindDurableLocalToUser(userId)",
       "verdict": "deliberate-absorb",
       "reason": "rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.",
-      "markerLine": 90
+      "markerLine": 78
     },
     {
       "siteId": "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts::promise:promise::1",
@@ -1437,7 +1437,7 @@
     {
       "siteId": "packages/client/src/main.tsx::promise:mutate::1",
       "path": "packages/client/src/main.tsx",
-      "line": 105,
+      "line": 117,
       "column": 3,
       "grammar": "promise",
       "position": "promise:mutate",
@@ -1445,7 +1445,7 @@
       "snippet": "trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface.",
-      "markerLine": 104
+      "markerLine": 116
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::default:catch::1",

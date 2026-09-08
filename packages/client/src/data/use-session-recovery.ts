@@ -27,7 +27,7 @@ import type { ChatId, Handle, UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { timeLib } from "#lib";
+import { sessionDocument, timeLib } from "#lib";
 import { bindDurableLocalToUser, durableLocalReadyFor, openModal, selectChat, useActiveChatId } from "#state";
 import { roomRegistry } from "./bus/room-registry.ts";
 import { createInvalidation } from "./invalidation.ts";
@@ -35,18 +35,6 @@ import { startSessionFreshness } from "./session-freshness.ts";
 import { takeSessionResume } from "./session-resume.ts";
 import { beginSessionRecovery, bindSessionRecovery, probeSessionContinuity } from "./stale-session.ts";
 import { useTRPC } from "./trpc.ts";
-
-/** Subscribe to the visibility edge on the real document, or nothing off-browser. */
-function subscribeVisibility(listener: () => void): () => void {
-  const target = (globalThis as { document?: Document }).document;
-  if (target === undefined) {
-    return (): void => undefined;
-  }
-  target.addEventListener("visibilitychange", listener);
-  return (): void => {
-    target.removeEventListener("visibilitychange", listener);
-  };
-}
 
 export type SessionRecoveryState = { readonly status: "error"; readonly retry: () => void } | { readonly status: "loading" } | { readonly status: "ready" };
 
@@ -141,13 +129,13 @@ export function useSessionRecovery(): SessionRecoveryState {
     () =>
       startSessionFreshness({
         now: timeLib.now,
-        isVisible: (): boolean => (globalThis as { document?: Document }).document?.visibilityState === "visible",
+        isVisible: sessionDocument.isVisible,
         // ALIVE **AND STILL OURS** — the compare lives with the rest of the identity boundary, in the
         // ladder (§4.2.1). A session that comes back as a different human is not freshness.
         probe: probeSessionContinuity,
         // The probe's verdict enters the SAME ladder every other sensor does — one recovery path, always.
         onDead: beginSessionRecovery,
-        subscribe: subscribeVisibility,
+        subscribe: sessionDocument.subscribeVisibility,
       }),
     [],
   );
