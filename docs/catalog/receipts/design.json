@@ -347,7 +347,9 @@
       "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
       "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
       "verifiedAt": "2026-08-31",
-      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
+      "evidence": [
+        "docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"
+      ],
       "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
       "claims": [
         {
@@ -2311,7 +2313,9 @@
       "verifiedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
       "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
       "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."],
+      "evidence": [
+        "Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."
+      ],
       "claims": [
         {
           "claim": "An input proposal to the approved design.",
@@ -2366,7 +2370,9 @@
       "verifiedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
       "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
       "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."],
+      "evidence": [
+        "Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."
+      ],
       "claims": [
         {
           "claim": "An input proposal to the approved design.",
@@ -2444,7 +2450,9 @@
       "verifiedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
       "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
       "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."],
+      "evidence": [
+        "Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."
+      ],
       "claims": [
         {
           "claim": "The parity floor the design honours.",
@@ -2457,6 +2465,35 @@
         }
       ],
       "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
+    },
+    {
+      "path": "docs/design/gate-runtime-standardization.md",
+      "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+      "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
+      "verifiedAt": "2026-09-08",
+      "claims": [
+        {
+          "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:65220530dc1349526154f964d00a93e53719142a"
+            }
+          ]
+        }
+      ],
+      "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
+      "evidence": [
+        "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred."
+      ]
     }
   ]
 }

@@ -4356,10 +4356,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedSha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
+      "verifiedCommit": "dc8ccbd0bac24c2e48c463193974d4d59a3a9801",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
         "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
         "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
@@ -4372,7 +4373,7 @@
         "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
         "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
       ],
-      "summary": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
+      "summary": "Active world/test/config program: shared intent and native observations, pure source contracts, canonical test kinds, native config adapters and worktree-aware typecheck routing; ordered remaining ownership/config acceptance stays explicit.",
       "claims": [
         {
           "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
@@ -4412,7 +4413,7 @@
             },
             {
               "kind": "issue",
-              "target": "#1861"
+              "target": "#1351"
             }
           ]
         }

@@ -449,9 +449,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 413,
-      "bytes": 254180,
-      "sha256": "ee18722adf1f241ad35bf92d714e802c0827dfe0d9fab4f610a174b6d20d54e7",
+      "lines": 414,
+      "bytes": 254413,
+      "sha256": "47ceeec9145c4ce66d6b0a9ed3670f2e8b4d07a7b0e47d94846ad35881d02ea8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -468,10 +468,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "ee18722adf1f241ad35bf92d714e802c0827dfe0d9fab4f610a174b6d20d54e7",
-        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedSha256": "47ceeec9145c4ce66d6b0a9ed3670f2e8b4d07a7b0e47d94846ad35881d02ea8",
+        "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
           "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -1336,8 +1337,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 277,
-      "bytes": 30433,
-      "sha256": "b55b0649948cb7a4c1bde60ad1351e957ceb7da5a400530fabb92413f5d9268a",
+      "bytes": 28133,
+      "sha256": "5233f614a5f506084466be112c3949fd11fcf3e3d8de8cd78dcd049c7278e887",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1354,10 +1355,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "b55b0649948cb7a4c1bde60ad1351e957ceb7da5a400530fabb92413f5d9268a",
-        "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+        "verifiedSha256": "5233f614a5f506084466be112c3949fd11fcf3e3d8de8cd78dcd049c7278e887",
+        "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full current 277-line document read by the orchestrator; registered test kinds and phase-4 native reclassification receipts checked against f6c2ae500. Remaining serial lists, tags and predictive ownership are explicitly transitional; this receipt does not claim those migrations complete.",
           "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -10850,9 +10852,9 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 117,
-      "bytes": 14599,
-      "sha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
+      "lines": 123,
+      "bytes": 16107,
+      "sha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10869,10 +10871,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bc04577711a8cf4dc2d80aa5822bd9c1b2be31296a53f75ca24f956185cae7f9",
-        "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+        "verifiedSha256": "a5f79bc0c30d5115b387a8ee47248d45706a79feb4e1664b5906531439319da5",
+        "verifiedCommit": "dc8ccbd0bac24c2e48c463193974d4d59a3a9801",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
           "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
           "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
           "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
@@ -10885,7 +10888,7 @@
           "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
           "pnpm check:docs (2026-09-04: 2 file(s) formatted)"
         ],
-        "summary": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
+        "summary": "Active world/test/config program: shared intent and native observations, pure source contracts, canonical test kinds, native config adapters and worktree-aware typecheck routing; ordered remaining ownership/config acceptance stays explicit.",
         "claims": [
           {
             "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
@@ -10925,7 +10928,7 @@
               },
               {
                 "kind": "issue",
-                "target": "#1861"
+                "target": "#1351"
               }
             ]
           }
@@ -12709,21 +12712,49 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 243,
-      "bytes": 31983,
-      "sha256": "e0b7e5ded35ce9cafddf10b8e6e26062313677da99cd87657838174351ca8484",
+      "lines": 275,
+      "bytes": 37288,
+      "sha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-08"
         },
         "errors": []
       },
-      "receipt": null,
-      "receiptCurrent": false
+      "receipt": {
+        "path": "docs/design/gate-runtime-standardization.md",
+        "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+        "verifiedCommit": "65220530dc1349526154f964d00a93e53719142a",
+        "verifiedAt": "2026-09-08",
+        "claims": [
+          {
+            "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:65220530dc1349526154f964d00a93e53719142a"
+              }
+            ]
+          }
+        ],
+        "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
+        "evidence": [
+          "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred."
+        ]
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/home-tile-promotion.md",
