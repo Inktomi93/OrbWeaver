@@ -18,17 +18,21 @@
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
+//   config-snapshot          → cli.ts config-snapshot vitest <config>  (internal native-config observation)
+//   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
 import type { VerifyVerb } from "./index.ts";
 import {
   BASELINE_HELP,
+  CONFIG_SNAPSHOT_HELP,
   parse,
   refuseVerbTail,
   runAssetRefsCoverage,
   runBaseline,
   runBootChunkRatchet,
+  runConfigSnapshot,
   runDbBaselineParity,
   runDebtWalk,
   runGateContract,
@@ -42,10 +46,12 @@ import {
   runStructure,
   runTestsExecutionMembership,
   runTestsTypeMembership,
+  runTypecheckPlan,
   runVerify,
   SCOPED_TEST_USAGE,
   SCOPED_USAGE,
   SHOW_HELP,
+  TYPECHECK_PLAN_HELP,
   VERIFY_VERBS,
 } from "./index.ts";
 
@@ -84,6 +90,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census, the test-baseline manifest) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
+  "config-snapshot": CONFIG_SNAPSHOT_HELP,
+  "typecheck-plan": TYPECHECK_PLAN_HELP,
 };
 
 function isVerb(candidate: string): candidate is VerifyVerb {
@@ -136,6 +144,11 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runDebtWalk(root, rest);
     case "ratchet-gate":
       return runRatchetGateCli(root);
+    case "config-snapshot": {
+      return await runConfigSnapshot(root, rest);
+    }
+    case "typecheck-plan":
+      return runTypecheckPlan(root, rest);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }

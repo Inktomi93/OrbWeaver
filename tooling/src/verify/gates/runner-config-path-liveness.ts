@@ -5,19 +5,26 @@
 // 8931a886c and vitest.config.ts's SERIAL_INT row was not repointed, so the row matched NOTHING for months
 // and the heaviest file in the repo (17.6 min) ran in the PARALLEL lane — the load bomb that row exists to
 // prevent. This is eslint-grant-liveness's shape (GATE-AUTHORING.md §4.4 mode B) on the RUNNER configs,
-// which are CODE: SERIAL_INT hides behind a named const spread into two projects, so a bare-StringLiteral
-// reader would find almost nothing — extraction runs through lib/config-static-read.ts, which resolves what
-// it can prove and REFUSES LOUDLY (arm UNREADABLE) on every shape it cannot. Arms: DEAD · MISSING-CONFIG ·
+// which are CODE: SERIAL_INT and kind globs hide behind imports, calls and spreads, so a bare-StringLiteral
+// reader finds almost nothing. Vitest crosses its public native loader through config-snapshot; the two
+// still-literal Playwright configs use lib/config-static-read.ts and fail loud on unreadable syntax. Arms:
+// DEAD · MISSING-CONFIG ·
 // UNPARSEABLE-CONFIG · UNREADABLE-SHAPE · NO-ROWS (the §4.6 blindness tripwire) · the two-sided EXEMPT arms.
 // DECLARED LIMITS: (1) glob rows (`tests/**/*.int.test.ts`) are declared skips; (2) `testMatch` is NOT
 // judged — playwright takes a glob or a RegExp there and the per-mode values are computed from
 // tests/e2e/support/modes.ts, so it is a PATTERN axis by construction and carries no file-exact row;
 // (3) reporter/output paths (`outputDir`, `outputFile`, a custom reporter module) are NOT judged — a
 // missing reporter module fails the runner LOUDLY at start-up, and the silent class this gate exists for is
-// file SELECTION; (4) liveness is filesystem resolution, exactly as in the sibling grant-liveness gates —
+// file SELECTION; (4) Vitest is executable config, so its values come from the public native loader through
+// the synchronous config-snapshot CLI boundary; Playwright remains literal and statically read; (5)
+// liveness is filesystem resolution, exactly as in the sibling grant-liveness gates —
 // a deliberately-absent-on-a-clean-checkout path takes an EXEMPT row, as `tsconfig-entry-liveness` does.
 // COMMENT POSTURE: comment-SAFE — extraction is pure AST over node kinds, never a text match.
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import type { ConfigSnapshotField } from "../contract/config-snapshot.ts";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
+import { readConfigSnapshot } from "../lib/config-snapshot.ts";
 import { extractRows, readConfigSource } from "../lib/config-static-read.ts";
 import type { ExactRow, GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
 import { isFileExact, livenessFindings } from "../lib/grant-liveness.ts";
@@ -27,7 +34,7 @@ import { isFileExact, livenessFindings } from "../lib/grant-liveness.ts";
 const VITEST_REL = "vitest.config.ts";
 const E2E_REL = "playwright.config.ts";
 const CT_REL = "playwright-ct.config.ts";
-const CONFIG_RELS: readonly string[] = [VITEST_REL, E2E_REL, CT_REL];
+const PLAYWRIGHT_RELS: readonly string[] = [E2E_REL, CT_REL];
 const UNIT = "runner path row";
 const JUDGED_KEYS = ["include", "exclude", "testDir", "globalSetup"] as const;
 
@@ -71,11 +78,10 @@ const MSG_UNPARSEABLE =
 
 const MSG_UNREADABLE =
   "an `include`/`exclude`/`testDir`/`globalSetup` value in a test-runner config is a shape this gate CANNOT " +
-  "statically read (a call, a conditional, a spread of something non-literal), so the rows behind it are " +
-  "unjudged and a ✓ would be a lie about coverage this gate does not have. This is the fail-loud half of " +
-  "the CODE-config extractor: an unreadable shape is 'I could not measure', never 'clean'. Either spell the " +
-  "value as a literal/const the reader resolves (tooling/src/verify/lib/config-static-read.ts), or widen the " +
-  "reader deliberately. The finding token names the offending syntax kind.";
+  "resolve through its owning config reader, so the rows behind it are unjudged and a ✓ would be a lie " +
+  "about coverage this gate does not have. Vitest runs through its public native loader and the synchronous " +
+  "config-snapshot boundary; Playwright's still-literal fields run through config-static-read.ts. An " +
+  "unreadable config is 'I could not measure', never 'clean'. The finding token names the failed reader.";
 
 const MSG_NO_ROWS =
   "the test-runner configs parsed but ZERO file-exact rows were derived from an anchor-sized value set — the " +
@@ -83,9 +89,35 @@ const MSG_NO_ROWS =
   "and its ✓ means nothing (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Re-derive the classifier in " +
   "tooling/src/verify/gates/runner-config-path-liveness.ts.";
 
+const MSG_OUTSIDE =
+  "a FILE-EXACT test-runner selector resolves outside the repository root. An existing path outside the " +
+  "checkout must never satisfy config liveness, and an in-repo symlink cannot grant a runner access to an " +
+  "outside target. Re-point the exact selector inside the repository. Glob rows remain a declared skip; " +
+  "this containment verdict applies only to file-exact selectors.";
+
+const MSG_INCLUDE_NOT_FILE =
+  "a FILE-EXACT Vitest `include` selector resolves to a directory rather than a file. Vitest collects " +
+  "zero tests for an exact empty/root or directory include, so filesystem existence alone is a false " +
+  "liveness signal. Point the exact include at a test file, or use a real Vitest glob when the intended " +
+  "population contains multiple files. This check is field-specific: exact excludes and globalSetup may " +
+  "legitimately name directories, and Playwright testDir is directory-valued.";
+
 interface Outcome {
   readonly findings: readonly Finding[];
   readonly declaration: GateScanDeclaration;
+}
+
+interface RunnerExactRow extends ExactRow {
+  readonly owner?: string;
+  readonly field?: ConfigSnapshotField;
+  readonly selectorPath?: string;
+}
+
+interface ReadRows {
+  readonly exact: readonly RunnerExactRow[];
+  readonly findings: readonly Finding[];
+  readonly candidates: number;
+  readonly skipped: number;
 }
 
 function fileFinding(file: string, message: string, token?: string): Finding {
@@ -99,38 +131,130 @@ function classifyGlob(value: string): string | undefined {
   return isFileExact(value) ? value : undefined;
 }
 
-function scanRunnerConfigPaths(root: string): Outcome {
-  const exact: ExactRow[] = [];
-  const blindFindings: Finding[] = [];
-  const unreadable: Finding[] = [];
+function readVitestRows(root: string): ReadRows {
+  const exact: RunnerExactRow[] = [];
   let candidates = 0;
   let skipped = 0;
-  for (const rel of CONFIG_RELS) {
+  const vitestSource = readConfigSource(root, VITEST_REL);
+  if (vitestSource.kind === "missing") {
+    return { exact, findings: [fileFinding(VITEST_REL, MSG_MISSING, VITEST_REL)], candidates, skipped };
+  }
+  if (vitestSource.kind === "unparseable") {
+    return { exact, findings: [fileFinding(VITEST_REL, `${MSG_UNPARSEABLE} (${vitestSource.detail})`)], candidates, skipped };
+  }
+  const native = readConfigSnapshot(root, "vitest", VITEST_REL);
+  if (native.kind === "unreadable") {
+    return {
+      exact,
+      findings: [fileFinding(VITEST_REL, `${MSG_UNREADABLE} Native loader detail: ${native.detail}`, "native-loader")],
+      candidates,
+      skipped,
+    };
+  }
+  for (const selector of native.snapshot.selectors) {
+    for (const value of selector.values) {
+      candidates += 1;
+      if (classifyGlob(value) === undefined) {
+        skipped += 1;
+      } else {
+        exact.push({ file: VITEST_REL, path: value, line: 0, owner: selector.owner, field: selector.field });
+      }
+    }
+  }
+  return { exact, findings: [], candidates, skipped };
+}
+
+function readPlaywrightRows(root: string): ReadRows {
+  const exact: ExactRow[] = [];
+  const findings: Finding[] = [];
+  let candidates = 0;
+  let skipped = 0;
+  for (const rel of PLAYWRIGHT_RELS) {
     const read = readConfigSource(root, rel);
     if (read.kind === "missing") {
-      blindFindings.push(fileFinding(VITEST_REL, MSG_MISSING, rel));
+      findings.push(fileFinding(VITEST_REL, MSG_MISSING, rel));
       continue;
     }
     if (read.kind === "unparseable") {
-      blindFindings.push(fileFinding(rel, `${MSG_UNPARSEABLE} (${read.detail})`));
+      findings.push(fileFinding(rel, `${MSG_UNPARSEABLE} (${read.detail})`));
       continue;
     }
     const rows = extractRows({ sf: read.sf, rel, text: read.text, keys: JUDGED_KEYS, classify: classifyGlob });
     candidates += rows.candidates;
     skipped += rows.skipped;
     exact.push(...rows.exact);
-    unreadable.push(...rows.unresolved.map((u) => fileFinding(rel, MSG_UNREADABLE, u.kind)));
+    findings.push(...rows.unresolved.map((u) => fileFinding(rel, MSG_UNREADABLE, u.kind)));
   }
-  const declaration: GateScanDeclaration = { unit: UNIT, candidates, scanned: exact.length, skipped: { glob: skipped } };
-  if (blindFindings.length > 0 || unreadable.length > 0) {
-    return { findings: [...blindFindings, ...unreadable], declaration };
+  return { exact, findings, candidates, skipped };
+}
+
+function isContained(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+function resolveExactRows(root: string, rows: readonly RunnerExactRow[]): { readonly exact: readonly RunnerExactRow[]; readonly findings: readonly Finding[] } {
+  const rootAbs = resolve(root);
+  const rootReal = realpathSync(rootAbs);
+  const exact: RunnerExactRow[] = [];
+  const findings: Finding[] = [];
+  for (const row of rows) {
+    const targetAbs = resolve(rootAbs, row.path);
+    const targetInside = isContained(rootAbs, targetAbs);
+    const realInside = !existsSync(targetAbs) || isContained(rootReal, realpathSync(targetAbs));
+    if (!(targetInside && realInside)) {
+      findings.push({ file: row.file, line: row.line, column: 0, token: row.path, message: MSG_OUTSIDE });
+      continue;
+    }
+    if ((row.field === "test.include" || row.field === "typecheck.include") && existsSync(targetAbs) && !statSync(targetAbs).isFile()) {
+      findings.push({
+        file: row.file,
+        line: row.line,
+        column: 0,
+        token: row.path,
+        message: `${MSG_INCLUDE_NOT_FILE} Native selector: ${row.owner ?? "vitest"}.${row.field}.`,
+      });
+      continue;
+    }
+    exact.push({ ...row, path: relative(rootAbs, targetAbs) || ".", selectorPath: row.path });
+  }
+  return { exact, findings };
+}
+
+function identifyDeadFindings(root: string, exact: readonly RunnerExactRow[], findings: readonly Finding[]): readonly Finding[] {
+  const deadIdentities = exact.filter((row) => EXEMPT[row.path] === undefined && !existsSync(join(root, row.path)));
+  let deadIndex = 0;
+  return findings.map((finding) => {
+    if (finding.message !== MESSAGES.dead) {
+      return finding;
+    }
+    const row = deadIdentities[deadIndex];
+    deadIndex += 1;
+    const identified = row?.selectorPath === undefined ? finding : { ...finding, token: row.selectorPath };
+    return row?.owner === undefined || row.field === undefined
+      ? identified
+      : { ...identified, message: `${MESSAGES.dead} Native selector: ${row.owner}.${row.field}.` };
+  });
+}
+
+function scanRunnerConfigPaths(root: string): Outcome {
+  const reads = [readVitestRows(root), readPlaywrightRows(root)];
+  const rawExact = reads.flatMap((read) => read.exact);
+  const resolved = resolveExactRows(root, rawExact);
+  const exact = resolved.exact;
+  const blindFindings = [...reads.flatMap((read) => read.findings), ...resolved.findings];
+  const candidates = reads.reduce((total, read) => total + read.candidates, 0);
+  const skipped = reads.reduce((total, read) => total + read.skipped, 0);
+  const declaration: GateScanDeclaration = { unit: UNIT, candidates, scanned: rawExact.length, skipped: { glob: skipped } };
+  if (blindFindings.length > 0) {
+    return { findings: blindFindings, declaration };
   }
   const anchorOk = candidates >= REAL_CONFIG_MIN_CANDIDATES;
   if (exact.length === 0) {
     return { findings: anchorOk ? [fileFinding(VITEST_REL, MSG_NO_ROWS)] : [], declaration };
   }
   const findings = livenessFindings({ root, exact, exempt: EXEMPT, exemptAnchorFile: VITEST_REL, anchorOk, messages: MESSAGES });
-  return { findings, declaration };
+  return { findings: identifyDeadFindings(root, exact, findings), declaration };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -193,6 +317,21 @@ export const gate: GateDescriptor = {
       why: "the founding shape — a file-exact runner row whose file is GONE (mode B: no runner ever visits it, so nothing examines the promise and the suite silently changes lane)",
     },
     {
+      files: configs('export default { test: { projects: [{ test: { include: ["../outside.test.ts"] } }] } };\n'),
+      expect: { count: 1, token: "../outside.test.ts", messageIncludes: "outside the repository root" },
+      why: "containment is judged before existence — an outside missing path is not allowed to masquerade as an ordinary dead in-repo selector",
+    },
+    {
+      files: configs('export default { test: { projects: [{ test: { include: [""] } }] } };\n'),
+      expect: { count: 1, token: "", messageIncludes: "exact empty/root or directory include" },
+      why: "Vitest's native collector returns zero files for an empty exact include; resolving it to the existing repository root must not pass liveness",
+    },
+    {
+      files: configs('export default { test: { projects: [{ test: { include: ["tests"] } }] } };\n'),
+      expect: { count: 1, token: "tests", messageIncludes: "directory rather than a file" },
+      why: "Vitest's native collector returns zero files for an exact directory include even though the directory exists",
+    },
+    {
       files: configs(
         `const SERIAL = ["${DEAD_REL}", "${LIVE_REL}"];\n` +
           `export default { test: { projects: [{ test: { include: ["tests/**/*.int.test.ts"], exclude: [...SERIAL] } }, { test: { include: SERIAL } }] } };\n`,
@@ -203,8 +342,8 @@ export const gate: GateDescriptor = {
     },
     {
       files: configs("export default { test: { include: [resolvePaths()] } };\n"),
-      expect: { count: 1, messageIncludes: "CANNOT statically read" },
-      why: "THE FAIL-LOUD REQUIREMENT: a call expression is unreadable, and an unreadable shape must REFUSE, never pass as a clean zero",
+      expect: { count: 1, token: "native-loader", messageIncludes: "CANNOT resolve through its owning config reader" },
+      why: "THE FAIL-LOUD REQUIREMENT: a config that fails native evaluation must REFUSE, never pass as a clean zero",
     },
     {
       files: { [VITEST_REL]: "export default {};\n", [E2E_REL]: E2E_SOURCE },
@@ -226,6 +365,12 @@ export const gate: GateDescriptor = {
     {
       files: configs(`export default { test: { projects: [{ test: { include: ["${LIVE_REL}"] } }] } };\n`, { [LIVE_REL]: LIVE_SOURCE }),
       why: "a file-exact runner row whose file is on the tree — the sanctioned shape, silent (and the two planted playwright configs' `testDir` values are directories that exist in the mini-project)",
+    },
+    {
+      files: configs('export default { test: { projects: [{ test: { include: ["tests/tooling/../tooling/live.int.test.ts"] } }] } };\n', {
+        [LIVE_REL]: LIVE_SOURCE,
+      }),
+      why: "a selector containing `..` is valid when normalization still resolves to a live in-repository target",
     },
     {
       files: configs(`export default { test: { exclude: [${globFiller(2)}, "tests/**/*.{int,contract}.test.ts", "**/__g_*"] } };\n`),

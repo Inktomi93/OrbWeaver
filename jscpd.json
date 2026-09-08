@@ -23,20 +23,8 @@
   "// gitignore": "Respect .gitignore — no node_modules / reports / scratchpad.",
   "gitignore": true,
 
-  "// ignore": "Tests are the centralized tests/ tree (intentional mirror duplication is fine); migrations are generated; fixtures are data; reset.d.ts is a one-liner.",
-  "ignore": [
-    "**/tests/**",
-    "**/*.test.ts",
-    "**/*.int.test.ts",
-    "**/*.contract.test.ts",
-    "**/*.test-d.ts",
-    "**/*.ct.tsx",
-    "**/*.spec.ts",
-    "**/migrations/**",
-    "**/snapshots/**",
-    "**/__fixtures__/**",
-    "**/*.d.ts"
-  ],
+  "// ignore": "The centralized tests/ tree is outside the packages-only scan. Migrations are generated; fixtures are data; reset.d.ts is a one-liner.",
+  "ignore": ["**/migrations/**", "**/snapshots/**", "**/__fixtures__/**", "**/*.d.ts"],
 
   "// ignorePattern": "Ignore import blocks that are naturally identical across files.",
   "ignorePattern": ["import.*from.*"],

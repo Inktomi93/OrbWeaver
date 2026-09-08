@@ -21,6 +21,7 @@
     "chrome-devtools-mcp": "catalog:",
     "ts-morph": "catalog:",
     "typescript": "catalog:",
+    "vitest": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

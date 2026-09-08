@@ -60,12 +60,11 @@ export interface Selection {
   readonly depcruisePaths: readonly string[];
   /** paths ∩ docs/architecture/**.md (excluding proposed/) ∩ EXISTING (a deleted .md can't be format-checked). */
   readonly docsPaths: readonly string[];
-  /** The distinct OWNING tsconfigs the selection touches (the honest per-package tsc floor). */
+  /** Distinct non-root programs affected through native roots, config inputs, or imported closures. */
   readonly tsconfigs: readonly string[];
-  /** Does the selection touch tests/ · scripts/ · reset.d.ts (the graph-only trees)? */
+  /** Does the complete affected plan include the root graph program? */
   readonly touchesGraphOnlyTrees: boolean;
-  /** Does the selection put any file in `tsconfig.tests-dom.json` (the DOM-coupled test-escapee program,
-   *  #1274)? Drives the `types:tests-dom` stage at a scoped tier. */
+  /** Does the complete affected plan include `tsconfig.tests-dom.json`, as a root or imported consumer? */
   readonly touchesTestsDom: boolean;
   /** The Playwright CT view: which `.ct.tsx` mirrors / sweep dirs this selection runs (§3.4). */
   readonly ct: CtView;

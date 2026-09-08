@@ -48,7 +48,7 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
   if (tsconfigs.length > 1) {
     return ["pnpm", "typecheck"];
   }
-  return ["node", "scripts/ts7.cjs", "--noEmit", "--pretty", "false", "-p", sole];
+  return ["pnpm", "exec", "node", "scripts/ts7.cjs", "--noEmit", "--pretty", "false", "-p", sole];
 }
 
 /** eslint scoped invocation.
