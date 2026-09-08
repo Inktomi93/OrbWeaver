@@ -4334,10 +4334,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "46f9885c179e39f71cdd510454bf404e657f52f42ae134ced9691f02525d17ff",
-      "verifiedCommit": "4c846987b129ecaa342557a3b3c7789d39d832da",
+      "verifiedSha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
+      "verifiedCommit": "f2d3f1ddcd1ed5862b282a320f032f0957402ffa",
       "verifiedAt": "2026-09-08",
       "evidence": [
+        "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
         "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
         "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
         "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
@@ -4355,11 +4356,15 @@
           "evidence": [
             {
               "kind": "test",
+              "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+            },
+            {
+              "kind": "test",
               "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
             },
             {
               "kind": "provenance",
-              "target": "git:4c846987b129ecaa342557a3b3c7789d39d832da"
+              "target": "git:f2d3f1ddcd1ed5862b282a320f032f0957402ffa"
             },
             {
               "kind": "issue",

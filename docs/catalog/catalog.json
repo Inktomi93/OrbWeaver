@@ -10784,9 +10784,9 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 108,
-      "bytes": 12606,
-      "sha256": "46f9885c179e39f71cdd510454bf404e657f52f42ae134ced9691f02525d17ff",
+      "lines": 109,
+      "bytes": 13197,
+      "sha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10803,10 +10803,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "46f9885c179e39f71cdd510454bf404e657f52f42ae134ced9691f02525d17ff",
-        "verifiedCommit": "4c846987b129ecaa342557a3b3c7789d39d832da",
+        "verifiedSha256": "be71605a9333dfac7be11f1bd8d9ea4433ea6da1a6b8d5631e805dbb15d6cb57",
+        "verifiedCommit": "f2d3f1ddcd1ed5862b282a320f032f0957402ffa",
         "verifiedAt": "2026-09-08",
         "evidence": [
+          "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
           "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
           "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
           "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
@@ -10824,11 +10825,15 @@
             "evidence": [
               {
                 "kind": "test",
+                "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+              },
+              {
+                "kind": "test",
                 "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
               },
               {
                 "kind": "provenance",
-                "target": "git:4c846987b129ecaa342557a3b3c7789d39d832da"
+                "target": "git:f2d3f1ddcd1ed5862b282a320f032f0957402ffa"
               },
               {
                 "kind": "issue",
@@ -34920,6 +34925,58 @@
           }
         ],
         "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-native-compiler-overlay.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 46,
+      "bytes": 4392,
+      "sha256": "4b9cf5be3af32b6e5da09a6d17cf8461c5085dae4b3696a58511a4ce69bd54ae",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-native-compiler-overlay.md",
+        "assignedSha256": "4b9cf5be3af32b6e5da09a6d17cf8461c5085dae4b3696a58511a4ce69bd54ae",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "4b9cf5be3af32b6e5da09a6d17cf8461c5085dae4b3696a58511a4ce69bd54ae",
+        "verifiedCommit": "f2d3f1ddcd1ed5862b282a320f032f0957402ffa",
+        "verifiedAt": "2026-09-08",
+        "evidence": [
+          "Full final report read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; independent 42 diagnostic and 11 reader regressions, six public-harness probes and native filename-equivalence evidence retained in task artifacts."
+        ],
+        "claims": [
+          {
+            "claim": "Native source filename overlays, actual destination ownership and full affected-program diagnostics reviewed; all four reproduced defect families repaired and cold verified.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/lib/policy-program-membership.test.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:f2d3f1ddcd1ed5862b282a320f032f0957402ffa"
+              }
+            ]
+          }
+        ],
+        "summary": "Native source filename overlays, actual destination ownership and full affected-program diagnostics reviewed; all four reproduced defect families repaired and cold verified."
       },
       "receiptCurrent": true
     },
