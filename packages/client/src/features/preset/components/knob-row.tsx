@@ -41,7 +41,7 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import type { KnobBinding } from "../lib/capability-panel-model.ts";
 import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs.ts";
 import { clampGloss, knobGhost } from "../lib/effective-knobs.ts";

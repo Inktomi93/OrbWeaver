@@ -46,7 +46,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import {
   pageStep,
   QUALITY_SELECT_ITEMS,

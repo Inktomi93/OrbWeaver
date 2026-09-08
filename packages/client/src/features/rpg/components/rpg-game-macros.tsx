@@ -31,8 +31,8 @@ import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import type { AutosaveSession } from "#forms";
-import { createAutosaveEntityForm } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
+import { createAutosaveEntityForm } from "#forms/editor";
 import { notify, withUserMacros } from "#lib";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 

@@ -18,8 +18,8 @@
 
 import type { ReactElement } from "react";
 import type { SaveLifecycleState } from "#state";
+import { useReportSaveStatus, useSaveStatusHosted } from "../save-status-seam.ts";
 import { AutosaveStatus } from "./autosave-status.tsx";
-import { useReportSaveStatus, useSaveStatusHosted } from "./save-status-seam.ts";
 
 export interface SectionSaveStatusProps {
   /** The reporting section's registry id (`ConfigSectionContribution.id`) — the key the aggregate footer

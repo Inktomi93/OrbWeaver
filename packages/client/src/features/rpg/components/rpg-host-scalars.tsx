@@ -28,7 +28,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import type { HostConsoleFormValues } from "../lib/host-console-form-model.ts";
 import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model.ts";

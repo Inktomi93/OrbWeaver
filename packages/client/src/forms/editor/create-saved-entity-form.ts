@@ -6,7 +6,8 @@ import type { UpdateMetaOptions } from "@tanstack/react-form";
 import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import type { EntityDraftStore } from "#state";
-import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
+import { DEFAULT_DEBOUNCE_MS, mirrorDraft, readDraftSeed } from "../entity-form-base.ts";
+import { focusFirstInvalidField } from "./focus-invalid-field.ts";
 import type { AppFormOptions } from "./use-app-form.ts";
 import { useAppForm } from "./use-app-form.ts";
 

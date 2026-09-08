@@ -31,7 +31,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUploadCaps } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";

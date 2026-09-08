@@ -32,6 +32,11 @@ import { useEffect, useRef, useState } from "react";
 // The NON-JSX HALF (the seam law, the session surface, and the three module-scope pure helpers) is the
 // `-model.ts` sibling — this JSX module carries the factory and its closure components (`component-size`;
 // the capped-field-model precedent).
+import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
+import { foldSaveState, hasUnsavedEdits, skipTeardownFlush } from "../create-autosave-entity-form-model.ts";
+import { DEFAULT_DEBOUNCE_MS, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "../entity-form-base.ts";
+import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "../save-circuit-breaker.ts";
+import { useSaveUnwritable, useSaveUnwritableRef } from "../save-status-seam.ts";
 import type {
   AutosaveBoundaryImplProps,
   AutosaveBoundaryProps,
@@ -40,13 +45,9 @@ import type {
   AutosaveEntityBoundaryConfigWithoutSave,
   AutosaveEntityBoundaryConfigWithSave,
   AutosaveForm,
-  AutosaveSaveState,
   AutosaveSession,
-} from "./create-autosave-entity-form-model.ts";
-import { foldSaveState, hasUnsavedEdits, skipTeardownFlush } from "./create-autosave-entity-form-model.ts";
-import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
-import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
-import { useSaveUnwritable, useSaveUnwritableRef } from "./save-status-seam.ts";
+} from "./autosave-contract.ts";
+import { focusFirstInvalidField } from "./focus-invalid-field.ts";
 import { useAppForm } from "./use-app-form.ts";
 
 /**

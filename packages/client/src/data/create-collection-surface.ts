@@ -81,7 +81,7 @@ const DEFAULT_END_APPROACH_ROWS = 12;
 export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
 ): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem> {
-  // biome-ignore lint/nursery/noComponentHookFactories: factories run at module scope, so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
+  // biome-ignore lint/nursery/noComponentHookFactories: factories run at module scope, so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
   return function useCollectionSurface({ trpc }, params): CollectionSurface<TItem> {
     const query = useInfiniteQuery({
       ...config.query(trpc, params),

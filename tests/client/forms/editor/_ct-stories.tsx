@@ -6,9 +6,9 @@
 // Zustand-draft closure. The observation convention throughout: a SEPARATE sibling reads the same draft
 // slot through the REACTIVE `useDraft` hook and serializes it into a testid `<output>` — reactive so an
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
-
-import type { AutosaveSession, AutosaveStatusProps } from "@orb/client/forms";
-import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm, hashServerBaseline } from "@orb/client/forms";
+import { hashServerBaseline } from "@orb/client/forms";
+import type { AutosaveSession, AutosaveStatusProps } from "@orb/client/forms/editor";
+import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms/editor";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";

@@ -445,7 +445,7 @@
       }
     },
     {
-      "includes": ["packages/client/src/forms/use-app-form.ts"],
+      "includes": ["packages/client/src/forms/editor/use-app-form.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -653,7 +653,7 @@
       }
     },
     {
-      "includes": ["packages/client/src/forms/create-autosave-entity-form.tsx"],
+      "includes": ["packages/client/src/forms/editor/create-autosave-entity-form.tsx"],
       "linter": {
         "rules": {
           "nursery": {

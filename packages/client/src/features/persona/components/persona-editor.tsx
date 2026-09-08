@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
-import type { AutosaveSession } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";

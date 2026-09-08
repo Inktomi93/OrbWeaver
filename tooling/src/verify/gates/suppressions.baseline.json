@@ -155,25 +155,25 @@
     "why": "ratified by rule: jsx-a11y/no-autofocus×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/forms/bound-fields/select-field.tsx": {
+  "packages/client/src/forms/editor/bound-fields/select-field.tsx": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: jsx-a11y/control-has-associated-label×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/forms/bound-fields/switch-field.tsx": {
+  "packages/client/src/forms/editor/bound-fields/switch-field.tsx": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: jsx-a11y/control-has-associated-label×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/forms/create-saved-entity-form.ts": {
+  "packages/client/src/forms/editor/create-saved-entity-form.ts": {
     "count": 2,
     "ratified": 2,
     "why": "ratified by rule: lint/nursery/noComponentHookFactories×1 (tool-fp), lint/nursery/useExplicitReturnType×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/forms/use-app-form.ts": {
+  "packages/client/src/forms/editor/use-app-form.ts": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: lint/suspicious/noExplicitAny×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
@@ -747,7 +747,7 @@
     "why": "ratified by rule: lint/suspicious/noExplicitAny×3 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "tests/client/forms/create-autosave-entity-form-model.test-d.ts": {
+  "tests/client/forms/editor/autosave-contract.test-d.ts": {
     "count": 2,
     "ratified": 2,
     "why": "ratified by rule: @ts-expect-error×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_TEST_RULES (tooling/src/verify/gates/suppressions.ts)",

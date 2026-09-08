@@ -154,7 +154,7 @@ function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
 ): (deps: { trpc: Trpc; invalidation: Invalidation }) => EntityMutationResult<TVars, TData> {
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
+  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
   return function useEntityMutation({ trpc, invalidation }): EntityMutationResult<TVars, TData> {
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),

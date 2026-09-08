@@ -6,7 +6,7 @@
 
 import { FormApi } from "@tanstack/react-form";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 interface Values {
   name: string;

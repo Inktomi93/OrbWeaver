@@ -4,7 +4,7 @@
 // resolves, so the projected server values always fully override these seeds.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import { projectDatabankForm } from "../lib/databank-settings-model.ts";
 

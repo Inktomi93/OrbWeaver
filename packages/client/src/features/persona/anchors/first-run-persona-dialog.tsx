@@ -93,7 +93,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   }
 
   // Adjusted during RENDER (the React-documented "a prop/read changed and state derived from it must change
-  // too" shape — `forms/create-autosave-entity-form.tsx` is the house precedent), never in an effect: the
+  // too" shape — `forms/editor/create-autosave-entity-form.tsx` is the house precedent), never in an effect: the
   // box would otherwise paint empty for a frame over a persona that already has a name.
   if (orphan !== undefined && orphan.id !== seenOrphanId) {
     setSeenOrphanId(orphan.id);

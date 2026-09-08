@@ -25,7 +25,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "../../lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";

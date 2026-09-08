@@ -4,7 +4,7 @@
 // `createAutosaveEntityForm` strips `reset` at the type level; catches the runtime escapes: ARM A — a
 // `.reset(` on a form-shaped receiver in any file importing the factory. ARM B — the strip and the
 // returned surface, now in two files: the `Omit<…, "reset">` must hold in the session's TYPE home
-// (`-model.ts`) and the factory `.tsx` must return no `reset` property.
+// (`autosave-contract.ts`) and the factory `.tsx` must return no `reset` property.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -20,22 +20,22 @@ interface NodeHit {
 
 const CLIENT_SRC = "/packages/client/src/";
 const FACTORY_NAME = "createAutosaveEntityForm";
-const FACTORY_FILE = "packages/client/src/forms/create-autosave-entity-form.tsx";
+const FACTORY_FILE = "packages/client/src/forms/editor/create-autosave-entity-form.tsx";
 // The factory's TYPE surface was split out of the `.tsx` for the `component-size` cap (2026-08-14,
 // client-forms-01): `AutosaveSession.form` — the `Omit<…, "reset">` strip ARM B guards — is declared in
-// the `-model.ts` sibling now, so the strip check follows the DECLARATION while the returned-object
+// the `autosave-contract.ts` sibling now, so the strip check follows the DECLARATION while the returned-object
 // check stays on the factory file that builds the object.
-const FACTORY_MODEL_FILE = "packages/client/src/forms/create-autosave-entity-form-model.ts";
+const FACTORY_MODEL_FILE = "packages/client/src/forms/editor/autosave-contract.ts";
 
 const RESET_MESSAGE =
   "reset() on an autosave form — reset re-baselines a live draft mirror into the TanStack Form " +
   "isDirty-never-clears loop (#1144). createAutosaveEntityForm strips reset by type; do not cast past it " +
-  "(UI-Gates-and-Lessons.md §7 row 2; forms/create-autosave-entity-form.tsx).";
+  "(UI-Gates-and-Lessons.md §7 row 2; forms/editor/create-autosave-entity-form.tsx).";
 
 const OMIT_MISSING_MESSAGE =
   'the reset type-strip (Omit<…, "reset">) is gone from the autosave factory\'s returned surface — ' +
   "reset MUST stay removed (it is the autosave infinite loop, UI-Gates-and-Lessons.md §7 row 2); " +
-  "restore the Omit in forms/create-autosave-entity-form-model.ts.";
+  "restore the Omit in forms/editor/autosave-contract.ts.";
 
 function clientRel(path: string): string | undefined {
   const idx = path.indexOf(CLIENT_SRC);
@@ -145,13 +145,13 @@ export const gate: GateDescriptor = {
     },
     {
       files: "export interface AutosaveSession {\n  readonly form: { reset: () => void };\n}\n",
-      at: "packages/client/src/forms/create-autosave-entity-form-model.ts",
+      at: "packages/client/src/forms/editor/autosave-contract.ts",
       why: 'ARM B OMIT_MISSING — the TYPE-home file with no Omit<…,"reset"> strip on the session surface',
       expect: { messageIncludes: "type-strip" },
     },
     {
       files: 'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
-      at: "packages/client/src/forms/create-autosave-entity-form.tsx",
+      at: "packages/client/src/forms/editor/create-autosave-entity-form.tsx",
       why: "ARM B RESET_PROP — the factory file hands a `reset` property back through its returned object",
       expect: { token: "reset-prop" },
     },
@@ -164,7 +164,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: 'export interface AutosaveSession {\n  readonly form: Omit<{ reset: () => void; x: 1 }, "reset">;\n}\n',
-      at: "packages/client/src/forms/create-autosave-entity-form-model.ts",
+      at: "packages/client/src/forms/editor/autosave-contract.ts",
       why: "the POSITIVE control for the strip half: the type home WITH the Omit is clean (proves the ARM B model check reads the declaration, not the file name)",
     },
   ],

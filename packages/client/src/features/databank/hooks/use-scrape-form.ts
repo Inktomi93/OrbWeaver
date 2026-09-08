@@ -3,7 +3,7 @@
 // defaults seed every open). The dialog supplies the call-time `save`, which closes over the three scraper
 // mutations and the landed-document callback.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { SCRAPE_FORM_DEFAULTS } from "../lib/scrape-form-model.ts";
 

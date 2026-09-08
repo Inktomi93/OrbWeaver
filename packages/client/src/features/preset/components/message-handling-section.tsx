@@ -15,7 +15,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 

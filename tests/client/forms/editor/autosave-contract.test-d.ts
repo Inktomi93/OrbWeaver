@@ -5,7 +5,7 @@
 // `config.save` (a module-scope factory cannot reach the tRPC client) — so the factory is overloaded: a
 // config without `save` returns a boundary whose props are `{ save } | { readOnly: true }`.
 // Runtime behavior (the backstop refusal + the read-only status fold) lives in the
-// `create-autosave-entity-form.ct.tsx` sibling. The mirror is the `-model.ts` TYPE home (a `.test-d.ts`
+// `create-autosave-entity-form.ct.tsx` sibling. The mirror is the `autosave-contract.ts` TYPE home (a `.test-d.ts`
 // mirrors a `.ts` source — `test-layout`), which is where the arms under test are declared; the factory
 // overloads that pair them live in the `.tsx`.
 //
@@ -17,7 +17,7 @@
 // TS2322 by `pnpm typecheck:tests-dom`. Do not read a `pnpm test:types` pass as this file passing.
 // The partition is pinned by tests/tooling/testd-lane-program-coverage.int.test.ts (#1270).
 
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { ReactNode } from "react";
 import { expectTypeOf, test } from "vitest";
 

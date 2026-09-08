@@ -10,7 +10,7 @@
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { DEFAULT_COUNTER_AT, showsCappedFieldCounter } from "./capped-field-model.ts";
+import { DEFAULT_COUNTER_AT, showsCappedFieldCounter } from "../capped-field-model.ts";
 
 export interface CappedFieldCounterProps {
   /** The RAW field length — the counter mirrors what the box holds, keystroke for keystroke (a save-time

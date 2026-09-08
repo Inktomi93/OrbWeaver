@@ -5,7 +5,7 @@
 // is always undefined (a CREATE has no server row) so `defaultValues` seeds every open; the dialog remounts
 // the subtree per open (Base UI unmounts the closed popup) so a reopened dialog never shows a prior attempt.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { AddCredentialFormValues } from "../lib/add-credential-form-model.ts";
 import { ADD_CREDENTIAL_DEFAULTS, validateAddCredential } from "../lib/add-credential-form-model.ts";
 

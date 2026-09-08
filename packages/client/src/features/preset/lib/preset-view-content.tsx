@@ -7,7 +7,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { ActionsView } from "../components/actions-view.tsx";
 import { ParamsDeck } from "../components/params-deck.tsx";
 import { PresetStructureTabs } from "../components/preset-structure-tabs.tsx";

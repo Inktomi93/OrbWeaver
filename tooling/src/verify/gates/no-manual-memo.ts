@@ -61,7 +61,7 @@ const FIX =
   "Delete the memo — the Compiler memoizes compiled files. If biome's dep rules deadlock on a plain in-component " +
   "function used as an effect dep, hoist it to module scope and thread values/refs as params (see " +
   "packages/client/src/features/app-shell/surfaces/app-shell.tsx `dismissOverlays` and " +
-  "packages/client/src/forms/create-autosave-entity-form.tsx `takeDiscard`). Manual memo survives ONLY where the " +
+  "packages/client/src/forms/editor/create-autosave-entity-form.tsx `takeDiscard`). Manual memo survives ONLY where the " +
   "Compiler cannot compile the component at all (its `@tanstack/react-virtual` denylist) or where the deps are " +
   "VALUE-keyed by design — both take a cited EXEMPTIONS row in tooling/src/verify/gates/no-manual-memo.ts.";
 

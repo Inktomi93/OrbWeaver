@@ -8,7 +8,7 @@
 // exactly the contract the crunch said was broken, so the CT reads the attributes rather than the form
 // state that feeds them. Each field's root is addressable by `data-slot="field-root"` + its label.
 
-import { useAppForm } from "@orb/client/forms";
+import { useAppForm } from "@orb/client/forms/editor";
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

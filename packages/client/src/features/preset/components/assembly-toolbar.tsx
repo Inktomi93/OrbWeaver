@@ -14,7 +14,7 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Toolbar } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { addableSections } from "../lib/assembly-model.ts";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;

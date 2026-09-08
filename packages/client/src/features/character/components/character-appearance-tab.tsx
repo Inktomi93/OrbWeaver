@@ -36,7 +36,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import type { AutosaveSession } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
 import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";

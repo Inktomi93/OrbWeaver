@@ -5,7 +5,7 @@
 // place wrong (autosave-form-doctrine.md §1/§8, D78 L2). `save` is supplied at call time
 // (character-appearance-tab.tsx). No `draft` mirror — a low-stakes tweak, not worth a crash-survival slot.
 
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
 import { EMPTY_CHARACTER_THEME_FORM } from "../lib/character-theme-form-model.ts";
 

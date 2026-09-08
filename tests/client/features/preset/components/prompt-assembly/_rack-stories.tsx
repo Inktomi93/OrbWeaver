@@ -12,8 +12,8 @@
 // carry `trigger`, #1462/#1736, so its Triggers cluster renders like every other non-pivot section), and
 // the PIVOT (no switch at all, no menu).
 
-import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance, AutosaveSession } from "@orb/client/forms/editor";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import { closePresetSectionDrill, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, parsePromptConfig } from "@orb/contracts/preset";

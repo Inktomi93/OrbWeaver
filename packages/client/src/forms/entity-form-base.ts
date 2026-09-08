@@ -1,22 +1,11 @@
-// Shared base the two entity-form factories COMPOSE (never merge — derive-modernization-audit.md §W3).
-// createAutosaveEntityForm (listener-submits every debounced change) and createSavedEntityForm (button-
-// gated, re-baselines on save) diverge on submit-gating ON PURPOSE, so this base holds only what is
-// byte-identical between them: the debounce default, the submit-fail focus handler (the
-// `[aria-invalid="true"]` chokepoint spelled ONCE), and the crash-survival draft store's read/write
-// vocabulary (seed-read + mirror-write, keyed by entityId). Each factory keeps its own onChange/effect
-// gating — this base makes no decision about WHEN a mirror happens, only about how.
+// Pure base shared by both entity-form factories: debounce, draft seed/mirror, baseline hash and value equality.
+// Submit-invalid DOM focus lives in forms/editor/focus-invalid-field.ts.
 
 import { stableStringify } from "@orb/kit/stable-stringify";
 import type { EntityDraftStore } from "#state";
 
 /** The listener debounce both factories default their draft mirror to (ms). */
 export const DEFAULT_DEBOUNCE_MS = 500;
-
-/** onSubmitInvalid for both factories: move focus to the first invalid control so the error is seen. */
-export function focusFirstInvalidField(): void {
-  document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-}
-
 // The draft baseline hash: a persisted draft outranks the server ONLY when it was
 // begun on the SAME server snapshot the form now mounts over. A stale draft (server changed since the edit
 // began, or an unverifiable pre-envelope draft) is DISCARDED — server outranks. This hash is the identity

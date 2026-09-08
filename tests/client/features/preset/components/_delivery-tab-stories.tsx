@@ -12,8 +12,8 @@
 // The tab is not on the feature's front door (the editor surface owns it), so it is imported by path — the
 // `_regex-tab-stories.tsx` precedent in this directory.
 
-import type { AppFormInstance } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance } from "@orb/client/forms/editor";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";

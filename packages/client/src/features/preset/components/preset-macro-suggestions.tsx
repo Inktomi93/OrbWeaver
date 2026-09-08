@@ -12,7 +12,7 @@
 import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { withUserMacros } from "#lib";
 
 export interface PresetMacroSuggestionsProps {

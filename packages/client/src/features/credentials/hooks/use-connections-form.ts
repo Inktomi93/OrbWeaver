@@ -6,7 +6,7 @@
 // server-synced and autosaves within the debounce window.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { RoutingForm } from "../lib/connections-model.ts";
 import { projectRoutingForm } from "../lib/connections-model.ts";
 

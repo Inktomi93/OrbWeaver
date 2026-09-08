@@ -304,14 +304,14 @@ export const gate: GateDescriptor = {
     {
       // importing createSavedEntityForm exempts the file — the form is routed through the factory.
       files:
-        'import { createSavedEntityForm } from "#forms";\nconst use = createSavedEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
+        'import { createSavedEntityForm } from "#forms/editor";\nconst use = createSavedEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
       at: "packages/client/src/features/x/saved.tsx",
       why: "the file imports createSavedEntityForm — the ≥3-field form is routed through the factory, passes",
     },
     {
       // importing createAutosaveEntityForm likewise exempts the file.
       files:
-        'import { createAutosaveEntityForm } from "#forms";\nconst use = createAutosaveEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
+        'import { createAutosaveEntityForm } from "#forms/editor";\nconst use = createAutosaveEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
       at: "packages/client/src/features/x/autosave.tsx",
       why: "the file imports createAutosaveEntityForm — routed through the factory, passes",
     },

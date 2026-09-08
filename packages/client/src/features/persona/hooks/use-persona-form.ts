@@ -8,7 +8,7 @@
 // durable store and autosaves within the debounce window (the appearance/injection-row precedent — a local
 // crash-mirror would duplicate synced truth for a field set this light).
 
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { DEFAULT_PERSONA_FORM } from "../lib/persona-editor-model.ts";
 

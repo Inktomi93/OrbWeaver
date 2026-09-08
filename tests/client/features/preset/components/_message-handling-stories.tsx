@@ -7,8 +7,8 @@
 // wire under D143 — the note must not appear at all). Both go through the REAL `createAutosaveEntityForm`
 // boundary the production editor mounts the section under.
 
-import type { AppFormInstance } from "@orb/client/forms";
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import type { AppFormInstance } from "@orb/client/forms/editor";
+import { createAutosaveEntityForm } from "@orb/client/forms/editor";
 import type { ModelCapability, RoleHandling } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

@@ -4,8 +4,7 @@
 // (a stored `""` is not nullish → the assembler would treat it as override-to-empty, not inherit);
 // (2) the projection is exactly THREE section-text fields — the author's-note arm was retired (owner ruling
 // 2026-08-01: it was a second home for what `chat_injections` owns), so nothing here maps at-depth
-// directives. Deep-imports the pure model (NOT the hook — its `#forms` import drags browser TSX into
-// typecheck:graph).
+// directives. It exercises the pure wire/model mapping independently of the browser editor composition.
 
 import type { RoomOverridesFormValues } from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model.ts";
 import {

@@ -25,7 +25,7 @@ import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import { openConfigTo } from "#state";
 import { isPlainMarkerSection, isTemplatedMarkerSection } from "../../lib/assembly-model.ts";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";

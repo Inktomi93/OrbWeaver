@@ -35,8 +35,8 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import type { AutosaveSession } from "#forms";
-import { createAutosaveEntityForm } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
+import { createAutosaveEntityForm } from "#forms/editor";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model.ts";
 import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model.ts";
 

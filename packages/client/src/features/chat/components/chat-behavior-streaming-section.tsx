@@ -17,8 +17,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import type { AutosaveSession } from "#forms";
-import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
+import type { AutosaveSession } from "#forms/editor";
+import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
 import {
   CHAT_STREAMING_KEYS,

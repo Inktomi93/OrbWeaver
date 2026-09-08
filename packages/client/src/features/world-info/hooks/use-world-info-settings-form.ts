@@ -5,7 +5,7 @@
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 
 /** The singleton entity id — the world-info prefs are one row per user, so a fixed key. */
 export const WORLD_INFO_SETTINGS_ENTITY_ID = "world-info-settings";

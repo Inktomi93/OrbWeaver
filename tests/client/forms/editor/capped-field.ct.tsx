@@ -7,9 +7,9 @@
 // A CT rather than a unit test: the arms differ by COMPUTED COLOR, which only a real render resolves (the
 // token is an oklch custom property, not a class name a snapshot could compare).
 
-import { CappedFieldCounter } from "@orb/client/forms";
+import { CappedFieldCounter } from "@orb/client/forms/editor";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../support/node/resolved-token-color.ts";
+import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const MAX = 4000;
 

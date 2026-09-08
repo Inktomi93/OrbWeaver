@@ -29,10 +29,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
-import { AppearanceEffectsSectionStory } from "../features/app-shell/_ct-stories.tsx";
-import { ComposerStory } from "../features/chat/_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../features/chat/fixtures.ts";
+import { routeTrpc } from "../../../support/node/route-trpc.ts";
+import { AppearanceEffectsSectionStory } from "../../features/app-shell/_ct-stories.tsx";
+import { ComposerStory } from "../../features/chat/_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../../features/chat/fixtures.ts";
 import { CharacterCreateBandStory, PresetRenameDialogStory } from "./_form-identity-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_form_identity", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };

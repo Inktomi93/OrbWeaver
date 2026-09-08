@@ -2,7 +2,7 @@
 // undefined (a run has no server row) so `defaultValues` seeds every open. A bulk run of a create-kind
 // must designate its mint target — mirrors the start verb's own requirement as teaching.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { RunWorkloadFormValues } from "../lib/workloads-model.ts";
 import { RUN_WORKLOAD_FORM_DEFAULTS, workloadKindNeedsBulkTarget } from "../lib/workloads-model.ts";
 

@@ -43,7 +43,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityForm } from "#forms";
+import { createAutosaveEntityForm } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
 import type { InjectionFormValues } from "../lib/injection-row-model.ts";

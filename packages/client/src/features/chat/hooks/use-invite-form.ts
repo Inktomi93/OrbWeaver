@@ -6,7 +6,7 @@
 // server row) so `defaultValues` seeds every open; the dialog remounts the subtree per open (Base UI
 // unmounts the closed popup) so a reopened dialog never shows a prior attempt.
 
-import { createSavedEntityForm } from "#forms";
+import { createSavedEntityForm } from "#forms/editor";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
 import { INVITE_FORM_DEFAULTS, validateInviteForm } from "../lib/invite-form-model.ts";
 

@@ -3,7 +3,7 @@
 // the caller's own form-value shape.
 
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import type { WorkloadRunValues } from "../lib/workloads-model.ts";
 import { INDEX_SOURCE_ITEMS, isRunnableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
 

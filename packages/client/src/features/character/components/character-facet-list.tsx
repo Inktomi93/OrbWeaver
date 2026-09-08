@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance } from "#forms/editor";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
 import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
