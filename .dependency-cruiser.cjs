@@ -48,6 +48,8 @@ const DB = "^packages/db/src/";
 const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
+const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
+const SERVER_ROOT = `${SRV}index\\.ts$`;
 const SHOWCASE = "^packages/showcase-plugins/";
 const TEST_FILES = "\\.(test|int\\.test|contract\\.test|parity\\.test|spec|test-d|ct)\\.[jt]sx?$";
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
@@ -142,10 +144,26 @@ module.exports = {
     {
       name: "client-no-backend-runtime",
       comment:
-        "The browser bundle must never pull @orb/server or @orb/db RUNTIME code. Type-only imports ARE allowed — that's how the client gets the tRPC AppRouter type — so this fires only on real value imports. (structure.md §2: client deps kit+contracts+server[type-only]; boundary-scan: client→server is 100% type-only today.)",
+        "The browser bundle must never pull @orb/server or @orb/db RUNTIME code. The one server-owned tRPC contract crosses as a type-only edge governed separately by client-backend-types-only-through-trpc and client-trpc-type-target. (structure.md §2.)",
       severity: "error",
       from: { path: CLIENT },
       to: { path: ["^packages/server/", DB], dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "client-backend-types-only-through-trpc",
+      comment:
+        "Client code may reach backend-owned types only through data/trpc.ts, the single owner of the server-derived AppRouter client seam. An arbitrary server or DB type import expands that intentional compiler dependency. (#1890.)",
+      severity: "error",
+      from: { path: CLIENT, pathNot: CLIENT_TRPC },
+      to: { path: ["^packages/server/", DB], dependencyTypes: ["type-only"] },
+    },
+    {
+      name: "client-trpc-type-target",
+      comment:
+        "Client data/trpc.ts may import only the type-only @orb/server root, whose public surface is AppRouter. It may not reach server internals or DB types; dependency-cruiser constrains resolved paths and edge kinds, while TypeScript constrains the imported name through the root's type-only export. (#1890.)",
+      severity: "error",
+      from: { path: CLIENT_TRPC },
+      to: { path: ["^packages/server/", DB], pathNot: SERVER_ROOT, dependencyTypes: ["type-only"] },
     },
     {
       name: "client-feature-front-door",

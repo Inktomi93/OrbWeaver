@@ -66,7 +66,7 @@ export type { SkeletonRowShape, SkeletonRowsProps } from "./skeleton-rows.tsx";
 export { SkeletonRows } from "./skeleton-rows.tsx";
 export type { ReauthOutcome, SessionRecoveryHost } from "./stale-session.ts";
 export { beginSessionRecovery, bindSessionRecovery, completeReauth, recoverIfStaleSession, recoverIfUnauthorizedCode } from "./stale-session.ts";
-export type { Trpc, TrpcReadError } from "./trpc.ts";
+export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { uploadAsset } from "./upload-asset.ts";
 export type { UploadDocumentResult } from "./upload-document.ts";

@@ -3,11 +3,10 @@
 // Deliberately read-only: story and state mutations still go through human UI controls.
 
 import type { ChatId } from "@orb/kit/ids";
-import type { AppRouter } from "@orb/server";
-import type { TRPCClient } from "@trpc/client";
+import type { TrpcClient } from "#data";
 import type { OrbRpgReader } from "../lib/agent-bridge.ts";
 
-export function buildAgentRpg(client: TRPCClient<AppRouter>, readChatId: () => ChatId | null): OrbRpgReader {
+export function buildAgentRpg(client: TrpcClient, readChatId: () => ChatId | null): OrbRpgReader {
   return async () => {
     const chatId = readChatId();
     if (chatId === null) {

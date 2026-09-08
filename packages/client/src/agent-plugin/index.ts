@@ -7,11 +7,10 @@
 // an ambiguous one — never a silent empty. Read-only by construction: no mutation has a bridge here (the
 // `agent-rpg/` posture).
 
-import type { AppRouter } from "@orb/server";
-import type { TRPCClient } from "@trpc/client";
+import type { TrpcClient } from "#data";
 import type { OrbPluginListEntry, OrbPluginLogReader, OrbPluginLogResult } from "../lib/agent-plugin-bridge.ts";
 
-export function buildAgentPlugin(client: TRPCClient<AppRouter>): OrbPluginLogReader {
+export function buildAgentPlugin(client: TrpcClient): OrbPluginLogReader {
   return async (ref?: string): Promise<OrbPluginLogResult> => {
     const installed = await client.plugin.list.query();
     const plugins: OrbPluginListEntry[] = installed.map((view) => ({
