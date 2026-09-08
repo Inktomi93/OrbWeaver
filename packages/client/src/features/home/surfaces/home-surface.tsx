@@ -88,7 +88,8 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
-import { SCROLL_FADE_Y_CLASS, useScrollFadeY } from "@orb/ui/lib";
+import { SCROLL_FADE_Y_CLASS } from "@orb/ui/lib";
+import { useScrollFadeY } from "@orb/ui/scroll-area";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";

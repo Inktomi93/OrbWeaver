@@ -21,7 +21,8 @@ import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
 import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
-import { SCROLL_FADE_X_CLASS, useScrollFadeX } from "@orb/ui/lib";
+import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
+import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement } from "react";

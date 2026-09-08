@@ -3,14 +3,12 @@
 // This test owns no expression resolver or CSS parser, and pins plain @theme against unused-token loss.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 // Devtime build/verify machinery at the @orb/ui package ROOT — no `exports` subpath by design (#1847).
 import { assertTokenContract } from "@orb/ui/token-contract";
 import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
 import type { Project, SourceFile } from "ts-morph";
-// The LEAF, not the `@orb/ui/lib` barrel: the barrel value-exports DOM-coupled hooks (scroll-fade, reduced-motion),
-// which dragged 19 browser-source errors into the DOM-less node world for one pure constant (type-worlds #1351).
-import { CSS_MERGE_FAMILY_NAMES } from "../../packages/ui/src/lib/class-merge.ts";
 import { getWorkspace } from "../../tooling/src/_shared/ts-workspace.ts";
 import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
