@@ -27,17 +27,7 @@ test("a vitest project the stage cannot classify is named — and a known one ne
   expect(unclassifiedVitestProjects(["unit", "tooling-serial", "a-lane-nobody-classified"])).toEqual(["a-lane-nobody-classified"]);
   // The negative arm: every real lane, runtime AND typecheck-only, classifies silently.
   expect(
-    unclassifiedVitestProjects([
-      "unit",
-      "integration",
-      "integration-serial",
-      "tooling",
-      "tooling-serial",
-      "live-drive",
-      "contract",
-      "types-node",
-      "types-browser",
-    ]),
+    unclassifiedVitestProjects(["unit", "integration", "integration-serial", "tooling", "tooling-serial", "contract", "types-node", "types-browser"]),
   ).toEqual([]);
 });
 

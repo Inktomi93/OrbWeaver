@@ -38,10 +38,7 @@ import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
-// Wall clock only — every arm below is a STRUCTURAL fact (a response body, an audit id, a node count), so
-// this file stays in the parallel lane and scales its budget rather than withholding (see the LIVE_DRIVE
-// rationale in vitest.config.ts). A lighthouse snapshot measured 2.6s solo; two of them plus two browser
-// boots is the shape of the ceiling below.
+// Structural assertions stay parallel; their completion deadline scales with browser startup cost.
 const RUN_TIMEOUT_MS = scaledBudget(90_000, 4);
 vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 

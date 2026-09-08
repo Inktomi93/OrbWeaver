@@ -1,11 +1,9 @@
 // THE INNER LOOP STILL REACHES TOOLING TESTS (#1566) — proven by asking the RUNNER, not by reading argv.
 //
 // #1523 moved 280 files out of the `unit`/`integration` vitest projects into a `tooling` project and gave
-// the new stage `tiers: ["push","full"]`. `tests:node`'s scoped argv still said `--project unit --project
-// integration`, so `verify --changed` over an instrument edit selected ZERO of its tests — no run, and no
-// deferral notice either, because a stage belonging to no `changed` tier is never even considered. A lane
-// editing a gate got a green inner loop that had run nothing. That is a class an argv assertion cannot
-// catch: the argv stayed internally consistent, it just stopped naming a project that OWNS the files.
+// the new stage `tiers: ["push","full"]`. `tests:node`'s scoped argv copied a partial project list, so
+// `verify --changed` over an instrument edit selected ZERO of its tests. The repair removes that second
+// census: an absent project filter delegates ownership to Vitest's current configured projects.
 //
 // So this file drives vitest's own resolver over the project set the registry actually hands it, and asks
 // whether a tests/tooling file is reachable through it at all. Deterministic on purpose — a `--changed`
@@ -56,7 +54,7 @@ function listFiles(root: string, projects: readonly string[], filter: string): r
 
 /** The projects `tests:node` hands vitest at `changed` scope, READ OFF THE REGISTRY rather than restated —
  *  this test must break when that list changes, which is the whole point of it. */
-function scopedProjects(): readonly string[] {
+function scopedProjectFilters(): readonly string[] {
   const stage = stagesForTier("changed").find((row) => row.name === "tests:node");
   if (stage?.scopedArgv === undefined) {
     throw new Error("tests:node has no scoped argv at the changed tier");
@@ -71,9 +69,9 @@ function scopedProjects(): readonly string[] {
   return argv.filter((token, index) => argv[index - 1] === "--project" && token !== "");
 }
 
-test("the changed-tier project set OWNS tests/tooling — vitest resolves one through the registry's own list", ({ repoRoot }) => {
-  const projects = scopedProjects();
-  expect(projects).toContain("tooling");
+test("the changed tier delegates project ownership to Vitest and still reaches tests/tooling", ({ repoRoot }) => {
+  const projects = scopedProjectFilters();
+  expect(projects, "no copied project census rides the scoped argv").toEqual([]);
 
   const selected = listFiles(repoRoot, projects, TOOLING_FILTER);
   expect(

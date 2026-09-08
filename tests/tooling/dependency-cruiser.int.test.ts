@@ -1,15 +1,15 @@
 // Pins that EVERY rule in .dependency-cruiser.cjs actually fires — the config-robustness guarantee.
-// For each rule we write a minimal violating fixture at the real tier path the rule's regex anchors on,
-// run dep-cruiser once over packages/, and assert the rule appears in the violations. Also asserts the
-// allowed edges (client→server TYPE-ONLY) do NOT fire. (The real tree being violation-free is enforced
-// separately by `pnpm depcruise` in check/CI — not re-asserted here.) A broken regex / backreference /
-// typo makes a rule silently match nothing — this test is what catches that.
+// For each rule we write a minimal violating fixture at the real tier path the rule's regex anchors on
+// inside a unique scratch root, run dep-cruiser once over that native package graph, and assert the rule
+// appears in the violations. Real package manifests and resolved dependencies keep package exports and
+// dependency types honest without exposing transient fixtures to any scanner of the checkout.
 //
-// Fixtures are all named `__dc*` so cleanup is a single find -prune -rm; the one non-__dc target
-// (db/schema/embeddings.ts, which the stats rule anchors on by name) is tracked + removed if created.
+// Also asserts the permissive type-only and stylesheet edges stay silent. The real tree being clean is
+// enforced separately by `pnpm depcruise`; a broken regex / backreference / typo reds here.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -38,27 +38,63 @@ const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])].f
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
 const DC_FIXTURE_RE = /(^|\/)__dc/u;
+const CACHE_TRIPWIRE_FIXTURE = "packages/kit/src/__dc_cache_fresh_node.ts";
+let fixtureRoot = "";
 
 function fx(rel: string, content: string): void {
-  const abs = join(ROOT, rel);
+  const abs = join(fixtureRoot, rel);
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, content);
 }
 
-function cleanFixtures(): void {
-  execFileSync("find", ["packages", "tooling", "-name", "__dc*", "-prune", "-exec", "rm", "-rf", "{}", "+"], {
-    cwd: ROOT,
-  });
+function copyFixtureFile(rel: string): void {
+  const destination = join(fixtureRoot, rel);
+  mkdirSync(dirname(destination), { recursive: true });
+  copyFileSync(join(ROOT, rel), destination);
 }
 
-// db/schema/embeddings.ts is the stats-rule anchor — it may already exist as a placeholder.
+function linkPackageDependency(packageDir: string, dependency: string, target = join(ROOT, packageDir, "node_modules", dependency)): void {
+  const destination = join(fixtureRoot, packageDir, "node_modules", dependency);
+  mkdirSync(dirname(destination), { recursive: true });
+  symlinkSync(target, destination, "dir");
+}
+
+function writeNativeSubstrate(): void {
+  for (const packageDir of [
+    "packages/kit",
+    "packages/contracts",
+    "packages/db",
+    "packages/server",
+    "packages/client",
+    "packages/ui",
+    "packages/showcase-plugins",
+  ]) {
+    copyFixtureFile(`${packageDir}/package.json`);
+  }
+
+  linkPackageDependency("packages/db", "drizzle-kit");
+  linkPackageDependency("packages/server", "minisearch");
+  for (const dependency of ["@tanstack/react-virtual", "diff", "minisearch", "tailwind-merge", "tailwind-variants"]) {
+    linkPackageDependency("packages/ui", dependency);
+  }
+  linkPackageDependency("packages/client", "@orb/ui", join(fixtureRoot, "packages/ui"));
+
+  fx("packages/contracts/src/credentials/index.ts", "export interface ResolvedCredential { readonly apiKey: string; }\n");
+  fx("packages/client/src/features/app-shell/surfaces/shell.css", ".shell {}\n");
+  fx("packages/client/src/main.tsx", VAL);
+  fx("packages/client/src/styles/index.ts", `import "../features/app-shell/surfaces/shell.css";\n`);
+  fx("packages/ui/src/primitives/alert-dialog/index.ts", "export const AlertDialog = {};\n");
+  fx("tests/support/clock.ts", VAL);
+}
+
+// db/schema/embeddings.ts is the stats-rule anchor.
 const EMBEDDINGS = "packages/db/src/schema/embeddings.ts";
-let createdEmbeddings = false;
 
 let firedRules = new Set<string>();
 let fixtureFiles = new Set<string>();
 
 function writeAllFixtures(): void {
+  writeNativeSubstrate();
   const S = "packages/server/src";
   // no-orphans: a module nothing imports and that imports nothing — the rule's own fixture. Without it the
   // case only passed when the REAL tree happened to carry an orphan (for months: leaked `__g_*` gate-test
@@ -85,6 +121,9 @@ function writeAllFixtures(): void {
     `import type { ResolvedCredential } from "../credentials/index.ts";\nexport type X = ResolvedCredential;\n`,
   );
   fx("packages/db/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
+  fx("packages/showcase-plugins/__dc/target.ts", VAL);
+  fx("packages/showcase-plugins/__dc/up.ts", `import "../../db/src/__dc/target.ts";\n`);
+  fx("packages/client/src/__dc/showcase.ts", `import "../../../showcase-plugins/__dc/target.ts";\n`);
   fx(`${S}/foundation/__dc/toclient.ts`, `import "../../../../client/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/value.ts", `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`);
   // negative: client→server TYPE-ONLY must NOT fire
@@ -138,7 +177,7 @@ function writeAllFixtures(): void {
   // importing the factory to call it inline is the hard-wired call site the seam exists to delete. The
   // rule landed (2026-08-24, 171e4aa5e's S2 seam) without this fixture, so the anti-drift
   // `test.each(ACTIVE_RULES)` case had nothing to fire it and the suite was RED. The slot file is not
-  // itself named `__dc*`; it lives UNDER `__dc_feat/`, so `cleanFixtures`'s dir prune still removes it.
+  // itself named `__dc*`; it lives under the per-run scratch root, so exact-root cleanup still removes it.
   fx(`${S}/domain/__dc_feat/teaching-contribution.ts`, "export const teachingContribution = () => 1;\n");
   fx(
     `${S}/domain/__dc_feat/verbs/__dc_teachcall.ts`,
@@ -155,10 +194,7 @@ function writeAllFixtures(): void {
   fx(`${S}/infra/providers/backends/openrouter/__dc.ts`, `import "../agent-sdk/__dc.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/persistence/io.ts`, `import "node:fs";\n`);
-  if (!existsSync(join(ROOT, EMBEDDINGS))) {
-    fx(EMBEDDINGS, VAL);
-    createdEmbeddings = true;
-  }
+  fx(EMBEDDINGS, VAL);
   fx(`${S}/domain/stats/__dc.ts`, `import "../../../../db/src/schema/embeddings.ts";\n`);
   fx("packages/kit/src/__dc/totest.ts", `import "../../../../tests/support/clock.ts";\n`);
 
@@ -256,6 +292,14 @@ function writeAllFixtures(): void {
   fx("packages/client/src/lib/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
   // client-state-below-components (G5): a store reaching UP into components/.
   fx("packages/client/src/state/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
+
+  // ── Test-helper worlds (iso ← node/browser; node ↛ browser) ──
+  fx("tests/support/browser/__dc/target.ts", VAL);
+  fx("tests/support/node/__dc/same.ts", "export type NodeTy = number;\n");
+  fx("tests/support/node/__dc/to-browser.ts", `import "../../browser/__dc/target.ts";\n`);
+  fx("tests/support/iso/__dc/same.ts", "export type IsoTy = number;\n");
+  fx("tests/support/iso/__dc/to-node.ts", `import type { NodeTy } from "../../node/__dc/same.ts";\nexport type ImportedNodeTy = NodeTy;\n`);
+  fx("tests/support/iso/__dc/same-world.ts", `import type { IsoTy } from "./same.ts";\nexport type ImportedIsoTy = IsoTy;\n`);
 }
 
 interface Violation {
@@ -269,15 +313,13 @@ let allViolations: readonly Violation[] = [];
 function runCruise(): Violation[] {
   let stdout: string;
   try {
-    // `--config.verify-deps-before-run=false`: with a stale deps-state (any package.json/lockfile mtime
-    // past `lastValidatedTimestamp` — routine when sibling worktree lanes install concurrently) pnpm 11
-    // runs an implicit install and PREPENDS its banner to stdout, which makes the JSON.parse below throw
-    // in beforeAll. Same root cause as check-gates.int.test.ts's phantom-`Lockfile` flake.
+    // Resolve the tracked binary from the checkout but run it at the scratch root: invoking `pnpm exec`
+    // changes the child cwd back to the workspace and silently cruises the real tree instead.
     stdout = execFileSync(
-      "pnpm",
-      ["--config.verify-deps-before-run=false", "exec", "depcruise", "packages", "tooling", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
+      join(ROOT, "node_modules/.bin/depcruise"),
+      ["packages", "tooling", "tests/support", "--config", join(ROOT, ".dependency-cruiser.cjs"), "--output-type", "json"],
       {
-        cwd: ROOT,
+        cwd: fixtureRoot,
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       },
@@ -291,22 +333,23 @@ function runCruise(): Violation[] {
 }
 
 beforeAll(() => {
-  cleanFixtures();
+  fixtureRoot = mkdtempSync(join(tmpdir(), "orb-dependency-cruiser-"));
   writeAllFixtures();
+  runCruise();
+  fx(CACHE_TRIPWIRE_FIXTURE, `import "node:fs";\n`);
   const violations = runCruise();
   allViolations = violations;
   firedRules = new Set(violations.map((v) => v.rule.name));
   fixtureFiles = new Set(violations.flatMap((v) => [v.from, v.to]).filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS));
-  // 30s, matching the `integration-serial` project's `testTimeout` — vitest's hookTimeout is SEPARATE and
-  // stays at the 10s default, and ALL of this suite's work is in this hook. Measured 2026-08-24 at
-  // load-avg ~18: the single cruise took 9.5s and the hook timed out, which reads as a whole-file FAIL
+  // The explicit 30s applies to this hook independent of the project's default hookTimeout, and ALL of
+  // this suite's work is in this hook. Measured 2026-08-24 at
+  // load-avg ~18: a cruise took 9.5s and the hook timed out, which reads as a whole-file FAIL
   // with no rule named — a false red on contention, not a config defect.
 }, 30_000);
 
 afterAll(() => {
-  cleanFixtures();
-  if (createdEmbeddings) {
-    rmSync(join(ROOT, EMBEDDINGS), { force: true });
+  if (fixtureRoot !== "") {
+    rmSync(fixtureRoot, { force: true, recursive: true });
   }
 });
 
@@ -315,16 +358,15 @@ test("derives a non-trivial set of active rules from the config (the list isn't 
 });
 
 // THE CACHE TRIPWIRE (#393 P6). `.dependency-cruiser.cjs` carried `cache: { strategy: "content" }`, and a
-// WARM cruise is BLIND TO A NEWLY-ADDED FILE — which is what every fixture here is, and what a new
-// boundary-violating source file is in the `imports:depcruise` COMMIT stage. Measured: with the cache, this
-// whole suite reported 0 violations (59/60 red) whenever any earlier cruise had warmed it, and a planted
-// `import "node:fs"` under packages/kit went unseen. The cache bought 0.03s (4.25s warm vs 4.28s cold) and
-// was removed. This assertion is the tripwire: `runCruise` plants files that did not exist a moment ago, so
-// a non-empty fired set IS the proof that a fresh file reaches the cruiser. If someone re-adds a result
-// cache, this reds first and names the reason.
+// WARM cruise was blind to a newly-added file — the shape of a new boundary violation in the
+// `imports:depcruise` COMMIT stage. Warm the same scratch graph, add exactly one fresh kit→node edge, then
+// cruise again and require that exact from-path + rule pair. If a result cache makes the second cruise
+// reuse the first graph, this reds even though the original kit fixture still proves the rule itself fires.
+// dependency-cruiser 18.1.0 sees the fresh edge with content caching enabled; this remains a regression
+// guard for the historical failure rather than a claim that the installed cache is currently blind.
 test("a cruise SEES files that did not exist when any previous cruise ran (the result-cache tripwire)", () => {
-  expect(firedRules.size).toBeGreaterThan(20);
-  expect(fixtureFiles.size).toBeGreaterThan(20);
+  const freshViolations = allViolations.filter((violation) => violation.from === CACHE_TRIPWIRE_FIXTURE && violation.rule.name === "kit-no-node-builtins");
+  expect(freshViolations).toHaveLength(1);
 });
 
 test.each(ACTIVE_RULES)("config rule %s fires on its fixture", (rule) => {
@@ -352,4 +394,11 @@ test("the exact CSS front door may import shell.css while every other importer r
   const cssFrontDoorViolations = allViolations.filter((violation) => violation.rule.name === "client-css-front-door-shell-only");
   expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/index.ts"))).toBe(false);
   expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/__dc_css_frontdoor_bypass.ts"))).toBe(true);
+});
+
+test("helper worlds reject node→browser and type-only iso→node while preserving same-world type imports", () => {
+  const helperViolations = allViolations.filter((violation) => violation.rule.name === "test-helper-world-direction");
+  expect(helperViolations.some((violation) => violation.from.endsWith("support/node/__dc/to-browser.ts"))).toBe(true);
+  expect(helperViolations.some((violation) => violation.from.endsWith("support/iso/__dc/to-node.ts"))).toBe(true);
+  expect(helperViolations.some((violation) => violation.from.endsWith("support/iso/__dc/same-world.ts"))).toBe(false);
 });

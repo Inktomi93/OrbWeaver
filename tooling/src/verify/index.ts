@@ -130,7 +130,7 @@ export { executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCod
 export { readCompilerPrograms } from "./lib/policy-program-membership.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";
-export { programsFor, staticPrograms } from "./lib/program-routing.ts";
+export { programsFor, staticPrograms, touchesTestsDom } from "./lib/program-routing.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
 export { renderPass } from "./lib/render.ts";
 export { canonicalResourceDeclarations, resolvePolicyResourcePaths, resolveResourceDeclarations, resourceRequestIdentity } from "./lib/resource-declaration.ts";

@@ -1,5 +1,5 @@
 // World intent stays independent of filesystem and compiler discovery.
-import { BROWSER_PACKAGES, predictedProgram, TEST_WORLD_PROGRAMS, worldOf } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, isWorldHelperPath, predictedProgram, TEST_WORLD_PROGRAMS, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then suffix, nothing else", () => {
@@ -33,4 +33,12 @@ test("primary compiler ownership follows package homes and the complete test-wor
   expect(predictedProgram("packages/ui/src/x.ts")).toBe("packages/ui/tsconfig.json");
   expect(predictedProgram("tests/support/iso/value.ts")).toBe("tsconfig.tests-iso.json");
   expect(predictedProgram("tests/support/iso/view.tsx")).toBe("tsconfig.tests-iso.json");
+});
+
+test("world helper population matches declared directories without prefix lookalikes", () => {
+  expect(isWorldHelperPath("tests/support/iso/new.ts")).toBe(true);
+  expect(isWorldHelperPath("tests/support/node")).toBe(true);
+  expect(isWorldHelperPath("tests/support/browser/")).toBe(true);
+  expect(isWorldHelperPath("tests/support/node-extra/value.ts")).toBe(false);
+  expect(isWorldHelperPath("tests/support/chat/value.ts")).toBe(false);
 });

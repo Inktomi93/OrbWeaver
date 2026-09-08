@@ -34,10 +34,6 @@ const BASE_TEST_TIMEOUT_MS = 5000;
 const BASE_HOOK_TIMEOUT_MS = 10_000;
 // integration-serial + tooling-serial: whole-tree scanners + heavy full-`createServices` composition files.
 const BASE_SERIAL_TIMEOUT_MS = 30_000;
-// live-drive: a BACKSTOP above any unscaled per-file cost here, so a file that FORGOT its own scaled
-// budget fails loudly and early rather than silently inheriting a wrong one.
-const BASE_LIVE_DRIVE_TIMEOUT_MS = 120_000;
-
 // SERIAL_INT_TOOLING — the `tests/tooling/**` half of the serial set: instrument self-tests that CANNOT run
 // in the parallel `tooling` lane, routed by EXPLICIT PATH (not a filename suffix — a `*.serial.int.test.ts`
 // rename trips the test-layout / test-presence structure gates, which only recognize `.int.test.ts`). The
@@ -58,7 +54,6 @@ const SERIAL_INT_TOOLING = [
   // Plants `__g_` fixtures at fixed real-tree paths AND reaps every `__g_*` on teardown — the same
   // sentinel space check-gates.int owns, so the two MUST never run concurrently.
   "tests/tooling/gate-ignore-grammar.int.test.ts",
-  "tests/tooling/dependency-cruiser.int.test.ts",
   // #968's pin drives `stableJson`, the doc-catalog's ONE canonical serializer, which round-trips a value
   // through the biome BINARY via a temp file at the FIXED path docs/catalog/catalog.tmp.json — two
   // concurrent callers clobber each other's tmp, so it is a class-1 tree-writer.
@@ -86,9 +81,6 @@ const SERIAL_INT_TOOLING = [
   // test-presence: a whole-tree scanner (same class as gate-conformance above) that flaked on the parallel
   // 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the edge (it
   // passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
-  // (the motion-audit CLI suite sat here until #1040, then LIVE_DRIVE, and was deleted with that CLI at #1315 —
-  // serial was the right SCHEDULE for it but the wrong lane: its problem is a measured RATE, not scan
-  // weight, and no timeout in this lane can make a dropped-frame percentage honest.)
   "tests/tooling/verify/gates/test-presence.int.test.ts",
   // The run-completeness planted controls (#410): every case SPAWNS the real `verify structure` CLI over a
   // planted root and its abnormal arms are TIMING-SHAPED — the SIGKILL control gives the child 4s to boot
@@ -147,52 +139,8 @@ const SERIAL_INT_PRODUCT = [
   "tests/server/entry/compose/automation-plugin.int.test.ts",
 ];
 
-// LIVE_DRIVE — the `.int.test.ts` files that DRIVE A REAL BROWSER and whose verdict depends on a quantity
-// the box's contention perturbs. Same routing mechanism as the two SERIAL_INT halves (explicit paths,
-// `.int.test.ts` names kept so the structure gates still recognize them); `integration`,
-// `integration-serial`, `tooling-serial` and `tooling` all EXCLUDE this set and `live-drive` globs exactly
-// it, so a file is in one lane or none. Every member is a `tests/tooling/**` file, which is why the lane
-// rides `pnpm test:tooling` since #1842 rather than the product `pnpm test`.
-//
-// WHY A LANE OF ITS OWN (issue #1040, owner: "withhold, don't red"): these are the only suites in the node
-// battery whose PASS is a MEASUREMENT rather than a structural fact, and a measurement taken on a box
-// carrying three other lanes is not about the code. motion-audit's mobile arm reported 47.54% dropped
-// frames at loadavg ~25 / 24 cores, then 10%, then clean, on IDENTICAL source. The three available arms
-// were: (a) a quiesced slot + a load-aware withhold, (b) a loadavg-scaled budget, (c) a wider budget. (c)
-// is banned — it launders the defect it was supposed to catch. (b) is what `_load-budget.ts` already does
-// and it TRANSFERS TO TIMEOUTS ONLY: load stretches a wall clock roughly linearly, and does nothing of the
-// sort to a percentage. So (a): this project is the QUIET SLOT half (fileParallelism:false, and the
-// supervisor runs it as the LAST shard, after every other project has drained), and
-// `labelRateLoad` in tests/tooling/_load-budget.ts is the HONESTY half — a measured-rate arm on a
-// contended box is LABELLED `load-suspect` (#1616: load never WITHHOLDS; `withheld` is reserved for
-// "no number exists at all"), so the vote carries its own caveat instead of being skipped.
-//
-// TO ADD one: it belongs here iff it drives a real browser/stack AND its verdict turns on a measured rate,
-// a measured duration, or a wall-clock run budget that can kill the drive. A browser suite whose arms are
-// structural (computed style, DOM, pixels, exit codes) does NOT belong — load changes how long it takes,
-// not what it answers, and serializing it would only slow the battery. That line is why
-// tests/tooling/snap/**, tests/tooling/ui-audit/**, tests/tooling/screen-record/** and
-// tests/tooling/_shared/browser.int.test.ts stay in the parallel lane. (snap's ONE measured arm — the
-// `--cpu-throttle` frame-stretch differential — takes the withhold in place instead of dragging its
-// eighteen structural siblings into a serial lane.)
-// TOOLING — the instrument battery's own glob (#1523). One entry, spelled once: the `tooling` project
-// INCLUDES it and the two product lanes (`unit`, `integration`) SUBTRACT it, so the partition is a single
-// source of truth rather than two lists that drift. `.int.test.ts` files are matched by this glob too
-// (they end in `.test.ts`), which is deliberate — the split is by SUBJECT (our instruments) rather than by
-// suffix, because the cost this row exists to move is the browser-driving int suites.
+// Instrument tests form one subject population; scheduling exceptions are revalidated separately.
 const TOOLING = ["tests/tooling/**/*.test.ts"];
-
-const LIVE_DRIVE = [
-  // The #1040 case itself: a dropped-frame PERCENTAGE, a CLS total and a LoAF blocking duration, all
-  // measured out of a real headless Chromium's CDP trace and all gated by budgets (lib/verdicts.ts).
-  // The same class one instrument over: the idle twin asserts `breach-steps=0` over a real metered step,
-  // i.e. that a click on an idle page produced NO long task — which contention alone can falsify.
-  // The two settings-shim proofs: a real snap browser run against an in-process stub origin, held to a
-  // FIXED 60s run budget that was not load-scaled. They are here for the wall-clock half — six of them
-  // timed out in one battery under lane load (2026-09-01) — and their budgets are now `scaledBudget`.
-  "tests/tooling/_shared/appearance.int.test.ts",
-  "tests/tooling/_shared/theme.int.test.ts",
-];
 
 // TYPES_BROWSER — every `.test-d.ts` file the DOM-less root graph (`tsconfig.json`) does NOT root, so
 // checking it there is a WRONG-LIB double-report (or, for the two `tests/client`/`tests/e2e` trees below,
@@ -320,14 +268,13 @@ export default defineConfig({
         // (freshDb-per-test, tests/support/db.ts) so there is ZERO cross-file state; `pool:'forks'`
         // (inherited) keeps process isolation for the native binding. Measured 6.7× vs serial, 0 failures
         // across 346 domain files (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md). EXCLUDES both serial
-        // halves and `LIVE_DRIVE` (see the consts above) — those run in `integration-serial`,
-        // `tooling-serial` and `live-drive`.
+        // halves below; instrument tests are selected by the separate tooling population.
         // Do NOT switch `pool` to threads and do NOT set `isolate:false`.
         extends: true,
         test: {
           name: "integration",
           include: ["tests/**/*.int.test.ts"],
-          exclude: [...IGNORE, ...SERIAL_INT_PRODUCT, ...SERIAL_INT_TOOLING, ...LIVE_DRIVE, ...TOOLING],
+          exclude: [...IGNORE, ...SERIAL_INT_PRODUCT, ...SERIAL_INT_TOOLING, ...TOOLING],
         },
       },
       {
@@ -339,7 +286,7 @@ export default defineConfig({
         test: {
           name: "integration-serial",
           include: SERIAL_INT_PRODUCT,
-          exclude: [...IGNORE, ...LIVE_DRIVE],
+          exclude: [...IGNORE],
           fileParallelism: false,
           testTimeout: budget(BASE_SERIAL_TIMEOUT_MS),
         },
@@ -356,34 +303,9 @@ export default defineConfig({
         test: {
           name: "tooling-serial",
           include: SERIAL_INT_TOOLING,
-          exclude: [...IGNORE, ...LIVE_DRIVE],
+          exclude: [...IGNORE],
           fileParallelism: false,
           testTimeout: budget(BASE_SERIAL_TIMEOUT_MS),
-        },
-      },
-      {
-        // live-drive: exactly the `LIVE_DRIVE` files (see the const above for the WHY + how to add one) —
-        // the real-browser suites whose verdict is a MEASUREMENT. fileParallelism:false is half the point:
-        // these files must not contend with each other, and `pnpm test:tooling` lists this project LAST so
-        // the shard runs on the quietest box the battery can offer (scripts/vitest-supervised.mjs runs one
-        // `vitest run --project <x>` per project, SEQUENTIALLY, in argv order). It moved off `pnpm test`
-        // onto `pnpm test:tooling` with #1842: every member is a `tests/tooling/**` file, so this whole
-        // project is instrument recertification and belongs on the `tests:tooling` stage's tier, not the
-        // push bar. It is NOT folded into `tooling-serial` — the 120s backstop below and the 30s serial
-        // budget are different promises about different failure modes.
-        //
-        // testTimeout here is a BACKSTOP, not the operative budget: every file in this lane sets its own
-        // `vi.setConfig` from `scaledBudget(...)` (tests/tooling/_load-budget.ts), because a fixed ceiling
-        // is exactly the thing that turned six real drives into opaque timeouts. 120s is above any
-        // unscaled per-file cost here and below the supervisor's 30-min hard ceiling, so a file that
-        // FORGOT its scaled budget fails loudly and early rather than silently inheriting a wrong one.
-        extends: true,
-        test: {
-          name: "live-drive",
-          include: LIVE_DRIVE,
-          fileParallelism: false,
-          testTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
-          hookTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
         },
       },
       {
@@ -395,15 +317,14 @@ export default defineConfig({
         // diff that never touched an instrument; the `tests:tooling` stage row (verify/lib/registry.ts)
         // owns WHEN it runs, and this project owns WHAT it is.
         //
-        // The instrument battery's CONTENTION tail is `tooling-serial` + `live-drive`, not this lane:
-        // those lists exist for one-at-a-time / quiet-last-shard semantics this lane does not provide.
-        // Since #1842 all three ride `pnpm test:tooling`, so the split is complete by TIER as well as by
+        // The remaining serial instrument population is separate pending resource revalidation.
+        // Both projects ride `pnpm test:tooling`, so the split is complete by TIER as well as by
         // subject. A file is in one lane or none — the `tests-execution-membership` gate proves it.
         extends: true,
         test: {
           name: "tooling",
           include: TOOLING,
-          exclude: [...IGNORE, ...SERIAL_INT_TOOLING, ...LIVE_DRIVE],
+          exclude: [...IGNORE, ...SERIAL_INT_TOOLING],
         },
       },
       {

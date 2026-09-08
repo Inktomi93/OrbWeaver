@@ -9,25 +9,13 @@
 // spelling: 4 packages × 8 checkers = up to 32 CPU-bound processes from ONE lane, on a 24-core box that
 // routinely hosts six lanes. Putting the numbers in the profile means they cannot be changed in one reader
 // and forgotten in the others; putting the SPAWN here means package.json holds no number at all.
-const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { readConcurrencyProfile } = require("@orb/tooling/_shared/concurrency-profile");
 
 const repoRoot = path.resolve(__dirname, "..");
 
-function workspaceConcurrency() {
-  // biome-ignore lint/correctness/noProcessGlobal: CLI script
-  // biome-ignore lint/style/noProcessEnv: ORB_DEDICATED_BOX is the ambient TOOLING switch (the solo-box opt-in), not app config; a .cjs launcher cannot import the app's env door.
-  const raw = (process.env.ORB_DEDICATED_BOX || "").trim();
-  const name = raw === "1" ? "dedicated" : "shared";
-  const file = path.join(repoRoot, "tooling", "concurrency-profile.json");
-  const value = JSON.parse(fs.readFileSync(file, "utf8")).profiles[name].pnpmWorkspaceConcurrency;
-  if (!Number.isInteger(value) || value < 1) {
-    // Fail LOUD, never silently uncapped: an unreadable cap is how a "capped" fleet quietly stops being one.
-    throw new Error(`${file}: profiles.${name}.pnpmWorkspaceConcurrency is ${JSON.stringify(value)} — expected a positive integer`);
-  }
-  return String(value);
-}
+const profile = readConcurrencyProfile();
 
 // `--no-bail`: every package reports, so one red does not hide the others (the pre-existing contract).
 // `$PWD/scripts/ts7.cjs` was the old spelling and is deliberately replaced by an absolute path resolved
@@ -36,7 +24,7 @@ function workspaceConcurrency() {
 const argv = [
   "-r",
   "--no-bail",
-  `--workspace-concurrency=${workspaceConcurrency()}`,
+  `--workspace-concurrency=${String(profile.pnpmWorkspaceConcurrency)}`,
   "exec",
   "node",
   path.join(repoRoot, "scripts", "ts7.cjs"),

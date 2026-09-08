@@ -1,7 +1,8 @@
 // Plans (the unit of preview-then-commit) + validation + path helpers.
 // ── §5 ─ Plans ───────────────────────────────────────────────────────────────
 
-import { isAbsolute, normalize, relative, resolve, sep } from "node:path";
+import { lstatSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 import type { OperationOptions, Plan } from "../contract/types.ts";
 import { CodemodError } from "./errors.ts";
 
@@ -58,18 +59,113 @@ export function assertPathString(value: unknown, name: string): asserts value is
 
 // ── §7 ─ Path helpers ────────────────────────────────────────────────────────
 
-/** Resolve `p` to an absolute path against `repoRoot`. Pass-through for
- *  absolute paths. Throws if the result escapes `repoRoot` (the file-delete
- *  guard rail). */
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return;
+  }
+  return typeof error.code === "string" ? error.code : undefined;
+}
+
+function isContained(root: string, candidate: string): boolean {
+  const rel = relative(root, candidate);
+  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+function containmentInspectionError(path: string, error: unknown): CodemodError {
+  return new CodemodError(`Cannot inspect path containment: ${path}`, error instanceof Error ? error.message : String(error));
+}
+
+function pathEntryExists(path: string): boolean {
+  // @orb-gate-ignore caught-failure-ownership(default:error): ENOENT/ENOTDIR means this entry is absent and the caller continues to an existing ancestor; other failures throw. Ends if false is treated as a containment verdict.
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    const code = errorCode(error);
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return false;
+    }
+    throw containmentInspectionError(path, error);
+  }
+}
+
+function resolvePhysicalExistingPath(path: string, unborn: readonly string[]): string {
+  try {
+    return resolve(realpathSync(path), ...unborn);
+  } catch (error) {
+    return throwUnresolvedPhysicalPath(path, error);
+  }
+}
+
+function throwUnresolvedPhysicalPath(path: string, error: unknown): never {
+  throw new CodemodError(
+    `Cannot resolve path containment: ${path}`,
+    `${error instanceof Error ? error.message : String(error)}. Dangling or cyclic symlinks are refused.`,
+  );
+}
+
+/** Resolve the existing prefix of `path` through every symlink, then project any unborn suffix
+ *  from that physical ancestor. Returning the caller's lexical path is deliberate: ts-morph keys
+ *  SourceFile identity by that spelling, while this second path exists only to judge containment. */
+function physicalPath(path: string): string {
+  let existing = path;
+  const unborn: string[] = [];
+  while (!pathEntryExists(existing)) {
+    const parent = dirname(existing);
+    if (parent === existing) {
+      throw new CodemodError(`Cannot resolve path containment: ${path}`, "No existing path ancestor could be resolved.");
+    }
+    unborn.unshift(basename(existing));
+    existing = parent;
+  }
+  return resolvePhysicalExistingPath(existing, unborn);
+}
+
+/** Resolve `p` to an absolute lexical path against `repoRoot`. Pass-through for absolute paths.
+ *  Refuses both lexical escapes and paths whose existing symlink ancestry resolves outside the
+ *  physical repo root; unborn destinations inherit their nearest existing ancestor's location. */
 export function absolutePath(p: string, repoRoot: string): string {
   assertPathString(p, "path");
   const root = resolve(repoRoot);
   const abs = isAbsolute(p) ? normalize(p) : resolve(root, p);
-  const rel = relative(root, abs);
-  if (rel.startsWith("..") || isAbsolute(rel)) {
+  if (!isContained(root, abs)) {
     throw new CodemodError(`Path escapes repo root: ${p}`, "Codemod helpers refuse to touch files outside the repo. Pass a path relative to the repo root.");
   }
+  const physicalRoot = physicalPath(root);
+  const physical = physicalPath(abs);
+  if (!isContained(physicalRoot, physical)) {
+    throw new CodemodError(
+      `Path resolves outside repo root: ${p}`,
+      "Codemod helpers refuse symlinked paths whose physical target leaves the repo. Use a path whose resolved ancestry stays inside the repo root.",
+    );
+  }
   return abs;
+}
+
+/** Canonical physical identity for an already-authorized codemod path. This is the ONE resolver for
+ *  alias-aware mutation and compiler-overlay keys; callers must not reproduce the ancestry walk. */
+export function physicalPathIdentity(p: string, repoRoot: string): string {
+  return physicalPath(absolutePath(p, repoRoot));
+}
+
+/** Refuse two distinct lexical mutation paths that name the same physical file through in-repo
+ *  symlink ancestry. Call this on the final ACTUAL changed-path set, not every declaration: a plan may
+ *  legitimately snapshot one unchanged file or edit the same lexical SourceFile more than once. */
+export function assertUniquePhysicalMutationPaths(paths: readonly string[], repoRoot: string): void {
+  const physicalRoot = physicalPathIdentity(repoRoot, repoRoot);
+  const lexicalPaths = new Set(paths.map((path) => absolutePath(path, repoRoot)));
+  const lexicalByPhysical = new Map<string, string>();
+  for (const lexical of [...lexicalPaths].sort((left, right) => left.localeCompare(right))) {
+    const physical = physicalPathIdentity(lexical, repoRoot);
+    const prior = lexicalByPhysical.get(physical);
+    if (prior !== undefined) {
+      throw new CodemodError(
+        `Physical path collision: ${repoRelative(prior, repoRoot)} and ${repoRelative(lexical, repoRoot)} both resolve to ${repoRelative(physical, physicalRoot)}.`,
+        "Codemod apply refuses multiple changed paths that would overwrite the same physical file. Remove the alias collision from the plan.",
+      );
+    }
+    lexicalByPhysical.set(physical, lexical);
+  }
 }
 
 /** Convert an absolute path to a repo-relative `posix-style` path. Used in

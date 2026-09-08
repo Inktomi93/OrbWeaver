@@ -2,6 +2,16 @@
 export const WORLDS = ["iso", "node", "browser"] as const;
 export type World = (typeof WORLDS)[number];
 
+export const HELPER_WORLD_DIRS = {
+  iso: "tests/support/iso",
+  node: "tests/support/node",
+  browser: "tests/support/browser",
+} as const satisfies Readonly<Record<World, string>>;
+
+export function isWorldHelperPath(rel: string): boolean {
+  return Object.values(HELPER_WORLD_DIRS).some((dir) => rel === dir || rel.startsWith(`${dir}/`));
+}
+
 /** Package directory name → the world its `src` is written for. INTENT: kit/contracts are isomorphic (no node,
  *  no dom), db/server/showcase-plugins run under node, ui/client run in the browser. A package absent here has
  *  no world, and `worldOf` says so rather than guessing. */
@@ -57,7 +67,7 @@ export function worldOf(rel: string): World | undefined {
     return "node";
   }
   for (const world of WORLDS) {
-    if (rel.startsWith(`tests/support/${world}/`)) {
+    if (rel.startsWith(`${HELPER_WORLD_DIRS[world]}/`)) {
       return world;
     }
   }

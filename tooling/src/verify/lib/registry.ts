@@ -5,7 +5,7 @@
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
-import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
+import { eslintScopedArgv, tscScopedArgv, vitestScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 
@@ -65,7 +65,7 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "types:graph",
     group: "types",
-    tiers: STATIC,
+    tiers: ["changed", ...STATIC],
     argv: ["pnpm", "typecheck:graph"],
     classify: asViolations,
     // Whole-only in general — the root program is one graph. At changed scope it runs ONLY when the
@@ -184,7 +184,7 @@ const GATING_STAGES: readonly StageDef[] = [
   {
     name: "structure:full",
     group: "structure",
-    tiers: STATIC,
+    tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:structure"],
     classify: ownScheme,
     // At a scoped tier the WALK is scoped via tooling/src/verify/ops/scoped.ts (incremental-safe gates over the
@@ -292,11 +292,11 @@ const GATING_STAGES: readonly StageDef[] = [
     // manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its own
     // runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
     argv: ["pnpm", "test:node"],
-    classify: asViolations,
-    // At changed scope: vitest's own related-test graph over the unit + integration + tooling lanes
-    // (serial + contract are whole-tree-shaped, deferred to push). CT does NOT ride this lane at changed scope — its scoped
-    // mirror-mapping is the separate `browser:ct` changed-tier stage (LANDED 2026-07-17); the WHOLE CT suite
-    // rides this lane's whole-scope argv at push (via `pnpm test`). Whole-only otherwise.
+    classify: ownScheme,
+    // At changed scope: explicit test claims use the guarded `test:scoped` door; explicit source claims
+    // use Vitest's native related graph; a Git-derived selection stays `--changed`. No project roster is
+    // copied here — the native config remains the population authority. CT does NOT ride this lane at
+    // changed scope: its mirror mapping is the separate `browser:ct` stage below.
     //
     // `--passWithNoTests` RIDES THE SCOPED ARGV ONLY (#1272) — the whole-scope `pnpm test` above must never
     // carry it. THE DEFECT: `--changed` on a CLEAN COMMITTED TREE selects nothing, vitest prints "No test
@@ -315,28 +315,10 @@ const GATING_STAGES: readonly StageDef[] = [
     // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
     // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.
     // The flag sits BEFORE `--changed` because `--changed`'s ref value is OPTIONAL — a flag placed after it
-    // can be swallowed as that value. Measured 2026-09-02: it does not mask a broken invocation
-    // (`--project bogus --changed --passWithNoTests` still exits 1, "No projects matched the filter").
-    // `tooling` RIDES THE INNER LOOP (#1566). #1523 moved 280 files out of `unit`/`integration` into their
-    // own project and gave the new stage `tiers: ["push","full"]` — which silently emptied this argv's
-    // reach over `tests/tooling`: not run at `changed`, and not DEFERRED either, so a lane editing an
-    // instrument got a green inner loop that had selected zero of its tests. The split's whole point is
-    // the WHOLE-suite cost at push; `--changed` is a related-test graph over the diff and costs what the
-    // diff costs, so the inner loop keeps every runtime lane it had before the split. This project list is
-    // therefore the one that must grow when a lane is added — the `changed`-tier reach is not derived.
-    scopedArgv: (sel) => [
-      "vitest",
-      "run",
-      "--project",
-      "unit",
-      "--project",
-      "integration",
-      "--project",
-      "tooling",
-      "--passWithNoTests",
-      "--changed",
-      ...(sel.gitRef === undefined ? [] : [sel.gitRef]),
-    ],
+    // can be swallowed as that value. `vitest related` defaults to derived-empty success; the explicit
+    // spelling below makes that asymmetry visible beside the Git arm. Asserted test paths do NOT carry it:
+    // `test:scoped` asks Vitest's collection view and refuses a barren operand.
+    scopedArgv: vitestScopedArgv,
   },
   {
     // THE INSTRUMENT BATTERY, OFF THE PUSH BAR ENTIRELY (#1523 split it; #1842 finished the cut).
@@ -350,21 +332,15 @@ const GATING_STAGES: readonly StageDef[] = [
     // the stage contract (contract/stage.ts) for the next row that needs it; this row's push-tier DATA is
     // what was deleted, along with the predicate it hung on (lib/registry-preconditions.ts).
     //
-    // WHAT MOVED WITH IT: `tests/tooling`'s SERIAL_INT and LIVE_DRIVE members. Those lists carry
-    // contention semantics (one at a time; the quiet last shard) that the parallel `tooling` project does
-    // not provide, so they used to ride the PRODUCT serial lanes — which meant `verify --push` kept paying
-    // for the ten heaviest instrument suites through `tests:node` no matter what the diff touched.
-    // `vitest.config.ts` now owns a `tooling-serial` project for them, and `pnpm test:tooling` runs
-    // `tooling` → `tooling-serial` → `live-drive`. The split is by SUBJECT, and it is now total.
+    // The full instrument battery includes its parallel and remaining serial projects.
     name: "tests:tooling",
     group: "tests",
     tiers: ["full"],
     argv: ["pnpm", "test:tooling"],
-    classify: asViolations,
-    // Whole-only by nature, and that is only HONEST because `tests:node`'s scoped argv names `--project
-    // tooling` (see it above — #1566 restored it), so a lane editing an instrument still gets its related
-    // tests at `changed`. A second row at `changed` would spawn a second vitest over the same selection.
-    // If that project ever leaves that argv, this stage owes the `changed` tier instead.
+    classify: ownScheme,
+    // Whole-only by nature, and that is only honest because `tests:node`'s scoped path delegates to
+    // Vitest's native configured projects, so a tooling source still reaches its related tests at
+    // `changed`. A second row at `changed` would spawn a second Vitest over the same selection.
   },
   {
     name: "browser:ct",

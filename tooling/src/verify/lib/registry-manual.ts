@@ -40,7 +40,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "test:scoped"],
     classify: asViolations,
     manualReason:
-      "the niced scoped lane-run wrapper (paths + --maxWorkers supplied per call) — an invocation surface, not a verification stage. Since #1192 it enters through `cli.ts scoped-test node`, which REFUSES a path operand that does not exist (3) or that the runner would collect nothing from (2) instead of running the rest and printing a pass",
+      "supervised scoped node invocation: direct test paths must exist (3) and collect tests (2). --related takes existing source files before runner flags; zero runtime dependents is reported explicitly. Use verify --scope for folder expansion",
   },
   {
     name: "tests:ct-scoped",

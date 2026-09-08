@@ -11,30 +11,17 @@
 // Every argument after this script is forwarded verbatim, so `--max-warnings 0`, `--cache`, the path list
 // and any ad-hoc flag still behave exactly as before. An explicit `--concurrency` from the caller WINS
 // (a calibration run, or a deliberate single-threaded repro of a worker-only failure).
-const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { readConcurrencyProfile } = require("@orb/tooling/_shared/concurrency-profile");
 
 const repoRoot = path.resolve(__dirname, "..");
 
-function profileConcurrency() {
-  // biome-ignore lint/correctness/noProcessGlobal: CLI script
-  // biome-ignore lint/style/noProcessEnv: ORB_DEDICATED_BOX is the ambient TOOLING switch (the solo-box opt-in), not app config; a .cjs launcher cannot import the app's env door.
-  const raw = (process.env.ORB_DEDICATED_BOX || "").trim();
-  const name = raw === "1" ? "dedicated" : "shared";
-  const file = path.join(repoRoot, "tooling", "concurrency-profile.json");
-  const value = JSON.parse(fs.readFileSync(file, "utf8")).profiles[name].eslintConcurrency;
-  if (!Number.isInteger(value) || value < 1) {
-    // Fail LOUD: an unreadable value here would silently restore the single-threaded default, and the
-    // only symptom would be a slow lint nobody attributes to this file.
-    throw new Error(`${file}: profiles.${name}.eslintConcurrency is ${JSON.stringify(value)} — expected a positive integer`);
-  }
-  return String(value);
-}
-
 // biome-ignore lint/correctness/noProcessGlobal: CLI script
 const forwarded = process.argv.slice(2);
-const concurrency = forwarded.includes("--concurrency") ? [] : ["--concurrency", profileConcurrency()];
+// Validate the profile before applying a caller override; malformed environment never silently degrades.
+const profile = readConcurrencyProfile();
+const concurrency = forwarded.includes("--concurrency") ? [] : ["--concurrency", String(profile.eslintConcurrency)];
 const bin = path.join(repoRoot, "node_modules", ".bin", "eslint");
 const result = spawnSync(bin, [...concurrency, ...forwarded], { stdio: "inherit", cwd: repoRoot });
 // biome-ignore lint/correctness/noProcessGlobal: CLI script

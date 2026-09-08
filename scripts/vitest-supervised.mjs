@@ -248,7 +248,7 @@ function verdictFromReport(path) {
   return clean ? 0 : 1;
 }
 
-/** The `meta` key a LOAD-SUSPECT live-drive arm stamps on its own task (`tests/tooling/_load-budget.ts`).
+/** The `meta` key a LOAD-SUSPECT measured-rate arm stamps on its own task (`tests/tooling/_load-budget.ts`).
  *  ONE spelling on both sides of the JS/TS line — mirrors `LOAD_SUSPECT_META_KEY` in
  *  `tooling/src/_shared/load-budget.ts`; a second literal is how the two halves drift apart. */
 const LOAD_SUSPECT_META_KEY = "orbLoadSuspect";
@@ -614,7 +614,7 @@ function announceLoadSuspect(shards) {
   if (all.length === 0) {
     return;
   }
-  log(`MEASUREMENT LOAD-SUSPECT — ${all.length} live-drive arm(s) measured on a loaded box, so their thresholds were not judged:`);
+  log(`MEASUREMENT LOAD-SUSPECT — ${all.length} measured-rate arm(s) measured on a loaded box, so their thresholds were not judged:`);
   for (const row of all) {
     log(`  · ${row}`);
   }

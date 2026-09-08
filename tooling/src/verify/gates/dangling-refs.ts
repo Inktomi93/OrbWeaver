@@ -784,9 +784,6 @@ const ARM4_ALLOW: ExemptionTable = {
   SERIAL_INT_TOOLING: {
     why: "the SERIAL_INT_PRODUCT case exactly — the instrument half of the same split (#1842), declared in the same repo-root `vitest.config.ts` and cited by the same law docs. Ends with its twin, when arm 4's index widens to root config files.",
   },
-  LIVE_DRIVE: {
-    why: "the same file and the same blind spot: declared in the repo-root `vitest.config.ts` (#1040, cited by Spine-Testing.md) and therefore outside the gate harness workspace. Ends with the SERIAL_INT_* rows, when arm 4's index widens to root config files.",
-  },
   HUB_ADAPTERS: { why: CERD_WHY },
   ANTH_DIRECT_SAMPLING: { why: CERD_WHY },
   TAB_EDGE_CLASSES: { why: CERD_WHY },

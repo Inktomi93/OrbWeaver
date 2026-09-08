@@ -1,15 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
-import type { Project } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
+import type { CompilerProgram } from "#verify";
 import { print } from "../../_shared/artifacts.ts";
 import { warn } from "../../_shared/log.ts";
 import type { CodemodContext, CodemodResult, FileSnapshot, Plan, RunCodemodOptions } from "../contract/types.ts";
+import { applyProject } from "./apply-project.ts";
 import { renderPreview } from "./diagnostics.ts";
 import { CodemodError } from "./errors.ts";
 import { assertHeapFloor } from "./heap-floor.ts";
-import { absolutePath, repoRelative } from "./plans.ts";
+import { absolutePath, assertUniquePhysicalMutationPaths, physicalPathIdentity, repoRelative } from "./plans.ts";
+import { createProgramDiagnosticBaseline } from "./program-consumers.ts";
+import { countProgramDiagnostics } from "./program-diagnostics.ts";
 import { createCodemodProject } from "./project.ts";
+
+type DiagnosticBaseline = ReturnType<typeof createProgramDiagnosticBaseline>;
+type CompilerProgramReader = (repoRoot: string) => readonly CompilerProgram[];
 
 /** Reconcile the `--apply` / `--dry-run` CLI flags (and the `forceApply` escape hatch) into a
  *  single dry-run flag. Throws if both flags were passed — they're mutually exclusive. */
@@ -42,6 +49,11 @@ interface MutationLedger {
   readonly knownPaths: Set<string>;
   /** Every path declared so far: `Plan.touchedFiles` + explicit `ctx.snapshot()` calls. */
   readonly declared: Set<string>;
+  /** SourceFile identity is stable across move(); destination path → original path. */
+  readonly relocations: Map<string, string>;
+  readonly originalPathBySourceFile: ReadonlyMap<SourceFile, string>;
+  /** Paths whose transformed diagnostics matter: declarations plus their pre-transform consumers. */
+  readonly diagnosticPaths: Set<string>;
 }
 
 function createMutationLedger(project: Project): MutationLedger {
@@ -54,7 +66,29 @@ function createMutationLedger(project: Project): MutationLedger {
     atLastBoundary: new Map(baseline),
     knownPaths: new Set(baseline.keys()),
     declared: new Set<string>(),
+    relocations: new Map<string, string>(),
+    originalPathBySourceFile: new Map(project.getSourceFiles().map((sourceFile) => [sourceFile, sourceFile.getFilePath()])),
+    diagnosticPaths: new Set<string>(),
   };
+}
+
+function recordDiagnosticImpact(path: string, ledger: MutationLedger, preTransformConsumers: ReadonlyMap<string, ReadonlySet<string>>, repoRoot: string): void {
+  const pending = [path];
+  while (pending.length > 0) {
+    const current = pending.shift();
+    if (current === undefined || ledger.diagnosticPaths.has(current)) {
+      continue;
+    }
+    ledger.diagnosticPaths.add(current);
+    pending.push(...(preTransformConsumers.get(physicalPathIdentity(current, repoRoot)) ?? []));
+  }
+}
+
+function recordRelocation(sourceFile: SourceFile, path: string, ledger: MutationLedger): void {
+  const originalPath = ledger.originalPathBySourceFile.get(sourceFile);
+  if (originalPath !== undefined && originalPath !== path) {
+    ledger.relocations.set(path, originalPath);
+  }
 }
 
 /** The label used when the codemod body mutated the project outside any `ctx.plan(...)` call. */
@@ -67,6 +101,7 @@ function collectUndeclaredMutations(project: Project, ledger: MutationLedger): s
   const currentPaths = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     const path = sf.getFilePath();
+    recordRelocation(sf, path, ledger);
     currentPaths.add(path);
     const text = sf.getFullText();
     const prior = ledger.atLastBoundary.get(path);
@@ -124,6 +159,24 @@ function assertPlanDeclaredItsMutations(opts: { project: Project; ledger: Mutati
   );
 }
 
+/** Final changed lexical identities, independent of what plans declared. Repeated edits to one path
+ *  collapse naturally; a move contributes its deleted source and created destination. */
+function actualChangedPaths(project: Project, ledger: MutationLedger): readonly string[] {
+  const current = new Map(project.getSourceFiles().map((sourceFile) => [sourceFile.getFilePath(), sourceFile.getFullText()]));
+  const changed = new Set<string>();
+  for (const [path, text] of current) {
+    if (ledger.baseline.get(path) !== text) {
+      changed.add(path);
+    }
+  }
+  for (const path of ledger.baseline.keys()) {
+    if (!current.has(path)) {
+      changed.add(path);
+    }
+  }
+  return [...changed];
+}
+
 function buildCodemodContext(opts: {
   project: Project;
   repoRoot: string;
@@ -132,17 +185,25 @@ function buildCodemodContext(opts: {
   ledger: MutationLedger;
   plans: Plan[];
   logs: string[];
+  prepareDiagnosticBaseline: () => DiagnosticBaseline | undefined;
 }): CodemodContext {
-  const { project, repoRoot, isDryRun, snapshots, ledger, plans, logs } = opts;
+  const { project, repoRoot, isDryRun, snapshots, ledger, plans, logs, prepareDiagnosticBaseline } = opts;
   const ctx: CodemodContext = {
     project,
     repoRoot,
     isDryRun,
     plan(plan): void {
       plans.push(plan);
+      const diagnosticBaseline = prepareDiagnosticBaseline();
       // Declare (and snapshot) every file the plan says it will touch BEFORE it mutates anything.
       for (const filePath of plan.touchedFiles) {
-        declareFile(ctx, snapshots, ledger, filePath);
+        declareFile({
+          ctx,
+          snapshots,
+          ledger,
+          filePath,
+          ...(diagnosticBaseline !== undefined ? { preTransformConsumers: diagnosticBaseline.consumersByPath } : {}),
+        });
       }
       plan.transform(ctx);
       // …then hold the plan to it. A transform may declare more as it goes (ctx.snapshot), but
@@ -153,51 +214,69 @@ function buildCodemodContext(opts: {
       logs.push(line);
     },
     snapshot(sourceFile): void {
-      declareFile(ctx, snapshots, ledger, sourceFile.getFilePath());
+      const diagnosticBaseline = prepareDiagnosticBaseline();
+      declareFile({
+        ctx,
+        snapshots,
+        ledger,
+        filePath: sourceFile.getFilePath(),
+        ...(diagnosticBaseline !== undefined ? { preTransformConsumers: diagnosticBaseline.consumersByPath } : {}),
+      });
     },
   };
   return ctx;
 }
 
-/** Post-transform pre-emit diagnostics. Surfaces "the codemod produced broken TS" BEFORE we save
- *  it. Filter to the files we touched so an unrelated upstream error in node_modules doesn't
- *  drown the signal. Throws if applying (not dry-run) and any diagnostics were found. */
+/** Post-transform diagnostics. Routes transformed files and their real consumers through the
+ *  authored compiler programs that own them, using in-memory bytes so disk stays untouched until
+ *  the verdict. Throws if applying (not dry-run) and any diagnostics were found. */
 function checkDiagnostics(opts: {
   project: Project;
   snapshots: ReadonlyMap<string, FileSnapshot>;
+  ledger: MutationLedger;
+  repoRoot: string;
   isDryRun: boolean;
   options: RunCodemodOptions;
   argv: readonly string[];
+  baseline?: DiagnosticBaseline;
 }): number {
-  const { project, snapshots, isDryRun, options, argv } = opts;
+  const { project, snapshots, ledger, repoRoot, isDryRun, options, argv, baseline } = opts;
   // Skip via the per-script option OR the `--no-diagnostics-check` CLI flag. The flag is the
   // run-time opt-out for codemods that INTENTIONALLY leave a residual cascade frontier (e.g. a
   // per-entity TypeID pass that clears the mechanical bulk and leaves the edges for a follow-up
   // hand-fix), so they don't have to hardcode `skipDiagnosticsCheck` and lose the guard forever.
-  const skipDiagnostics = options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
+  const skipDiagnostics = diagnosticsSkipped(options, argv);
   let diagnosticErrors = 0;
-  if (!skipDiagnostics) {
-    const touched = new Set<string>([...snapshots.keys()]);
-    for (const diag of project.getPreEmitDiagnostics()) {
-      const sf = diag.getSourceFile();
-      if (sf && touched.has(sf.getFilePath())) {
-        diagnosticErrors += 1;
-      }
+  if (!skipDiagnostics && snapshots.size > 0) {
+    if (baseline === undefined) {
+      throw new CodemodError("Diagnostics baseline was not captured before the codemod ran.", "The harness cannot establish pre-transform consumers safely.");
     }
+    diagnosticErrors = countProgramDiagnostics({
+      project,
+      snapshots,
+      relocations: ledger.relocations,
+      affectedPaths: ledger.diagnosticPaths,
+      repoRoot,
+      baseline,
+    });
   }
   if (diagnosticErrors > 0) {
     warn(
-      `\n⚠ ${diagnosticErrors} TypeScript pre-emit diagnostic${diagnosticErrors === 1 ? "" : "s"} found in modified files.\n` +
+      `\n⚠ ${diagnosticErrors} TypeScript diagnostic${diagnosticErrors === 1 ? "" : "s"} found in affected files or consumers.\n` +
         "  This usually means the codemod produced broken code. Run with --no-diagnostics-check (per-script flag) to override.\n",
     );
     if (!isDryRun) {
       throw new CodemodError(
-        `Refused to apply: ${diagnosticErrors} pre-emit diagnostic(s) in modified files.`,
+        `Refused to apply: ${diagnosticErrors} TypeScript diagnostic(s) in the affected compiler scope.`,
         "Fix the underlying transform, OR pass skipDiagnosticsCheck: true if intentional.",
       );
     }
   }
   return diagnosticErrors;
+}
+
+function diagnosticsSkipped(options: RunCodemodOptions, argv: readonly string[]): boolean {
+  return options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
 }
 
 export async function runCodemod(name: string, codemod: (ctx: CodemodContext) => void | Promise<void>, options: RunCodemodOptions): Promise<CodemodResult> {
@@ -208,13 +287,27 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
   const repoRoot = resolve(options.repoRoot ?? process.cwd());
   const { argv } = options;
   const isDryRun = resolveIsDryRun(options, argv);
+  const readCompilerPrograms: CompilerProgramReader | undefined = diagnosticsSkipped(options, argv)
+    ? undefined
+    : (await import("#verify")).readCompilerPrograms;
 
   const project = createCodemodProject(options.setup);
+  let diagnosticBaseline: DiagnosticBaseline | undefined;
+  const prepareDiagnosticBaseline = (): DiagnosticBaseline | undefined => {
+    if (diagnosticsSkipped(options, argv)) {
+      return;
+    }
+    if (readCompilerPrograms === undefined) {
+      return;
+    }
+    diagnosticBaseline ??= createProgramDiagnosticBaseline(repoRoot, readCompilerPrograms(repoRoot));
+    return diagnosticBaseline;
+  };
   const snapshots = new Map<string, FileSnapshot>();
   const ledger = createMutationLedger(project);
   const plans: Plan[] = [];
   const logs: string[] = [];
-  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, ledger, plans, logs });
+  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, ledger, plans, logs, prepareDiagnosticBaseline });
 
   print(headerBox(name, isDryRun));
 
@@ -229,7 +322,17 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
   // The body itself can mutate the project outside any plan (a bare `sf.replaceText(...)`). Same
   // invisibility, same refusal — with `ctx.snapshot(sf)` as the documented way to do it legitimately.
   assertPlanDeclaredItsMutations({ project, ledger, repoRoot, label: DIRECT_MUTATION_LABEL });
-  const diagnosticErrors = checkDiagnostics({ project, snapshots, isDryRun, options, argv });
+  assertUniquePhysicalMutationPaths(actualChangedPaths(project, ledger), repoRoot);
+  const diagnosticErrors = checkDiagnostics({
+    project,
+    snapshots,
+    ledger,
+    repoRoot,
+    isDryRun,
+    options,
+    argv,
+    ...(diagnosticBaseline !== undefined ? { baseline: diagnosticBaseline } : {}),
+  });
 
   // Render the diff summary.
   const stats = renderPreview({
@@ -244,7 +347,7 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
 
   // Apply or warn.
   if (!isDryRun) {
-    project.saveSync();
+    applyProject(project, snapshots, repoRoot);
     print(`\n✓ Applied ${plans.length} plan(s). Wrote ${stats.filesChanged} file(s).\n`);
   } else {
     print("\nℹ This was a DRY RUN. No bytes were written. Re-run with --apply to commit.\n");
@@ -268,9 +371,17 @@ export async function runCodemod(name: string, codemod: (ctx: CodemodContext) =>
  *  The original comes from the ledger's baseline, never from the live SourceFile — a declaration
  *  made after the mutation would otherwise capture the mutated text as the "original" and render
  *  the file as unchanged. */
-function declareFile(ctx: CodemodContext, snapshots: Map<string, FileSnapshot>, ledger: MutationLedger, filePath: string): void {
+function declareFile(opts: {
+  ctx: CodemodContext;
+  snapshots: Map<string, FileSnapshot>;
+  ledger: MutationLedger;
+  filePath: string;
+  preTransformConsumers?: ReadonlyMap<string, ReadonlySet<string>>;
+}): void {
+  const { ctx, snapshots, ledger, filePath, preTransformConsumers = new Map() } = opts;
   const resolved = absolutePath(filePath, ctx.repoRoot);
   ledger.declared.add(resolved);
+  recordDiagnosticImpact(resolved, ledger, preTransformConsumers, ctx.repoRoot);
   if (snapshots.has(resolved)) {
     return;
   }

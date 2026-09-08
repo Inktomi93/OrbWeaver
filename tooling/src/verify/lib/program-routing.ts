@@ -383,11 +383,10 @@ export function touchesGraph(paths: readonly string[], graphSrc: ReadonlySet<str
   });
 }
 
-/** Does the selection put ANY file in `tsconfig.tests-dom.json` (rule 3d — the DOM-coupled test escapees)?
- *  Drives the `types:tests-dom` stage at a scoped tier (#1274 — previously this program had NO scoped
- *  route at all, so `verify --file`/`--changed` reported clean over a file it never typechecked). No
- *  import-pull overlay needed here — unlike the graph, this program is a small, explicit `include` list,
- *  never a transitive-closure target. */
+const BROWSER_TEST_INPUT_RE = /^(?:packages\/[^/]+\/src\/|tooling\/src\/|tests\/support\/)/u;
+
+/** Browser tests import production and helper types beyond their roots. Until the complete closure
+ * router is available, those upstream edits conservatively check this program too. */
 export function touchesTestsDom(paths: readonly string[]): boolean {
-  return paths.some((p) => staticPrograms(p).includes(TESTS_DOM_TSCONFIG));
+  return paths.some((path) => TS_RE.test(path) && (BROWSER_TEST_INPUT_RE.test(path) || staticPrograms(path).includes(TESTS_DOM_TSCONFIG)));
 }

@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 582,
-    "enforced": 577,
+    "sites": 584,
+    "enforced": 579,
     "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 561,
+      "deliberate-absorb": 563,
       "detached-owned": 5,
       "unproven": 16
     },
     "byGrammar": {
       "promise": 143,
-      "default": 157,
-      "empty": 282
+      "default": 158,
+      "empty": 283
     }
   },
   "rows": [
@@ -4906,6 +4906,19 @@
       "markerLine": 182
     },
     {
+      "siteId": "tooling/src/codemod/lib/apply-project.ts::empty:error::1",
+      "path": "tooling/src/codemod/lib/apply-project.ts",
+      "line": 102,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT is already-clean; other cleanup failures are retained and warned below while applyProject rethrows the original failure. Ends if those failures stop being surfaced.",
+      "markerLine": 99
+    },
+    {
       "siteId": "tooling/src/codemod/lib/diagnostics.ts::default:err::1",
       "path": "tooling/src/codemod/lib/diagnostics.ts",
       "line": 80,
@@ -4917,6 +4930,19 @@
       "verdict": "deliberate-absorb",
       "reason": "an unwritable /tmp falls back to printing the whole buffer plus an explicit warning banner naming the failure — the comment above states the intent directly (\"better noisy than silent loss\"). Ends if the fallback stops printing the warning.",
       "markerLine": 77
+    },
+    {
+      "siteId": "tooling/src/codemod/lib/plans.ts::default:error::1",
+      "path": "tooling/src/codemod/lib/plans.ts",
+      "line": 83,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT/ENOTDIR means this entry is absent and the caller continues to an existing ancestor; other failures throw. Ends if false is treated as a containment verdict.",
+      "markerLine": 79
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::promise:detach::1",
@@ -6962,7 +6988,7 @@
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
-      "line": 185,
+      "line": 187,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6970,7 +6996,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable pattern matches nothing, so it",
-      "markerLine": 180
+      "markerLine": 182
     },
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::empty:error::1",

@@ -4,11 +4,12 @@
 // tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
-import { BROWSER_PACKAGES } from "@orb/tooling/_shared/project-worlds";
-import type { CtView, Selection, SelectionRequest } from "../contract/selection.ts";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { BROWSER_PACKAGES, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
+import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
 import { distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
-import { classifyExplicitPaths, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
+import { classifyExplicitPaths, GIT_READ_PREFIX, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the lint:eslint script's path list in package.json — and the mirroring is LOAD-BEARING, not
@@ -18,7 +19,11 @@ import { classifyExplicitPaths, gitChangedPathClassification, packageDir, ROOT }
 // alternation — the alternation is exactly what went stale twice. Both halves are pinned against each
 // other in tests/tooling/verify/ops/run.int.test.ts ("a tooling file IS in the eslint surface").
 const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests|tooling\/src)\/.*\.tsx?$/u;
-const DEPCRUISE_RE = /^(?:packages|tooling)\/.*\.(?:ts|tsx|js|jsx|mts|cts)$/u;
+const DEPCRUISE_SOURCE_RE = /\.(?:ts|tsx|js|jsx|mts|cts)$/u;
+
+function isDepcruisePath(path: string): boolean {
+  return DEPCRUISE_SOURCE_RE.test(path) && (path.startsWith("packages/") || path.startsWith("tooling/") || isWorldHelperPath(path));
+}
 const DOCS_MD_RE = /^docs\/architecture\/.*\.md$/u;
 const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;
 const SCOPE_GLOB_TAIL_RE = /\/\*\*$/u;
@@ -52,7 +57,7 @@ function deriveViews(
     // Every direct-file view derives from the classification's ONE current-filesystem subset. The all-path
     // view below still drives tsconfig/graph/structure/deletion semantics.
     eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p)),
-    depcruisePaths: filterPaths(existingPaths, (p) => DEPCRUISE_RE.test(p)),
+    depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
     docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
     tsconfigs: distinctTsconfigs(paths, graphSrc),
     // `touchesGraphOnlyTrees` KEEPS its field name (downstream registry contract) but now means "puts any
@@ -63,9 +68,36 @@ function deriveViews(
   };
 }
 
+/** Git's diff omits untracked files by definition. A bare `--changed` means the whole working change,
+ * so union the diff's rename-aware identities with Git's authoritative untracked view. */
+function workingChangeClassification(root: string): ChangedPathClassification {
+  const changed = gitChangedPathClassification(root);
+  const untracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"], { cwd: root })
+    .split("\0")
+    .filter((path) => path.length > 0);
+  const entries = [...changed.entries, ...untracked.map((path) => ({ path, status: "added" as const, previousPath: null }))];
+  const paths = [...new Set(entries.map((entry) => entry.path))];
+  return {
+    entries,
+    paths,
+    existingPaths: paths.filter((path) => !changed.deletedPaths.includes(path)),
+    deletedPaths: changed.deletedPaths,
+  };
+}
+
+/** Current authored files beneath a folder scope: tracked plus Git's exclude-standard untracked view.
+ * This is the same population a working change can contain and deliberately excludes ignored caches,
+ * generated scratch trees, and node_modules without teaching this resolver their names. */
+function authoredPathsUnder(prefix: string, root: string): readonly string[] {
+  const tracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "-z", "--", prefix], { cwd: root });
+  const untracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z", "--", prefix], { cwd: root });
+  const paths = `${tracked}${untracked}`.split("\0").filter((path) => path.length > 0);
+  return classifyExplicitPaths(paths, root).existingPaths.toSorted();
+}
+
 /** Resolve a `changed`/`file` selection from explicit paths (or git when none given). */
 function resolveChanged(kind: "changed" | "file", explicit: readonly string[], root: string): Selection {
-  const classification = explicit.length > 0 ? classifyExplicitPaths(explicit, root) : gitChangedPathClassification(root);
+  const classification = explicit.length > 0 ? classifyExplicitPaths(explicit, root) : workingChangeClassification(root);
   const { paths, existingPaths } = classification;
   const gitRef = explicit.length > 0 ? undefined : "HEAD";
   const label = `${kind} (${paths.length} file${paths.length === 1 ? "" : "s"})`;
@@ -74,6 +106,7 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
     label,
     paths,
     existingPaths,
+    runtimeSubjects: existingPaths,
     ...deriveViews(paths, existingPaths, root),
     checkScopeArgv: [...SCOPED_CLI, "--changed", ...paths],
     gitRef,
@@ -96,6 +129,7 @@ function resolvePackage(name: string): Selection {
     label: `package ${dir}`,
     paths,
     existingPaths: paths,
+    runtimeSubjects: [],
     eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
@@ -104,9 +138,8 @@ function resolvePackage(name: string): Selection {
     // package's own dom-tsconfig can't — the TS2584 class). Browser packages (ui/client) are graph-EXCLUDED,
     // so graph honestly defers. This keeps --package consistent with --changed on the same package's files.
     touchesGraphOnlyTrees: !BROWSER_PACKAGES.has(dir),
-    // A `--package` selection is a bare `packages/<dir>/` prefix — tsconfig.tests-dom.json's roots are
-    // never under packages/ (they're tests/scripts/playwright), so a package scope never touches it.
-    touchesTestsDom: false,
+    // Package source supplies browser-test types through imports, even when it is not a test root.
+    touchesTestsDom: true,
     // A whole-package scope over a BROWSER package sweeps that package's whole mirror tree (the honest floor
     // for "everything in ui/client changed"); a node package contributes no CT. Prefix-based, so it doesn't
     // route through the per-file mirror map (paths here is a bare prefix, not a concrete .tsx file).
@@ -117,7 +150,7 @@ function resolvePackage(name: string): Selection {
 }
 
 /** Resolve a `--scope <folder-glob>` selection. */
-function resolveScope(glob: string): Selection {
+function resolveScope(glob: string, root: string): Selection {
   const prefix = glob.replace(SCOPE_GLOB_TAIL_RE, "").replace(TRAILING_SLASH_RE, "");
   const paths: readonly string[] = [prefix];
   return {
@@ -125,8 +158,9 @@ function resolveScope(glob: string): Selection {
     label: `scope ${glob}`,
     paths,
     existingPaths: paths,
+    runtimeSubjects: authoredPathsUnder(prefix, root),
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
-    depcruisePaths: prefix.startsWith("packages/") || prefix.startsWith("tooling") ? [prefix] : [],
+    depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
     // A folder scope: use the conservative fallback (undefined overlay) — a packages/*/src scope then also
     // runs the graph, the honest floor for a whole-folder run.
@@ -152,6 +186,6 @@ export function resolveSelection(req: SelectionRequest, root: string = ROOT): Se
     case "package":
       return resolvePackage(req.name);
     case "scope":
-      return resolveScope(req.glob);
+      return resolveScope(req.glob, root);
   }
 }

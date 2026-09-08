@@ -1,15 +1,8 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-08
 ---
-
-<!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
-     harness (tooling/src/verify/{run,registry,selection}.ts) — the stage set, tier ladder, exit contract, and
-     the CT-merged-into-`tests:node` lane all still match. ONE stale reference: §2.2's membership resolver
-     is `tsgo --listFilesOnly` in this text, but retro moved the CLI type lanes off tsgo/tsc6 to `ts7`
-     (`scripts/ts7.cjs`; ts-morph/typescript-eslint keep the TS6 API). Read `ts7` for `tsgo` at that line;
-     annotated inline below. No other drift found. -->
 
 # Unified Verification Design
 
@@ -48,8 +41,8 @@ built around these gaps. `tooling/src/verify/lib/selection.ts` is the code home 
 
 An editor (and a naive file-scoped `tsc`) type-checks a file against its NEAREST ancestor tsconfig. But a
 file can be OWNED by a NON-ancestor config that reaches back into it — the browser `.tsx` reach-back trees
-(`tests/ui/**`, `tests/client/**`, `tests/support/browser/**`, `playwright/**`) are claimed WITH dom by the
-`ui`/`client` configs, not by any ancestor. File-scoped tsc is therefore unsound (it never sees consumers);
+(`tests/ui/**`, `tests/client/**`, `tests/support/browser/**`, `playwright/**`) are claimed WITH dom by
+`tsconfig.tests-dom.json`, not by any ancestor. File-scoped tsc is therefore unsound (it never sees consumers);
 the honest per-tool floor is the OWNING PACKAGE, not the file (`selection.ts` header). The `types:packages`
 stage runs `tsc -p <owning-config>`, never a file-scoped check.
 
@@ -115,14 +108,14 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
 | `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (the PRODUCT vitest projects — never the instrument battery, #1842) + `browser:ct` (the WHOLE CT suite, its own stage again since #1848 so it carries its own profile-derived hang ceiling) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
-| `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling`, `tooling-serial` and `live-drive` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling` and `tooling-serial` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 **THE INSTRUMENT BATTERY IS `--full`-ONLY (#1523 split it, #1842 cut it loose).** `tests:tooling` runs at
 `full` and at NO other tier. #1523's first cut kept a CONDITIONAL `push` rung — run the battery when the
 branch diff touched `tooling/**` or `tests/tooling/**` — and #1842 deleted that rung on the owner's word
 (2026-09-06: *"take tooling out of the verify push and into full"*). A lane iterating on an instrument
-still gets its RELATED tests at `changed` (`tests:node`'s scoped argv names `--project tooling`) and can
-run the whole battery by hand with `pnpm test:tooling`; the whole-battery verdict is `verify --full`.
+still gets its RELATED tests through native configured-project selection at `changed` and can run the
+whole battery by hand with `pnpm test:tooling`; the whole-battery verdict is `verify --full`.
 
 **CONDITIONAL TIER MEMBERSHIP, the mechanism (#1523).** One rung of the ladder CAN be narrowed by a fact
 about the RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered
@@ -331,6 +324,9 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
   - `"skip-empty"` ⇒ the scope resolves to zero relevant paths for this tool (e.g. eslint with no file in
     its surface); the stage is a no-op this run.
   - ABSENT `scopedArgv` ⇒ the stage is whole-only (deferred at a scoped tier) by default.
+- **Browser-test type consumers:** production package source, tooling source, and shared test helpers can
+  enter `tsconfig.tests-dom.json` through imports without being roots. Their edits conservatively run that
+  program, as do package scopes, until the complete closure router can narrow the population honestly.
 - **Deletions:** a git-changed set KEEPS deleted paths — the structure walk + the deleted file's owning
   per-package tsc legitimately reason about a deletion — but the per-tool file-list views (eslint/depcruise/
   docs, which hand CONCRETE file args to a child that hard-errors on a gone path) DROP them.
@@ -359,34 +355,28 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 
 The behavioral suites are ONE `tests` concept expressed as stages with tier + scope, not a folklore list:
 
-- **`tests:tooling`** (tier `full` only) — `pnpm test:tooling` = THREE vitest projects, sharded in this
-  order: `tooling` (the parallel battery — `tests/tooling/**/*.test.ts` minus the two contention sets),
-  `tooling-serial` (`SERIAL_INT_TOOLING`: tree-writers and whole-tree scanners, one at a time, 30s), and
-  `live-drive` (`LIVE_DRIVE`: the real-browser MEASUREMENT suites, one at a time, last shard on the
-  quietest box). Split off `tests:node` by #1523 and taken off the push bar entirely by #1842 (the
-  measurement + both owner rulings are in §3.2). The partition is one glob (`TOOLING` in
-  `vitest.config.ts`) plus the two explicit path sets: `unit`/`integration` subtract them, so a file is in
-  one lane or none and `tests:execution-membership` proves it. It is now TOTAL by tier as well as by
-  subject — no `tests/tooling` file rides a product project, which is what #1523 left behind (the ten
-  serial instrument suites sat in `integration-serial` and every push paid for them through `tests:node`).
+- **`tests:tooling`** (tier `full` only) runs the complete instrument battery through the parallel `tooling` project and the remaining `tooling-serial` project. Native configuration owns their populations; `tests:execution-membership` reconciles collection. The former browser-drive shard is retired after its two structural suites passed concurrent execution. Measured-rate metadata remains available independently of project membership.
 - **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test:node` = the PRODUCT vitest projects
   (`unit`/`integration`/`integration-serial`/`contract`; since #1523 NOT `tooling`, and since #1842 not
-  `tooling-serial` or `live-drive` either). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
+  `tooling-serial` either). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
   2026-07-17, and the merged stage's ONE 45-minute hang ceiling stopped covering the pair once #1835 put CT
   on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
   QUIET box for a stage that was still working, which under the exit contract means the run is not a
   verdict. The CT suite is `browser:ct` again, with a ceiling DERIVED from `tooling/concurrency-profile.json`
   (§3.7b). `pnpm test` still COMPOSES both halves — that is the green-to-commit ritual and it is unchanged
-  (it is the manual `tests:product-composite` row here, so no tier runs it and nothing double-runs). At
-  `changed` scope: vitest's own related-test graph over the unit+integration lanes (serial + contract are
-  whole-tree-shaped, deferred to push). **A derived-empty selection there is a CLEAN SKIP, never a red**
-  (#1272): the scoped child carries `--passWithNoTests`, so a `--changed` set that resolves to no related
-  test file — a clean committed tree, a docs-only diff — exits 0 instead of vitest's "No test files found"
-  exit 1 that `asViolations` scored as violations. This does NOT retire PD-115 (`vitest.config.ts`
-  `passWithNoTests: false`, so a lane whose include glob matches nothing FAILS): PD-115 judges an
-  ASSERTED selector and this one is DERIVED, the same asymmetry §3.4 draws for an empty scope. The flag
-  therefore rides the SCOPED argv ONLY — never `vitest.config.ts`, never the whole-scope `pnpm test`,
-  which still reds on an empty suite, as does `tests:execution-membership` on a zero-file runner view. **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
+  (it is the manual `tests:product-composite` row here, so no tier runs it and nothing double-runs).
+  Scoped execution uses Vitest's configured projects without a copied project roster. Git-derived changes
+  use native `--changed`; explicit test paths pass native collection preflight; explicit source or mixed
+  inputs use native `related`. Folder inputs expand to current authored files from Git's tracked and
+  exclude-standard untracked views, omitting deleted files; a package request selects its test mirror.
+  All node runs enter `test:scoped` and retain watchdog supervision and the owned 0/1/2/3 exit contract.
+
+  **Asserted and derived empty selections differ.** A missing direct test path is misuse (3), and an
+  existing direct test path contributing no collected tests is a tool error (2). Related sources may have
+  zero runtime dependents; that derived empty is explicitly printed and exits cleanly through a local
+  `--passWithNoTests` flag. The default config and whole-suite commands retain `passWithNoTests: false`.
+  Direct `test:scoped --related` requires source files before runner flags; directories are refused with
+  guidance to use `verify --scope` for authored-folder expansion. **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
   (#345, re-rooted #1012):** vitest 4.1.11's run path has exactly ONE unbounded await — `Pool.run`'s
   `await testFinish.promise`, settled only by a worker's `testfileFinished` message or a runner error/exit
   event — and the CLI reaches `ctx.exit()` (which arms vitest's own unref'd `teardownTimeout` force-exit)
@@ -429,12 +419,9 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   push), and it is the push tier's CT coverage verdict. It carries `hangCeilingBaseMs` DERIVED from the
   profile (§3.7b): the CT wall clock is a function of `ctWorkers`, which is exactly what a shared constant
   could not express. At `changed`
-  it runs the SCOPED CT view (§3.4 — the mirror map + declared sweeps, LANDED 2026-07-17) via a DIRECT
-  `playwright test -c playwright-ct.config.ts <targets>` — TWO deliberate divergences from the `pnpm test:ct`
-  script: (1) NO `rm -rf playwright/.cache` (inner-loop speed; the gate lanes keep the nuke for stale-bundle
-  correctness — the scoped run's residual stale-cache risk is acceptable because scoped green is never the
-  verdict, §3.4), and (2) NO retries flag (the retries:0 config default — small scoped runs don't hit the 500-test
-  parallelism flakes, so the inner loop wants raw signal, not a retry-masked green).
+  it runs the scoped CT view (§3.4) through `ct:scoped`: native collection preflight, an exclusive
+  runner lease, and a private cold build directory. It does not reuse or clear another invocation's build
+  directory. Scoped calls keep the config's zero-retry default; whole-suite retries remain explicit.
 
 #### 3.7b The per-stage hang ceiling is DATA (#1848)
 

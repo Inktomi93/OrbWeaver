@@ -1,6 +1,7 @@
 // The kit's exported shapes — plans, options, results (no-inline-types: tool types live in
 // contract/). Split from codemod-kit.ts §2/§4/§5 + the per-helper option interfaces (P4 of #393).
 import type { ImportSpecifier, JsxOpeningElement, JsxSelfClosingElement, Project, SourceFile } from "ts-morph";
+import type { CompilerProgram } from "#verify";
 
 export interface RetypeIdAnnotationsOptions {
   /** Declaration names to retype, e.g. `["chatId", "parentChatId", "newChatId"]`. */
@@ -115,7 +116,7 @@ export interface CreateProjectOptions {
 }
 
 // The runCodemod harness: CLI flags, dry-run default, snapshot/diff/apply, the preview-integrity
-// guard, the manipulation-error refusal, the pre-emit diagnostics check.
+// guard, the manipulation-error refusal, the compiler-world diagnostics check.
 /**
  * The context passed to your codemod function. Owns the Project + the plan
  * queue + the snapshot store. Don't construct these by hand; the harness
@@ -172,8 +173,8 @@ export interface CodemodResult {
  *     preview, so the operator would review an incomplete change)
  *   - Catching ts-morph manipulation errors (which leave the project in a
  *     bad state) and refusing to save when one happens
- *   - Post-transform pre-emit diagnostics check (catch broken TS the codemod
- *     produced before it hits disk)
+ *   - Post-transform diagnostics in each affected file's authored compiler program, including
+ *     unchanged TypeScript-resolved consumers (catch broken TS before it hits disk)
  *   - Per-file diff rendering for the preview
  *
  * Pass `name` for the log header. Pass `setup` to customize the project.
@@ -186,7 +187,7 @@ export interface RunCodemodOptions {
    *  failure mode that would swallow an operator's `--apply` (Core-Tooling-Law §4.9). */
   readonly argv: readonly string[];
   readonly setup?: CreateProjectOptions;
-  /** Set true to skip the post-transform `getPreEmitDiagnostics()` check.
+  /** Set true to skip the post-transform authored-program diagnostics check.
    *  Useful when the codemod intentionally lands the project in a transient
    *  broken state (e.g. you're mid-restructure and a follow-up commit
    *  finishes the refactor). Off by default — the check catches real bugs. */
@@ -243,4 +244,11 @@ export interface FileSnapshot {
   readonly originalText: string;
   /** True when the file was created during the codemod (no original to diff against). */
   readonly wasCreated: boolean;
+}
+
+/** Native pre-transform compiler facts retained across the in-memory codemod transaction. */
+export interface ProgramDiagnosticBaseline {
+  readonly programs: readonly CompilerProgram[];
+  readonly consumersByPath: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly globalProgramIdsByPath: ReadonlyMap<string, ReadonlySet<string>>;
 }

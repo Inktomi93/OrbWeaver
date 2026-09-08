@@ -1,31 +1,7 @@
 import base from "./vitest.config.ts";
 
-// Vitest config for the Stryker MUTATION lane (stryker.config.json / stryker.gate.config.json point here
-// via `vitest.configFile`). It DERIVES from the real vitest.config.ts so the rigor defaults
-// (restoreMocks/clearMocks/requireAssertions/CORPUS_AUTOINDEX=false/es2025) can never drift out of sync,
-// then narrows the lanes for what mutation testing can actually run:
-//
-//  • Keeps the three RUNTIME lanes — unit + integration + contract. Integration is REQUIRED: the highest-
-//    stakes mutate targets (credentials/*, observability/audit) are covered ONLY by `.int.test.ts` against
-//    real libSQL. Verified safe under Stryker's forced `pool:'threads'` (the libSQL native binding passes).
-//  • Drops every other lane in `vitest.config.ts`, each with a STATED reason in `DROPPED_LANES` below — see
-//    #1340: the OLD shape here was an allowlist whose own comment named a lane that no longer existed
-//    (`parity`, purged 2026-08-22 with #428) while omitting BOTH lanes it silently dropped
-//    (`integration-serial` — 22 files; `live-drive` — 4 files), because an allowlist drops anything not
-//    named with zero signal. `assertEveryLaneClassified` below makes that structurally impossible now: a
-//    lane added to `vitest.config.ts` and never classified HERE throws at Stryker's own config load,
-//    across every worker, rather than silently vanishing from mutation coverage.
-//  • Excludes `tests/tooling/**` from every kept lane. Those are whole-tree META-tests (the structure
-//    gates, dependency-cruiser, grit plugins, schema-baseline parity) that run the real tooling over the
-//    source tree — against Stryker's mutant-INSTRUMENTED sandbox copy they fail by construction (the
-//    instrumented code isn't gate-clean), which would abort the dry run.
-//
-// perTest coverage (set in the Stryker config) still ensures each mutant only runs the tests that cover
-// it — so a kit/macro mutant runs kit unit tests, a credentials mutant runs credentials int tests.
-
-// Exported (alongside `DROPPED_LANES` + `assertEveryLaneClassified` below) so the totality pin
-// (tests/tooling/vitest-stryker-lane-classification.test.ts) can assert directly against the REAL
-// classification rather than re-deriving a second copy of it.
+// Derive mutation execution from the normal config while preserving its rigor defaults.
+// Every native project must be explicitly kept or excluded with a reason before filtering.
 export const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
 // Every OTHER lane `vitest.config.ts` currently defines, with the reason it does not run under mutation.
 // COUPLED SITE (say so at both ends, per #1340's own hazard note): `vitest.config.ts`'s `test.projects`
@@ -37,12 +13,6 @@ export const DROPPED_LANES = new Map([
     "tree-writers + fixed-port/fixed-db-file suites (vitest.config.ts's SERIAL_INT) — Stryker's own " +
       "`concurrency: 6` worker PROCESSES would collide on those fixed resources — this file's " +
       "`fileParallelism:false`+`maxWorkers:1` only serializes WITHIN one Stryker worker, never ACROSS them.",
-  ],
-  [
-    "live-drive",
-    "real-browser measurement suites (vitest.config.ts's LIVE_DRIVE) — their verdict is a measured rate/" +
-      "duration a mutant-instrumented sandbox running under N concurrent Stryker workers would perturb, " +
-      "not a structural mutation-coverage signal.",
   ],
   [
     "tooling-serial",
@@ -96,14 +66,7 @@ const source = base as unknown as {
   };
 };
 
-/** The #1340 fix: `RUNTIME_LANES` is an ALLOWLIST, so on its own it drops any lane not named — silently,
- *  with zero signal, exactly what let `integration-serial` (22 files) and `live-drive` (4 files) vanish
- *  from mutation coverage while this file's own comment named a THIRD, already-dead lane (`parity`,
- *  purged 2026-08-22 with #428) instead. Every project `vitest.config.ts` defines must land in EXACTLY
- *  one of `RUNTIME_LANES` (kept) or `DROPPED_LANES` (dropped, with a reason) — an unclassified lane
- *  throws HERE, at Stryker's own config load (every worker imports this file), rather than disappearing.
- *  Exported for a proof test — never re-run at load with a mocked base; the REAL base config is the
- *  subject a config-load throw must prove itself against. */
+/** Refuse a newly introduced project until its mutation eligibility has been considered. */
 export function assertEveryLaneClassified(projectNames: readonly string[]): void {
   const unclassified = projectNames.filter((name) => !(RUNTIME_LANES.has(name) || DROPPED_LANES.has(name)));
   if (unclassified.length > 0) {

@@ -6,7 +6,36 @@
 // Each builder answers the same question — "given the selection's paths for this tool, what child do we
 // spawn?" — and each may answer `skip-empty` (nothing in scope) or `whole-only` (this stage cannot be
 // narrowed honestly). That vocabulary is `../contract/stage.ts`'s `ScopedArgv`.
+import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
+
+const NODE_TEST_RE = /\.test\.tsx?$/u;
+
+/** Vitest scope composition, using its native selectors instead of a copied project roster.
+ *
+ * Git-derived changes stay Git-derived, so deletes and renames retain the VCS semantics Vitest owns.
+ * Explicit test claims enter `test:scoped`, whose native collection preflight refuses a barren path.
+ * Explicit source claims enter the guarded door's `--related` mode; an empty dependency result is legitimately derived and
+ * therefore carries `--passWithNoTests`. Folder scopes are expanded to concrete current files before the
+ * related graph runs — Vitest compares related subjects by exact module id, not directory prefix. */
+export function vitestScopedArgv(selection: Selection): ScopedArgv {
+  if (selection.kind === "changed" && selection.gitRef !== undefined) {
+    return ["pnpm", "test:scoped", "--passWithNoTests", "--changed", selection.gitRef];
+  }
+  if (selection.kind === "package") {
+    const prefix = selection.paths[0];
+    const packageName = prefix === "tooling/" ? "tooling" : prefix?.match(/^packages\/([^/]+)\/$/u)?.[1];
+    return packageName === undefined || packageName.length === 0 ? "skip-empty" : ["pnpm", "test:scoped", `tests/${packageName}`];
+  }
+  const subjects = selection.runtimeSubjects;
+  if (subjects.length === 0) {
+    return "skip-empty";
+  }
+  if (subjects.every((path) => NODE_TEST_RE.test(path)) === true) {
+    return ["pnpm", "test:scoped", ...subjects];
+  }
+  return ["pnpm", "test:scoped", "--related", ...subjects];
+}
 
 /** tsc scoped invocation: sole owner → `ts7 -p <config>`; none → skip; multiple owners → the whole
  *  per-package lane (the honest floor, one child not N). Uses ts7 (the scripts/ts7.cjs wrapper, TS7

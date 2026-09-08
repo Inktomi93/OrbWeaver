@@ -246,11 +246,8 @@ function frameMs(stdout: string): number {
   return Number(raw);
 }
 
-// This is the ONE measured-RATE arm in an otherwise structural file (#1040), so it takes the withhold in
-// place rather than dragging its eighteen structural siblings into the serial `live-drive` project: the
-// unthrottled arm's frame duration is the denominator of the ratio below, and a contended box inflates
-// it until the 8x stretch it is looking for disappears into the noise. Everything else here asserts
-// computed style, pixels or exit codes, which load cannot change the answer to.
+// This measured-rate arm labels contention before judging its frame-stretch ratio. Structural peers
+// remain parallel; a scaled completion deadline cannot make a noisy denominator valid.
 test("--cpu-throttle REACHES the page: the same in-page loop stretches its frame at 8x", { timeout: 3 * BROWSER_TIMEOUT_MS }, async ({
   plantedTree,
   runCli,
