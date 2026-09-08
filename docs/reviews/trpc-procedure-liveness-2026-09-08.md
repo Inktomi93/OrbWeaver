@@ -65,7 +65,7 @@ Disposition: intentional supported API for the unbuilt character rack. Deleting 
 
 `discovery.themes` is different. Its tRPC property at `packages/server/src/transport/trpc/routers/discovery.ts:136-138` has no production caller. The current Corpus home obtains both theme lists from `discovery.home.sceneThemes/arcThemes` and renders those values (`packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx:171-180,295-307`). The apparent dynamic callers are only unused component-test route-map entries. A source comment claiming that the browse view and context tabs consume `discovery.themes` is stale (`packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx:52-55`).
 
-Disposition: remove the tRPC wrapper and the stale route-map/comment fixtures. Keep the domain `themes` read: composed `home` and `themeDetail` views consume it internally through `ViewsDeps` (`packages/server/src/domain/discovery/service.ts:44-51`; `packages/server/src/domain/discovery/verbs/views.ts:38-39,66`). The existing deferred test-presence row for `discovery.themes` at `tooling/src/verify/gates/contract-verb-presence.ts:36` must be removed or retargeted with the procedure.
+Disposition: remove the tRPC wrapper and the stale route-map/comment fixtures. Keep the domain `themes` read: composed `home` and `themeDetail` views consume it internally through `ViewsDeps` (`packages/server/src/domain/discovery/service.ts:44-51`; `packages/server/src/domain/discovery/verbs/views.ts:38-39,66`). Implementation re-derivation corrected the initial cleanup suggestion: the deferred row at `tooling/src/verify/gates/contract-verb-presence.ts:36` governs the surviving DOMAIN `DiscoveryService.themes`, not the RPC wrapper. Preserve it until its separate domain-test obligation is satisfied.
 
 ### Plugin: removable caller-supplied URL upgrade wrapper
 
@@ -90,7 +90,7 @@ Disposition: remove the tRPC wrapper. The domain bulk verb can be pruned only af
 ## Cleanup order if approved
 
 1. Remove the nine router properties and the stale comments that claim present consumers.
-2. Update direct router tests, cross-tenant classification/call tables, component-test route maps, and `contract-verb-presence` rows in the same change; do not weaken the sweep's exhaustive-registration assertion.
+2. Update direct router tests, cross-tenant classification/call tables, and component-test route maps in the same change; do not weaken the sweep's exhaustive-registration assertion. Preserve domain-level coverage rows whose owner remains live, including `DiscoveryService.themes`.
 3. Re-run `pnpm ast unwired --json`. The expected candidate set is the six intentional rows, unless the connection ruling is resolved toward wrapper removal.
 4. Decide whether intentional rows should remain visible review candidates or receive a narrowly truthful marker. A future marker must describe an actual procedure consumer class; boot-time direct service use is not `@server-only` RPC consumption.
 5. Audit domain-level pruning separately for automation update/reorder/chat budgets, plugin caller-supplied upgrade, and tag bulk attach. Preserve the internal domain methods proven live above.
