@@ -250,5 +250,7 @@ export interface FileSnapshot {
 export interface ProgramDiagnosticBaseline {
   readonly programs: readonly CompilerProgram[];
   readonly consumersByPath: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Every authored compiler program whose native pre-transform closure contains this physical path. */
+  readonly containingProgramIdsByPath: ReadonlyMap<string, ReadonlySet<string>>;
   readonly globalProgramIdsByPath: ReadonlyMap<string, ReadonlySet<string>>;
 }

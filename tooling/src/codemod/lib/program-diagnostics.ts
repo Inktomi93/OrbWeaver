@@ -57,30 +57,48 @@ function relocatedProgramIds(relativePath: string, originalRelativePath: string,
   return [intended];
 }
 
-function exclusiveProgramIds(relativePath: string, actual: readonly string[], intended: string | undefined, available: ReadonlySet<string>): readonly string[] {
-  if (actual.length === 0 && intended !== undefined && available.has(intended)) {
-    return [intended];
-  }
-  if (actual.length !== 1 || intended === undefined || actual[0] !== intended) {
+/** Existing exclusive roots are current authored truth during a staged migration; the predictive world
+ * becomes authoritative only where no root exists yet. Multiple current roots remain ambiguous. */
+function exclusiveProgramIds(opts: {
+  relativePath: string;
+  rooted: readonly string[];
+  containing: readonly string[];
+  intended: string | undefined;
+  available: ReadonlySet<string>;
+}): readonly string[] {
+  const { relativePath, rooted, containing, intended, available } = opts;
+  if (rooted.length > 1) {
     throw new CodemodError(
-      `Conflicting compiler ownership for ${relativePath}: intended=${intended ?? "none"}, rooted=${actual.length === 0 ? "none" : actual.join(", ")}.`,
-      "A test/harness path must have exactly one rooted compiler owner, matching its declared world.",
+      `Conflicting compiler ownership for ${relativePath}: intended=${intended ?? "none"}, rooted=${rooted.join(", ")}.`,
+      "An existing test/harness path may have one rooted compiler owner and multiple legitimate containing compiler closures.",
     );
   }
-  return actual;
+  const actual = [...new Set([...rooted, ...containing])];
+  if (actual.length > 0) {
+    return actual;
+  }
+  if (intended !== undefined && available.has(intended)) {
+    return [intended];
+  }
+  throw new CodemodError(
+    `Conflicting compiler ownership for ${relativePath}: intended=${intended ?? "none"}, rooted=none.`,
+    "An existing test/harness path must have one rooted compiler owner; intended ownership is used only when no authored root owns a new destination.",
+  );
 }
 
 function rootedProgramIds(opts: {
   relativePath: string;
   actual: readonly string[];
+  containing: readonly string[];
   intended: string | undefined;
   available: ReadonlySet<string>;
 }): readonly string[] {
-  const { relativePath, actual, intended, available } = opts;
+  const { relativePath, actual, containing, intended, available } = opts;
   if (requiresExclusiveRoot(relativePath)) {
-    return exclusiveProgramIds(relativePath, actual, intended, available);
+    return exclusiveProgramIds({ relativePath, rooted: actual, containing, intended, available });
   }
-  if (actual.length === 0) {
+  const authored = [...new Set([...actual, ...containing])];
+  if (authored.length === 0) {
     if (intended === undefined || !available.has(intended)) {
       throw new CodemodError(
         `No authored compiler program owns ${relativePath}.`,
@@ -89,13 +107,9 @@ function rootedProgramIds(opts: {
     }
     return [intended];
   }
-  if (intended !== undefined && !actual.includes(intended)) {
-    throw new CodemodError(
-      `Compiler ownership disagrees for ${relativePath}: intended=${intended}, rooted=${actual.join(", ")}.`,
-      "Repair the compiler-world membership before applying a transform; diagnostics will not guess between worlds.",
-    );
-  }
-  return actual;
+  // Existing authored roots are the diagnostic authority during staged migration. Predictive ownership
+  // describes the destination state; it must not block the prerequisite edit that makes that state true.
+  return authored;
 }
 
 function programIdsForPath(opts: {
@@ -103,14 +117,15 @@ function programIdsForPath(opts: {
   originalRelativePath?: string;
   programs: readonly CompilerProgram[];
   programsByRootFile: ReadonlyMap<string, readonly string[]>;
+  containingProgramIds: readonly string[];
 }): readonly string[] {
-  const { relativePath, originalRelativePath, programs, programsByRootFile } = opts;
+  const { relativePath, originalRelativePath, programs, programsByRootFile, containingProgramIds } = opts;
   const available = new Set(programs.map((program) => program.id));
   if (originalRelativePath !== undefined) {
     return relocatedProgramIds(relativePath, originalRelativePath, available);
   }
   const actual = programsByRootFile.get(relativePath) ?? [];
-  return rootedProgramIds({ relativePath, actual, intended: predictedProgram(relativePath), available });
+  return rootedProgramIds({ relativePath, actual, containing: containingProgramIds, intended: predictedProgram(relativePath), available });
 }
 
 function diagnosticScope(opts: {
@@ -119,10 +134,11 @@ function diagnosticScope(opts: {
   relocations: ReadonlyMap<string, string>;
   affectedPaths: ReadonlySet<string>;
   globalProgramIdsByPath: ReadonlyMap<string, ReadonlySet<string>>;
+  containingProgramIdsByPath: ReadonlyMap<string, ReadonlySet<string>>;
   repoRoot: string;
   programs: readonly CompilerProgram[];
 }): DiagnosticScope {
-  const { project, snapshots, relocations, affectedPaths, globalProgramIdsByPath, repoRoot, programs } = opts;
+  const { project, snapshots, relocations, affectedPaths, globalProgramIdsByPath, containingProgramIdsByPath, repoRoot, programs } = opts;
   const currentByPath = new Map<string, SourceFile>(project.getSourceFiles().map((sourceFile) => [sourceFile.getFilePath(), sourceFile]));
   const seeds = [...snapshots.keys()].flatMap((path) => {
     const sourceFile = currentByPath.get(path);
@@ -148,6 +164,7 @@ function diagnosticScope(opts: {
       ...(original !== undefined ? { originalRelativePath: repoRelative(original, repoRoot) } : {}),
       programs,
       programsByRootFile,
+      containingProgramIds: [...(containingProgramIdsByPath.get(physicalPathIdentity(absolutePath, repoRoot)) ?? [])],
     });
     for (const id of ids) {
       addProgramPath(rootAdditionsByProgram, id, absolutePath);
@@ -290,11 +307,9 @@ function collectProgramErrors(opts: {
   });
   const errors = new Map<string, string>();
   for (const sourceFile of affectedProgramSources(program, scope.affectedPaths, repoRoot, scope.fullProgramIds.has(compilerProgram.id))) {
-    const diagnostics = [
-      ...program.getSyntacticDiagnostics(sourceFile),
-      ...program.getSemanticDiagnostics(sourceFile),
-      ...program.getDeclarationDiagnostics(sourceFile),
-    ];
+    // Match TypeScript's authored pre-emit contract: declaration portability is checked only when the
+    // program enables declaration/composite output, even when `noEmit` is also set.
+    const diagnostics = ts.getPreEmitDiagnostics(program, sourceFile);
     for (const diagnostic of diagnostics) {
       if (diagnostic.category !== ts.DiagnosticCategory.Error || !hasLocation(diagnostic)) {
         continue;
@@ -329,6 +344,7 @@ export function countProgramDiagnostics(opts: {
     relocations,
     affectedPaths,
     globalProgramIdsByPath: baseline.globalProgramIdsByPath,
+    containingProgramIdsByPath: baseline.containingProgramIdsByPath,
     repoRoot,
     programs,
   });

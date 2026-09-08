@@ -91,10 +91,10 @@ function addConsumer(consumers: Map<string, Set<string>>, target: string, consum
   consumers.set(target, paths);
 }
 
-function addGlobalProgram(globalPrograms: Map<string, Set<string>>, path: string, programId: string): void {
-  const ids = globalPrograms.get(path) ?? new Set<string>();
+function addProgramId(programsByPath: Map<string, Set<string>>, path: string, programId: string): void {
+  const ids = programsByPath.get(path) ?? new Set<string>();
   ids.add(programId);
-  globalPrograms.set(path, ids);
+  programsByPath.set(path, ids);
 }
 
 function resolvedProgramTarget(opts: {
@@ -122,12 +122,14 @@ function collectPathReferenceConsumers(sourceFile: ts.SourceFile, consumer: stri
   }
 }
 
-function collectProgramConsumers(
-  compilerProgram: CompilerProgram,
-  repoRoot: string,
-  consumers: Map<string, Set<string>>,
-  globalPrograms: Map<string, Set<string>>,
-): void {
+function collectProgramConsumers(opts: {
+  compilerProgram: CompilerProgram;
+  repoRoot: string;
+  consumers: Map<string, Set<string>>;
+  containingPrograms: Map<string, Set<string>>;
+  globalPrograms: Map<string, Set<string>>;
+}): void {
+  const { compilerProgram, repoRoot, consumers, containingPrograms, globalPrograms } = opts;
   const options = compilerProgram.commandLine.options;
   const host = ts.createCompilerHost(options, true);
   const program = ts.createProgram({
@@ -144,8 +146,10 @@ function collectProgramConsumers(
     if (consumer === undefined) {
       continue;
     }
+    const identity = physicalPathIdentity(consumer, repoRoot);
+    addProgramId(containingPrograms, identity, compilerProgram.id);
     if (hasGlobalEffect(sourceFile)) {
-      addGlobalProgram(globalPrograms, physicalPathIdentity(consumer, repoRoot), compilerProgram.id);
+      addProgramId(globalPrograms, identity, compilerProgram.id);
     }
     for (const literal of moduleSpecifierLiterals(sourceFile)) {
       const target = resolvedProgramTarget({ literal, sourceFile, fileName, program, cache, repoRoot });
@@ -161,9 +165,10 @@ function collectProgramConsumers(
  *  program file sets come from the shared native config parser and do not inherit replaceGlobs. */
 export function createProgramDiagnosticBaseline(repoRoot: string, programs: readonly CompilerProgram[]): ProgramDiagnosticBaseline {
   const consumers = new Map<string, Set<string>>();
+  const containingPrograms = new Map<string, Set<string>>();
   const globalPrograms = new Map<string, Set<string>>();
   for (const program of programs) {
-    collectProgramConsumers(program, repoRoot, consumers, globalPrograms);
+    collectProgramConsumers({ compilerProgram: program, repoRoot, consumers, containingPrograms, globalPrograms });
   }
-  return { programs, consumersByPath: consumers, globalProgramIdsByPath: globalPrograms };
+  return { programs, consumersByPath: consumers, containingProgramIdsByPath: containingPrograms, globalProgramIdsByPath: globalPrograms };
 }

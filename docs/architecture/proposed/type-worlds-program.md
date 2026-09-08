@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-09-07
+updated: 2026-09-08
 ---
 
 # Type worlds, test registration, and derived tool configuration
@@ -86,6 +86,8 @@ A shared glob string does not establish shared semantics. Compare each tool's na
 Hard dependencies: phase 0's instrument before migration measurements; phase 2 before 3; phase 3 before closure-dependent phase 4 reclassification; predictive enforcement after the target structure is correct. Existing false-clean job/scoping/exit defects and isolation prerequisites may be repaired immediately; that is not permission to reclassify closures early.
 
 The codemod-kit repair [#1860](https://github.com/Inktomi93/orbweaver/issues/1860) is a prerequisite to bulk moves. Preserve dry-run/preview integrity, path/overwrite guards, extensionful reference rewrites and apply refusal. Fix bulk-move cost and wrong-world diagnostics before relying on the kit. A delta measured under the wrong compiler world is not sufficient protection if that world already hides the relevant type error.
+
+Codemod diagnostics check existing files under their actual authored programs and every containing compiler closure. Target ownership drift must not prevent the barrel repair that precedes test reclassification. New or moved destinations still require an available intended compiler owner; multiple exclusive roots and missing ownership still refuse. Final ownership enforcement belongs to phase 6, independently of the diagnostic guard.
 
 ## Membership report
 
