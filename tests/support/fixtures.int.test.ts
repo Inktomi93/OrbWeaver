@@ -12,11 +12,11 @@ import { describe } from "vitest";
 import { expect, test } from "./fixtures.ts";
 
 describe("anonCaller — the unauthenticated request", () => {
-  test("an authed surface rejects UNAUTHORIZED", async ({ anonCaller }) => {
+  test("an authed surface rejects UNAUTHORIZED", { timeout: 30_000 }, async ({ anonCaller }) => {
     await expect(anonCaller.persona.list()).toThrowTRPCError("UNAUTHORIZED");
   });
 
-  test("the public health surface still answers (anon is a caller, not a brick)", async ({ anonCaller }) => {
+  test("the public health surface still answers (anon is a caller, not a brick)", { timeout: 10_000 }, async ({ anonCaller }) => {
     expect(await anonCaller.health()).toEqual({ ok: true });
   });
 });

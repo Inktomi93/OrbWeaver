@@ -26,29 +26,14 @@ const inCI = process.env["CI"] !== undefined;
 const SERIAL_INT_TOOLING = [
   "tests/tooling/check-gates.int.test.ts",
   "tests/tooling/gate-ignore-grammar.int.test.ts",
-  "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
   "tests/tooling/css-merge-parity.int.test.ts",
   "tests/tooling/gate-conformance.int.test.ts",
   "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
   "tests/tooling/ast/cli.int.test.ts",
   "tests/tooling/verify/gates/test-presence.int.test.ts",
-  "tests/tooling/verify/ops/structure.int.test.ts",
 ];
 
-const SERIAL_INT_PRODUCT = [
-  "tests/server/entry/lifecycle.int.test.ts",
-  "tests/support/fixtures.int.test.ts",
-  "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
-  "tests/server/entry/compose/chat.int.test.ts",
-  "tests/server/entry/compose/databank.int.test.ts",
-  "tests/server/transport/trpc/routers/chat.int.test.ts",
-  "tests/server/entry/compose/rpg.int.test.ts",
-  "tests/server/entry/compose/roster-preset.int.test.ts",
-  "tests/server/entry/compose/persona-multihuman.suite.int.test.ts",
-  "tests/server/entry/compose/assets-character.int.test.ts",
-  "tests/server/entry/boot/seed-demo-chats.int.test.ts",
-  "tests/server/entry/compose/automation-plugin.int.test.ts",
-];
+const SERIAL_INT_PRODUCT = ["tests/server/entry/lifecycle.int.test.ts"];
 
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.cjs";

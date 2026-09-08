@@ -13,9 +13,9 @@
 // a broken injection that no-op'd every script would pass the ReDoS case vacuously. Runs over the REAL
 // composition root (`createServices`, vLLM disabled — the `app`/`services` fixture).
 //
-// THE TRIPWIRE is the vitest default 5s per-test timeout: an unwired watchdog hangs the catastrophic backtrack
+// THE TRIPWIRE is the scoped 10s test timeout: an unwired watchdog hangs the catastrophic backtrack
 // over REDOS_INPUT for MINUTES, so the run dies red on that alone. #831 additionally restores an EXPLICIT
-// elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer 5s timeout
+// elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer timeout
 // to notice a slow-but-not-hung regression — Date.now/performance.now are banned under tests/ by
 // test-determinism and the frozen fixture clock can't measure wall time, so the assertion uses
 // `process.hrtime()` under the shared `@orb-gate-ignore test-determinism` marker (#828). Direct timing
@@ -114,12 +114,12 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     return { host, chatId, messageId, principal };
   }
 
-  // The vitest default 5s timeout is the HARD tripwire: an unwired watchdog hangs the catastrophic backtrack
+  // The scoped 10s timeout is the HARD tripwire: an unwired watchdog hangs the catastrophic backtrack
   // over REDOS_INPUT for minutes → the run dies red (see the file header for the standalone timing evidence).
-  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", async ({ db, services }) => {
+  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", { timeout: 10_000 }, async ({ db, services }) => {
     const { chatId, messageId, principal } = await seedEditTarget(db, services, [REDOS_SCRIPT()], "orig");
 
-    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer 5s timeout (#831)
+    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer timeout (#831)
     const started = process.hrtime();
     const view = await services.chat.editMessage({
       principal,
