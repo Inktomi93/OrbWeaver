@@ -1,5 +1,6 @@
 // The final policy runtime's scope and compiler-manifest contract. Requests name intent; resolutions carry
 // exact authored path identities and compiler facts without command-specific argv or lint ownership.
+import type { ts } from "ts-morph";
 
 export const POLICY_SCOPE_KINDS = ["whole", "changed", "file", "folder", "package", "project"] as const;
 export type PolicyScopeKind = (typeof POLICY_SCOPE_KINDS)[number];
@@ -31,6 +32,11 @@ export interface PolicyProgramMembership {
   readonly references: readonly string[];
   /** This config plus every transitive authored local `extends` input. */
   readonly configPaths: readonly string[];
+}
+
+/** Compiler-native settings for tools checking transformed source without reparsing config semantics. */
+export interface CompilerProgram extends PolicyProgramMembership {
+  readonly commandLine: ts.ParsedCommandLine;
 }
 
 export const POLICY_PATH_OWNERSHIP_REASONS = ["compiler-membership", "outside-compiler-programs", "deleted-conservative-all-programs"] as const;

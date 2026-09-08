@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { readCompilerPrograms } from "@orb/tooling/verify";
 import type { PolicyProgramMembership } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { readAvailablePolicyPrograms, readPolicyProgramGraph } from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
@@ -68,6 +69,24 @@ test("declaration-only projects keep an owner; they are not empty templates", ({
   const programs = readAvailablePolicyPrograms(readPolicyRepositoryInventory(scratch));
   expect(programs.map((program) => program.config)).toEqual(["tsconfig.json"]);
   expect(programs[0]?.files).toEqual(["ambient.d.ts"]);
+});
+
+test("compiler consumers receive inherited native options, absolute roots and references from the authored graph", ({ scratch }) => {
+  plant(scratch, {
+    "tsconfig.world.json": '{ "files": [], "compilerOptions": { "strict": true, "lib": ["es2025"], "paths": { "#value": ["./src/value.ts"] } } }',
+    "tsconfig.json": '{ "files": [], "references": [{ "path": "./browser" }] }',
+    "browser/tsconfig.json": '{ "extends": "../tsconfig.world.json", "compilerOptions": { "lib": ["es2025", "dom"] }, "include": ["src"] }',
+    "browser/src/value.ts": "export const title = document.title;",
+  });
+  const programs = readCompilerPrograms(scratch);
+  expect(programs.map((program) => program.config)).toEqual(["browser/tsconfig.json", "tsconfig.json"]);
+  const browser = programs[0];
+  expect(browser?.commandLine.fileNames).toEqual([join(scratch, "browser/src/value.ts")]);
+  expect(browser?.commandLine.options).toMatchObject({ strict: true, lib: ["lib.es2025.d.ts", "lib.dom.d.ts"], paths: { "#value": ["./src/value.ts"] } });
+  expect(programs[1]?.commandLine.projectReferences?.[0]?.path).toBe(join(scratch, "browser"));
+  expect(browser?.files).toEqual(["browser/src/value.ts"]);
+  writeFileSync(join(scratch, "browser/tsconfig.json"), '{ "extends": "../missing.json" }');
+  expect(() => readCompilerPrograms(scratch)).toThrow(/could not parse/u);
 });
 
 test("the real programs are shared across policy scope and membership checking", ({ repoRoot }) => {
