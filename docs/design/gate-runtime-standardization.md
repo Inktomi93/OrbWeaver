@@ -239,9 +239,9 @@ converting a touched policy, re-read its current implementation and proofs on th
 restore the older gate-branch copy.
 
 The comparison anchor is tinker commit `6c8424806704ac9322cc2ff5fe0334801b3d1801`, an ancestor of the
-integrated branch. Re-derive the complete delta with `git diff <anchor> HEAD -- tooling/src/verify tests/tooling
-scripts/ts7.cjs vitest.config.ts tsconfig.json tsconfig.tests-dom.json`. Include working-tree changes while
-implementation is active. This is migration evidence, not another runtime gate registry.
+integrated branch. Re-derive the complete delta with `git diff <anchor> HEAD`, including shared readers,
+native configs, hooks, moved source owners and tests. Include working-tree changes while implementation
+is active. This is migration evidence, not another runtime gate registry.
 
 | Guarantee to carry forward | Current owners / evidence | Required cutover proof |
 | - | - | - |
@@ -249,17 +249,23 @@ implementation is active. This is migration evidence, not another runtime gate r
 | Presence and mutation/execution population semantics | `gates/test-presence*.ts`, `verify/ops/tests-execution-membership.ts`, `verify/lib/ct-view.ts`, `mutation-probe/lib/mirror.ts`; aefec8d9a | Persistence still requires integration coverage, schema contracts require contract tests, type-only files cannot satisfy runtime presence, native collection remains independent. |
 | Current source ownership and exact grant identities | Forms/editor, rendered components, appearance/session and scroll ownership; 1a77f8d83, 370243fe7, b849e7add | Updated gate subjects and reviewed grants resolve at their current homes; no stale old-path permission survives. |
 | Actual compiler roots and post-transform diagnostics | Shared compiler reader and codemod; 708e709a1, f2d3f1ddc | Native post-transform roots and full affected-program diagnostics detect wrong/missing owners and broken unchanged consumers. |
+| Shared file routing and independent native parity | `verify/lib/program-routing.ts`, `gates/tsconfig-routing-parity.ts`, the Claude post-edit hook; dc8ccbd0b / #1893 | Primary roots and affected import closures retain their separate meaning. Native TS7 independently checks the shared parser. Main-registered hooks check the edited worktree with its own dependencies; malformed/skipped/failed checks remain explicit non-verdicts. |
+| Native executable-config observations | `verify/ops/config-snapshot.ts`, `gates/runner-config-path-liveness.ts`; dc8ccbd0b | Vitest selectors come from its public loader, including imported/called/spread configuration. Exact selector containment and file/directory semantics survive the resource-host conversion; unjudged globs remain visible. |
+| Browser contracts require the real DOM world | `gates/test-world-browser-contracts.ts`, `verify/lib/browser-contract-reader.ts`, corresponding gate tests and the real InputProps fixture | Canonical browser components, aliases and React DOM contracts reject in Node-intent tests; pure data, ReactNode and genuine Node globals remain legal. Preserve unreadable-origin refusal and migrate the real-corpus proof to the final overlay fixture runtime. |
+| Pass-local semantic reader performance | `verify/lib/pass.ts` and `reference-fact.ts`; 763ddf019 | The existing shared reference cache lasts exactly one dispatcher invocation. Repeated queries reuse it; later invocations cannot reuse stale answers. Compare identical findings and populations as well as timing. |
 | Fresh type verdicts | `scripts/ts7.cjs` and both Vitest type projects; 7d9cd503e / #1892 | Warm baseline, imported ambient change, and restored source produce green/red/green without deleting caches; long and short forced incremental flags cannot bypass the wrapper. |
 | Owned fixture resources | `tests/tooling/check-gates.int.test.ts`, `gate-ignore-grammar.int.test.ts`, and `tests/server/entry/lifecycle.int.test.ts`; #1862 | Concurrent proof instances cannot delete or observe each other's fixtures. Database/assets roots are per instance; any surviving fixed-port restriction remains explicit until repaired. |
 | Honest abnormal-run artifacts | `tests/tooling/verify/ops/structure.int.test.ts`; #1862 | Kill/OOM controls reach the intended execution state before failure and verify the incomplete-run artifact and exit classification. A startup failure is not equivalent evidence. |
 
 The final runtime may replace an implementation mechanism—for example, virtual overlays replace live-tree
 sentinels—but must retain the behavior and its independent regression proof. Record the successor proof
-when retiring an old harness test. Pending #1862 isolation/OOM work is not credited as complete by this table.
+when retiring an old harness test. The lifecycle resource and abnormal-run repairs are checkpointed at
+c8ff56723. The owner deferred live-tree gate-fixture redesign/retirement to this program; the two legacy
+fixture writers still share paths, so this table does not claim they are isolated or safe to parallelize.
 
 ## Acceptance
 
-- all 255 current policies have one live owner or explicit retirement;
+- every current policy, including world-program additions, has one live owner or explicit retirement;
 - zero `scanRoot`, `scopeSafety`, `begin`, `finalize`, free-form `run`, direct project/descendant walk, gate-owned Project, or mutable module-state accumulator remains in gate modules;
 - zero gate-owned filesystem glob, path-corpus regex, comment/suppression parser, binding/symbol resolver, static-value parser, resource loader, or workspace cache remains;
 - every registered policy supports all declared command/scope/severity/report/authority capabilities;
