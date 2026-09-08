@@ -139,7 +139,7 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
  *  viewer's level a single "hidden at this level" note appears in place of the withheld tier. */
 function MemberCard({ card }: { readonly card: MemberCardView }): ReactElement {
   return (
-    <Stack gap="block" className="relative min-h-0 overflow-y-auto">
+    <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
       {/* The name renders exactly ONCE (side-eye P2): the visible name text IS the `DialogTitle` — a real
           `<h2>` that carries the accessible dialog name — sitting beside the avatar in the hero Row. No
           duplicate span beneath the title. */}

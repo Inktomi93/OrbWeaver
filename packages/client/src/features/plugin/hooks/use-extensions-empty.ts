@@ -47,17 +47,27 @@ export interface ExtensionsEmptyView {
    * so the rows are what it carries, and the count is derived where it is printed.
    */
   readonly awaitingPlugins: readonly PluginView[];
+  /** How many rows are `errored` — the number `some-errored`'s copy spends, and 0 on every other arm. A COUNT
+   *  rather than the rows (#1699's ruling survives; its input changed): the reader's next act is one screen,
+   *  not one decision per plugin, and the Plugins row is where each failure's own `lastError` is already
+   *  printed — naming them here would restate a list the destination renders better. */
+  readonly erroredCount: number;
 }
 
-const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [] };
+const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], erroredCount: 0 };
 
 /** Every other arm: the reason alone, with no plugins to name. */
 const NONE_AWAITING: readonly PluginView[] = [];
 
 /**
  * Resolve why the caller sees no extension pages. Ordered by what they must do next, most-blocking first:
- * nothing installed → something is asking for consent → everything is switched off → the plugins that ARE
- * running simply bring no page.
+ * nothing installed → something is asking for consent → something FAILED to start → everything is switched
+ * off → the plugins that ARE running simply bring no page.
+ *
+ * WHY `some-errored` OUTRANKS `all-off` (#1865): an `errored` row is not `enabled`, so before this arm existed
+ * a box whose page-bringing plugin had died fell through to "Your plugins are turned off" or "install a plugin
+ * with page surfaces" — both of which blame the reader for a failure that was ours. Not turning a plugin on is
+ * a choice; a plugin dying is not, so the failure is the fact that gets said.
  *
  * `reconsentPending` is the SERVER's durable verdict ("this plugin asks for capabilities you have not
  * allowed") — the same field `PluginRow`'s notice renders from, so this pane and the grant screen it points
@@ -71,14 +81,18 @@ export function useExtensionsEmpty(): ExtensionsEmptyView {
     return PENDING;
   }
   if (plugins.length === 0) {
-    return { reason: "none-installed", awaitingPlugins: NONE_AWAITING };
+    return { reason: "none-installed", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
   }
   const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending);
   if (awaitingPlugins.length > 0) {
-    return { reason: "awaiting-consent", awaitingPlugins };
+    return { reason: "awaiting-consent", awaitingPlugins, erroredCount: 0 };
+  }
+  const errored = plugins.filter((plugin) => plugin.status === "errored");
+  if (errored.length > 0) {
+    return { reason: "some-errored", awaitingPlugins: NONE_AWAITING, erroredCount: errored.length };
   }
   if (plugins.every((plugin) => plugin.status !== "enabled")) {
-    return { reason: "all-off", awaitingPlugins: NONE_AWAITING };
+    return { reason: "all-off", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
   }
-  return { reason: "no-pages", awaitingPlugins: NONE_AWAITING };
+  return { reason: "no-pages", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
 }

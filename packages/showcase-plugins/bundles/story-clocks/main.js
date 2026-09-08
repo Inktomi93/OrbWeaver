@@ -223,7 +223,11 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
       type: "object",
       properties: {
         name: { type: "string", description: "The clock's name, e.g. 'the ritual'." },
-        segments: { type: "integer", enum: CLOCK_SIZES, description: "Size when STARTING a new clock (default 6)." },
+        // `number`, NOT `integer`: the host lifts a guest schema to zod, and zod has no integer literal — so an
+        // `integer` node carrying an `enum` is a typed refusal, which is activation-fatal for the whole plugin
+        // (it cost this example its entire runtime until #1865). The enum members ARE the constraint here; the
+        // three sizes are integers whether or not the node says so.
+        segments: { type: "number", enum: CLOCK_SIZES, description: "Size when STARTING a new clock (default 6)." },
       },
       required: ["name"],
       additionalProperties: false,

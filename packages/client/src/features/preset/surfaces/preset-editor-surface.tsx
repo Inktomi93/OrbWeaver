@@ -105,7 +105,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
       ref={surfaceRef}
       role="region"
       tabIndex={-1}
-      className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none"
+      className="relative h-full min-h-0 overflow-y-auto overscroll-contain overflow-x-hidden outline-none"
     >
       {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
           a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll

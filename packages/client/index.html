@@ -2,13 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover: the shell paints into the iOS safe-area insets (§4.1 immersive layout).
-         interactive-widget=resizes-content (§4b axis 4): the virtual keyboard shrinks the content so the
-         composer reflows ABOVE it — dvh/svh alone are not shrunk by the keyboard (L6/J12). -->
+    <!-- viewport-fit=cover: the shell paints into the safe-area insets, which makes keeping content out
+         of the notch / Island / home indicator OURS — every edge is paid at `.shell-grid` (shell.css).
+         interactive-widget=resizes-content (§4b axis 4): the virtual keyboard shrinks the LAYOUT viewport
+         so the composer reflows ABOVE it — dvh/svh alone are never shrunk by the keyboard (L6/J12).
+
+         That second clause is Chrome/Firefox only (#1868, truth-repaired 2026-09-07). WebKit has never
+         implemented `interactive-widget` (https://bugs.webkit.org/show_bug.cgi?id=259770, open), and
+         Safari ships no Virtual Keyboard API either, so `env(keyboard-inset-*)` is unavailable as a
+         fallback. On iOS the keyboard therefore covers the composer and the tab bar while the layout
+         viewport — and `100dvh` with it — reports the full height as if nothing happened. The attribute
+         stays: it is correct and load-bearing on Android. What answers the iOS half is per-surface, and
+         today that is Base UI's `Drawer.VirtualKeyboardProvider` on the phone's modal sheets
+         (features/app-shell/components/modal-host.tsx); the shell's own composer still rides platform
+         behaviour, which is survivable only because the fields now clear the 16px focus-zoom floor.
+
+         NO `user-scalable=no` AND NO `maximum-scale` — ever. They would "fix" the pinch-zoom symptom by
+         taking zoom away from every low-vision reader. iOS has ignored `user-scalable=no` since iOS 10
+         for exactly that reason. The zoom was a 15px-field defect, and it was fixed at the field. -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <!-- iOS Safari AUTO-LINKS anything that parses as a phone number into a tappable dial link, and this
+         origin renders ARBITRARY MODEL-GENERATED PROSE — a roleplay transcript full of numbers is exactly
+         the corpus that trips it, and the result is blue dial links the author never wrote inside someone
+         else's dialogue. Off. This is a detection opt-out, not a linkification policy: real links in
+         markdown are rendered by the seal and unaffected. -->
+    <meta name="format-detection" content="telephone=no" />
     <title>orbweaver</title>
     <!-- The document's own one-line description (#194 — Lighthouse SEO scored 0/1 on its absence). It is
          NOT a marketing line: this origin is a self-hosted single-tenant app behind auth (see
@@ -31,6 +52,27 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <!-- PWA/home-screen identity (icons 192/512 + maskable live in the manifest). -->
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- THE INSTALLED APP'S STATUS BAR — a RECORDED DECISION, and deliberately the value it already had.
+         `default` is what iOS assumes when this meta is absent, so this line changes NOTHING today. It is
+         here as a tripwire, because the obvious "improvement" is actively broken and someone will reach for
+         it: the manifest is `display: standalone` and the viewport is `viewport-fit=cover`, which reads like
+         an invitation to set `black-translucent` and go edge-to-edge under the status bar.
+
+         DO NOT. `black-translucent` paints WHITE status-bar text directly over the app's own content, and
+         this app ships a LIGHT palette whose background is oklch(0.98 0.004 75) — near-white text on
+         near-white ground, i.e. an invisible clock. It cannot be conditioned away either: iOS reads this
+         meta ONCE at launch, while polarity here is derived at RUNTIME by ThemeScope's `surfacePolarity`
+         (D71-3) and is not even enumerable — a custom seed theme's polarity is measured, not named. So there
+         is no value of this meta that is correct for every palette the app can wear, and `black-translucent`
+         is correct for exactly one of them.
+
+         `default` lets the OS own that strip and keeps it legible on every palette, and the per-scheme
+         `theme-color` pair below is what actually makes it FOLLOW the theme rather than sitting at a fixed
+         colour. The cost, stated: in the installed app the web view no longer extends under the status bar,
+         so `env(safe-area-inset-top)` — which `.shell-grid` pays (shell.css, #1868) — resolves to 0 there.
+         That padding is not dead: it is what keeps the frame off the notch in the browser-tab and landscape
+         cases, and it is the half that would already be correct if this ever goes translucent. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <!-- Browser-chrome tint = the Hearth background per OS scheme (values from the generated theme
          tokens — oklch(0.158 0.006 60) / oklch(0.98 0.004 75) as sRGB hex; meta can't read CSS vars). -->
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0c0a" />

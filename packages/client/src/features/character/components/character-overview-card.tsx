@@ -90,7 +90,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" className="relative min-h-0 overflow-y-auto" data-slot="character-overview">
+    <Stack gap="section" className="relative min-h-0 overflow-y-auto overscroll-contain" data-slot="character-overview">
       {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
           DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
           after everything it introduces, where a reader who needed it had already scrolled past the answer.

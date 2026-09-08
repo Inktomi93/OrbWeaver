@@ -123,7 +123,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
   return (
     // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, DESIGN.md §5.4). `min-h-0 flex-1` is
     // what re-bound the windowed arm's height from a flat 384px (`COLLECTION_WINDOW_MAX_HEIGHT`) to the
-    // CONTENT pane's own `overflow-y-auto` box: this column takes the pane's free space, and each library's
+    // CONTENT pane's own `overflow-y-auto overscroll-contain` box: this column takes the pane's free space, and each library's
     // `VirtualList` takes this column's. `min-h-0` is the half that does the work — a flex child defaults to
     // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
     // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box

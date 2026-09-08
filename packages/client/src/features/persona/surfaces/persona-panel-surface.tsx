@@ -150,7 +150,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
       <PopoverPopup
         aria-label="Account & personas"
         align="end"
-        className="relative max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto"
+        className="relative max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto overscroll-contain"
         side="right"
       >
         <Container size="md">{sections}</Container>

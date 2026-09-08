@@ -86,7 +86,7 @@ export function ExtensionsPageSurface(): ReactElement {
                   {copy.action}
                 </Button>
               }
-              description={copy.description()}
+              description={copy.description(empty.erroredCount)}
               icon={<Icon icon={Blocks} size="md" />}
               measure="wide"
               title={copy.title}

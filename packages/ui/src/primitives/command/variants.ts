@@ -37,7 +37,7 @@ export const commandVariants = tv({
     inputWrapper: "flex h-control-sm items-center gap-row border-b border-border px-row pointer-coarse:h-touch-target",
     input:
       "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:h-touch-target",
-    list: "relative flex flex-col gap-field overflow-y-auto p-field",
+    list: "relative flex flex-col gap-field overflow-y-auto overscroll-contain p-field",
     // Fill a bounded list's content box so a miss reads as an intentional empty surface, not one line
     // stranded above a giant dead cavity. In an auto-sized list, percentage height resolves to auto.
     empty: "flex h-full items-center justify-center px-row text-center text-body leading-body text-muted-foreground",

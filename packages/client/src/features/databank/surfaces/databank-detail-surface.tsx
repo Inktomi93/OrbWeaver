@@ -7,7 +7,7 @@
 //
 // THIS PANE OWNS ITS SCROLL, and that is not decoration: the shell's CONTENT region (`.shell-content` /
 // `.shell-region-fill`) is a bounded flex box carrying NO overflow, so a surface that does not declare
-// `h-full min-h-0 overflow-y-auto` simply has its tail unreachable — measured on the config workspace (R2WI)
+// `h-full min-h-0 overflow-y-auto overscroll-contain` simply has its tail unreachable — measured on the config workspace (R2WI)
 // with a 60-entry book. A document's Details block plus a revealed source text is exactly that shape.
 //
 // SOURCE TEXT is a read-only SCROLL REGION, not a `Textarea` (§2.2's rejected primitive): legacy dumped the
@@ -61,7 +61,7 @@ export function DatabankDetailSurface(): ReactElement {
 
   return (
     <Container className="h-full min-h-0">
-      <Stack className="relative h-full min-h-0 overflow-y-auto outline-none" data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none" data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
         {documentId === null ? (
           <DatabankWelcome />
         ) : (
