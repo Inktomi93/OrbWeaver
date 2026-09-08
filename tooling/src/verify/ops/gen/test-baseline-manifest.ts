@@ -2,7 +2,7 @@
 // tooth 2 reads (a listed test file that no longer exists on disk, and NOT accounted for in `deletions`,
 // is RED: a spec can't be deleted to go green). Lists every REAL test-execution file under tests/
 // (`.test.ts`/`.test.tsx`/`.ct.tsx`/`.spec.ts` — the suffixes vitest/Playwright actually collect as a
-// runnable spec), sorted, repo-relative, posix.
+// runnable spec), plus previous members whose removal has not been accounted for.
 //
 // ADDING a test needs no edit BY HAND, but it does need a REGEN (#817, 2026-08-30): the `ledgers:fresh`
 // stage compares the committed file against a fresh derivation on every `pnpm check`, so a tracked spec
@@ -41,22 +41,28 @@ export function deriveTestBaselineManifest(root: string): TestBaselineManifest {
   // (Two lanes fixed this concurrently; the losing arm — fs.globSync + an exclude predicate — carried its
   // own trap worth keeping: node's globSync hands `exclude` a PATH STRING, never a Dirent, so an
   // `(f) => f.name === "node_modules"` predicate is a silent no-op. ls-files sidesteps the class.)
-  const files = execNicedSync("git", ["ls-files", "-z", "--", "tests"], { cwd: root })
-    .split("\0")
-    .filter((f) => SPEC_SUFFIX.test(f))
-    .map((f) => f.replaceAll("\\", "/"))
-    .sort();
+  const files = new Set(
+    execNicedSync("git", ["ls-files", "-z", "--", "tests"], { cwd: root })
+      .split("\0")
+      .filter((f) => SPEC_SUFFIX.test(f))
+      .map((f) => f.replaceAll("\\", "/")),
+  );
 
   const out = join(root, TEST_BASELINE_REL);
   let deletions: Record<string, TestBaselineDeletion> = {};
   if (existsSync(out)) {
-    const prev = JSON.parse(readFileSync(out, "utf-8")) as { deletions?: Record<string, TestBaselineDeletion> };
+    const prev = JSON.parse(readFileSync(out, "utf-8")) as Partial<TestBaselineManifest>;
     deletions = prev.deletions ?? {};
+    for (const path of prev.testFiles ?? []) {
+      const why = deletions[path]?.why;
+      if (typeof why !== "string" || why.trim().length === 0) {
+        files.add(path);
+      }
+    }
   }
-  // `testFiles` is a fresh disk listing, so a ledgered deletion drops out on its own (the glob can't find
-  // it); a `deletions` entry survives the regen untouched — if its file is back on disk, the gate's stale
-  // arm reads that off `testFiles` directly and reds.
-  return { testFiles: files, deletions };
+  // Preserve unaccounted removals so regeneration cannot erase the monotonic gate's evidence. A returned
+  // file joins the tracked set even if its deletion record survives; the gate then reports that record stale.
+  return { testFiles: [...files].sort(), deletions };
 }
 
 /** The `baseline test-baseline-manifest` verb — the SINGLE writer of its committed baseline (GATE-AUTHORING §4.8). */
