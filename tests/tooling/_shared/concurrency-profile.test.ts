@@ -3,7 +3,7 @@
 // tests/tooling/.
 //
 // WHAT THIS SUITE IS FOR (#1835). The committed JSON is read by FOUR unrelated languages — bash (two
-// hooks, via jq), CommonJS (scripts/ts7.cjs, scripts/typecheck.cjs), TypeScript configs (vitest,
+// hooks, via jq), CommonJS (scripts/ts7.cjs), TypeScript configs and tools (vitest,
 // playwright-ct) and the verify tree — and only this one of them has a type checker. So the file's SHAPE is
 // pinned here: a profile that lost a field, or grew a string where a cap belongs, would otherwise reach the
 // bash readers as an empty jq result and the TS readers as `NaN` workers, which vitest reads as UNLIMITED —
@@ -193,7 +193,7 @@ interface WrapperCapture {
 }
 
 function runWrapper(
-  script: "ts7.cjs" | "eslint.cjs" | "typecheck.cjs",
+  script: "ts7.cjs" | "eslint.cjs",
   args: readonly string[],
   box: string | undefined,
 ): {
@@ -233,7 +233,6 @@ test("all CJS wrappers reject a malformed box switch before spawning, even with 
   const cases = [
     ["ts7.cjs", ["--checkers", "1", "--version"]],
     ["eslint.cjs", ["--concurrency", "off", "--version"]],
-    ["typecheck.cjs", ["--version"]],
   ] as const;
   for (const [script, args] of cases) {
     const result = runWrapper(script, args, "true");
@@ -259,9 +258,6 @@ test("CJS wrappers derive shared/dedicated defaults and preserve explicit native
   expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe("8");
   expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
   expect(optionValue(eslintExplicit?.args, "--concurrency")).toBe("off");
-
-  expect(runWrapper("typecheck.cjs", ["--version"], undefined).capture?.args).toContain("--workspace-concurrency=1");
-  expect(runWrapper("typecheck.cjs", ["--version"], "1").capture?.args).toContain("--workspace-concurrency=4");
 });
 
 test("the TS7 wrapper removes valid incremental cache options without dropping unrelated compiler argv", () => {

@@ -2,7 +2,7 @@
 // or dir, not a glob) names ONE specific tree node. When that node is deleted or moved the entry goes SILENTLY
 // dead — a dead exclude is stale dead-weight, a dead include silently drops the coverage it was carrying, and
 // (the tests-dom program) a moved DOM-coupled escapee stops being libbed at all. This is biome-grant-liveness's
-// shape (GATE-AUTHORING.md §4.4 mode B) turned on the TYPE configs, which feed the ts7/types:graph program
+// shape (GATE-AUTHORING.md §4.4 mode B) turned on the TYPE configs, which feed the unified native typecheck
 // list. Arms: DEAD (an exact entry resolving to nothing), MISSING-CONFIG + UNPARSEABLE-CONFIG (fail LOUD — a
 // silently-defaulted tsconfig would let a downstream typecheck lie), NO-ROWS (the §4.6 GLOBAL blindness
 // tripwire: an anchor-sized set deriving zero exact entries means the glob/exact classifier rotted), and the
@@ -176,7 +176,7 @@ const MESSAGES: LivenessMessages = {
 };
 
 const MSG_MISSING =
-  "tsconfig.json is not at the repo root — this gate's primary subject (the ts7/types:graph program list) is gone, " +
+  "tsconfig.json is not at the repo root — this gate's primary subject (the native compiler program set) is gone, " +
   "so its verdict is unknowable and a ✓ here would be a lie (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Re-point " +
   "PRIMARY_REL in tooling/src/verify/gates/tsconfig-entry-liveness.ts, or delete the gate with the config.";
 

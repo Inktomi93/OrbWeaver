@@ -1,7 +1,7 @@
 // A changed selection has two audiences: graph/ledger/type/structure need deletion semantics, while
 // concrete-file tools must never receive a path that no longer exists. This plants all four git statuses
 // in a disposable repo and proves every stage derives from the one classification.
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { Selection, StageDef } from "../../../../tooling/src/verify/index.ts";
@@ -32,7 +32,7 @@ function scoped(name: string, selection: Selection): ReturnType<NonNullable<Stag
   return resolve(selection);
 }
 
-test("git-changed classification keeps deletions for semantic stages and removes them from every direct-path stage", ({ scratch }) => {
+test("git-changed classification keeps deletions for semantic stages and removes them from every direct-path stage", ({ repoRoot, scratch }) => {
   const files = {
     modified: "packages/client/src/modified.ts",
     added: "packages/client/src/added.ts",
@@ -43,6 +43,16 @@ test("git-changed classification keeps deletions for semantic stages and removes
     docDeleted: "docs/architecture/deleted.md",
     testDeleted: "tests/tooling/deleted.test.ts",
   } as const;
+  writeFileSync(join(scratch, ".gitignore"), "node_modules\n");
+  writeFileSync(join(scratch, "package.json"), JSON.stringify({ name: "selection-fixture", private: true }));
+  mkdirSync(join(scratch, "scripts"), { recursive: true });
+  writeFileSync(join(scratch, "scripts/ts7.cjs"), readFileSync(join(repoRoot, "scripts/ts7.cjs"), "utf8"));
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+  writeFileSync(join(scratch, "tsconfig.base.json"), '{"compilerOptions":{"noEmit":true,"strict":true,"types":[]},"files":[]}\n');
+  writeFileSync(join(scratch, "root-anchor.ts"), "export {};\n");
+  writeFileSync(join(scratch, "tsconfig.json"), '{"extends":"./tsconfig.base.json","include":["root-anchor.ts","tests"]}\n');
+  mkdirSync(join(scratch, "packages/client"), { recursive: true });
+  writeFileSync(join(scratch, "packages/client/tsconfig.json"), '{"extends":"../../tsconfig.base.json","include":["src"]}\n');
   for (const path of [files.modified, files.renameOld, files.deleted, files.docModified, files.docDeleted, files.testDeleted]) {
     mkdirSync(join(scratch, path, ".."), { recursive: true });
     writeFileSync(join(scratch, path), path.endsWith(".md") ? `# ${path}\n` : `export const baseline = ${JSON.stringify(path)};\n`);
@@ -90,6 +100,6 @@ test("git-changed classification keeps deletions for semantic stages and removes
   const structure = scoped("structure:full", selection);
   expect(structure).toEqual(expect.arrayContaining([files.deleted, files.renameOld, files.docDeleted, files.testDeleted]));
   expect(selection.tsconfigs).toContain("packages/client/tsconfig.json");
-  expect(selection.touchesGraphOnlyTrees).toBe(true);
-  expect(scoped("types:graph", selection)).toEqual(["pnpm", "typecheck:graph"]);
+  expect(selection.tsconfigs).toContain("tsconfig.json");
+  expect(scoped("types:native", selection)).toEqual(["pnpm", "typecheck", ...selection.tsconfigs.flatMap((config) => ["--config", config])]);
 });

@@ -94,11 +94,11 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
 - **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
   `pnpm check:structure` (test-file rules are invisible to source-scoped tools) PLUS `pnpm knip`
   (last-importer removals) PLUS `pnpm depcruise` when you added/moved a FILE or changed an import path
-  PLUS `pnpm typecheck:graph` when you touched anything under `tests/`.
-- **Name the right typecheck PROGRAMS** — `pnpm typecheck` (per-package) · `typecheck:graph` ·
-  `typecheck:tests-dom`; there is no `typecheck:testd` (name the `.test-d` file you ran). Which program
-  sees what is the truth table in `lane-standing-facts.md` §Verification floors; a floor naming only some
-  of them is a floor with holes.
+  PLUS `pnpm typecheck --config <path>` for every affected native program selected by the shared compiler
+  reader. `pnpm typecheck` with no configs discovers and runs the complete runnable program set.
+- **The typecheck door is ONE command** — `pnpm typecheck [--config <repo-relative-tsconfig>]...`.
+  Repeated configs select native programs; the verifier's `types:native` stage forwards the complete
+  affected-program selection. `.test-d.ts` assertions remain the separate `types:testd` stage.
 - **Your floor NAMES its playwright CT files by path** — `check:structure` never executes one and a lane
   is banned from the whole battery, so a CT nobody named is a CT nobody ran. **The verify tier ladder is
   DATA, never prose — read it from `pnpm verify --list`**; the two facts not in that listing: `pnpm check`

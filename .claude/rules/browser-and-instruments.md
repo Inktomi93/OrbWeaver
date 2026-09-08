@@ -39,9 +39,9 @@ paths:
   `tests/client/routes/app-root.ct.tsx` + `tests/client/routes/route-pending.ct.tsx` — six client folds
   shipped with the first one 4/6 red because no brief listed it. A gate-TRIGGER change retires every STORY
   that mounts the gate; `pnpm ast refs` cannot see a story that never imports the component.
-- **Only per-package `pnpm typecheck` owns `tests/**/*.ct.tsx`**, and only `typecheck:tests-dom` owns
-  `tests/e2e/` — `types:graph` is a false clean for both. Name the right program (truth table in
-  `lane-standing-facts.md`).
+- **Typecheck the native owners, not a guessed nearest config.** `pnpm typecheck` discovers every runnable
+  program; scoped verification passes every affected program as repeated `--config` arguments. This is
+  what reaches CT and e2e roots in their actual compiler worlds (truth table in `lane-standing-facts.md`).
 
 ## What the browser tier lies about
 

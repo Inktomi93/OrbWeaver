@@ -39,7 +39,7 @@ function filterPaths(paths: readonly string[], pred: (p: string) => boolean): re
   return paths.filter(pred);
 }
 
-/** Build the derived views (eslint/depcruise/docs/tsconfigs/graph flag) from a repo-relative path set. */
+/** Build the derived views (eslint/depcruise/docs/native compiler programs) from a repo-relative path set. */
 function deriveViews(
   semanticPaths: readonly PolicySemanticPath[],
   existingPaths: readonly string[],
@@ -49,8 +49,6 @@ function deriveViews(
   readonly depcruisePaths: readonly string[];
   readonly docsPaths: readonly string[];
   readonly tsconfigs: readonly string[];
-  readonly touchesGraphOnlyTrees: boolean;
-  readonly touchesTestsDom: boolean;
   readonly ct: CtView;
 } {
   const paths = semanticPaths.map((path) => path.path);
@@ -61,11 +59,7 @@ function deriveViews(
     eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p)),
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
     docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
-    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
-    // These field names stay stable for the stage registry; their values come from the complete affected
-    // program plan, including imported consumers rather than a copied path table.
-    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
-    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
+    tsconfigs: typecheck.programs,
     ct: ctView(paths, root),
   };
 }
@@ -144,11 +138,7 @@ function resolvePackage(name: string, root: string): Selection {
     eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
-    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
-    // Root ownership and imported consumers select the same affected programs for package and file requests.
-    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
-    // Package source supplies browser-test types through imports, even when it is not a test root.
-    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
+    tsconfigs: typecheck.programs,
     // A whole-package scope over a BROWSER package sweeps that package's whole mirror tree (the honest floor
     // for "everything in ui/client changed"); a node package contributes no CT. Prefix-based, so it doesn't
     // route through the per-file mirror map (paths here is a bare prefix, not a concrete .tsx file).
@@ -180,9 +170,7 @@ function resolveScope(glob: string, root: string): Selection {
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
-    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
-    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
-    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
+    tsconfigs: typecheck.programs,
     // The sweep triggers are prefix-tests, so a folder scope under a declared blast-radius (e.g.
     // `--scope packages/ui/src/tokens`) escalates to the matching sweep; a scope with no trigger is skip
     // (the per-file mirror map needs a concrete .tsx path, which a folder glob is not).

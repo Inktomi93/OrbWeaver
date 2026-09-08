@@ -40,22 +40,18 @@ built around these gaps. `tooling/src/verify/lib/selection.ts` is the code home 
 ### 2.1 The editor blind spot
 
 An editor (and a naive file-scoped `tsc`) type-checks a file against its NEAREST ancestor tsconfig. But a
-file can be OWNED by a NON-ancestor config that reaches back into it — the browser `.tsx` reach-back trees
-(`tests/ui/**`, `tests/client/**`, `tests/support/browser/**`, `playwright/**`) are claimed WITH dom by
-`tsconfig.tests-dom.json`, not by any ancestor. File-scoped tsc is therefore unsound (it never sees consumers);
-the honest per-tool floor is the OWNING PACKAGE, not the file (`selection.ts` header). The `types:packages`
-stage runs `tsc -p <owning-config>`, never a file-scoped check.
+file can be OWNED by a NON-ancestor config that reaches back into it. File-scoped tsc is therefore unsound:
+it never sees every owning or consuming program. `pnpm typecheck` discovers runnable native programs through
+the shared compiler reader; scoped verification passes the complete affected set as repeated `--config`
+arguments to the same executor.
 
 ### 2.2 A file in TWO programs
 
-A NODE package's src (`kit`/`server`/`db`/`contracts`) belongs to TWO type programs at once: its own
-package config, AND the DOM-less root graph (`tsconfig.json` `include: packages/*/src` sweeps every package
-except the two BROWSER packages `ui`/`client`, which are graph-EXCLUDED and dom-typed by their own config).
-On top of the static membership sits the **import-pull overlay** (rule 5): a package-src file the DOM-less
-graph transitively imports belongs to the graph program too — the TS2584 class (a graph consumer of a
-dom-typed export). `selection.ts` resolves this via a `tsgo --listFilesOnly` <!-- RETRO 2026-07-24: retro reads `ts7 --listFilesOnly` (scripts/ts7.cjs) --> membership set cached on
-HEAD+dirty; a cache-cold miss falls back to "any package-src touch runs the graph" so `types:graph` is never
-UNDER-run. This is why editing one `ui` file can legitimately require running the DOM-less graph stage.
+A source may belong to multiple compiler programs through authored roots, project references, imported
+closures or ambient ownership. `planTypecheckPrograms(..., "affected")` resolves that complete native set;
+the Selection carries the resulting config paths rather than separate graph/DOM booleans. Each selected
+runnable program executes once, so editing one source can legitimately run several configs without a
+hand-maintained package, graph or DOM command roster.
 
 ### 2.4 Stage GROUPS
 
@@ -65,10 +61,8 @@ Stages are presented in groups (`lint`/`types`/`structure`/`imports`/`deps`/`doc
 - **lint** = biome + eslint. Biome is the whole-repo fast linter; eslint carries the type-aware rules
   (`no-deprecated`, `tsdoc/syntax`, the react-surface gates) over the typed-API packages + the react test
   trees. Each catches a class the other cannot.
-- **types** = three-plus tsc programs, each catching a class the others miss: `types:packages` (the honest
-  per-package floor), `types:graph` (the DOM-less root graph — the §2.2 TS2584 class), `types:testd` (the
-  vitest `.test-d.ts` typecheck lane), `types:tests-dom` (the DOM-coupled NON-`.tsx` test home), and
-  `types:tests-membership` (the reconciliation floor, §3.7).
+- **types** = `types:native` (the one discovered-program executor), `types:testd` (Vitest `.test-d.ts`
+  assertions), and `types:tests-membership` (the independent ownership reconciliation floor, §3.7).
 
 ## 3. The harness
 
@@ -106,7 +100,7 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + `types:native` + `types:testd` + `types:tests-membership` + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (the PRODUCT vitest projects — never the instrument battery, #1842) + `browser:ct` (the WHOLE CT suite, its own stage again since #1848 so it carries its own profile-derived hang ceiling) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
 | `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling` and `tooling-serial` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
@@ -139,8 +133,8 @@ DOES touch an instrument pays for it at `--full` (or by hand) rather than on eve
 the runner run the stage. An expensive gate that goes quiet on a question it could not answer is a false
 clean wearing a tier's clothes. That polarity is the contract's (`contract/stage.ts`), not one row's.
 
-The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
-types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
+The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:native, types:testd,
+types:tests-membership, tests:execution-membership, structure:db-baseline,
 structure:drizzle-kit, structure:agent-config, structure:full, ledgers:fresh, imports:depcruise, deps:knip, docs:format,
 docs:catalog` (pinned in the int test) — so `pnpm check` stays
 byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the

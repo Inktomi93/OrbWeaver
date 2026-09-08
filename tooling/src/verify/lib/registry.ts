@@ -49,28 +49,16 @@ const GATING_STAGES: readonly StageDef[] = [
     scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths),
   },
 
-  // ── types stage-group (§2.4: three tsc programs, each catching a class the others miss) ──
+  // ── types stage-group ──
   {
-    name: "types:packages",
+    name: "types:native",
     group: "types",
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "typecheck"],
-    classify: asViolations,
-    // Per-package = the honest floor (file-scoped tsc is unsound — never sees consumers). A single
-    // owning program → tsc -p that config; NO file maps to a program → skip; MULTIPLE distinct owners →
-    // run the whole per-package lane (`pnpm typecheck`), the honest floor without expanding one stage into
-    // N children (spawn is one-argv-per-stage). tsconfigForFirst is the sole-owner fast path.
+    classify: ownScheme,
+    // Whole scope discovers every runnable native program. Scoped verification forwards the complete
+    // affected-program plan; the executor expands references and runs each leaf exactly once.
     scopedArgv: (sel) => tscScopedArgv(sel.tsconfigs),
-  },
-  {
-    name: "types:graph",
-    group: "types",
-    tiers: ["changed", ...STATIC],
-    argv: ["pnpm", "typecheck:graph"],
-    classify: asViolations,
-    // Whole-only in general — the root program is one graph. At changed scope it runs ONLY when the
-    // selection touches trees only the root program sees (tests/, scripts/, reset.d.ts); else deferred.
-    scopedArgv: (sel) => (sel.touchesGraphOnlyTrees ? ["pnpm", "typecheck:graph"] : "whole-only"),
   },
   {
     name: "types:testd",
@@ -80,24 +68,6 @@ const GATING_STAGES: readonly StageDef[] = [
     classify: asViolations,
     // vitest typecheck is one STAGE (`pnpm test:types` runs both `types-node` and `types-browser` — the
     // DOM-less/DOM-having split #1313 gave the `.test-d.ts` lane) — whole-only, deferred at a scoped tier.
-  },
-  {
-    name: "types:tests-dom",
-    group: "types",
-    tiers: ["changed", ...STATIC],
-    argv: ["pnpm", "typecheck:tests-dom"],
-    classify: asViolations,
-    // The DOM-libbed home (tsconfig.tests-dom.json) for DOM-COUPLED NON-`.tsx` tests: a `.ts` test that
-    // can't be a `.tsx` (the int lane is `.ts`-only) but drags a DOM barrel — the root graph `exclude`s it
-    // and no `*.tsx` reach-back claims it, so WITHOUT this program it is type-checked by nothing. Tiny (one
-    // small `include`) — whole-only per RUN (`pnpm typecheck:tests-dom` is one program, no per-file `tsc`
-    // split), but MUST be considered at `changed` (#1274 — before this it carried NO scoped route at all,
-    // so a stage with `tiers: STATIC` never even entered `stagesForTier("changed")` and `verify --file`
-    // over a tests-dom-owned file reported clean with no type stage and no deferral notice — worse than a
-    // visible defer). `scopedArgv` runs the whole program when the selection touches ≥1 of its roots, else
-    // defers to `--static` (a real deferral notice, not silence); the tests-type-membership stage still
-    // guards that every escapee is actually listed in the config's own `include`.
-    scopedArgv: (sel) => (sel.touchesTestsDom ? ["pnpm", "typecheck:tests-dom"] : "whole-only"),
   },
   {
     name: "types:tests-membership",

@@ -19,7 +19,7 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
  *  · `vitestMaxWorkers`        → vitest.config.ts `maxWorkers` (a CLI `--maxWorkers` still overrides)
  *  · `ctWorkers`               → playwright-ct.config.ts `workers` (a CLI `--workers` still overrides)
  *  · `ts7Checkers`             → scripts/ts7.cjs injects `--checkers` when the caller named none
- *  · `pnpmWorkspaceConcurrency`→ scripts/typecheck.cjs `pnpm -r --workspace-concurrency`
+ *  · `pnpmWorkspaceConcurrency`→ verify/ops/typecheck.ts's native-program execution pool
  *  · `eslintConcurrency`       → scripts/eslint.cjs `--concurrency` (ESLint's own default is `off`, i.e.
  *                                SINGLE-THREADED — the one cap here that RAISES parallelism)
  *  · `hookPoolSlots`           → .claude/hooks/biome-check.sh's HOST-WIDE flock pool, shared by its

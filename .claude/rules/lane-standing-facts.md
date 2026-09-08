@@ -67,27 +67,18 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 
 ## Verification floors
 
-- **Type floors run BOTH programs.** Per-package `types:packages` is structurally blind to `tests/` and
-  `scripts/`; `types:graph` (`node scripts/ts7.cjs --noEmit -p tsconfig.json`) is the program that sees
-  them. A lane changing a shared VALUE also owes the behavioral suites that assert the literal — `pnpm
-  check` is static and runs no tests.
-- **The THREE-program typecheck truth table** (this is its ONE home; every other file points here):
-  `types:graph` EXCLUDES `packages/{ui,client}/src` but sees `tests/` + `scripts/` — and excludes
-  `tests/client/` and `tests/ui/` WHOLE (`tsconfig.json` names the bare directories, `.ts` files included,
-  not just the `.tsx` half — truth-repaired 2026-09-05 after cb-pure-mirrors proved it with a planted TS2322)
-  **AND `tests/e2e/` whole** (a lane touching `tests/client`, `tests/ui` or `tests/e2e` MUST name
-  `typecheck:tests-dom`; `types:graph` is a false clean there); per-package `pnpm typecheck` sees
-  ui/client src AND is the ONLY program that owns `tests/**/*.ct.tsx`; `tests-dom` owns
-  `tests/{client,ui}/**/*.ts` plus an explicit list of non-CT DOM-coupled escapees and does NOT see CT tsx.
-  A floor claims only coverage it verified — when uncertain, PLANT a control error; that is the standard,
-  not paranoia. **A fourth, `.test-d.ts`-only invocation exists but adds no NEW coverage** — `pnpm
-  test:types` (the `types:testd` verify stage) runs vitest's typecheck feature, split 2026-09-05 (#1313)
-  into `types-node` (root `tsconfig.json`) and `types-browser` (`tsconfig.tests-dom.json`, for the handful
-  of `.test-d.ts` subjects that import a browser package) — it DUPLICATES `types:graph`/`typecheck:tests-dom`
-  for `.test-d.ts` files rather than supplementing them, and the split's whole point was to stop it
-  double-reporting under the wrong lib (it used to check every `.test-d.ts` under the DOM-less root with
-  `ignoreSourceErrors: true` swallowing the fallout — a floor that ran only `pnpm test:types` was measurably
-  blind to a real subject error in a DOM-touching `.test-d.ts` file before this fix).
+- **Type floors use one executor over native programs.** `pnpm typecheck` discovers every runnable config
+  through the shared compiler reader, skips abstract templates, expands reference containers, and runs each
+  leaf exactly once. Scoped verification supplies every program selected by affected-mode routing as
+  repeated `--config <repo-relative-tsconfig>` arguments; duplicates deduplicate. A lane changing a shared
+  VALUE also owes the behavioral suites that assert the literal — `pnpm check` is static and runs no tests.
+- **The compiler-program truth table is DATA.** Authored roots, imported closures, ambient worlds and
+  references come from the shared compiler reader; no directory heuristic or hand-maintained per-program
+  command table is authoritative. A floor claims only the configs it actually ran. Unknown configs are
+  misuse, malformed configs are tool errors, and an empty runnable selection is a tool error. When
+  uncertain, PLANT a control error. **The `.test-d.ts` assertion lane remains separate:** `pnpm test:types`
+  (`types:testd`) runs Vitest's `types-node` and `types-browser` typecheck projects. It preserves assertion
+  semantics; it does not replace the native `types:native` compiler stage or `types:tests-membership`.
 - **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load** (owner ruling): exit
   134/137, a heap abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.

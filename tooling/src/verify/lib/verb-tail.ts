@@ -19,6 +19,7 @@
 //   tests-membership ops/tests-type-membership.ts (`--json`, and nothing else)
 //   config-snapshot ops/config-snapshot.ts (runner kind + config path)
 //   typecheck-plan ops/typecheck-plan.ts (mode + file paths + optional JSON)
+//   typecheck     ops/typecheck.ts (zero or more repeated --config selectors)
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 
@@ -45,6 +46,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "ratchet-gate": "none",
   "config-snapshot": "own",
   "typecheck-plan": "own",
+  typecheck: "own",
 };
 
 /** Refuse a tail on a verb that takes none — called by the front door AFTER the `--help` answer (a help

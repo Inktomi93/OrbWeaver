@@ -2419,6 +2419,7 @@
     "tests/tooling/verify/ops/structure.int.test.ts",
     "tests/tooling/verify/ops/tests-execution-membership.int.test.ts",
     "tests/tooling/verify/ops/tests-type-membership.test.ts",
+    "tests/tooling/verify/ops/typecheck.int.test.ts",
     "tests/tooling/vite-fs-deny.test.ts",
     "tests/tooling/vitest-coverage-scope.test.ts",
     "tests/tooling/vitest-repository-scheduling.int.test.ts",

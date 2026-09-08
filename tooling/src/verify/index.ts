@@ -93,6 +93,7 @@ export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test
 export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
 export type { MembershipOutcome, MembershipReport, MembershipRow } from "./contract/tests-type-membership.ts";
 export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
+export type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "./contract/typecheck.ts";
 export type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject, TypecheckSubjectDisposition } from "./contract/typecheck-plan.ts";
 export { TYPECHECK_PLAN_MODES, TYPECHECK_SUBJECT_DISPOSITIONS } from "./contract/typecheck-plan.ts";
 export type { VerifyVerb } from "./contract/verbs.ts";
@@ -186,4 +187,5 @@ export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
 export { classifyMembership, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
+export { classifyTypecheckChild, executeTypecheckPrograms, runTypecheck, TYPECHECK_HELP, typecheckCompilerArgv } from "./ops/typecheck.ts";
 export { runTypecheckPlan, TYPECHECK_PLAN_HELP } from "./ops/typecheck-plan.ts";

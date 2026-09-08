@@ -473,7 +473,7 @@ Live receipts (landing, not committed): a real `--isolated --ref <sha>` session 
 
 ## 10. Phased build plan
 
-Every phase is one lane, one commit, scoped floors; whole-tree gates are the orchestrator's. Floors name the programs: per-package `pnpm typecheck` + `node scripts/ts7.cjs --noEmit -p tsconfig.json` + `-p tooling/tsconfig.json`; biome + eslint on touched files; `pnpm check:structure`; `pnpm knip`; `pnpm exec depcruise packages tooling --config .dependency-cruiser.cjs`; the named suites via `pnpm test:scoped <paths> --maxWorkers=4`; CT via `pnpm ct:scoped <paths> --workers=2`; `check-gates.int` / `gate-conformance.int` whenever a gate arm changes.
+Every phase is one lane, one commit, scoped floors; whole-tree gates are the orchestrator's. Floors run `pnpm typecheck --config <path>` for every affected native program selected by the shared compiler reader; biome + eslint on touched files; `pnpm check:structure`; `pnpm knip`; `pnpm exec depcruise packages tooling --config .dependency-cruiser.cjs`; the named suites via `pnpm test:scoped <paths> --maxWorkers=4`; CT via `pnpm ct:scoped <paths> --workers=2`; `check-gates.int` / `gate-conformance.int` whenever a gate arm changes.
 
 | Phase | Lane / tier | Lands | Files (new ‖ changed) | Floor (suites by path) |
 | - | - | - | - | - |

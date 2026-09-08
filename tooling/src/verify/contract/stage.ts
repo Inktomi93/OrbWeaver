@@ -30,7 +30,7 @@ export interface TranscriptAudit {
 }
 
 export interface StageDef {
-  /** kebab, unique — "lint:biome", "types:graph", "tests:node", … */
+  /** kebab, unique — "lint:biome", "types:native", "tests:node", … */
   readonly name: string;
   readonly group: StageGroup;
   /** Every tier that includes this stage. The whole-tree ladder nests `static ⊂ push ⊂ full`; `changed`

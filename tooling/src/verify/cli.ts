@@ -20,6 +20,7 @@
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot vitest <config>  (internal native-config observation)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
+//   typecheck                → cli.ts typecheck [--config <paths>…]
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
@@ -46,11 +47,13 @@ import {
   runStructure,
   runTestsExecutionMembership,
   runTestsTypeMembership,
+  runTypecheck,
   runTypecheckPlan,
   runVerify,
   SCOPED_TEST_USAGE,
   SCOPED_USAGE,
   SHOW_HELP,
+  TYPECHECK_HELP,
   TYPECHECK_PLAN_HELP,
   VERIFY_VERBS,
 } from "./index.ts";
@@ -92,6 +95,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
   "typecheck-plan": TYPECHECK_PLAN_HELP,
+  typecheck: TYPECHECK_HELP,
 };
 
 function isVerb(candidate: string): candidate is VerifyVerb {
@@ -149,6 +153,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     }
     case "typecheck-plan":
       return runTypecheckPlan(root, rest);
+    case "typecheck":
+      return await runTypecheck(root, rest);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }
