@@ -21,7 +21,7 @@
 //     score, or a verdict about a rewrite the canvas is no longer showing, says so. Three payloads side by
 //     side is a claim that they belong together, and that claim is sometimes false.
 //
-// THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto`) — the house requirement `databank-detail-
+// THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto overscroll-contain`) — the house requirement `databank-detail-
 // surface.tsx`'s header states verbatim: the shell's CONTENT region carries NO overflow, so a surface
 // without it "simply has its tail unreachable". It shipped without it once and the tail here is the
 // TERMINAL ACT (live 2026-08-09: content 3 981px in a 952px box, Apply unreachable by mouse, key or script).
@@ -81,7 +81,7 @@ export function RefineryContentSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Container className="relative h-full min-h-0 overflow-y-auto outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
+    <Container className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (
         <RefineryStartPane />
       ) : (

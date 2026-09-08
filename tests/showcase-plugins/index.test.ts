@@ -36,7 +36,11 @@ const PACKED_SHA256: Readonly<Record<(typeof SHOWCASE_PLUGIN_SLUGS)[number], str
   "pocket-arcade": "7143d14c13b0e562e49b5834792e8205ba3e39c10bae4791508e9d4e768c4bbb",
   "research-familiar": "618d950dc5be019212fb7793a4c60d715d24b1ed8ba303abe0cd0069acaaf01e",
   "scene-chips": "f3cebbf02131bd20b2f7a5f2bfd34eabcbf29e1b3369ca3be8150582f531527e",
-  "story-clocks": "1a6cb109a08497a4eabe231a46a9f88561589c2f9d05a7d9fbce40582a4ed68c", // re-pinned at the fold: #1555 changed the tick (conditional write) after the move
+  // Re-pinned 2026-09-07 (#1865) + manifest 1.0.0 -> 1.0.1, so the auto-upgrade actually reaches installed
+  // rows: the `advance_clock` tool declared `segments` as `{type:"integer", enum:[…]}`, which the host's
+  // JSON-Schema lift refuses (no integer literal in zod), and a refused tool registration is
+  // ACTIVATION-FATAL — this example has been dead on every install since it shipped. Now `type:"number"`.
+  "story-clocks": "b63ea99029e033a35c24890ab6eac36ebe54e3f0a070909e546fc3392db8f615",
 };
 
 function sha256(bytes: Uint8Array): string {

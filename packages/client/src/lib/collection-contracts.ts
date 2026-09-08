@@ -60,7 +60,7 @@ export const COLLECTION_LARGE_GROUP = 30;
  *  The constant could not be deleted on its own, and that was a fact about the sealed primitive rather than
  *  a preference: `@orb/ui/virtual-list` asserts a BOUNDED scroll box at mount (`assertBoundedScrollHeight`,
  *  `virtual-list.tsx`) and THROWS when the box measures over 3× the viewport. So the fix was a RE-BIND — the
- *  bound is the CONTENT pane's own `overflow-y-auto` box now, reached by flex rather than by a number: the
+ *  bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box now, reached by flex rather than by a number: the
  *  landing is a `min-h-0 flex-1` column inside that pane and each library's windowed arm is `min-h-0 flex-1`
  *  inside the landing, which is the `character-library-body.tsx` chain verbatim. The window is therefore as
  *  tall as the pane at every width instead of 384px at all of them, and the row past the old fold is

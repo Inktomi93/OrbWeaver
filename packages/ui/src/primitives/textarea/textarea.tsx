@@ -57,7 +57,7 @@ export function Textarea({ className, rows, maxRows, style, onValueChange, onCha
           // The scroll is explicit rather than left to the UA default: `overflow: auto` is a textarea's
           // native behavior, but the skin is composed from utilities and a future `overflow-hidden` in the
           // shared FIELD_CONTROL would silently turn the cap into a CLIP — text gone with no scrollbar.
-          className={cn(textareaVariants(), maxRows === undefined ? undefined : "relative overflow-y-auto", className)}
+          className={cn(textareaVariants(), maxRows === undefined ? undefined : "relative overflow-y-auto overscroll-contain", className)}
           data-slot="textarea-root"
           rows={rows}
           style={{ ...rowsFloor, ...rowsCeiling, ...style }}

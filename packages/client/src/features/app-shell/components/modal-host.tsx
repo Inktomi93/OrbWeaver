@@ -6,7 +6,7 @@
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import { Drawer, DrawerClose, DrawerPopup, DrawerTitle } from "@orb/ui/drawer";
+import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -81,22 +81,44 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
   };
   const resolveDrawerFinalFocus = (): boolean => closeRequestedRef.current;
 
+  // THE KEYBOARD-AWARE PROVIDER IS MOUNTED HERE, AND THIS IS ITS ONLY REACHABLE HOME (#1868).
+  // `DrawerModal` IS the phone's modal presentation (the `coarse` arm of ModalHost above), and a modal
+  // body is arbitrary — the settings panes it hosts are full of form fields. Until this wrap, Base UI's
+  // `Drawer.VirtualKeyboardProvider` was sealed and exported by @orb/ui and mounted NOWHERE: wired, never
+  // called. The cost of that was paid on iOS, where `interactive-widget=resizes-content` (index.html) is
+  // inert — WebKit has never implemented it — so the keyboard covers the sheet's own fields and the
+  // layout viewport does not shrink to say so. The provider watches `visualViewport` and scrolls the
+  // body to keep the focused field clear, which is the only working keyboard story available to us on
+  // that platform.
+  //
+  // IT REQUIRES `<Drawer.Viewport>` as its measurement and containment root, which `DrawerPopup` already
+  // renders (drawer.tsx) — that is why this is a wrap and not a rebuild, and why the provider must sit
+  // OUTSIDE `DrawerPopup` (it reads the viewport out of the Drawer store, so it has to be an ancestor of
+  // the portal, not a child of the popup).
+  //
+  // IF A FUTURE BODY PINS AN INPUT TO THE SHEET'S FOOT, it reads `var(--drawer-keyboard-inset, 0px)` —
+  // WITH the `0px` fallback, always. The provider only sets that variable while the keyboard is aligned,
+  // so a bare `var(--drawer-keyboard-inset)` is invalid before the first alignment and after cleanup
+  // (docs/vendor/base-ui/components/drawer.md). No body does today; this is the standing contract for the
+  // first one that tries.
   return (
     <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom">
-      <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
-        {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-        <header className="shell-modal-header sticky top-0 z-(--z-raised) shrink-0 bg-card">
-          <DrawerTitle>{def.title}</DrawerTitle>
-          <DrawerClose
-            render={
-              <Button intent="ghost" size="icon" aria-label="Close">
-                <Icon icon={X} size="sm" />
-              </Button>
-            }
-          />
-        </header>
-        {body}
-      </DrawerPopup>
+      <DrawerVirtualKeyboardProvider>
+        <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
+          {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
+          <header className="shell-modal-header sticky top-0 z-(--z-raised) shrink-0 bg-card">
+            <DrawerTitle>{def.title}</DrawerTitle>
+            <DrawerClose
+              render={
+                <Button intent="ghost" size="icon" aria-label="Close">
+                  <Icon icon={X} size="sm" />
+                </Button>
+              }
+            />
+          </header>
+          {body}
+        </DrawerPopup>
+      </DrawerVirtualKeyboardProvider>
     </Drawer>
   );
 }
@@ -160,7 +182,7 @@ function DialogModal({
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
-  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto outline-none" : "relative min-h-0 overflow-y-auto outline-none";
+  const bodyClass = isShellModal ? "relative min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none" : "relative min-h-0 overflow-y-auto outline-none";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
       {/* OPENING FOCUS LANDS IN THE BODY, NOT ON CLOSE (side-eye 2026-08-16 ARIA rider). Base UI's default

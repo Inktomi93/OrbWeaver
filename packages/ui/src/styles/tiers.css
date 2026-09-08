@@ -50,8 +50,14 @@
   --orb-tier-row-title-leading: var(--leading-label);
   --orb-tier-row-title-weight: 600;
   --orb-tier-row-gloss-size: var(--text-micro);
-  --orb-tier-field-size: var(--text-label);
-  --orb-tier-field-leading: var(--leading-label);
+  /* THE PLATFORM FLOOR RIDES THE TOKEN, NOT THIS FILE (#1868, §4b axis 3). This was
+   * `--text-label`/`--leading-label`, 13px, two steps under iOS Safari's 16px focus-zoom threshold — so
+   * every LIST-pane search box zoomed the viewport on tap. `text.field-dense` IS the 13px step, with the
+   * coarse arm baked in (tokens.json `orb.pointerFine`), so the instrument tier's intent survives on a
+   * mouse and yields on a finger without this file learning what a pointer is. An earlier cut put a
+   * `@media (any-pointer: coarse)` block right here; the token layer is where a capability belongs. */
+  --orb-tier-field-size: var(--text-field-dense);
+  --orb-tier-field-leading: var(--leading-field-dense);
 }
 
 [data-surface-tier="form"] {
@@ -66,8 +72,11 @@
   --orb-tier-row-title-leading: var(--leading-body);
   --orb-tier-row-title-weight: 500;
   --orb-tier-row-gloss-size: var(--text-label);
-  --orb-tier-field-size: var(--text-body);
-  --orb-tier-field-leading: var(--leading-body);
+  /* `text.field` rather than `text.body` — the form tier's field step is the FIELD token now, which is the
+   * same 15px on a fine pointer (so a form surface still lands exactly where an un-tiered one does, which
+   * is this block's whole promise) and 16px on a coarse one (#1868). */
+  --orb-tier-field-size: var(--text-field);
+  --orb-tier-field-leading: var(--leading-field);
 }
 
 [data-surface-tier] [data-slot="card-root"] {

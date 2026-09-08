@@ -33,8 +33,28 @@
   /* NO `transition: grid-template-columns` here — see "THE PANEL PUSH IS A FLIP" below. The track resizes
    * in ONE frame and the visible motion is a compositor-only counter-translate. */
   height: 100vh; /* fallback for no-dvh */
+  /* ── THE FRAME SHRINKS ABOVE THE SOFT KEYBOARD (#1869) ───────────────────────────────────────────────
+   * `interactive-widget=resizes-content` (index.html) asks the browser to do exactly this and WebKit has
+   * never implemented it (bug 259770); `dvh` is not shrunk by the keyboard on ANY browser, because dynamic
+   * viewport units track browser chrome and nothing else. So on iOS the frame kept its full height while
+   * the keyboard covered the composer and the tab bar, and Safari scrolled the visual viewport to the
+   * focused field — which the reader cannot scroll back, because `overflow: clip` on html/body and on this
+   * grid means there is no scroll container to scroll.
+   *
+   * Subtracting the measured inset makes the frame fit the space the keyboard leaves, which is what
+   * `resizes-content` would have done: every region inside reflows from the grid as it already does, the
+   * tab bar stays on its own row, and the composer rides up with the content column. ONE declaration,
+   * because the grid is the thing every region's geometry already resolves through.
+   *
+   * `--orb-keyboard-inset` is written imperatively by `use-keyboard-inset-var.ts` (shell tier) off
+   * `@orb/ui`'s `readKeyboardInset` — which bails on pinch-zoom and on sub-60px chrome collapse, Base UI's
+   * own two guards. THE `0px` FALLBACK IS LOAD-BEARING, not defensive: the hook REMOVES the property
+   * whenever there is no keyboard, so a bare `var()` here would be invalid for the entire ordinary life of
+   * the app and would take this whole `height` declaration with it (an invalid `var()` inside `calc()`
+   * makes the declaration IACVT). With the fallback it resolves `calc(100dvh - 0px)` — byte-identical to
+   * what it replaced on every desktop, every Android, and every iOS moment with no keyboard up. */
   /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
-  height: 100dvh;
+  height: calc(100dvh - var(--orb-keyboard-inset, 0px));
   position: relative;
   /* ── THE SHELL IS ONE ISOLATED STACKING SCOPE (#1794 — this declaration is the scope's one home) ──────
    * `isolation: isolate` makes this box a stacking context, so EVERY z-index written anywhere in this file
@@ -64,7 +84,40 @@
   overflow: clip;
   background: var(--color-background);
   color: var(--color-foreground);
-  padding-inline-start: env(safe-area-inset-left);
+  /* ── THE DEVICE INSETS ARE THE GRID'S, ON ALL FOUR EDGES (#1868) ────────────────────────────────────
+   * `viewport-fit=cover` (index.html) is a promise that WE keep content out of the notch, the Dynamic
+   * Island and the home indicator — the browser stops doing it for us. This declaration used to name the
+   * START edge only, so three of the four were unkept:
+   *   · TOP was unkept everywhere and INVISIBLE in a browser tab, because Safari's own chrome sits in that
+   *     band. The manifest is `"display": "standalone"` (public/manifest.webmanifest), so installed to a
+   *     home screen there IS no browser chrome and the inset is real (~47-59px on a notched iPhone): the
+   *     48px topbar rendered UNDER the status bar and the Island.
+   *   · END was unkept, so in landscape on a notched device the trailing edge sat under the notch. The
+   *     topbar patched its own end (`max(--spacing-block, env(…-right))`, kept below in reduced form) but
+   *     nothing else did.
+   * Paying them HERE rather than per region is what preserves the D66 A1 chrome-row horizon: the rail
+   * brand, the list band and the topbar share one 48px baseline, and a `padding-block-start` on the topbar
+   * alone would have shifted it out of that row. Every child is measured inside the inset instead.
+   *
+   * IT COSTS NO HEIGHT. Tailwind's preflight puts `box-sizing: border-box` on everything, so the block
+   * padding comes OUT of the `100dvh` above rather than being added to it — the grid still ends exactly at
+   * the bottom of the viewport and nothing overflows. `env()` resolves to 0px on every device without the
+   * inset, so this is a no-op on desktop and in a plain browser tab.
+   *
+   * BOTTOM IS PAID HERE AND REFUNDED IN THE MOBILE ARM, which is the opposite of how it started (#1869).
+   * #1868 left the bottom edge to the mobile tab bar's own grid row and said so — true on a phone, and it
+   * left a REAL hole everywhere else: above 48rem there is no bottom row at all, so on a device with a home
+   * indicator and a wide viewport (an iPad, the shell's landscape arm) the content column, both panes and
+   * the rail all ran under it. The edge belongs to the frame on every regime, so the frame pays it, and the
+   * ONE arm that has something else in that band refunds it below. It cannot be a second `@media` here:
+   * §4.4 of the paint law allows shell.css exactly one viewport query and this file already spends it.
+   *
+   * `safe-area-max-inset-bottom` (with the dynamic form as its fallback) for the same reason the tab bar's
+   * row uses it: the dynamic inset shrinks toward 0 as browser chrome collapses, and a frame that resizes
+   * on every scroll drags every region inside it. */
+  padding-block-start: env(safe-area-inset-top);
+  padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 }
 
 /* With a resolved bg image, the grid goes transparent so the fixed ThemeBackgroundLayer behind it shows through. */
@@ -823,8 +876,10 @@
   justify-content: space-between;
   gap: var(--spacing-row);
   height: var(--dimension-chrome-row);
+  /* The device inset moved to `.shell-grid` (#1868) — it is paid once, for every region, on all four
+   * edges. This row keeps only its own rhythm; the `max(…, env(…-right))` it used to carry was the
+   * single-region half of that job and is now double-counting. */
   padding-inline: var(--spacing-block);
-  padding-inline-end: max(var(--spacing-block), env(safe-area-inset-right));
   border-block-end: var(--border-width-control) solid var(--color-border);
   background: var(--color-background);
 }
@@ -1153,8 +1208,19 @@
 /* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
 @media (max-width: 48rem) {
   .shell-grid {
+    /* THE REFUND (#1869): the base rule pays the bottom inset for every regime, and this is the one regime
+     * that has something else in that band — the tab bar's grid row already carries
+     * `calc(--rail-w + env(safe-area-max-inset-bottom …))`, so paying it here too would float the bar one
+     * inset above the edge it is supposed to sit on. Zero, not `revert`: `revert` rolls past the whole
+     * author origin and would take the base declaration's own value with it (the #135/#137 scar). */
+    padding-block-end: 0;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) calc(var(--rail-w) + env(safe-area-inset-bottom));
+    /* THE BAR'S BAND IS THE STATIC MAX INSET, NOT THE DYNAMIC ONE (#1868). `safe-area-inset-*` SHRINKS
+     * toward 0 as browser chrome collapses, so a tab bar sized from it grows and shrinks on every scroll —
+     * the bar twitching under the thumb. `safe-area-max-inset-*` is the same edge's constant (the value
+     * with every dynamic UI feature retracted), which is what persistent chrome wants. The nested `env()`
+     * fallback keeps the old behaviour on a browser that knows the dynamic form and not the static one. */
+    grid-template-rows: minmax(0, 1fr) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
   }
   .shell-main {
     grid-column: 1;
@@ -1193,7 +1259,7 @@
     justify-content: space-around;
     gap: 0;
     padding-block: 0;
-    padding-block-end: env(safe-area-inset-bottom);
+    padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   }
   .shell-rail-sections,
   .shell-rail-group,
@@ -1247,7 +1313,7 @@
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-mode="collapsed"] {
     position: fixed;
-    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
+    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
     width: 100dvw;
     /* THE SHELL'S OWN FLOAT RUNG, NOT THE PORTAL'S (#1794). This spelled `--z-modal` from the phone arm's
      * first commit, on the reading that a full-screen sheet is "modal-like". It is not a rank this file can
@@ -1268,12 +1334,18 @@
    * and with `inset-inline: 0` resolving to the inline START, `translateX(100%)` moved it only 272px,
    * leaving a dead 272px slab of panel painted over CONTENT on EVERY section. Same-specificity + later in
    * source ⇒ this wins; keeping it in the SAME rule as the inset means the two can't drift apart again. */
+  /* A FIXED SHEET ESCAPES THE GRID'S INSETS AND MUST PAY ITS OWN (#1868). Every panel in this arm is
+   * `position: fixed`, so it is laid against the VIEWPORT and the `padding-inline` that `.shell-grid`
+   * pays for its in-flow children never reaches it — in landscape on a notched device the sheet's
+   * leading content sat under the notch. The box stays full-bleed (`inset-inline: 0`, `100dvw`) so the
+   * FILL still reaches the screen edge, which is the whole look; only the CONTENT is inset. */
   .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"],
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     inset-inline: 0;
     width: 100dvw;
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }
   /* THE OPEN CONTEXT SHEET IS THE WHOLE SCREEN, TAB BAR INCLUDED (#875 F9, side-eye 2026-08-30). The
    * block's shared inset stops every sheet above the rail, so at 430 coarse the pane's own foot rail (five
@@ -1293,7 +1365,7 @@
    * indicator. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] {
     inset-block-end: 0;
-    padding-block-end: env(safe-area-inset-bottom);
+    padding-block-end: env(safe-area-max-inset-bottom, env(safe-area-inset-bottom));
   }
 
   /* ONE EXIT FROM THE SHEET (#878 F16, side-eye 2026-08-30). With the context sheet OPEN at 430 the topbar's
@@ -1322,10 +1394,12 @@
   .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
     inset-inline: 0;
     width: 100dvw;
+    /* …and the ONE-SHELL docked list is fixed too, so it pays the same inline insets (#1868). */
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
     transform: none;
   }
   .shell-scrim {
-    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
+    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
   }
   /* THE FRAME THAT IS NOT THE SCREEN DOES NOT PAINT (side-eye leg-4 P2). A phone is not a narrow desktop:
    * the roster covers the content column, but CONTENT was still `display: flex; visibility: visible;

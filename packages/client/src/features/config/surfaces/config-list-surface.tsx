@@ -92,7 +92,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   useConfigArrivalDefault(visible, activeGroup, onSelectGroup);
 
   return (
-    // `h-full min-h-0` on the anchor is what makes the Stack's `overflow-y-auto` real: the shell's LIST
+    // `h-full min-h-0` on the anchor is what makes the Stack's `overflow-y-auto overscroll-contain` real: the shell's LIST
     // region is a bounded flex box with no overflow of its own, so without a definite height here an
     // expanded 400-row group grows the pane instead of scrolling inside it.
     <Container className="h-full min-h-0">
@@ -101,7 +101,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
           pane's contents, not its section: the shell's LIST band already says "Settings". */}
       <Stack
         aria-label="Settings groups"
-        className="relative h-full min-h-0 overflow-y-auto outline-none"
+        className="relative h-full min-h-0 overflow-y-auto overscroll-contain outline-none"
         data-slot="config-list"
         gap="section"
         ref={surfaceRef}

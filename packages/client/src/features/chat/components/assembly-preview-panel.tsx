@@ -230,7 +230,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="datum" className="relative block max-h-40 overflow-y-auto whitespace-pre-wrap">
+      <Text voice="datum" className="relative block max-h-40 overflow-y-auto overscroll-contain whitespace-pre-wrap">
         {text}
       </Text>
     </Card>

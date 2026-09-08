@@ -154,7 +154,10 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
-      <pre className={cn("relative max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body leading-body", className)} data-slot="markdown-oversized">
+      <pre
+        className={cn("relative max-h-[60cqh] overflow-auto overscroll-contain whitespace-pre-wrap text-body leading-body", className)}
+        data-slot="markdown-oversized"
+      >
         {children}
       </pre>
     );

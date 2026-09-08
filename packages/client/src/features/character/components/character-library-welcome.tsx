@@ -125,7 +125,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
     // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container className="relative h-full overflow-y-auto">
+    <Container className="relative h-full overflow-y-auto overscroll-contain">
       <QueryBoundary
         fallback={<Text voice="quiet">Loading your characters…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}

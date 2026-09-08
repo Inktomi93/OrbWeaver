@@ -94,6 +94,56 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect(row?.tokenHash).not.toBe(token); // never the raw token
   });
 
+  // The bounds are SAFE BY DEFAULT (2026-09-07): an omitted `maxUses`/`expiresAt` used to persist NULL/NULL,
+  // which the redeem predicate reads as unlimited-uses AND never-expires — `createInvite({})` minted a
+  // permanent share link. Nothing asserted that, so nothing guarded it; these two tests are the guard. The
+  // deliberate durable link is still reachable, but only by saying `expiresAt: null` out loud.
+  test("an omitted maxUses/expiresAt defaults to single-use and a 48h TTL", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const { invite } = await invites.createInvite({ principal: principal(host), chatId, input: {} });
+
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    expect(row?.maxUses).toBe(1);
+    expect(row?.expiresAt).toBe(FROZEN_AT + 48 * 60 * 60 * 1000);
+  });
+
+  test("an EXPLICIT expiresAt:null still means never-expires (the durable-link escape hatch)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const { invite } = await invites.createInvite({
+      principal: principal(host),
+      chatId,
+      input: { expiresAt: null, maxUses: 25 },
+    });
+
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    expect(row?.expiresAt).toBeNull();
+    expect(row?.maxUses).toBe(25);
+  });
+
+  test("an EXPLICIT maxUses:null still means unlimited (the other half of the escape hatch)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const { invite } = await invites.createInvite({ principal: principal(host), chatId, input: { maxUses: null } });
+
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    // NULL is what `redeemInviteAtomic` reads as unlimited (`isNull(maxUses)`), so this is the persisted
+    // shape that arm depends on — not merely "not 1".
+    expect(row?.maxUses).toBeNull();
+    // …and the OTHER bound still took its safe default, because only one field was spoken for.
+    expect(row?.expiresAt).toBe(FROZEN_AT + 48 * 60 * 60 * 1000);
+  });
+
   test("a plain member is refused with not_host", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

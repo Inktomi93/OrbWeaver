@@ -182,6 +182,31 @@ export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
   return await db.select().from(plugins).where(eq(plugins.ownerId, ownerId)).orderBy(desc(plugins.installedAt));
 }
 
+/** Every ENABLED row across ALL owners, projected to the two ids a restore needs — the ONE deliberately
+ *  un-owner-scoped read in this file, and it has exactly one caller: the BOOT reactivation step
+ *  (`entry/boot/reactivate-plugins.ts`).
+ *
+ *  WHY IT DOES NOT BREAK THIS FILE'S LAW. The header's ban is on an un-owner-scoped read serving an
+ *  "admin may manage any row" branch, because that would run one user's untrusted bundle under another
+ *  user's identity at `setEnabled`. This read cannot: it projects ONLY `id` + `ownerId` — never a manifest,
+ *  a grant, a bundle asset or a `PluginView` — and its consumer turns each pair into that row's OWN owner's
+ *  `setEnabled`, which re-loads the row through the owner-scoped `getById(db, caller.userId, pluginId)`
+ *  before it activates anything. So the unscoped half answers only "which rows must be restored", and every
+ *  restore still runs as the principal that owns it. A caller that wanted the ROW here instead of the pair
+ *  would be the hole the header describes; keeping the projection at two ids is what makes that unspellable.
+ *
+ *  WHY IT EXISTS AT ALL: `PluginRegistry` is in-process and respawn-wiped, so after every restart an
+ *  `enabled` row has no resident instance and contributes no surfaces, tools, transforms or subscriptions
+ *  (#1865). The row is the record and the registry is a view of it (`activation/activate.ts`); this read is
+ *  how boot re-derives the view. Ordered by `installedAt` so a restore pass is deterministic. */
+export async function listEnabledAcrossOwners(db: Db): Promise<readonly { readonly pluginId: PluginId; readonly ownerId: UserId }[]> {
+  return await db
+    .select({ pluginId: plugins.id, ownerId: plugins.ownerId })
+    .from(plugins)
+    .where(eq(plugins.status, "enabled"))
+    .orderBy(desc(plugins.installedAt));
+}
+
 /** Set the lifecycle status (+ `lastError`), stamping `updatedAt`. `lastError` clears to null on a clean
  *  enable/disable; carries the failure detail on an activation error. */
 // @owner-scope-write-ok: the lifecycle write. The `plugins` row's owner is the installing principal;
