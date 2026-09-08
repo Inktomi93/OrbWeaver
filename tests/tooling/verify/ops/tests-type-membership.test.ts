@@ -12,7 +12,7 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { classifyMembership, findTripleSlashLibLeaks } from "@orb/tooling/verify";
+import { classifyMembership, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function withScratchDir<T>(fn: (dir: string) => T): T {
@@ -94,25 +94,73 @@ test("classifyMembership (phase-0 report): predicted / drift / import-only / uno
   const abs = (rel: string): string => `${root}/${rel}`;
   const files = [
     "tests/server/x.test.ts", // rooted by its predicted program only
-    "tests/client/y.test.ts", // rooted by the OTHER world's program → drift
+    "tests/support/browser/y.ts", // rooted by the OTHER world's program → drift
     "tests/support/node/helper.ts", // in a closure, a root of nothing → import-only
     "tests/tooling/z.test.ts", // in no program at all → unowned
   ];
   const roots = new Map<string, ReadonlySet<string>>([
-    ["tsconfig.json", new Set(["tests/server/x.test.ts", "tests/client/y.test.ts"])],
+    ["tsconfig.json", new Set(["tests/server/x.test.ts", "tests/support/browser/y.ts"])],
     ["tsconfig.tests-dom.json", new Set<string>()],
   ]);
   const closures = new Map<string, ReadonlySet<string>>([
-    ["tsconfig.json", new Set([abs("tests/server/x.test.ts"), abs("tests/client/y.test.ts")])],
+    ["tsconfig.json", new Set([abs("tests/server/x.test.ts"), abs("tests/support/browser/y.ts")])],
     ["tsconfig.tests-dom.json", new Set([abs("tests/support/node/helper.ts")])],
   ]);
   const rows = classifyMembership(root, files, roots, closures);
   expect(rows.map(({ file, outcome }) => `${file}=${outcome}`)).toEqual([
     "tests/server/x.test.ts=predicted",
-    "tests/client/y.test.ts=drift",
+    "tests/support/browser/y.ts=drift",
     "tests/support/node/helper.ts=import-only",
     "tests/tooling/z.test.ts=unowned",
   ]);
   expect(rows[1]?.predicted).toBe("tsconfig.tests-dom.json");
   expect(rows[2]?.containedBy).toEqual(["tsconfig.tests-dom.json"]);
+});
+
+test("the report covers source and config owners without blessing transitional test-directory rules", () => {
+  const files = [
+    "packages/kit/src/value.ts",
+    "tooling/src/verify/cli.ts",
+    "knip.ts",
+    "packages/client/vite.config.ts",
+    "playwright-ct.config.ts",
+    "reset.d.ts",
+    "tests/client/value.test.ts",
+    "tests/client/value.dom.test-d.ts",
+  ] as const;
+  const roots = new Map<string, ReadonlySet<string>>([
+    ["packages/kit/tsconfig.json", new Set([files[0]])],
+    ["tooling/tsconfig.json", new Set([files[1]])],
+    ["tsconfig.json", new Set([files[0], files[1], files[2], files[5]])],
+    ["packages/client/tsconfig.json", new Set([files[3]])],
+    ["tsconfig.tests-dom.json", new Set([files[6], files[7]])],
+  ]);
+  const closures = new Map([...roots].map(([config, paths]) => [config, new Set([...paths].map((file) => `/repo/${file}`))]));
+  const rows = classifyMembership("/repo", files, roots, closures);
+  expect(rows.map(({ world, outcome }) => [world, outcome])).toEqual([
+    ["iso", "predicted"],
+    ["node", "predicted"],
+    ["node", "predicted"],
+    ["node", "drift"],
+    ["node", "unowned"],
+    [null, "unclassified"],
+    ["node", "drift"],
+    ["browser", "predicted"],
+  ]);
+  expect(rows[3]?.predicted).toBe("tsconfig.json");
+  expect(rows[5]?.predicted).toBeNull();
+});
+
+test("unsupported membership arguments refuse before reading a repository", () => {
+  expect(() => runTestsTypeMembership("/does-not-exist", ["--scope", "tests"])).toThrow("accepts only --json");
+  expect(() => runTestsTypeMembership("/does-not-exist", ["--json", "--json"])).toThrow("accepts only --json");
+});
+
+test("iso helpers can satisfy their primary owner and expose a wrong node owner", () => {
+  const file = "tests/support/iso/values.ts";
+  const closures = new Map([["tsconfig.tests-iso.json", new Set([`/repo/${file}`])]]);
+  const owned = classifyMembership("/repo", [file], new Map([["tsconfig.tests-iso.json", new Set([file])]]), closures);
+  expect(owned[0]).toMatchObject({ world: "iso", predicted: "tsconfig.tests-iso.json", outcome: "predicted" });
+  const wrong = classifyMembership("/repo", [file], new Map([["tsconfig.json", new Set([file])]]), new Map([["tsconfig.json", new Set([`/repo/${file}`])]]));
+  expect(wrong[0]?.outcome).toBe("drift");
 });

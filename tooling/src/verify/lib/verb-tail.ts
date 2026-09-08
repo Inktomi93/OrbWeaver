@@ -16,6 +16,7 @@
 //   baseline     cli.ts runBaseline (the kind table + `--check`)
 //   new-gate     ops/new-gate.ts  (exactly one kebab name)
 //   orphan-ratchet ops/orphan-export-ratchet.ts (`--update`, and nothing else)
+//   tests-membership ops/tests-type-membership.ts (`--json`, and nothing else)
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 
@@ -31,7 +32,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "new-gate": "own",
   "gate-contract": "none",
   baseline: "own",
-  "tests-membership": "none",
+  "tests-membership": "own",
   "tests-execution-membership": "none",
   "db-baseline": "none",
   "asset-refs": "none",

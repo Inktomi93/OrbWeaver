@@ -4,223 +4,103 @@ status: active
 updated: 2026-09-07
 ---
 
-# The type-world program: derivable test-program membership
+# Type worlds, test registration, and derived tool configuration
 
-> **COMMITTED (not yet built).** This document owns the durable shape; GitHub Project 1 owns lifecycle
-> ([#1351](https://github.com/Inktomi93/orbweaver/issues/1351)). Provoked by an external architecture
-> review of the TypeScript program layout. **Adopt the shape, not that proposal verbatim**: its phase
-> order is inverted and two of its recommendations are refuted by measurement. Both are recorded below,
-> because a lane handed the raw proposal will build the right destination in the wrong order and
-> re-create the ledger inside a nicer config.
+This document owns the durable design. [Program #1351](https://github.com/Inktomi93/orbweaver/issues/1351) owns execution, dependencies, decisions, and verification receipts. The implementation is pre-launch: remove superseded structures rather than maintaining compatibility copies. The separate [gate-runtime cutover](../../design/gate-runtime-standardization.md) remains its own program.
 
-## Terminal state
+## Outcome
 
-Type-program membership is DERIVABLE from package + directory + suffix. No `tsconfig` contains a test
-filename. `tests-type-membership` asserts each file is in the program the routing model PREDICTS, not
-merely in at least one program.
+Every authored TypeScript file has an intended world and explicit compiler ownership. Test kind, compiler world, executor, and scheduling requirements have one authoritative vocabulary. Native configs and verification jobs consume shared facts instead of maintaining parallel lists of files or projects. Independent native observations prove that the derived configuration selects and checks the intended population.
 
-Acceptance measure (today it reports 51 and exits 1; at close it must report 0):
+A package's source can participate in its own compiler program and a consumer's import closure. Those are different facts. Test/harness roots have one primary owner; declarations need explicit ambient ownership. A file in some program is not necessarily in the correct program, and a correct root does not prove its imported closure is compatible.
 
-```
-node -e 'const fs=require("fs");const strip=s=>s.replace(/^\s*\/\/.*$/gm,"");
-const g=strip(fs.readFileSync("tsconfig.json","utf8"));
-const d=strip(fs.readFileSync("tsconfig.tests-dom.json","utf8"));
-const re=/"(?:tests|scripts|playwright)\/[^"*]*\.(?:ts|tsx)"/g;
-const a=g.match(re)||[], b=d.match(re)||[];
-console.log("per-file test entries: tsconfig.json="+a.length+" tests-dom="+b.length);
-process.exit(a.length+b.length>0?1:0)'
-```
+## Existing authorities
 
-## Status 2026-09-06 — phase 1 landed, and the config half of phase 5 with it (branch `cb/type-worlds-bork`)
-
-Measured first, on `main` at 7754c2405, by writing the two world programs BY RULE ONLY (no per-file entry
-anywhere) and typechecking each: the browser world was clean (4,449 files, a planted control proved it could
-red); the node world red 728 times — 567 in 76 `packages/{ui,client}/src` files pulled in transitively by
-exactly FOUR node-side importers (`tests/support/browser/ct-config-groups.ts` through six client barrels, two
-tooling tests through `@orb/ui/lib` for one pure constant each, one server test through `@orb/client/data/bus`),
-142 in the 17 DOM-coupled `tests/support/ct` helpers' own bodies, 12 in the st-goldens rig script, 7 in four
-tooling tests' in-page callbacks. Every one of those had an answer that is not a list:
-
-- **Phase 1:** `tests/support/ct/` is gone; 24 helpers whose bodies need lib.dom live in `tests/support/browser/`,
-  15 node-side ones in `tests/support/node/` (moved through the codemod kit; the split is the measured one,
-  not a guess). Spelled `tests/support/{browser,node}` rather than `tests/_support/…` so every rule that already
-  names `tests/support/` (test-layout's exemption, the CT changed-scope view, vitest's serial lane) kept
-  working without a coupled-site sweep; the `iso/` directory is minted when a helper needs it.
-- **Phase 5, the config half:** `tsconfig.json` (the node world) and `tsconfig.tests-dom.json` (the browser-tests
-  world) carry directory + suffix rules only; `packages/{ui,client}/tsconfig.json` check nothing but their own
-  src (every test `.tsx` and the CT mount are rooted by the browser-tests world). The acceptance measure above
-  reports 0. The `scripts/probes/st-goldens` rig joined the browser-tests world as a DIRECTORY, on the
-  `tests/e2e` precedent (a browser-driving rig whose scripts read page state inside `evaluate` callbacks).
-- **The four barrel importers:** the two tooling tests and the server test import the pure LEAF module by
-  relative path (`class-merge.ts`, `variant-attrs.ts`, `chat-event-seq-guard.ts`); `ct-config-groups.ts` is a
-  browser helper and moved. Phase 3 (barrel homogeneity) remains the durable cure for the barrels themselves.
-- **The four tooling tests:** three in-page callbacks became string-body `page.evaluate` calls (the
-  appearance-invariant-runtime precedent — a node-world test cannot type an in-page callback, and a
-  browser-world helper would drag lib.dom back in through the import; the import DIRECTION is the fence), and
-  one `RequestInfo` became `Parameters<typeof fetch>[0]`.
-
-**World intent and compiler membership have separate owners.** `tooling/src/_shared/project-worlds.ts`
-holds `PACKAGE_WORLDS`, `BROWSER_SURFACE_DIRS`, and the package/directory/suffix classifiers. It performs no
-filesystem or compiler reads. `tooling/src/verify/lib/policy-program-membership.ts` supplies the membership
-stage and routing-parity gate with the same compiler graph used by policy scopes, over the shared authored
-repository inventory. Discovery follows nested config variants and project references. Explicit empty
-templates are excluded from automatic discovery; missing inputs in a nonempty include remain a refusal.
-Declaration-only projects retain compiler ownership.
-
-The report remains informational beyond its existing zero-owner check. Its current test/Playwright
-population and transitional browser-directory rules do not yet prove the repo-wide terminal state. A
-zero-drift result establishes agreement with those rules, not barrel purity or permitted cross-world
-imports. Phase 6 still depends on the remaining ownership, closure, and boundary proofs; it is not complete
-merely because the current report is green. Current run receipts and phase lifecycle live on #1858/#1351.
-
-## The diagnosis
-
-Two mechanical causes make membership underivable, so it has to be enumerated instead.
-
-**1. Test helpers do not declare their world by location.** `tests/support/ct/` is 31 files in one flat
-directory spanning three type programs: node orchestration (`route-trpc.ts`), in-page DOM callbacks
-(`pixel-contrast.ts`, `measure-clamp.ts`), browser components (`ct-providers.tsx`), a CT test
-(`touch-floor.ct.tsx`), and a node test (`story-shot.test.ts`). A helper has no runner-bearing filename,
-so nothing but its location could declare its world, and its location declares nothing. **13 of the 25
-per-file `tsconfig.tests-dom.json` include entries come from this single directory.**
-
-**2. Barrels are not world-homogeneous.** Inside `packages/client/src`, the package-internal aliases
-resolve to the impure `index.ts`: `#lib` 368 import sites, `#state` 407, `#data` 424. A node test
-reaching any client constant through a front door drags DOM-dependent source into a DOM-less program.
-
-The repo already reached this diagnosis and deferred the cure. `tsconfig.json`'s #1243 note:
-
-> every prior round of this section individually excluded ONE `tests/client/**` file at a time ... and
-> EACH round exposed a fresh, still-growing layer of independent reachers into the SAME impure client
-> chains (`#lib`/`#state`/`#data` package-internal aliases, which always resolve to the impure
-> `index.ts`, never a `pure.ts` subpath) — the signature of a wrong unit of work, not a shrinking ledger.
-
-Five rounds on `tests/client`, five more on `tests/ui`, then containment by wholesale directory glob.
-`tests/ui`'s note states why the cure was skipped: "no `@orb/ui/lib/pure` surface exists (out of this
-round's scope)."
-
-**The `pure.ts` answer failed, and the files say so.** Three hand-maintained mirrors totalling 524 lines
-whose headers state that #1262 measured every stated justification and refuted all three. The surface
-re-exports `document`, `window`, `navigator`, `performance`, `BroadcastChannel` and seven React hooks, so
-it is not pure. 55 consumers: 54 tests, all of which live in the DOM program anyway, and one production
-import of one boolean. Deletion is [#1339](https://github.com/Inktomi93/orbweaver/issues/1339).
-
-**The truth-teller is half-built and half-blind.** `tooling/src/verify/ops/tests-type-membership.ts`
-unions program closures via `ts7 --listFilesOnly` and reds on any `tests/**` or `playwright/**` file in
-ZERO programs. Two limits: it asks "at least one", never "the right one"; and its `PROGRAMS` constant is
-hardcoded to 4 of the repo's 9 programs, omitting `tooling/tsconfig.json` and
-`packages/{server,kit,contracts,db}`. Its sibling in the same tool states the law it violates.
-`dangling-doc-cite.ts`: "The set is DERIVED from the tree, never a path list: a hard-coded file constant
-dies silently on rename (GATE-AUTHORING.md §3)."
-
-## Measured substrate
-
-Taken against `main` on 2026-09-04. Recorded here so no lane re-derives them; re-measure before acting on
-any single figure, since the tree moves.
-
-| fact | value |
+| Fact | Home |
 | - | - |
-| per-file test entries in `tsconfig.json` exclude / `tsconfig.tests-dom.json` include | 26 / 25 |
-| of those, from `tests/support/ct/` alone | 13 |
-| tsconfig files on the tree / real programs | 10 / 9 |
-| programs the membership stage checks | 4 |
-| client impure-alias import sites (`#lib` + `#state` + `#data`) | 1,199 |
-| `pure.ts` lines / consumers / production consumers | 524 / 55 / 1 |
-| tracked test files | 2,616 |
+| Workspace packages, manifests, declared dependencies and exports | pnpm workspace and package manifests |
+| Authored files and Git change identity | `tooling/src/verify/lib/policy-repo-inventory.ts` |
+| Compiler roots, references and inherited config inputs | `tooling/src/verify/lib/policy-program-membership.ts` |
+| Intended world and primary compiler owner | `tooling/src/_shared/project-worlds.ts` |
+| Native compiler import closures | the TS7 listing used by `tooling/src/verify/ops/tests-type-membership.ts` |
+| Verification stages, tiers and execution adapters | `tooling/src/verify/lib/registry.ts` |
+| Capacity policy | `tooling/concurrency-profile.json` and its validated readers |
+| Native runner observations | Vitest and Playwright collection; execution-membership reconciliation |
 
-Vocabulary restated by hand across the config surface: `.int.test` 10 homes, `__g_*` 9, `reset.d.ts` 8,
-`platform.d.ts` 7, `.test-d` 7, `.ct.tsx` 6, `tests/support/ct` 6, `moduleResolution: bundler` 6,
-`esnext.disposable` and `esnext.temporal` 4 each. TypeScript FORCES the tsconfig half: a child `lib` or
-`include` overwrites the parent's, so every overriding program must restate them. The cross-tool half is
-ours.
+Keep cheap intent data separate from expensive observations. Reuse the shared compiler reader; do not grow a second parser in a config or codemod. If additional consumers require a lower shared home, extract the existing leaf once without reversing tooling dependency direction.
 
-`tsconfig.base.json`'s own comment on the ambient pair says "three programs" and enumerates two;
-`tooling/tsconfig.json` is the missing one. A hand-maintained list, a comment tracking that list, and the
-comment already off by one.
+## Source and test structure
 
-## Phase order
+Preserve the package cake by responsibility. Source moves are justified by ownership and dependency direction, not by making every folder look alike. Pure UI logic may stay in UI; a Node test alone is not a reason to relocate it into kit.
 
-**Ordered by what each phase DELETES.** No phase may land a new abstraction before the thing it
-abstracts has been reduced.
+The source-mirror test tree remains the default. File/folder reorganization is authorized when it establishes clearer ownership, compatible closures, or test isolation. Helpers declare their world through `tests/support/{iso,node,browser}/`; the existing support home avoids an unrelated rename to `_support`. An iso helper cannot import a node/browser helper; a node helper cannot import a browser helper. Enforce those boundaries when the helper split lands.
 
-| phase | does | deletes | enforces |
-| - | - | - | - |
-| 0 | `project-worlds.ts` vocabulary; DERIVE the membership stage's program list; add an actual-vs-predicted membership REPORT | nothing | nothing |
-| 1 | `tests/_support/{node,browser,iso}/` helper world directories | 13 of 25 tests-dom entries + their exclude twins | |
-| 2 | delete the three `pure.ts` mirrors (#1339) | 524 lines, 3 mirrors, 2 package.json keys | |
-| 3 | **barrel homogeneity** for `#lib`/`#state`/`#data` and `@orb/ui/lib` | the wholesale `tests/client` and `tests/ui` globs | |
-| 4 | reclassify tests by suffix; add `.ct-d.ts` | | |
-| 5 | world configs; `files: []` on abstract templates; explicit ambient ownership and roots | the lib-array and ambient-pair duplication | |
-| 6 | membership becomes PREDICTIVE | the ledger | yes |
-| 7 | `pnpm typecheck --file <path>` router through the phase-0 model | | |
+Barrel purity is the cause-level repair. `#lib`, `#state`, `#data`, `#forms`, and `@orb/ui/lib` must not drag DOM-dependent modules into a Node-safe front door. Move DOM halves to the owning feature or primitive; do not create a new generic browser barrel. Split mixed modules so pure constants/types retain their proper home. Re-measure the current graph before moves; historical leaf and importer counts are not a current work manifest.
 
-**Phase 0 enforces nothing deliberately.** It is the only instrument that can measure the rest, and the
-current stage cannot, because "at least one program" cannot distinguish correct membership from
-accidental membership. Every later phase's acceptance is that report's escapee count moving.
+## Test vocabulary and scheduling
 
-**Phase 3 before phase 4** is the external review's own strongest correction and it is right: "The runner
-chooses the root world, but the entire imported closure must be compatible." A suffix cannot overrule a
-dependency graph, so reclassification is illegal until closures are compatible.
+The registry owns supported kinds and their interpretation across layout, compiler routing, runtime collection, execution reconciliation, lint surfaces, and job selection. Registration precedes renames. Preserve useful conventional suffixes rather than renaming for appearance alone. Browser-subject runtime tests use `.dom.test.ts`; browser type-only tests use `.dom.test-d.ts`. The earlier `.ct-d.ts` choice is superseded. Keep `.spec.ts` for E2E unless a concrete harness requirement justifies changing it.
 
-**Phase 6 is the keystone and nobody proposed it.** Flipping the gate from "at least one" to "the
-predicted one" is what converts the ledger from audited to structurally impossible: an escapee reds at
-the moment it is created rather than being discovered and then enumerated. Without it, the program yields
-a prettier config that re-accretes.
+Compiler world, executor, test purpose, and resource needs are distinct axes. A browser-subject type check does not run a browser. A Node driver can control a real browser. A long-running test is not automatically a correctness-serial test or mutation-ineligible.
 
-Hard ordering constraints: 0 before everything; 2 before 3; 3 before 4; 6 last among enforcing phases
-(a predictive gate landed before phase 3 reds the tree).
+Use native Vitest tags for cross-cutting labels and supported test options, with strict registration and derived type vocabulary. Tags do not provide file import isolation, cross-process serialization, or resource locks. Native filtering still imports included files, and `list --filesOnly` does not enumerate tag-filtered test cases. File populations and genuinely different executor settings must therefore be selected before collection where required.
 
-## Corrections to the external review
+Re-derive every old serial/live assignment from current code and the current capacity profile:
 
-**Its phase order is inverted.** It sequences config work first (its steps 1 through 6), barrel
-homogeneity at 7, reclassification at 8. The barrel impurity is what created the ledger; restructuring
-configs first means designing world templates around the same broken closures and carrying the escapee
-list into the new shape, where it reads as a feature rather than as debt. The tiny leaf config is the
-reward for the barrel work, not the setup for it.
+- Fix avoidable shared ports, databases, temporary paths, and fixture reapers through proper ownership and isolated resources.
+- Separate timing/rate assertions from ordinary structural assertions where they need different conditions.
+- Re-test historical timeout/CPU-weight assignments under current budgeting; do not preserve them as permanent serial tags or suffixes.
+- Keep measured-rate validity distinct from timeout scaling.
+- Derive mutation eligibility from actual execution capability and resource requirements, not from membership in an old serial project.
 
-**"Keep the four world configs hand-authored" protects the wrong half.** Its reasoning is that their
-contents are "small, important, and should remain directly reviewable." But the lib array lives in 4
-files and the ambient pair in 7 precisely because TypeScript makes a child overwrite the parent, and
-hand-authoring those is what produced the off-by-one comment above. The rule this program adopts:
-**generate the parts TypeScript forces you to restate; hand-author the parts that express intent.**
+The tests-as-workspace-package fork remains unnecessary by default. Adopt it only if a concrete benefit outweighs its changes to dependency resolution, Knip, lint ownership, and the package graph.
 
-**Accepted without change:** `files: []` on abstract world templates (without it, a directly-invoked
-template defaults `include` to `**/*` and sweeps the repo); explicit roots on the default Node project;
-explicit ambient ownership, for which `tsconfig.base.json:112` already carries the mechanism
-(`${configDir}/../../{reset,platform}.d.ts`) and documents the override hazard; helper world
-directories; `.ct-d.ts` for browser type tests; the one file-to-program router; keeping `.spec.ts` for
-e2e (29 files where directory plus suffix already name the harness world unambiguously); and its
-narrowing of "no config contains a filename" to *type-world ownership* must be derivable, which leaves
-explicit scheduling lists (mutation targets, serial lanes, package exports) legal.
+## Tool configuration and jobs
 
-**Rejected:** conditional or broad internal test exports, which it refuted itself on the Knip
-entry-surface argument.
+Make repeated populations and execution facts authoritative, then simplify each native config around them. This is a join of existing authorities, not a universal configuration schema.
 
-**A caution on its citations.** The review was produced against a comment-STRIPPED copy of the tree, so
-its line numbers do not match this repo, and its report of a "broken orphan comment fragment" at
-`.dependency-cruiser.cjs` line 659 is an artifact of that stripping rather than a defect. Treat its line
-references as approximate and re-derive before acting.
+- Vitest, Playwright, ESLint, dependency-cruiser, Knip, CPD and Stryker must consume the relevant shared package/world/test/population facts.
+- Native TypeScript/JavaScript configs can compose shared data directly. Generate deterministic sections for static formats only where necessary.
+- Generate the fields TypeScript forces children to restate; hand-author intent. Abstract templates carry `files: []`; the default Node program has explicit roots; ambient ownership survives inheritance/overrides.
+- Preserve tool-specific rule policy, deliberate grants, public-entry semantics, mutation targets/calibration, and independent oracles. A current violation must not generate its own permission.
+- Keep Stryker derivation pure: importing it cannot mutate the base Vitest config. Share mechanical configuration while retaining explicit calibrated policy.
+- Preserve and adapt native-config liveness checks when selectors move behind imports or generated layers. A static reader that cannot follow the new form must refuse or be replaced by an effective-config witness, never silently pass.
+- Keep scripts/hooks/CI as thin entry points into the existing verifier and supervisors. Tier admission, actual requested subjects, deferrals, and exit classification must compose correctly.
+- Preserve tinker’s measured performance mechanisms, artifact identity, private CT builds, and watchdog behavior. Capacity-reader semantics and admission-control guarantees must be stated accurately.
 
-## Forks
+A shared glob string does not establish shared semantics. Compare each tool's native resolved population and effective policy against independent intended facts. Avoid expensive repository/compiler discovery on every editor save; materialize expensive observations at the appropriate invocation boundary.
 
-**`tests/` as a workspace package. Owner call, not a phase.** The review agrees with it in passing and
-under-scopes the blast radius: there is no `tests/package.json` today and 2,616 test files, so creating
-it gives Knip a new workspace, changes what dep-cruiser's `not-to-dev-dep` and package-cake rules see,
-and makes biome's `noUndeclaredDependencies` re-evaluate every import in all of them. No phase depends on
-it. **Default if unruled: skip it.** The terminal state does not need it.
+## Ordered implementation
 
-## Non-goals
+| Phase | Deliverable | Completion evidence |
+| - | - | - |
+| 0 | Shared vocabulary and repo-wide actual-versus-intended membership report | Every authored TS file represented; unknown intent and missing/wrong ownership visible; discovered nested/reference programs; no premature target enforcement |
+| 1 | Helper world homes, import-direction boundaries, scoped compiler coverage | Correct helper placement and boundary controls; production changes still trigger the necessary dependent test type programs |
+| 2 | Delete the failed `pure.ts` mirrors | One surviving source/export home; no compatibility mirror |
+| 3 | Source ownership and barrel closure repair | DOM-less compiler proofs for the intended pure front doors; current importer/closure evidence; regression pins |
+| 4 | Unified test registration and reclassification | Registry before moves; `.dom.test.ts`/`.dom.test-d.ts`; obsolete directory rulings and filename lists removed; native collection/execution retained |
+| 5 | Small world configs and stable native-config adapters | Explicit roots/ambient ownership; forced fields generated; selected-file and effective-policy equivalence |
+| 6 | Predictive enforcement and ledger retirement | Wrong/missing owners and forbidden boundaries fail through real enforcers; no unresolved ownership hidden by a green aggregate |
+| 7 | File-to-typecheck router | Correct programs for file/folder/package/changed inputs; actual subjects carried into execution; honest empty/deferred/error results |
 
-- Recalibrating any mutation threshold, or any change to `stryker*.config.json`.
-- The runtime-lane ledgers (`SERIAL_INT`, `LIVE_DRIVE`) and the Stryker lane allowlist. Same disease, a
-  hand-maintained list held true only by a comment, but a different file family and a different failure;
-  it is [#1340](https://github.com/Inktomi93/orbweaver/issues/1340) and must not wait on this program.
-- Repo-wide comment slimming (owner ruling 2026-09-04). The root-config reading-set entry is
-  [#1337](https://github.com/Inktomi93/orbweaver/issues/1337).
-- Extending doc-catalog receipts to non-Markdown files.
-- Renaming `.spec.ts`.
+Hard dependencies: phase 0's instrument before migration measurements; phase 2 before 3; phase 3 before closure-dependent phase 4 reclassification; predictive enforcement after the target structure is correct. Existing false-clean job/scoping/exit defects and isolation prerequisites may be repaired immediately; that is not permission to reclassify closures early.
 
-## Child rows
+The codemod-kit repair [#1860](https://github.com/Inktomi93/orbweaver/issues/1860) is a prerequisite to bulk moves. Preserve dry-run/preview integrity, path/overwrite guards, extensionful reference rewrites and apply refusal. Fix bulk-move cost and wrong-world diagnostics before relying on the kit. A delta measured under the wrong compiler world is not sufficient protection if that world already hides the relevant type error.
 
-Rows for phases 0, 1, 3, 4, 5, 6 and 7 are minted as the program activates, so each carries its own
-re-derivation against the tree it actually lands on rather than against this document's baseline.
+## Membership report
+
+`pnpm check:tests-membership --json` retains every authored TypeScript row: intended world, required primary program, actual root owners, actual closure membership, and outcome. The report explicitly identifies the checks its exit code currently enforces.
+
+During migration, target drift remains informational while the existing test-orphan and reference-lib guards enforce. Transitional client/ui test-directory containment is not target intent. Unknown declaration ownership is reported explicitly. Neither the report's successful exit nor a single green type program is program completion.
+
+## Acceptance
+
+- Reconcile authored inventory, intended ownership, native compiler roots/closures, native runner collection, and actual execution by identity, not just counts.
+- Exercise positive and negative controls for fresh packages/kinds, nested/reference configs, inherited arrays, declarations, unknown/empty/overlapping projects, removed grant subjects, and unsupported inputs.
+- Compare tool-native selector semantics for dotfiles, negation order, separators, config-relative paths, generated/foreign/transient files and relevant case behavior.
+- Preserve every authoritative behavioral regression and explain deliberate population changes. A smaller unannounced population is not a speed improvement.
+- Verify dry-run/no-write and failed-apply/no-write behavior before reorganization; retain realistic-scale performance and reference-identity evidence.
+- Run the affected behavioral tier and a fresh composed release battery after the train drains. Keep inherited gate-cutover failures explicit during intermediate checkpoints; never translate them into a clean verdict.
+- Update the board, current design and durable receipts. Remove superseded readers, lists, aliases, comments and compatibility scaffolding in the corresponding migration.
+
+Mutation threshold changes, unrelated product features, and the remaining gate conversions are not bundled into this program by default. Finish the coordinated world/test/config work first; the gate program remains a subsequent work queue.

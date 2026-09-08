@@ -22,29 +22,33 @@ export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(
     .map(([name]) => name),
 );
 
-/** Trees of the test surface (tests/, scripts/, playwright/) that are browser-context by DIRECTORY: the
- *  browser-subject test trees (#1243), e2e (owner ruling 2026-07-24), the browser helper world (phase 1), the
- *  CT mount, and the st-goldens rig (a browser-driving probe rig, on the e2e precedent). Any `.tsx` anywhere on
- *  that surface is browser by SUFFIX (React under playwright-ct). Everything else on the surface is node. */
-export const BROWSER_SURFACE_DIRS: readonly string[] = Object.freeze([
-  "tests/client",
-  "tests/ui",
-  "tests/e2e",
-  "tests/support/browser",
-  "playwright",
-  "scripts/probes/st-goldens",
-]);
+/** Browser-context harnesses by nature; temporary client/ui test-directory containment is not intent. */
+export const BROWSER_SURFACE_DIRS: readonly string[] = Object.freeze(["tests/e2e", "tests/support/browser", "playwright", "scripts/probes/st-goldens"]);
 
-/** The two programs that root the test surface: the DOM-less node world and the browser-tests world. */
-export const NODE_WORLD_PROGRAM = "tsconfig.json";
-export const BROWSER_TESTS_PROGRAM = "tsconfig.tests-dom.json";
+/** Target owners; an absent program remains visible as migration debt when its first file appears. */
+export const TEST_WORLD_PROGRAMS = {
+  iso: "tsconfig.tests-iso.json",
+  node: "tsconfig.json",
+  browser: "tsconfig.tests-dom.json",
+} as const satisfies Readonly<Record<World, string>>;
 
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
+const PKG_TOOL_RE = /^packages\/([^/]+)\/[^/]+$/u;
 const TEST_SURFACE_RE = /^(?:tests|scripts|playwright)\//u;
+const TS_SOURCE_RE = /\.(?:ts|tsx|mts|cts)$/u;
+const DECLARATION_RE = /\.d\.(?:ts|mts|cts)$/u;
+const BROWSER_TEST_SUFFIXES = [".tsx", ".dom.test.ts", ".dom.test-d.ts"] as const;
 
-/** The world a repo-relative TypeScript file is written for, by package + directory + suffix — or undefined
- *  when the path is outside every world the model knows (a root config file, a package's non-src file). */
+/** The compiler-membership universe includes declaration files and all authored TypeScript dialects. */
+export function isTypeWorldSource(rel: string): boolean {
+  return TS_SOURCE_RE.test(rel);
+}
+
+/** Intended world by authored home and suffix; declarations without a package home remain unresolved. */
 export function worldOf(rel: string): World | undefined {
+  if (!isTypeWorldSource(rel)) {
+    return;
+  }
   const pkg = PKG_SRC_RE.exec(rel)?.[1];
   if (pkg !== undefined) {
     return PACKAGE_WORLDS[pkg];
@@ -52,20 +56,42 @@ export function worldOf(rel: string): World | undefined {
   if (rel.startsWith("tooling/src/")) {
     return "node";
   }
-  if (!TEST_SURFACE_RE.test(rel)) {
+  for (const world of WORLDS) {
+    if (rel.startsWith(`tests/support/${world}/`)) {
+      return world;
+    }
+  }
+  if (TEST_SURFACE_RE.test(rel)) {
+    return BROWSER_TEST_SUFFIXES.some((suffix) => rel.endsWith(suffix)) || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`)) ? "browser" : "node";
+  }
+  if (DECLARATION_RE.test(rel)) {
     return;
   }
-  if (rel.endsWith(".tsx") || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`))) {
-    return "browser";
-  }
-  return "node";
+  const toolPackage = PKG_TOOL_RE.exec(rel)?.[1];
+  return !rel.includes("/") || (toolPackage !== undefined && PACKAGE_WORLDS[toolPackage] !== undefined) ? "node" : undefined;
 }
 
-/** The program the model PREDICTS roots a test-surface file — the prediction the membership report compares
- *  against reality, and (phase 6) the verdict. undefined off the test surface. */
-export function predictedTestProgram(rel: string): string | undefined {
-  if (!TEST_SURFACE_RE.test(rel)) {
+/** Required primary compiler owner; package source may also participate in consumer programs. */
+export function predictedProgram(rel: string): string | undefined {
+  const world = worldOf(rel);
+  if (world === undefined) {
     return;
   }
-  return worldOf(rel) === "browser" ? BROWSER_TESTS_PROGRAM : NODE_WORLD_PROGRAM;
+  const pkg = PKG_SRC_RE.exec(rel)?.[1];
+  if (pkg !== undefined) {
+    return `packages/${pkg}/tsconfig.json`;
+  }
+  if (rel.startsWith("tooling/src/")) {
+    return "tooling/tsconfig.json";
+  }
+  const toolPackage = PKG_TOOL_RE.exec(rel)?.[1];
+  if (toolPackage !== undefined && PACKAGE_WORLDS[toolPackage] === "node") {
+    return `packages/${toolPackage}/tsconfig.json`;
+  }
+  return TEST_WORLD_PROGRAMS[world];
+}
+
+/** A test or harness must have one root owner even though its imports can enter other closures. */
+export function requiresExclusiveRoot(rel: string): boolean {
+  return TEST_SURFACE_RE.test(rel);
 }
