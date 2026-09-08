@@ -1,8 +1,8 @@
 // Generator for docs/test-baseline/manifest.json — the committed manifest the monotonic-tests gate's
 // tooth 2 reads (a listed test file that no longer exists on disk, and NOT accounted for in `deletions`,
 // is RED: a spec can't be deleted to go green). Lists every REAL test-execution file under tests/
-// (`.test.ts`/`.test.tsx`/`.ct.tsx`/`.spec.ts` — the suffixes vitest/Playwright actually collect as a
-// runnable spec), plus previous members whose removal has not been accounted for.
+// (runtime kinds from the shared test registry), plus previous members whose removal has not been
+// accounted for. Type-only tests are checked by their compiler program, outside this execution floor.
 //
 // ADDING a test needs no edit BY HAND, but it does need a REGEN (#817, 2026-08-30): the `ledgers:fresh`
 // stage compares the committed file against a fresh derivation on every `pnpm check`, so a tracked spec
@@ -22,12 +22,11 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { RUNTIME_TEST_SUFFIXES } from "@orb/tooling/_shared/test-kinds";
 import type { TestBaselineDeletion, TestBaselineManifest } from "../../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../../contract/test-baseline.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline test-baseline-manifest");
-
-const SPEC_SUFFIX = /\.(test\.tsx?|ct\.tsx|spec\.ts)$/u;
 
 /** Re-derive the whole manifest from the tree. ONE producer, TWO callers — the writer below and the
  *  `ledgers:fresh` stage's `--check` arm (ops/ledgers-fresh.ts), so the committed file and the freshness
@@ -44,7 +43,7 @@ export function deriveTestBaselineManifest(root: string): TestBaselineManifest {
   const files = new Set(
     execNicedSync("git", ["ls-files", "-z", "--", "tests"], { cwd: root })
       .split("\0")
-      .filter((f) => SPEC_SUFFIX.test(f))
+      .filter((f) => RUNTIME_TEST_SUFFIXES.some((suffix) => f.endsWith(suffix)))
       .map((f) => f.replaceAll("\\", "/")),
   );
 
