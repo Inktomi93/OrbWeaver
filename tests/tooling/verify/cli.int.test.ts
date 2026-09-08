@@ -48,6 +48,14 @@ test("an unknown verb is still MISUSE, not a help answer", { timeout: HELP_TIMEO
   expect(res.stderr).toContain('unknown verb "not-a-verb"');
 });
 
+test("an explicit changed path outside the repository is CLI misuse, not a tool failure or empty selection", { timeout: HELP_TIMEOUT_MS }, async ({
+  runCli,
+}) => {
+  const result = await runCli("verify", ["run", "--changed", "/tmp/outside-orbweaver.ts", "--json"], { timeoutMs: HELP_TIMEOUT_MS });
+  await expect(result).toExitWith(3);
+  expect(result.stderr).toContain("explicit selection path resolves outside repository");
+});
+
 // ── the TAIL axis (#1117) ────────────────────────────────────────────────────────────────────────────
 //
 // The VERB axis was always strict; the tail each verb received was not. These pins run under the SAME

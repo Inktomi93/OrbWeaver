@@ -23,6 +23,8 @@ export const VERIFY_VERBS = [
   "ledgers-fresh",
   "debt",
   "ratchet-gate",
+  "config-snapshot",
+  "typecheck-plan",
 ] as const;
 
 export type VerifyVerb = (typeof VERIFY_VERBS)[number];

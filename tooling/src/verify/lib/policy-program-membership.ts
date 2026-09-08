@@ -281,8 +281,7 @@ export function readAvailablePolicyPrograms(inventory: PolicyRepositoryInventory
 }
 
 /** Shares the validated authored graph and native options with transformation tools. */
-export function readCompilerPrograms(root: string, overlay?: CompilerSourceOverlay): readonly CompilerProgram[] {
-  const inventory = readPolicyRepositoryInventory(root);
+export function readCompilerProgramsFromInventory(inventory: PolicyRepositoryInventory, overlay?: CompilerSourceOverlay): readonly CompilerProgram[] {
   if (overlay === undefined) {
     return readAvailablePolicyPrograms(inventory).map((program) => ({
       ...program,
@@ -301,6 +300,10 @@ export function readCompilerPrograms(root: string, overlay?: CompilerSourceOverl
         : commandLine,
     };
   });
+}
+
+export function readCompilerPrograms(root: string, overlay?: CompilerSourceOverlay): readonly CompilerProgram[] {
+  return readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root), overlay);
 }
 
 export function mergePolicyPrograms(

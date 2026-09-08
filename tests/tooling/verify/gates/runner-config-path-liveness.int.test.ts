@@ -7,11 +7,11 @@
 //
 // Conformance proves the matcher against synthetic mini-projects; THIS proves the promise against the REAL
 // configs and against planted controls in BOTH directions, so the lie cannot be reintroduced. The
-// load-bearing arm is CODE-SHAPE COVERAGE: SERIAL_INT is a named const SPREAD into two projects, so a
-// StringLiteral-only reader would find almost none of it — the real-tree test asserts the DENOMINATOR, not
-// just the verdict.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+// load-bearing arm is EXECUTED CONFIG COVERAGE: SERIAL_INT and the kind globs are derived through imports,
+// calls and spreads, so the gate drives Vitest's public native loader through config-snapshot and asserts
+// the resulting denominator rather than teaching a partial AST interpreter more syntax.
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative } from "node:path";
 import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
@@ -101,6 +101,82 @@ describe("runner-config-path-liveness — the DEAD-ROW control, both directions"
   });
 });
 
+describe("runner-config-path-liveness — exact selectors stay inside the repository", () => {
+  test("an existing ../outside.test.ts cannot satisfy liveness", ({ scratch }) => {
+    const outside = join(dirname(scratch), `${basename(scratch)}-outside.test.ts`);
+    const selector = relative(scratch, outside);
+    writeFileSync(outside, "export const outside = 1;\n");
+    try {
+      plantConfigs(scratch, `export default { test: { projects: [{ test: { include: [${JSON.stringify(selector)}] } }] } };\n`);
+      const run = runGate(scratch);
+      expect(tokens(run)).toContain(selector);
+      expect(messages(run)).toContain("resolves outside the repository root");
+    } finally {
+      rmSync(outside, { force: true });
+    }
+  });
+
+  test("a missing ../outside.test.ts is a containment finding, not an ordinary dead in-repo row", ({ scratch }) => {
+    const selector = `../${basename(scratch)}-missing.test.ts`;
+    plantConfigs(scratch, `export default { test: { projects: [{ test: { include: [${JSON.stringify(selector)}] } }] } };\n`);
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain(selector);
+    expect(messages(run)).toContain("resolves outside the repository root");
+  });
+
+  test("an in-repo selector containing .. normalizes to its live target", ({ scratch }) => {
+    const selector = "tests/tooling/../tooling/live.int.test.ts";
+    plantConfigs(scratch, `export default { test: { projects: [{ test: { include: [${JSON.stringify(selector)}] } }] } };\n`);
+    plant(scratch, LIVE_REL, "export const live = 1;\n");
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("an absolute selector resolving inside the repository stays valid", ({ scratch }) => {
+    const selector = join(scratch, LIVE_REL);
+    plantConfigs(scratch, `export default { test: { projects: [{ test: { include: [${JSON.stringify(selector)}] } }] } };\n`);
+    plant(scratch, LIVE_REL, "export const live = 1;\n");
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("an in-repo symlink cannot make an outside target satisfy liveness", ({ scratch }) => {
+    const outside = join(dirname(scratch), `${basename(scratch)}-symlink-target.test.ts`);
+    const selector = "tests/tooling/linked.int.test.ts";
+    writeFileSync(outside, "export const outside = 1;\n");
+    mkdirSync(join(scratch, "tests/tooling"), { recursive: true });
+    symlinkSync(outside, join(scratch, selector));
+    try {
+      plantConfigs(scratch, `export default { test: { projects: [{ test: { include: [${JSON.stringify(selector)}] } }] } };\n`);
+      const run = runGate(scratch);
+      expect(tokens(run)).toContain(selector);
+      expect(messages(run)).toContain("in-repo symlink cannot grant");
+    } finally {
+      rmSync(outside, { force: true });
+    }
+  });
+});
+
+describe("runner-config-path-liveness — Vitest exact includes select files", () => {
+  test("an empty exact include cannot pass by resolving to the repository root", ({ scratch }) => {
+    plantConfigs(scratch, 'export default { test: { projects: [{ test: { include: [""] } }] } };\n');
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain("");
+    expect(messages(run)).toContain("collects zero tests for an exact empty/root or directory include");
+  });
+
+  test("an existing directory exact include cannot pass filesystem-only liveness", ({ scratch }) => {
+    plantConfigs(scratch, 'export default { test: { projects: [{ test: { include: ["tests"] } }] } };\n');
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain("tests");
+    expect(messages(run)).toContain("resolves to a directory rather than a file");
+  });
+
+  test("a valid exact test-file include remains live", ({ scratch }) => {
+    plantConfigs(scratch, `export default { test: { projects: [{ test: { include: ["${LIVE_REL}"] } }] } };\n`);
+    plant(scratch, LIVE_REL, "export const live = 1;\n");
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+});
+
 describe("runner-config-path-liveness — the SERIAL_INT shape a StringLiteral-only reader would miss", () => {
   test("a dead path behind a named const SPREAD into two projects reds ONCE PER SITE", ({ scratch }) => {
     // The founding shape: SERIAL_INT is spread into `integration`'s exclude AND `integration-serial`'s
@@ -111,7 +187,10 @@ describe("runner-config-path-liveness — the SERIAL_INT shape a StringLiteral-o
         `export default { test: { projects: [{ test: { include: ["tests/**/*.int.test.ts"], exclude: [...SERIAL] } }, { test: { include: SERIAL } }] } };\n`,
     );
     plant(scratch, LIVE_REL, "export const live = 1;\n");
-    expect(tokens(runGate(scratch))).toEqual([DEAD_REL, DEAD_REL]);
+    const run = runGate(scratch);
+    expect(tokens(run)).toEqual([DEAD_REL, DEAD_REL]);
+    expect(messages(run)).toContain("project[0].test.exclude");
+    expect(messages(run)).toContain("project[1].test.include");
   });
 
   test("the live sibling in that same const stays silent — the spread reader is not a blanket accuser", ({ scratch }) => {
@@ -138,8 +217,8 @@ describe("runner-config-path-liveness — a bare zero must be 'I could not measu
   test("an UNREADABLE shape (a call) REFUSES LOUDLY rather than being silently skipped", ({ scratch }) => {
     plantConfigs(scratch, "export default { test: { include: [resolvePaths()] } };\n");
     const run = runGate(scratch);
-    expect(messages(run)).toContain("CANNOT statically read");
-    expect(tokens(run)).toContain("CallExpression");
+    expect(messages(run)).toContain("CANNOT resolve through its owning config reader");
+    expect(tokens(run)).toContain("native-loader");
   });
 
   test("an anchor-sized value set deriving ZERO exact rows REDs — the classifier-rot tripwire", ({ scratch }) => {

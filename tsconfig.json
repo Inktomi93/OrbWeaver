@@ -18,6 +18,7 @@
     "aggregator-assets.d.ts",
     // This script-kind SDK declaration belongs to its conformance test, never the server program.
     "packages/showcase-plugins/bundles/host-v1.d.ts",
+    "packages/client/vite.config.ts",
     "vitest.config.ts",
     "vitest.stryker.config.ts",
     "playwright.config.ts",

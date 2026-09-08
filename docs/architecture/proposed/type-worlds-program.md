@@ -81,6 +81,10 @@ Make repeated populations and execution facts authoritative, then simplify each 
 
 A shared glob string does not establish shared semantics. Compare each tool's native resolved population and effective policy against independent intended facts. Avoid expensive repository/compiler discovery on every editor save; materialize expensive observations at the appropriate invocation boundary.
 
+`verify config-snapshot vitest <config>` loads selector fields through Vitest's public config loader. The runner-liveness gate consumes this observation instead of interpreting imported JavaScript configuration. Exact paths retain field-specific file/directory semantics and repository containment; glob rows are explicitly reported as unjudged by this exact-path check. Native collection remains the population oracle. CPD scans `packages/`, so centralized `tests/` needs no duplicate suffix exclusion table.
+
+`verify typecheck-plan` is the shared file-routing entry point. Primary mode reads authored compiler roots for the post-edit hook; affected mode adds native imported consumers for verification. The hook selects the edited checkout from its payload, verifies repository identity against the launcher, and uses that checkout's tools and configs. It reports complete selected-program diagnostics and explicit non-verdicts. Its PostToolUse advisory cannot undo an edit. The independent routing-parity check compares the shared compiler parser with native TS7 roots; it remains necessary when both hook and verifier share a planner.
+
 ## Ordered implementation
 
 | Phase | Deliverable | Completion evidence |

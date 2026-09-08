@@ -6,9 +6,10 @@
 
 import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { BROWSER_PACKAGES, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
+import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
-import { distinctTsconfigs, graphMembership, touchesGraph, touchesTestsDom } from "./program-routing.ts";
+import { planTypecheckPrograms } from "./program-routing.ts";
 import { classifyExplicitPaths, GIT_READ_PREFIX, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
@@ -40,7 +41,7 @@ function filterPaths(paths: readonly string[], pred: (p: string) => boolean): re
 
 /** Build the derived views (eslint/depcruise/docs/tsconfigs/graph flag) from a repo-relative path set. */
 function deriveViews(
-  paths: readonly string[],
+  semanticPaths: readonly PolicySemanticPath[],
   existingPaths: readonly string[],
   root: string,
 ): {
@@ -52,25 +53,26 @@ function deriveViews(
   readonly touchesTestsDom: boolean;
   readonly ct: CtView;
 } {
-  const graphSrc = graphMembership();
+  const paths = semanticPaths.map((path) => path.path);
+  const typecheck = planTypecheckPrograms(root, semanticPaths, "affected");
   return {
     // Every direct-file view derives from the classification's ONE current-filesystem subset. The all-path
     // view below still drives tsconfig/graph/structure/deletion semantics.
     eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p)),
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
     docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
-    tsconfigs: distinctTsconfigs(paths, graphSrc),
-    // `touchesGraphOnlyTrees` KEEPS its field name (downstream registry contract) but now means "puts any
-    // file in the GRAPH program" — graph roots (tests/scripts/reset.d.ts) OR the import-pull overlay.
-    touchesGraphOnlyTrees: touchesGraph(paths, graphSrc),
-    touchesTestsDom: touchesTestsDom(paths),
+    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
+    // These field names stay stable for the stage registry; their values come from the complete affected
+    // program plan, including imported consumers rather than a copied path table.
+    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
+    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
     ct: ctView(paths, root),
   };
 }
 
 /** Git's diff omits untracked files by definition. A bare `--changed` means the whole working change,
  * so union the diff's rename-aware identities with Git's authoritative untracked view. */
-function workingChangeClassification(root: string): ChangedPathClassification {
+export function workingChangeClassification(root: string): ChangedPathClassification {
   const changed = gitChangedPathClassification(root);
   const untracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"], { cwd: root })
     .split("\0")
@@ -107,7 +109,7 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
     paths,
     existingPaths,
     runtimeSubjects: existingPaths,
-    ...deriveViews(paths, existingPaths, root),
+    ...deriveViews(classification.entries, existingPaths, root),
     checkScopeArgv: [...SCOPED_CLI, "--changed", ...paths],
     gitRef,
   };
@@ -117,29 +119,36 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
  *  use the package src prefix (a package run is whole-package, so no explicit file list is threaded to
  *  biome/eslint here — they run over the package via check:scope's fileset only for structure; biome/
  *  eslint/tsc take the package prefix as a folder arg). */
-function resolvePackage(name: string): Selection {
+function resolvePackage(name: string, root: string): Selection {
   const dir = packageDir(name);
   // @orb/tooling is a ROOT-tree workspace package (docs/architecture/core/Core-Tooling-Law.md §2.1), not packages/*.
   const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
   // A package selection's "paths" is the prefix itself — biome/eslint accept a directory arg, tsc uses the
   // owning tsconfig, depcruise takes the prefix. The concrete file enumeration is left to each tool.
+  const runtimeSubjects = authoredPathsUnder(prefix.replace(/\/$/u, ""), root);
+  if (runtimeSubjects.length === 0) {
+    throw new Error(`package scope selected zero authored paths: ${name}`);
+  }
   const paths: readonly string[] = [prefix];
+  const typecheck = planTypecheckPrograms(
+    root,
+    runtimeSubjects.map((path) => ({ path, status: "present", previousPath: null })),
+    "affected",
+  );
   return {
     kind: "package",
     label: `package ${dir}`,
     paths,
     existingPaths: paths,
-    runtimeSubjects: [],
+    runtimeSubjects,
     eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
-    tsconfigs: [dir === "tooling" ? "tooling/tsconfig.json" : `packages/${dir}/tsconfig.json`],
-    // A NODE package's src ARE graph roots → --package runs types:graph (the DOM-less lens catches what the
-    // package's own dom-tsconfig can't — the TS2584 class). Browser packages (ui/client) are graph-EXCLUDED,
-    // so graph honestly defers. This keeps --package consistent with --changed on the same package's files.
-    touchesGraphOnlyTrees: !BROWSER_PACKAGES.has(dir),
+    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
+    // Root ownership and imported consumers select the same affected programs for package and file requests.
+    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
     // Package source supplies browser-test types through imports, even when it is not a test root.
-    touchesTestsDom: true,
+    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
     // A whole-package scope over a BROWSER package sweeps that package's whole mirror tree (the honest floor
     // for "everything in ui/client changed"); a node package contributes no CT. Prefix-based, so it doesn't
     // route through the per-file mirror map (paths here is a bare prefix, not a concrete .tsx file).
@@ -153,20 +162,27 @@ function resolvePackage(name: string): Selection {
 function resolveScope(glob: string, root: string): Selection {
   const prefix = glob.replace(SCOPE_GLOB_TAIL_RE, "").replace(TRAILING_SLASH_RE, "");
   const paths: readonly string[] = [prefix];
+  const runtimeSubjects = authoredPathsUnder(prefix, root);
+  if (runtimeSubjects.length === 0) {
+    throw new Error(`scope selected zero authored paths: ${glob}`);
+  }
+  const typecheck = planTypecheckPrograms(
+    root,
+    runtimeSubjects.map((path) => ({ path, status: "present", previousPath: null })),
+    "affected",
+  );
   return {
     kind: "scope",
     label: `scope ${glob}`,
     paths,
     existingPaths: paths,
-    runtimeSubjects: authoredPathsUnder(prefix, root),
+    runtimeSubjects,
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
-    // A folder scope: use the conservative fallback (undefined overlay) — a packages/*/src scope then also
-    // runs the graph, the honest floor for a whole-folder run.
-    tsconfigs: distinctTsconfigs([`${prefix}/x.ts`], undefined),
-    touchesGraphOnlyTrees: touchesGraph([`${prefix}/x.ts`], undefined),
-    touchesTestsDom: touchesTestsDom([`${prefix}/x.ts`]),
+    tsconfigs: typecheck.programs.filter((program) => program !== "tsconfig.json" && program !== "tsconfig.tests-dom.json"),
+    touchesGraphOnlyTrees: typecheck.programs.includes("tsconfig.json"),
+    touchesTestsDom: typecheck.programs.includes("tsconfig.tests-dom.json"),
     // The sweep triggers are prefix-tests, so a folder scope under a declared blast-radius (e.g.
     // `--scope packages/ui/src/tokens`) escalates to the matching sweep; a scope with no trigger is skip
     // (the per-file mirror map needs a concrete .tsx path, which a folder glob is not).
@@ -184,7 +200,7 @@ export function resolveSelection(req: SelectionRequest, root: string = ROOT): Se
     case "file":
       return resolveChanged("file", req.paths, root);
     case "package":
-      return resolvePackage(req.name);
+      return resolvePackage(req.name, root);
     case "scope":
       return resolveScope(req.glob, root);
   }

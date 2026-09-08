@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
@@ -83,15 +84,25 @@ export function gitChangedPaths(root: string = ROOT): readonly string[] {
 /** Explicit changed/file requests carry no git status vocabulary. Classify by the one fact direct tools
  * need: current existence; the deletion-aware views still retain every normalized path. */
 export function classifyExplicitPaths(raw: readonly string[], root: string = ROOT): ChangedPathClassification {
-  const paths = [...new Set(raw.map((arg) => toRepoRel(arg, root)).filter((path): path is string => path !== undefined))];
+  const paths = [
+    ...new Set(
+      raw.map((arg) => {
+        const path = toRepoRel(arg, root);
+        if (path === undefined) {
+          throw new UsageError(`explicit selection path resolves outside repository: ${JSON.stringify(arg)}`);
+        }
+        return path;
+      }),
+    ),
+  ];
   return classifyEntries(
     paths.map((path) => changedPath(path, existsRel(path, root) ? "modified" : "deleted")),
     root,
   );
 }
 
-/** Normalize a caller-supplied path (abs or cwd-relative) to a repo-relative posix path. A path outside
- *  the repo is dropped. Deletions are KEPT (a path that no longer exists on disk stays in the set). */
+/** Normalize a caller-supplied path (abs or cwd-relative) to a repo-relative posix path. undefined tells
+ * the explicit-selection boundary to refuse an out-of-repository operand. In-repo deletions are kept. */
 function toRepoRel(arg: string, root: string = ROOT): string | undefined {
   const abs = isAbsolute(arg) ? arg : resolve(root, arg);
   const rel = relative(root, abs);

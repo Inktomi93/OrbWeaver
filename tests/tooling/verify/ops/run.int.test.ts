@@ -24,6 +24,7 @@ import {
   stagesForTier,
 } from "../../../../tooling/src/verify/index.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
+import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -350,6 +351,7 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
 });
 
 // ── V2 scope propagation (§3.4) — the ONE selection resolver feeds every stage's scopedArgv ──
+const AFFECTED_PLAN_TIMEOUT = scaledBudget(20_000);
 
 test(
   "resolveSelection --file: derives the per-tool views (eslint surface, tsc owner, depcruise, docs)",
@@ -367,15 +369,14 @@ test(
     // A docs file is NOT in the eslint/tsc/depcruise surfaces.
     expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
   },
-  // resolveSelection --file resolves through deriveViews → graphMembership() → graphMembershipKey(), which
-  // SHELLS OUT to `git rev-parse HEAD` (program-routing.ts). Vitest's bare 5s default flaked at 5.7-9.8s
-  // under lane load (#1610) — the arm needs the repo's load-scaled budget, not a bare literal. Spelled
+  // Affected planning asks native TS7 for every program closure on a cold snapshot. The first selection in
+  // a process pays that startup; later selections reuse the content-keyed membership snapshot. Spelled
   // `scaledBudget` from the vitest seam like the other ~70 suites: identical arithmetic over the same
   // policy, and the seam is also the door that refuses a mis-spelled `ORB_BOX_LOAD` in a worker (#1666).
-  scaledBudget(5000),
+  scaledBudget(20_000),
 );
 
-test("docs:catalog changed scope covers all Markdown and its own control files", () => {
+test("docs:catalog changed scope covers all Markdown and its own control files", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const design = resolveSelection({ kind: "file", paths: ["docs/history/design/staleness-and-session-freshness.md"] });
   expect(stage("docs:format").scopedArgv?.(design)).toBe("skip-empty");
   expect(stage("docs:catalog").scopedArgv?.(design)).toEqual(["pnpm", "check:doc-catalog"]);
@@ -387,7 +388,9 @@ test("docs:catalog changed scope covers all Markdown and its own control files",
   expect(stage("docs:catalog").scopedArgv?.(sourceOnly)).toBe("skip-empty");
 });
 
-test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", () => {
+test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", {
+  timeout: AFFECTED_PLAN_TIMEOUT,
+}, () => {
   // The D79 same-commit-deletion doctrine: a git-changed set carries deleted paths (git diff --name-only
   // HEAD keeps them). eslint/depcruise/docs take CONCRETE file args and hard-error on a path that's gone
   // ("No files matching the pattern" ⇒ the whole stage aborts) — so those views must DROP the deletion,
@@ -415,6 +418,16 @@ test("resolveSelection: a DELETED path lints clean — dropped from the tool fil
     survivor,
   ]);
   expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["node", "tooling/src/verify/cli.ts", "scoped", "--changed", deleted, survivor]);
+});
+
+test("explicit selections refuse out-of-repository operands while preserving nonexistent in-repository deletions", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  expect(() => resolveSelection({ kind: "changed", paths: ["/tmp/outside-orbweaver.ts"] })).toThrow(/resolves outside repository/u);
+
+  const deleted = "packages/server/src/does-not-exist-anymore.ts";
+  const selection = resolveSelection({ kind: "changed", paths: [deleted] });
+  expect(selection.paths).toEqual([deleted]);
+  expect(selection.existingPaths).toEqual([]);
+  expect(selection.tsconfigs).toContain("packages/server/tsconfig.json");
 });
 
 test("resolveSelection: bare --changed preserves modified, untracked, deleted, and both rename identities", () => {
@@ -446,7 +459,7 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
   writeFileSync(join(toolingSrc, "ignored.ts"), "export const ignored = true;\n");
 
   try {
-    const selected = resolveSelection({ kind: "changed", paths: [] }, scratch);
+    const selected = workingChangeClassification(scratch);
     expect(selected.paths.toSorted()).toEqual([
       "packages/server/src/deleted.ts",
       "packages/server/src/modified.ts",
@@ -462,26 +475,24 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
       "packages/server/src/untracked.ts",
       "tooling/src/untracked.ts",
     ]);
-    const folder = resolveSelection({ kind: "scope", glob: "tooling/src/**" }, scratch);
-    expect(folder.runtimeSubjects).toEqual(["tooling/src/tracked.ts", "tooling/src/untracked.ts"]);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
 });
 
-test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {
+test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
   // …and a packages/ src file NOT import-pulled into the DOM-less graph does NOT (`app.tsx` is the client
   // browser root, so the graph program never sees it via a tests/scripts import pull).
   const pkg = resolveSelection({
     kind: "file",
-    paths: ["packages/client/src/app.tsx"],
+    paths: ["packages/client/src/main.tsx"],
   });
   expect(pkg.touchesGraphOnlyTrees).toBe(false);
 });
 
-test("resolveSelection: an import-pulled src file DOES flag the graph (the TS2584 overlay, rule 5)", () => {
+test("resolveSelection: an import-pulled src file DOES flag the graph (the TS2584 overlay, rule 5)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // tokens/index.ts is transitively imported by the DOM-less root graph (confirmed via tsgo
   // --listFilesOnly) — so it belongs to TWO programs (packages/ui WITH dom AND the graph DOM-less). Editing
   // it must run types:graph, or the TS2584-class break (a graph consumer of a dom-typed export) escapes at
@@ -496,20 +507,20 @@ test("resolveSelection: an import-pulled src file DOES flag the graph (the TS258
     paths: ["packages/ui/src/tokens/index.ts"],
   });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
-  expect(sel.tsconfigs).toEqual(["packages/ui/tsconfig.json"]);
+  expect(sel.tsconfigs).toEqual(["packages/client/tsconfig.json", "packages/ui/tsconfig.json", "tooling/tsconfig.json"]);
 });
 
-test("types:graph scopedArgv: deferred (whole-only) unless the selection touches the graph program", () => {
+test("types:graph scopedArgv: deferred (whole-only) unless the selection touches the graph program", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const pkgSel = resolveSelection({
     kind: "file",
-    paths: ["packages/client/src/app.tsx"],
+    paths: ["packages/client/src/main.tsx"],
   });
   expect(stage("types:graph").scopedArgv?.(pkgSel)).toBe("whole-only");
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
   expect(stage("types:graph").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck:graph"]);
 });
 
-test("the composed changed-tier plan admits scoped graph and structure stages before their predicates run", () => {
+test("the composed changed-tier plan admits scoped graph and structure stages before their predicates run", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const graphSubject = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(planStage(stage("types:graph"), graphSubject, "changed", process.cwd())).toMatchObject({
     mode: "scoped",
@@ -520,14 +531,14 @@ test("the composed changed-tier plan admits scoped graph and structure stages be
     argv: ["node", "tooling/src/verify/cli.ts", "scoped", "--changed", "tests/tooling/verify/ops/run.int.test.ts"],
   });
 
-  const browserSubject = resolveSelection({ kind: "file", paths: ["packages/client/src/app.tsx"] });
+  const browserSubject = resolveSelection({ kind: "file", paths: ["packages/client/src/main.tsx"] });
   expect(planStage(stage("types:graph"), browserSubject, "changed", process.cwd())).toMatchObject({
     mode: "deferred",
     runsAt: "verify --static",
   });
 });
 
-test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSER package DEFERS it", () => {
+test("types:graph per --package follows affected closures for every package", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // kit/server/db/contracts src ARE graph roots (tsconfig.json include: packages/*/src) → --package must
   // run types:graph, or the DOM-less TS2584 class escapes a whole-package scope exactly as it did --file.
   for (const nodePkg of ["kit", "server", "db", "contracts"]) {
@@ -535,11 +546,12 @@ test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSE
     expect(sel.touchesGraphOnlyTrees).toBe(true);
     expect(stage("types:graph").scopedArgv?.(sel)).toEqual(["pnpm", "typecheck:graph"]);
   }
-  // ui/client src are graph-EXCLUDED (dom-typechecked by their own tsconfig) → graph honestly defers.
+  // ui/client roots are graph-excluded, but a whole package includes pure sources consumed by Node tests
+  // and tooling. Affected planning therefore runs the graph rather than dropping those consumers.
   for (const browserPkg of ["ui", "client"]) {
     const sel = resolveSelection({ kind: "package", name: browserPkg });
-    expect(sel.touchesGraphOnlyTrees).toBe(false);
-    expect(stage("types:graph").scopedArgv?.(sel)).toBe("whole-only");
+    expect(sel.touchesGraphOnlyTrees).toBe(true);
+    expect(stage("types:graph").scopedArgv?.(sel)).toEqual(["pnpm", "typecheck:graph"]);
   }
 });
 
@@ -568,12 +580,12 @@ test("types:testd + types:tests-membership + browser:e2e* are whole-only (no sco
   }
 });
 
-test("types:tests-dom scopedArgv covers roots and their production consumers, deferring unrelated docs", () => {
+test("types:tests-dom scopedArgv follows real roots and imported production consumers, deferring unrelated docs", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const offDomain = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
   expect(offDomain.touchesTestsDom).toBe(false);
   expect(stage("types:tests-dom").scopedArgv?.(offDomain)).toBe("whole-only");
 
-  for (const paths of [["tests/client/data/auth-config.test.ts"], ["packages/client/src/app.tsx"]]) {
+  for (const paths of [["tests/client/agent-nav/index.dom.test.ts"], ["packages/kit/src/ids/index.ts"]]) {
     const selection = resolveSelection({ kind: "file", paths });
     expect(selection.touchesTestsDom).toBe(true);
     expect(stage("types:tests-dom").scopedArgv?.(selection)).toEqual(["pnpm", "typecheck:tests-dom"]);
@@ -584,7 +596,7 @@ test("types:tests-dom scopedArgv covers roots and their production consumers, de
   }
 });
 
-test("helper-world files and folders reach dependency enforcement without adding unrelated support trees", () => {
+test("helper-world files and folders reach dependency enforcement without adding unrelated support trees", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const helper = "tests/support/node/route-trpc.ts";
   const selected = resolveSelection({ kind: "file", paths: [helper] });
   expect(selected.depcruisePaths).toEqual([helper]);
@@ -593,7 +605,7 @@ test("helper-world files and folders reach dependency enforcement without adding
   expect(resolveSelection({ kind: "scope", glob: "tests/support/chat/**" }).depcruisePaths).toEqual([]);
 });
 
-test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface", () => {
+test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // A docs file is outside every eslint `files` pattern AND outside the script's argv — the honest
   // no-op. (This pin USED to use a `tooling/src/**` path; tooling joined the eslint surface on
   // 2026-08-22 (#459), so that path now correctly RESOLVES — see the pin directly below.)
@@ -601,7 +613,7 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
 });
 
-test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surface (#459, #473)", () => {
+test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surface (#459, #473)", { timeout: scaledBudget(30_000) }, () => {
   // The surface has two halves that must agree or the coverage is a lie: the `lint:eslint` SCRIPT argv
   // (package.json) and this selection regex. Before #459 NEITHER named tooling — eslint answered "File
   // ignored because no matching configuration" and the scoped lane silently linted nothing there, which
@@ -646,7 +658,7 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src tests ");
 });
 
-test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {
+test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "package", name: "ui" });
   expect(stage("structure:full").scopedArgv?.(sel)).toEqual(["node", "tooling/src/verify/cli.ts", "scoped", "--package", "ui"]);
 });
@@ -654,53 +666,53 @@ test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (
 // ── the CT changed-scope view (§3.4, the ONE deliberately-open edge, LANDED 2026-07-17) — mirror + the
 // declared blast-radius sweeps. Scoped CT UNDER-selects on purpose; the push bar is the coverage verdict. ──
 
-test("ct view: a ui primitive source selects EXACTLY its test-layout mirror .ct.tsx", () => {
+test("ct view: a ui primitive source selects EXACTLY its test-layout mirror .ct.tsx", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // badge.tsx mirrors to tests/ui/primitives/badge/badge.ct.tsx (exists on disk) — mode "files", that one.
   const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
   expect(sel.ct).toEqual({ mode: "files", targets: ["tests/ui/primitives/badge/badge.ct.tsx"] });
 });
 
-test("ct view: a source with NO mirror on disk contributes nothing (no mirror, no CT)", () => {
+test("ct view: a source with NO mirror on disk contributes nothing (no mirror, no CT)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // index.ts barrels have no `.ct.tsx` mirror — the existsSync guard drops them (no contribution → skip).
   const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/index.ts"] });
   expect(sel.ct).toEqual({ mode: "skip", targets: [] });
 });
 
-test("ct view: a tokens file SWEEPS both trees (the light-dark()/computed-style incident class)", () => {
+test("ct view: a tokens file SWEEPS both trees (the light-dark()/computed-style incident class)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/tokens/semantic.ts"] });
   expect(sel.ct.mode).toBe("sweep");
   expect(sel.ct.targets.toSorted()).toEqual(["tests/client", "tests/ui"]);
 });
 
-test("ct view: a client state/ file SWEEPS tests/client only (the section-registry incident class)", () => {
+test("ct view: a client state/ file SWEEPS tests/client only (the section-registry incident class)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "changed", paths: ["packages/client/src/state/active-chat-store.ts"] });
   expect(sel.ct).toEqual({ mode: "sweep", targets: ["tests/client"] });
 });
 
-test("ct view: a server-only change → skip (no CT surface)", () => {
+test("ct view: a server-only change → skip (no CT surface)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "changed", paths: ["packages/server/src/index.ts"] });
   expect(sel.ct).toEqual({ mode: "skip", targets: [] });
 });
 
-test("ct view: a changed .ct.tsx selects ITSELF", () => {
+test("ct view: a changed .ct.tsx selects ITSELF", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const ct = "tests/ui/primitives/badge/badge.ct.tsx";
   const sel = resolveSelection({ kind: "changed", paths: [ct] });
   expect(sel.ct).toEqual({ mode: "files", targets: [ct] });
 });
 
-test("ct view: a .suite.ct.tsx is NEVER mirror-selected (it mirrors no single module — rides sweeps only)", () => {
+test("ct view: a .suite.ct.tsx is NEVER mirror-selected (it mirrors no single module — rides sweeps only)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // The touch-target-floor cross-cutting suite: changed alone, it selects nothing (it is not a module mirror).
   const sel = resolveSelection({ kind: "changed", paths: ["tests/ui/touch-target-floor.suite.ct.tsx"] });
   expect(sel.ct).toEqual({ mode: "skip", targets: [] });
 });
 
-test("ct view: a shared GROUP CORE sweeps its group dir; a chart source's mirror stays file-scoped", () => {
+test("ct view: a shared GROUP CORE sweeps its group dir; a chart source's mirror stays file-scoped", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   // charts/chart/** is consumed by every chart primitive → sweep the whole charts group mirror.
   const core = resolveSelection({ kind: "changed", paths: ["packages/ui/src/charts/chart/chart.tsx"] });
   expect(core.ct).toEqual({ mode: "sweep", targets: ["tests/ui/charts"] });
 });
 
-test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launcher otherwise", () => {
+test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launcher otherwise", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const skip = resolveSelection({ kind: "changed", paths: ["packages/server/src/index.ts"] });
   expect(stage("browser:ct").scopedArgv?.(skip)).toBe("skip-empty");
   // A mirror hit → the scoped launcher, which opens the one invocation slot before Playwright loads config.
@@ -723,7 +735,9 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // empty. PD-115's own class stays guarded: `tests:execution-membership` REDs a runner view matching ZERO
 // files at the STATIC tier, and every whole-scope `pnpm test` still runs at `passWithNoTests: false`.
 
-test("tests:node scopedArgv: git changes stay derived, while explicit source/test/folder/package subjects reach Vitest", () => {
+test("tests:node scopedArgv: git changes stay derived, while explicit source/test/folder/package subjects reach Vitest", {
+  timeout: AFFECTED_PLAN_TIMEOUT,
+}, () => {
   // The Git-derived arm keeps Vitest's VCS selector and its derived-empty allowance. Explicit test claims
   // enter the runner's zero-match preflight; source and mixed claims enter native `related`. Folder
   // subjects were already expanded from Git's authored inventory by the shared Selection resolver.
