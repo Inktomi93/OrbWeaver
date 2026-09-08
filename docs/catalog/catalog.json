@@ -35163,6 +35163,52 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-08-stale-rpc-wrapper-cleanup.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 103,
+      "bytes": 6822,
+      "sha256": "221fa81d3a4df9d40fb8d48feb67996ecd7cfd879e50891abdebd70c3759fa36",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-stale-rpc-wrapper-cleanup.md",
+        "assignedSha256": "221fa81d3a4df9d40fb8d48feb67996ecd7cfd879e50891abdebd70c3759fa36",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "221fa81d3a4df9d40fb8d48feb67996ecd7cfd879e50891abdebd70c3759fa36",
+        "verifiedCommit": "7d9cd503ea1e11f92213df84f870037d687cd5e2",
+        "verifiedAt": "2026-09-08",
+        "evidence": ["Full report read; independent verification and committed implementation checked at 7d9cd503ea1e11f92213df84f870037d687cd5e2."],
+        "summary": "Independent review found no defect in the nine-wrapper cleanup, with exhaustive cross-tenant coverage and retained domain behavior.",
+        "claims": [
+          {
+            "claim": "Independent review found no defect in the nine-wrapper cleanup, with exhaustive cross-tenant coverage and retained domain behavior.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/transport/trpc/routers/automation.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:7d9cd503ea1e11f92213df84f870037d687cd5e2"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-08-symbol-routing.md",
       "lane": "reviews",
       "issue": 7,
@@ -35257,6 +35303,52 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-08-typecheck-directive-freshness.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 153,
+      "bytes": 9354,
+      "sha256": "09f34ea9cf20cf6679085477de220923a4322272408aa26b5eb67f2ff116b9f7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-08"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-08-typecheck-directive-freshness.md",
+        "assignedSha256": "09f34ea9cf20cf6679085477de220923a4322272408aa26b5eb67f2ff116b9f7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "09f34ea9cf20cf6679085477de220923a4322272408aa26b5eb67f2ff116b9f7",
+        "verifiedCommit": "7d9cd503ea1e11f92213df84f870037d687cd5e2",
+        "verifiedAt": "2026-09-08",
+        "evidence": ["Full report read; independent verification and committed implementation checked at 7d9cd503ea1e11f92213df84f870037d687cd5e2."],
+        "summary": "The shared TS7 wrapper removes caller-forced incremental flags, including native short aliases, so both Vitest type projects retain cold semantic verification.",
+        "claims": [
+          {
+            "claim": "The shared TS7 wrapper removes caller-forced incremental flags, including native short aliases, so both Vitest type projects retain cold semantic verification.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "scripts/ts7.cjs:6"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:7d9cd503ea1e11f92213df84f870037d687cd5e2"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
       "lane": "reviews",
       "issue": 7,
@@ -35308,9 +35400,9 @@
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 98,
-      "bytes": 15868,
-      "sha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+      "lines": 104,
+      "bytes": 16645,
+      "sha256": "efd517db9a206769fb69d964b05ec847667449e13a8401a59235327f4d04abbc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -35327,32 +35419,26 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
-        "verifiedCommit": "21f62021f60f9ae53e0f30a0ca4e4f993bb64e10",
+        "verifiedSha256": "efd517db9a206769fb69d964b05ec847667449e13a8401a59235327f4d04abbc",
+        "verifiedCommit": "7d9cd503ea1e11f92213df84f870037d687cd5e2",
         "verifiedAt": "2026-09-08",
-        "evidence": [
-          "Full report read and root disposition checked at 21f62021f60f9ae53e0f30a0ca4e4f993bb64e10; the surviving DiscoveryService.themes coverage row is explicitly retained."
-        ],
+        "evidence": ["Full report read; independent verification and committed implementation checked at 7d9cd503ea1e11f92213df84f870037d687cd5e2."],
         "claims": [
           {
-            "claim": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction.",
+            "claim": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain.",
             "evidence": [
               {
                 "kind": "code",
                 "target": "tooling/src/ast/ops/wiring.ts:1"
               },
               {
-                "kind": "issue",
-                "target": "#1891"
-              },
-              {
                 "kind": "provenance",
-                "target": "git:21f62021f60f9ae53e0f30a0ca4e4f993bb64e10"
+                "target": "git:7d9cd503ea1e11f92213df84f870037d687cd5e2"
               }
             ]
           }
         ],
-        "summary": "Pre-cleanup tRPC census adjudicates nine removable wrappers and six intentional surfaces, preserves live domain behavior and corrects the domain-versus-RPC coverage distinction."
+        "summary": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain."
       },
       "receiptCurrent": true
     },
