@@ -17,7 +17,9 @@ const UI_ROOT = join(import.meta.dirname, "../../../packages/ui");
 /** The emitted pointer-fine override block — its `:root { … }` body is capture group 1. */
 const FINE_BLOCK_RE = /@media \(pointer: fine\) \{\s*:root \{([\s\S]*?)\}\s*\}/u;
 
-test("theme.css, tokens/index.ts and tokens/themes.gen.ts are exactly what tokens.json + themes/*.json derive (no drift, no hand edits)", async () => {
+test("theme.css, tokens/index.ts and tokens/themes.gen.ts are exactly what tokens.json + themes/*.json derive (no drift, no hand edits)", {
+  tags: ["source-freshness", "requires-git-history"],
+}, async () => {
   const { themeCss, tokensTs, themesTs } = await generateArtifacts();
   expect(readFileSync(join(UI_ROOT, "src/styles/theme.css"), "utf8")).toBe(themeCss);
   expect(readFileSync(join(UI_ROOT, "src/tokens/index.ts"), "utf8")).toBe(tokensTs);
@@ -54,7 +56,7 @@ test("runtime CSS placement emits Tailwind namespaces into @theme and private al
   expect(rootBlock).not.toContain("--spacing-control: 2rem;");
 });
 
-test("density aliases resolve canonical spacing and fixed-cell values into concrete :root outputs", async () => {
+test("density aliases resolve canonical spacing and fixed-cell values into concrete :root outputs", { tags: "requires-git-history" }, async () => {
   const { themeCss } = await generateArtifacts();
   const expected = [
     ["--orb-density-comfortable-field", TOKENS["spacing.field"].value],
@@ -89,7 +91,9 @@ test("Grid cellFixed consumes the density-selected track while cellShelf keeps i
   expect(tiers).toContain("--orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);");
 });
 
-test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {
+test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", {
+  tags: "requires-git-history",
+}, async () => {
   const { themeCss, tokensTs } = await generateArtifacts();
 
   // COARSE — read from the generated NUMERIC companion, never by parsing the `round(up, …, 1px)` CSS
@@ -127,7 +131,9 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
   }
 });
 
-test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at the 16px root — the #1640 device-pixel belt", async () => {
+test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at the 16px root — the #1640 device-pixel belt", {
+  tags: "requires-git-history",
+}, async () => {
   const { themeCss } = await generateArtifacts();
   const themeBlock = themeCss.slice(0, themeCss.indexOf("\n}\n"));
   const spacingPaths = Object.keys(SNAPPED_LENGTH_BASE_PX).filter((path) => path.startsWith("spacing."));
@@ -150,7 +156,9 @@ test("EVERY snapped spacing token is belted on BOTH arms and is an integer px at
   }
 });
 
-test("the load-bearing token names exist (backdrop · reading plate · chart ramp · the D44 §12.1 override targets)", async () => {
+test("the load-bearing token names exist (backdrop · reading plate · chart ramp · the D44 §12.1 override targets)", {
+  tags: "requires-git-history",
+}, async () => {
   const { themeCss } = await generateArtifacts();
   const required = [
     "--color-backdrop",
