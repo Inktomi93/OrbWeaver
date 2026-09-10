@@ -10,7 +10,7 @@ updated: 2026-09-10
 
 ## 1. Standing rulings (owner — do not relitigate)
 
-- **ONE package**, never per-tool packages. No `bin` entries — pnpm root scripts are the front door; script NAMES are the stable surface, their path VALUES are free.
+- **ONE package**, never per-tool packages. No `bin` entries — pnpm root scripts are the front door. Command renames migrate all live callers; they do not retain compatibility aliases. Path values are implementation details.
 - **`scripts/` survives** as the explicitly-throwaway research zone (§2.7).
 - **Tools sit ABOVE the cake.** `@orb/tooling` may import any app package; nothing in `packages/**` may ever import tooling. Enforcers: resolver physics (no package declares the dep) + the `packages-no-tooling` cruiser belt (§4.6).
 - **Pure shared definitions migrate DOWN** — string/regex engines to `kit`, browser-only shared engines to `@orb/ui`.
@@ -23,7 +23,7 @@ updated: 2026-09-10
 ```
 tooling/
 ├── package.json          @orb/tooling · private · type module
-├── tsconfig.json         extends ../tsconfig.base.json (§2.3)
+├── tsconfig.json         generated Node-world program (§2.3)
 └── src/
     ├── _shared/          the ONE plumbing floor (§2.4) — sorted first by design
     └── <tool>/           five-slot template (§2.5), one dir per tool (§2.6)
@@ -42,7 +42,7 @@ tooling/
 
 ### 2.3 tsconfig.json
 
-Extends `../tsconfig.base.json` with `types: ["node"]` (tools are node-context). The base's `include` assumes depth-2 packages; tooling is depth-1, so it OVERRIDES `include` entirely (`["src", "../reset.d.ts", "../platform.d.ts"]`). `exclude` mirrors the repo's `__g_` fixture excludes. Module stays inherited `nodenext` — node runs tooling source directly, so node-strict resolution is the honest checker.
+The generated config extends the Node-world template. Shared compiler intent owns its source roots, ambient declaration roots and exclusions; do not maintain another array here. Module resolution remains NodeNext because Node executes tooling source directly. Native compiler ownership and root parity are checked by `pnpm check:type-ownership`.
 
 **Consequence: there is no DOM lib.** A `page.evaluate` body must be a raw STRING, never a typed function form (§9.1-6).
 
@@ -171,7 +171,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 
 | surface | what changes |
 | - | - |
-| root `package.json` scripts | the tool's rows repoint; script NAMES never change |
+| root `package.json` scripts | command and path changes migrate all live callers; no compatibility aliases |
 | root `package.json` depcruise scripts | all five must cruise `packages tooling`, or the tooling stanzas are unfireable |
 | `tsconfig.json` (graph) | `include` carries `"tooling"`; the `scripts` include survives (the research zone is still typechecked) |
 | `tooling/src/_shared/test-kinds.ts` resource registration + `vitest.config.ts` execution groups | repository-resource tests retain their registered kind as they relocate into the mirror (§4.7); runner selectors derive from the kind data, never a filename roster |
