@@ -47,14 +47,22 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-test("every indexed slug packs to the bytes it packed before the package move, deterministically", async () => {
+test("every indexed slug packs to the bytes it packed before the package move", { tags: "source-freshness" }, async () => {
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    const packed = await packShowcaseBundle(slug);
+    expect(packed, `${slug} ships no bundle`).not.toBeNull();
+    expect(sha256(packed as Uint8Array), `${slug}'s installed bytes changed`).toBe(PACKED_SHA256[slug]);
+  }
+});
+
+test("every indexed slug packs deterministically", async () => {
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     const first = await packShowcaseBundle(slug);
-    expect(first, `${slug} ships no bundle`).not.toBeNull();
     const second = await packShowcaseBundle(slug);
+    expect(first, `${slug} ships no bundle`).not.toBeNull();
+    expect(second, `${slug} ships no bundle on the second read`).not.toBeNull();
     // Same call, same bytes — the mtime is fixed, the asset read is sorted, nothing observes the clock.
     expect(sha256(first as Uint8Array), `${slug} does not pack deterministically`).toBe(sha256(second as Uint8Array));
-    expect(sha256(first as Uint8Array), `${slug}'s installed bytes changed`).toBe(PACKED_SHA256[slug]);
   }
 });
 
