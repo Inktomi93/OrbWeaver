@@ -54,11 +54,13 @@ test("world helper population matches declared directories without prefix lookal
   expect(isWorldHelperPath("tests/support/chat/value.ts")).toBe(false);
 });
 
-test("node tool population is structural and excludes declarations and shipped package source", () => {
+test("node tool population is structural and excludes declarations, nested scripts, and shipped package source", () => {
   expect(isNodeToolSource("knip.ts")).toBe(true);
   expect(isNodeToolSource("playwright-ct.config.ts")).toBe(true);
   expect(isNodeToolSource("packages/ui/token-contract.ts")).toBe(true);
   expect(isNodeToolSource("packages/client/vite.config.ts")).toBe(true);
+  expect(isNodeToolSource("scripts/cpd.ts")).toBe(true);
+  expect(isNodeToolSource("scripts/probes/st-goldens/generate-goldens.ts")).toBe(false);
   expect(isNodeToolSource("reset.d.ts")).toBe(false);
   expect(isNodeToolSource("packages/ui/src/index.ts")).toBe(false);
   expect(isNodeToolSource("tests/tooling/example.test.ts")).toBe(false);

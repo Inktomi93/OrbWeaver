@@ -16,7 +16,7 @@
 // lesson), so a future story/fixture module that lands outside every glob reds HERE instead of silently
 // widening the hole again.
 import { execSync } from "node:child_process";
-import { isNodeToolSource } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, isNodeToolSource, PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
 import { ESLint } from "eslint";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -64,13 +64,26 @@ test("every tracked tests/** TS/TSX file resolves to a real eslint config block 
   ).toEqual([]);
 });
 
-test("every tracked root/package-root Node tool resolves to a real eslint config block", async ({ repoRoot }) => {
+test("every tracked root/package-root/direct-script Node tool resolves to a real eslint config block", async ({ repoRoot }) => {
   const census = execSync("git ls-files -- '*.ts' '*.mts' '*.cts'", { cwd: repoRoot, maxBuffer: LS_FILES_MAX_BUFFER })
     .toString()
     .split("\n")
     .filter(isNodeToolSource)
     .toSorted();
   expect(census).toEqual(expect.arrayContaining(["knip.ts", "playwright-ct.config.ts", "packages/ui/token-contract.ts"]));
+  expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
+});
+
+test("every tracked non-browser package source resolves to a real eslint config block", async ({ repoRoot }) => {
+  const packagePrefixes = Object.keys(PACKAGE_WORLDS)
+    .filter((name) => !BROWSER_PACKAGES.has(name))
+    .map((name) => `packages/${name}/src/`);
+  const census = execSync("git ls-files -- 'packages/*/src/*.ts' 'packages/*/src/**/*.ts'", { cwd: repoRoot, maxBuffer: LS_FILES_MAX_BUFFER })
+    .toString()
+    .split("\n")
+    .filter((path) => packagePrefixes.some((prefix) => path.startsWith(prefix)))
+    .toSorted();
+  expect(census).toContain("packages/showcase-plugins/src/index.ts");
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 

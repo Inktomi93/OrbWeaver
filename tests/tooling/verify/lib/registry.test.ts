@@ -70,6 +70,14 @@ test("mutation:arid is a discoverable manual report-input tool, never an automat
   }
 });
 
+test("quality:cpd preserves the wrapped tool's clean, violation, and non-verdict exits", () => {
+  const row = stage("push", "quality:cpd");
+  expect(row.classify(0)).toBe(0);
+  expect(row.classify(1)).toBe(1);
+  expect(row.classify(2)).toBe(2);
+  expect(row.classify(null)).toBe(2);
+});
+
 test("NO row hangs on a tier precondition today — the mechanism is unused DATA, not a live rung", () => {
   // #1523 minted `tierPrecondition` for the conditional push rung; #1842 removed the rung. The field is
   // still in the contract (contract/stage.ts) and the runner still honours it (ops/run.ts, pinned by

@@ -41,6 +41,8 @@ const POSITIVE_CAPS = [
   "ts7Checkers",
   "pnpmWorkspaceConcurrency",
   "eslintConcurrency",
+  "strykerConcurrency",
+  "cpdWorkers",
   "hookPoolSlots",
   "hookTs7Checkers",
   "ctRunnersHostWide",
@@ -74,6 +76,8 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   // The ONE cap here that RAISES parallelism: ESLint ships `--concurrency off` (single-threaded), so this
   // row is a speed-up we are choosing to spend, not a ceiling we are imposing.
   expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(4);
+  expect(shared.strykerConcurrency, "Stryker calibration-preserving worker pool").toBe(6);
+  expect(shared.cpdWorkers, "jscpd workers on the shared host").toBe(4);
   expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its two file-scoped legs").toBe(4);
   expect(shared.hookTs7Checkers, "the edit hook's whole-program TS leg fires on every edit — it takes fewer checkers than a batch run").toBe(2);
   expect(shared.ctRunnersHostWide, "concurrent CT runners allowed across the whole host").toBe(2);
@@ -94,6 +98,8 @@ test("DEDICATED is never STRICTER than shared, and stands the per-session ceilin
   // yours alone the hook prints that it is standing down rather than throttling you.
   expect(dedicated.sessionCpuQuotaPct, "no CPUQuota on a dedicated box").toBe(0);
   expect(dedicated.sessionMemoryHigh, "no MemoryHigh on a dedicated box").toBe("");
+  expect(dedicated.strykerConcurrency, "Stryker's calibrated concurrency is profile-independent").toBe(6);
+  expect(dedicated.cpdWorkers, "jscpd may use the whole dedicated 24-core box").toBe(24);
 });
 
 test("the whole-run verify queue applies in BOTH profiles — two whole runs on one box is never faster", () => {
@@ -182,8 +188,12 @@ const fs = require("node:fs");
 const childProcess = require("node:child_process");
 childProcess.spawnSync = (command, args, options) => {
   fs.writeFileSync(process.env.ORB_WRAPPER_CAPTURE, JSON.stringify({ command, args, cwd: options?.cwd ?? null }));
-  return { status: 0 };
+  const outcome = process.env.ORB_WRAPPER_OUTCOME ?? "0";
+  if (outcome === "spawn-error") return { status: null, signal: null, error: new Error("planted spawn failure") };
+  if (outcome === "signal") return { status: null, signal: "SIGTERM" };
+  return { status: Number(outcome), signal: null };
 };
+require("node:module").syncBuiltinESMExports();
 `;
 
 interface WrapperCapture {
@@ -193,9 +203,10 @@ interface WrapperCapture {
 }
 
 function runWrapper(
-  script: "ts7.cjs" | "eslint.cjs",
+  script: "ts7.cjs" | "eslint.cjs" | "cpd.ts",
   args: readonly string[],
   box: string | undefined,
+  outcome = "0",
 ): {
   readonly status: number | null;
   readonly stderr: string;
@@ -206,6 +217,7 @@ function runWrapper(
   const captureFile = join(dir, "capture.json");
   writeFileSync(preload, CAPTURE_PRELOAD);
   const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
+  env["ORB_WRAPPER_OUTCOME"] = outcome;
   if (box === undefined) {
     delete env[DEDICATED_BOX_ENV];
   } else {
@@ -229,20 +241,26 @@ function optionValue(args: readonly string[] | undefined, option: string): strin
   return at === -1 ? undefined : args[at + 1];
 }
 
-test("all CJS wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
+test("all worker wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
   const cases = [
     ["ts7.cjs", ["--checkers", "1", "--version"]],
     ["eslint.cjs", ["--concurrency", "off", "--version"]],
   ] as const;
   for (const [script, args] of cases) {
     const result = runWrapper(script, args, "true");
-    expect(result.status, script).not.toBe(0);
-    expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}=\"true\"`);
+    expect(result.status, script).toBe(1);
+    expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}="true"`);
     expect(result.capture, `${script} must refuse before spawnSync`).toBeNull();
   }
+
+  const cpd = runWrapper("cpd.ts", ["--workers", "1", "--version"], "true");
+  expect(cpd.status).toBe(2);
+  expect(cpd.stderr).toContain("capacity profile refused the run");
+  expect(cpd.stderr).toContain(`${DEDICATED_BOX_ENV}="true"`);
+  expect(cpd.capture).toBeNull();
 });
 
-test("CJS wrappers derive shared/dedicated defaults and preserve explicit native worker overrides", () => {
+test("worker wrappers derive shared/dedicated defaults and preserve explicit native worker overrides", () => {
   const tsShared = runWrapper("ts7.cjs", ["--version"], undefined).capture;
   const tsDedicated = runWrapper("ts7.cjs", ["--version"], "1").capture;
   const tsExplicit = runWrapper("ts7.cjs", ["--checkers", "1", "--version"], "1").capture;
@@ -258,6 +276,31 @@ test("CJS wrappers derive shared/dedicated defaults and preserve explicit native
   expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe("8");
   expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
   expect(optionValue(eslintExplicit?.args, "--concurrency")).toBe("off");
+
+  const cpdShared = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined).capture;
+  const cpdDedicated = runWrapper("cpd.ts", ["-c", "jscpd.json"], "1").capture;
+  const cpdExplicit = runWrapper("cpd.ts", ["--workers=2", "-c", "jscpd.json"], "1").capture;
+  expect(optionValue(cpdShared?.args, "--workers")).toBe("4");
+  expect(optionValue(cpdDedicated?.args, "--workers")).toBe("24");
+  expect(cpdExplicit?.args.filter((arg) => arg === "--workers=2" || arg === "--workers")).toEqual(["--workers=2"]);
+});
+
+test("the CPD wrapper preserves native verdicts and makes every abnormal child outcome a loud tool error", () => {
+  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "0").status).toBe(0);
+  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "1").status).toBe(1);
+
+  const other = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "2");
+  expect(other.status).toBe(2);
+  expect(other.stderr).toContain("only native exits 0 and 1 are duplication verdicts");
+
+  const signalled = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "signal");
+  expect(signalled.status).toBe(2);
+  expect(signalled.stderr).toContain("terminated by signal SIGTERM");
+
+  const failed = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "spawn-error");
+  expect(failed.status).toBe(2);
+  expect(failed.stderr).toContain("failed to spawn");
+  expect(failed.stderr).toContain("planted spawn failure");
 });
 
 test("the TS7 wrapper removes valid incremental cache options without dropping unrelated compiler argv", () => {

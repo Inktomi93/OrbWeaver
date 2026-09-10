@@ -368,7 +368,7 @@ const GATING_STAGES: readonly StageDef[] = [
     // not cost — and a duplication ratchet that only runs in a tier nobody invokes is not a ratchet.
     tiers: ["push", "full"],
     argv: ["pnpm", "cpd"],
-    classify: asViolations,
+    classify: ownScheme,
   },
   {
     name: "browser:e2e",

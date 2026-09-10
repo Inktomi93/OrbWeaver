@@ -1,25 +1,27 @@
 # `scripts/` — the research zone (explicitly throwaway)
 
-> The durable tool fleet LEFT this tree. Every standing instrument, checker, codemod, launcher, and
+> The durable tool fleet LEFT this tree. Standing instruments, checkers, codemods, and
 > operator CLI now lives in `tooling/` as `@orb/tooling` (`docs/architecture/core/Core-Tooling-Law.md`; the
 > constitution's tooling-tree law is `docs/architecture/core/Core-0-Architecture-and-Structure.md` §9).
-> What remains here is deliberately throwaway: probe rigs, one-shot lenses, launcher shims, and
-> operator scripts. **Nothing here is law, and nothing here is a fleet instrument.**
+> Research here is deliberately throwaway: probe rigs, one-shot lenses, and operator scripts.
+> Direct process launchers and supervisors also live here under Core-Tooling-Law §2.6. Their
+> verification contracts remain enforced; the research exemptions do not erase those contracts.
 
 ## The zone's rules
 
 - **KISS/YAGNI apply here and only here.** The constitution suspends them for the architecture
   (`AGENTS.md` §0.1 tripwire 2); this tree is the named exception — a probe is allowed to be a
   400-line straight line with hardcoded paths.
-- **No five-slot template, no size cap, no front-door gate.** The five `tooling-*` gates scan
-  `tooling/src/` only. A file here answers to biome's blanket relaxations (`biome.json` — the
-  `scripts/**` override) and nothing else.
+- **No five-slot template, no tooling size cap, no tooling front-door gate.** Those gates scan
+  `tooling/src/`. The configured Biome relaxations do not remove compiler ownership or the typed
+  ESLint checks on direct TypeScript launchers.
 - **This zone MAY import `@orb/tooling`.** Plumbing reuse beats respelling: a probe imports
   `@orb/tooling/_shared/browser` rather than re-minting a Playwright bootstrap. The one-way glass is
   `packages/** ⇏ tooling/**` (the `packages-no-tooling` cruiser stanza), never `scripts/ ⇏ tooling/`.
-- **A file here is never a `pnpm check` dependency.** If something in this tree becomes load-bearing
-  for verification, it is not research any more — promote it into `tooling/src/<tool>/` under the
-  five-slot template and delete the original (no compat stub).
+- **Research implementations do not become standing verification tools in place.** Promote them
+  into `tooling/src/<tool>/` under the five-slot template and delete the original. Native process
+  adapters may front verification commands under Core-Tooling-Law §2.6; they reuse the shared
+  policy readers and preserve process/report/exit semantics.
 - **knip entry-globs the whole tree** (`knip.ts`), so nothing here is analysed for unused exports.
   That is deliberate for a research zone and is exactly what the promotion to `tooling/` reverses.
 
@@ -44,12 +46,13 @@
 | `probes/transcript-census.ts` | the census half of the tool-guard tuning rig — named in `SELF_TOOL_RELPATHS` in `.claude/hooks/tool-guard.mjs`, and the source of the doctrine's Bash-call census. Its header is also the only record of the reverse-engineered transcript JSONL shape |
 | `probes/guard-replay.ts` | the guard rig's other half (same `SELF_TOOL_RELPATHS` constant) |
 
-### Root-shim survivors (launchers, not tools)
+### Process launchers and supervisors
 
-| path | why it did not move |
-| - | - |
-| `ts7.cjs` | the cold native TS7 wrapper. The unified `pnpm typecheck [--config <path>]...` executor invokes it once per runnable config; it is a `.cjs` launcher, not a tool |
-| `worktree-bootstrap.sh` | `pnpm worktree:bootstrap`'s target |
+Root `package.json` scripts identify the live entry points. Their role is native invocation,
+capacity configuration, process supervision and honest result propagation; reusable implementation
+and policy belong in `tooling/`. A filename roster here would duplicate those live callers and drift
+when another native tool needs an adapter. TypeScript launchers directly under `scripts/` receive
+Node compiler and typed ESLint ownership through the shared world rules.
 
 ### Operator one-offs
 
