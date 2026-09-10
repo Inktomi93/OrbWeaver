@@ -14,7 +14,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const CONFIG_REL = "eslint.config.js";
 const GATE_SELF = "tooling/src/verify/gates/eslint-grant-liveness.ts";
 const LIVE_SOURCE = "export const live = 1;\n";
-const RATIFIED = '"**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*"';
+const RATIFIED = '"**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**"';
 
 interface Run {
   readonly findings: readonly Finding[];
@@ -37,6 +37,7 @@ function plantRepo(root: string, files: Readonly<Record<string, string>>): void 
   plant(root, ".gitignore", "node_modules/\ndist/\n");
   plant(root, "reports/README.md", "reports\n");
   plant(root, "tooling/src/verify/gates/GATE-AUTHORING.md", "fixture law\n");
+  plant(root, "tooling/src/_shared/stryker-config.ts", LIVE_SOURCE);
   for (const [rel, content] of Object.entries(files)) {
     plant(root, rel, content);
   }
@@ -105,10 +106,20 @@ describe("eslint-grant-liveness native populations", () => {
     expect(messages(runGate(scratch))).toContain("could not be evaluated");
   });
 
-  test("the real config has only the three ratified zero populations", ({ repoRoot }) => {
+  test("the real config has only the four ratified zero populations", ({ repoRoot }) => {
     const run = runGate(repoRoot);
     expect(run.findings).toEqual([]);
-    expect(run.declarations[0]).toMatchObject({ unit: "ESLint selector", admitted: 3, admittedRatified: 3 });
+    expect(run.declarations[0]).toMatchObject({ unit: "ESLint selector", admitted: 4, admittedRatified: 4 });
     expect(run.declarations[0]?.candidates).toBeGreaterThan(90);
   }, 20_000);
+
+  test("the sandbox allowance cannot survive removal of its native ignore selector", ({ scratch }) => {
+    plantRepo(scratch, {
+      [CONFIG_REL]: config('{ files: ["packages/ui/src/live.ts"] }').replace(', ".stryker-tmp/**"', ""),
+      "packages/ui/src/live.ts": LIVE_SOURCE,
+    });
+    const result = runGate(scratch);
+    expect(tokens(result)).toContain("config[0].ignores[4]");
+    expect(messages(result)).toContain("no longer names the same zero-member selector");
+  });
 });

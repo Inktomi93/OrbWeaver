@@ -317,6 +317,8 @@ export default tseslint.config(
       // exclude note). Ignoring it keeps a concurrent `pnpm lint:eslint` from catching a fixture (many land
       // under packages/*/src) mid-lifecycle → a phantom lint error that vanishes on re-run.
       "**/__g_*",
+      // Mutation sandboxes contain rewritten source and generated runner setup, never authored inputs.
+      ".stryker-tmp/**",
       "**/*.gen.ts",
       "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",
