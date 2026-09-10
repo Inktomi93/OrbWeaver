@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// ARCHIVED 2026-09-10 (#1898): no project Claude or Codex hook registers this classifier. It remains at
+// its historical path so the transcript replay and regression corpus can execute the exact preserved
+// implementation; SELF_CHECKOUT and the self-invocation controls derive repository identity from this depth.
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
