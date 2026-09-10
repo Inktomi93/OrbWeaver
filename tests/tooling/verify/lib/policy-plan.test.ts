@@ -233,6 +233,42 @@ test.describe("final policy planner", () => {
     });
   });
 
+  test("plans and executes resource paths in one canonical mixed-case punctuation order", () => {
+    const resource = policy("ordered-resources", {
+      analysis: "resource",
+      population: { of: "none", why: "resource-only" },
+      resources: [{ kind: "authored-tree", id: "tooling-slot" }],
+      create: (ctx) => ({ evaluate: () => void ctx.resources.authoredTree("tooling-slot") }),
+    });
+    const corpus = { gates: [resource], families: [resource.family] };
+    const overlay = {
+      "tooling/src/README.md": "fixture\n",
+      "tooling/src/a-file.txt": "fixture\n",
+      "tooling/src/Z_file.ts": "export const fixture = true;\n",
+    };
+    const planned = planPolicyCommand({
+      request: runRequest({ tier: "static", scope: { kind: "whole" } }),
+      corpus,
+      scope: scope(PROGRAM.files),
+      resourceOptions: { root: "/repo", overlay },
+    });
+    if (!planned.ok || planned.plan.mode !== "run") {
+      throw new Error("ordered resource fixture plan did not resolve");
+    }
+
+    expect(
+      executePolicyPlan({
+        root: "/repo",
+        project: new Project({ useInMemoryFileSystem: true }),
+        corpus,
+        plan: planned.plan,
+        reviewedGrants: [],
+        resourceOptions: { overlay },
+      }),
+    ).toMatchObject({ ok: true, exitCode: 0 });
+    expect(planned.plan.resourcePathsByPolicy[resource.id]).toEqual(["tooling/src/README.md", "tooling/src/Z_file.ts", "tooling/src/a-file.txt"]);
+  });
+
   test("resolves resource manifests only for selected policies", () => {
     const selected = policy("selected");
     const unselected = policy("unselected-resource", { analysis: "resource", population: { of: "none", why: "resource-only" } });
