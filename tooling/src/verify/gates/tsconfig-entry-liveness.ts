@@ -74,6 +74,7 @@ const GATE_SELF = "tooling/src/verify/gates/tsconfig-entry-liveness.ts";
 const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
 
 const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
+const TYPE_CONFIG_LAW = "docs/architecture/core/Core-Tooling-Law.md";
 
 /** Glob entries whose members are absent from the tracked corpus BY DESIGN, each with its END CONDITION.
  *  Keyed by the entry AS AUTHORED (the same spelling the config carries), two-sided on both halves. */
@@ -82,32 +83,32 @@ const RATIFIED: ExemptionTable<GrantExemption> = {
     why:
       "the Node root declares every authored TypeScript dialect before its first scripts .cts file. Delete " +
       "this row when the first scripts/**/*.cts source lands and pattern liveness reports it stale.",
-    cite: "docs/architecture/proposed/type-worlds-program.md",
+    cite: TYPE_CONFIG_LAW,
   },
   "scripts/**/*.mts": {
     why:
       "the Node root declares every authored TypeScript dialect before its first scripts .mts file. Delete " +
       "this row when the first scripts/**/*.mts source lands and pattern liveness reports it stale.",
-    cite: "docs/architecture/proposed/type-worlds-program.md",
+    cite: TYPE_CONFIG_LAW,
   },
   "scripts/**/*.tsx": {
     why:
       "the browser root declares TSX scripts before its first member so a future authored file cannot be " +
       "silently unowned. Delete this row when the first scripts/**/*.tsx source lands and pattern liveness reports it stale.",
-    cite: "docs/architecture/proposed/type-worlds-program.md",
+    cite: TYPE_CONFIG_LAW,
   },
   "tests/**/*.cts": {
     why:
       "the Node root declares every authored TypeScript dialect before its first tests .cts file. Delete " +
       "this row when the first tests/**/*.cts source lands and pattern liveness reports it stale.",
-    cite: "docs/architecture/proposed/type-worlds-program.md",
+    cite: TYPE_CONFIG_LAW,
   },
   "tests/support/iso/**/*": {
     why:
       "the explicit ISO-helper root exists before its first helper by design; reset.d.ts + platform.d.ts keep " +
       "the compiler leaf measurable meanwhile. Delete this row when the first tests/support/iso source lands " +
       "and pattern liveness reports the exemption stale.",
-    cite: "docs/architecture/proposed/type-worlds-program.md",
+    cite: TYPE_CONFIG_LAW,
   },
   "**/node_modules": {
     why:

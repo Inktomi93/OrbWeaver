@@ -189,7 +189,7 @@ const TS_RATIFIED_KEYS = [
   "tests/**/*.cts",
   "tests/support/iso/**/*",
 ];
-const TS_RATIFIED_CITES = [".gitignore", "docs/architecture/proposed/type-worlds-program.md", "tooling/src/verify/gates/GATE-AUTHORING.md"];
+const TS_RATIFIED_CITES = [".gitignore", "docs/architecture/core/Core-Tooling-Law.md", "tooling/src/verify/gates/GATE-AUTHORING.md"];
 
 /** An anchor-sized root tsconfig: `globs` under test, the ratified excludes a real config carries, LIVE
  *  glob filler, and ONE live file-exact entry. */

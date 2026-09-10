@@ -154,7 +154,7 @@ test("#833 the doorway fold wears the sibling band (kicker register + hairline) 
 // that the curated list REACHES the surface — one named row each, in order, behind one press, with the
 // count the band advertises equal to what opens.
 /** The shipped set, in door order: buddy's 80 leads, then the roadmap tuple's own reading order. */
-const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Expressions", "Reactions", "World state", "Agents of their own", "World maps", "Type-world program"];
+const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Expressions", "Reactions", "World state", "Agents of their own", "World maps"];
 
 test("#834 the fold lists the committed roadmap — a derived count on the band, one named row per program", async ({ mount }) => {
   const home = await mount(<HomeRoadmapStory />);

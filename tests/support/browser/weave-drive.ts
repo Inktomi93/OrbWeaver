@@ -56,6 +56,34 @@ export function frameFingerprint(canvas: Locator): Promise<string> {
   });
 }
 
+/** Exactly two coarse fingerprints captured in ONE browser evaluation. Arity is part of the evidence:
+ *  a missing target/reference must refuse rather than collapse into a zero-delta comparison. */
+export async function frameFingerprintPair(canvases: Locator): Promise<readonly [string, string]> {
+  const frames = await canvases.evaluateAll((elements) =>
+    elements.map((el) => {
+      const c = el as HTMLCanvasElement;
+      const ctx = c.getContext("2d");
+      if (ctx === null) {
+        return "no-ctx";
+      }
+      const data = ctx.getImageData(0, 0, c.width, c.height).data;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i] as number;
+        g += data[i + 1] as number;
+        b += data[i + 2] as number;
+      }
+      return `${r}:${g}:${b}`;
+    }),
+  );
+  if (frames.length !== 2 || frames[0] === undefined || frames[1] === undefined) {
+    throw new Error(`paired weave fingerprint expected exactly 2 canvases, got ${String(frames.length)}`);
+  }
+  return [frames[0], frames[1]];
+}
+
 /** Channel-sum distance between two `frameFingerprint` readings. */
 export function fingerprintDelta(a: string, b: string): number {
   const pa = a.split(":").map(Number);

@@ -28,6 +28,21 @@ export function WeaveTouchBox(props: WeaveBoxProps): ReactElement {
   return <WeaveBox {...props} interactive={true} />;
 }
 
+/** Two same-seed inert canvases painted on the same browser frames. A mouse tape crosses only the first,
+ *  while the second measures the ambient glint/dew/spider motion over that exact elapsed interval. */
+export function WeaveInertTwinBox(): ReactElement {
+  return (
+    <div style={{ display: "flex" }}>
+      <div data-testid="ct-weave-inert-target">
+        <WeaveBox width={320} state="settled" />
+      </div>
+      <div data-testid="ct-weave-inert-reference">
+        <WeaveBox width={320} state="settled" />
+      </div>
+    </div>
+  );
+}
+
 /** The scroll-fence story: an INTERACTIVE weave full-bleed behind a tall scrollable column. The web is
  *  backdrop decoration, so a vertical thumb drag started on the silk must still scroll the column —
  *  the fence against "fix touch by taking the gesture" (a blanket `touch-action: none`). */

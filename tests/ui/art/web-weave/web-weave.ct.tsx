@@ -19,8 +19,8 @@ import type { WeavePoint } from "@orb/ui/web-weave";
 import { buildWeb } from "@orb/ui/web-weave";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ambientCeiling, fingerprintDelta, frameFingerprint, waitFrames } from "../../../support/browser/weave-drive.ts";
-import { WeaveBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
+import { ambientCeiling, fingerprintDelta, frameFingerprint, frameFingerprintPair, waitFrames } from "../../../support/browser/weave-drive.ts";
+import { WeaveBox, WeaveInertTwinBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 /** How far past the worst ambient beat a drive must move the frame to count as a real change. */
 const CHANGE_FACTOR = 3;
@@ -342,13 +342,20 @@ test("interactive: dragging across the silk RINGS it — the painted web changes
 test("instrument control: the SAME mouse drag over a NON-interactive weave changes nothing", async ({ mount, page }) => {
   // Without this the ring verdict above is unfalsifiable — a web whose own beat outran the ceiling
   // would read identically. Decoration by default must stay inert under a cursor. (The coarse-pointer
-  // suite carries the matching control for a thumb; the two input paths need it separately.)
-  await mount(<WeaveBox state="settled" />);
-  const canvas = page.locator('[data-slot="web-weave-canvas"]');
-  await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(2000);
-  const ceiling = await ambientCeiling(page, canvas);
-  const before = await frameFingerprint(canvas);
-  const box = await canvas.boundingBox();
+  // suite carries the matching control for a thumb; the two input paths need it separately.) The twin
+  // is sampled in the SAME browser evaluations, so its delta is the ambient motion across the mouse
+  // protocol's actual elapsed frames — never a fixed-span estimate of that interval.
+  await mount(<WeaveInertTwinBox />);
+  const canvases = page.locator('[data-slot="web-weave-canvas"]');
+  const target = page.getByTestId("ct-weave-inert-target").locator("canvas");
+  const reference = page.getByTestId("ct-weave-inert-reference").locator("canvas");
+  await expect(canvases).toHaveCount(2);
+  await expect(frameFingerprintPair(canvases.first())).rejects.toThrow("expected exactly 2 canvases, got 1");
+  await expect(frameFingerprintPair(page.locator('[data-slot="missing-weave-canvas"]'))).rejects.toThrow("expected exactly 2 canvases, got 0");
+  await expect.poll(async () => paintedPixels(target)).toBeGreaterThan(2000);
+  await expect.poll(async () => paintedPixels(reference)).toBeGreaterThan(2000);
+  const before = await frameFingerprintPair(canvases);
+  const box = await target.boundingBox();
   const cx = (box?.x ?? 0) + (box?.width ?? 0) / 2;
   const cy = (box?.y ?? 0) + (box?.height ?? 0) / 2;
   await page.mouse.move(cx - 140, cy - 60);
@@ -356,8 +363,10 @@ test("instrument control: the SAME mouse drag over a NON-interactive weave chang
   await page.mouse.down();
   await page.mouse.up();
   await waitFrames(page, 2);
-  const moved = fingerprintDelta(before, await frameFingerprint(canvas));
-  expect(moved, "an inert weave must stay within its own ambient motion").toBeLessThanOrEqual(ceiling * CHANGE_FACTOR);
+  const after = await frameFingerprintPair(canvases);
+  const moved = fingerprintDelta(before[0], after[0]);
+  const ambient = fingerprintDelta(before[1], after[1]);
+  expect(moved, "an inert weave must stay within its simultaneous twin's ambient motion").toBeLessThanOrEqual(ambient * CHANGE_FACTOR);
 });
 
 test("interactive: the weaver HUNTS — a cursor across the silk brings her out to the disturbance and home again", async ({ mount, page }) => {
