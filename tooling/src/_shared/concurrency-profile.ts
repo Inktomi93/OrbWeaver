@@ -22,6 +22,8 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
  *  · `pnpmWorkspaceConcurrency`→ verify/ops/typecheck.ts's native-program execution pool
  *  · `eslintConcurrency`       → scripts/eslint.cjs `--concurrency` (ESLint's own default is `off`, i.e.
  *                                SINGLE-THREADED — the one cap here that RAISES parallelism)
+ *  · `strykerConcurrency`      → the shared Stryker config factory's worker-process pool
+ *  · `cpdWorkers`              → scripts/cpd.ts `--workers` (jscpd's auto default uses every core)
  *  · `hookPoolSlots`           → .claude/hooks/biome-check.sh's HOST-WIDE flock pool, shared by its
  *                                file-scoped legs (biome + dep-cruiser)
  *  · `hookTs7Checkers`         → the `--checkers` that hook's WHOLE-PROGRAM ts7 leg passes (smaller than
@@ -42,6 +44,8 @@ export interface ConcurrencyProfile {
   readonly ts7Checkers: number;
   readonly pnpmWorkspaceConcurrency: number;
   readonly eslintConcurrency: number;
+  readonly strykerConcurrency: number;
+  readonly cpdWorkers: number;
   readonly hookPoolSlots: number;
   readonly hookTs7Checkers: number;
   readonly ctRunnersHostWide: number;
@@ -109,6 +113,8 @@ function profileFrom(file: ProfileFile, name: ConcurrencyProfileName): Concurren
     ts7Checkers: intField(row, name, "ts7Checkers"),
     pnpmWorkspaceConcurrency: intField(row, name, "pnpmWorkspaceConcurrency"),
     eslintConcurrency: intField(row, name, "eslintConcurrency"),
+    strykerConcurrency: intField(row, name, "strykerConcurrency"),
+    cpdWorkers: intField(row, name, "cpdWorkers"),
     hookPoolSlots: intField(row, name, "hookPoolSlots"),
     hookTs7Checkers: intField(row, name, "hookTs7Checkers"),
     ctRunnersHostWide: intField(row, name, "ctRunnersHostWide"),

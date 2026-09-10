@@ -1,4 +1,5 @@
 import type { PartialStrykerOptions } from "@stryker-mutator/api/core";
+import { readConcurrencyProfile } from "./concurrency-profile.ts";
 
 type NativeTypescriptCheckerOptions = PartialStrykerOptions & {
   readonly typescriptChecker: {
@@ -57,7 +58,7 @@ export function createStrykerConfig(profile: StrykerConfigProfile): NativeTypesc
     ignorePatterns: [...IGNORE_PATTERNS],
     dryRunTimeoutMinutes: 45,
     ignoreStatic: true,
-    concurrency: 6,
+    concurrency: readConcurrencyProfile().strykerConcurrency,
     timeoutMS: 10_000,
     incremental: true,
     incrementalFile: profile.incrementalFile,

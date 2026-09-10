@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -69,7 +70,7 @@ const VENDOR_CLONE = `.vendor-control {
 `;
 
 function runCpd(root: string, config: string, output: string): ReturnType<typeof spawnNiced> {
-  return spawnNiced("jscpd", ["-c", config, "--reporters", "json", "--output", output], {
+  return spawnNiced("jscpd", ["--workers", String(readConcurrencyProfile().cpdWorkers), "-c", config, "--reporters", "json", "--output", output], {
     cwd: root,
     timeoutMs: RUN_BUDGET_MS,
   });

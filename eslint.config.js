@@ -50,7 +50,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NODE_TOOL_SURFACE_GLOBS } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS } from "@orb/tooling/_shared/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -241,10 +241,12 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 const TOOLING_SRC = "tooling/src/**/*.ts";
 const TOOLING_TESTS = "tests/tooling/**/*.ts";
 const NODE_TOOL_SURFACE = [...NODE_TOOL_SURFACE_GLOBS];
+const NON_BROWSER_PACKAGES = Object.keys(PACKAGE_WORLDS).filter((name) => !BROWSER_PACKAGES.has(name));
+const NON_BROWSER_PACKAGE_SRC = NON_BROWSER_PACKAGES.map((name) => `packages/${name}/src/**/*.ts`);
 // Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
 // tsconfig.tests-dom.json any more). They keep riding the escapee parser below rather than
 // projectService, because the parser is handed BOTH root programs and picks whichever owns a file.
-const NODE_TEST_DIRS = ["tests/server/**/*.ts", "tests/kit/**/*.ts", "tests/db/**/*.ts", "tests/contracts/**/*.ts", "tests/showcase-plugins/**/*.ts"];
+const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.map((name) => `tests/${name}/**/*.ts`);
 // The trees the root program does NOT own — see the parser note above; every one of them is rooted by
 // `tsconfig.tests-dom.json`, which is why they share the escapee parser.
 //
@@ -280,10 +282,10 @@ const ASYNC_SAFETY_RULES = {
   "@typescript-eslint/no-deprecated": "error",
 };
 
-// The typed exported-API packages governed by the Documentation-Law doc-comment gates
-// (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
-// live; ui/client run their own react-surface gates above. `.ts` only (no `.tsx` in these packages).
-const TSDOC_SURFACE = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts", "packages/db/src/**/*.ts", "packages/contracts/src/**/*.ts"];
+// Generic typed correctness + Documentation-Law checks cover every non-browser package source. This
+// includes showcase-plugins' standalone guest packer, without placing its guest runtime content in an
+// app-specific brand/domain group. ui/client retain their browser/React policy above.
+const TSDOC_SURFACE = NON_BROWSER_PACKAGE_SRC;
 
 // Reused restricted-syntax selectors. ESLint flat-config REPLACES `no-restricted-syntax` per matching
 // file (it does NOT merge across config objects), so any block that wins for a file must re-list every
@@ -449,9 +451,9 @@ export default tseslint.config(
     },
   },
   {
-    // Root and package-root TypeScript files are Node-executed build/config tools. Their structural
-    // population comes from the same world classifier used by compiler routing; declarations are ambient
-    // contracts, so this block excludes them rather than treating them as executable tools.
+    // Root, package-root, and direct scripts/ TypeScript files are Node-executed build/config tools.
+    // Their structural population comes from the same world classifier used by compiler routing;
+    // declarations are ambient contracts, so this block excludes them rather than treating them as tools.
     files: NODE_TOOL_SURFACE,
     ignores: ["**/*.d.{ts,mts,cts}"],
     languageOptions: {

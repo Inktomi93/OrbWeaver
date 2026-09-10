@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -47,7 +48,7 @@ const COMMON_OPTIONS = {
   ignorePatterns: IGNORE_PATTERNS,
   dryRunTimeoutMinutes: 45,
   ignoreStatic: true,
-  concurrency: 6,
+  concurrency: readConcurrencyProfile().strykerConcurrency,
   timeoutMS: 10_000,
   incremental: true,
 };
