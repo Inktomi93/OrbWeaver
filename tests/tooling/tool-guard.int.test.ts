@@ -1,4 +1,4 @@
-// The PreToolUse Bash guard's proof (.claude/hooks/tool-guard.mjs) — every rule has MUST-BITE rows and
+// The archived PreToolUse Bash classifier's proof (.claude/hooks/tool-guard.mjs) — every preserved rule has MUST-BITE rows and
 // MUST-PASS rows, validated here through the hook's REAL entry points (subprocess spawns, never an
 // in-process re-implementation): `--classify-batch` for the corpus table, full stdin/stdout hook-contract
 // runs for the wire shape, fail-open, the kill switch, the rewrite contract, and the decision log.

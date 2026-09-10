@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * guard-replay.ts — READ-ONLY validation harness for the PreToolUse guard
- * (`.claude/hooks/tool-guard.mjs`): replays the guard's REAL classifier over every Bash
+ * guard-replay.ts — READ-ONLY validation harness for the archived PreToolUse classifier
+ * (`.claude/hooks/tool-guard.mjs`): replays the preserved classifier over every Bash
  * `tool_use` command in every Claude Code transcript on this box (the same corpus
  * `transcript-census.ts` measured: 3,138 files / 4.5 GB / 133,631 Bash calls as of
  * 2026-08-03) and reports, per rule: how many commands it would have hit, the main/subagent

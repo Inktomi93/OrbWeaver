@@ -34,8 +34,15 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
     expect(manifest).toContain(`model = "${model}"`);
   }
 
-  const hookConfig = readFileSync(join(ROOT, ".codex", "hooks.json"), "utf8");
-  expect(hookConfig).not.toContain("/home/");
-  expect(hookConfig).toContain("/.codex/hooks/tool-guard.mjs");
-  expect(hookConfig).toContain("/.codex/hooks/biome-check.sh");
+  const codexHookConfig = readFileSync(join(ROOT, ".codex", "hooks.json"), "utf8");
+  expect(codexHookConfig).not.toContain("/home/");
+  expect(codexHookConfig).not.toContain("tool-guard.mjs");
+  expect(codexHookConfig).toContain("/.codex/hooks/biome-check.sh");
+
+  const claudeHookConfig = readFileSync(join(ROOT, ".claude", "settings.json"), "utf8");
+  expect(claudeHookConfig).not.toContain("tool-guard.mjs");
+  expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.sh");
+  expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
+  expect(claudeHookConfig).toContain("/.claude/hooks/worktree-setup.sh");
+  expect(claudeHookConfig).toContain("/.claude/hooks/worktree-remove.sh");
 });
