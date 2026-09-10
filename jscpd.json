@@ -1,8 +1,8 @@
 {
-  "// path": "Scan packages/; tooling/ and the centralized tests/ mirror are outside this root.",
-  "path": ["packages"],
+  "// path": "Scan authored package and tooling implementation. Centralized tests remain outside CPD; scripts/ contains operator, research, probe, and one-shot codemod programs rather than the durable tooling package.",
+  "path": ["packages", "tooling/src"],
 
-  "// formats": "The languages in play. `tsx` is REQUIRED to see the client — jscpd's `typescript` format does NOT tokenize .tsx, so without this the whole client (207 .tsx files) is invisible to the gate.",
+  "// formats": "The languages in play. `tsx` is REQUIRED to see the client — jscpd's `typescript` format does NOT tokenize .tsx, so without this every .tsx source is invisible to the gate.",
   "format": ["typescript", "tsx", "css"],
 
   "// minTokens": "50 (default) catches real duplication; lower → noise.",
@@ -23,8 +23,8 @@
   "// gitignore": "Respect .gitignore — no node_modules / reports / scratchpad.",
   "gitignore": true,
 
-  "// ignore": "The centralized tests/ tree is outside the packages-only scan. Migrations are generated; fixtures are data; reset.d.ts is a one-liner.",
-  "ignore": ["**/migrations/**", "**/snapshots/**", "**/__fixtures__/**", "**/*.d.ts"],
+  "// ignore": "The centralized tests/ tree is outside the configured roots. Migrations and DevTools assets are generated/vendored; fixtures and snapshots are data; declarations are not implementation.",
+  "ignore": ["**/migrations/**", "**/snapshots/**", "**/__fixtures__/**", "**/*.d.ts", "tooling/src/snap/lib/devtools-frontend/**"],
 
   "// ignorePattern": "Ignore import blocks that are naturally identical across files.",
   "ignorePattern": ["import.*from.*"],
