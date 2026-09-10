@@ -1,4 +1,4 @@
-export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "eslint"] as const;
+export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "eslint", "depcruise"] as const;
 
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];
 
@@ -40,9 +40,30 @@ export interface EslintConfigSnapshot {
   readonly selectors: readonly EslintSelectorSnapshot[];
 }
 
+export const DEPCRUISE_CONFIG_SNAPSHOT_FIELDS = ["path", "pathNot"] as const;
+
+export type DepcruiseConfigSnapshotField = (typeof DEPCRUISE_CONFIG_SNAPSHOT_FIELDS)[number];
+
+export interface DepcruiseSelectorSnapshot {
+  readonly owner: string;
+  readonly field: DepcruiseConfigSnapshotField;
+  readonly position: number;
+  readonly value: string;
+}
+
+export interface DepcruiseConfigSnapshot {
+  readonly version: 1;
+  readonly runner: "depcruise";
+  readonly config: string;
+  readonly effectiveRules: number;
+  /** Repository-authored selectors from `config`; inherited package selectors have a separate lifecycle. */
+  readonly selectors: readonly DepcruiseSelectorSnapshot[];
+}
+
 export interface ConfigSnapshotByRunner {
   readonly vitest: VitestConfigSnapshot;
   readonly eslint: EslintConfigSnapshot;
+  readonly depcruise: DepcruiseConfigSnapshot;
 }
 
 export type ConfigSnapshot = ConfigSnapshotByRunner[ConfigSnapshotRunner];

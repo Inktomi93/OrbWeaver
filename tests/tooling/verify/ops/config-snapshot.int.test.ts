@@ -6,11 +6,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
-import { snapshotEslintConfig, snapshotVitestConfig } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
+import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
+import { snapshotDepcruiseConfig, snapshotEslintConfig, snapshotVitestConfig } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONFIG_REL = "vitest.config.ts";
 const ESLINT_CONFIG_REL = "eslint.config.js";
+const DEPCRUISE_CONFIG_REL = ".dependency-cruiser.cjs";
 
 async function plant(root: string, source: string): Promise<void> {
   await writeFile(join(root, CONFIG_REL), source, "utf8");
@@ -58,6 +60,76 @@ test("refuses a selector that the native loader resolves to a non-string array",
   await plant(scratch, "export default { test: { projects: [{ test: { include: [42] } }] } };\n");
 
   await expect(snapshotVitestConfig(scratch, CONFIG_REL)).rejects.toThrow("project[0].test.include resolved to a non-string-array selector");
+});
+
+test("loads dependency-cruiser through its public API and preserves imported, called and spread-derived selectors", async ({ scratch }) => {
+  await writeFile(
+    join(scratch, "depcruise-selectors.cjs"),
+    'exports.paths = ["^packages/kit/src/"];\nexports.exact = (name) => "^packages/ui/src/" + name + "\\\\.ts$";\n',
+    "utf8",
+  );
+  await writeFile(
+    join(scratch, DEPCRUISE_CONFIG_REL),
+    `const { exact, paths } = require("./depcruise-selectors.cjs");
+module.exports = { forbidden: [{ name: "derived", from: { path: [...paths, exact("live")] }, to: { pathNot: exact("grant") } }] };
+`,
+    "utf8",
+  );
+
+  const snapshot = await snapshotDepcruiseConfig(scratch, DEPCRUISE_CONFIG_REL);
+
+  expect(snapshot).toMatchObject({ runner: "depcruise", effectiveRules: 1 });
+  expect(snapshot.selectors).toEqual([
+    { owner: "config.forbidden[0].from", field: "path", position: 0, value: "^packages/kit/src/" },
+    { owner: "config.forbidden[0].from", field: "path", position: 1, value: String.raw`^packages/ui/src/live\.ts$` },
+    { owner: "config.forbidden[0].to", field: "pathNot", position: 0, value: String.raw`^packages/ui/src/grant\.ts$` },
+  ]);
+});
+
+test("loads the effective dependency-cruiser chain but snapshots only repository-authored selectors", async ({ scratch }) => {
+  await writeFile(
+    join(scratch, "depcruise-base.cjs"),
+    'module.exports = { forbidden: [{ name: "base", from: { path: "^vendor-only/" }, to: {} }] };\n',
+    "utf8",
+  );
+  await writeFile(
+    join(scratch, DEPCRUISE_CONFIG_REL),
+    'module.exports = { extends: "./depcruise-base.cjs", forbidden: [{ name: "root", from: { path: "^packages/kit/src/" }, to: {} }] };\n',
+    "utf8",
+  );
+
+  const snapshot = await snapshotDepcruiseConfig(scratch, DEPCRUISE_CONFIG_REL);
+
+  expect(snapshot.effectiveRules).toBe(2);
+  expect(snapshot.selectors).toEqual([{ owner: "config.forbidden[0].from", field: "path", position: 0, value: "^packages/kit/src/" }]);
+});
+
+test("the process boundary observes rewritten CommonJS config instead of a stale module cache", async ({ scratch }) => {
+  await writeFile(
+    join(scratch, DEPCRUISE_CONFIG_REL),
+    'module.exports = { forbidden: [{ name: "first", from: { path: "^packages/first/" }, to: {} }] };\n',
+    "utf8",
+  );
+  const first = readConfigSnapshot(scratch, "depcruise", DEPCRUISE_CONFIG_REL);
+  expect(first.kind === "ok" ? first.snapshot.selectors[0]?.value : first.detail).toBe("^packages/first/");
+
+  await writeFile(
+    join(scratch, DEPCRUISE_CONFIG_REL),
+    'module.exports = { forbidden: [{ name: "second", from: { path: "^packages/second/" }, to: {} }] };\n',
+    "utf8",
+  );
+  const second = readConfigSnapshot(scratch, "depcruise", DEPCRUISE_CONFIG_REL);
+  expect(second.kind === "ok" ? second.snapshot.selectors[0]?.value : second.detail).toBe("^packages/second/");
+});
+
+test("refuses malformed dependency-cruiser selector values after native evaluation", async ({ scratch }) => {
+  await writeFile(
+    join(scratch, DEPCRUISE_CONFIG_REL),
+    'module.exports = { forbidden: [{ name: "broken", from: { path: ["^packages/", 42] }, to: {} }] };\n',
+    "utf8",
+  );
+
+  await expect(snapshotDepcruiseConfig(scratch, DEPCRUISE_CONFIG_REL)).rejects.toThrow("resolved to an empty or non-string selector");
 });
 
 test("Vitest natively collects exact files, not empty or directory includes, while a directory exclude is recursive", async ({ scratch }) => {

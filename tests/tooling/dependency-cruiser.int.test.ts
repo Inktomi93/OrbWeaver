@@ -13,11 +13,17 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
+import { TEST_KIND_SUFFIXES } from "../../tooling/src/_shared/test-kinds.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
+interface DcRestriction {
+  readonly path?: string | readonly string[];
+}
 interface DcRule {
   readonly name: string;
   readonly severity?: string;
+  readonly from?: DcRestriction;
+  readonly to?: DcRestriction;
 }
 interface DcConfig {
   readonly forbidden?: DcRule[];
@@ -35,6 +41,18 @@ const CONFIG = ((await import("../../.dependency-cruiser.cjs")) as { default: Dc
 // here fires with nothing → FAILS. (recommended-strict's inherited rules aren't in our `forbidden`
 // literal, so they're out of scope — dep-cruiser ships them tested.)
 const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])].filter((r) => r.severity !== "ignore").map((r) => r.name);
+const NOT_TO_TEST = CONFIG.forbidden?.find((rule) => rule.name === "not-to-test");
+function pathValues(value: string | readonly string[] | undefined): readonly string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+  return value ?? [];
+}
+const NOT_TO_TEST_PATHS = pathValues(NOT_TO_TEST?.to?.path);
+const TEST_FILES_PATTERN = NOT_TO_TEST_PATHS.find((path) => path !== "^tests/");
+if (TEST_FILES_PATTERN === undefined) {
+  throw new Error("not-to-test has no registered-kind selector");
+}
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
@@ -203,6 +221,9 @@ function writeAllFixtures(): void {
   fx(EMBEDDINGS, VAL);
   fx(`${S}/domain/stats/__dc.ts`, `import "../../../../db/src/schema/embeddings.ts";\n`);
   fx("packages/kit/src/__dc/totest.ts", `import "../../../../tests/support/clock.ts";\n`);
+  fx("packages/kit/testing/__dc_registered.repo.int.test.ts", VAL);
+  fx("packages/kit/testing/__dc_unsupported.test.js", VAL);
+  fx("packages/kit/src/__dc/test-kind.ts", `import "../../testing/__dc_registered.repo.int.test.ts";\nimport "../../testing/__dc_unsupported.test.js";\n`);
 
   // not-to-dev-dep: a production src file importing a PURE devDependency. drizzle-kit is db's devDep;
   // db's runtime drizzle-orm resolves as `npm` (not `npm-dev`) so it would NOT fire — only pure devDeps do.
@@ -360,6 +381,17 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test("the not-to-test selector covers every registered authored test kind and rejects unsupported extensions", () => {
+  const matcher = new RegExp(TEST_FILES_PATTERN, "u");
+  expect(TEST_KIND_SUFFIXES.every((suffix) => matcher.test(`subject${suffix}`))).toBe(true);
+  expect(matcher.test("subject.test.js")).toBe(false);
+});
+
+test("the native graph rejects a planted registered test import and passes the unsupported control", () => {
+  const violations = allViolations.filter((violation) => violation.rule.name === "not-to-test" && violation.from.endsWith("kit/src/__dc/test-kind.ts"));
+  expect(violations.map((violation) => violation.to)).toEqual(["packages/kit/testing/__dc_registered.repo.int.test.ts"]);
 });
 
 // THE CACHE TRIPWIRE (#393 P6). `.dependency-cruiser.cjs` carried `cache: { strategy: "content" }`, and a

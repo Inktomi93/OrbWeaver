@@ -3,16 +3,18 @@
 // own subject. Either way, when that file is deleted or moved the row goes SILENTLY dead — an exemption
 // nobody can see, or a rule aimed at nothing — and the next file created at that path inherits an import-law
 // posture nobody re-approved. biome-grant-liveness's shape (GATE-AUTHORING.md §4.4 mode B) on the import-law
-// config. TWO hard parts, and why this is its own gate: (1) the values are CODE — 13 of 181 are bare
-// literals, the rest are consts and TEMPLATE literals built from consts — so extraction runs through
-// lib/config-static-read.ts, which resolves what it can prove and REFUSES LOUDLY on what it cannot; (2) the
+// config. TWO hard parts, and why this is its own gate: (1) the values are CODE, so observation runs the
+// executable config through dependency-cruiser's public loader behind the config-snapshot process boundary;
+// imported, called, spread and template-derived selectors retain their runtime values. Liveness judges the
+// repository-authored root config only: `extends` package rules have a vendor lifecycle and member sources
+// this repo does not own; the public loader still proves that the complete effective chain loads. (2) the
 // values are REGEX SOURCE, not globs, so a path is only recognised when the pattern is FULLY ANCHORED
 // (`^…$`) and carries no surviving metacharacter after unescaping `\.`/`\/`. That classifier is deliberately
 // CONSERVATIVE in the direction that matters: these lists are load-bearing import law, so an ambiguous
 // pattern becomes a declared SKIP, never a RED. Arms: DEAD · MISSING-CONFIG · UNPARSEABLE-CONFIG ·
 // UNREADABLE-SHAPE · NO-ROWS (the §4.6 blindness tripwire) · the two-sided EXEMPT arms (shared,
 // empty-but-armed at mint — every live row resolves).
-// PATTERN LIVENESS (#973): the 175 rows the file-exact classifier skips are no longer invisible. A pattern
+// PATTERN LIVENESS (#973): the rows the file-exact classifier skips are no longer invisible. A pattern
 // is LIVE when it matches at least one member of a FINITE tracked source — the `git ls-files` corpus, or
 // the declared-dependency module paths (dep-cruiser matches MODULE paths, so `node_modules/echarts/` is
 // live exactly while some package.json still declares echarts). Zero members in either = the same
@@ -20,29 +22,28 @@
 // exists. Two families cannot be judged and are RATIFIED with reasons + a no-growth budget: a `$1`
 // BACKREFERENCE (its member set is bound by the paired rule's capture at cruise time, not by the tree) and
 // the two by-design rows below.
-// COMMENT POSTURE: comment-SAFE — extraction is pure AST over node kinds, never a text match.
+// COMMENT POSTURE: comment-SAFE — observation reads runtime config values, never source text.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { DepcruiseConfigSnapshotField, DepcruiseSelectorSnapshot } from "../contract/config-snapshot.ts";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
-import { extractRows, readConfigSource } from "../lib/config-static-read.ts";
-import type { GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
+import { readConfigSnapshot } from "../lib/config-snapshot.ts";
+import type { ExactRow, GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
 import { irreducibleBudgetFindings, livenessFindings, memberSources, patternLivenessFindings } from "../lib/grant-liveness.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
 const UNIT = "grant row";
-const JUDGED_KEYS = ["path", "pathNot"] as const;
-
 /** Regex metacharacters that make a pattern a CLASS of paths rather than one file. A pattern still carrying
  *  any of these after anchor-stripping and `\.`/`\/` unescaping is a declared skip, never a judged row. */
 const REGEX_META_RE = /[|()[\]{}*+?^$\\]/u;
 
-/** §4.5 real-tree anchor in its rename-proof COUNT form: the real config derives 181 values across its
+/** §4.5 real-tree anchor in its rename-proof COUNT form: the real config derives far more values across its
  *  rules; a conformance mini-project plants a handful. Counted over ALL derived values, never over the exact
  *  ones, so it can guard the very arm that judges the regex/literal classifier. */
 const REAL_CONFIG_MIN_CANDIDATES = 80;
 
-/** Empty but ARMED at mint — every file-exact row in .dependency-cruiser.cjs resolves today (13/13
- *  measured), so nothing needs forgiving. The two-sided machinery is shared (lib/grant-liveness.ts) and is
+/** Empty but ARMED at mint — every file-exact row in .dependency-cruiser.cjs resolves today, so nothing
+ *  needs forgiving. The two-sided machinery is shared (lib/grant-liveness.ts) and is
  *  proven in both directions by the sibling gates' pins; a row added here inherits both arms automatically. */
 const EXEMPT: ExemptionTable<GrantExemption> = {};
 
@@ -150,17 +151,15 @@ const MSG_MISSING =
   "CONFIG_REL in tooling/src/verify/gates/depcruise-grant-liveness.ts, or delete the gate with the config.";
 
 const MSG_UNPARSEABLE =
-  ".dependency-cruiser.cjs did not parse. Fail LOUD, never fall back to a default: a silently-defaulted " +
-  "import-law config enforces NO boundary at all, and the cake would be unguarded while every run reported " +
-  "green. See tooling/src/verify/gates/depcruise-grant-liveness.ts.";
+  ".dependency-cruiser.cjs did not load through dependency-cruiser's public config API. Fail LOUD, never " +
+  "fall back to a default: a missing import, thrown config function, malformed selector or syntax error makes " +
+  "the effective import law unknowable. See tooling/src/verify/gates/depcruise-grant-liveness.ts.";
 
 const MSG_UNREADABLE =
-  "a `path`/`pathNot` value in .dependency-cruiser.cjs is a shape this gate CANNOT statically read (a call, a " +
-  "conditional, a template span that is not a resolvable const), so the rows behind it are unjudged and a ✓ " +
-  "would be a lie about coverage this gate does not have. This is the fail-loud half of the CODE-config " +
-  "extractor: an unreadable shape is 'I could not measure', never 'clean'. Either spell the value as a " +
-  "literal/const the reader resolves (tooling/src/verify/lib/config-static-read.ts), or widen the reader " +
-  "deliberately. The finding token names the offending syntax kind.";
+  "dependency-cruiser's native config snapshot was unreadable, so one or more effective `path`/`pathNot` " +
+  "values are unjudged and a ✓ would be a lie. Imported and computed selectors are supported by executing " +
+  "the trusted repository config through the public loader; an unreadable snapshot is 'I could not measure', " +
+  "never 'clean'.";
 
 const MSG_NO_ROWS =
   ".dependency-cruiser.cjs parsed but ZERO file-exact rows were derived from an anchor-sized value set — the " +
@@ -173,6 +172,12 @@ interface Outcome {
   readonly declaration: GateScanDeclaration;
   /** The pattern half's disposition, folded into the gate's scan declaration by `run`. */
   readonly patterns?: { readonly live: number; readonly ratified: number; readonly irreducible: number };
+}
+
+interface NativeGrantRow extends ExactRow {
+  readonly owner: string;
+  readonly field: DepcruiseConfigSnapshotField;
+  readonly position: number;
 }
 
 /** A dep-cruiser pattern is REGEX SOURCE matched against a module path. An unparseable source is treated as
@@ -209,46 +214,58 @@ export function classifyRegex(value: string): string | undefined {
 }
 
 function scanDepcruiseGrantLiveness(root: string): Outcome {
-  const read = readConfigSource(root, CONFIG_REL);
-  if (read.kind === "missing") {
+  if (!existsSync(join(root, CONFIG_REL))) {
     return blind(MSG_MISSING);
   }
-  if (read.kind === "unparseable") {
-    return blind(`${MSG_UNPARSEABLE} (${read.detail})`);
+  const native = readConfigSnapshot(root, "depcruise", CONFIG_REL);
+  if (native.kind === "unreadable") {
+    return blind(`${MSG_UNPARSEABLE} ${MSG_UNREADABLE} Native loader detail: ${native.detail}`);
   }
-  const rows = extractRows({ sf: read.sf, rel: CONFIG_REL, text: read.text, keys: JUDGED_KEYS, classify: classifyRegex });
+  const exact: NativeGrantRow[] = [];
+  const skippedRows: DepcruiseSelectorSnapshot[] = [];
+  for (const selector of native.snapshot.selectors) {
+    const path = classifyRegex(selector.value);
+    if (path === undefined) {
+      skippedRows.push(selector);
+    } else {
+      exact.push({ file: CONFIG_REL, path, line: 0, owner: selector.owner, field: selector.field, position: selector.position });
+    }
+  }
   const declaration: GateScanDeclaration = {
     unit: UNIT,
-    candidates: rows.candidates,
-    scanned: rows.exact.length,
-    skipped: { pattern: rows.skipped },
+    candidates: native.snapshot.selectors.length,
+    scanned: exact.length,
+    skipped: { pattern: skippedRows.length },
   };
-  if (rows.unresolved.length > 0) {
-    const findings = rows.unresolved.map((u) => ({ file: CONFIG_REL, line: u.line, column: 0, token: u.kind, message: MSG_UNREADABLE }));
-    return { findings, declaration };
-  }
-  const anchorOk = rows.candidates >= REAL_CONFIG_MIN_CANDIDATES;
-  if (rows.exact.length === 0) {
+  const anchorOk = native.snapshot.selectors.length >= REAL_CONFIG_MIN_CANDIDATES;
+  if (exact.length === 0) {
     return { findings: anchorOk ? [fileFinding(MSG_NO_ROWS)] : [], declaration };
   }
-  const exactFindings = livenessFindings({ root, exact: rows.exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
+  const rawExactFindings = livenessFindings({ root, exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
+  const exactFindings = rawExactFindings.map((finding) => {
+    if (finding.message !== MESSAGES.dead) {
+      return finding;
+    }
+    const row = exact.find((candidate) => candidate.path === finding.token);
+    return row === undefined ? finding : { ...finding, message: `${MESSAGES.dead} Native selector: ${row.owner}.${row.field}[${String(row.position)}].` };
+  });
   // The PATTERN half runs only in a scope that carries this gate's OWN module (the §4.5 real-tree anchor
   // shape). A conformance mini-project and the file-exact fixtures have no work tree to derive a corpus
   // from, and their handful of rows are not the real population — judging them would red every proof.
   if (!(anchorOk && existsSync(join(root, GATE_SELF)))) {
     return { findings: exactFindings, declaration };
   }
-  const backrefs = rows.skippedRows.filter((row) => BACKREF_RE.test(row.path));
-  const judgeable = rows.skippedRows.filter((row) => !BACKREF_RE.test(row.path));
+  const backrefs = skippedRows.filter((row) => BACKREF_RE.test(row.value));
+  const judgeable = skippedRows.filter((row) => !BACKREF_RE.test(row.value));
   const sources = memberSources(root);
   if (sources.repoPaths.length === 0) {
     return { findings: [...exactFindings, fileFinding(MSG_CORPUS_BLIND)], declaration, patterns: { live: 0, ratified: 0, irreducible: backrefs.length } };
   }
   const patternRows: readonly PatternRow[] = judgeable.map((row) => ({
     file: CONFIG_REL,
-    pattern: row.path,
-    line: row.line,
-    matches: regexMatcher(row.path),
+    pattern: row.value,
+    line: 0,
+    matches: regexMatcher(row.value),
   }));
   const outcome = patternLivenessFindings({
     root,
@@ -328,12 +345,12 @@ export const gate: GateDescriptor = {
         [LIVE_REL]: LIVE_SOURCE,
       },
       expect: { count: 1, token: "packages/ui/src/gone.ts" },
-      why: "THE CODE-CONFIG CASE: both rows are TEMPLATE literals built from a const (the corpus's dominant shape, 112 of them) — only the dead one fires, and the bare prefix const stays a skip",
+      why: "THE CODE-CONFIG CASE: both rows are TEMPLATE literals built from a const — dependency-cruiser's native loader observes the effective values, only the dead one fires, and the bare prefix const stays a skip",
     },
     {
       files: { [CONFIG_REL]: 'module.exports = { forbidden: [{ name: "r", from: { path: buildPath() }, to: {} }] };\n' },
-      expect: { count: 1, messageIncludes: "CANNOT statically read" },
-      why: "THE FAIL-LOUD REQUIREMENT: a call expression is unreadable, and an unreadable shape must REFUSE, never pass as a clean zero over load-bearing import law",
+      expect: { count: 1, messageIncludes: "did not load through dependency-cruiser's public config API" },
+      why: "THE FAIL-LOUD REQUIREMENT: a config call that throws must REFUSE, never pass as a clean zero over load-bearing import law",
     },
     {
       files: { "not-dependency-cruiser.cjs": "module.exports = {};\n" },
@@ -352,6 +369,14 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        [CONFIG_REL]: `module.exports = { extends: "./base.cjs", forbidden: [{ name: "root", from: {}, to: { pathNot: ${LIVE_RE} } }] };\n`,
+        "base.cjs": `module.exports = { forbidden: [{ name: "base", from: {}, to: { pathNot: ${DEAD_RE} } }] };\n`,
+        [LIVE_REL]: LIVE_SOURCE,
+      },
+      why: "DECLARED LIMIT — liveness judges selectors authored by the repository root config, while dependency-cruiser's public loader still loads and validates the complete `extends` chain; inherited package rules have a separate vendor lifecycle and member corpus",
+    },
     {
       files: { [CONFIG_REL]: 'module.exports = { forbidden: [{ name: "r", from: { path: "^packages/definitely-not-here/" }, to: {} }] };\n' },
       why: "DECLARED LIMIT — the PATTERN half is scoped to a root carrying this gate's own module (the §4.5 real-tree anchor shape): a mini-project has no git work tree to derive the `git ls-files` corpus from, so a glob with no members here is SILENT. The pattern arms are proven instead by the permanent pin under tests/tooling/verify/gates/, which plants a real throwaway repo (#973).",
