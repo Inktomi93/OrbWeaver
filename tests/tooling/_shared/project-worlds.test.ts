@@ -46,6 +46,14 @@ test("primary compiler ownership follows package homes and the complete test-wor
   expect(predictedProgram("tests/support/iso/view.tsx")).toBe("tsconfig.tests-iso.json");
 });
 
+test("inherited object properties cannot register a package world or compiler owner", () => {
+  for (const name of ["constructor", "__proto__", "toString"]) {
+    expect(worldOf(`packages/${name}/src/index.ts`)).toBeUndefined();
+    expect(predictedProgram(`packages/${name}/src/index.ts`)).toBeUndefined();
+    expect(programWorldOf(`packages/${name}/tsconfig.json`)).toBeUndefined();
+  }
+});
+
 test("world helper population matches declared directories without prefix lookalikes", () => {
   expect(isWorldHelperPath("tests/support/iso/new.ts")).toBe(true);
   expect(isWorldHelperPath("tests/support/node")).toBe(true);
