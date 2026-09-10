@@ -32,6 +32,11 @@ const RATIFIED: ExemptionTable<RatifiedRow> = {
     why: "check-gates materialises the reserved __g_ fixtures only transiently. Delete this row when that sentinel is retired.",
     cite: GATE_FIXTURE_LAW,
   },
+  "config[0].ignores[4]": {
+    value: ".stryker-tmp/**",
+    why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus. Delete this row when its sandbox directory changes or mutation execution is retired.",
+    cite: "tooling/src/_shared/stryker-config.ts",
+  },
 };
 
 const MESSAGE =

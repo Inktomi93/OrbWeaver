@@ -74,6 +74,16 @@ test("every tracked root/package-root/direct-script Node tool resolves to a real
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 
+test("mutation-generated setup is excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  expect(await eslint.isPathIgnored(".stryker-tmp/sandbox-probe/stryker-setup-0.js")).toBe(true);
+  const results = await eslint.lintText("/* eslint-disable no-empty-pattern */\nexport const value = 1;\n", {
+    filePath: "scripts/temporary-lint-control.js",
+  });
+  expect(results).toHaveLength(1);
+  expect(results[0]?.messages.some(({ message }) => message.includes("Unused eslint-disable directive"))).toBe(true);
+});
+
 test("every tracked non-browser package source resolves to a real eslint config block", async ({ repoRoot }) => {
   const packagePrefixes = Object.keys(PACKAGE_WORLDS)
     .filter((name) => !BROWSER_PACKAGES.has(name))

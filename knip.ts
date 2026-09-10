@@ -43,6 +43,8 @@ const config: KnipConfig = {
       // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+      // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
       // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
@@ -51,6 +53,8 @@ const config: KnipConfig = {
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
       // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
       ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native"],
+      // These imports execute inside the captured browser runtime, not against repository-relative modules.
+      ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
@@ -99,6 +103,8 @@ const config: KnipConfig = {
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
+      // Runtime engine controls invoke host executables, not npm binaries.
+      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
