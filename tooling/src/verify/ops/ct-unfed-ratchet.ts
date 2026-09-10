@@ -38,13 +38,13 @@
 //                must NOT read as "zero unfed reads".
 //
 // THE CORPUS IS THE WHOLE CT TREE, and the committed baseline was built from a whole-tree census (owner
-// ruling 2026-08-24, taken as niced `pnpm ct:scoped … --workers=2` passes rather than one battery). There is
+// ruling 2026-08-24, taken as niced `pnpm test:ct … --workers=2` passes rather than one battery). There is
 // NO scope constant here on purpose: a path fence would let a green read as a clean bill of health for files
 // nobody measured, which is the false-clean shape this row exists to kill. Every CT file a run executes is
 // judged; a file nobody runs is skipped, not absolved.
 //
 // DECLARED LIMITS:
-//   • A SCOPED run (`pnpm ct:scoped <subset>`) can only judge the files it executed. Baseline rows for files
+//   • A SCOPED run (`pnpm test:ct <subset>`) can only judge the files it executed. Baseline rows for files
 //     the run never touched are skipped — not shrunk, not admitted. Only a run covering a file can retire
 //     its row, which is why the SHRINK arm keys off `executedFiles`.
 //   • The dead-instrument tripwire recognises the call by the literal `routeTrpc(` in the test file's own

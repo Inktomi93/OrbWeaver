@@ -473,7 +473,7 @@ Live receipts (landing, not committed): a real `--isolated --ref <sha>` session 
 
 ## 10. Phased build plan
 
-Every phase is one lane, one commit, scoped floors; whole-tree gates are the orchestrator's. Floors run `pnpm typecheck --config <path>` for every affected native program selected by the shared compiler reader; biome + eslint on touched files; `pnpm check:structure`; `pnpm knip`; `pnpm exec depcruise packages tooling --config .dependency-cruiser.cjs`; the named suites via `pnpm test:scoped <paths> --maxWorkers=4`; CT via `pnpm ct:scoped <paths> --workers=2`; `check-gates.int` / `gate-conformance.int` whenever a gate arm changes.
+Every phase is one lane, one commit, scoped floors; whole-tree gates are the orchestrator's. Floors run `pnpm typecheck --config <path>` for every affected native program selected by the shared compiler reader; biome + eslint on touched files; `pnpm check:structure`; `pnpm knip`; `pnpm exec depcruise packages tooling --config .dependency-cruiser.cjs`; the named suites via `pnpm test:scoped <paths> --maxWorkers=4`; CT via `pnpm test:ct <paths> --workers=2`; `check-gates.int` / `gate-conformance.int` whenever a gate arm changes.
 
 | Phase | Lane / tier | Lands | Files (new ‖ changed) | Floor (suites by path) |
 | - | - | - | - | - |
@@ -698,7 +698,7 @@ and refuses unless Lighthouse's shipped DevTools trace engine yields a positive 
 insight families. `1195-devtools-mcp-retirement.md` carries the exact census correction, control, and
 limits.
 
-The CT run slot is one transaction directory per `pnpm ct:scoped` invocation. The launcher mints it and
+The CT run slot is one transaction directory per `pnpm test:ct` invocation. The launcher mints it and
 passes it through the environment; Playwright adopts it; workers write beneath its `snaps/`; and the flaky
 reporter publishes `.published` plus `ct-flaky.json` after the run. No config-load/list operation mints a
 slot, and no worker/reporter creates a second one.

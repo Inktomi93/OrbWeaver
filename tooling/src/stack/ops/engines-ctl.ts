@@ -130,7 +130,7 @@ async function logEngineRow(engine: (typeof VLLM_ENGINES)[number], held: boolean
 async function status(): Promise<number> {
   const gpus = await queryGpuVram();
   const held = isHeld(RUN_DIR);
-  log(`hold marker: ${held ? "PRESENT (sleeping-held; `engines:wake` releases)" : "absent"}`);
+  log(`hold marker: ${held ? "PRESENT (sleeping-held; `engines wake` releases)" : "absent"}`);
   for (const engine of VLLM_ENGINES) {
     await logEngineRow(engine, held);
   }
@@ -209,15 +209,15 @@ async function stopAll(): Promise<number> {
 }
 
 async function sleepAll(): Promise<number> {
-  // The manual hold marker: intent ahead of occupancy — the wake gate refuses on it until `engines:wake`.
+  // The manual hold marker: intent ahead of occupancy — the wake gate refuses on it until `engines wake`.
   // It goes down FIRST, BEFORE any /sleep POST (live step-9 finding 2026-08-01): the three sequential sleeps
   // take ~6s, and an engine already asleep while the marker is still absent reads as AUTO-slept — a stray
   // request in that window auto-wakes it and takes the VRAM straight back, defeating the operator's intent.
   // The live supervisor log caught exactly this straddle (embed `sleeping` while rerank/gen were already
   // `sleeping-held`). A marker written when the sleeps then FAIL is harmless: the engines stay awake, the
-  // wake gate never runs, and `engines:wake` clears it.
+  // wake gate never runs, and `engines wake` clears it.
   writeHold(RUN_DIR, Date.now());
-  log("wrote hold marker — engines HELD; a stray request will NOT auto-wake them. `engines:wake` releases.");
+  log("wrote hold marker — engines HELD; a stray request will NOT auto-wake them. `engines wake` releases.");
   let slept = 0;
   for (const engine of VLLM_ENGINES) {
     const ok = await postSleep(engine);

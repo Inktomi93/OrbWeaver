@@ -146,7 +146,7 @@ export function buildEngineSpawnSpec(
       // THE LAUNCH MARKER (#1756). It is exported into the spawn env — before the exec, where nothing can
       // edit it afterwards — so every member of the engine's setsid group (the APIServer and its EngineCore
       // workers) inherits it and `/proc/<pid>/environ` becomes proof of WHICH launch started a survivor.
-      // Without it, a dead leader left `engines:stop` refusing a live engine it had itself started, and the
+      // Without it, a dead leader left `engines stop` refusing a live engine it had itself started, and the
       // teardown ended in a hand-run `kill -TERM -<pgid>` — a negative-PGID kill with no authorization at
       // all. Required + branded (`EngineLaunchMarker`) because the value's entropy IS the evidence.
       [ENGINE_LAUNCH_MARKER_ENV]: opts.launchMarker,

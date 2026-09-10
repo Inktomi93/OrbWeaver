@@ -31,11 +31,11 @@ import type { ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
 import { acquireCtRunnerSlots } from "../lib/ct-runner-lock.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm ct:scoped <paths…>");
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped <paths…>  /  pnpm test:ct <paths…>");
 
 export const SCOPED_TEST_USAGE =
   `usage: node tooling/src/verify/cli.ts scoped-test <${SCOPED_TEST_RUNNERS.join("|")}> [paths…] [runner flags…]\n` +
-  "  node = the vitest projects (pnpm test:scoped) · ct = the playwright CT config (pnpm ct:scoped).\n" +
+  "  node = the vitest projects (pnpm test:scoped) · ct = the playwright CT config (pnpm test:ct).\n" +
   "  node --related <sources…> = Vitest's dependency graph through the supervised node runner.\n" +
   "  Every path-shaped operand must EXIST (else exit 3). Direct test filters must contribute a collected\n" +
   "  test (else exit 2); related source inputs may have zero runtime dependents, reported explicitly.";

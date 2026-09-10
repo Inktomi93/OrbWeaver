@@ -1,9 +1,8 @@
 // The MANUAL-tier registry rows (UNIFIED-VERIFICATION-DESIGN.md §3.6) — stages a run never auto-includes:
 // the CANDIDATE lenses whose output is evidence rather than a verdict, the credit-spending live e2e, the
-// exploratory mutation report, the coverage report, and the two niced scoped-run invocation wrappers. Each
+// exploratory mutation report, the coverage report, and the niced scoped-node invocation wrapper. Each
 // carries the `manualReason` `verify --list` prints. Split out of lib/registry.ts at the @orb/tooling P6
-// move (size cap §4.3); the rows and their ORDER are unchanged, and lib/registry.ts concatenates them last
-// exactly where they sat, so `verify --list` output is byte-identical.
+// move (size cap §4.3); lib/registry.ts concatenates this ordered tail after the runnable stages.
 import type { StageDef } from "../contract/stage.ts";
 import { asViolations } from "./exit-classifiers.ts";
 
@@ -41,15 +40,6 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     classify: asViolations,
     manualReason:
       "supervised scoped node invocation: direct test paths must exist (3) and collect tests (2). --related takes existing source files before runner flags; zero runtime dependents is reported explicitly. Use verify --scope for folder expansion",
-  },
-  {
-    name: "tests:ct-scoped",
-    group: "tests",
-    tiers: ["manual"],
-    argv: ["pnpm", "ct:scoped"],
-    classify: asViolations,
-    manualReason:
-      "the niced scoped CT wrapper (still carries the cache-clear, now inside `cli.ts scoped-test ct`; paths + --workers per call) — an invocation surface, not a verification stage. Since #1192 it REFUSES a path operand that does not exist (3) or that playwright would collect nothing from (2), the class that let a floor certify a CT file it never opened",
   },
   {
     name: "browser:e2e-live",

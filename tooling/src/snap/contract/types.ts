@@ -279,7 +279,7 @@ export interface Args {
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
   /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
-   *  engines:status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
+   *  engines status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
   stageStatus: boolean;
   /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
    *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left

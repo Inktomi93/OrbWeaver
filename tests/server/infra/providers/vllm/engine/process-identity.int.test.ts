@@ -411,7 +411,7 @@ test(
       }
 
       // Wait for the grandchild to join the group, then kill ONLY the leader: the exact shape that used to
-      // leave `engines:stop` refusing a live engine it had started.
+      // leave `engines stop` refusing a live engine it had started.
       await settle(() => engineGroupMembers(leaderPid).length === 2);
       const exited = once(leader, "exit");
       process.kill(leaderPid, "SIGKILL");
@@ -452,7 +452,7 @@ async function settle(done: () => boolean): Promise<void> {
   }
 }
 
-// THE TWO DOORS IN ORDER — what `engines:stop` actually calls (#1756). engines-ctl's own suite is
+// THE TWO DOORS IN ORDER — what `engines stop` actually calls (#1756). engines-ctl's own suite is
 // grammar-only by design (every one of its verbs touches the live fleet, so the dispatch probe stops before
 // `fn()`), which is exactly why the decision it delegates to is pinned HERE, on a real identity file in a
 // tmpdir, with the adoption door injected so nothing is signalled.
@@ -468,7 +468,7 @@ test("stop runs the ORDINARY door first and consults the marker door only when i
     };
 
     // The recorded leader is long gone and a live listener holds the port — the receipt this row exists for:
-    // `engines:stop` refusing a LIVE engine named by a dead launch record, ending in a hand-run pgid kill.
+    // `engines stop` refusing a LIVE engine named by a dead launch record, ending in a hand-run pgid kill.
     const adopted = stopRecordedEngineProcess({ repoRoot, engine: "gen", port: 8703, listenerPid: identity.pid + 1, signal: "SIGTERM", adopt });
     expect(adopted.recorded.verdict, "the ordinary door's refusal is UNCHANGED").toBe("refused");
     expect(adopted.signaled, "the marker door authorized it").toBe(true);

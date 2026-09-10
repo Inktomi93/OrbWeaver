@@ -78,7 +78,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   misuse, malformed configs are tool errors, and an empty runnable selection is a tool error. When
   uncertain, PLANT a control error. **The `.test-d.ts` assertion lane remains separate:** `pnpm test:types`
   (`types:testd`) runs Vitest's `types-node` and `types-browser` typecheck projects. It preserves assertion
-  semantics; it does not replace the native `types:native` compiler stage or `types:tests-membership`.
+  semantics; it does not replace the native `types:native` compiler stage or `types:ownership`.
 - **A checker OOM / kill / timeout is exit-2 class — NEVER hand-wave it as load** (owner ruling): exit
   134/137, a heap abort, or a wall-clock kill of tsc/depcruise/knip/eslint/a lens/the gate harness means
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
@@ -95,7 +95,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   nothing. Still uncovered by design: the 31 `.tsx` story/fixture modules named in `eslint.config.js`'s
   `TESTS_DOM_OWNED` note (#1590).
 - **The spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
-  biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is `pnpm ct:scoped <paths>`
+  biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is `pnpm test:ct <paths>`
   (it carries BOTH the cache-clear and the nice). An OOM under THAT ceiling is a real finding to report,
   never to rerun-until-green.
 - **A search, gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
@@ -106,7 +106,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 ## Running suites without starving the box
 
 - **Scoped invocations go through the NICED pnpm scripts, never raw npx** (npx bypasses the nice-19 floor
-  that protects the co-hosted homelab): `pnpm test:scoped <paths>` · `pnpm ct:scoped <paths>`, from your
+  that protects the co-hosted homelab): `pnpm test:scoped <paths>` · `pnpm test:ct <paths>`, from your
   worktree via `env -C`. **Pass NO `--maxWorkers`/`--workers` unless going LOWER** (#1835): the SHIPPED
   defaults ARE the shared-host values (vitest 4, CT 4 — CT went 2 → 4 by owner ruling 2026-09-06, #1848: the box-wide bound is `ctRunnersHostWide` + the cpu-fence quota, not the per-run count) from `tooling/concurrency-profile.json`, the ONE
   home for every cap; `ORB_DEDICATED_BOX=1` in the SHELL is the solo-box switch (vitest 14, CT 4 — the
@@ -116,7 +116,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   v2, so it never reached the containers; the quota is what does.
 - **Load proof for a flake is `--repeat-each N` for CT ONLY; node suites take SEQUENTIAL passes** (2026-09-05):
   `pnpm test:scoped … --repeat-each=3` exits 2 — the preflight's `vitest list` dies on `--repeatEach`. And never
-  start a SECOND `ct:scoped` in the SAME worktree for load (#1581): both share `.cache/`, the second's
+  start a SECOND `test:ct` in the SAME worktree for load (#1581): both share `.cache/`, the second's
   cache-clear + vite rebuild lands under the first and untouched tests read red. A different worktree, or
   repeat-each, or sequential runs — never a sibling runner in your own tree.
 - **Long mutation/calibration runs are orchestrator-scheduled** — never start one without an explicit

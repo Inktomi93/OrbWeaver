@@ -9,14 +9,14 @@
 # The reload-on-save problem: `node --watch` kills + respawns the SERVER on every
 # file save. If the server owned the vLLM engines, each save would cold-respawn
 # the trio (~1-2 min). FLEET MODEL (A.4): the engines are a box-level SINGLETON
-# spawned DETACHED (`engines:start` → setsid + pidfile), owned by NOBODY — so a
+# spawned DETACHED (`engines start` → setsid + pidfile), owned by NOBODY — so a
 # dev restart (or a dev Ctrl-C) leaves the fleet warm for the next orb, and
 # the in-server supervisor merely ADOPTS the running ports. A save restarts only
 # the server; it re-adopts the same engines. No engine reload, one command.
 #
 # OWNERSHIP INVERSION: the engines are no longer children of this script (the old
 # death-couple that took them down on session teardown — the bit-us-twice class).
-# `engines:start` is idempotent (a healthy fleet is a no-op), so re-running dev
+# `engines start` is idempotent (a healthy fleet is a no-op), so re-running dev
 # collapses to one spawn. The supervisor's own spawn action also routes through
 # the same detached verb.
 #
@@ -24,7 +24,7 @@
 # local-light, summarize → hosted) and this is just `node --watch` + pretty.
 #
 # Ctrl-C tears down THIS script + the watched server — the detached fleet SURVIVES
-# (warm for the next orb; `pnpm engines:stop` is the only kill).
+# (warm for the next orb; `pnpm engines stop` is the only kill).
 
 set -u
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -35,7 +35,7 @@ ENGINES_PID=""
 cleanup() {
   # Kill only the watched SERVER (and the engines WAITER below if we are still inside it) — the detached
   # fleet is nobody's child and SURVIVES (warm for the next orb). No engine teardown here (the
-  # ownership-inversion fix for the bit-us-twice class); `pnpm engines:stop` is the only kill.
+  # ownership-inversion fix for the bit-us-twice class); `pnpm engines stop` is the only kill.
   [ -n "$ENGINES_PID" ] && kill -TERM "$ENGINES_PID" 2>/dev/null
   [ -n "$SERVER_PID" ] && kill -TERM "$SERVER_PID" 2>/dev/null
   wait 2>/dev/null
@@ -66,7 +66,7 @@ trap cleanup EXIT
 # (ENGINES_BOOT_TIMEOUT, default 900s — five times the leader's healthz gate).
 bash "$REPO/tooling/src/stack/engines.sh" start &
 ENGINES_PID=$!
-wait "$ENGINES_PID" || echo "dev: engines:start reported a problem (continuing — server will fail-fast if a role needs vllm)"
+wait "$ENGINES_PID" || echo "dev: engines start reported a problem (continuing — server will fail-fast if a role needs vllm)"
 ENGINES_PID=""
 
 # The watched server. Restarts re-adopt the warm engines. Process-sub for the

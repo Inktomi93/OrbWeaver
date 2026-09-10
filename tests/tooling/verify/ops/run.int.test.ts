@@ -240,8 +240,8 @@ test("aggregateExit: violations (1) when the worst is a violation, no tool error
 // ── tier composition (§3.2) — the registry is the ONE spelling of "run everything" ──
 
 test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pnpm check` battery)", () => {
-  // One native stage discovers and runs every concrete compiler program. The separate membership guard
-  // makes a silently-un-type-checked test file structurally impossible. `tests:execution-membership`
+  // One native stage discovers and runs every concrete compiler program. The separate ownership guard
+  // makes a silently-un-type-checked authored root, ambient, or imported closure structurally impossible. `tests:execution-membership`
   // (GitHub issue #22) is its EXECUTION-lane sibling — same whole-tree-invariant shape, in the
   // `tests` group (it reconciles RUNNER coverage, not type-program coverage).
   const staticNames = stagesForTier("static").map((s) => s.name);
@@ -250,7 +250,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "lint:eslint",
     "types:native",
     "types:testd",
-    "types:tests-membership",
+    "types:ownership",
     "tests:execution-membership",
     // The db-baseline parity stage (2026-08-02): the committed squashed baseline vs the live schema.
     // Promoted from a push-only int test after two baseline-regen misses shipped and sat ~10h.
@@ -356,9 +356,22 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   expect(rootPkg.scripts["test"]).toContain("pnpm test:node");
   expect(rootPkg.scripts["test:ct"]).toContain("tooling/src/verify/cli.ts scoped-test ct");
   expect(rootPkg.scripts["test:ct"]).not.toContain("playwright test");
+  expect(rootPkg.scripts["ct:scoped"]).toBeUndefined();
+  expect(REGISTRY.filter(({ argv }) => argv[0] === "pnpm" && argv[1] === "test:ct")).toHaveLength(1);
   // …and the static tier does NOT run behavioral suites (the core hole §2.1).
   const staticT = new Set(stagesForTier("static").map((s) => s.name));
   expect(staticT.has("tests:node")).toBe(false);
+});
+
+test("public command families keep one canonical front door", () => {
+  const scripts = (JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as { readonly scripts: Record<string, string> })
+    .scripts;
+  expect(scripts["check:type-ownership"]).toContain("tests-membership");
+  expect(scripts["check:tests-membership"]).toBeUndefined();
+  expect(scripts["engines"]).toContain("tooling/src/stack/engines.sh");
+  for (const verb of ["start", "stop", "status", "sleep", "wake", "reconcile"]) {
+    expect(scripts[`engines:${verb}`]).toBeUndefined();
+  }
 });
 
 // ── V2 scope propagation (§3.4) — the ONE selection resolver feeds every stage's scopedArgv ──
@@ -570,12 +583,12 @@ test("types:native per --package runs every imported consumer exactly once", { t
   }
 });
 
-test("types:testd + types:tests-membership + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
+test("types:testd + types:ownership + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
   for (const name of [
     "types:testd",
-    // The whole-tree type-membership reconciliation: unions every type program's closure — no honest
-    // scoped form (§3.4).
-    "types:tests-membership",
+    // The whole-tree ownership reconciliation: checks every authored root, ambient, and imported closure
+    // across every type program — no honest scoped form (§3.4).
+    "types:ownership",
     // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
     // runner's --list view), no honest scoped form.
     "tests:execution-membership",
@@ -729,7 +742,7 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
   // A mirror hit → the scoped launcher, which opens the one invocation slot before Playwright loads config.
   // It keeps retries at the config's 0 default, so the inner loop still exposes a transient raw.
   const hit = resolveSelection({ kind: "changed", paths: ["packages/ui/src/primitives/badge/badge.tsx"] });
-  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["pnpm", "ct:scoped", "tests/ui/primitives/badge/badge.ct.tsx"]);
+  expect(stage("browser:ct").scopedArgv?.(hit)).toEqual(["pnpm", "test:ct", "tests/ui/primitives/badge/badge.ct.tsx"]);
 });
 
 // ── tests:node's derived-empty selection (#1272) — a red that means "there was nothing to run" ──

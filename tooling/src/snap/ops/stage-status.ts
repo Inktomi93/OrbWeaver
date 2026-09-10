@@ -1,4 +1,4 @@
-// `--stage-status` / `--stage-down` / `--stage-sweep`: the engines:status-style visibility read over EVERY
+// `--stage-status` / `--stage-down` / `--stage-sweep`: the engines status-style visibility read over EVERY
 // band, the deliberate teardown, and the SAFE reaper for a stage that outlived its use (#324, table-wide
 // since #1276). Works from ANY checkout — the table is shared and each row carries the owner's absolute
 // dir (#108).
@@ -128,7 +128,7 @@ const SWEEP_BAND_LINE: Record<StageSweepVerdict, string> = {
   unbound: "unbound",
 };
 
-/** `snap --stage-status`: the `engines:status`-style visibility, table edition — every band with its owner,
+/** `snap --stage-status`: the `engines status`-style visibility, table edition — every band with its owner,
  *  idle age, live sessions and sweep verdict, plus the reserved rows nothing may be allocated onto and the
  *  worktree dirs on disk (so a LOST-row / ownerless stage is SEEN, not invisible). */
 export function stageStatus(): string {

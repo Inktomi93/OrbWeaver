@@ -68,7 +68,7 @@ export interface EngineLaunchConfig {
    *  PARSED (post-chat-template, post-tool-parser) — the gap where tool-call debugging burned time. */
   readonly debugRequests: boolean;
   /** `--shutdown-timeout N` — a graceful in-flight drain window on engine shutdown. `0` (default) keeps
-   *  today's immediate-abort behavior; a positive value lets engines:stop drain first (VLLM_SHUTDOWN_TIMEOUT_S). */
+   *  today's immediate-abort behavior; a positive value lets engines stop drain first (VLLM_SHUTDOWN_TIMEOUT_S). */
   readonly shutdownTimeoutS: number;
   readonly ports: { readonly embed: number; readonly rerank: number; readonly gen: number };
 }

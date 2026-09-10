@@ -18,7 +18,7 @@ only when a rule's edge case is genuinely unclear.
   gate-green and still fail `pnpm test`. After editing any gate or token file, run `check-gates.int`.
 - **Lane verification is SCOPED (owner ruling 2026-07-25): whole-tree `pnpm check`, `structure:full` and
   the full `pnpm test` battery are BANNED in a lane.** DONE bar = exactly the test files you touched
-  (`pnpm test:scoped <paths>`, `pnpm ct:scoped <paths>` — niced scripts, never raw `npx`; pass NO worker
+  (`pnpm test:scoped <paths>`, `pnpm test:ct <paths>` — niced scripts, never raw `npx`; pass NO worker
   flag, the SHIPPED defaults ARE the shared-host caps since #1835, from `tooling/concurrency-profile.json`)
   + scoped typecheck + biome/eslint on your files. The orchestrator runs the big gates once.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and

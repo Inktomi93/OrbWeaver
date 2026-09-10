@@ -117,7 +117,7 @@ async function performWake(engine: VllmEngine, deps: WakeGateDeps): Promise<void
     gpus: await deps.queryGpu(),
   });
   if (!decision.ok) {
-    // The HOLD is an owner POSTURE (`pnpm engines:sleep` = "stay down for the tenant that hasn't grabbed its
+    // The HOLD is an owner POSTURE (`pnpm engines sleep` = "stay down for the tenant that hasn't grabbed its
     // VRAM yet"), never something a stray turn may override — so it refuses like a headroom shortfall, but
     // names the DISTINCT state (`sleeping-held`) so the operator reads "your hold did this", not "no VRAM".
     const state = decision.heldMarker ? "sleeping-held" : "sleeping";

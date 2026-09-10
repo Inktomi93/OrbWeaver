@@ -5,8 +5,8 @@
 //
 // THE HOLD MARKER (B.7-4): `<runDir>/engines.hold` records INTENT ahead of occupancy — engines slept for a
 // tenant that hasn't grabbed its VRAM yet. Without it a stray request would wake the engines and take the
-// memory back first. So: auto-slept → auto-wake (headroom-gated); HELD (manual `engines:sleep`) → the wake
-// gate refuses on the MARKER even with VRAM free; `engines:wake` clears it then runs the same headroom gate.
+// memory back first. So: auto-slept → auto-wake (headroom-gated); HELD (manual `engines sleep`) → the wake
+// gate refuses on the MARKER even with VRAM free; `engines wake` clears it then runs the same headroom gate.
 // A marker FILE (not a server API) so the verbs work with the server down — the actual tenant workflow — and
 // both owners (the standalone verb + the in-server supervisor tick) see one truth.
 
@@ -39,13 +39,13 @@ export function isHeld(runDir: string): boolean {
   return existsSync(holdMarkerPath(runDir));
 }
 
-/** Write the hold marker (manual `engines:sleep`). Idempotent; records the epoch-ms for humans. */
+/** Write the hold marker (manual `engines sleep`). Idempotent; records the epoch-ms for humans. */
 export function writeHold(runDir: string, at: number): void {
   mkdirSync(runDir, { recursive: true });
   writeFileSync(holdMarkerPath(runDir), `held at ${new Date(at).toISOString()}\n`);
 }
 
-/** Clear the hold marker (`engines:wake`). Idempotent. */
+/** Clear the hold marker (`engines wake`). Idempotent. */
 export function clearHold(runDir: string): void {
   rmSync(holdMarkerPath(runDir), { force: true });
 }
@@ -60,10 +60,10 @@ export type WakeDecision = { readonly ok: true } | { readonly ok: false; readonl
  *  the reason (marker) or the holders (budget). Pure: the marker bool + gpu facts are injected. The orphan
  *  reconcile MUST run FIRST at the call site (a dead engine's own core must be reaped, never named as a
  *  foreign tenant). `held` is ignored on the AUTO-wake path (the caller passes false) — the marker only
- *  gates until `engines:wake` clears it. */
+ *  gates until `engines wake` clears it. */
 export function decideWake(engine: VllmEngine, opts: { held: boolean; gpuCount: number; util: EngineUtilFractions; gpus: readonly GpuVram[] }): WakeDecision {
   if (opts.held) {
-    return { ok: false, heldMarker: true, reason: "engines held — `pnpm engines:wake` releases the manual hold (then re-checks VRAM headroom)" };
+    return { ok: false, heldMarker: true, reason: "engines held — `pnpm engines wake` releases the manual hold (then re-checks VRAM headroom)" };
   }
   const budget: WakeBudgetVerdict = decideWakeBudget(engine, engineVramNeed(engine, opts.gpuCount, opts.util), opts.gpus);
   return budget.ok ? { ok: true } : { ok: false, heldMarker: false, reason: budget.message };
@@ -389,7 +389,7 @@ export async function postWakeAndAwait(engine: VllmEngine, deps: { now: () => nu
 
 const SS_PID_RE = /pid=(\d+)/;
 
-/** The pid bound to an engine's loopback port (via `ss -tlnp`), or null. Used by `engines:status` to show
+/** The pid bound to an engine's loopback port (via `ss -tlnp`), or null. Used by `engines status` to show
  *  the APIServer pid per engine without importing the supervisor's process-local registry (works server-down). */
 export async function enginePortPid(engine: VllmEngine): Promise<number | null> {
   const out = await new Promise<string>((resolve) => {

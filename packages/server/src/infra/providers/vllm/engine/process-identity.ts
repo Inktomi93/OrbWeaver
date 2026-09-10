@@ -18,7 +18,7 @@
 // evidence than the pgid ever was, not less. {@link adoptEngineGroup} is that separate, STRICTER door: every
 // live member must carry the marker, so a reused pgid or an unrelated joiner still refuses, and a record
 // with no marker (every pidfile written before this) refuses exactly as before. The receipt it ends:
-// `engines:stop` refusing a live engine named by a dead launch record, leaving the operator to hand-run
+// `engines stop` refusing a live engine named by a dead launch record, leaving the operator to hand-run
 // `kill -TERM -<pgid>` — the negative-PGID kill with no authorization at all.
 
 import { randomUUID } from "node:crypto";

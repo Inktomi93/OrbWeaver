@@ -62,7 +62,7 @@ Stages are presented in groups (`lint`/`types`/`structure`/`imports`/`deps`/`doc
   (`no-deprecated`, `tsdoc/syntax`, the react-surface gates) over the typed-API packages + the react test
   trees. Each catches a class the other cannot.
 - **types** = `types:native` (the one discovered-program executor), `types:testd` (Vitest `.test-d.ts`
-  assertions), and `types:tests-membership` (the independent ownership reconciliation floor, §3.7).
+  assertions), and `types:ownership` (the independent ownership reconciliation floor, §3.7).
 
 ## 3. The harness
 
@@ -100,7 +100,7 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + `types:native` + `types:testd` + `types:tests-membership` + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + `types:native` + `types:testd` + `types:ownership` + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (the PRODUCT vitest projects — never the instrument battery, #1842) + `browser:ct` (the WHOLE CT suite, its own stage again since #1848 so it carries its own profile-derived hang ceiling) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
 | `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling` and `tooling-serial` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
@@ -134,7 +134,7 @@ the runner run the stage. An expensive gate that goes quiet on a question it cou
 clean wearing a tier's clothes. That polarity is the contract's (`contract/stage.ts`), not one row's.
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:native, types:testd,
-types:tests-membership, tests:execution-membership, structure:db-baseline,
+types:ownership, tests:execution-membership, structure:db-baseline,
 structure:drizzle-kit, structure:agent-config, structure:full, ledgers:fresh, imports:depcruise, deps:knip, docs:format,
 docs:catalog` (pinned in the int test) — so `pnpm check` stays
 byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
@@ -412,7 +412,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   push), and it is the push tier's CT coverage verdict. It carries `hangCeilingBaseMs` DERIVED from the
   profile (§3.7b): the CT wall clock is a function of `ctWorkers`, which is exactly what a shared constant
   could not express. At `changed`
-  it runs the scoped CT view (§3.4) through `ct:scoped`: native collection preflight, an exclusive
+  it runs the scoped CT view (§3.4) through `test:ct`: native collection preflight, an exclusive
   runner lease, and a private cold build directory. It does not reuse or clear another invocation's build
   directory. Scoped calls keep the config's zero-retry default; whole-suite retries remain explicit.
 
@@ -443,7 +443,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   credits), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
 - **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
-  — `types:tests-membership`'s EXECUTION-lane sibling: THREE directions of "a test file is run by SOME
+  — `types:ownership`'s EXECUTION-lane sibling: THREE directions of "a test file is run by SOME
   runner, a runner glob matches SOME file, and no file is run by MORE than one runner". Asks each runner its
   own `--list` view (`vitest list --filesOnly --json` for all six node projects — each entry carries a
   `projectName`, which direction 3 reads; `playwright test --list --reporter=json` for `playwright.config.ts`

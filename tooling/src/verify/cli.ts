@@ -6,10 +6,10 @@
 //   check:structure          → cli.ts structure
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
-//   test:scoped / ct:scoped  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
+//   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
 //   gate:new                 → cli.ts new-gate <kebab-name>
 //   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
-//   check:tests-membership   → cli.ts tests-membership
+//   check:type-ownership   → cli.ts tests-membership
 //   check:tests-execution-membership → cli.ts tests-execution-membership
 //   check:db-baseline        → cli.ts db-baseline
 //   check:asset-refs         → cli.ts asset-refs

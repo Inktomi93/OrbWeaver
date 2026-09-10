@@ -181,7 +181,7 @@ describe("pre-dispatch auto-wake gate at the request seam", () => {
     expect(err).toBeInstanceOf(ProviderError);
     expect((err as ProviderError).retryable).toBe(false);
     expect((err as ProviderError).message).toContain("sleeping-held");
-    expect((err as ProviderError).message).toContain("pnpm engines:wake");
+    expect((err as ProviderError).message).toContain("pnpm engines wake");
     expect(dispatched).toBe(false);
   });
 

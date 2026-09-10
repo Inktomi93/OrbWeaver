@@ -4,7 +4,7 @@
 //
 // Red-first receipt for the class, taken on the UNMODIFIED tree before this module existed (both runners
 // silently accept a path that does not exist):
-//   pnpm ct:scoped <2 real .ct.tsx> tests/client/features/discovery/components/character-library-surface.ct.tsx
+//   pnpm test:ct <2 real .ct.tsx> tests/client/features/discovery/components/character-library-surface.ct.tsx
 //     → `CT SUMMARY — PASS  ·  4 passed`, exit 0 — the third path was never mentioned and never opened
 //   pnpm test:scoped tests/tooling/smoke.test.ts tests/tooling/nope-does-not-exist.test.ts
 //     → `1 passed (1)`, exit 0

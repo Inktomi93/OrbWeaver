@@ -239,7 +239,7 @@ feature CTs; geometry claims at both ends of the width range (range matrix, not 
   independent revert/review, and the gate coupled-site edits (`Core-Enforcement` row + count) merge
   textually cleanly when stacked. Never amended.
 - Floors (scoped): per-package `pnpm typecheck` (owns `tests/**/*.ct.tsx`) · `typecheck:graph`
-  (tests/ changed) · `pnpm ct:scoped` on the CT files named in §1.6/§2.2 (one at a time, --workers=2)
+  (tests/ changed) · `pnpm test:ct` on the CT files named in §1.6/§2.2 (one at a time, --workers=2)
   · `pnpm test:scoped tests/tooling/check-gates.int.test.ts tests/tooling/gate-conformance.int.test.ts
   tests/client/data/skeleton-row-metrics.test.ts --maxWorkers=4` · scoped biome via `pnpm exec` ·
   `pnpm check:structure` read from `reports/check-structure.json` (worktree) · planted real-tree

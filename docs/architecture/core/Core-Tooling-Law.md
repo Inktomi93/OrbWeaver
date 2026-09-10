@@ -116,7 +116,7 @@ the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
 | `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
-| `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:tests-membership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
+| `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
 | `workboard/` | GitHub Project 1 lifecycle | `work:item` |
 | `doc-catalog/` | the doc catalog + the markdown formatter (two verbs) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` |
 | `agent-sync/` | Codex agent-manifest sync | `agents:sync` `check:agents` |

@@ -16,14 +16,14 @@ paths:
 
 ## Running them
 
-- **`pnpm ct:scoped <paths> --workers=2`** — it carries the cache-clear. Never a raw
+- **`pnpm test:ct <paths> --workers=2`** — it carries the cache-clear. Never a raw
   `npx playwright test` (it bypasses the nice-19 priority protecting the co-hosted homelab), and never
   the whole-tree `pnpm test:ct` from a lane (that is the orchestrator's instrument on a quiesced tree).
   Run from your worktree via `env -C`, never `cd`.
 - **Under multi-lane load the `--workers=2` cap is mandatory** — measured 2026-08-21 at load-avg 170,
   the default worker count timed out EVERY test at `mount()` on pure contention (zero signal), while
   `--workers=2` came back green in 53s. A contention timeout is not a failing test.
-- **Two `ct:scoped` runners in ONE worktree are REFUSED (#1581, 2026-09-05):** each invocation builds in its own
+- **Two `test:ct` runners in ONE worktree are REFUSED (#1581, 2026-09-05):** each invocation builds in its own
   `.cache/ct/build-<pid>-<ms>` (handed to playwright-ct via `ORB_CT_CACHE_DIR` → `use.ctCacheDir`) and holds
   `.cache/ct/runner.lock`, so a second runner exits 2 (`CT RUNNER BUSY`) naming the first's pid; a dead
   holder's lock is stolen with a printed note. Load for a flake proof still comes from a DIFFERENT worktree,

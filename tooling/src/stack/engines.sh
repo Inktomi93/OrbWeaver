@@ -3,17 +3,17 @@
 #
 #   pnpm engines            adopt-or-start: ensure the fleet is up (detached),
 #                           then tail its logs. Ctrl-C DETACHES (the fleet stays
-#                           warm for the next orb) — engines:stop is the only kill.
-#   pnpm engines:start      THE spawner: venv bootstrap → reconcile → VRAM
+#                           warm for the next orb) — engines stop is the only kill.
+#   pnpm engines start      THE spawner: venv bootstrap → reconcile → VRAM
 #                           pre-check → setsid-detached boot + pidfile. Idempotent
 #                           (a healthy fleet is a no-op), so N adopters collapse to
 #                           one spawn.
-#   pnpm engines:stop       group-kill the family by pidfile (TERM → wait → KILL),
+#   pnpm engines stop       group-kill the family by pidfile (TERM → wait → KILL),
 #                           verified against the known pids AND the ports.
-#   pnpm engines:status     per-engine pid · /health · /is_sleeping · GPU tenants.
-#   pnpm engines:sleep      POST /sleep?level=1 + write the hold marker.
-#   pnpm engines:wake       clear hold → reconcile → VRAM gate → wake + wait.
-#   pnpm engines:reconcile  orphan-family sweep (also runs pre-spawn).
+#   pnpm engines status     per-engine pid · /health · /is_sleeping · GPU tenants.
+#   pnpm engines sleep      POST /sleep?level=1 + write the hold marker.
+#   pnpm engines wake       clear hold → reconcile → VRAM gate → wake + wait.
+#   pnpm engines reconcile  orphan-family sweep (also runs pre-spawn).
 #
 # ENGINES_POSTURE gates the SPAWN half of ensure/start (#1567 — the branch this script was missing):
 #   off             ensure/start are a no-op
@@ -55,7 +55,7 @@ PORTS=("$EMBED_PORT" "$RERANK_PORT" "$GEN_PORT")
 
 # ── ENGINES_POSTURE: the SPAWN AUTHORITY (#1567) ──────────────────────────────
 # This shim — not dev.sh, not stack.sh — is the ONE place the posture decides whether a spawn may happen,
-# because it is the only place a spawn is issued (`pnpm engines:start` by hand routes here too, and
+# because it is the only place a spawn is issued (`pnpm engines start` by hand routes here too, and
 # dev.sh's boot is a plain call into it). Before #1567 this script read the posture NOWHERE: stack.sh
 # defaulted/exported `ENGINES_POSTURE=adopt-only` (owner ruling 2026-08-01: "ADOPTS a running fleet —
 # never spawns one"), dev.sh called `engines.sh start` unconditionally, and with no fleet to adopt the
@@ -126,7 +126,7 @@ bootstrap_venv() {
 #
 # THE BOOT VERDICT MUST BE HONEST (#1165). Measured on main 2026-09-02 ~15:20Z: a cold three-engine boot
 # printed `status=boot-timeout` and exited 1, and all three engines answered /health within ~20s of that
-# exit — `engines:status` then showed every one healthy with the pidfile THIS launcher had written. So the
+# exit — `engines status` then showed every one healthy with the pidfile THIS launcher had written. So the
 # 300s wait was shorter than a real cold boot (the gen model is a 27B W8A8 TP-2 load) and the exit code
 # said "failed" about a fleet that came up. A caller scripting on that code re-bounces a healthy fleet.
 #
@@ -299,7 +299,7 @@ do_ensure() {
     # are then no engine logs to follow, so `ensure` ends on its verdict instead of tailing empty files.
     fleet_healthy || return 0
   fi
-  echo "engines: following logs — Ctrl-C DETACHES (the fleet stays warm; \`pnpm engines:stop\` kills it)."
+  echo "engines: following logs — Ctrl-C DETACHES (the fleet stays warm; \`pnpm engines stop\` kills it)."
   # tail -F survives log rotation; Ctrl-C ends the tail only, never the detached engines.
   exec tail -n 20 -F "$LOG_DIR/vllm-embed.log" "$LOG_DIR/vllm-rerank.log" "$LOG_DIR/vllm-gen.log" 2>/dev/null
 }

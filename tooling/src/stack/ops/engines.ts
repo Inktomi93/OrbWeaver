@@ -354,7 +354,7 @@ async function main(): Promise<ExitCode> {
     for (const c of children) {
       c.unref();
     }
-    log("detached — the fleet stays warm (each engine is its own setsid group). `pnpm engines:stop` kills it.");
+    log("detached — the fleet stays warm (each engine is its own setsid group). `pnpm engines stop` kills it.");
     return EXIT.clean; // exit WITHOUT the kill trap; the engines keep running, owned by nothing.
   }
   releaseBootLock();

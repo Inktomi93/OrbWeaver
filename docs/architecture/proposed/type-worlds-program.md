@@ -79,6 +79,8 @@ Make repeated populations and execution facts authoritative, then simplify each 
 - Keep scripts/hooks/CI as thin entry points into the existing verifier and supervisors. Tier admission, actual requested subjects, deferrals, and exit classification must compose correctly.
 - Preserve tinker’s measured performance mechanisms, artifact identity, private CT builds, and watchdog behavior. Capacity-reader semantics and admission-control guarantees must be stated accurately.
 
+Command names must identify their subject and action. Consolidate duplicate public commands into one canonical entry point and migrate live callers, tests and documentation in the same change; do not retain compatibility aliases for agent familiarity. Historical transcript usage identifies migration sites and operational needs, not permission to preserve a redundant command. Distinct manual or lifecycle capabilities require a caller-and-purpose audit before removal.
+
 A shared glob string does not establish shared semantics. Compare each tool's native resolved population and effective policy against independent intended facts. Avoid expensive repository/compiler discovery on every editor save; materialize expensive observations at the appropriate invocation boundary.
 
 `verify baseline type-configs` writes the generated world templates and runnable configs from `tooling/src/_shared/type-config-intent.ts`; `--check` verifies freshness without writing. Common language libraries remain authored in the abstract strictness base. Package worlds, test kinds, helper homes and ambient scopes determine the generated fields. Explicit helper homes take precedence over a generic TSX pattern: pure ISO helpers remain ISO, while browser JSX in an ISO helper fails compilation.
@@ -110,7 +112,7 @@ Codemod diagnostics check existing files under their actual authored programs an
 
 ## Membership report
 
-`pnpm check:tests-membership --json` retains every authored TypeScript row: intended world, required primary program, actual root owners, actual closure membership, and outcome. The report explicitly identifies the checks its exit code currently enforces.
+`pnpm check:type-ownership --json` retains every authored TypeScript row: intended world, required primary program, actual root owners, actual closure membership, and outcome. The report explicitly identifies the checks its exit code currently enforces.
 
 Target drift is enforced: missing or wrong required roots, duplicate test/harness roots, import-only ownership, unknown file or program intent, and incorrect ambient root or closure sets fail the stage. Native declaration closures reject Node declarations in ISO programs and DOM/WebWorker libraries in ISO or Node programs. The same stage independently compares native TS7 roots with the shared compiler parser in both directions; the separate `tsconfig-routing-parity` structural gate is retired. Test-orphan and authored reference-lib guards remain active. Neither this stage's successful exit nor a single green type program is program completion.
 

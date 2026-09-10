@@ -131,7 +131,7 @@ describe("ensureAwake — refusals throw a named, non-retryable ProviderError (n
     expect(err.retryable).toBe(false);
     expect(err.message).toContain("sleeping-held");
     expect(err.message).toContain("engines held");
-    expect(err.message).toContain("pnpm engines:wake");
+    expect(err.message).toContain("pnpm engines wake");
   });
 
   test("a hold refusal never POSTs a wake — the owner's posture is not overridden", async () => {

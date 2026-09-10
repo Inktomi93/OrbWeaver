@@ -1,6 +1,6 @@
 // CONCURRENT CT RUNS IN ONE WORKTREE (#1581) — the per-invocation build cache and the exclusion lock.
 //
-// THE DEFECT. `pnpm ct:scoped` = `cli.ts scoped-test ct`, and its ct arm used to `rm -rf playwright/.cache`
+// THE DEFECT. `pnpm test:ct` = `cli.ts scoped-test ct`, and its ct arm used to `rm -rf playwright/.cache`
 // and rebuild there — ONE shared directory per worktree, whatever else was running. Two runners in the same
 // tree therefore corrupt each other: the second's clear+rebuild lands under the first's live vite server, and
 // the first reports FAILURES IN TESTS IT NEVER TOUCHED. Measured 2026-09-04 in one worktree: `201/2` with the
@@ -41,7 +41,7 @@ import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.t
 import type { HostSlotDeps } from "./host-slots.ts";
 import { acquireHostSlot } from "./host-slots.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm ct:scoped <paths…>");
+refuseDirectInvocation(import.meta.url, "pnpm test:ct <paths…>");
 
 /** The shared per-worktree CT directory: every invocation's build cache, plus the exclusion lock. */
 export const CT_RUN_DIR_REL = join(".cache", "ct");
@@ -99,7 +99,7 @@ function defaultAlive(pid: number): boolean {
 
 function ctRunnerBusyRefusal(holder: CtRunnerLockRecord): string {
   return (
-    `a second \`pnpm ct:scoped\` is LIVE in this worktree (pid ${String(holder.pid)}, started ${holder.startedAt}) — ` +
+    `a second \`pnpm test:ct\` is LIVE in this worktree (pid ${String(holder.pid)}, started ${holder.startedAt}) — ` +
     "two CT runners in one tree corrupt each other's build (#1581), so this one is refusing instead of racing. " +
     "Wait for it to finish, or run this batch from a DIFFERENT worktree with its own `CT_PORT=<free port>` " +
     `(the CT vite port is box-wide). If that pid is gone, delete ${join(CT_RUN_DIR_REL, LOCK_NAME)}.`
@@ -157,7 +157,7 @@ export async function acquireCtRunnerSlots(root: string, deps: CtRunnerLockDeps 
   const host = await acquireHostSlot(
     {
       name: "ct",
-      label: `ct:scoped ${checkoutName(root)}`,
+      label: `test:ct ${checkoutName(root)}`,
       slots: readConcurrencyProfile().ctRunnersHostWide,
       waitBaseMs: ctHostWaitBaseMs(),
     },
@@ -207,7 +207,7 @@ export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): 
   mkdirSync(cacheDir, { recursive: true });
   // INHERIT before minting (#1848): inside `pnpm verify`, the stage child already carries the run's
   // marker, and stamping a second one over it would hide these browsers from the RUNNER's kill path —
-  // the exact hole being closed. Alone (a lane's `pnpm ct:scoped`), this run is its own owner.
+  // the exact hole being closed. Alone (a lane's `pnpm test:ct`), this run is its own owner.
   const runMarker = inheritedRunMarker() ?? mintRunMarker(pid, now().getTime());
   let released = false;
   return {

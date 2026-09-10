@@ -179,7 +179,7 @@ chip's class by accident) and the #846 CT seats the notifications bell before me
   opens onto its reason with a padlock; coarse cells ≥ 52px; captions never clip.
 - **Planted controls:** the DOM-order pin is proven failable by swapping the two rows in a scratch copy
   before trusting it; the topbar-yield pin asserts the bell is seated (premise) before reading the row.
-- **Behavioral tier:** `pnpm ct:scoped tests/client/features/app-shell/components/context-tabs-panel.ct.tsx
+- **Behavioral tier:** `pnpm test:ct tests/client/features/app-shell/components/context-tabs-panel.ct.tsx
   tests/client/features/app-shell/components/context-bracket.ct.tsx
   tests/client/features/app-shell/components/section-context-host.ct.tsx
   tests/client/features/app-shell/surfaces/app-shell.ct.tsx tests/client/features/rpg/lib/rpg-context-section.ct.tsx

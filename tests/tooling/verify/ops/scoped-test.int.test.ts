@@ -1,9 +1,9 @@
-// THE LYING-TOOL PIN for `pnpm test:scoped` / `pnpm ct:scoped` (#1192) — driven through the REAL cli, in
+// THE LYING-TOOL PIN for `pnpm test:scoped` / `pnpm test:ct` (#1192) — driven through the REAL cli, in
 // both directions, because the defect was never in a pure function: it was that the front door forwarded
 // a path claim to a runner that answers an unmatched filter with silence.
 //
 // RED-FIRST, on the unmodified tree (the bare package.json rows, before `cli.ts scoped-test` existed):
-//   pnpm ct:scoped corpus-list-header.ct.tsx corpus-context-header.ct.tsx \
+//   pnpm test:ct corpus-list-header.ct.tsx corpus-context-header.ct.tsx \
 //                  tests/client/features/discovery/components/character-library-surface.ct.tsx --workers=2
 //     → `CT SUMMARY — PASS  ·  4 passed · 0 failed`, exit 0. The third path does not exist (the real file
 //       is tests/client/features/character/surfaces/…), and the run named it NOWHERE. That is the shape
@@ -109,11 +109,11 @@ test("--related forwards a native --dir directory value instead of treating it a
 // the cheap guard in front of the per-invocation cache; this arm proves the refusal happens at the front
 // door — no collection pass, no chromium, no CT SUMMARY. The mechanism's own directions (stale steal,
 // distinct cache dirs, release) are pinned in tests/tooling/verify/lib/ct-runner-lock.test.ts.
-test("a CT run refuses (exit 2) while another ct:scoped holds this worktree", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
+test("a CT run refuses (exit 2) while another test:ct holds this worktree", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
   // THIS test process stands in for the live sibling: a real pid, so the child's liveness probe says yes.
   const held = acquireCtRunnerLock(process.cwd(), { argv: ["(the #1581 pin)"] });
   if (held.kind !== "held") {
-    throw new Error("#1581 pin: the worktree lock was already held — a real ct:scoped is running here");
+    throw new Error("#1581 pin: the worktree lock was already held — a real test:ct is running here");
   }
   try {
     const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, "--workers=2"], { timeoutMs: REFUSAL_TIMEOUT_MS });
