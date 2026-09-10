@@ -2,6 +2,7 @@ import { existsSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { testTagFilters } from "../../../vitest.config.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const TEST_FILE = "tagged.test.js";
@@ -45,4 +46,12 @@ test("strictTags refuses an unknown runtime tag", ({ repoRoot, scratch }) => {
   const result = run(scratch);
   expect(result.status).not.toBe(0);
   expect(`${result.stdout}\n${result.stderr}`).toContain("slwo");
+});
+
+test("existing opt-in flags remove only their corresponding default tag exclusion", () => {
+  const flags = (...entries: ReadonlyArray<readonly [string, string]>): NodeJS.ProcessEnv => Object.fromEntries(entries);
+  expect(testTagFilters({})).toEqual(["!live", "!local-model-cache"]);
+  expect(testTagFilters(flags(["E2E_LIVE", "1"]))).toEqual(["!local-model-cache"]);
+  expect(testTagFilters(flags(["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual(["!live"]);
+  expect(testTagFilters(flags(["E2E_LIVE", "1"], ["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual([]);
 });

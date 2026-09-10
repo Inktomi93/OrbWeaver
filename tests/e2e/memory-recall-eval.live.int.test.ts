@@ -1,7 +1,10 @@
+/**
+ * @module-tag live
+ */
 // @live MEMORY RECALL@K FLOOR — real embeddings, opt-in (E2E_LIVE=1), mirroring the `backend-matrix.live`
 // convention: the default battery COLLECTS this file but every suite is skip-gated, so a routine `pnpm test`
 // touches no engine. Run with:
-//   E2E_LIVE=1 pnpm vitest run tests/e2e/memory-recall-eval.live.int.test.ts
+//   E2E_LIVE=1 pnpm exec vitest run tests/e2e/memory-recall-eval.live.int.test.ts
 //
 // WHAT IT PROVES that the deterministic tier cannot (#251): that REAL SENTENCE EMBEDDINGS of real scene prose
 // retrieve the right scene for a human-written query. The deterministic tier
@@ -18,7 +21,6 @@
 // lose the scene entirely. recall@1 is asserted at 5/6 and recall@3 at 6/6 — a miss on either is a REAL
 // retrieval regression worth a human look, which is the whole point of having a number.
 
-import { env as processEnv } from "node:process";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
@@ -36,7 +38,6 @@ import { freshDb } from "../support/db.ts";
 import { makeResolvedCredential } from "../support/factories/resolved-connection.ts";
 import { expect, test } from "../support/fixtures.ts";
 
-const LIVE = processEnv["E2E_LIVE"] === "1";
 const EMBED_TIMEOUT_MS = 120_000;
 
 /** The labeled corpus: six DISTINCT scenes as a digest body would actually read (the distilled anchor +
@@ -79,7 +80,7 @@ async function embedAll(inputs: readonly string[], inputType: "query" | "documen
   return await executor.embed({ credential: makeResolvedCredential("vllm"), model: castId<ModelId>(orbEnv.VLLM_EMBED_MODEL), input: [...inputs], inputType });
 }
 
-describe.skipIf(!LIVE)("memory recall@k — LIVE embed floor (#251)", () => {
+describe("memory recall@k — LIVE embed floor (#251)", () => {
   beforeAll(async () => {
     db = await freshDb();
     const owner = await seedUser(db, castId<Handle>("owner"));

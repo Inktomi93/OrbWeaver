@@ -1,4 +1,9 @@
 // Native config imports must retain the base population and mutation-specific rigor.
+import { existsSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import base from "../../vitest.config.ts";
 import mutation, { assertEveryLaneClassified, DROPPED_LANES, RUNTIME_LANES } from "../../vitest.stryker.config.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -53,7 +58,7 @@ test("Stryker import preserves the base population and creates independent overr
   expect(mutation.test.projects.map((project) => project.test.name)).toEqual(baseLaneNames().filter((name) => RUNTIME_LANES.has(name)));
   expect(mutation.test.fileParallelism).toBe(false);
   expect(mutation.test.maxWorkers).toBe(1);
-  expect(mutation.test.tagsFilter).toEqual(["!requires-process-chdir && !source-freshness && !requires-git-history"]);
+  expect(mutation.test.tagsFilter).toEqual(["!requires-process-chdir && !source-freshness && !requires-git-history && !live && !local-model-cache"]);
   for (const project of mutation.test.projects) {
     const original = base.test?.projects?.find(
       (candidate) => typeof candidate === "object" && "test" in candidate && candidate.test.name === project.test.name,
@@ -71,4 +76,26 @@ test("Stryker import preserves the base population and creates independent overr
     passWithNoTests: false,
     expect: { requireAssertions: true },
   });
+});
+
+test("mutation's forced filter defeats live/local opt-in flags and composes both exclusions", ({ repoRoot, scratch }) => {
+  writeFileSync(join(scratch, "package.json"), '{"name":"mutation-tag-control","private":true,"type":"module"}\n');
+  writeFileSync(
+    join(scratch, "vitest.config.js"),
+    `export default { test: { include: ["control.test.js"], reporters: [], strictTags: true, tags: ${JSON.stringify(TEST_TAGS)}, tagsFilter: ${JSON.stringify(mutation.test.tagsFilter)} } };\n`,
+  );
+  writeFileSync(
+    join(scratch, "control.test.js"),
+    'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "vitest";\ntest("ordinary", () => writeFileSync(join(import.meta.dirname, "ordinary-ran"), "yes"));\ntest("live", { tags: "live" }, () => writeFileSync(join(import.meta.dirname, "live-ran"), "BAD"));\ntest("local", { tags: "local-model-cache" }, () => writeFileSync(join(import.meta.dirname, "local-ran"), "BAD"));\n',
+  );
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+
+  const result = runNicedSync("pnpm", ["exec", "vitest", "run", "--config", "vitest.config.js"], {
+    cwd: scratch,
+    env: inheritedProcessEnv(Object.fromEntries(["E2E_LIVE", "ORB_LOCAL_LIGHT_E2E"].map((name) => [name, "1"]))),
+  });
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(existsSync(join(scratch, "ordinary-ran"))).toBe(true);
+  expect(existsSync(join(scratch, "live-ran"))).toBe(false);
+  expect(existsSync(join(scratch, "local-ran"))).toBe(false);
 });

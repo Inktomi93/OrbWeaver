@@ -1,7 +1,7 @@
 // @live BACKEND ROUTE×SKIN MATRIX PROOF — real inference, opt-in (E2E_LIVE=1), mirroring the e2e `@live`
 // convention (playwright.config.ts `e2eLive`): the default battery COLLECTS this file but every suite is
 // skip-gated, so routine `pnpm test` spends zero model credits. Run with:
-//   E2E_LIVE=1 npx vitest run --config vitest.config.ts tests/e2e/backend-matrix.live.int.test.ts
+//   E2E_LIVE=1 pnpm exec vitest run --config vitest.config.ts tests/e2e/backend-matrix.live.int.test.ts
 //
 // Proves, per (route × skin), that TOOLS + STRUCTURED OUTPUT actually work end to end through OUR
 // production dispatch (`createProviderExecutor` → firewall → deriveRunner → the sealed backend), not a
@@ -30,12 +30,11 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { env as orbEnv } from "@orb/server/foundation/env";
 import type { AgentToolResult, ChatRequest } from "@orb/server/infra/providers";
 import { createAgentToolServer, createBackendRegistry, createProviderExecutor, deriveRunner } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe, expect, suite, test } from "vitest";
 import { z } from "zod";
 import { makeModelCapability, makeOpenRouterCredential, makeResolvedCredential } from "../support/factories/resolved-connection.ts";
 import { wireSchema } from "../support/wire-ready.ts";
 
-const LIVE = processEnv["E2E_LIVE"] === "1";
 const TURN_TIMEOUT_MS = 300_000;
 
 // Probe-key convention: the runtime env may be unwired (`OPENROUTER_API_KEY` unset) while the key MATERIAL
@@ -122,10 +121,23 @@ interface MatrixCell {
   readonly credential: () => ChatRequest["credential"];
 }
 
-// The vLLM gen model the local engine serves (what production sends on the chat-completions vllm turn — the
-// full slashed id; the engine also serves the slash-free alias). agent-sdk×vllm is NOT a valid combo (the
-// loopback skin was retired 2026-07-27), so vLLM appears ONLY on the chat-completions cells below.
-const VLLM_GEN_MODEL = orbEnv.VLLM_GEN_MODEL;
+const VLLM_BASE = `http://${orbEnv.VLLM_ENGINE_HOST}:${orbEnv.VLLM_GEN_PORT}`;
+let servedVllmGenModelPromise: Promise<string> | undefined;
+
+/** Resolve the warm engine's actual served id. Vitest deliberately blocks the operator's `.env`, so the
+ *  schema default is not evidence about which checkpoint this live process currently serves. */
+function servedVllmGenModel(): Promise<string> {
+  servedVllmGenModelPromise ??= fetch(`${VLLM_BASE}/v1/models`)
+    .then(async (response) => (await response.json()) as { data?: { id?: string }[] })
+    .then((body) => {
+      const id = body.data?.[0]?.id;
+      if (id === undefined) {
+        throw new Error(`gen engine at ${VLLM_BASE} served no model id`);
+      }
+      return id;
+    });
+  return servedVllmGenModelPromise;
+}
 
 // The agent-sdk skins share ONE test body per axis — the cell rows differ only in model + credential. vLLM is
 // ABSENT: it is chat-completions-only (owner ruling); a would-be agent-sdk×vllm turn is pinned in the
@@ -139,7 +151,7 @@ const AGENT_CELLS: readonly MatrixCell[] = [
   },
 ];
 
-describe.skipIf(!LIVE)("@live agent-sdk skins — tools + structured output through the real dispatch", () => {
+suite("@live agent-sdk skins — tools + structured output through the real dispatch", { tags: "live" }, () => {
   for (const cell of AGENT_CELLS) {
     test(`${cell.name}: a real tool_use turn runs the in-process MCP handler and narrates the roll`, { timeout: TURN_TIMEOUT_MS }, async () => {
       const invocations: Record<string, unknown>[] = [];
@@ -165,12 +177,12 @@ describe.skipIf(!LIVE)("@live agent-sdk skins — tools + structured output thro
   }
 });
 
-describe.skipIf(!LIVE)("@live chat-completions × vllm (OpenAI-compat surface)", () => {
-  function ccReq(over: Partial<ChatRequest & { api: "chat-completions" }>): ChatRequest {
+suite("@live chat-completions × vllm (OpenAI-compat surface)", { tags: "live" }, () => {
+  function ccReq(model: string, over: Partial<ChatRequest & { api: "chat-completions" }>): ChatRequest {
     // FABRICATION-OK: a valid ChatRequest arm; the `...over` Partial spread over a discriminated union defeats `satisfies`.
     return {
       api: "chat-completions",
-      model: castId<ModelId>(VLLM_GEN_MODEL),
+      model: castId<ModelId>(model),
       credential: makeResolvedCredential("vllm"),
       capability: CAPABILITY,
       params: { maxOutputTokens: 1024 },
@@ -183,7 +195,7 @@ describe.skipIf(!LIVE)("@live chat-completions × vllm (OpenAI-compat surface)",
 
   test("tools: the engine surfaces a real tool_calls request (finishReason tool)", { timeout: TURN_TIMEOUT_MS }, async () => {
     const result = await executor.runChatTurn(
-      ccReq({
+      ccReq(await servedVllmGenModel(), {
         tools: [
           {
             name: "roll_dice",
@@ -202,7 +214,7 @@ describe.skipIf(!LIVE)("@live chat-completions × vllm (OpenAI-compat surface)",
 
   test("structured: response_format json_schema (guided decoding) yields a schema-conforming object", { timeout: TURN_TIMEOUT_MS }, async () => {
     const result = await executor.runChatTurn(
-      ccReq({
+      ccReq(await servedVllmGenModel(), {
         history: [{ role: "user", content: [{ type: "text", text: STRUCTURED_PROMPT }] }],
         responseFormat: { name: "status", schema: STRUCTURED_SCHEMA },
       }),
@@ -240,7 +252,7 @@ function orArrayReq(api: OrArrayApi, over: Partial<ChatRequest & { api: OrArrayA
 }
 
 for (const api of ["chat-completions", "responses"] as const) {
-  describe.skipIf(!LIVE)(`@live ${api} × openrouter (the hosted array wire)`, () => {
+  suite(`@live ${api} × openrouter (the hosted array wire)`, { tags: "live" }, () => {
     test("tools: the wire surfaces a real tool_calls request (finishReason tool)", { timeout: TURN_TIMEOUT_MS }, async () => {
       const result = await executor.runChatTurn(
         orArrayReq(api, {
@@ -323,7 +335,7 @@ const SCENE_WIRE_TOOLS = [
   },
 ];
 
-describe.skipIf(!LIVE)("@live tool-mode characterization — parallel vs sequential per cell", () => {
+suite("@live tool-mode characterization — parallel vs sequential per cell", { tags: "live" }, () => {
   for (const cell of AGENT_CELLS) {
     test(`agent-sdk × ${cell.name}: both tools run; numTurns reveals the mode`, { timeout: TURN_TIMEOUT_MS }, async () => {
       const moodCalls: unknown[] = [];
@@ -338,12 +350,12 @@ describe.skipIf(!LIVE)("@live tool-mode characterization — parallel vs sequent
     });
   }
 
-  const arrayCells: readonly { name: string; req: () => ChatRequest }[] = [
+  const arrayCells: readonly { name: string; req: () => ChatRequest | Promise<ChatRequest> }[] = [
     {
       name: "chat-completions × vllm",
-      req: (): ChatRequest => ({
+      req: async (): Promise<ChatRequest> => ({
         api: "chat-completions",
-        model: castId<ModelId>(VLLM_GEN_MODEL),
+        model: castId<ModelId>(await servedVllmGenModel()),
         credential: makeResolvedCredential("vllm"),
         capability: CAPABILITY,
         params: { maxOutputTokens: 1024 },
@@ -376,7 +388,7 @@ describe.skipIf(!LIVE)("@live tool-mode characterization — parallel vs sequent
 
   for (const cell of arrayCells) {
     test(`${cell.name}: a multi-tool turn surfaces N tool_calls (N reveals the mode)`, { timeout: TURN_TIMEOUT_MS }, async () => {
-      const result = await executor.runChatTurn(cell.req());
+      const result = await executor.runChatTurn(await cell.req());
       expect(result.finishReason).toBe("tool");
       const calls = result.toolCalls ?? [];
       expect(calls.length).toBeGreaterThanOrEqual(1);
@@ -425,7 +437,7 @@ function extractionReq(cell: MatrixCell): ChatRequest {
 // path end to end. The rerouted `runExtraction` uses THIS path on a max-pro-sub host connection; local vLLM
 // hosts route extraction through the summarize/chat-completions path (agent-sdk×vllm is retired), so there is
 // no agent-sdk×vllm extraction cell — its characterization moved to the not-a-valid-combo section below.
-describe.skipIf(!LIVE)("@live rpg structured extraction — the real rpgExtractionSchema round-trips through the chat structured path", () => {
+suite("@live rpg structured extraction — the real rpgExtractionSchema round-trips through the chat structured path", { tags: "live" }, () => {
   for (const cell of AGENT_CELLS) {
     test(`${cell.name}: a read-only structured extraction turn emits schema-conforming JSON (no tool server mounted)`, {
       timeout: TURN_TIMEOUT_MS,

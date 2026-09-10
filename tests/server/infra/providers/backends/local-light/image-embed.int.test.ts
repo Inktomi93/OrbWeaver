@@ -1,3 +1,6 @@
+/**
+ * @module-tag local-model-cache
+ */
 //
 // REAL-MODEL integration test for the local-light IMAGE-EMBED role — downloads the default jina-clip-v2
 // ONNX (the unified text + image encoders) on first run, so it is GATED behind ORB_LOCAL_LIGHT_E2E=1
@@ -6,7 +9,6 @@
 // in ONE comparable space (cosine is a finite [-1,1] value), and the same image embeds identically
 // (cosine ≈ 1.0).
 
-import process from "node:process";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
@@ -17,21 +19,16 @@ import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
-// biome-ignore lint/style/noProcessEnv: this gated E2E reads ONE opt-in env flag to decide whether to download real ONNX weights from the Hugging Face Hub. Default-OFF keeps the suite offline-green.
-const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_IMAGE_EMBED_MODEL as ModelId;
 const JINA_DIM = 1024;
 const SWATCH_SIZE = 64;
 const DOWNLOAD_TIMEOUT_MS = 600_000;
 
-const backend = RUN ? createLocalLightBackend({ device: "cpu", dtype: "q4" }) : null;
+let backend: ReturnType<typeof createLocalLightBackend> | undefined;
 
 function imageEmbedFn(): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
-  if (!backend) {
-    throw new Error("Backend not initialized");
-  }
+  backend ??= createLocalLightBackend({ device: "cpu", dtype: "q4" });
   const fn = backend.imageEmbed;
   if (fn === undefined) {
     throw new Error("imageEmbed role not wired");
@@ -56,7 +53,7 @@ async function swatch(r: number, g: number, b: number): Promise<ImageInput> {
   return new Uint8Array(buf);
 }
 
-describe.skipIf(!RUN)("local-light imageEmbed (real jina-clip-v2 ONNX inference)", () => {
+describe("local-light imageEmbed (real jina-clip-v2 ONNX inference)", () => {
   test(
     "embeds images to the joint 1024-dim space; the same image is self-similar",
     async () => {

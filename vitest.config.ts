@@ -4,6 +4,7 @@ import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_
 import { runtimeForTestFamily, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import { defineConfig } from "vitest/config";
+import type { TestUserConfig } from "vitest/node";
 
 // Native runner globs compose the registered vocabulary. Browser-subject .dom tests still execute in
 // Node; Playwright owns browser execution. Each project inherits the cleanup and isolation defaults.
@@ -34,6 +35,14 @@ const REPOSITORY_TEST_GLOBS = resourceGlobs(REPOSITORY_RESOURCE);
 const CONCURRENCY = readConcurrencyProfile();
 const inCI = process.env["CI"] !== undefined;
 
+/** Existing opt-in environment contracts expressed through Vitest's native tag filter. */
+export function testTagFilters(env: NodeJS.ProcessEnv): string[] {
+  return [...(env["E2E_LIVE"] === "1" ? [] : ["!live"]), ...(env["ORB_LOCAL_LIGHT_E2E"] === "1" ? [] : ["!local-model-cache"])];
+}
+// Vitest's resolved/CLI-native config owns tagsFilter although vite's augmented InlineConfig omits it.
+// The spread keeps defineConfig's other fields checked while this one field stays pinned to the native type.
+const TAG_FILTER_CONFIG = { tagsFilter: testTagFilters(process.env) } satisfies Pick<TestUserConfig, "tagsFilter">;
+
 const NORMAL_GROUP_ORDER = 0;
 const REPOSITORY_GROUP_ORDER = 1;
 
@@ -58,6 +67,7 @@ export default defineConfig({
     chaiConfig: { truncateThreshold: 0 },
     passWithNoTests: false,
     tags: [...TEST_TAGS],
+    ...TAG_FILTER_CONFIG,
     strictTags: true,
     coverage: {
       provider: "v8",

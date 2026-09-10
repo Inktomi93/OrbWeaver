@@ -1,10 +1,12 @@
+/**
+ * @module-tag local-model-cache
+ */
 //
 // REAL-MODEL integration test for the local-light RERANK role — downloads the default MS MARCO MiniLM
 // cross-encoder on first run, so it is GATED behind ORB_LOCAL_LIGHT_E2E=1 (network). Forces device
 // "cpu". Asserts the cross-encoder ranks the on-topic document above the off-topic one and preserves
 // caller ids.
 
-import process from "node:process";
 import type { ModelId } from "@orb/kit/ids";
 import type { RerankRequest, RerankResult } from "@orb/server/infra/providers";
 import { createLocalLightBackend, DEFAULT_RERANK_MODEL } from "@orb/server/infra/providers/backends/local-light";
@@ -12,19 +14,14 @@ import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
-// biome-ignore lint/style/noProcessEnv: this gated E2E reads ONE opt-in env flag to decide whether to download real ONNX weights from the Hugging Face Hub. Default-OFF keeps the suite offline-green.
-const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_RERANK_MODEL as ModelId;
 const DOWNLOAD_TIMEOUT_MS = 300_000;
 
-const backend = RUN ? createLocalLightBackend({ device: "cpu" }) : null;
+let backend: ReturnType<typeof createLocalLightBackend> | undefined;
 
 function rerankFn(): (req: RerankRequest) => Promise<RerankResult> {
-  if (!backend) {
-    throw new Error("Backend not initialized");
-  }
+  backend ??= createLocalLightBackend({ device: "cpu" });
   const fn = backend.rerank;
   if (fn === undefined) {
     throw new Error("rerank role not wired");
@@ -32,7 +29,7 @@ function rerankFn(): (req: RerankRequest) => Promise<RerankResult> {
   return fn;
 }
 
-describe.skipIf(!RUN)("local-light rerank (real cross-encoder ONNX inference)", () => {
+describe("local-light rerank (real cross-encoder ONNX inference)", () => {
   test(
     "ranks the on-topic document first and keeps caller ids",
     async () => {

@@ -1,8 +1,11 @@
+/**
+ * @module-tag live
+ */
 // @live THE PREFILL RENDER PROOF (#287) — the measurement `VLLM_TURNS.assistantPrefill: true` and the
 // surface's `reasoning_dropped_for_prefill` warning REST ON, executable. Opt-in (E2E_LIVE=1), mirroring the
 // `@live` convention: the default battery collects this file and skips every suite, so `pnpm test` never
 // needs a GPU. Run with:
-//   E2E_LIVE=1 npx vitest run --config vitest.config.ts tests/e2e/vllm-prefill-render.live.int.test.ts
+//   E2E_LIVE=1 pnpm exec vitest run --config vitest.config.ts tests/e2e/vllm-prefill-render.live.int.test.ts
 //
 // THE INSTRUMENT IS `/tokenize`, deliberately: it runs the SAME chat template the completion path runs and
 // returns the rendered token strings without generating — so the assertions are about the RENDER, which is
@@ -24,11 +27,9 @@
 // It runs against whatever checkpoint the gen slot serves. A FAILURE here is a real finding either way: the
 // template lost the continuation arm (the capability cell is now a lie) or the checkpoint changed under it.
 
-import { env as processEnv } from "node:process";
 import { env as orbEnv } from "@orb/server/foundation/env";
 import { describe, expect, test } from "vitest";
 
-const LIVE = processEnv["E2E_LIVE"] === "1";
 const BASE = `http://${orbEnv.VLLM_ENGINE_HOST}:${orbEnv.VLLM_GEN_PORT}`;
 const RENDER_TIMEOUT_MS = 60_000;
 const TURN_TIMEOUT_MS = 300_000;
@@ -125,7 +126,7 @@ async function continueTurn(extra: Record<string, unknown>): Promise<{ content: 
   return { content: message?.content ?? null, reasoning: message?.reasoning ?? message?.reasoning_content ?? null };
 }
 
-describe.skipIf(!LIVE)("@live vLLM prefill RENDER — the two arms of the assistantPrefill measurement (#287)", () => {
+describe("@live vLLM prefill RENDER — the two arms of the assistantPrefill measurement (#287)", () => {
   test(
     "WITHOUT the flags: the trailing assistant row is CLOSED and a fresh assistant header follows (the group-turn fence)",
     async () => {
@@ -167,7 +168,7 @@ describe.skipIf(!LIVE)("@live vLLM prefill RENDER — the two arms of the assist
   );
 });
 
-describe.skipIf(!LIVE)("@live vLLM prefill × thinking — the channel measurement behind `reasoning_dropped_for_prefill`", () => {
+describe("@live vLLM prefill × thinking — the channel measurement behind `reasoning_dropped_for_prefill`", () => {
   test(
     "thinking OFF: the continuation lands in `content` (a usable reply)",
     async () => {
