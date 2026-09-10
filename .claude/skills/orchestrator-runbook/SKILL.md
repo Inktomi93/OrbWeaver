@@ -184,8 +184,10 @@ mechanics are here.
 ## §6 Integration procedures
 
 - **Docs-only integration under load:** run the required per-file formatter and scoped docs/catalog
-  checks, commit with hooks bypassed when the whole-tree hook would duplicate the draining-train gate,
-  then run one consolidated barrier on the integrated tree.
+  checks, then commit normally through configured hooks. If measured load makes that hook inappropriate,
+  only a specific user- or coordinator-authorized exception may bypass it; record the reason and the
+  checks already executed or still owed, then run the owed consolidated barrier on the quiescent
+  integrated tree.
 - **WHEN READY RUNS DRY (owner, 2026-08-22)** — the scoring posture behind the rules file's one-liner:
   side-eye every RAIL item and the home screen, one surface per lane-slot, full-battery lens. On the
   aesthetic/Nielsen scoring: a respectable-looking total is NOT acceptance — every IDENTIFIED

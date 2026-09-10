@@ -19,6 +19,10 @@ function facts(overrides: Partial<ReceiptFacts> = {}): ReceiptFacts {
   return {
     currentSha256: HASH,
     verifiedBlobSha256: HASH,
+    currentReceiptSnapshotExists: false,
+    candidateTouchesReceiptPair: false,
+    candidateChangedPaths: new Set(),
+    candidateEvidencePathsDifferFromIndex: new Set(),
     verifiedCommitExists: true,
     verifiedCommitIsAncestor: true,
     localEvidence: new Map([
@@ -95,13 +99,92 @@ test("a current receipt rejects self-attestation and an unbound verification com
   ).toEqual(["docs/example.md: ruling evidence target must be D<n>", "docs/example.md: verifiedCommit is not an ancestor of HEAD"]);
 });
 
-test("a reviewed receipt binds verified hash, commit blob, and current document bytes", () => {
+test("a reviewed receipt binds current document bytes to a durable receipt snapshot", () => {
   expect(
     validateReceiptEntry(
       reviewed({ assignedSha256: "c".repeat(HASH_LENGTH) }),
       facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH), verifiedCommitExists: false, verifiedCommitIsAncestor: false, provenanceCommits: new Set() }),
     ),
-  ).toEqual(["docs/example.md: verifiedSha256 does not match the verified commit blob", "docs/example.md: verifiedCommit does not resolve to a commit"]);
+  ).toEqual([
+    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
+    "docs/example.md: verifiedCommit does not resolve to a commit",
+  ]);
+  expect(validateReceiptEntry(reviewed(), facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH), currentReceiptSnapshotExists: true }))).toEqual([]);
+  expect(validateReceiptEntry(reviewed(), facts({ candidateTouchesReceiptPair: true }))).toEqual([
+    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
+  ]);
+  expect(validateReceiptEntry(reviewed(), facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true }))).toEqual([]);
+  expect(validateReceiptEntry(reviewed(), facts({ currentSha256: "d".repeat(HASH_LENGTH), currentReceiptSnapshotExists: true }))).toEqual([
+    "docs/example.md: verifiedSha256 does not match the current document",
+  ]);
+  expect(validateReceiptEntry(reviewed(), facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH) }))).toEqual([
+    "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
+  ]);
+});
+
+test("an exact receipt snapshot never substitutes for a valid ancestor verification commit", () => {
+  expect(validateReceiptEntry(reviewed(), facts({ currentReceiptSnapshotExists: true, verifiedCommitExists: false }))).toEqual([
+    "docs/example.md: verifiedCommit does not resolve to a commit",
+  ]);
+  expect(validateReceiptEntry(reviewed(), facts({ currentReceiptSnapshotExists: true, verifiedCommitIsAncestor: false }))).toEqual([
+    "docs/example.md: verifiedCommit is not an ancestor of HEAD",
+  ]);
+  expect(validateReceiptEntry(reviewed({ verifiedCommit: "deadbeef" }), facts({ currentReceiptSnapshotExists: true, verifiedCommitExists: false }))).toEqual([
+    "docs/example.md: reviewed disposition requires a full git commit",
+    "docs/example.md: verifiedCommit does not resolve to a commit",
+  ]);
+});
+
+test("a candidate receipt refuses local evidence whose worktree bytes differ from the Git index", () => {
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({
+        candidateTouchesReceiptPair: true,
+        currentReceiptSnapshotExists: true,
+        candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]),
+      }),
+    ),
+  ).toEqual(["docs/example.md: code evidence target differs from the candidate Git index: packages/example.ts:1"]);
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true, candidateEvidencePathsDifferFromIndex: new Set() }),
+    ),
+  ).toEqual([]);
+});
+
+test("an unchanged receipt closes over a typed evidence target changed in the candidate index", () => {
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({
+        candidateChangedPaths: new Set(["packages/example.ts"]),
+        candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]),
+      }),
+    ),
+  ).toEqual(["docs/example.md: code evidence target differs from the candidate Git index: packages/example.ts:1"]);
+  expect(
+    validateReceiptEntry(reviewed(), facts({ candidateChangedPaths: new Set(["packages/example.ts"]), candidateEvidencePathsDifferFromIndex: new Set() })),
+  ).toEqual([]);
+});
+
+test("an unrelated candidate change does not reject an unstaged evidence target", () => {
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({ candidateChangedPaths: new Set(["packages/unrelated.ts"]), candidateEvidencePathsDifferFromIndex: new Set(["packages/example.ts"]) }),
+    ),
+  ).toEqual([]);
+});
+
+test("a candidate receipt refuses local evidence when Git cannot establish the worktree-index delta", () => {
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true, candidateEvidencePathsDifferFromIndex: null }),
+    ),
+  ).toEqual(["docs/example.md: cannot establish candidate Git index consistency for code evidence: packages/example.ts:1"]);
 });
 
 test("typed claim evidence resolves its role-specific local targets", () => {

@@ -596,11 +596,12 @@ test("WAAPI finish/cancel retire targets while a blocked live effect still raise
   // reading `lines` off the click alone passed vacuously (proved: a planted overlap went green here
   // while the console carried the accusing line). This waits for the blocked frame to be OBSERVED and
   // classified, and its value is the premise the next assertion needs: `motion-animation-state.ts`
-  // attributes an ended lifetime by exact interval overlap, so only a frame STARTING after the
-  // retirement instant is a retired-target test at all. "overlap" ⇒ the staging drifted, not the flagger.
+  // attributes an ended lifetime by exact interval overlap, so only a frame STARTING after a boundary
+  // sampled after retirement is a retired-target test at all. "overlap" ⇒ the staging drifted, not the
+  // flagger.
   await expect(
     component.getByTestId("waapi-blocked-frame-order"),
-    "the blocked frame must start after the retirement instant, or a [drop] on it would be an honest overlap",
+    "the blocked frame must start after the post-retirement boundary, or a [drop] on it would be an honest overlap",
   ).toHaveText("after");
   expect(lines, "finished/canceled WAAPI targets cannot flag a later blocked idle frame").toEqual([]);
 

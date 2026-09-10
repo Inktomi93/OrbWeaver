@@ -96,6 +96,7 @@ interface AnalyzerProblem {
   readonly subject: string;
   readonly observed: string;
   readonly threshold: string;
+  readonly detail?: string;
 }
 
 interface PerfArtifact {
@@ -395,7 +396,6 @@ test("a failing motion artifact carries the exact offender and threshold into th
   const motion = await runCli("snap", ["--file", file, "--motion", "#target", "--motion-window", "800", "--motion-no-throttle", ...QUIET], {
     timeoutMs: CLI_TIMEOUT_MS,
   });
-  await expect(motion).toExitWith(EXIT.violations);
   const artifact = JSON.parse(await readFile(resultValue(motion.stdout, "motion-artifact"), "utf8")) as {
     readonly problems: readonly AnalyzerProblem[];
   };
@@ -404,6 +404,40 @@ test("a failing motion artifact carries the exact offender and threshold into th
       expect.objectContaining({ arm: "motion", metric: "dirty-animation", subject: "#spin", observed: "width", threshold: "compositor-only" }),
     ]),
   );
+  const index = JSON.parse(await readFile(resultValue(motion.stdout, "index"), "utf8")) as {
+    readonly results: {
+      readonly batches: readonly {
+        readonly core: readonly {
+          readonly schema: string;
+          readonly data: {
+            readonly acceleration?: {
+              readonly backend: string;
+              readonly posture: string;
+              readonly gpuCompositing: string;
+              readonly rasterization: string;
+            };
+          };
+        }[];
+      }[];
+    };
+  };
+  const acceleration = index.results.batches.flatMap((batch) => batch.core).find((fact) => fact.schema === "snap-rate-posture-v1")?.data.acceleration;
+  if (acceleration === undefined) {
+    throw new Error("the run index omitted its raw browser acceleration provenance");
+  }
+  expect(["hardware", "software"]).toContain(acceleration.posture);
+  expect(acceleration.backend).not.toBe("");
+  const software = acceleration.posture === "software";
+  const accelerationGap = artifact.problems.find((problem) => problem.metric === "hardware browser acceleration");
+  await expect(motion).toExitWith(software ? EXIT.toolError : EXIT.violations);
+  expect(acceleration.gpuCompositing === "disabled_software").toBe(software);
+  expect(acceleration.rasterization === "disabled_software").toBe(software);
+  expect(accelerationGap === undefined).toBe(!software);
+  expect(accelerationGap === undefined ? undefined : { observed: accelerationGap.observed, threshold: accelerationGap.threshold }).toEqual(
+    software ? { observed: "absent", threshold: "required" } : undefined,
+  );
+  expect(motion.stdout.includes("SOFTWARE-ACCELERATION-WITHHOLD")).toBe(software);
+  expect(String(accelerationGap?.detail).includes(acceleration.backend)).toBe(software);
   const report = await runCli("snap", ["--report", resultValue(motion.stdout, "index"), "--problems", "--arm", "motion"]);
   await expect(report).toExitWith(EXIT.clean);
   expect(report.stdout).toMatch(/FINDING\s+error \| dirty-animation: width \(threshold compositor-only\) \| #spin/u);

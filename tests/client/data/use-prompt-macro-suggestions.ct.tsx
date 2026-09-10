@@ -12,7 +12,7 @@
 //      that opened empty on the first keystroke would read as "this field has no macros".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../support/node/user-settings-view.ts";
 import { PromptMacroSuggestionsStory } from "./_ct-stories.tsx";
 
@@ -45,11 +45,15 @@ test("`defaultPresetId: null` is the BUILT-IN preset — no preset read fires, t
 });
 
 test("a WITHHELD settings read still yields the builtin catalog — never an empty popover", async ({ mount, page }) => {
-  // DELIBERATELY unfed (ct-unfed-reads.baseline.json, ratified): this is the NO-EMPTY-WINDOW case itself —
-  // `settings.getUserSettings` staying unresolved forever IS the subject under test (header §3), not an
-  // incidental gap. Feeding it would test a different arm than the one this test names.
-  await routeTrpc(page, {});
-  const component = await mount(<PromptMacroSuggestionsStory />);
+  const settings = trpcHold();
+  await routeTrpc(page, { "settings.getUserSettings": settings });
+  try {
+    const component = await mount(<PromptMacroSuggestionsStory />);
+    await settings.requested;
 
-  await expect(component.getByTestId("macro-names")).toContainText("char");
+    await expect(component.getByTestId("macro-names")).toContainText("char");
+  } finally {
+    // Release even when the assertion fails, so the held HTTP batch cannot outlive the test.
+    settings.release(userSettingsView());
+  }
 });

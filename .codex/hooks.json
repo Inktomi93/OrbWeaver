@@ -1,15 +1,3 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "exec \"$(git rev-parse --show-toplevel)/.codex/hooks/biome-check.sh\""
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }

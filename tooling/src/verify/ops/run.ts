@@ -11,9 +11,9 @@
 //   pnpm verify --file <p…>  → scoped to explicit paths (the check:file muscle memory)
 //   pnpm verify --package <n> / --scope <glob> / --tier <name>  → package / folder / explicit-tier scope
 //   pnpm verify --strict-scope  → a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring
-//   pnpm verify --verbose    → stream each stage's full output live (default: COMPACT — a per-stage ✓/✗
-//                              line only; full output goes to the logs + json, so the console survives any
-//                              head/tail truncation. Verbose is EXPLICIT-only: TTY auto-detection is gone —
+//   pnpm verify --verbose    → stream each stage's full output live (default: COMPACT — one START line plus
+//                              a per-stage ✓/✗ line; full output goes to logs + json, so the console survives
+//                              any head/tail truncation. Verbose is EXPLICIT-only: TTY auto-detection is gone —
 //                              a git hook's stdout is a TTY too, and auto-verbose blasted every push)
 //
 // ARGV is parsed by ../lib/run-argv.ts under a strict schema: an unknown flag, a value option with no
@@ -254,10 +254,13 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   }
   const argv = plan.argv as readonly [string, ...string[]];
   const header = `\n=== ${stage.name} (${argv.join(" ")})${plan.mode === "scoped" ? " [scoped]" : ""} ===\n`;
-  // Compact mode (default): the full stage output goes to the per-stage log + json ONLY — the console stays
-  // short enough to survive any head/tail. Verbose (--verbose): stream the header + output live.
+  // Compact mode (default): name the active stage, then keep its full output in the per-stage log + json.
+  // The log only materializes after completion, so the START line names the work without promising live
+  // log bytes. Verbose (--verbose): stream the header + output live instead.
   if (verbose) {
     process.stdout.write(header);
+  } else {
+    process.stdout.write(`[verify] START ${stage.name}${plan.mode === "scoped" ? " [scoped]" : ""}\n`);
   }
 
   const start = Date.now();

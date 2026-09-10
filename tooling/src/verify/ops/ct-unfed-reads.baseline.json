@@ -1,8 +1,1 @@
-{
-  "tests/client/data/use-prompt-macro-suggestions.ct.tsx :: settings.getUserSettings": {
-    "count": 1,
-    "ratified": 1,
-    "why": "the NO-EMPTY-WINDOW test (header §3) deliberately withholds this read forever — a settled fallback to the builtin catalog is the behavior under test, not an incidental gap. Feeding it would test a different arm than the one this test names.",
-    "cite": ["tests/client/data/use-prompt-macro-suggestions.ct.tsx"]
-  }
-}
+{}

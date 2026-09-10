@@ -63,19 +63,34 @@ export function stableJson(value: unknown): string {
   }
 }
 
-function gitResult(args: readonly string[]): string | null {
+function gitOutput(args: readonly string[], cwd = root, isolateGitEnvironment = false): string | null {
   // @orb-gate-ignore caught-failure-ownership(default:catch): every caller (receiptFacts) treats a git command failure as "this receipt fact is unverified", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as "verified".
   try {
-    return execNicedSync("git", args, { cwd: root }).trim();
+    return execNicedSync(
+      isolateGitEnvironment ? "env" : "git",
+      isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", ...args] : args,
+      {
+        cwd,
+      },
+    );
   } catch {
     return null;
   }
 }
 
-function gitBlob(args: readonly string[]): Buffer | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): same optional-read contract as gitResult above — only called when verifiedCommitExists is already true, and a failed `git show` just means the blob hash comes back null (unverified), not that the build aborts. Ends if a caller starts treating null as "verified".
+/** Scalar Git output is whitespace-insensitive; NUL-delimited path readers use gitOutput directly. */
+function gitResult(args: readonly string[], cwd = root, isolateGitEnvironment = false): string | null {
+  return gitOutput(args, cwd, isolateGitEnvironment)?.trim() ?? null;
+}
+
+function gitBlob(args: readonly string[], cwd = root, isolateGitEnvironment = false): Buffer | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as "verified".
   try {
-    return execNicedSyncBuffer("git", args, { cwd: root });
+    return execNicedSyncBuffer(
+      isolateGitEnvironment ? "env" : "git",
+      isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", ...args] : args,
+      { cwd },
+    );
   } catch {
     return null;
   }
@@ -98,14 +113,96 @@ export function headAncestors(): ReadonlySet<string> {
   );
 }
 
-export function receiptFacts(entry: ReceiptEntry, doc: Doc, sources: EvidenceSources): ReceiptFacts {
+interface ReceiptFactsInput {
+  readonly entry: ReceiptEntry;
+  readonly doc: Doc;
+  readonly receiptSourcePath: string | undefined;
+  readonly candidateTouchesReceiptPair: boolean;
+  readonly candidateChangedPaths: ReadonlySet<string> | null;
+  readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
+  readonly sources: EvidenceSources;
+  readonly repoRoot: string;
+  readonly isolateGitEnvironment?: boolean;
+}
+
+/** Paths whose candidate-index bytes differ from HEAD. Git honors a hook's temporary GIT_INDEX_FILE. */
+export function indexChangedPaths(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.
+  try {
+    return new Set(
+      execNicedSync(
+        isolateGitEnvironment ? "env" : "git",
+        isolateGitEnvironment
+          ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "diff", "--cached", "--name-only", "-z", "--"]
+          : ["diff", "--cached", "--name-only", "-z", "--"],
+        { cwd: repoRoot },
+      )
+        .split("\0")
+        .filter((path) => path !== ""),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Paths whose worktree entries differ from the candidate index. One cached census closes typed evidence
+ *  without spawning one Git process per evidence target. */
+export function worktreeIndexChangedPaths(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
+  const output = gitOutput(["diff-files", "--name-only", "-z", "--"], repoRoot, isolateGitEnvironment);
+  return output === null ? null : new Set(output.split("\0").filter((path) => path !== ""));
+}
+
+/** Exact candidate-index versus working-file comparison by Git blob OID; avoids capturing large blobs. */
+export function indexFileMatchesWorkingTree(path: string, repoRoot = root, isolateGitEnvironment = false): boolean {
+  const indexOid = gitResult(["rev-parse", `:${path}`], repoRoot, isolateGitEnvironment);
+  const workingOid = gitResult(["hash-object", path], repoRoot, isolateGitEnvironment);
+  return indexOid !== null && indexOid === workingOid;
+}
+
+/** Tracked files in the candidate index below one path; null is an unreadable candidate, never empty. */
+export function indexTrackedPaths(path: string, repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
+  const output = gitResult(["ls-files", "-z", "--", path], repoRoot, isolateGitEnvironment);
+  return output === null ? null : new Set(output.split("\0").filter((candidate) => candidate !== ""));
+}
+
+function indexCarriesCurrentPair(input: ReceiptFactsInput): boolean {
+  const { doc, entry, isolateGitEnvironment, receiptSourcePath, repoRoot } = input;
+  if (receiptSourcePath === undefined) {
+    return false;
+  }
+  const receipt = readFileSync(join(repoRoot, receiptSourcePath));
+  const documentBlob = gitBlob(["show", `:${entry.path}`], repoRoot, isolateGitEnvironment);
+  const receiptBlob = gitBlob(["show", `:${receiptSourcePath}`], repoRoot, isolateGitEnvironment);
+  return documentBlob !== null && receiptBlob !== null && sha256(documentBlob) === doc.sha256 && sha256(receiptBlob) === sha256(receipt);
+}
+
+function receiptFactsAtRoot(input: ReceiptFactsInput): ReceiptFacts {
+  const {
+    candidateChangedPaths,
+    candidateEvidencePathsDifferFromIndex,
+    candidateTouchesReceiptPair,
+    doc,
+    entry,
+    isolateGitEnvironment,
+    receiptSourcePath,
+    repoRoot,
+    sources,
+  } = input;
   const commit = entry.verifiedCommit;
-  const verifiedCommitExists = commit !== null && COMMIT_RE.test(commit) && gitResult(["cat-file", "-e", `${commit}^{commit}`]) !== null;
-  const verifiedCommitIsAncestor = verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"]) !== null;
-  const blob = verifiedCommitExists ? gitBlob(["show", `${commit}:${entry.path}`]) : null;
+  const verifiedCommitExists =
+    commit !== null && COMMIT_RE.test(commit) && gitResult(["cat-file", "-e", `${commit}^{commit}`], repoRoot, isolateGitEnvironment) !== null;
+  const verifiedCommitIsAncestor =
+    verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"], repoRoot, isolateGitEnvironment) !== null;
+  const blob = verifiedCommitExists ? gitBlob(["show", `${commit}:${entry.path}`], repoRoot, isolateGitEnvironment) : null;
+  const verifiedBlobSha256 = blob === null ? null : sha256(blob);
   return {
     currentSha256: doc.sha256,
-    verifiedBlobSha256: blob === null ? null : sha256(blob),
+    verifiedBlobSha256,
+    currentReceiptSnapshotExists:
+      (entry.verifiedSha256 !== verifiedBlobSha256 || candidateTouchesReceiptPair) && receiptSourcePath !== undefined && indexCarriesCurrentPair(input),
+    candidateTouchesReceiptPair,
+    candidateChangedPaths,
+    candidateEvidencePathsDifferFromIndex,
     verifiedCommitExists,
     verifiedCommitIsAncestor,
     localEvidence: sources.localEvidence,
@@ -113,6 +210,43 @@ export function receiptFacts(entry: ReceiptEntry, doc: Doc, sources: EvidenceSou
     provenanceCommits: sources.ancestors,
     rulingAnchors: sources.rulingAnchors,
   };
+}
+
+export function receiptFacts(
+  entry: ReceiptEntry,
+  doc: Doc,
+  receiptSource: {
+    readonly path: string | undefined;
+    readonly candidateTouchesPair: boolean;
+    readonly candidateChangedPaths: ReadonlySet<string> | null;
+    readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
+  },
+  sources: EvidenceSources,
+): ReceiptFacts {
+  return receiptFactsAtRoot({
+    entry,
+    doc,
+    receiptSourcePath: receiptSource.path,
+    candidateTouchesReceiptPair: receiptSource.candidateTouchesPair,
+    candidateChangedPaths: receiptSource.candidateChangedPaths,
+    candidateEvidencePathsDifferFromIndex: receiptSource.candidateEvidencePathsDifferFromIndex,
+    sources,
+    repoRoot: root,
+  });
+}
+
+/** Isolated-Git proof seam for the candidate-index snapshot contract; production always uses `root`. */
+export function __receiptFactsForTest(
+  input: Omit<ReceiptFactsInput, "candidateChangedPaths" | "candidateEvidencePathsDifferFromIndex" | "candidateTouchesReceiptPair">,
+): ReceiptFacts {
+  const changed = indexChangedPaths(input.repoRoot, input.isolateGitEnvironment);
+  return receiptFactsAtRoot({
+    ...input,
+    candidateChangedPaths: changed,
+    candidateTouchesReceiptPair:
+      changed === null || changed.has(input.entry.path) || (input.receiptSourcePath !== undefined && changed.has(input.receiptSourcePath)),
+    candidateEvidencePathsDifferFromIndex: worktreeIndexChangedPaths(input.repoRoot, input.isolateGitEnvironment),
+  });
 }
 
 /** The catalog's corpus = TRACKED markdown under docs/ (git, not a glob — an untracked draft is not a

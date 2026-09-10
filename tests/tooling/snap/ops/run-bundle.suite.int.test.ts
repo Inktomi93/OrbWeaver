@@ -39,10 +39,8 @@ import { scaledBudget } from "../../_load-budget.ts";
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
 const RUN_LANE_ENV = "ORB_RUN_LANE";
 const RUN_AGENT_ENV = "ORB_RUN_AGENT";
-/** The two planted box readings this file drives the CLI under (#1651) — per-core 0.008 and per-core 4.0,
- *  either side of `computeLoadFactor`'s own 1.0 boundary. Named, not spelled twice. */
+/** The planted quiet-box reading this file drives the CLI under (#1651). */
 const QUIET_BOX = "0.2/24";
-const LOADED_BOX = "96/24";
 const PLANTED_STARTED_AT = "2026-09-03T12:00:00.000Z";
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
@@ -415,19 +413,41 @@ test("a MIS-SPELLED planted box knob is MISUSE (exit 3), one line, no stack trac
   expect(run.stderr).not.toMatch(/\bat .*load-budget\.ts:\d+/u);
 });
 
-test("THE INVERSE: a planted LOADED box annotates the same clean run — one uncounted row, and still exit 0 (#1651)", async ({ runCli, scratch }) => {
-  // The positive control for the arm above. Without it, "no findings" would be satisfied by a build in
-  // which the #1616 annotation stopped being emitted at all — which is the reader half of the ruling, and
-  // exactly what a quiet-box-only pin cannot see. Same argv, same page, ONLY the box reading differs.
-  const file = join(scratch, "loaded.html");
-  await writeFile(file, '<!doctype html><html data-app-ready="settled"><body><main><button id="x">x</button></main></body></html>');
-  const run = await runCli("snap", ["--file", file, "--json", "--no-deadcss", "--no-failure-evidence"], {
-    timeoutMs: CLI_TIMEOUT_MS,
-    env: { [BOX_LOAD_ENV]: LOADED_BOX },
+test("THE INVERSE: a load-suspect arm annotates the same clean run — one uncounted row, and still exit 0 (#1651)", async ({ runCli, scratch }) => {
+  // This is the STRUCTURAL half of the rate contract: a producer that measured under load has already
+  // decided `load-suspect`; the bundle must retain that fact without promoting it. Hardware capability is
+  // judged separately by rate-posture and must not be fabricated merely to reach this index/reader path.
+  const root = join(scratch, "loaded-fact-repo");
+  await initializeRepository(root);
+  const slot = await openSlot(root, "loaded-fact");
+  registerSnapFactBatch({
+    id: factBatchId("loaded-fact"),
+    core: [],
+    arms: [
+      snapArmFact({
+        arm: "app-snapshot",
+        schema: "snap-arm-app-snapshot-v1",
+        source: "window.__orb.snap() + Navigation Timing",
+        lifetime: "settled page capture",
+        scope: aggregateScope(),
+        artifacts: [],
+        data: { state: "load-suspect", detail: "load-suspect: planted loaded-box reading", snapshots: 1, unavailable: 0 },
+      }),
+    ],
   });
-  // NOT A RED, NOT AN EXIT-2: a load-suspect number is published and never promoted in either direction.
-  await expect(run).toExitWith(EXIT.clean);
-  const index = JSON.parse(await readFile(indexPath(run.stdout), "utf8")) as RunIndex;
+  registerSnapResultPairs([
+    ["app-snapshot", "load-suspect"],
+    ["load-suspect", "app-snapshot"],
+    ["load", "96.0/24(planted)"],
+  ]);
+  const path = await completeSnapRun(slot.completion, parseSnapArgs(["--no-shot", "--no-deadcss"]), [
+    "snap",
+    "--file",
+    "loaded.html",
+    "--no-shot",
+    "--no-deadcss",
+  ]);
+  const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   const annotations = index.findings.filter((finding) => finding.severity === "annotation");
   expect(annotations).toHaveLength(1);
@@ -443,6 +463,9 @@ test("THE INVERSE: a planted LOADED box annotates the same clean run — one unc
   expect(index.resultPairs.find(([key]) => key === "app-snapshot")?.[1]).toBe("load-suspect");
   // The label is the ONLY difference: nothing failed, nothing refused.
   expect(index.findings.filter((finding) => finding.severity !== "annotation")).toEqual([]);
+  const report = await runCli("snap", ["--report", path, "--problems"]);
+  await expect(report).toExitWith(EXIT.clean);
+  expect(report.stdout).toContain("FINDING      annotation | load-suspect: planted loaded-box reading");
 });
 
 test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exact-id ambiguity and local latest refuse guessing", async ({

@@ -1,7 +1,7 @@
 // agent-sync — regenerate (or verify) the Codex mirror of the Claude role fleet. Argv parse + dispatch
 // ONLY (the five-slot cap); the programmatic surface is ./index.ts.
 //
-//   pnpm agents:sync            rewrite .codex/agents/*.toml + AGENTS.md's rule-import block
+//   pnpm agents:sync            rewrite .codex/agents/*.toml + AGENTS.md's rule-guidance block
 //   pnpm check:agents           (--check) report staleness, write nothing
 //
 // Exit: 0 clean · 1 the mirror is stale (--check) · 2 the tool broke · 3 misuse.
@@ -31,7 +31,7 @@ function main(): number {
     return EXIT.clean;
   }
   const counts = syncCodexAgents();
-  print(`synced ${counts.roles} Claude roles, ${counts.ruleImports} rule imports, and the shared skill tree`);
+  print(`synced ${counts.roles} Claude roles, ${counts.rules} rule guidance entries, and the shared skill tree`);
   return EXIT.clean;
 }
 

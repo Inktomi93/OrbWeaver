@@ -7,15 +7,41 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { CatalogMode, FormatMode, LaneConfig, State } from "../contract/types.ts";
 import { migrationMetrics } from "../lib/debt.ts";
-import { LANES_PATH, OUTPUT_PATH, STATE_PATH } from "../lib/vocab.ts";
-import { bootstrap, catalogIsStale, expectedCatalog, normalizeAuthoredArtifacts, ratchet, sync, unformattedArtifacts, writeCatalog } from "./catalog.ts";
+import { CATALOG_DIR, LANES_PATH, OUTPUT_PATH, STATE_PATH } from "../lib/vocab.ts";
+import {
+  bootstrap,
+  candidateTouchesCatalog,
+  catalogIndexIsStale,
+  catalogIsStale,
+  catalogSourcesMatchIndex,
+  expectedCatalog,
+  normalizeAuthoredArtifacts,
+  ratchet,
+  sync,
+  unformattedArtifacts,
+  writeCatalog,
+} from "./catalog.ts";
 import { formatDocs, formatTargets } from "./format.ts";
-import { documents, json, laneAssignments, loadReceipts } from "./tree.ts";
+import { documents, indexChangedPaths, json, laneAssignments, loadReceipts, worktreeIndexChangedPaths } from "./tree.ts";
 import { validate } from "./validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
 const WRITING_MODES = new Set<CatalogMode>(["--write", "--sync", "--ratchet"]);
+
+function candidateCatalogErrors(config: LaneConfig, expected: string, changedIndexPaths: ReadonlySet<string> | null): readonly string[] {
+  if (!candidateTouchesCatalog(changedIndexPaths)) {
+    return [];
+  }
+  const errors: string[] = [];
+  if (!catalogSourcesMatchIndex(config)) {
+    errors.push(`${CATALOG_DIR}: candidate Git index is missing current lane, receipt, or state source bytes`);
+  }
+  if (catalogIndexIsStale(expected)) {
+    errors.push(`${OUTPUT_PATH}: candidate Git index is stale; stage the regenerated catalog`);
+  }
+  return errors;
+}
 
 /** `pnpm doc-catalog:* / check:doc-catalog`. Exit 1 = the corpus violates the receipt contract or the
  *  generated catalog is stale; the write verbs land the artifact and still report violations. */
@@ -38,7 +64,8 @@ export function runCatalog(mode: CatalogMode): ExitCode {
   }
   const state = json<State>(STATE_PATH);
   const expected = expectedCatalog(docs, assignments, receipts);
-  const errors = [...validate({ config, docs, assignments, receipts, state })];
+  const changedIndexPaths = indexChangedPaths();
+  const errors = [...validate({ config, docs, assignments, receipts, state, changedIndexPaths, worktreeIndexChangedPaths: worktreeIndexChangedPaths() })];
   if (WRITING_MODES.has(mode)) {
     writeCatalog(expected);
     // #968: the receipts are HAND-attested, so a lane can leave JSON the repo's own formatter rejects —
@@ -52,6 +79,7 @@ export function runCatalog(mode: CatalogMode): ExitCode {
     if (catalogIsStale(expected)) {
       errors.push(`${OUTPUT_PATH}: generated catalog is stale; run pnpm doc-catalog:write`);
     }
+    errors.push(...candidateCatalogErrors(config, expected, changedIndexPaths));
     for (const path of unformattedArtifacts(config)) {
       errors.push(`${path}: not in the canonical (biome-formatted) form — run pnpm doc-catalog:write`);
     }

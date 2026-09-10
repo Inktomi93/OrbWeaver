@@ -9,7 +9,12 @@ import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/_shared/load-budget";
+import { installOutputSink } from "@orb/tooling/_shared/log";
 import { beforeEach, vi } from "vitest";
+import { aggregateScope, factBatchId } from "../../../../tooling/src/_shared/artifact-scope.ts";
+import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
+import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
+import { completeSnapRun, registerSnapFactBatch, registerSnapResultPairs } from "../../../../tooling/src/snap/ops/run-bundle.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -152,28 +157,62 @@ test("the console channel the digest line advertises is the one the reader accep
   expect(reader.stdout).toContain("ordinary chatter nobody asked for");
 });
 
-test("#1666/#1659 — a NON-console annotation is named by its disposition, never by the first word of its prose", async ({ runCli, scratch }) => {
-  // THE ARM THE QUIET PLANT ABOVE STRUCTURALLY CANNOT REACH (v-V4). The collapse line derives each tag
-  // from `what.split(" ")[0]`, which is a tag only for the attributed CONSOLE rows (`<tag> <metric> …`);
-  // #1616's run-global row reads "the app-snapshot arm MEASURED on a loaded box …", so a contended box
-  // printed `annotations  the=1 perf=1` — a key named "the" in the one line whose job is naming what the
-  // annotations ARE. Every other arm in this file plants a QUIET box, which means that row never exists
-  // there: this one plants a LOADED box on purpose, and it is the only place the non-console branch runs.
-  vi.stubEnv(BOX_LOAD_ENV, "96/24");
-  const file = join(scratch, "agent-readable-loaded.html");
-  await writeFile(file, FIXTURE);
-
-  const loaded = await runCli("snap", ["--file", file, "--eval", "1", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
-  await expect(loaded).toExitWith(EXIT.clean);
-  // The load-suspect row EXISTS on this run (the plant is what makes the branch reachable at all)…
-  expect(loaded.stdout, "the planted loaded box must produce a load-suspect arm").toContain("app-snapshot=load-suspect");
-  const collapse = loaded.stdout.split("\n").find((line) => line.startsWith("annotations  "));
-  expect(collapse, `no collapse line in:\n${loaded.stdout}`).toBeTypeOf("string");
-  // …and it is named by its DISPOSITION, beside the console row that keeps its own tag.
-  expect(String(collapse)).toContain("load-suspect=1");
-  expect(String(collapse)).toContain("perf=1");
-  // THE REGRESSION ITSELF: never a key taken from English prose.
-  expect(String(collapse), "a tag derived from the first word of a sentence").not.toMatch(/\bthe=\d/u);
+test("#1666/#1659 — a NON-console annotation is named by its disposition, never by the first word of its prose", async ({ repoRoot, runCli }) => {
+  // This printer contract begins after a rate producer has classified its evidence. Plant the typed fact,
+  // then drive the real index writer and browser-free reader; manufacturing hardware capability merely to
+  // reach formatting would make this test depend on the host instead of the receipt it owns.
+  const runId = `agent-readable-load-${String(process.pid)}`;
+  const dir = join(repoRoot, "reports", "runs", "snap", runId);
+  await rm(dir, { recursive: true, force: true });
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, ".inflight"), '{"startedAt":"2026-09-03T12:00:00.000Z"}\n');
+  try {
+    registerSnapFactBatch({
+      id: factBatchId("agent-readable-load"),
+      core: [],
+      arms: [
+        snapArmFact({
+          arm: "app-snapshot",
+          schema: "snap-arm-app-snapshot-v1",
+          source: "window.__orb.snap() + Navigation Timing",
+          lifetime: "settled page capture",
+          scope: aggregateScope(),
+          artifacts: [],
+          data: { state: "load-suspect", detail: "the app-snapshot arm MEASURED on a loaded box", snapshots: 1, unavailable: 0 },
+        }),
+      ],
+    });
+    registerSnapResultPairs([
+      ["app-snapshot", "load-suspect"],
+      ["load-suspect", "app-snapshot"],
+    ]);
+    const receipt: string[] = [];
+    const release = installOutputSink({ line: (line) => receipt.push(line), warn: () => undefined });
+    let path: string;
+    try {
+      path = await completeSnapRun(
+        {
+          slot: { instrument: "snap", runId, dir, relDir: join("reports", "runs", "snap", runId), racing: [] },
+          root: repoRoot,
+          exit: EXIT.clean,
+          error: null,
+        },
+        parseSnapArgs(["--no-shot", "--no-deadcss"]),
+        ["snap", "--file", "loaded.html", "--no-shot", "--no-deadcss"],
+      );
+    } finally {
+      release();
+    }
+    const collapse = receipt.find((line) => line.startsWith("annotations  "));
+    expect(collapse, `no collapse line in:\n${receipt.join("\n")}`).toBeTypeOf("string");
+    expect(String(collapse)).toContain("load-suspect=1");
+    expect(String(collapse), "a tag derived from the first word of a sentence").not.toMatch(/\bthe=\d/u);
+    const loaded = await runCli("snap", ["--report", path, "--problems"], { timeoutMs: CLI_TIMEOUT_MS });
+    await expect(loaded).toExitWith(EXIT.clean);
+    expect(loaded.stdout).toContain("FINDING      annotation | the app-snapshot arm MEASURED on a loaded box");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("console annotations yield to the arm the argv asked for, and stay one call away", async ({ runCli, scratch }) => {
@@ -200,16 +239,17 @@ test("a failed step is its own FINDING row, ranked above every console annotatio
   const file = join(scratch, "agent-readable-wait.html");
   await writeFile(file, FIXTURE);
 
-  // `--motion` so the annotations are the asked-for arm and DO print as rows — the ranking claim needs
-  // both kinds on the card at once (#1372 collapses them only when nothing asked).
-  const run = await runCli("snap", ["--file", file, "--wait-for", "article#never", "--motion", "#present", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  // No rate arm is needed to prove terminal ranking. Ambient annotations collapse to their production
+  // summary row, while the failed drive step remains a full finding above it; browser acceleration can
+  // therefore neither manufacture nor mask the ordering this test owns.
+  const run = await runCli("snap", ["--file", file, "--wait-for", "article#never", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(run).toExitWith(EXIT.violations);
   // The row names the argv to correct — the flag, the index and the selector — not just a count.
   expect(run.stdout).toMatch(/^FINDING {4}error \| step 0 --wait-for "article#never" never matched \(/mu);
   const failure = lineIndexOf(run.stdout, (line) => line.startsWith("FINDING") && line.includes("--wait-for"));
-  const annotation = lineIndexOf(run.stdout, (line) => line.startsWith("FINDING") && line.includes("annotation"));
-  expect(annotation, `the fixture's [perf] console line must produce an annotation row:\n${run.stdout}`).toBeGreaterThan(-1);
+  const annotation = lineIndexOf(run.stdout, (line) => line.startsWith("annotations  "));
+  expect(annotation, `the fixture's [perf] console line must produce the annotation summary:\n${run.stdout}`).toBeGreaterThan(-1);
   expect(failure).toBeGreaterThan(-1);
   expect(failure, "a failed step outranks the annotations it invalidates").toBeLessThan(annotation);
   // `next=` is the corrected reader for the drive, never a perf drill-down.

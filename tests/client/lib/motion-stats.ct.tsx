@@ -21,7 +21,7 @@
 // The observers are module-global by design; CT gives each test a fresh browser context, so the totals
 // start at zero per test (the `_ct-stories` header's own note).
 //
-// TWO TIMING LAWS THIS FILE OBEYS (issue #121 — the flake this file carried until 2026-08-17):
+// THREE TIMING LAWS THIS FILE OBEYS (issues #121 and #1911):
 //
 //  A. A SHIFT NEEDS A PRESENTED "BEFORE". `layout-shift` is a DELTA: the browser emits an entry only when
 //     an element that was already PAINTED moves. Measured control (a two-arm probe in this exact CT
@@ -41,6 +41,11 @@
 //     handed (`pop()` + `shift()`), so a shared module-level `intervals` array is drained by its first use
 //     and every later poll silently falls back to 1000ms. Hence ONE schedule, minted fresh per call
 //     (`evidencePoll()`), with a fine tail and a stated budget — never the inherited default.
+//
+//  C. A FIXED SLEEP IS NOT AN OBSERVER BARRIER. `long-animation-frame` delivery is asynchronous, and
+//     Select attribution itself stays mutable through the real transition end. Poll the exact settled
+//     evidence the next assertion consumes, using the same 10s evidence-delivery budget as every other
+//     observer arm in this file.
 
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -155,6 +160,17 @@ function readMotion(page: Page): Promise<MotionRead> {
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
 }
 
+async function motionWhen(page: Page, predicate: (motion: MotionRead) => boolean): Promise<MotionRead> {
+  let motion = await readMotion(page);
+  await expect
+    .poll(async () => {
+      motion = await readMotion(page);
+      return predicate(motion);
+    }, evidencePoll())
+    .toBe(true);
+  return motion;
+}
+
 test("a forced shift is console-warned with the shifted element AND its score", async ({ mount, page }) => {
   const lines = captureClsLines(page);
   const component = await mount(<MotionShiftFlaggerStory />);
@@ -261,42 +277,46 @@ test("a real sealed Select classifies its confirmed first and repeat entrance li
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await resetMotion(page);
   await page.mouse.click(triggerPoint.x, triggerPoint.y);
-  await delay(250);
-
-  const first = await readMotion(page);
+  const first = await motionWhen(page, (motion) =>
+    motion.loafs.some(
+      (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && loaf.selectEntrance.firstForTrigger,
+    ),
+  );
   expect(first.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.firstForTrigger)).toBe(true);
   expect(loafTotals(first).classifiedInitializations).toBe(1);
   expect(loafOverBudget(first)).toBe(false);
 
   await page.keyboard.press("Escape");
-  await delay(150);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("button", { name: "arm Select blocking" }).click();
   await resetMotion(page);
   await page.mouse.click(triggerPoint.x, triggerPoint.y);
-  await delay(250);
-  const repeated = await readMotion(page);
+  const repeated = await motionWhen(page, (motion) =>
+    motion.loafs.some(
+      (loaf) => loaf.selectEntrance?.confirmedAt !== undefined && loaf.selectEntrance.endedAt !== undefined && !loaf.selectEntrance.firstForTrigger,
+    ),
+  );
   expect(repeated.loafs.some((loaf) => loaf.selectEntrance?.confirmedAt !== undefined && !loaf.selectEntrance.firstForTrigger)).toBe(true);
   expect(loafTotals(repeated).budgetedStyleLayout).toBe(0);
   // The entrance classification may accept Base UI's style/positioning frame, but a repeat receives no
   // blocking allowance: this planted app-owned 120ms handler must still fail the unchanged 50ms budget.
   expect(loafOverBudget(repeated)).toBe(true);
   await page.keyboard.press("Escape");
-  await delay(150);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
 
   const blockingPoint = await hitPoint(page.getByRole("button", { name: "plant app blocking" }));
   await resetMotion(page);
   await page.mouse.click(blockingPoint.x, blockingPoint.y);
-  await delay(150);
-  const blocked = await readMotion(page);
+  const blocked = await motionWhen(page, loafOverBudget);
   expect(blocked.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
   expect(loafOverBudget(blocked)).toBe(true);
 
   const stylePoint = await hitPoint(page.getByRole("button", { name: "plant app style" }));
   await resetMotion(page);
   await page.mouse.click(stylePoint.x, stylePoint.y);
-  await delay(150);
-  const styled = await readMotion(page);
+  const styled = await motionWhen(page, (motion) => loafTotals(motion).budgetedStyleLayout > 0);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  expect(styled.loafs.every((loaf) => loaf.selectEntrance === undefined)).toBe(true);
   expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
   expect(loafOverBudget(styled)).toBe(true);
 });

@@ -18,12 +18,12 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { probeServedTransform } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -32,6 +32,7 @@ import { scaledBudget } from "../_load-budget.ts";
 const STACK_SH = fileURLToPath(new URL("../../../tooling/src/stack/stack.sh", import.meta.url));
 const ENGINES_SH = fileURLToPath(new URL("../../../tooling/src/stack/engines.sh", import.meta.url));
 const DEV_IDENTITY_ENTRY = fileURLToPath(new URL("../../../tooling/src/stack/ops/dev-identity-entry.ts", import.meta.url));
+const PROD_ENTRY = fileURLToPath(new URL("../../../tooling/src/stack/ops/prod-entry.ts", import.meta.url));
 /** The refusal every unclearable identity must still carry (hoisted: no per-call regex literals). */
 const MANUAL_CLEANUP_INT_RE = /manual cleanup|relaunch/u;
 /** EXPLICIT, on every arm that spawns a `dev-identity-entry.ts` child. Measured on this box 2026-09-02:
@@ -638,8 +639,24 @@ test("a TERM while dev.sh waits on engines EXITS it — no orphan server boot (#
 // A key mapped to `undefined` is DELETED, not passed empty — and that matters here: `vitest.config.ts`
 // pins `VLLM_DISABLED: "true"` for the whole suite env, so a probe that merely OMITS the key still
 // inherits a TRUTHY one and measures the wrong branch entirely.
-function postureProbe(env: Record<string, string | undefined>): string {
+function postureProbe(env: Record<string, string | undefined>, envFile?: string): string {
+  const fixtureRoot = mkdtempSync(path.join(tmpdir(), "orb-stack-posture-"));
+  const fixtureStack = path.join(fixtureRoot, "tooling", "src", "stack", "stack.sh");
+  const fixtureEntry = path.join(fixtureRoot, "tooling", "src", "stack", "ops", "prod-entry.ts");
+  mkdirSync(path.dirname(fixtureEntry), { recursive: true });
+  copyFileSync(STACK_SH, fixtureStack);
+  // The shell under test must stay byte-identical. Its node bridge imports the installed source entry, so
+  // classification still executes the real parser rather than a fixture copy that can drift.
+  expect(readFileSync(fixtureStack, "utf8")).toBe(readFileSync(STACK_SH, "utf8"));
+  writeFileSync(fixtureEntry, `import ${JSON.stringify(pathToFileURL(PROD_ENTRY).href)};\n`);
+  if (envFile !== undefined) {
+    writeFileSync(path.join(fixtureRoot, ".env"), envFile);
+  }
   const childEnv: Record<string, string | undefined> = { ...process.env, STACK_POSTURE_PROBE: "1" };
+  // The fixture owns both posture inputs. Neither the developer's shell nor vitest's suite-wide safety
+  // defaults may decide which branch a case measures.
+  childEnv["ENGINES_POSTURE"] = undefined;
+  childEnv["VLLM_DISABLED"] = undefined;
   for (const [key, value] of Object.entries(env)) {
     if (value === undefined) {
       delete childEnv[key];
@@ -649,21 +666,24 @@ function postureProbe(env: Record<string, string | undefined>): string {
   }
   // `<string | null>`, not node's `<string>` — same reason as `dispatch()` above: a spawn that never STARTS
   // returns null pipes, so the `?? ""` is load-bearing rather than a defensive habit.
-  const res: SpawnSyncReturns<string | null> = spawnSync("bash", [STACK_SH, "up"], {
-    encoding: "utf8",
-    env: childEnv,
-  });
-  return (res.stdout ?? "").split("\n").find((line) => line.startsWith("POSTURE ")) ?? "";
+  try {
+    const res: SpawnSyncReturns<string | null> = spawnSync("bash", [fixtureStack, "up"], {
+      encoding: "utf8",
+      env: childEnv,
+    });
+    expect(res.status, `the no-action posture seam failed: ${res.stdout ?? ""}${res.stderr ?? ""}`).toBe(0);
+    const lines = (res.stdout ?? "").split("\n").filter((line) => line !== "");
+    expect(lines, "STACK_POSTURE_PROBE must print one verdict and exit before any stack action").toHaveLength(1);
+    return lines[0] ?? "";
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 }
 
 test("a FALSY VLLM_DISABLED falls through to the pin/default — it never leaves engines.sh posture-less (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   // The defect, exactly: `false` used to consume the branch and export no posture at all.
-  const line = postureProbe({ VLLM_DISABLED: "false" });
-  expect(line).toContain("vllm-disabled=false");
-  expect(line, "a posture MUST be resolved — an empty one is what let engines.sh default to adopt-or-start").not.toContain("engines=—");
-  // …and it is the NON-SPAWNING one: whatever the `.env` pin says, or the adopt-only default.
-  expect(line).toMatch(/engines=(adopt-only|off)\b/u);
-  expect(line, "…and it must NOT be the spawning posture").not.toContain("engines=adopt-or-start");
+  const line = postureProbe({ VLLM_DISABLED: "false" }, "ENGINES_POSTURE=adopt-or-start\n");
+  expect(line).toBe("POSTURE engines=adopt-or-start source=.env vllm-disabled=false env-pin=adopt-or-start");
 });
 
 test("a TRUTHY VLLM_DISABLED maps EXPLICITLY to posture off, named by its source (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
@@ -693,12 +713,17 @@ test("VLLM_DISABLED is matched CASE-INSENSITIVELY — `TRUE` must not be rewritt
 
 test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the SOURCE is printed (#1618)", { timeout: SHELL_ARM_TIMEOUT_MS }, () => {
   // A host export still wins outright (the e2e harness's adopt-only depends on it).
-  expect(postureProbe({ ENGINES_POSTURE: "adopt-or-start", VLLM_DISABLED: "false" })).toContain("engines=adopt-or-start source=host");
-  // Unset behaves exactly like the falsy case — that equivalence IS the fix. The key is DELETED, not
-  // omitted: the suite env pins VLLM_DISABLED=true, so an omitted key would be the truthy branch.
-  const unset = postureProbe({ VLLM_DISABLED: undefined });
-  const falsy = postureProbe({ VLLM_DISABLED: "false" });
-  expect(unset.replace(/vllm-disabled=\S+/u, "")).toBe(falsy.replace(/vllm-disabled=\S+/u, ""));
+  expect(postureProbe({ ENGINES_POSTURE: "adopt-or-start", VLLM_DISABLED: "false" }, "ENGINES_POSTURE=off\n")).toBe(
+    "POSTURE engines=adopt-or-start source=host vllm-disabled=false env-pin=off",
+  );
+  for (const pin of ["off", "adopt-only", "adopt-or-start"]) {
+    expect(postureProbe({ VLLM_DISABLED: "false" }, `ENGINES_POSTURE=${pin}\n`), `file pin ${pin}`).toBe(
+      `POSTURE engines=${pin} source=.env vllm-disabled=false env-pin=${pin}`,
+    );
+  }
+  // No file and no host posture reaches the exact safe default; the inherited environment is irrelevant.
+  expect(postureProbe({ VLLM_DISABLED: undefined })).toBe("POSTURE engines=adopt-only source=default vllm-disabled=— env-pin=—");
+  expect(postureProbe({ VLLM_DISABLED: "false" })).toBe("POSTURE engines=adopt-only source=default vllm-disabled=false env-pin=—");
 });
 
 // ── #1495: the GPU idle probe must not report idle for a probe that never ran ────────────────────────

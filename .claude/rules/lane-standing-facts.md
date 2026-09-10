@@ -25,6 +25,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 
 ## Staging and commits
 
+- **Commit policy lives in constitution §L.** In an owned assigned worktree or clone, commit normally
+  through the configured hooks; keep explicit iteration checks scoped and do not manually duplicate a
+  full battery solely to commit. A hook bypass requires a specific user- or coordinator-authorized
+  exception with its reason and executed/owed checks recorded.
 - **Stage by PATHSPEC on `main` or any SHARED tree; `git add -A` is FINE in your own isolated worktree**
   (owner correction 2026-08-24). The two failure modes are opposite: on a shared tree a broad `git add`
   sweeps a sibling's in-flight probe into your commit (it has shipped a BLINDED gate, which then reports
@@ -87,13 +91,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   default self-cap is \~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
   carries it — that is the whole tool family, not a list of two** — and neither does a bare
   `node tooling/src/<tool>/cli.ts`.
-- **eslint owns `packages/{ui,client}/src`, `tooling/src/**`, the test trees, AND — with a REDUCED rule set (tsdoc + the shared block; `TSDOC_SURFACE` in `eslint.config.js`, truth-repaired 2026-09-06 by a planted `tsdoc/syntax` control in #1800) — `packages/server/src/**/*.ts`; lint server src too, do not skip it as unowned:
-  `tests/{tooling,server,kit,db,contracts,support,e2e,client,ui}/**/*.ts` plus the CT surface (`*.ct.tsx`,
-  `*.fixtures.tsx` under `tests/ui`, `_ct-stories.tsx`)** (#1574, 2026-09-05). A file outside those globs answers
-  "File ignored because no matching configuration was supplied" — RED under `--max-warnings 0` and SILENT under
-  the scoped verify lane (it passes `--no-warn-ignored`), so a lane that lints an uncovered path has measured
-  nothing. Still uncovered by design: the 31 `.tsx` story/fixture modules named in `eslint.config.js`'s
-  `TESTS_DOM_OWNED` note (#1590).
+- **ESLint membership is native data, never a prose roster.** Admission plus the shared compiler-program
+  partition covers admitted TypeScript and TSX, including story fixtures and root tools; `eslint.config.js`
+  owns rule policy. A scoped floor names the files it passed to the native runner and treats an ignored or
+  unowned input as no measurement, never as green coverage.
 - **The spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
   biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is `pnpm test:ct <paths>`
   (it carries BOTH the cache-clear and the nice). An OOM under THAT ceiling is a real finding to report,
@@ -181,9 +182,6 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   next argument into a destination.
 - **rg flag discipline is a standing hazard:** `-r` + a shorthand cluster (`-rln`) silently REPLACES match
   text. Spell `--files-with-matches` / `-n` out.
-- **Wrapper scripts are classified by BODY** — the Bash guard reads UNTRACKED script bodies, so a helper
-  script must carry the sanctioned spellings inside it (the CT cache-clear before playwright; a redirect
-  to a log read in a separate command rather than a pipe into tail).
 - **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides.** A negative claim
   owes a non-zero scanned-file count plus a second method; `ts` and `tsx` are different languages, run
   both.

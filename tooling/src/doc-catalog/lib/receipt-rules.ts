@@ -76,9 +76,19 @@ function localEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, fac
   if (line < 1 || line > lines) {
     return [`${entry.path}: ${evidence.kind} evidence line is out of bounds: ${evidence.target}`];
   }
-  return path !== undefined && hasExpectedEvidenceRoot(evidence.kind, path)
-    ? []
-    : [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
+  if (path === undefined || !hasExpectedEvidenceRoot(evidence.kind, path)) {
+    return [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
+  }
+  const candidateTouchesEvidence = facts.candidateChangedPaths === null || facts.candidateChangedPaths.has(path);
+  if (!(facts.candidateTouchesReceiptPair || candidateTouchesEvidence)) {
+    return [];
+  }
+  if (facts.candidateEvidencePathsDifferFromIndex === null) {
+    return [`${entry.path}: cannot establish candidate Git index consistency for ${evidence.kind} evidence: ${evidence.target}`];
+  }
+  return facts.candidateEvidencePathsDifferFromIndex.has(path)
+    ? [`${entry.path}: ${evidence.kind} evidence target differs from the candidate Git index: ${evidence.target}`]
+    : [];
 }
 
 function lawEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts): readonly string[] {
@@ -196,8 +206,8 @@ function receiptTruthErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined
   if (entry.verifiedSha256 !== facts.currentSha256) {
     errors.push(`${entry.path}: verifiedSha256 does not match the current document`);
   }
-  if (entry.verifiedSha256 !== facts.verifiedBlobSha256) {
-    errors.push(`${entry.path}: verifiedSha256 does not match the verified commit blob`);
+  if ((entry.verifiedSha256 !== facts.verifiedBlobSha256 || facts.candidateTouchesReceiptPair) && !facts.currentReceiptSnapshotExists) {
+    errors.push(`${entry.path}: current document and receipt do not coexist in a verified commit or the Git index`);
   }
   if (!facts.verifiedCommitExists) {
     errors.push(`${entry.path}: verifiedCommit does not resolve to a commit`);

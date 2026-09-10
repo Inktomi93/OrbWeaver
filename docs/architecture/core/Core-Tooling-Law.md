@@ -403,7 +403,7 @@ The ordered checklist for promoting or relocating a tool. Every step was paid fo
     - catalog receipts: `/usr/bin/grep -rn '"target": "<old prefix>' docs/catalog/receipts/` — re-derive each hit row;
     - the OLD ZONE PREFIX across the gate corpus (§3.1's zone-keyed-fence row);
     - recipe lines in active docs: a `node scripts/…` invocation becomes the pnpm front door.
-12. **Doc edits ride the two-commit attest:** the doc bytes commit FIRST, the catalog receipt commits second pointing at that commit, `updated:` bumped, scoped `pnpm check:docs` in the floor.
+12. **Doc edits and their attestation land atomically through the normal commit hook:** stage the current document, its complete lane-receipt file and the regenerated catalog together. `verifiedSha256` binds the receipt to the current document bytes; `verifiedCommit` names the existing ancestor checkout/evidence base the review used. `check:doc-catalog` requires the exact current document + receipt pair to coexist in the candidate Git index (which equals HEAD when no changes are staged; legacy receipts whose document bytes live at `verifiedCommit` remain valid), so staging only one side is RED. Bump `updated:` and run scoped `pnpm check:docs` in the floor.
 13. **Then §6's floor, then the LIVE run.**
 
 ### 9.1 Proof idioms that are now standard

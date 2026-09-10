@@ -16,11 +16,13 @@ only when a rule's edge case is genuinely unclear.
   (theme.css + tokens/index.ts are GENERATED; a dead token is a build error).
 - **The gate battery is `pnpm check`**; the commit hook runs it, NOT `pnpm test`. A change can be
   gate-green and still fail `pnpm test`. After editing any gate or token file, run `check-gates.int`.
-- **Lane verification is SCOPED (owner ruling 2026-07-25): whole-tree `pnpm check`, `structure:full` and
-  the full `pnpm test` battery are BANNED in a lane.** DONE bar = exactly the test files you touched
+- **Lane iteration is SCOPED.** The explicit inner loop is exactly the test files you touched
   (`pnpm test:scoped <paths>`, `pnpm test:ct <paths>` — niced scripts, never raw `npx`; pass NO worker
   flag, the SHIPPED defaults ARE the shared-host caps since #1835, from `tooling/concurrency-profile.json`)
-  + scoped typecheck + biome/eslint on your files. The orchestrator runs the big gates once.
+  + scoped typecheck + biome/eslint on your files. Commit normally in your assigned worktree or clone;
+  its configured hooks may run required whole-project checks. Do not manually duplicate a full battery
+  solely to commit. Hook bypass requires a specific user- or coordinator-authorized exception with the
+  reason and executed/owed checks recorded; the orchestrator owns integrated graduation.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure**, and
   invoke the SCRIPTS (a bare `npx vitest run` drops the json reporter). Which artifact each run writes,
   and why the paths are `latest` POINTERS rather than files written in place: constitution §4.
@@ -89,18 +91,19 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
   report; `git status --short` EMPTY before READY.
 - **ONE COMMIT per lane (owner law)**, message TERSE and drafted in seconds; receipts and narrative go in
   the final report, never the commit message.
-- Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` before the subcommand), then
-  re-run the scoped gates by hand.
-- **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
-  `pnpm check:structure` (test-file rules are invisible to source-scoped tools) PLUS `pnpm knip`
-  (last-importer removals) PLUS `pnpm depcruise` when you added/moved a FILE or changed an import path
-  PLUS `pnpm typecheck --config <path>` for every affected native program selected by the shared compiler
-  reader. `pnpm typecheck` with no configs discovers and runs the complete runnable program set.
+- Merge main into your lane normally through the configured hooks and commit conflict resolution without
+  bypass by default. A specifically authorized bypass follows constitution §L's reason-and-checks record.
+- **Explicit lane floor:** your suites + scoped tsc + biome/eslint + the affected gates that accept a
+  scoped subject + `pnpm typecheck --config <path>` for every affected native program selected by the
+  shared compiler reader. The configured commit hook owns the whole-project `check:structure`, knip and
+  dependency-cruise passes; read that hook result, but do not manually duplicate those passes solely to
+  commit. A file move, import-path change or last-importer removal still names that coupled risk in the
+  report. `pnpm typecheck` with no configs discovers and runs the complete runnable program set.
 - **The typecheck door is ONE command** — `pnpm typecheck [--config <repo-relative-tsconfig>]...`.
   Repeated configs select native programs; the verifier's `types:native` stage forwards the complete
   affected-program selection. `.test-d.ts` assertions remain the separate `types:testd` stage.
-- **Your floor NAMES its playwright CT files by path** — `check:structure` never executes one and a lane
-  is banned from the whole battery, so a CT nobody named is a CT nobody ran. **The verify tier ladder is
+- **Your floor NAMES its playwright CT files by path** — `check:structure` never executes one, so a CT
+  nobody named is a CT nobody ran. **The verify tier ladder is
   DATA, never prose — read it from `pnpm verify --list`**; the two facts not in that listing: `pnpm check`
   is the static tier (no runtime tests, but it DOES run `types:testd`), and `--push` takes ~16-17 min so
   BACKGROUND it.

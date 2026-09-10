@@ -6,6 +6,7 @@ export type {
   CatalogMode,
   DebtPaths,
   Doc,
+  EvidenceSources,
   FormatMode,
   Frontmatter,
   Lane,
@@ -21,9 +22,16 @@ export { CATALOG_MODES, FORMAT_MODES } from "./contract/types.ts";
 export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
 export { countLines, frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export { catalogReceipt, validateReceiptEntry } from "./lib/receipt-rules.ts";
-export { authoredArtifacts, offCanonicalPaths, unformattedArtifacts } from "./ops/catalog.ts";
+export {
+  authoredArtifacts,
+  candidateTouchesCatalog,
+  catalogIndexIsStale,
+  catalogSourcesMatchIndex,
+  offCanonicalPaths,
+  unformattedArtifacts,
+} from "./ops/catalog.ts";
 export type { FormatOutcome } from "./ops/format.ts";
 export { formatDocs, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
-export { documents, laneAssignments, loadReceipts } from "./ops/tree.ts";
+export { __receiptFactsForTest, documents, laneAssignments, loadReceipts } from "./ops/tree.ts";
 export { validate } from "./ops/validate.ts";

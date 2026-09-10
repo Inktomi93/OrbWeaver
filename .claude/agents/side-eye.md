@@ -102,8 +102,8 @@ They are not files to fetch. Then, before the first probe:
 4. **Run every probe into a log and `Read` the log** — `pnpm snap … > "$SCRATCHPAD/side-eye-<surface>-<arm>.log"
    2>&1; echo "EXIT=$?"`, then `Read` it whole (page with offset), or pull the structured lines
    (`grep -nE '^(RESULT|ASSERT|FINDING|CONTRAST|POPULATION|ARG ERROR|NAV)' <log>`). The Bash tool truncates
-   long output and the tool-guard rewrites `| head`/`| tail` into a redirect anyway; a reviewer who reads the
-   first screen of a snap run has read the boot console, not the verdict. The verdict is the END CARD:
+   long output; a reviewer who reads the first screen of a snap run has read the boot console, not the
+   verdict. The verdict is the END CARD:
    `RESULT …` (every axis), `RUN …`, the `FINDING` rows (each with `evidence=` and an exact `next=` reader
    command), `EVIDENCE <run.json>`.
 5. **Triage the exit code before the content**: `0` clean · `1` red — read the findings · `2` REFUSAL — the

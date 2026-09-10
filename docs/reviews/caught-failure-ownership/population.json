@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 588,
-    "enforced": 583,
+    "sites": 589,
+    "enforced": 584,
     "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 567,
+      "deliberate-absorb": 568,
       "detached-owned": 5,
       "unproven": 16
     },
     "byGrammar": {
       "promise": 143,
-      "default": 160,
+      "default": 161,
       "empty": 285
     }
   },
@@ -4986,7 +4986,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::1",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 70,
+      "line": 76,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4999,15 +4999,28 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::2",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 79,
+      "line": 94,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 2,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "same optional-read contract as gitResult above — only called when verifiedCommitExists is already true, and a failed `git show` just means the blob hash comes back null (unverified), not that the build aborts. Ends if a caller starts treating null as \"verified\".",
-      "markerLine": 76
+      "reason": "same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as \"verified\".",
+      "markerLine": 87
+    },
+    {
+      "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::3",
+      "path": "tooling/src/doc-catalog/ops/tree.ts",
+      "line": 143,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.",
+      "markerLine": 130
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::1",

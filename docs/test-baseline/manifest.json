@@ -2104,6 +2104,7 @@
     "tests/tooling/doc-catalog/cli.int.test.ts",
     "tests/tooling/doc-catalog/index.test.ts",
     "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
+    "tests/tooling/doc-catalog/ops/tree.int.test.ts",
     "tests/tooling/eslint-launcher.test.ts",
     "tests/tooling/eslint-tests-coverage.int.test.ts",
     "tests/tooling/gate-conformance.repo.int.test.ts",

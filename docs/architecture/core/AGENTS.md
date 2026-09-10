@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-10
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -21,7 +21,12 @@ updated: 2026-09-06
 3. **Imports flow ONE direction (§2).** A change that needs an upward import is automatically WRONG — re-home it, never force it.
 4. **A green `pnpm check` proves STRUCTURE, not LOGIC** (assertion-free / lying tests still pass it). Never read green as "the logic is sound."
 5. **You have no standing to shortcut.** When the right path is tedious: do it RIGHT, or STOP and flag. Stub / simplify-away / weaken-a-test / swallow-an-error / sideways-import are the banned reflexes — the instant you reach for one is the moment this file exists to stop you.
-6. **Green-to-commit:** `pnpm check` AND `pnpm test` BOTH pass before any commit; commit on `main`; end the message with the `Co-Authored-By` trailer.
+6. **Commit through the hooks:** commit normally in your assigned worktree or clone; the configured
+   pre-commit hook may run the required whole-project checks, and pre-push owns `pnpm verify --push`.
+   Keep explicit iteration checks scoped, and do not manually duplicate a full battery solely to commit.
+   Hook bypass is only for a specific user- or coordinator-authorized exception whose reason and
+   executed/owed checks are recorded. Main integration and push remain coordinator/owner scope. End the
+   message with the `Co-Authored-By` trailer.
 7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
 8. **Grep is for CODE, never for LAW.** A law doc's ruling lives in the CONTEXT around a line, not the
    line — grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT import-privileged.
@@ -131,16 +136,22 @@ is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on s
 - Phase order (frozen in `../history/Core-BUILD-PLAN.md`): kit → contracts → db → server (foundation → infra →
   domain\[leaf-first] → transport → entry) → client; chat + memory LAST, built WHOLE (D16).
 - Multi-agent dispatch in dependency tiers; **disjoint file sets** per agent (agents write only their
-  slice + its tests, never shared barrels/compose); the orchestrator integrates, verifies, commits.
+  slice + its tests, never shared barrels/compose); lanes commit their assigned slice, and the
+  orchestrator integrates and verifies the combined tree.
 - **Scope every agent prompt to its EXACT tier responsibility** — tier-collapse is precisely how neo
   patterns crept in (domains return contract types; only the entry seam mints the Principal; infra
   verifies, domain resolves, entry constructs).
-- **Green-to-commit:** `pnpm check` AND `pnpm test` must BOTH pass before any commit. Commit on `main`;
-  end the message with the `Co-Authored-By` trailer.
-- **Lane verification is SCOPED; the big gates are the ORCHESTRATOR'S (owner ruling 2026-07-25).** A
-  lane proves its work with exactly the test files it touched + a scoped typecheck + biome/eslint on its
-  files; whole-tree `pnpm check`/`structure:full`/the full battery are banned in lanes. The orchestrator
-  runs them ONCE on the quiesced tree and routes anything caught back to the still-warm lane.
+- **Commit through the hooks:** commit normally in your assigned worktree or clone; the configured
+  pre-commit hook may run required whole-project checks, and pre-push owns `pnpm verify --push`. Keep
+  explicit development checks scoped, and do not manually duplicate a full battery solely to commit.
+  Bypass only for a specific user- or coordinator-authorized exception, recording its reason and the
+  checks already executed or still owed. Main integration and push remain coordinator/owner scope. End
+  the message with the `Co-Authored-By` trailer.
+- **Lane iteration is SCOPED; integrated graduation is the ORCHESTRATOR'S.** A lane's explicit inner loop
+  names the affected tests, typecheck configs and lint inputs. Normal configured commit hooks may run
+  their required whole-project checks; do not invoke a duplicate full battery merely because a commit is
+  next. The orchestrator verifies the combined quiesced tree and routes anything caught back to the
+  still-warm lane.
 - **The harness auto-writes its artifacts — read them, never pipe or re-run to find a failure:**
   `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log` + `reports/check-structure.json`;
   `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`. Invoke the scripts (a bare
@@ -333,10 +344,12 @@ Every dispatched worktree lane obeys these or its work gets refused at the merge
 2. **Prove your own commits:** `git show --stat <sha>` in your report, and `git status --short` EMPTY
    before you report — `git commit -- <pathspec>` silently skips untracked files, and a
    cited-but-never-committed file is destroyed at worktree teardown.
-3. **Whole-tree gates are the orchestrator's.** Commit with `-c core.hooksPath=/dev/null` and run the
-   SCOPED equivalents by hand (biome/eslint/tsc on touched files + your suites + the gates your change
-   touches); in a multi-lane session the hook's whole-tree check is a load bomb and a timeout trap.
-4. **Merging main into your branch:** same hook rule, then run the scoped gates on the merged tree.
+3. **Commit normally in your assigned worktree or clone.** Keep explicit iteration checks scoped; the
+   configured commit hook may run its required whole-project checks. Do not manually duplicate a full
+   battery solely to commit. Bypass the hook only for a specific user- or coordinator-authorized
+   exception, and record the reason plus the checks executed or still owed.
+4. **Merging main into your branch:** merge normally through the configured hooks and commit any
+   conflict resolution without bypass by default; main integration remains the orchestrator's operation.
 5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook — run
    `pnpm worktree:bootstrap` (install + the agent-memory link) or every gate lies and the lane boots
    with an empty memory index.

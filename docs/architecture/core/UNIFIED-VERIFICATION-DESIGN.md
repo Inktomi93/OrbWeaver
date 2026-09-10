@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # Unified Verification Design
@@ -356,8 +356,9 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
   QUIET box for a stage that was still working, which under the exit contract means the run is not a
   verdict. The CT suite is `browser:ct` again, with a ceiling DERIVED from `tooling/concurrency-profile.json`
-  (§3.7b). `pnpm test` still COMPOSES both halves — that is the green-to-commit ritual and it is unchanged
-  (it is the manual `tests:product-composite` row here, so no tier runs it and nothing double-runs).
+  (§3.7b). `pnpm test` still COMPOSES both halves as the explicit product-test command and the manual
+  `tests:product-composite` registry row; it is not a separate commit ritual, so no tier runs it and
+  nothing double-runs.
   Scoped execution uses Vitest's configured projects without a copied project roster. Git-derived changes
   use native `--changed`; explicit test paths pass native collection preflight; explicit source or mixed
   inputs use native `related`. Folder inputs expand to current authored files from Git's tracked and

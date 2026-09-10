@@ -48,13 +48,13 @@ mid-run and act on them.
 - **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT** (~60s: `git log --oneline -5 -- <the row's primary path>`
   + Read the cited file:line + `git log --all --grep="<key noun>"`). A row claiming work is UNBUILT owes
   the same tree receipt as one claiming it is done.
-- **Value-changing briefs name the RIGHT type program in the floor, never a bare `pnpm typecheck`** — the
-  three-program truth table is in `lane-standing-facts.md`. Your own half: run
-  `node scripts/ts7.cjs --noEmit -p tsconfig.json` (~15s) after EVERY value-changing merge.
+- **Value-changing briefs name the behavioral suites that assert the changed literal.** Type coverage
+  uses the unified native executor: scoped verification supplies every affected program as repeated
+  `--config` arguments; after every value-changing merge run `pnpm typecheck`, which discovers and checks
+  every runnable program.
 - **Identify a lane by CONTENT ANCHOR + the dispatch map, never by role name.** Briefs tell lanes to state
   their LANE NAME in every back-channel message; you keep a lane-name→agentId map at dispatch time and
   ALWAYS reply by agentId — with N same-role lanes live, the role name is not an address.
-- **Briefs owe the wrapper-hygiene line** (the Bash guard classifies UNTRACKED script bodies).
 - **A pipeline's exit code is the LAST stage's** — `$?` after `<cmd> | tail` is tail's, so a red run reads
   green. Redirect to a log and read it; never judge a run through a pipe.
 - **`gh` executes backticks inside `--body`** — every board/issue write uses `--body-file`, never `--body`.
@@ -160,9 +160,13 @@ it into the linked Project issue — no lane touches `work:item`.
   into load spikes that flake gates and starve the foreground. This paragraph is the cap's home.
 - **A merge landed while a whole-tree check is running VOIDS that check** — its verdict describes a tree
   that no longer exists. Barrier first, merge second.
-- **Under load:** merge with `--no-verify` on branch-side green receipts and run ONE consolidated check
-  when lanes drain; track the debt on the board. Never chain board edits behind a possibly-conflicting
-  merge in one command — a conflict mid-chain bakes markers into committed files.
+- **Hook bypass is an explicit measured-load exception, never the lane default.** Lanes commit normally
+  through configured hooks in their assigned worktrees/clones. Only the user or coordinator may
+  authorize a specific bypass when measured load or coordinated integration makes the hook run
+  inappropriate; record the reason and the checks already executed or still owed, then run the owed
+  consolidated check when the merge train is quiescent. Main integration and push remain
+  coordinator/owner scope. Never chain board edits behind a possibly-conflicting merge in one command —
+  a conflict mid-chain bakes markers into committed files.
 - **The whole-tree single-pass runs after EVERY merge train, not only at drain.**
 - **A ROUTER-TOUCHING merge's floor includes `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`**
   — any merge whose diff touches `transport/trpc/routers/**` runs the sweep before the ff. **The sweep is
