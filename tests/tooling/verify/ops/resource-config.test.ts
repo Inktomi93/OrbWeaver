@@ -156,6 +156,11 @@ test("the current root package produces typed facts", ({ repoRoot }) => {
   expect(loadPackageMetadata(reader, "root").status).toBe("ready");
 });
 
+test("the current showcase package produces typed facts", ({ repoRoot }) => {
+  const reader = createResourceReader({ root: repoRoot });
+  expect(loadPackageMetadata(reader, "showcase-plugins")).toMatchObject({ status: "ready", value: { name: "@orb/showcase-plugins" } });
+});
+
 for (const id of ["eslint", "depcruise", "vitest", "playwright", "ct"] as const) {
   test(`the current ${id} config produces nonempty typed facts`, ({ repoRoot }) => {
     const reader = createResourceReader({ root: repoRoot });

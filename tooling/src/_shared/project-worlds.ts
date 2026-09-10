@@ -17,7 +17,7 @@ export function isWorldHelperPath(rel: string): boolean {
 /** Package directory name → the world its `src` is written for. INTENT: kit/contracts are isomorphic (no node,
  *  no dom), db/server/showcase-plugins run under node, ui/client run in the browser. A package absent here has
  *  no world, and `worldOf` says so rather than guessing. */
-export const PACKAGE_WORLDS: Readonly<Record<string, World>> = Object.freeze({
+const PACKAGE_WORLD_DEFINITIONS = {
   kit: "iso",
   contracts: "iso",
   db: "node",
@@ -25,7 +25,17 @@ export const PACKAGE_WORLDS: Readonly<Record<string, World>> = Object.freeze({
   "showcase-plugins": "node",
   ui: "browser",
   client: "browser",
-});
+} as const satisfies Readonly<Record<string, World>>;
+
+export type PackageName = keyof typeof PACKAGE_WORLD_DEFINITIONS;
+export const PACKAGE_WORLDS: Readonly<Record<PackageName, World>> = Object.freeze(PACKAGE_WORLD_DEFINITIONS);
+
+/** Canonical generic workspace membership projected from world intent. */
+export const PACKAGE_NAMES: readonly PackageName[] = Object.freeze(Object.keys(PACKAGE_WORLD_DEFINITIONS) as PackageName[]);
+
+export function packageWorld(packageName: string): World | undefined {
+  return Object.hasOwn(PACKAGE_WORLDS, packageName) ? PACKAGE_WORLDS[packageName as PackageName] : undefined;
+}
 
 /** The packages whose src is browser-world — derived from PACKAGE_WORLDS, never spelled twice. */
 export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(
@@ -70,7 +80,7 @@ export function worldOf(rel: string): World | undefined {
   }
   const pkg = PKG_SRC_RE.exec(rel)?.[1];
   if (pkg !== undefined) {
-    return PACKAGE_WORLDS[pkg];
+    return packageWorld(pkg);
   }
   if (rel.startsWith("tooling/src/")) {
     return "node";
@@ -91,7 +101,7 @@ export function worldOf(rel: string): World | undefined {
     return;
   }
   const toolPackage = PKG_TOOL_RE.exec(rel)?.[1];
-  return !rel.includes("/") || (toolPackage !== undefined && PACKAGE_WORLDS[toolPackage] !== undefined) ? "node" : undefined;
+  return !rel.includes("/") || (toolPackage !== undefined && packageWorld(toolPackage) !== undefined) ? "node" : undefined;
 }
 
 /** Required primary compiler owner; package source may also participate in consumer programs. */
@@ -108,7 +118,7 @@ export function predictedProgram(rel: string): string | undefined {
     return "tooling/tsconfig.json";
   }
   const toolPackage = PKG_TOOL_RE.exec(rel)?.[1];
-  if (toolPackage !== undefined && PACKAGE_WORLDS[toolPackage] === "node") {
+  if (toolPackage !== undefined && packageWorld(toolPackage) === "node") {
     return `packages/${toolPackage}/tsconfig.json`;
   }
   return TEST_WORLD_PROGRAMS[world];

@@ -1,6 +1,6 @@
 // Authored TypeScript program intent. Native config expansion remains an independent observation.
 import type { World } from "./project-worlds.ts";
-import { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "./project-worlds.ts";
+import { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS, PACKAGE_WORLDS, packageWorld, TEST_WORLD_PROGRAMS } from "./project-worlds.ts";
 import { TEST_KIND_DEFINITIONS } from "./test-kinds.ts";
 
 export const TYPE_WORLD_TEMPLATE_PATHS = {
@@ -38,7 +38,7 @@ const PACKAGE_CONFIG_RE = /^packages\/([^/]+)\/tsconfig\.json$/u;
 export function programWorldOf(config: string): World | undefined {
   const packageName = PACKAGE_CONFIG_RE.exec(config)?.[1];
   if (packageName !== undefined) {
-    return PACKAGE_WORLDS[packageName];
+    return packageWorld(packageName);
   }
   if (config === "tooling/tsconfig.json") {
     return "node";

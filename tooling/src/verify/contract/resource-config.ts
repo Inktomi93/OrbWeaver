@@ -1,15 +1,16 @@
 import type { SourceFile } from "ts-morph";
+import type { PackageName } from "../../_shared/project-worlds.ts";
+import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
 
-export const PACKAGE_RESOURCE_PATHS = {
+const WORKSPACE_PACKAGE_RESOURCE_PATHS = Object.fromEntries(
+  PACKAGE_NAMES.map((packageName) => [packageName, `packages/${packageName}/package.json`] as const),
+) as unknown as Readonly<Record<PackageName, `packages/${PackageName}/package.json`>>;
+
+export const PACKAGE_RESOURCE_PATHS = Object.freeze({
   root: "package.json",
-  client: "packages/client/package.json",
-  contracts: "packages/contracts/package.json",
-  db: "packages/db/package.json",
-  kit: "packages/kit/package.json",
-  server: "packages/server/package.json",
-  ui: "packages/ui/package.json",
+  ...WORKSPACE_PACKAGE_RESOURCE_PATHS,
   tooling: "tooling/package.json",
-} as const;
+} as const);
 
 export type PackageResourceId = keyof typeof PACKAGE_RESOURCE_PATHS;
 

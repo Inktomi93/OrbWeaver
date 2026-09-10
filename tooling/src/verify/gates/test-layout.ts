@@ -3,12 +3,13 @@
 // packages/<pkg>/src/<path>.<ext>. Exempts support/e2e mirrors; native .spec.ts belongs only in e2e.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
 import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
 import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
 
-const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui", "showcase-plugins"]);
+const PKGS: ReadonlySet<string> = new Set(PACKAGE_NAMES);
 
 function relPath(base: string, abs: string): string {
   return abs.startsWith(base) ? abs.slice(base.length + 1) : abs;
@@ -64,7 +65,7 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
     return {
       file: `tests/${rel}`,
       line: 0,
-      message: "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
+      message: `test outside a package mirror — expected tests/{${PACKAGE_NAMES.join(",")}}/… or tests/{support,e2e,tooling}/`,
     };
   }
   // (A `.parity.test.ts` KIND sat here until 2026-08-22 — the neo differential oracle, mirror-exempt because
@@ -183,6 +184,11 @@ export const gate: GateDescriptor = {
       why: "a test with no packages/server/src/domain/orphan.ts source — a mirror miss (§5)",
     },
     {
+      files: { "tests/fresh/index.test.ts": "export const x = 1;\n" },
+      expect: { messageIncludes: `expected tests/{${PACKAGE_NAMES.join(",")}}/… or tests/{support,e2e,tooling}/` },
+      why: "an unknown package test cannot become owned merely because it sits under tests/",
+    },
+    {
       files: {
         "packages/server/src/domain/journey.ts": "export const s = 1;\n",
         "tests/server/domain/journey.spec.ts": "export const x = 1;\n",
@@ -233,6 +239,13 @@ export const gate: GateDescriptor = {
         "tests/server/domain/real.test.ts": "export const x = 1;\n",
       },
       why: "a test whose path prefix-swaps to a real source module — a valid mirror, passes",
+    },
+    {
+      files: {
+        "packages/showcase-plugins/src/index.ts": "export const s = 1;\n",
+        "tests/showcase-plugins/index.test.ts": "export const x = 1;\n",
+      },
+      why: "the standalone showcase workspace still participates in generic source-test mirroring",
     },
     {
       files: {
