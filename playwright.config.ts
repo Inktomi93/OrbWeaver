@@ -68,7 +68,6 @@ const webServers = MODE_PROJECTS.map((mode) => ({
 
 export default defineConfig({
   testDir: "tests/e2e",
-  testMatch: "**/*.spec.ts",
   // Seed KNOWN DB state over each booted stack's tRPC API before the first spec, then WARM each stack's
   // client in a real browser (support/global-setup.ts — iterates the mode projects, seeds + warms each by
   // its origin). Runs AFTER the webServers are up.
