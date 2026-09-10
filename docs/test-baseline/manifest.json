@@ -2111,6 +2111,7 @@
     "tests/tooling/gate-spelling-twins.int.test.ts",
     "tests/tooling/issue-form-guidance-integrity.test.ts",
     "tests/tooling/jscpd-config.test.ts",
+    "tests/tooling/knip-workspace-policy.int.test.ts",
     "tests/tooling/load-budget.int.test.ts",
     "tests/tooling/model-ab/ops/probe.int.test.ts",
     "tests/tooling/model-ab/ops/run.int.test.ts",

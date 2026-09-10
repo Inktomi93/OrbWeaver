@@ -14,7 +14,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const CONFIG_REL = "eslint.config.js";
 const GATE_SELF = "tooling/src/verify/gates/eslint-grant-liveness.ts";
 const LIVE_SOURCE = "export const live = 1;\n";
-const RATIFIED = '"**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**"';
+const RATIFIED = '"**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"';
 
 interface Run {
   readonly findings: readonly Finding[];
@@ -106,10 +106,10 @@ describe("eslint-grant-liveness native populations", () => {
     expect(messages(runGate(scratch))).toContain("could not be evaluated");
   });
 
-  test("the real config has only the four ratified zero populations", ({ repoRoot }) => {
+  test("the real config has only the five ratified zero populations", ({ repoRoot }) => {
     const run = runGate(repoRoot);
     expect(run.findings).toEqual([]);
-    expect(run.declarations[0]).toMatchObject({ unit: "ESLint selector", admitted: 4, admittedRatified: 4 });
+    expect(run.declarations[0]).toMatchObject({ unit: "ESLint selector", admitted: 5, admittedRatified: 5 });
     expect(run.declarations[0]?.candidates).toBeGreaterThan(90);
   }, 20_000);
 
@@ -120,6 +120,16 @@ describe("eslint-grant-liveness native populations", () => {
     });
     const result = runGate(scratch);
     expect(tokens(result)).toContain("config[0].ignores[4]");
+    expect(messages(result)).toContain("no longer names the same zero-member selector");
+  });
+
+  test("the cache allowance cannot survive removal of its native ignore selector", ({ scratch }) => {
+    plantRepo(scratch, {
+      [CONFIG_REL]: config('{ files: ["packages/ui/src/live.ts"] }').replace(', ".cache/**"', ""),
+      "packages/ui/src/live.ts": LIVE_SOURCE,
+    });
+    const result = runGate(scratch);
+    expect(tokens(result)).toContain("config[0].ignores[5]");
     expect(messages(result)).toContain("no longer names the same zero-member selector");
   });
 });
