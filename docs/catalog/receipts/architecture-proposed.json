@@ -4356,8 +4356,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2bf0a08f5a032d6a2a7c8ec16e32fd5683b57c8712740071dcb20dbb8b2d5cc2",
-      "verifiedCommit": "c92370a92c53d17618f47ef9eeff0b918af437f1",
+      "verifiedSha256": "58694f270c4a0d6fe885c6eb6cc1334206be4f4821c81714f58c6375bd7fe1a0",
+      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
       "verifiedAt": "2026-09-10",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -4373,7 +4373,8 @@
         "tsconfig.json / tsconfig.tests-dom.json / all 6 package tsconfigs + tooling/tsconfig.json (read in full; 26+25 per-file test entries, 4-of-9 program coverage in tests-type-membership.ts)",
         "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
         "pnpm check:docs (2026-09-04: 2 file(s) formatted)",
-        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance."
+        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
       ],
       "summary": "Active world/test/config program: shared intent and native observations, pure source contracts, canonical test kinds, native config adapters and worktree-aware typecheck routing; ordered remaining ownership/config acceptance stays explicit.",
       "claims": [

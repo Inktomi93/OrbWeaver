@@ -57,9 +57,9 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "8124e7495718ea7020da9b34ef3546d629f68bfc80025e8e28982feba35c54de",
-      "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "8687f3ff896eb1fc919c1104a170f38ccd5801cac8cd95ab62342e2f9dd16a07",
+      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+      "verifiedAt": "2026-09-10",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -76,7 +76,8 @@
         "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
         "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
         "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors).",
-        "docs/design/1208-instrument-substrate.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
+        "docs/design/1208-instrument-substrate.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts.",
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
       ],
       "claims": [
         {
@@ -214,13 +215,14 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "7e66d0b528fb6a4e6ec570e0909a88c94157a9d89ebf840db8cf72ad41d60a87",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "2fb55faed79ff7fd3ff8ebd6b0c3379e743126180b5e7e17751c7b5e242d7224",
+      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+      "verifiedAt": "2026-09-10",
       "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
       "evidence": [
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
-        "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
+        "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits",
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
       ],
       "claims": [
         {
@@ -699,12 +701,13 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "7056829ea6b25de0215d8c9f8fbda84da057e2946faa1e548797ff4f4e84b59f",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "9991376e9163957d282ed7b319f950bc03812e9f592d972ea6e7e5c32ca9ad75",
+      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+      "verifiedAt": "2026-09-10",
       "evidence": [
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
-        "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)"
+        "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)",
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
       ],
       "claims": [
         {
