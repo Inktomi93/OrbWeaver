@@ -21,6 +21,7 @@
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
+//   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
@@ -36,6 +37,7 @@ import {
   runConfigSnapshot,
   runDbBaselineParity,
   runDebtWalk,
+  runEslint,
   runGateContract,
   runLedgersFresh,
   runNewGate,
@@ -96,6 +98,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
+  eslint: "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes.",
 };
 
 function isVerb(candidate: string): candidate is VerifyVerb {
@@ -155,6 +158,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runTypecheckPlan(root, rest);
     case "typecheck":
       return await runTypecheck(root, rest);
+    case "eslint":
+      return await runEslint(root);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }

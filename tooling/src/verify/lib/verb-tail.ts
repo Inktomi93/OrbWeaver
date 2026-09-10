@@ -47,6 +47,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "config-snapshot": "own",
   "typecheck-plan": "own",
   typecheck: "own",
+  eslint: "none",
 };
 
 /** Refuse a tail on a verb that takes none — called by the front door AFTER the `--help` answer (a help

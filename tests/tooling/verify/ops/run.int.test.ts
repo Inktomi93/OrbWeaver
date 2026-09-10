@@ -644,9 +644,8 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived. #473
   // closed the same hole over the REST of the test tree; this pin is what stops either half regressing.
   const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
-  // The argv head is `node scripts/eslint.cjs`, not the bare bin (#1835): that shim is the ONE place
-  // ESLint's `--concurrency` comes from, and the whole-scope row reaches it through `pnpm lint:eslint`.
-  // Pinned here so a "simplification" back to the bin cannot silently leave the scoped lane single-threaded.
+  // Scoped files use the native adapter directly. Whole lint enters the verify ESLint operation, which
+  // partitions by compiler owner and invokes the same adapter once per sequential child.
   expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
     "node",
     "scripts/eslint.cjs",
@@ -679,7 +678,7 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
-  expect(eslintPkg.scripts["lint:eslint"]).toContain("scripts/eslint.cjs . --max-warnings 0");
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src/verify/cli.ts eslint");
 });
 
 test("lint:eslint reaches root and package-root Node tools through shared world intent", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
@@ -689,7 +688,7 @@ test("lint:eslint reaches root and package-root Node tools through shared world 
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
-  expect(eslintPkg.scripts["lint:eslint"]).toContain("scripts/eslint.cjs . --max-warnings 0");
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src/verify/cli.ts eslint");
 });
 
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
