@@ -129,7 +129,7 @@ function decideFree(t: TickInput): TickAction {
   // adopt-only (a passive consumer: snap/e2e/alt) NEVER spawns — a down engine fails fast with the remedy,
   // no implicit 3-min cold boot. adopt-or-start (the manager) spawns/takes over.
   if (!t.manages) {
-    return { kind: "mark", status: "down", detail: "engines down — `pnpm engines:start` (adopt-only: this stack never spawns)" };
+    return { kind: "mark", status: "down", detail: "engines down — `pnpm engines start` (adopt-only: this stack never spawns)" };
   }
   if (t.stackMode && !t.seenHealthy && !t.laterEngineHealthy && t.now - t.bootAt < STACK_BOOT_GRACE_MS) {
     return { kind: "mark", status: "stack-pending", detail: "waiting for the fleet spawner" };
@@ -631,7 +631,7 @@ export function startVllmEngines(opts: {
   monitor.unref();
 
   // OWNERSHIP INVERSION: the drain closer no longer kills engines — the detached fleet is nobody's child and
-  // deliberately SURVIVES the server's death (warm for the next orb; `pnpm engines:stop` is the only kill).
+  // deliberately SURVIVES the server's death (warm for the next orb; `pnpm engines stop` is the only kill).
   // Draining just stops the reconcile loop + deregisters the controller.
   return () => {
     stopped = true;

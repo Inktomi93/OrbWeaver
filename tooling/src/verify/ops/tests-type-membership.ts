@@ -15,7 +15,7 @@ import { MEMBERSHIP_ENFORCEMENT, MEMBERSHIP_OUTCOMES } from "../contract/tests-t
 import { readAvailablePolicyPrograms } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check:tests-membership");
+refuseDirectInvocation(import.meta.url, "pnpm check:type-ownership");
 
 // The shared compiler graph includes declaration projects and reference-only solutions; abstract templates
 // are excluded by discovery. Native `--listFilesOnly` independently supplies each import closure.

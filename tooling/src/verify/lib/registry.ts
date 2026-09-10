@@ -70,14 +70,13 @@ const GATING_STAGES: readonly StageDef[] = [
     // DOM-less/DOM-having split #1313 gave the `.test-d.ts` lane) — whole-only, deferred at a scoped tier.
   },
   {
-    name: "types:tests-membership",
+    name: "types:ownership",
     group: "types",
     tiers: STATIC,
-    argv: ["pnpm", "check:tests-membership"],
-    // Our OWN 0/1/2/3-speaking tsx script (tooling/src/verify/ops/tests-type-membership.ts): reconciles every
-    // tests/** + playwright/** TS file against the union of every type program's import closure and REDs
-    // (exit 1) on any file in ZERO programs — the structural floor that makes "silently un-type-checked
-    // test" impossible. `--listFilesOnly` = module resolution only, so it stays cheap.
+    argv: ["pnpm", "check:type-ownership"],
+    // Our OWN 0/1/2/3-speaking TypeScript command (tooling/src/verify/ops/tests-type-membership.ts):
+    // reconciles every authored TS root, explicit ambient, and imported closure against its declared
+    // compiler owner, and REDs when ownership is absent, conflicting, or crosses a ruled world boundary.
     classify: ownScheme,
     // A WHOLE-TREE invariant (it reconciles the entire test surface against every program) — whole-only,
     // deferred at a scoped tier, like the other cross-file registry/parity reconciliations.
@@ -332,7 +331,7 @@ const GATING_STAGES: readonly StageDef[] = [
     // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
     // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
     // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
-    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "ct:scoped", ...sel.ct.targets]),
+    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "test:ct", ...sel.ct.targets]),
   },
   {
     name: "browser:e2e-smoke",

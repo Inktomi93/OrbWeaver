@@ -378,7 +378,7 @@ const envSchema = z
     // (argv-affecting, restart-to-apply). Verbose — leave off except when diagnosing a prompt/tool-parse gap.
     VLLM_DEBUG_REQUESTS: envBool(false),
     // `--shutdown-timeout N` — a graceful in-flight drain window (seconds) on engine shutdown. 0 (default) =
-    // today's immediate abort; a positive value lets `engines:stop` drain first. LAUNCH-tier.
+    // today's immediate abort; a positive value lets `engines stop` drain first. LAUNCH-tier.
     VLLM_SHUTDOWN_TIMEOUT_S: z.coerce.number().int().nonnegative().default(0),
     // The ONE engine topology knob (A.4), replacing the VLLM_DISABLED/STACK_ENGINES combo folklore:
     //   off            — backend not registered, no supervisor (GPU-less / cloud-only box).

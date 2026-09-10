@@ -77,7 +77,7 @@ describe("decideWake — hold marker gate BEFORE the budget", () => {
     const decision = refused(decideWake("gen", { held: true, gpuCount: 2, util: UTIL, gpus: freeGpus(48) }));
     expect(decision.heldMarker).toBe(true);
     expect(decision.reason).toContain("engines held");
-    expect(decision.reason).toContain("pnpm engines:wake");
+    expect(decision.reason).toContain("pnpm engines wake");
   });
 
   test("not held + headroom → ok", () => {

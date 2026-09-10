@@ -43,7 +43,7 @@ Final message: outcome first (what now works, verified how — the command + rea
 
 ## CT + type-layer gotchas (accreted 2026-08-03 night — each cost a lane an iteration)
 - **CT caches lie**, but `pnpm test:ct` is a WHOLE-TREE run — in a lane that is a load bomb and collides
-  with the whole-tree ban. **In a lane the ONE spelling is `pnpm ct:scoped <paths> --workers=2`**: it
+  with the whole-tree ban. **In a lane the ONE spelling is `pnpm test:ct <paths> --workers=2`**: it
   carries the cache-clear AND the nice-19 priority floor that protects the co-hosted homelab. A raw
   `npx playwright test` bypasses that floor, and with no cache clear it can report errors that stopped
   existing ("Identifier already declared"). `pnpm test:ct` is the ORCHESTRATOR's instrument on a

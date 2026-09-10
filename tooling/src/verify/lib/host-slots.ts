@@ -33,7 +33,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm ct:scoped <paths…>)");
+refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm test:ct <paths…>)");
 
 /** The env var naming the per-USER runtime directory. ONE spelling, so the bash pool in
  *  `.claude/hooks/biome-check.sh` and this one demonstrably share a root. */

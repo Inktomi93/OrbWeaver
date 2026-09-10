@@ -4,7 +4,7 @@
 // THE DEFECT. Every tooling child is spawned `detached` and reaped by its PROCESS GROUP — which is correct
 // for `pnpm → node → tool`, and blind to anything that leaves the group. Playwright starts each browser in
 // its OWN session, and vite/esbuild service processes do the same, so a stage killed at its timeout (or a
-// lane's `ct:scoped` interrupted, or a snap killed mid-drive) leaves the browsers running with their parent
+// lane's `test:ct` interrupted, or a snap killed mid-drive) leaves the browsers running with their parent
 // reaped: 72 `chrome-headless-shell` processes, some 40 h old and re-parented to the chrome roots
 // themselves, were alive on this box on 2026-09-06 and had to be killed by hand — plus a stale CT vite
 // server still holding :3100, which is why the next run printed "Port 3100 is in use, trying another one".
@@ -110,7 +110,7 @@ export function runMarkerArg(marker: string): string {
   return `${RUN_MARKER_ARG_PREFIX}${marker}`;
 }
 
-/** The marker THIS process carries, or null. A nested launcher (a `ct:scoped` inside a verify stage) must
+/** The marker THIS process carries, or null. A nested launcher (a `test:ct` inside a verify stage) must
  *  REUSE its parent's marker rather than mint a second one: overwriting it would orphan every browser from
  *  the outer run's sweep, which is the hole this whole module exists to close. */
 export function inheritedRunMarker(read: (key: string) => string | undefined = processEnvValue): string | null {
@@ -201,7 +201,7 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
 }
 
 /** This process and every ancestor of it — the set a sweep must never signal. A verify runner spawning a
- *  marked stage is itself unmarked, but a NESTED launcher (ct:scoped inside `pnpm test`) inherited the
+ *  marked stage is itself unmarked, but a NESTED launcher (test:ct inside `pnpm test`) inherited the
  *  marker and would otherwise sweep itself and its own parents mid-run. */
 function selfAndAncestors(selfPid: number, parentOf: (pid: number) => number | null): ReadonlySet<number> {
   const chain = new Set<number>();

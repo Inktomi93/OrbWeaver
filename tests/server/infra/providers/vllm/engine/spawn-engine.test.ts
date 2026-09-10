@@ -84,7 +84,7 @@ describe("resolveEngineDeploymentFacts", () => {
 // live ports and its pidfile reconciler reaps every engine it does not own), so the spawn SPEC is the proof
 // surface. The marker has to be in the spawn env specifically — exported before the exec, where nothing can
 // edit it — because `/proc/<pid>/environ` of a SURVIVING member is the only evidence that outlives the
-// leader, and it is what authorizes the negative-PGID kill `engines:stop` otherwise refuses to send.
+// leader, and it is what authorizes the negative-PGID kill `engines stop` otherwise refuses to send.
 describe("buildEngineSpawnSpec — the per-launch marker (#1756)", () => {
   test("every engine's spawn env carries the launch marker under the ONE contract name", () => {
     for (const engine of ["embed", "gen"] as const) {

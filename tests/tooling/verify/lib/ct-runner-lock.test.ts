@@ -1,4 +1,4 @@
-// THE LYING-TOOL PIN for two `pnpm ct:scoped` runners in ONE worktree (#1581).
+// THE LYING-TOOL PIN for two `pnpm test:ct` runners in ONE worktree (#1581).
 //
 // THE DEFECT, measured 2026-09-04: the ct arm cleared and rebuilt ONE shared dir (`playwright/.cache`) per
 // worktree, so a second runner's clear+rebuild landed under the first's live vite server and the FIRST run
@@ -169,7 +169,7 @@ test("a MALFORMED lockfile is debris, not a holder (#1581)", () => {
 // can answer is that the CT door composes the two in the right ORDER and frees both.
 
 /** A scratch per-user runtime dir, so a test never touches the REAL /run/user/<uid> CT pool — a planted
- *  holder there would block an operator's live `pnpm ct:scoped`. */
+ *  holder there would block an operator's live `pnpm test:ct`. */
 function scratchRuntime(): NodeJS.ProcessEnv {
   return { [HOST_POOL_ROOT_ENV]: mkdtempSync(join(tmpdir(), "orb-ct-host-")) };
 }

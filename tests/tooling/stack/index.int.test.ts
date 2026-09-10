@@ -341,7 +341,7 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
 
 // ── #1165: the engine boot VERDICT must match what the fleet did ────────────────────────────────────
 //
-// Measured on main 2026-09-02 ~15:20Z: `pnpm engines:start` printed `RESULT engines verb=start
+// Measured on main 2026-09-02 ~15:20Z: `pnpm engines start` printed `RESULT engines verb=start
 // status=boot-timeout` and exited 1, and all three engines answered /health within ~20s of that exit —
 // the launcher's own pidfile named them. The 300s wait was shorter than a cold three-engine boot, and
 // the exit code said "failed" about a boot that succeeded; a caller scripting on it re-bounces a healthy
@@ -817,7 +817,7 @@ test("STACK_GPU_CHECK=skip opts out LOUDLY and never claims idle (#1495)", { tim
 //
 // Four receipts in one session (2026-09-01) came from one premise: ownership was written once at spawn and
 // never reconciled against the LIVING tree, so any leader death made the pidfile lie in both directions —
-// `engines:stop` refusing to signal engines it owned, and `stack start` refusing cleanup while its
+// `engines stop` refusing to signal engines it owned, and `stack start` refusing cleanup while its
 // detached tree carried on healthy. The fix does not weaken the standing rule (a survivor with no launch
 // identity signals nothing); it gives survivors an identity to carry. These drive the REAL entry through
 // real processes: a marked group adopts, one unmarked member refuses, and a pre-marker record refuses.

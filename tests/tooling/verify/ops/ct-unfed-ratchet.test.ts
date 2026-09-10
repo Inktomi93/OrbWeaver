@@ -9,7 +9,7 @@
 //   • SHRINK — a committed row whose read is gone must RED demanding the baseline shrink, so an allowance
 //     cannot outlive the thing it admitted.
 //   • SCOPED-RUN SAFETY — the shrink arm must NOT fire for a baselined file the run never executed, or every
-//     `pnpm ct:scoped <one dir>` would red the whole ledger and the ratchet would be unusable in a lane.
+//     `pnpm test:ct <one dir>` would red the whole ledger and the ratchet would be unusable in a lane.
 //   • BLIND CENSUS — a file that ran, whose source calls `routeTrpc(`, and which produced no `ACTIVE` marker
 //     must REFUSE. Without this, killing the marker turns the ratchet into a permanent false clean — the
 //     single most common way an instrument in this repo lies.
@@ -71,7 +71,7 @@ test("SHRINK: a baselined read the file no longer makes REDS demanding the row b
 });
 
 test("SCOPED-RUN SAFETY: a baselined file the run never executed is skipped — not shrunk, not admitted", () => {
-  // The lane spelling: `pnpm ct:scoped <one dir>`. Without this arm every scoped run would red the ledger.
+  // The lane spelling: `pnpm test:ct <one dir>`. Without this arm every scoped run would red the ledger.
   const verdict = judgeUnfedReads(run([OTHER]), ADMITS_ONE, LIVE_TREE);
 
   expect(verdict).toEqual({ refusals: [], violations: [] });

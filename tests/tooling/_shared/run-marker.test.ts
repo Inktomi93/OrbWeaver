@@ -7,7 +7,7 @@
 // exactly like a browser), a real timeout, and the assertion that the grandchild is GONE. It fails against
 // the pre-#1848 proc.ts — the group kill cannot reach a process that left the group — which is what makes
 // it a defect proof rather than a description of the fix. Every unit arm above it pins a decision the
-// integration arm cannot isolate: what is EXCLUDED (this process and its ancestors — a nested `ct:scoped`
+// integration arm cannot isolate: what is EXCLUDED (this process and its ancestors — a nested `test:ct`
 // inside `pnpm test` inherits the marker and must never sweep its own parents), what escalates (TERM, a
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
 import { existsSync, readFileSync } from "node:fs";
@@ -87,7 +87,7 @@ test("a CHROMIUM is found through its cmdline, because it erases its own environ
 test("the sweep NEVER signals this process or its ancestors, whatever marker they carry", async () => {
   const marker = mintRunMarker(900, 1_700_000_000_000);
   // 900 (the runner) → 901 (pnpm) → 902 (THIS process): the whole chain carries the marker, as it does
-  // when `ct:scoped` runs inside `pnpm test`. 950 is the escaped browser; 960 belongs to a sibling lane.
+  // when `test:ct` runs inside `pnpm test`. 950 is the escaped browser; 960 belongs to a sibling lane.
   const deps = fakeTree(
     new Map([
       [900, { marker, parent: 1 }],

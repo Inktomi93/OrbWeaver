@@ -1,7 +1,7 @@
 // THE PATH PREFLIGHT for every path-filtered verification invocation — the ONE home for "did the caller
 // name something the runner will actually open?".
 //
-// WHY IT EXISTS (#1192). `pnpm ct:scoped <paths>` and `pnpm test:scoped <paths>` were BARE package.json
+// WHY IT EXISTS (#1192). `pnpm test:ct <paths>` and `pnpm test:scoped <paths>` were BARE package.json
 // rows that handed their operands straight to playwright/vitest, and BOTH runners treat an unmatched path
 // filter as "no tests over here" rather than as misuse. On 2026-09-02 a merge floor named
 // `tests/client/features/discovery/components/character-library-surface.ct.tsx` — a path that does not

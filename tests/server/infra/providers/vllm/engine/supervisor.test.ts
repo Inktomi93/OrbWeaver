@@ -258,7 +258,7 @@ describe("decideTick", () => {
       expect(action).toEqual({
         kind: "mark",
         status: "down",
-        detail: "engines down — `pnpm engines:start` (adopt-only: this stack never spawns)",
+        detail: "engines down — `pnpm engines start` (adopt-only: this stack never spawns)",
       });
     });
     test("healthy port → still adopts (adopt-only adopts, it just never spawns)", () => {
