@@ -1,3 +1,6 @@
+/**
+ * @module-tag requires-process-chdir
+ */
 // entry/import/import-report — the whole-folder import's "what landed / what didn't" accounting, rendered
 // to a file a self-host owner opens. It is the ONLY place a non-imported plane is ever reported, so every
 // silent-drop this renderer permits is data the operator never learns was left behind. The renderer's own
