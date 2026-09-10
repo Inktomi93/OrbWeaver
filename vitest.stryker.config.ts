@@ -58,7 +58,7 @@ const cfg = {
     ...base.test,
     fileParallelism: false,
     maxWorkers: 1,
-    tagsFilter: ["!requires-process-chdir && !source-freshness && !requires-git-history"],
+    tagsFilter: ["!requires-process-chdir && !source-freshness && !requires-git-history && !live && !local-model-cache"],
     projects: source.test.projects
       .filter((project) => RUNTIME_LANES.has(project.test.name ?? ""))
       .map((project) => ({

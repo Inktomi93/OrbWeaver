@@ -25,6 +25,14 @@ export const TEST_TAGS = [
     name: "requires-git-history",
     description: "A test whose callback validates current source against repository history.",
   },
+  {
+    name: "live",
+    description: "A test that calls configured live providers or model engines and may consume credits.",
+  },
+  {
+    name: "local-model-cache",
+    description: "A test that runs local-light ONNX models and may download missing weights into the model cache.",
+  },
 ] as const satisfies readonly AuthoredTagDefinition[];
 
 export type TestTag = (typeof TEST_TAGS)[number]["name"];

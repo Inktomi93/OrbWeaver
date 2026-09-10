@@ -1,3 +1,6 @@
+/**
+ * @module-tag local-model-cache
+ */
 //
 // REAL-MODEL integration test for the local-light EMBED role — downloads the default jina-clip-v2 ONNX
 // weights on first run, so it is GATED behind ORB_LOCAL_LIGHT_E2E=1 (network). Forces device "cpu" for
@@ -5,7 +8,6 @@
 // fp32 weights are multi-GB). Asserts the unified jina-clip dim (1024), exact self-similarity (the same
 // text embeds identically → cosine 1.0), discrimination (unrelated text < self), and MRL truncation.
 
-import process from "node:process";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { EmbedRequest, EmbedResult } from "@orb/server/infra/providers";
@@ -14,22 +16,17 @@ import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
-// biome-ignore lint/style/noProcessEnv: this gated E2E reads ONE opt-in env flag to decide whether to download real ONNX weights from the Hugging Face Hub. Default-OFF keeps the suite offline-green.
-const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
-
 const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_EMBED_MODEL as ModelId;
 const JINA_DIM = 1024;
 const DOWNLOAD_TIMEOUT_MS = 600_000;
 
-const backend = RUN ? createLocalLightBackend({ device: "cpu", dtype: "q4" }) : null;
+let backend: ReturnType<typeof createLocalLightBackend> | undefined;
 
 /** A real CPU-bound embed callable (forces device "cpu" for deterministic, GPU-free runs; q4 weights to
  *  keep the opt-in download tractable). */
 function embedFn(): (req: EmbedRequest) => Promise<EmbedResult> {
-  if (!backend) {
-    throw new Error("Backend not initialized");
-  }
+  backend ??= createLocalLightBackend({ device: "cpu", dtype: "q4" });
   const fn = backend.embed;
   if (fn === undefined) {
     throw new Error("embed role not wired");
@@ -44,7 +41,7 @@ function requireVector(vec: Float32Array | null): Float32Array {
   return vec;
 }
 
-describe.skipIf(!RUN)("local-light embed (real jina-clip-v2 ONNX inference)", () => {
+describe("local-light embed (real jina-clip-v2 ONNX inference)", () => {
   test(
     "embeds to the unified 1024-dim space; identical text is self-similar; unrelated text differs",
     async () => {
