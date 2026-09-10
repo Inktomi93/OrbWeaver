@@ -338,6 +338,12 @@ test("broken, empty and malformed native closure observations are tool errors", 
   expect(runMembershipQuietly(scratch)).toBe(2);
   writeFileSync(script, "process.exitCode = 70;\n");
   expect(runMembershipQuietly(scratch)).toBe(2);
+  const source = join(scratch, "packages/kit/src/value.ts");
+  const list = `if (process.argv.includes("--listFilesOnly")) process.stdout.write(${JSON.stringify(`${source}\n`)}); else `;
+  writeFileSync(script, `${list}process.stdout.write('{"files":["src/value.ts"]}');\n`);
+  expect(runMembershipQuietly(scratch)).toBe(0);
+  writeFileSync(script, `${list}process.stdout.write('not-json');\n`);
+  expect(runMembershipQuietly(scratch)).toBe(2);
 });
 
 test("native/shared root parity remains an independent two-sided comparison", () => {

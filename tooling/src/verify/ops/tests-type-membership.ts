@@ -79,6 +79,7 @@ function nativeProgramRoots(root: string, program: PolicyProgramMembership): Rea
     return;
   }
   let parsed: unknown;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict.
   try {
     parsed = JSON.parse(result.stdout) as unknown;
   } catch {
