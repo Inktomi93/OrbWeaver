@@ -55,6 +55,21 @@ test("tests:node stays the push bar for everything else, and no longer carries t
   expect(stage("changed", "tests:node").scopedArgv).toBeTypeOf("function");
 });
 
+test("mutation:arid is a discoverable manual report-input tool, never an automatic tier", () => {
+  const row = stagesForTier("manual").find((candidate) => candidate.name === "quality:mutation-arid");
+  expect(row).toMatchObject({
+    group: "quality",
+    tiers: ["manual"],
+    argv: ["pnpm", "mutation:arid"],
+  });
+  expect(row?.manualReason).toContain("existing Stryker JSON report path");
+  expect(row?.classify(2), "an unreadable report is a tool error").toBe(2);
+  expect(row?.classify(3), "missing report arguments are misuse").toBe(3);
+  for (const tier of WHOLE_TIERS) {
+    expect(stagesForTier(tier).some((candidate) => candidate.name === "quality:mutation-arid")).toBe(false);
+  }
+});
+
 test("NO row hangs on a tier precondition today — the mechanism is unused DATA, not a live rung", () => {
   // #1523 minted `tierPrecondition` for the conditional push rung; #1842 removed the rung. The field is
   // still in the contract (contract/stage.ts) and the runner still honours it (ops/run.ts, pinned by
