@@ -46,6 +46,9 @@ const ARGV_ENTRIES: ExemptionTable = {
   "tooling/src/stack/ops/prod-entry.ts": {
     why: "the node half stack.sh execs for every PROD invocation — same bash-fronted exception. Ends if stack grows a cli.ts or this entry is retired.",
   },
+  "tooling/src/verify/ops/config-snapshot-entry.ts": {
+    why: "the private process boundary readConfigSnapshot execs so native config loading does not eagerly import the whole verify CLI; its argv is a parent-authored runner/config request validated by the shared snapshot operation, never a second operator door. Ends if snapshot observation moves in-process or behind a different worker.",
+  },
 };
 
 const seenEntries = new Set<string>();
@@ -165,6 +168,7 @@ export const gate: GateDescriptor = {
         "tooling/src/stack/ops/engines-ctl.ts": 'import process from "node:process";\nexport const c = process.argv[2];\n',
         "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
         "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const p = process.argv.slice(2);\n',
+        "tooling/src/verify/ops/config-snapshot-entry.ts": 'import process from "node:process";\nexport const s = process.argv.slice(2);\n',
       },
       expect: { messageIncludes: "blind gate" },
       why: "the §4.6 blindness tripwire — every censused entry reads argv but NO cli.ts does, which is what a matcher that stopped recognising the read looks like from the inside",
