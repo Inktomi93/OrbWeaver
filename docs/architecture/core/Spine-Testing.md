@@ -216,7 +216,11 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 
-Sanctioned but not yet wired for the node lanes (no Vitest test needs them yet). Two tags only, added when first needed: `slow` (legitimately >5s, e.g. the real Agent SDK subprocess — long timeout + 1 retry) and `live` (hits real provider APIs, costs money — default-skipped behind `RUN_LIVE=1`). Tags centralize per-category options (`--tags-filter=slow`, `--tags-filter=!live`); suffix stays the KIND axis. They compose: a `.int.test.ts` can be tagged `slow`. The Playwright analogue IS live — `@smoke`/`@live` grep-tags on `.spec.ts`: `pnpm e2e:smoke` gates on `@smoke` at pre-push, and `@live` (real-model specs) is excluded from every gate.
+`tooling/src/_shared/test-tags.ts` owns the registered Vitest tag names and options. The runtime uses `strictTags: true`; the test-only ambient augmentation derives the same closed name union for TypeScript. Register a tag when a real test needs it, rather than reserving hypothetical categories. The `slow` tag preserves a 30-second timeout without adding retries. Select tagged cases through native `--tagsFilter=slow` or a negated expression.
+
+Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Mutation filtering uses declared capabilities rather than filename lists. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner. A capability exemption needs a native runner proof and must remain visible in collected/executed test accounting.
+
+Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke cases, while real-provider cases remain opt-in through the live entry point. Do not translate these into unused Vitest tags.
 
 ## 9. Mutation testing (Stryker) — the test-quality ratchet
 

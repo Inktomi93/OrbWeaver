@@ -1,3 +1,6 @@
+/**
+ * @module-tag requires-process-chdir
+ */
 // foundation/observability/debug/wire-capture — WIRE-OUTCOMES (dogfood-tracking.md): the three owed pins the
 // ring-mechanics suite (wire-capture.test.ts) doesn't cover, because they need the OUTCOME arm live:
 //   1. an outcome is recorded for a REFUSED turn (empty content, finishReason populated) — the whole point of

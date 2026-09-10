@@ -53,12 +53,14 @@ test("Stryker import preserves the base population and creates independent overr
   expect(mutation.test.projects.map((project) => project.test.name)).toEqual(baseLaneNames().filter((name) => RUNTIME_LANES.has(name)));
   expect(mutation.test.fileParallelism).toBe(false);
   expect(mutation.test.maxWorkers).toBe(1);
+  expect(mutation.test.tagsFilter).toEqual(["!requires-process-chdir && !source-freshness && !requires-git-history"]);
   for (const project of mutation.test.projects) {
     const original = base.test?.projects?.find(
       (candidate) => typeof candidate === "object" && "test" in candidate && candidate.test.name === project.test.name,
     );
+    const originalExclude = typeof original === "object" && "test" in original ? (original.test.exclude ?? []) : [];
     expect(project).not.toBe(original);
-    expect(project.test.exclude).toContain("tests/tooling/**");
+    expect(project.test.exclude).toEqual([...originalExclude, "tests/tooling/**"]);
   }
   expect(mutation.test).toMatchObject({
     restoreMocks: true,
