@@ -42,8 +42,10 @@ const CT_RUN_MARKER = inheritedRunMarker();
 const BASE_TEST_TIMEOUT_MS = 30_000;
 const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
+const CT_ESBUILD_TARGET = "es2024";
+const CLIENT_PACKAGE_ROOT = path.resolve(import.meta.dirname, "packages/client");
 const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component").map(({ suffix }) => `**/*${suffix}`);
-const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
+const CLIENT_GLOBALS_CSS = path.resolve(CLIENT_PACKAGE_ROOT, "src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 type CtViteConfig = Exclude<NonNullable<NonNullable<PlaywrightTestConfig["use"]>["ctViteConfig"]>, () => Promise<unknown>>;
 type CtVitePlugin = Extract<Awaited<NonNullable<CtViteConfig["plugins"]>[number]>, { readonly name?: string }>;
@@ -179,7 +181,7 @@ export default defineConfig({
       // zero noise on both arms). Vite's default publicDir is `<root>/public`, and CT's root is its own
       // generated cache dir, so the default is always empty here — and for the same reason the path must
       // be ABSOLUTE (vite resolves a relative publicDir against that cache root, not against this file).
-      publicDir: path.resolve(import.meta.dirname, "packages/client/public"),
+      publicDir: path.resolve(CLIENT_PACKAGE_ROOT, "public"),
       // The esbuild pinned for the CT vite transform (vite@6 → esbuild 0.25.12) maxes at target es2024.
       // vite:esbuild reads tsconfig.base's `target: "es2025"` and passes it as
       // `tsconfigRaw.compilerOptions.target` to esbuild.transform PER FILE — SEPARATE from the `esbuild`
@@ -193,8 +195,8 @@ export default defineConfig({
       // (packages/client/vite.config.ts — a different, es2025-capable path, untouched here). (Masked by a
       // stale-node_modules esbuild@0.28.1 until a clean install re-resolved to 0.25.12 — 67d7805d0's
       // "green without the override" was a false green; a dep-override removal owes a CLEAN-INSTALL CT run.)
-      esbuild: { target: "es2024", tsconfigRaw: { compilerOptions: { target: "es2024" } } },
-      optimizeDeps: { esbuildOptions: { target: "es2024" } },
+      esbuild: { target: CT_ESBUILD_TARGET, tsconfigRaw: { compilerOptions: { target: CT_ESBUILD_TARGET } } },
+      optimizeDeps: { esbuildOptions: { target: CT_ESBUILD_TARGET } },
       resolve: { dedupe: ["react", "react-dom"] },
       // MODULE WORKERS (plugin-ui-plane #679 U4). vite's default `worker.format` is `iife`, and an iife worker
       // bundle CANNOT CODE-SPLIT — the Tier-C plugin guest's QuickJS variant dynamically imports its own FFI
