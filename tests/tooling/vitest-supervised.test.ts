@@ -29,7 +29,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { VITEST_RUNTIME_ONLY_GROUP_FILTER } from "@orb/tooling/_shared/test-kinds";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
@@ -210,19 +209,68 @@ test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, asyn
   expect(res.code).toBe(1);
 });
 
-test("translates --runtime-only into the canonical native project filter before spawning Vitest", { timeout: scaledBudget(15_000) }, async () => {
+test("translates --runtime-only into config mode without widening an explicit project selection", { timeout: scaledBudget(15_000) }, async () => {
   const argsLog = join(dir, "runtime-only-args.json");
   const res = await runSupervisor({
     mode: "pass",
     reportFile: join(dir, "runtime-only.json"),
     argsLog,
-    extraArgs: ["--runtime-only", "tests/product"],
+    projects: ["tooling"],
+    extraArgs: ["--runtime-only", "--config", join(dir, "vitest.config.ts"), "tests/tooling"],
   });
   expect(res.code).toBe(0);
   const childArgs = readJson<readonly string[]>(argsLog);
-  expect(childArgs).toContain(`--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`);
-  expect(childArgs).toContain("tests/product");
+  expect(childArgs.filter((arg) => arg === "--project" || arg.startsWith("--project="))).toEqual(["--project"]);
+  expect(childArgs).toContain("tooling");
+  expect(childArgs).toContain("tests/tooling");
   expect(childArgs).not.toContain("--runtime-only");
+  expect(childArgs.filter((arg) => arg === "--config" || arg.startsWith("--config="))).toEqual([
+    expect.stringMatching(/^--config=.*vitest\.runtime\.config\.ts$/u),
+  ]);
+});
+
+test("deduplicates exact project shards so native repeated selection executes once", { timeout: scaledBudget(30_000) }, async () => {
+  const cwd = caseDir("duplicate-shards");
+  const spawnLog = join(cwd, "spawns.txt");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(cwd, "reports", "test-report.json"),
+    projects: ["unit", "unit", "contract"],
+    spawnLog,
+    cwd,
+  });
+  expect(res.code).toBe(0);
+  expect(readFileSync(spawnLog, "utf-8").split("\n").filter(Boolean)).toEqual(["unit", "contract"]);
+});
+
+test("keeps wildcard and negative project selectors together for one native union", { timeout: scaledBudget(15_000) }, async () => {
+  const cwd = caseDir("project-filter-union");
+  const spawnLog = join(cwd, "spawns.txt");
+  const argsLog = join(cwd, "args.json");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(cwd, "reports", "test-report.json"),
+    projects: ["tool*", "!types-*"],
+    spawnLog,
+    argsLog,
+    cwd,
+  });
+  expect(res.code).toBe(0);
+  expect(readFileSync(spawnLog, "utf-8").split("\n").filter(Boolean)).toHaveLength(1);
+  const childArgs = readJson<readonly string[]>(argsLog);
+  expect(childArgs).toEqual(expect.arrayContaining(["--project", "tool*", "!types-*"]));
+});
+
+test("refuses runtime-only with a custom config that cannot honor repository config mode", { timeout: scaledBudget(15_000) }, async () => {
+  const argsLog = join(dir, "unsupported-config-args.json");
+  const res = await runSupervisor({
+    mode: "pass",
+    reportFile: join(dir, "unsupported-config.json"),
+    argsLog,
+    extraArgs: ["--runtime-only", "--config", join(dir, "vitest.custom.config.mjs")],
+  });
+  expect(res.code).toBe(3);
+  expect(existsSync(argsLog)).toBe(false);
 });
 
 test("leaves malformed --runtime-only forms for Vitest to reject", { timeout: scaledBudget(15_000) }, async () => {
@@ -256,6 +304,49 @@ test("resolves and runs the REAL default vitest entry (not the .bin sh shim) —
     child.on("exit", (code, signal) => resolve({ code, signal }));
   });
   expect(res.code).toBe(0);
+});
+
+test("real native collection keeps runtime-only inside the caller's exact project", { timeout: scaledBudget(30_000) }, async () => {
+  const list = join(dir, "runtime-project-list.json");
+  const report = join(dir, "runtime-project-list-report.json");
+  const contractFile = "tests/contracts/assets/index.contract.test.ts";
+  const repositoryFile = "tests/tooling/verify/gates/dangling-refs.repo.int.test.ts";
+  const args = [
+    SUPERVISOR,
+    "list",
+    contractFile,
+    repositoryFile,
+    "--filesOnly",
+    `--json=${list}`,
+    "--runtime-only",
+    "--project",
+    "contract",
+    `--outputFile.json=${report}`,
+  ];
+  const res = await new Promise<RunResult>((resolve) => {
+    const child = spawn(process.execPath, args, { cwd: process.cwd(), stdio: "ignore" });
+    child.on("exit", (code, signal) => resolve({ code, signal }));
+  });
+  expect(res.code).toBe(0);
+  const files = readJson<readonly { readonly file: string; readonly projectName: string }[]>(list);
+  expect(files.map(({ file, projectName }) => ({ file: file.slice(process.cwd().length + 1), projectName }))).toEqual([
+    { file: contractFile, projectName: "contract" },
+  ]);
+});
+
+test("a runtime-only parent leaves native type projects visible to nested Vitest", { timeout: scaledBudget(30_000) }, async () => {
+  const list = join(dir, "nested-type-project-list.json");
+  const res = await new Promise<RunResult>((resolve) => {
+    const child = spawn("pnpm", ["exec", "vitest", "list", "--filesOnly", `--json=${list}`, "--project", "types-*"], {
+      cwd: process.cwd(),
+      stdio: "ignore",
+    });
+    child.on("exit", (code, signal) => resolve({ code, signal }));
+  });
+  expect(res.code).toBe(0);
+  const files = readJson<readonly { readonly projectName: string }[]>(list);
+  expect(files.length).toBeGreaterThan(0);
+  expect([...new Set(files.map(({ projectName }) => projectName))].toSorted()).toEqual(["types-browser", "types-node"]);
 });
 
 test("a wedged child whose report hides a crashed worker is NOT green, and its group is dead", { timeout: scaledBudget(15_000) }, async () => {

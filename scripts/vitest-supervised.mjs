@@ -28,10 +28,12 @@
 // wedge rather than merely detect it.
 //
 // MECHANISM:
-//   1. SHARDING. `--project a --project b …` is split into one `vitest run --project <x>` process per
-//      project, run SEQUENTIALLY, each writing its own `test-shards/<project>.json`. The shard
+//   1. SHARDING. Repeated literal `--project a --project b …` selections are deduplicated, then split into
+//      one `vitest run --project <x>` process per project, run SEQUENTIALLY, each writing its own
+//      `test-shards/<project>.json`. Wildcard/negative selector sets stay in ONE process because Vitest
+//      evaluates repeated selectors as a union; splitting them can duplicate or widen execution. The shard
 //      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
-//      per-process race, so a wedge now costs ONE shard instead of the whole run's verdict.
+//      per-process race, so a wedge now costs ONE literal project shard instead of the whole run's verdict.
 //   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned via `nice -19` as a process-group leader and
 //      its output tee'd live, but SILENCE ALONE IS NOT THE WEDGE SIGNAL. **Truth repair, measured
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
@@ -100,14 +102,19 @@
 // says so on stderr. A green with load-suspect arms is NOT a clean measurement pass, and it must never
 // read as one.
 //
+// RUNTIME-ONLY: the wrapper consumes `--runtime-only` and selects the thin repository runtime config, which
+// omits typecheck projects before Vitest applies caller `--project` filters. Config choice is argv-local,
+// so a test's own subprocesses inherit no mode that could hide type projects from nested native commands.
+// Adding `--project=!types-*` is invalid: Vitest unions it with positive filters and widens selection. A
+// custom `--config` is refused because it cannot promise this config-mode contract.
+//
 // OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { dirname, isAbsolute, join, resolve as pathResolve, relative } from "node:path";
 import process from "node:process";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
-import { VITEST_RUNTIME_ONLY_GROUP_FILTER } from "@orb/tooling/_shared/test-kinds";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -116,6 +123,7 @@ const WATCHDOG_MAX_MS = 15_000;
 const WATCHDOG_DIVISOR = 4;
 const OUTPUT_FILE_RE = /^--outputFile\.json=(.+)$/u;
 const PROJECT_RE = /^--project=(.+)$/u;
+const CONFIG_RE = /^--config=(.+)$/u;
 /** A default-reporter per-file result line: `  ✓ |integration| tests/x/y.int.test.ts (3 tests) 12ms`. */
 const RESULT_LINE_RE = /^\s*[✓×❯↓]\s+\|[^|]*\|\s+(\S+)/u;
 const COMPLETED_TAIL = 8;
@@ -128,7 +136,10 @@ const DEFAULT_HARD_CEILING_MS = 1_800_000;
  *  · 3 misuse. A run whose LAST attempt had to be KILLED never finished, so its number is 2 — see the
  *  "A CONTAINED WEDGE IS A TOOL ERROR" note in the header. */
 const EXIT_TOOL_ERROR = 2;
+const EXIT_MISUSE = 3;
 const RUNTIME_ONLY_FLAG = "--runtime-only";
+const ROOT_CONFIG = join(process.cwd(), "vitest.config.ts");
+const RUNTIME_CONFIG = join(process.cwd(), "vitest.runtime.config.ts");
 
 const root = process.cwd();
 /** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
@@ -178,7 +189,7 @@ function wedgeReason(sinceOutput, sinceProgress) {
 }
 
 function resolveUnder(p) {
-  return isAbsolute(p) ? p : join(root, p);
+  return isAbsolute(p) ? p : pathResolve(root, p);
 }
 
 /** The merged report's published name, and the shard directory's. */
@@ -232,10 +243,50 @@ function parseArgs() {
     }
     baseArgs.push(a);
   }
-  if (runtimeOnly) {
-    baseArgs.push(`--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`);
+  const unsupportedConfig = runtimeOnly ? configuredPaths(baseArgs).find((config) => config !== ROOT_CONFIG) : undefined;
+  return { projects: [...new Set(projects)], baseArgs, report: report ?? reportsPath(root, REPORT_NAME), runtimeOnly, unsupportedConfig };
+}
+
+/** Config paths are observed without consuming them; Vitest remains the parser and rejects malformed forms. */
+function configuredPaths(args) {
+  const configs = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const equalForm = args[i].match(CONFIG_RE);
+    if (equalForm) {
+      configs.push(resolveUnder(equalForm[1]));
+    } else if (args[i] === "--config" && i + 1 < args.length) {
+      configs.push(resolveUnder(args[i + 1]));
+      i += 1;
+    }
   }
-  return { projects, baseArgs, report: report ?? reportsPath(root, REPORT_NAME) };
+  return configs;
+}
+
+/** Replace an optional explicit root config with the runtime entry point. A malformed bare `--config`
+ * remains misuse instead of being silently repaired into a different command. */
+function runtimeConfigArgs(args) {
+  const runtimeArgs = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i].match(CONFIG_RE)) {
+      continue;
+    }
+    if (args[i] === "--config") {
+      if (i + 1 >= args.length) {
+        return null;
+      }
+      i += 1;
+      continue;
+    }
+    runtimeArgs.push(args[i]);
+  }
+  runtimeArgs.push(`--config=${RUNTIME_CONFIG}`);
+  return runtimeArgs;
+}
+
+/** Only literal project names are safe to shard. Filters must stay together because Vitest evaluates
+ * repeated selectors as one union; splitting them changes selection and can execute a project twice. */
+function exactProjectSelector(project) {
+  return !(project.startsWith("!") || project.includes("*"));
 }
 
 /** Read a json report and return the process exit code it implies. Missing / unparseable / an incomplete
@@ -633,7 +684,16 @@ function announceLoadSuspect(shards) {
 }
 
 async function main() {
-  const { projects, baseArgs, report } = parseArgs();
+  const { projects, baseArgs, report, runtimeOnly, unsupportedConfig } = parseArgs();
+  if (unsupportedConfig !== undefined) {
+    log(`${RUNTIME_ONLY_FLAG} requires the repository root config; ${relative(root, unsupportedConfig)} cannot honor its runtime-only config mode.`);
+    process.exit(EXIT_MISUSE);
+  }
+  const executionArgs = runtimeOnly ? runtimeConfigArgs(baseArgs) : baseArgs;
+  if (executionArgs === null) {
+    log(`${RUNTIME_ONLY_FLAG} received a malformed --config option.`);
+    process.exit(EXIT_MISUSE);
+  }
   // Forward terminal signals to the running child group (detached children don't receive them automatically).
   const onSignal = () => {
     killGroup(activeChild);
@@ -651,10 +711,10 @@ async function main() {
     log(`this run writes to ${slot.relDir}; reports/${REPORT_NAME} is published by whichever finishes last.`);
   }
 
-  // Fewer than two projects: nothing to shard. Run once, at this run's own report path.
-  if (projects.length < 2) {
-    const args = [...baseArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
-    const shard = await runShard({ args, reportFile: mergedFile, label: projects[0] ?? "all" });
+  // Filter-shaped project selectors stay together so Vitest applies their native union once.
+  if (projects.length < 2 || !projects.every(exactProjectSelector)) {
+    const args = [...executionArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
+    const shard = await runShard({ args, reportFile: mergedFile, label: projects.length === 1 ? projects[0] : "filtered" });
     announceWedges([shard]);
     announceLoadSuspect([shard]);
     publish(alias, false);
@@ -664,7 +724,7 @@ async function main() {
   const shards = [];
   for (const project of projects) {
     const reportFile = alias === null ? join(dirname(report), SHARDS_DIR, `${project}.json`) : runFile(slot, SHARDS_DIR, `${project}.json`);
-    const args = [...baseArgs, "--project", project, `--outputFile.json=${reportFile}`];
+    const args = [...executionArgs, "--project", project, `--outputFile.json=${reportFile}`];
     log(`shard ${shards.length + 1}/${projects.length}: ${project}`);
     // Sequential ON PURPOSE: one vitest process at a time is the whole containment mechanism (a wedge is a
     // per-process shutdown race), and the projects share one worker budget on a co-hosted box.

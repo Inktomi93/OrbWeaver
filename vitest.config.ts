@@ -3,6 +3,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
 import { runtimeForTestFamily, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
+import type { TestProjectConfiguration, ViteUserConfig } from "vitest/config";
 import { defineConfig } from "vitest/config";
 import type { TestUserConfig } from "vitest/node";
 
@@ -49,111 +50,119 @@ const REPOSITORY_GROUP_ORDER = 1;
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.cjs";
 
-export default defineConfig({
-  test: {
-    testTimeout: budget(5000),
-    hookTimeout: budget(10_000),
-    // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
-    env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
-    // Native bindings need process isolation; module isolation stays at Vitest's true default.
-    pool: "forks",
-    maxWorkers: CONCURRENCY.vitestMaxWorkers,
-    restoreMocks: true,
-    clearMocks: true,
-    unstubGlobals: true,
-    unstubEnvs: true,
-    allowOnly: false,
-    expect: { requireAssertions: true },
-    chaiConfig: { truncateThreshold: 0 },
-    passWithNoTests: false,
-    tags: [...TEST_TAGS],
-    ...TAG_FILTER_CONFIG,
-    strictTags: true,
-    coverage: {
-      provider: "v8",
-      include: ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.ts"],
-      exclude: ["**/index.ts", "**/*.d.ts", "**/*.test-d.ts"],
-      reporter: ["text-summary", "html", "json-summary"],
-      reportsDirectory: "reports/coverage",
-      reportOnFailure: true,
+const TYPECHECK_PROJECTS = [
+  {
+    extends: true,
+    test: {
+      name: vitestTypecheckGroupName("node"),
+      sequence: { groupOrder: NORMAL_GROUP_ORDER },
+      include: [],
+      typecheck: {
+        enabled: true,
+        only: true,
+        include: testGlobs("type"),
+        exclude: BROWSER_TYPES,
+        tsconfig: "tsconfig.json",
+        checker: TYPECHECKER,
+      },
     },
-    reporters: inCI ? ["default", "github-actions", ["junit", { outputFile: "reports/junit.xml" }]] : ["default"],
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: "unit",
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "unit" && resource === null), `!${TOOLING}`]),
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "integration",
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: REPOSITORY_RESOURCE,
-          sequence: { groupOrder: REPOSITORY_GROUP_ORDER },
-          include: withIgnored(REPOSITORY_TEST_GLOBS),
-          fileParallelism: false,
-          testTimeout: budget(30_000),
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "tooling",
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: withIgnored(
-            exclusiveTestGlobs(({ family, resource }) => runtimeForTestFamily(family) === "vitest" && resource === null, "tests/tooling/**/*"),
-          ),
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "contract",
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: vitestTypecheckGroupName("node"),
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: [],
-          typecheck: {
-            enabled: true,
-            only: true,
-            include: testGlobs("type"),
-            exclude: BROWSER_TYPES,
-            tsconfig: "tsconfig.json",
-            checker: TYPECHECKER,
-          },
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: vitestTypecheckGroupName("browser"),
-          sequence: { groupOrder: NORMAL_GROUP_ORDER },
-          include: [],
-          typecheck: {
-            enabled: true,
-            only: true,
-            include: BROWSER_TYPES,
-            tsconfig: "tsconfig.tests-dom.json",
-            checker: TYPECHECKER,
-          },
-        },
-      },
-    ],
   },
-});
+  {
+    extends: true,
+    test: {
+      name: vitestTypecheckGroupName("browser"),
+      sequence: { groupOrder: NORMAL_GROUP_ORDER },
+      include: [],
+      typecheck: {
+        enabled: true,
+        only: true,
+        include: BROWSER_TYPES,
+        tsconfig: "tsconfig.tests-dom.json",
+        checker: TYPECHECKER,
+      },
+    },
+  },
+] satisfies readonly TestProjectConfiguration[];
+
+export function vitestConfig(runtimeOnly = false): ViteUserConfig {
+  return defineConfig({
+    test: {
+      testTimeout: budget(5000),
+      hookTimeout: budget(10_000),
+      // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
+      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
+      // Native bindings need process isolation; module isolation stays at Vitest's true default.
+      pool: "forks",
+      maxWorkers: CONCURRENCY.vitestMaxWorkers,
+      restoreMocks: true,
+      clearMocks: true,
+      unstubGlobals: true,
+      unstubEnvs: true,
+      allowOnly: false,
+      expect: { requireAssertions: true },
+      chaiConfig: { truncateThreshold: 0 },
+      passWithNoTests: false,
+      tags: [...TEST_TAGS],
+      ...TAG_FILTER_CONFIG,
+      strictTags: true,
+      coverage: {
+        provider: "v8",
+        include: ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.ts"],
+        exclude: ["**/index.ts", "**/*.d.ts", "**/*.test-d.ts"],
+        reporter: ["text-summary", "html", "json-summary"],
+        reportsDirectory: "reports/coverage",
+        reportOnFailure: true,
+      },
+      reporters: inCI ? ["default", "github-actions", ["junit", { outputFile: "reports/junit.xml" }]] : ["default"],
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: "unit",
+            sequence: { groupOrder: NORMAL_GROUP_ORDER },
+            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "unit" && resource === null), `!${TOOLING}`]),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: "integration",
+            sequence: { groupOrder: NORMAL_GROUP_ORDER },
+            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: REPOSITORY_RESOURCE,
+            sequence: { groupOrder: REPOSITORY_GROUP_ORDER },
+            include: withIgnored(REPOSITORY_TEST_GLOBS),
+            fileParallelism: false,
+            testTimeout: budget(30_000),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: "tooling",
+            sequence: { groupOrder: NORMAL_GROUP_ORDER },
+            include: withIgnored(
+              exclusiveTestGlobs(({ family, resource }) => runtimeForTestFamily(family) === "vitest" && resource === null, "tests/tooling/**/*"),
+            ),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: "contract",
+            sequence: { groupOrder: NORMAL_GROUP_ORDER },
+            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "contract" && resource === null), `!${TOOLING}`]),
+          },
+        },
+        ...(runtimeOnly ? [] : TYPECHECK_PROJECTS),
+      ],
+    },
+  });
+}
+
+export default vitestConfig();
