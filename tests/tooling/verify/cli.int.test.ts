@@ -125,7 +125,7 @@ test("membership JSON exposes every authored TS file, including unresolved confi
   const res = await runCli("verify", ["tests-membership", "--json"], { timeoutMs: HELP_TIMEOUT_MS });
   await expect(res).toExitWith(0);
   const report = JSON.parse(res.stdout) as MembershipReport;
-  expect(report.enforcement).toBe("test-coverage-and-lib-leaks");
+  expect(report.enforcement).toBe("world-ownership-ambient-distribution-and-closure-libraries");
   const expected = readPolicyRepositoryInventory(repoRoot).paths.filter((file) => /\.(?:ts|tsx|mts|cts)$/u.test(file));
   expect(report.rows.map((row) => row.file).toSorted()).toEqual([...expected].toSorted());
   expect(report.rows).toEqual(
@@ -134,4 +134,10 @@ test("membership JSON exposes every authored TS file, including unresolved confi
       expect.objectContaining({ file: "reset.d.ts", world: null, predicted: null, ambientScope: "all-programs", outcome: "ambient" }),
     ]),
   );
+  expect(report.rows.filter(({ outcome }) => outcome === "unowned" || outcome === "unclassified")).toEqual([]);
+  expect(report.unknownPrograms).toEqual([]);
+  expect(report.testEscapees).toEqual([]);
+  expect(report.libLeaks).toEqual([]);
+  expect(report.closureLeaks).toEqual([]);
+  expect(report.routingParityViolations).toEqual([]);
 });

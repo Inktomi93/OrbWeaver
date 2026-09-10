@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { getWorkspace, moduleScopeCallees, soleExportedFunction } from "../../../tooling/src/_shared/ts-workspace.ts";
+import { isGovernedArgvEntry } from "../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
@@ -133,7 +134,7 @@ test("the guard is INERT on the normal path — the cli still runs", ({ repoRoot
 });
 
 test(
-  "EVERY verify ops module refuses when RUN — the next one cannot be born lying",
+  "EVERY verify ops library refuses when RUN, while governed private entries preserve their argv contract",
   ({ repoRoot }) => {
     // Deliberately not a source grep. Writing this pin as `readFileSync(...).includes("refuseDirectInvocation")`
     // was the FIRST attempt and it was itself a lying proof: the scaffold's guard landed inside `new-gate.ts`'s
@@ -146,7 +147,7 @@ test(
       return `${f}: ${run.status}`;
     });
 
-    expect(verdicts).toEqual(modules.map((f) => `${f}: ${EXIT_TOOL_ERROR}`));
+    expect(verdicts).toEqual(modules.map((f) => `${f}: ${isGovernedArgvEntry(join(OPS_DIR, f)) ? 3 : EXIT_TOOL_ERROR}`));
     // A zero from an empty directory would be a false clean (the walk-fence lesson): the census must have
     // read something. Twelve modules at the pin's minting; the floor only proves the scan happened.
     expect(modules.length).toBeGreaterThan(1);
