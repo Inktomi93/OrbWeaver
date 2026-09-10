@@ -9,10 +9,18 @@
 // Serial lane (vitest.config.ts SERIAL_INT): `stableJson` — the ONE canonical serializer — round-trips
 // through the biome BINARY via a temp file at the FIXED path docs/catalog/catalog.tmp.json, so two
 // concurrent callers would clobber each other's tmp.
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ArtifactForm, LaneConfig } from "../../../../tooling/src/doc-catalog/index.ts";
-import { authoredArtifacts, offCanonicalPaths, unformattedArtifacts } from "../../../../tooling/src/doc-catalog/index.ts";
+import {
+  authoredArtifacts,
+  candidateTouchesCatalog,
+  catalogIndexIsStale,
+  catalogSourcesMatchIndex,
+  offCanonicalPaths,
+  unformattedArtifacts,
+} from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const LANES_PATH = "docs/catalog/lanes.json";
@@ -26,6 +34,27 @@ function lanes(repoRoot: string): LaneConfig {
 
 function form(current: string, canonical: string): ArtifactForm {
   return { path: "docs/catalog/receipts/example.json", current, canonical };
+}
+
+function git(root: string, ...args: readonly string[]): string {
+  return execFileSync(
+    "env",
+    [
+      "-u",
+      "GIT_DIR",
+      "-u",
+      "GIT_WORK_TREE",
+      "-u",
+      "GIT_INDEX_FILE",
+      "git",
+      "-c",
+      "user.name=Catalog Test",
+      "-c",
+      "user.email=catalog@example.invalid",
+      ...args,
+    ],
+    { cwd: root, encoding: "utf8" },
+  ).trim();
 }
 
 test("PLANTED CONTROL — the mis-shaped array the generator's formatter inlines is reported off-canonical", () => {
@@ -56,4 +85,48 @@ test("the REAL tree: every hand-authored catalog artifact is already canonical",
   // measure", never "clean" — so assert what it looked at before believing the empty verdict.
   expect(authoredArtifacts(config)).toHaveLength(config.lanes.length + STATE_ARTIFACTS);
   expect(unformattedArtifacts(config)).toEqual([]);
+});
+
+test("a fresh working catalog cannot mask stale candidate-index bytes", ({ scratch }) => {
+  const path = join(scratch, "docs", "catalog", "catalog.json");
+  mkdirSync(join(scratch, "docs", "catalog"), { recursive: true });
+  git(scratch, "init", "-q");
+  writeFileSync(path, '{"version":"base"}\n');
+  git(scratch, "add", "docs/catalog/catalog.json");
+  git(scratch, "commit", "-qm", "base");
+
+  writeFileSync(path, '{"version":"stale-candidate"}\n');
+  git(scratch, "add", "docs/catalog/catalog.json");
+  const expected = `{"payload":"${"x".repeat(1_100_000)}"}\n`;
+  writeFileSync(path, expected);
+  expect(catalogIndexIsStale(expected, scratch, true)).toBe(true);
+
+  git(scratch, "add", "docs/catalog/catalog.json");
+  expect(catalogIndexIsStale(expected, scratch, true)).toBe(false);
+});
+
+test("a staged document deletion cannot leave its receipt removal and catalog unstaged", ({ scratch }) => {
+  const config: LaneConfig = { schemaVersion: 1, lanes: [{ id: "core", issue: 1, patterns: ["docs/*.md"] }] };
+  mkdirSync(join(scratch, "docs", "catalog", "receipts"), { recursive: true });
+  writeFileSync(join(scratch, "docs", "catalog", "lanes.json"), `${JSON.stringify(config)}\n`);
+  writeFileSync(join(scratch, "docs", "catalog", "receipts", "core.json"), '{"entries":["docs/remove.md"]}\n');
+  writeFileSync(join(scratch, "docs", "catalog", "catalog.json"), '{"documents":["docs/remove.md"]}\n');
+  writeFileSync(join(scratch, "docs", "remove.md"), "# Remove\n");
+  git(scratch, "init", "-q");
+  git(scratch, "add", "docs");
+  git(scratch, "commit", "-qm", "base");
+
+  rmSync(join(scratch, "docs", "remove.md"));
+  writeFileSync(join(scratch, "docs", "catalog", "receipts", "core.json"), '{"entries":[]}\n');
+  const expected = '{"documents":[]}\n';
+  writeFileSync(join(scratch, "docs", "catalog", "catalog.json"), expected);
+  git(scratch, "add", "-u", "docs/remove.md");
+  const changed = new Set(["docs/remove.md"]);
+  expect(candidateTouchesCatalog(changed)).toBe(true);
+  expect(catalogSourcesMatchIndex(config, scratch, true)).toBe(false);
+  expect(catalogIndexIsStale(expected, scratch, true)).toBe(true);
+
+  git(scratch, "add", "docs/catalog/receipts/core.json", "docs/catalog/catalog.json");
+  expect(catalogSourcesMatchIndex(config, scratch, true)).toBe(true);
+  expect(catalogIndexIsStale(expected, scratch, true)).toBe(false);
 });

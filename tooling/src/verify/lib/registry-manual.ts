@@ -18,9 +18,9 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
       "the ORCHESTRATOR's train-gate command (#667): the sub-minute vitest-tier ratchet aggregate `pnpm check`/`check:structure` structurally cannot see. Run by hand after each merge train, not part of the changed/push/full flow — `pnpm test` (push) already runs its member suites, so an auto tier here would double-run them.",
   },
   {
-    // THE GREEN-TO-COMMIT COMPOSITE. `pnpm test` still runs the vitest projects AND the CT suite in one
-    // command — that ritual (constitution §4: `pnpm check` AND `pnpm test`) is unchanged. What changed in
-    // #1848 is that `pnpm verify` runs its two HALVES as separate stages (`tests:node` + `browser:ct`), so
+    // THE EXPLICIT PRODUCT-TEST COMPOSITE. `pnpm test` still runs the vitest projects AND the CT suite in
+    // one command when that combined behavioral check is needed during development. What changed in #1848
+    // is that `pnpm verify` runs its two HALVES as separate stages (`tests:node` + `browser:ct`), so
     // each gets its own profile-derived hang ceiling: the composite's ~10-minute vitest half and its
     // ~40-minute CT half shared one 45-minute ceiling, and the sum blew through it on a QUIET box. This row
     // keeps the composite a NAMED stage (verify-registry-parity arm 1 requires it) and keeps it out of
@@ -31,7 +31,7 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "test"],
     classify: asViolations,
     manualReason:
-      "the green-to-commit composite (`pnpm test` = the vitest projects && `pnpm test:ct --retries=2`). `pnpm verify` runs its halves as `tests:node` + `browser:ct` so each carries its own hang ceiling derived from tooling/concurrency-profile.json (#1848); a tier row here would run both suites a second time",
+      "the explicit product-test composite (`pnpm test` = the vitest projects && `pnpm test:ct --retries=2`), available when the combined behavioral check is needed during development. `pnpm verify` runs its halves as `tests:node` + `browser:ct` so each carries its own hang ceiling derived from tooling/concurrency-profile.json (#1848); a tier row here would run both suites a second time",
   },
   {
     name: "tests:scoped",

@@ -7,8 +7,8 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ArtifactForm, DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
 import { migrationDebt, migrationMetrics, newDebtPathErrors } from "../lib/debt.ts";
 import { catalogReceipt } from "../lib/receipt-rules.ts";
-import { OUTPUT_PATH, RECEIPTS_DIR, SCHEMA_VERSION, STATE_PATH } from "../lib/vocab.ts";
-import { json, loadReceipts, receiptPath, root, stableJson } from "./tree.ts";
+import { LANES_PATH, OUTPUT_PATH, RECEIPTS_DIR, SCHEMA_VERSION, STATE_PATH } from "../lib/vocab.ts";
+import { indexFileMatchesWorkingTree, indexTrackedPaths, json, loadReceipts, receiptPath, root, stableJson } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
@@ -108,6 +108,37 @@ export function normalizeAuthoredArtifacts(config: LaneConfig): readonly string[
 export function catalogIsStale(expected: string): boolean {
   const path = join(root, OUTPUT_PATH);
   return !existsSync(path) || readFileSync(path, "utf8") !== expected;
+}
+
+/** Candidate-index twin of catalogIsStale; production preserves a commit hook's temporary index. */
+export function catalogIndexIsStale(expected: string, repoRoot = root, isolateGitEnvironment = false): boolean {
+  const path = join(repoRoot, OUTPUT_PATH);
+  return !existsSync(path) || readFileSync(path, "utf8") !== expected || !indexFileMatchesWorkingTree(OUTPUT_PATH, repoRoot, isolateGitEnvironment);
+}
+
+export function candidateTouchesCatalog(changedIndexPaths: ReadonlySet<string> | null): boolean {
+  if (changedIndexPaths === null) {
+    return true;
+  }
+  return [...changedIndexPaths].some(
+    (path) =>
+      path === LANES_PATH ||
+      path === OUTPUT_PATH ||
+      (path.startsWith("docs/") && path.endsWith(".md")) ||
+      (path.startsWith(`${RECEIPTS_DIR}/`) && path.endsWith(".json")),
+  );
+}
+
+/** Candidate-index closure over every source expectedCatalog reads, including removed receipt files. */
+export function catalogSourcesMatchIndex(config: LaneConfig, repoRoot = root, isolateGitEnvironment = false): boolean {
+  const receiptSources = new Set(config.lanes.map(receiptPath));
+  const indexedReceipts = indexTrackedPaths(RECEIPTS_DIR, repoRoot, isolateGitEnvironment);
+  return (
+    indexedReceipts !== null &&
+    indexedReceipts.size === receiptSources.size &&
+    [...receiptSources].every((path) => indexedReceipts.has(path) && indexFileMatchesWorkingTree(path, repoRoot, isolateGitEnvironment)) &&
+    indexFileMatchesWorkingTree(LANES_PATH, repoRoot, isolateGitEnvironment)
+  );
 }
 
 export function bootstrap(config: LaneConfig, docs: readonly Doc[], assignments: ReadonlyMap<string, Lane>): void {

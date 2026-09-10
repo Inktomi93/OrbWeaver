@@ -1,4 +1,4 @@
-// The two verbs: WRITE the Codex mirror (`.codex/agents/*.toml` + AGENTS.md's generated rule-import
+// The two verbs: WRITE the Codex mirror (`.codex/agents/*.toml` + AGENTS.md's generated rule-guidance
 // block + the shared skill symlink check) and CHECK it. Check never writes; write is idempotent and
 // prunes .toml files whose Claude source is gone — a stale role manifest is a role Codex can still
 // dispatch after the role was retired.
@@ -15,9 +15,9 @@ import {
   codexFilename,
   isMarkdown,
   isToml,
-  RULE_IMPORTS_BEGIN,
-  RULE_IMPORTS_END,
-  RULE_IMPORTS_PATTERN,
+  RULE_GUIDANCE_BEGIN,
+  RULE_GUIDANCE_END,
+  RULE_GUIDANCE_PATTERN,
 } from "../lib/paths.ts";
 import { renderCodexAgent } from "./render.ts";
 
@@ -31,19 +31,53 @@ function ruleFilenames(): readonly string[] {
   return readdirSync(CLAUDE_RULES_DIR).filter(isMarkdown).toSorted();
 }
 
-function renderedRuleImports(): string {
-  const imports = ruleFilenames().map((filename) => `@.claude/rules/${filename}`);
-  if (imports.length === 0) {
+function renderedRuleGuidance(): string {
+  const rules = ruleFilenames().map((filename) => `- \`.claude/rules/${filename}\``);
+  if (rules.length === 0) {
     throw new Error(".claude/rules must contain at least one Markdown rule");
   }
-  return [RULE_IMPORTS_BEGIN, ...imports, RULE_IMPORTS_END].join("\n");
+  return [
+    RULE_GUIDANCE_BEGIN,
+    "## Codex reading map",
+    "",
+    "Codex does not expand `@path` directives. Begin with the bounded task and the relevant source and tests; load shared policy when the work reaches the decision or action it governs:",
+    "",
+    "- A lookup of a file, command, value, or test location does not itself require a build, review, or test preflight. Inspect the relevant source or help entry and finish once the answer is supported.",
+    "- Use §0.3 of `docs/architecture/core/AGENTS.md` as the reading router when policy is needed. Read a complete relevant section and its needed linked constraints before making the decision or change it governs.",
+    "- When making or reviewing an architecture or package-placement decision, read constitution §§0.2, 2, and 3 plus the pertinent spine section.",
+    "- Before adding, changing, or running tests, read `.claude/rules/lane-standing-facts.md` sections `Verification floors` and `Running suites without starving the box`, plus the relevant testing law.",
+    "- Before staging, committing, creating, moving, or merging a worktree, read `.claude/rules/lane-standing-facts.md` section `Staging and commits` plus constitution §L.",
+    "- Before driving or changing the running stack, read `.claude/rules/lane-standing-facts.md` section `The dev stack`.",
+    "- Read the applicable `.claude/agent-doctrine.md` section when the task reaches one of its build-process topics; it is not a routine whole-file preflight in Codex.",
+    "- For delegation, consult the role table and the relevant parts of `Rules` and `What a brief must carry` in `.claude/rules/orchestration.md`; add its concurrency or merge constraints only when the operation needs them. Subagents follow their role prompt and do not load orchestrator-only policy.",
+    "- The current requested goal bounds the work. Continue necessary work within it; do not adopt standing overnight or whole-Ready-queue draining as the default scope of an unrelated task.",
+    "- For a work-item operation, use current `pnpm work:item --help`; consult orchestrator-runbook §1 only when the help does not settle the lifecycle question. Routine board operations do not require `dogfood-loop`; use it when a drive or finding workflow is relevant.",
+    "- For a worktree or integration operation, consult only the relevant runbook §5 or §6 procedure and the existing native worktree paths. Do not load unrelated account or lifecycle procedures.",
+    "- Claude-account, bridge, onboard, project-memory, and hook-automation procedures do not establish Codex runtime state. Use them when the task concerns Claude setup; otherwise use the Codex tools and live state available in this session.",
+    "- Read the current board when a lifecycle, refill, or recovery decision needs it; do not repeat the same board view without a new decision or relevant state change.",
+    "- Read `.claude/rules/browser-and-instruments.md` for component tests, end-to-end tests, or rendered/browser probes.",
+    "- Read `.claude/rules/db-schema.md` before touching database schema or migrations.",
+    "- Read `.claude/rules/gates-and-tooling.md` before touching tooling, gates, or tooling tests.",
+    '- To preserve an independent review, spawn `verifier`, `side-eye`, or `stickler` with `fork_turns="none"` and give it a self-contained brief. Codex defaults to a full-history fork.',
+    "- Use the global `code-recon` skill when its advanced reference is relevant to the task, primarily in `Explore` and `scout`. It is not routine pre-reading. In Codex, `.claude/agent-doctrine.md`'s blanket direction to load it does not require a separate skill read.",
+    "- Use `Core-Path-Registry.md` and `Core-Enforcement-Active-Gates.md` as targeted lookup catalogs: read the complete relevant D entry or gate row and the linked constraints needed for the task, rather than both catalogs in full.",
+    "- Archived library companions are provenance and reference material. Read them when the task needs that history, not during routine startup.",
+    "- Do not reread unchanged material already present in context. If a read is truncated, retrieve the missing relevant sections instead of repeating the whole file. Full reads still apply to changed or reviewed source and tests, and when the user explicitly requests a full document read.",
+    "",
+    "Claude `memory: project`, path-scoped rule auto-loading, permission/post-edit/onboard hooks, and worktree isolation do not carry into Codex. Use Codex-native memory, tools, and subagent controls; treat Claude-specific names in shared role prose as intent labels. Run the required verification explicitly.",
+    "",
+    "Canonical Claude-owned rule inventory (generated so a new rule cannot disappear from the Codex entry point):",
+    "",
+    ...rules,
+    RULE_GUIDANCE_END,
+  ].join("\n");
 }
 
-function replaceRuleImports(source: string): string {
-  if (!RULE_IMPORTS_PATTERN.test(source)) {
-    throw new Error("AGENTS.md is missing the generated Claude rule import block");
+function replaceRuleGuidance(source: string): string {
+  if (!RULE_GUIDANCE_PATTERN.test(source)) {
+    throw new Error("AGENTS.md is missing the generated Claude rule guidance block");
   }
-  return source.replace(RULE_IMPORTS_PATTERN, renderedRuleImports());
+  return source.replace(RULE_GUIDANCE_PATTERN, renderedRuleGuidance());
 }
 
 function skillsLinkProblem(): string | null {
@@ -68,8 +102,8 @@ export function codexAgentSyncProblems(): readonly string[] {
   }
 
   const agentsSource = readFileSync(AGENTS_PATH, "utf8");
-  if (!agentsSource.includes(renderedRuleImports())) {
-    problems.push("AGENTS.md Claude rule imports are stale; run pnpm agents:sync");
+  if (!agentsSource.includes(renderedRuleGuidance())) {
+    problems.push("AGENTS.md Claude rule guidance is stale; run pnpm agents:sync");
   }
 
   if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
@@ -89,7 +123,7 @@ export function codexAgentSyncProblems(): readonly string[] {
 
 export interface SyncCounts {
   readonly roles: number;
-  readonly ruleImports: number;
+  readonly rules: number;
 }
 
 /** Regenerate the whole Codex mirror. Returns what it wrote (the cli prints it). */
@@ -108,12 +142,12 @@ export function syncCodexAgents(): SyncCounts {
     const rendered = renderCodexAgent(sourceFilename, readFileSync(join(CLAUDE_AGENTS_DIR, sourceFilename), "utf8"));
     writeFileSync(join(CODEX_AGENTS_DIR, targetFilename), rendered);
   }
-  writeFileSync(AGENTS_PATH, replaceRuleImports(readFileSync(AGENTS_PATH, "utf8")));
+  writeFileSync(AGENTS_PATH, replaceRuleGuidance(readFileSync(AGENTS_PATH, "utf8")));
   const skillsProblem = skillsLinkProblem();
   if (skillsProblem !== null) {
     throw new Error(skillsProblem);
   }
-  return { roles: sourceFiles.length, ruleImports: ruleFilenames().length };
+  return { roles: sourceFiles.length, rules: ruleFilenames().length };
 }
 
 /** How many role manifests `--check` compared (the check's own receipt line). */

@@ -93,6 +93,10 @@ export interface Doc {
 export interface ReceiptFacts {
   readonly currentSha256: string;
   readonly verifiedBlobSha256: string | null;
+  /** The exact current document and complete current receipt file coexist in the Git index. */
+  readonly currentReceiptSnapshotExists: boolean;
+  /** At least one side of the document/receipt pair differs between HEAD and the candidate index. */
+  readonly candidateTouchesReceiptPair: boolean;
   readonly verifiedCommitExists: boolean;
   readonly verifiedCommitIsAncestor: boolean;
   readonly localEvidence: ReadonlyMap<string, number>;
@@ -114,6 +118,7 @@ export interface ValidationInput {
   readonly assignments: ReadonlyMap<string, Lane>;
   readonly receipts: readonly Receipt[];
   readonly state: State;
+  readonly changedIndexPaths: ReadonlySet<string> | null;
 }
 
 export interface ReceiptValidationContext {
