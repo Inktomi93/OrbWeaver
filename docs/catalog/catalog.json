@@ -763,14 +763,16 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "77be461070d7c4c3a1a91a595ce373d564e86bd0a14a8363b9f31b7799689cc8",
+        "assignedSha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "77be461070d7c4c3a1a91a595ce373d564e86bd0a14a8363b9f31b7799689cc8",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
+        "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
+        "verifiedAt": "2026-09-10",
         "evidence": [
+          "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
+          "bounded post-174cc2961 delta: 1731d657f repointed D108 from the retired rpg-bus-coverage gate to the live generic bus-producer-coverage policy; docs/reviews/gate-runtime/bus-pair-1584.md and checkpoint-2026-09-05.md record the reviewed consolidation; #1584 remains the live gate-runtime program",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1774 persona half: D122's resolvePersonasForRoster mentions repointed to resolvePersonasForParticipants",
           "c68f32c3a (#1774 rpg half, claude-b cb-rpg-roster-codemod linearized: D108 + its (F) paragraph — the rpg roster family renamed by codemod; symbols only) — re-attested at the fold",
@@ -840,7 +842,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 carries the total accepted-base foreground contract plus its framebuffer-safe derivation target; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -1960,14 +1962,16 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
-        "assignedSha256": "2ccc0e5d2896a9ea8da6e864ab82e85fc949edc322946930f4f470ac698211aa",
+        "assignedSha256": "3b689904dd23c82c80e04053df6a0f4868264df7e5e375eb5830c9bd1ee625ee",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "2ccc0e5d2896a9ea8da6e864ab82e85fc949edc322946930f4f470ac698211aa",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "3b689904dd23c82c80e04053df6a0f4868264df7e5e375eb5830c9bd1ee625ee",
+        "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
+        "verifiedAt": "2026-09-10",
         "evidence": [
+          "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current Playwright CT setup still imports tests/support/browser/ct-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
+          "bounded post-174cc2961 delta: f9c1bd99a repointed bus-onData-no-store-write to the live bus-on-data-no-store-write policy; docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md confirms the complete live rename; #1584 remains the live gate-runtime program",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "docs/architecture/core/UI-Primitives-and-Reuse.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -1987,7 +1991,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
@@ -12175,8 +12179,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 1037,
-      "bytes": 156049,
-      "sha256": "5ccb362edf3c6b1a65104a02cdf1c69358095a8e3c63aa0b199c8a5cd56381b0",
+      "bytes": 156053,
+      "sha256": "fc3e49581f96202dcef5f07ac0ccdc82a714bdc73f37884b2a2f2232e0bb3e0a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12189,14 +12193,15 @@
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "5ccb362edf3c6b1a65104a02cdf1c69358095a8e3c63aa0b199c8a5cd56381b0",
+        "assignedSha256": "fc3e49581f96202dcef5f07ac0ccdc82a714bdc73f37884b2a2f2232e0bb3e0a",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "5ccb362edf3c6b1a65104a02cdf1c69358095a8e3c63aa0b199c8a5cd56381b0",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "fc3e49581f96202dcef5f07ac0ccdc82a714bdc73f37884b2a2f2232e0bb3e0a",
+        "verifiedCommit": "1224fc431437a1c44f3e0afb4a8c2e80e7d217d7",
+        "verifiedAt": "2026-09-10",
         "evidence": [
+          "bounded #1351/#1862 re-attestation at 1224fc431: f6c2ae500 renamed tests/client/agent-nav/index.test.ts to index.dom.test.ts under the registered browser-subject kind; the coupled-site reference now resolves to that authored test and the existing full-document review remains applicable; #1351 remains the live program",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "#1839/#1840 (cb-config-grammar-2): one pane-title register + the selection-idiom collapse landed; the design doc's status lines follow (fold c600fc734)",
           "re-attested after the second cite truth-repair (the owed setting-row-frame CT as prose) at d5cee6b27",
@@ -12354,9 +12359,9 @@
       "path": "docs/design/context-bracket-build.md",
       "lane": "design",
       "issue": 5,
-      "lines": 224,
-      "bytes": 20363,
-      "sha256": "9991376e9163957d282ed7b319f950bc03812e9f592d972ea6e7e5c32ca9ad75",
+      "lines": 223,
+      "bytes": 20408,
+      "sha256": "a5c40fcdbace70c766b226ace82e1dcfba3d9e368f98a71b03ee10c4e286a237",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12369,14 +12374,15 @@
       },
       "receipt": {
         "path": "docs/design/context-bracket-build.md",
-        "assignedSha256": "7056829ea6b25de0215d8c9f8fbda84da057e2946faa1e548797ff4f4e84b59f",
+        "assignedSha256": "a5c40fcdbace70c766b226ace82e1dcfba3d9e368f98a71b03ee10c4e286a237",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9991376e9163957d282ed7b319f950bc03812e9f592d972ea6e7e5c32ca9ad75",
-        "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+        "verifiedSha256": "a5c40fcdbace70c766b226ace82e1dcfba3d9e368f98a71b03ee10c4e286a237",
+        "verifiedCommit": "1224fc431437a1c44f3e0afb4a8c2e80e7d217d7",
         "verifiedAt": "2026-09-10",
         "evidence": [
+          "bounded #1351/#1862 re-attestation at 1224fc431: f6c2ae500 renamed tests/client/lib/registry-contracts.test.ts to registry-contracts.dom.test.ts under the registered browser-subject kind; the coupled-site row now resolves, and the test plan uses canonical pnpm typecheck for every runnable world; #1351 remains the live program",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)",
           "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
@@ -13864,13 +13870,13 @@
       },
       "receipt": {
         "path": "docs/design/pane-standardization-design.md",
-        "assignedSha256": "e0d2b6413837812c2cfd21e7e987045a5f2cbab4ce053ae0d12f063410ec7a87",
+        "assignedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e0d2b6413837812c2cfd21e7e987045a5f2cbab4ce053ae0d12f063410ec7a87",
-        "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-        "verifiedAt": "2026-09-06",
+        "verifiedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
+        "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
+        "verifiedAt": "2026-09-10",
         "claims": [
           {
             "claim": "The pane axes that never drifted are exactly the structural/type-forced ones (band presence, shell-panel-body padding, required content/context/useSelectionTitle); every optional slot and prose convention drifted (listHeader, CONTENT padding, band anatomy, empty/loading arms) — so each axis moves to the highest enforcement tier its variance allows.",
@@ -13939,13 +13945,15 @@
         ],
         "summary": "The #1191 convergence design: per-axis standards for the rail pane system (LIST band structural-via-data, shell-owned CONTENT inset with a reason-carrying edge arm, derived panel availability, 3-class empty floor, skeleton loading), each with its enforcement tier named, a designed-divergence grammar, per-section migration deltas and the sweep order.",
         "evidence": [
+          "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; tests/support/browser/ct-data-providers.tsx still owns fakeSection and the real section-registry mirrors while the old tests/support/ct path is absent; #1351 remains the live program",
+          "bounded post-174cc2961 delta: aafe68db3 replaced the retired zero-consumer lib/section-defs.ts citation with the live shared registryDefinitionFact; docs/reviews/gate-runtime/registry-family-1584-checkpoint.md and checkpoint-2026-09-05.md record the reviewed fact repair and deletion; #1584 remains the live gate-runtime program",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
           "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
           "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
           "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/parked-options-config-port.md",

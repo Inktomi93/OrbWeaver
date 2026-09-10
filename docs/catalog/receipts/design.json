@@ -574,14 +574,15 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "5ccb362edf3c6b1a65104a02cdf1c69358095a8e3c63aa0b199c8a5cd56381b0",
+      "assignedSha256": "fc3e49581f96202dcef5f07ac0ccdc82a714bdc73f37884b2a2f2232e0bb3e0a",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "5ccb362edf3c6b1a65104a02cdf1c69358095a8e3c63aa0b199c8a5cd56381b0",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "fc3e49581f96202dcef5f07ac0ccdc82a714bdc73f37884b2a2f2232e0bb3e0a",
+      "verifiedCommit": "1224fc431437a1c44f3e0afb4a8c2e80e7d217d7",
+      "verifiedAt": "2026-09-10",
       "evidence": [
+        "bounded #1351/#1862 re-attestation at 1224fc431: f6c2ae500 renamed tests/client/agent-nav/index.test.ts to index.dom.test.ts under the registered browser-subject kind; the coupled-site reference now resolves to that authored test and the existing full-document review remains applicable; #1351 remains the live program",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "#1839/#1840 (cb-config-grammar-2): one pane-title register + the selection-idiom collapse landed; the design doc's status lines follow (fold c600fc734)",
         "re-attested after the second cite truth-repair (the owed setting-row-frame CT as prose) at d5cee6b27",
@@ -697,14 +698,15 @@
     },
     {
       "path": "docs/design/context-bracket-build.md",
-      "assignedSha256": "7056829ea6b25de0215d8c9f8fbda84da057e2946faa1e548797ff4f4e84b59f",
+      "assignedSha256": "a5c40fcdbace70c766b226ace82e1dcfba3d9e368f98a71b03ee10c4e286a237",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "9991376e9163957d282ed7b319f950bc03812e9f592d972ea6e7e5c32ca9ad75",
-      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+      "verifiedSha256": "a5c40fcdbace70c766b226ace82e1dcfba3d9e368f98a71b03ee10c4e286a237",
+      "verifiedCommit": "1224fc431437a1c44f3e0afb4a8c2e80e7d217d7",
       "verifiedAt": "2026-09-10",
       "evidence": [
+        "bounded #1351/#1862 re-attestation at 1224fc431: f6c2ae500 renamed tests/client/lib/registry-contracts.test.ts to registry-contracts.dom.test.ts under the registered browser-subject kind; the coupled-site row now resolves, and the test plan uses canonical pnpm typecheck for every runnable world; #1351 remains the live program",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "docs/design/context-bracket-build.md read in full by the orchestrator (claude-b) at the #860 merge (lane cb-ctx-bracket; the build design record: recon with two premise kills (#861 kicker order, Status editor already in Game), the chosen architecture (the claim shrinks to a head-band claim; the shell owns the column), rejected alternatives, the coupled-site table, the test plan, the six forks with their 2026-08-30 rulings, the pre-existing #830 reds)",
         "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
