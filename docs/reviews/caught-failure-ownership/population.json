@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 586,
-    "enforced": 581,
+    "sites": 588,
+    "enforced": 583,
     "reported": 16,
     "byVerdict": {
-      "deliberate-absorb": 565,
+      "deliberate-absorb": 567,
       "detached-owned": 5,
       "unproven": 16
     },
     "byGrammar": {
       "promise": 143,
-      "default": 159,
-      "empty": 284
+      "default": 160,
+      "empty": 285
     }
   },
   "rows": [
@@ -7001,7 +7001,7 @@
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
-      "line": 187,
+      "line": 192,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7009,7 +7009,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable pattern matches nothing, so it",
-      "markerLine": 182
+      "markerLine": 187
     },
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::empty:error::1",
@@ -7118,7 +7118,7 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::default:catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 42,
+      "line": 163,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7126,7 +7126,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.",
-      "markerLine": 39
+      "markerLine": 160
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
@@ -7595,6 +7595,32 @@
       "verdict": "unproven",
       "reason": null,
       "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/tests-type-membership.ts::default:catch::1",
+      "path": "tooling/src/verify/ops/tests-type-membership.ts",
+      "line": 85,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict.",
+      "markerLine": 82
+    },
+    {
+      "siteId": "tooling/src/verify/ops/typecheck.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/typecheck.ts",
+      "line": 103,
+      "column": 9,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict.",
+      "markerLine": 99
     },
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",
