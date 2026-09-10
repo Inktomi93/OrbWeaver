@@ -7482,7 +7482,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 64,
+      "line": 67,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -7495,7 +7495,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 89,
+      "line": 92,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -7612,7 +7612,7 @@
     {
       "siteId": "tooling/src/verify/ops/typecheck.ts::empty:error::1",
       "path": "tooling/src/verify/ops/typecheck.ts",
-      "line": 103,
+      "line": 106,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -7620,7 +7620,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict.",
-      "markerLine": 99
+      "markerLine": 102
     },
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",

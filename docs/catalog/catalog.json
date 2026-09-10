@@ -990,16 +990,16 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 425,
-      "bytes": 49465,
-      "sha256": "b9509bfc3c92b9df923faa70507e568ff2eadbda0856fb7a58023f2c4fae8b4d",
+      "lines": 422,
+      "bytes": 49414,
+      "sha256": "8f0e64ea1b82a24ade6d6252cdbc35365dc0f25b3cc5a44a1c1a2bee58c21ebb",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-08"
+          "updated": "2026-09-10"
         },
         "errors": []
       },
@@ -1009,8 +1009,8 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "b9509bfc3c92b9df923faa70507e568ff2eadbda0856fb7a58023f2c4fae8b4d",
-        "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+        "verifiedSha256": "8f0e64ea1b82a24ade6d6252cdbc35365dc0f25b3cc5a44a1c1a2bee58c21ebb",
+        "verifiedCommit": "05f9763f29bc72298d9e60e8844e12ad84e5e3f8",
         "verifiedAt": "2026-09-10",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -1035,24 +1035,17 @@
           "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it.",
           "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
           "docs/architecture/core/Core-Tooling-Law.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts.",
-          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
+          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+          "Full document read and current code review: native process-adapter boundary, generated Node compiler ownership, canonical capacity reader and command migration. Independent capacity review and scoped documentation formatting passed; no filename or profile-field roster is maintained in prose."
         ],
-        "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
+        "summary": "Active tooling-tree law: package and process-adapter boundaries, shared capacity/compiler authorities, verification contracts and move discipline.",
         "claims": [
           {
-            "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
+            "claim": "The current world program owns acceptance of the shared compiler, capacity and native-tool execution changes; this receipt does not claim full program completion.",
             "evidence": [
               {
-                "kind": "code",
-                "target": "tooling/src/_shared/ts-workspace.ts:35"
-              },
-              {
-                "kind": "code",
-                "target": "tooling/src/verify/gates/test-presence-client.ts:268"
-              },
-              {
                 "kind": "issue",
-                "target": "#393"
+                "target": "#1351"
               }
             ]
           }
@@ -1340,16 +1333,16 @@
       "path": "docs/architecture/core/Spine-Testing.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 284,
-      "bytes": 29630,
-      "sha256": "91223e8f931a87ef5a6a39f028e5c353b996762f145bde296efe205e4ea0a21f",
+      "lines": 285,
+      "bytes": 29919,
+      "sha256": "9cc9834d83189023e47b8724ffa6ddba931fdb2da2ee10815bae4a858a4696e5",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-08"
+          "updated": "2026-09-10"
         },
         "errors": []
       },
@@ -1359,8 +1352,8 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "91223e8f931a87ef5a6a39f028e5c353b996762f145bde296efe205e4ea0a21f",
-        "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+        "verifiedSha256": "9cc9834d83189023e47b8724ffa6ddba931fdb2da2ee10815bae4a858a4696e5",
+        "verifiedCommit": "05f9763f29bc72298d9e60e8844e12ad84e5e3f8",
         "verifiedAt": "2026-09-10",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -1380,7 +1373,8 @@
           "delta re-verify 2026-08-26 (the arid-ignorer move + family (2), commit 6c01bf111): re-read at the edited bytes. The §mutation ARID paragraph is the only claim that moved — it now names tooling/src/mutation-arid/ (the plugin left the research zone), states the second unkillable family (compile-time-unreachable `never`-typed arms) with its measured guard.ts receipt, and adds the mutation-probe paragraph (a reported survivor is not ground truth: 184/230 were already killed). No other claim in this document moved.",
           "delta re-verify 2026-08-30 (#773, the test-presence entry/transport widening, commit 13712214a): re-read at the edited bytes. §5 is the only section that moved — one new demand row for `entry/**` + `transport/**` runtime logic, and the exemption paragraph now records the tier arm's three SHAPE exemptions (a `.d.ts`, a router shell with no callable export, and a PASS-THROUGH wiring file) with the Tier-5/Tier-4 invariants they are derived from. Each is bite-proved in both directions by tests/tooling/verify/gates/test-presence.int.test.ts. No other claim in this document moved.",
           "Stryker configuration citation re-attestation after a24feaadb: native JS profiles preserve options; calibration history now lives in docs/reviews/mutation-config-calibration.md. Full document reads retained from the world-program documentation pass; this delta changes citations only.",
-          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
+          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+          "Full document reread: corrected Node-plus-CT composite and managed CT invocation, retained registered kinds and native capability-tag semantics, and pointed mutation calibration to native policy. Package scripts, strict-tag execution and normal/mutation showcase controls were exercised."
         ],
         "claims": [
           {
@@ -10863,16 +10857,16 @@
       "path": "docs/architecture/proposed/type-worlds-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 129,
-      "bytes": 18061,
-      "sha256": "58694f270c4a0d6fe885c6eb6cc1334206be4f4821c81714f58c6375bd7fe1a0",
+      "lines": 131,
+      "bytes": 19134,
+      "sha256": "3160a0ed8cc7beb453fe16cba42a0d4f5ac779cde9ff4f415e3da2e52f151338",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "active",
-          "updated": "2026-09-08"
+          "updated": "2026-09-10"
         },
         "errors": []
       },
@@ -10882,8 +10876,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "58694f270c4a0d6fe885c6eb6cc1334206be4f4821c81714f58c6375bd7fe1a0",
-        "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
+        "verifiedSha256": "3160a0ed8cc7beb453fe16cba42a0d4f5ac779cde9ff4f415e3da2e52f151338",
+        "verifiedCommit": "05f9763f29bc72298d9e60e8844e12ad84e5e3f8",
         "verifiedAt": "2026-09-10",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -10900,7 +10894,8 @@
           "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
           "pnpm check:docs (2026-09-04: 2 file(s) formatted)",
           "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
+          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+          "Full plan reread with parent and associated issue comments. Current design includes authored tooling CPD coverage and native ESLint discovery followed by compiler-owner process isolation. Independent reviews and native controls support the implementation; final composed acceptance and separate follow-ups remain explicit on #1351."
         ],
         "summary": "Active world/test/config program: shared intent and native observations, pure source contracts, canonical test kinds, native config adapters and worktree-aware typecheck routing; ordered remaining ownership/config acceptance stays explicit.",
         "claims": [
