@@ -80,7 +80,7 @@ const TEMPLATE_TWO_ROWS = `${UI_CONST}module.exports = { forbidden: [{ name: "r"
 const tokens = (run: Run): readonly (string | undefined)[] => run.findings.map((f) => f.token);
 const messages = (run: Run): string => run.findings.map((f) => f.message ?? "").join("\n");
 
-describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", { tags: "slow" }, () => {
+describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", () => {
   test("a file-exact `pathNot` exemption whose file is GONE is RED, and names the dead path", ({ scratch }) => {
     plant(scratch, CONFIG_REL, rule(String.raw`pathNot: "^packages/ui/src/gone\.ts$"`));
     expect(tokens(runGate(scratch))).toEqual(["packages/ui/src/gone.ts"]);
@@ -107,7 +107,7 @@ describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", {
   });
 });
 
-describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law must never false-RED)", { tags: "slow" }, () => {
+describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law must never false-RED)", () => {
   test("every ambiguous pattern class is a SKIP, not a path — unit-level, on the real classifier", () => {
     for (const pattern of [
       "^packages/server/",
@@ -131,7 +131,7 @@ describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law mu
   });
 });
 
-describe("depcruise-grant-liveness — a bare zero must be 'I could not measure', never 'clean'", { tags: "slow" }, () => {
+describe("depcruise-grant-liveness — a bare zero must be 'I could not measure', never 'clean'", () => {
   test("an ABSENT .dependency-cruiser.cjs REFUSES LOUDLY (the §4.6 blindness tripwire)", ({ scratch }) => {
     const run = runGate(scratch);
     expect(messages(run)).toContain("not at the repo root");
@@ -156,7 +156,7 @@ describe("depcruise-grant-liveness — a bare zero must be 'I could not measure'
   });
 });
 
-describe("depcruise-grant-liveness — the REAL tree", { tags: "slow" }, () => {
+describe("depcruise-grant-liveness — the REAL tree", () => {
   test("the real config parses, reads a substantial value set, and carries NO dead import-law row", ({ repoRoot }) => {
     const run = runGate(repoRoot);
     const declared = run.declarations[0];
@@ -218,7 +218,7 @@ const RATIFIED_CITES = ["tooling/src/verify/gates/GATE-AUTHORING.md", ".gitignor
 const KIT_FILE = "packages/kit/src/live.ts";
 const KIT_SOURCE = "export const live = 1;\n";
 
-describe("depcruise-grant-liveness — PATTERN liveness (#973)", { tags: "slow" }, () => {
+describe("depcruise-grant-liveness — PATTERN liveness (#973)", () => {
   test("a PATTERN whose class has no tracked member is RED, and names the pattern", ({ scratch }) => {
     plantRepo(scratch, { [CONFIG_REL]: patternConfig(["^packages/nonexistent-tier/"]), [KIT_FILE]: KIT_SOURCE });
     const run = runGate(scratch);

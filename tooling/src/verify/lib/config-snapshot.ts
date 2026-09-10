@@ -1,5 +1,5 @@
-// Synchronous client for the verify CLI's native config snapshot. Gates remain synchronous; executable
-// runner config is evaluated only in the niced child, and the parent accepts no malformed/partial JSON.
+// Synchronous client for the private native-config snapshot worker. Gates remain synchronous; executable
+// runner config is evaluated only in the narrow niced child, and the parent accepts no malformed/partial JSON.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
@@ -19,7 +19,7 @@ import type {
 } from "../contract/config-snapshot.ts";
 import { CONFIG_SNAPSHOT_RUNNERS, DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
 
-const CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
+const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_MS = 30_000;
 const SNAPSHOT_MAX_BUFFER = 16_777_216;
 
@@ -183,7 +183,7 @@ export function readConfigSnapshot(root: string, runner: "vitest", config: strin
 export function readConfigSnapshot(root: string, runner: "eslint", config: string): ConfigSnapshotRead<"eslint">;
 export function readConfigSnapshot(root: string, runner: "depcruise", config: string): ConfigSnapshotRead<"depcruise">;
 export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshotRead<ConfigSnapshotRunner> {
-  const child = runNicedSync(process.execPath, [CLI, "config-snapshot", runner, config], {
+  const child = runNicedSync(process.execPath, [SNAPSHOT_ENTRY, runner, config], {
     cwd: root,
     maxBuffer: SNAPSHOT_MAX_BUFFER,
     timeout: SNAPSHOT_TIMEOUT_MS,

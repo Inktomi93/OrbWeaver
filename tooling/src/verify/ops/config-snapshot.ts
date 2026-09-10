@@ -1,5 +1,5 @@
-// Native config observation for synchronous structural gates. The CLI process is the async boundary:
-// it lets each runner load executable config through its public API, then emits data only.
+// Native config observation for synchronous structural gates. The private worker process is the async
+// boundary; the public verify CLI delegates here too. Each runner loads through its public API, then emits data only.
 import { resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
