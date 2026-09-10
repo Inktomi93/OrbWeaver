@@ -7,6 +7,7 @@ import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooli
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
 import { inheritedRunMarker, runMarkerArg } from "@orb/tooling/_shared/run-marker";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -41,6 +42,7 @@ const CT_RUN_MARKER = inheritedRunMarker();
 const BASE_TEST_TIMEOUT_MS = 30_000;
 const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
+const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component").map(({ suffix }) => `**/*${suffix}`);
 const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 type CtViteConfig = Exclude<NonNullable<NonNullable<PlaywrightTestConfig["use"]>["ctViteConfig"]>, () => Promise<unknown>>;
@@ -89,7 +91,7 @@ const ctSlot =
 
 export default defineConfig({
   testDir: "tests",
-  testMatch: "**/*.ct.tsx",
+  testMatch: CT_TEST_MATCH,
   outputDir: "reports/ct-results",
   fullyParallel: true,
   // WORKERS ARE PINNED, and the value IS the load-safety rule — not a tuning preference (#766).
@@ -161,7 +163,7 @@ export default defineConfig({
     ctPort: Number(process.env["CT_PORT"] ?? CT_VITE_PORT),
     // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this
     // against the config dir and otherwise defaults to `playwright/.cache` — ONE directory per worktree,
-    // which is what two concurrent `ct:scoped` runners were clearing and rebuilding under each other
+    // which is what two concurrent `test:ct` runners were clearing and rebuilding under each other
     // (measured: 201/2 with two reds in a file the run never touched, then 203/203 for the same set alone).
     // `cli.ts scoped-test ct` mints `.cache/ct/build-<pid>-<ms>` and removes it on exit; a bare
     // `npx playwright test -c playwright-ct.config.ts` with no env still gets the stock default.

@@ -29,6 +29,7 @@
 
 import process from "node:process";
 import { DEV_PORTS, E2E_PORTS } from "@orb/tooling/_shared/ports";
+import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `stack.sh start-fg`
@@ -77,6 +78,9 @@ type ClientWarmup = "room" | "shell";
 
 const SESSION_SECRET = "orbweaver-e2e-multimode-session-secret-insecure";
 const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const E2E_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "e2e").map(({ suffix }) => suffix);
+const E2E_TEST_SUFFIX_PATTERN = E2E_TEST_SUFFIXES.map((suffix) => suffix.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|");
+const E2E_TEST_END_PATTERN = `(?:${E2E_TEST_SUFFIX_PATTERN})$`;
 
 /**
  * The `/api/_debug/*` credential every mode stack boots with — the harness's ONLY way onto that surface
@@ -149,7 +153,7 @@ export const SINGLE_USER: ModeProject = {
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
-  testMatch: /(?<!\.(?:local|forward))\.spec\.ts$/u,
+  testMatch: new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
     VLLM_DISABLED: "true",
@@ -198,7 +202,7 @@ const LOCAL: ModeProject = {
   name: "local",
   baseUrl: `http://localhost:${LOCAL_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
-  testMatch: /\.local\.spec\.ts$/u,
+  testMatch: new RegExp(`\\.local${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
     VLLM_DISABLED: "true",
@@ -240,7 +244,7 @@ const FORWARD_HEADER: ModeProject = {
   name: "forward-header",
   baseUrl: `http://localhost:${FWD_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
-  testMatch: /\.forward\.spec\.ts$/u,
+  testMatch: new RegExp(`\\.forward${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     ENGINES_POSTURE: "adopt-only",
     VLLM_DISABLED: "true",
