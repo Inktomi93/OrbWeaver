@@ -5,7 +5,7 @@ import type { AmbientScope } from "../../_shared/type-config-intent.ts";
 /** Required owner present, explicit ambient scope, wrong root, closure-only, absent, or unresolved intent. */
 export const MEMBERSHIP_OUTCOMES = ["predicted", "ambient", "drift", "import-only", "unowned", "unclassified"] as const;
 export type MembershipOutcome = (typeof MEMBERSHIP_OUTCOMES)[number];
-export const MEMBERSHIP_ENFORCEMENT = "test-coverage-and-lib-leaks";
+export const MEMBERSHIP_ENFORCEMENT = "world-ownership-ambient-distribution-and-closure-libraries";
 
 /** Primary ownership and complete actual membership are separate facts. */
 export interface MembershipRow {
@@ -19,7 +19,25 @@ export interface MembershipRow {
   readonly rootedBy: readonly string[];
   /** The programs whose import CLOSURE contains the file. */
   readonly containedBy: readonly string[];
+  /** Exact concrete program set required for an ambient; empty for ordinary sources. */
+  readonly expectedPrograms: readonly string[];
   readonly outcome: MembershipOutcome;
+}
+
+export const CLOSURE_LEAK_KINDS = ["node-declarations", "browser-libraries"] as const;
+export type ClosureLeakKind = (typeof CLOSURE_LEAK_KINDS)[number];
+
+export interface ClosureLeak {
+  readonly program: string;
+  readonly world: World;
+  readonly kind: ClosureLeakKind;
+  readonly files: readonly string[];
+}
+
+export interface RoutingParityViolation {
+  readonly program: string;
+  readonly file: string;
+  readonly observedBy: "shared-parser" | "native-ts7";
 }
 
 export interface MembershipReport {
@@ -28,4 +46,7 @@ export interface MembershipReport {
   readonly rows: readonly MembershipRow[];
   readonly testEscapees: readonly string[];
   readonly libLeaks: readonly string[];
+  readonly unknownPrograms: readonly string[];
+  readonly closureLeaks: readonly ClosureLeak[];
+  readonly routingParityViolations: readonly RoutingParityViolation[];
 }

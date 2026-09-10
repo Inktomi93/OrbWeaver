@@ -8,6 +8,7 @@
     "platform.d.ts",
     "packages/ui/src/markdown/css-modules.d.ts",
     "playwright/globals.d.ts",
+    "tests/support/vitest-tags.d.ts",
     "tests/**/*.dom.test-d.ts",
     "tests/**/*.dom.test.ts",
     "tests/**/*.spec.ts",

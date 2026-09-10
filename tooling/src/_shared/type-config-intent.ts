@@ -8,6 +8,9 @@ export const TYPE_WORLD_TEMPLATE_PATHS = {
   browser: "tsconfig.world-browser.json",
 } as const satisfies Readonly<Record<Exclude<World, "iso">, string>>;
 
+export const AMBIENT_SCOPES = ["all-programs", "graph-only", "ui-and-browser-tests", "client-source", "browser-tests", "vitest-tests"] as const;
+export type AmbientScope = (typeof AMBIENT_SCOPES)[number];
+
 const AMBIENT_INTENT = [
   { path: "reset.d.ts", scope: "all-programs" },
   { path: "platform.d.ts", scope: "all-programs" },
@@ -16,20 +19,59 @@ const AMBIENT_INTENT = [
   { path: "packages/ui/src/markdown/css-modules.d.ts", scope: "ui-and-browser-tests" },
   { path: "packages/client/src/styles/vite-env.d.ts", scope: "client-source" },
   { path: "playwright/globals.d.ts", scope: "browser-tests" },
-] as const;
-export type AmbientScope = (typeof AMBIENT_INTENT)[number]["scope"];
+  { path: "tests/support/vitest-tags.d.ts", scope: "vitest-tests" },
+] as const satisfies readonly { readonly path: string; readonly scope: AmbientScope }[];
 export const AMBIENT_SCOPE_DEFINITIONS: Readonly<Record<string, AmbientScope>> = Object.fromEntries(AMBIENT_INTENT.map(({ path, scope }) => [path, scope]));
 
 function ambientsWithScope(...scopes: readonly AmbientScope[]): readonly string[] {
   return AMBIENT_INTENT.filter(({ scope }) => scopes.includes(scope)).map(({ path }) => path);
 }
 
-export const COMMON_PROGRAM_AMBIENTS = ambientsWithScope("all-programs");
-export const GRAPH_ONLY_AMBIENTS = ambientsWithScope("graph-only");
-export const BROWSER_TEST_AMBIENTS = ambientsWithScope("ui-and-browser-tests", "browser-tests");
-
 export function ambientScopeOf(path: string): AmbientScope | undefined {
   return AMBIENT_SCOPE_DEFINITIONS[path];
+}
+
+const PACKAGE_CONFIG_RE = /^packages\/([^/]+)\/tsconfig\.json$/u;
+
+/** Intended world of a runnable config. An unknown config is unresolved intent, never permission inferred
+ * from the compiler roots or libraries it happens to carry. */
+export function programWorldOf(config: string): World | undefined {
+  const packageName = PACKAGE_CONFIG_RE.exec(config)?.[1];
+  if (packageName !== undefined) {
+    return PACKAGE_WORLDS[packageName];
+  }
+  if (config === "tooling/tsconfig.json") {
+    return "node";
+  }
+  return Object.entries(TEST_WORLD_PROGRAMS).find(([, path]) => path === config)?.[0] as World | undefined;
+}
+
+/** Ambient scopes admitted by one concrete program. The generator and membership validator consume this
+ * same decision; reference-only containers are filtered by the validator because they own no roots. */
+export function ambientScopesForProgram(config: string): readonly AmbientScope[] | undefined {
+  const world = programWorldOf(config);
+  if (world === undefined) {
+    return;
+  }
+  const scopes: AmbientScope[] = ["all-programs"];
+  if (config === TEST_WORLD_PROGRAMS.node) {
+    scopes.push("graph-only", "vitest-tests");
+  }
+  if (config === packageConfigPath("ui") || config === TEST_WORLD_PROGRAMS.browser) {
+    scopes.push("ui-and-browser-tests");
+  }
+  if (config === packageConfigPath("client")) {
+    scopes.push("client-source");
+  }
+  if (config === TEST_WORLD_PROGRAMS.browser) {
+    scopes.push("browser-tests", "vitest-tests");
+  }
+  return scopes;
+}
+
+export function ambientRootsForProgram(config: string): readonly string[] | undefined {
+  const scopes = ambientScopesForProgram(config);
+  return scopes === undefined ? undefined : ambientsWithScope(...scopes);
 }
 
 // Every concrete leaf restates these because TypeScript replaces inherited exclude arrays. `__g_*` is

@@ -1,7 +1,13 @@
 // World intent stays independent of filesystem and compiler discovery.
 import { BROWSER_PACKAGES, isWorldHelperPath, predictedProgram, TEST_WORLD_PROGRAMS, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
-import { AMBIENT_SCOPE_DEFINITIONS, browserTestRootPatterns, nodeTestExclusionPatterns } from "@orb/tooling/_shared/type-config-intent";
+import {
+  AMBIENT_SCOPE_DEFINITIONS,
+  ambientScopesForProgram,
+  browserTestRootPatterns,
+  nodeTestExclusionPatterns,
+  programWorldOf,
+} from "@orb/tooling/_shared/type-config-intent";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then suffix, nothing else", () => {
@@ -58,4 +64,16 @@ test("ambient scope and browser-kind roots are explicit shared intent", () => {
   const browserRoots = browserTestRootPatterns(TEST_KIND_DEFINITIONS);
   expect(browserRoots).toContain("tests/**/*.ct.tsx");
   expect(nodeTestExclusionPatterns(TEST_KIND_DEFINITIONS)).toEqual(browserRoots);
+  expect(ambientScopesForProgram("tsconfig.json")).toContain("vitest-tests");
+  expect(ambientScopesForProgram("tsconfig.tests-dom.json")).toContain("vitest-tests");
+  expect(ambientScopesForProgram("tsconfig.tests-iso.json")).not.toContain("vitest-tests");
+  expect(ambientScopesForProgram("packages/client/tsconfig.json")).not.toContain("vitest-tests");
+});
+
+test("program worlds are derived from registered package and test intent, never observed roots", () => {
+  expect(programWorldOf("packages/kit/tsconfig.json")).toBe("iso");
+  expect(programWorldOf("packages/server/tsconfig.json")).toBe("node");
+  expect(programWorldOf("tsconfig.tests-dom.json")).toBe("browser");
+  expect(programWorldOf("packages/fresh/tsconfig.json")).toBeUndefined();
+  expect(programWorldOf("tsconfig.unknown.json")).toBeUndefined();
 });

@@ -8,6 +8,7 @@
     "platform.d.ts",
     "aggregator-assets.d.ts",
     "packages/showcase-plugins/bundles/host-v1.d.ts",
+    "tests/support/vitest-tags.d.ts",
     "*.config.ts",
     "knip.ts",
     "packages/*/*",

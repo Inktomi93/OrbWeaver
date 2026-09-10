@@ -12,7 +12,7 @@ import { describe } from "vitest";
 import { expect, test } from "./fixtures.ts";
 
 describe("anonCaller — the unauthenticated request", () => {
-  test("an authed surface rejects UNAUTHORIZED", { timeout: 30_000 }, async ({ anonCaller }) => {
+  test("an authed surface rejects UNAUTHORIZED", { tags: "slow" }, async ({ anonCaller }) => {
     await expect(anonCaller.persona.list()).toThrowTRPCError("UNAUTHORIZED");
   });
 
