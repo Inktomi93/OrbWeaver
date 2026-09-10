@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
-import { VITEST_RUNTIME_ONLY_GROUP_FILTER, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -156,12 +156,12 @@ test("native runtime realms execute product and tooling repository kinds in thei
     { name: vitestTypecheckGroupName("node"), include: [], typecheck: { enabled: true, only: true, include: ["tests/**/*.test-d.ts"] } },
   ];
 
-  const product = await runNative(scratch, projects, ["--exclude", "tests/tooling/**", `--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`]);
+  const product = await runNative(scratch, projects, ["--exclude", "tests/tooling/**", "--project=product", "--project=repository"]);
   expect(product.toSorted()).toEqual(["product-normal:start", "product-normal:end", "product-repository:start", "product-repository:end"].toSorted());
   expect(product).not.toContain("type-only:executed");
 
   writeFileSync(events, "");
-  const tooling = await runNative(scratch, projects, ["tests/tooling", `--project=${VITEST_RUNTIME_ONLY_GROUP_FILTER}`]);
+  const tooling = await runNative(scratch, projects, ["tests/tooling", "--project=tooling", "--project=repository"]);
   expect(tooling.toSorted()).toEqual(["tooling-normal:start", "tooling-normal:end", "tooling-repository:start", "tooling-repository:end"].toSorted());
   expect(tooling).not.toContain("type-only:executed");
 });
