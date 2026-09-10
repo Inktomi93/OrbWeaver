@@ -20,6 +20,7 @@
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",
     "chrome-devtools-mcp": "catalog:",
+    "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
     "ts-morph": "catalog:",
     "typescript": "catalog:",

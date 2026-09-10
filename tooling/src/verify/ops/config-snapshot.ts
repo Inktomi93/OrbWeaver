@@ -10,6 +10,9 @@ import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,
   ConfigSnapshotRunner,
+  DepcruiseConfigSnapshot,
+  DepcruiseConfigSnapshotField,
+  DepcruiseSelectorSnapshot,
   EslintConfigSnapshot,
   EslintSelectorSnapshot,
   EslintSelectorValue,
@@ -20,7 +23,7 @@ import { CONFIG_SNAPSHOT_RUNNERS } from "../contract/config-snapshot.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
 export const CONFIG_SNAPSHOT_HELP =
-  "usage: node tooling/src/verify/cli.ts config-snapshot <vitest|eslint> <repo-relative-config>\n  Emits the runner's natively loaded selector fields as strict JSON.";
+  "usage: node tooling/src/verify/cli.ts config-snapshot <vitest|eslint|depcruise> <repo-relative-config>\n  Emits the runner's natively loaded selector fields as strict JSON.";
 
 function isRunner(value: string): value is ConfigSnapshotRunner {
   return (CONFIG_SNAPSHOT_RUNNERS as readonly string[]).includes(value);
@@ -126,6 +129,86 @@ export async function snapshotVitestConfig(root: string, config: string): Promis
     throw new Error(`${config} resolved zero selector fields`);
   }
   return { version: 1, runner: "vitest", config, selectors };
+}
+
+interface NativeDepcruiseConfig {
+  readonly forbidden?: unknown;
+}
+
+interface NativeDepcruiseModule {
+  readonly default: (configFileName: string, alreadyVisited?: Set<string>, baseDirectory?: string) => Promise<NativeDepcruiseConfig>;
+}
+
+function isNativeDepcruiseModule(value: unknown): value is NativeDepcruiseModule {
+  return typeof value === "object" && value !== null && "default" in value && typeof value.default === "function";
+}
+
+/** Keep dependency-cruiser behind the snapshot verb: ordinary verify/help startup stays cheap. */
+async function loadDepcruise(): Promise<NativeDepcruiseModule> {
+  const loaded: unknown = await import("dependency-cruiser/config-utl/extract-depcruise-config");
+  if (!isNativeDepcruiseModule(loaded)) {
+    throw new Error("dependency-cruiser does not export extract-depcruise-config");
+  }
+  return loaded;
+}
+
+function depcruiseValues(value: unknown, identity: string): readonly string[] {
+  if (typeof value === "string" && value !== "") {
+    return [value];
+  }
+  if (Array.isArray(value) && value.length > 0 && value.every((entry): entry is string => typeof entry === "string" && entry !== "")) {
+    return value;
+  }
+  throw new Error(`${identity} resolved to an empty or non-string selector`);
+}
+
+async function loadAuthoredDepcruiseConfig(root: string, config: string): Promise<unknown> {
+  const url = pathToFileURL(resolve(root, config));
+  const loaded = (await import(url.href)) as { readonly default?: unknown };
+  if (!("default" in loaded)) {
+    throw new Error(`${config} has no module export`);
+  }
+  return loaded.default;
+}
+
+function collectDepcruiseSelectors(value: unknown, owner: string, selectors: DepcruiseSelectorSnapshot[]): void {
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      collectDepcruiseSelectors(entry, `${owner}[${String(index)}]`, selectors);
+    }
+    return;
+  }
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "path" || key === "pathNot") {
+      const field: DepcruiseConfigSnapshotField = key;
+      for (const [position, selectorValue] of depcruiseValues(entry, `${owner}.${field}`).entries()) {
+        selectors.push({ owner, field, position, value: selectorValue });
+      }
+    } else {
+      collectDepcruiseSelectors(entry, `${owner}.${key}`, selectors);
+    }
+  }
+}
+
+export async function snapshotDepcruiseConfig(root: string, config: string): Promise<DepcruiseConfigSnapshot> {
+  const { default: extractDepcruiseConfig } = await loadDepcruise();
+  const effective = await extractDepcruiseConfig(`./${config}`, undefined, root);
+  if (!Array.isArray(effective.forbidden) || effective.forbidden.length === 0) {
+    throw new Error(`${config} resolved zero forbidden rules`);
+  }
+  const authored = await loadAuthoredDepcruiseConfig(root, config);
+  if (typeof authored !== "object" || authored === null || Array.isArray(authored)) {
+    throw new Error(`${config} did not resolve to a config object`);
+  }
+  const selectors: DepcruiseSelectorSnapshot[] = [];
+  collectDepcruiseSelectors(authored, "config", selectors);
+  if (selectors.length === 0) {
+    throw new Error(`${config} resolved zero dependency-cruiser path selectors`);
+  }
+  return { version: 1, runner: "depcruise", config, effectiveRules: effective.forbidden.length, selectors };
 }
 
 type NativeEslintConfig = Record<string, unknown> & {
@@ -501,7 +584,14 @@ export async function runConfigSnapshot(root: string, rest: readonly string[]): 
     throw new UsageError(CONFIG_SNAPSHOT_HELP);
   }
   const safeConfig = configPath(config);
-  const snapshot: ConfigSnapshot = runner === "vitest" ? await snapshotVitestConfig(root, safeConfig) : await snapshotEslintConfig(root, safeConfig);
+  let snapshot: ConfigSnapshot;
+  if (runner === "vitest") {
+    snapshot = await snapshotVitestConfig(root, safeConfig);
+  } else if (runner === "eslint") {
+    snapshot = await snapshotEslintConfig(root, safeConfig);
+  } else {
+    snapshot = await snapshotDepcruiseConfig(root, safeConfig);
+  }
   process.stdout.write(`${JSON.stringify(snapshot)}\n`);
   return EXIT.clean;
 }

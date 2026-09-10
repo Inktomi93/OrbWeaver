@@ -42,6 +42,8 @@
  * @type {import('dependency-cruiser').IConfiguration}
  */
 
+const { TEST_KIND_SUFFIXES } = require("./tooling/src/_shared/test-kinds.ts");
+
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
 const DB = "^packages/db/src/";
@@ -51,7 +53,7 @@ const SRV = "^packages/server/src/";
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = `${SRV}index\\.ts$`;
 const SHOWCASE = "^packages/showcase-plugins/";
-const TEST_FILES = "\\.(test|int\\.test|contract\\.test|parity\\.test|spec|test-d|ct)\\.[jt]sx?$";
+const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 

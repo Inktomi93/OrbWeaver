@@ -5,9 +5,9 @@
 // Conformance proves the matcher against synthetic mini-projects; THIS proves the promise against the REAL
 // config and against planted controls in BOTH directions.
 //
-// TWO load-bearing arms beyond the dead-row control. (1) CODE-SHAPE COVERAGE: 112 of the config's 181
-// derived values are TEMPLATE literals built from consts, so a StringLiteral-only reader would see almost
-// nothing — the real-tree test asserts the DENOMINATOR, not just the verdict. (2) THE CONSERVATIVE
+// TWO load-bearing arms beyond the dead-row control. (1) CODE-SHAPE COVERAGE: imported, called, spread and
+// template-derived values are observed through dependency-cruiser's native executable-config loader, so
+// the real-tree test asserts the DENOMINATOR, not just the verdict. (2) THE CONSERVATIVE
 // DIRECTION: these lists are load-bearing import law and a false RED blocks every lane's floor, so the
 // classifier must treat every ambiguous pattern (prefix, alternation, class, suffix-only) as a SKIP. Both
 // directions are planted here.
@@ -71,7 +71,7 @@ function prefixFiller(count: number): string {
 // The planted configs below are SOURCE TEXT for a generated .cjs, so every backtick/`${`/backslash is
 // escaped once for THIS file and read back by the generated file's own parser: `\${UI}` emits a literal
 // `${UI}` template span, and `\\.` emits the regex escape `\.` that the generated template then resolves.
-/** A const prefix + ONE template-built row — the config corpus's dominant shape (112 of 181 values). */
+/** A const prefix + ONE template-built row — a common executable-config shape. */
 const UI_CONST = `const UI = "^packages/ui/src/";\n`;
 const TEMPLATE_ONE_ROW = `${UI_CONST}module.exports = { forbidden: [{ name: "r", from: {}, to: { pathNot: \`\${UI}gone\\.ts$\` } }] };\n`;
 /** The SAME const consumed TWICE — the shape an accumulate-only cycle fence silently refused. */
@@ -80,7 +80,7 @@ const TEMPLATE_TWO_ROWS = `${UI_CONST}module.exports = { forbidden: [{ name: "r"
 const tokens = (run: Run): readonly (string | undefined)[] => run.findings.map((f) => f.token);
 const messages = (run: Run): string => run.findings.map((f) => f.message ?? "").join("\n");
 
-describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", () => {
+describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", { tags: "slow" }, () => {
   test("a file-exact `pathNot` exemption whose file is GONE is RED, and names the dead path", ({ scratch }) => {
     plant(scratch, CONFIG_REL, rule(String.raw`pathNot: "^packages/ui/src/gone\.ts$"`));
     expect(tokens(runGate(scratch))).toEqual(["packages/ui/src/gone.ts"]);
@@ -103,11 +103,11 @@ describe("depcruise-grant-liveness — the DEAD-ROW control, both directions", (
     plant(scratch, CONFIG_REL, TEMPLATE_TWO_ROWS);
     const run = runGate(scratch);
     expect(tokens(run)).toEqual(["packages/ui/src/a.ts", "packages/ui/src/b.ts"]);
-    expect(messages(run)).not.toContain("CANNOT statically read");
+    expect(messages(run)).not.toContain("native config snapshot was unreadable");
   });
 });
 
-describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law must never false-RED)", () => {
+describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law must never false-RED)", { tags: "slow" }, () => {
   test("every ambiguous pattern class is a SKIP, not a path — unit-level, on the real classifier", () => {
     for (const pattern of [
       "^packages/server/",
@@ -131,7 +131,7 @@ describe("depcruise-grant-liveness — the CONSERVATIVE direction (import law mu
   });
 });
 
-describe("depcruise-grant-liveness — a bare zero must be 'I could not measure', never 'clean'", () => {
+describe("depcruise-grant-liveness — a bare zero must be 'I could not measure', never 'clean'", { tags: "slow" }, () => {
   test("an ABSENT .dependency-cruiser.cjs REFUSES LOUDLY (the §4.6 blindness tripwire)", ({ scratch }) => {
     const run = runGate(scratch);
     expect(messages(run)).toContain("not at the repo root");
@@ -140,14 +140,14 @@ describe("depcruise-grant-liveness — a bare zero must be 'I could not measure'
 
   test("an UNPARSEABLE config FAILS LOUD — a silent default would leave the package cake unguarded", ({ scratch }) => {
     plant(scratch, CONFIG_REL, "module.exports = { forbidden: [ ;;; (((( };\n");
-    expect(messages(runGate(scratch))).toContain("did not parse");
+    expect(messages(runGate(scratch))).toContain("did not load through dependency-cruiser's public config API");
   });
 
-  test("an UNREADABLE shape (a call) REFUSES LOUDLY rather than being silently skipped", ({ scratch }) => {
+  test("a config call that throws REFUSES LOUDLY rather than being silently skipped", ({ scratch }) => {
     plant(scratch, CONFIG_REL, 'module.exports = { forbidden: [{ name: "r", from: { path: buildPath() }, to: {} }] };\n');
     const run = runGate(scratch);
-    expect(messages(run)).toContain("CANNOT statically read");
-    expect(tokens(run)).toEqual(["CallExpression"]);
+    expect(messages(run)).toContain("native config snapshot was unreadable");
+    expect(tokens(run)).toEqual([undefined]);
   });
 
   test("an anchor-sized value set deriving ZERO exact rows REDs — the classifier-rot tripwire", ({ scratch }) => {
@@ -156,13 +156,13 @@ describe("depcruise-grant-liveness — a bare zero must be 'I could not measure'
   });
 });
 
-describe("depcruise-grant-liveness — the REAL tree", () => {
+describe("depcruise-grant-liveness — the REAL tree", { tags: "slow" }, () => {
   test("the real config parses, reads a substantial value set, and carries NO dead import-law row", ({ repoRoot }) => {
     const run = runGate(repoRoot);
     const declared = run.declarations[0];
     expect(declared?.unit).toBe("grant row");
-    // THE DENOMINATOR IS THE RECEIPT: 112 of the values are template literals, so a low candidate count
-    // would mean the reader went blind even though the verdict looks green.
+    // THE DENOMINATOR IS THE RECEIPT: a low candidate count would mean the reader went blind even though
+    // the verdict looks green.
     expect(declared?.candidates ?? 0).toBeGreaterThanOrEqual(ANCHOR);
     expect(declared?.scanned ?? 0).toBeGreaterThan(0);
     expect(run.findings).toEqual([]);
@@ -218,7 +218,7 @@ const RATIFIED_CITES = ["tooling/src/verify/gates/GATE-AUTHORING.md", ".gitignor
 const KIT_FILE = "packages/kit/src/live.ts";
 const KIT_SOURCE = "export const live = 1;\n";
 
-describe("depcruise-grant-liveness — PATTERN liveness (#973)", () => {
+describe("depcruise-grant-liveness — PATTERN liveness (#973)", { tags: "slow" }, () => {
   test("a PATTERN whose class has no tracked member is RED, and names the pattern", ({ scratch }) => {
     plantRepo(scratch, { [CONFIG_REL]: patternConfig(["^packages/nonexistent-tier/"]), [KIT_FILE]: KIT_SOURCE });
     const run = runGate(scratch);

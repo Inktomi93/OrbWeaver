@@ -8,13 +8,16 @@ import type {
   ConfigSnapshot,
   ConfigSnapshotByRunner,
   ConfigSnapshotRunner,
+  DepcruiseConfigSnapshot,
+  DepcruiseConfigSnapshotField,
+  DepcruiseSelectorSnapshot,
   EslintConfigSnapshot,
   EslintSelectorSnapshot,
   EslintSelectorValue,
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
-import { CONFIG_SNAPSHOT_RUNNERS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
+import { CONFIG_SNAPSHOT_RUNNERS, DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
 
 const CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_MS = 30_000;
@@ -114,6 +117,44 @@ function parseEslintSnapshot(snapshot: Record<string, unknown>, config: string):
   };
 }
 
+function parseDepcruiseSelector(value: unknown): DepcruiseSelectorSnapshot | undefined {
+  if (typeof value !== "object" || value === null) {
+    return;
+  }
+  const row = value as { readonly field?: unknown; readonly owner?: unknown; readonly position?: unknown; readonly value?: unknown };
+  if (
+    typeof row.owner !== "string" ||
+    row.owner === "" ||
+    !oneOf<DepcruiseConfigSnapshotField>(row.field, DEPCRUISE_CONFIG_SNAPSHOT_FIELDS) ||
+    !Number.isSafeInteger(row.position) ||
+    (row.position as number) < 0 ||
+    typeof row.value !== "string" ||
+    row.value === ""
+  ) {
+    return;
+  }
+  return row as DepcruiseSelectorSnapshot;
+}
+
+function parseDepcruiseSnapshot(snapshot: Record<string, unknown>, config: string): DepcruiseConfigSnapshot | undefined {
+  const effectiveRules = snapshot["effectiveRules"];
+  const values = snapshot["selectors"];
+  if (!Number.isSafeInteger(effectiveRules) || (effectiveRules as number) <= 0 || !Array.isArray(values)) {
+    return;
+  }
+  const selectors = values.map(parseDepcruiseSelector);
+  if (selectors.length === 0 || selectors.some((row) => row === undefined)) {
+    return;
+  }
+  return {
+    version: 1,
+    runner: "depcruise",
+    config,
+    effectiveRules: effectiveRules as number,
+    selectors: selectors as DepcruiseSelectorSnapshot[],
+  };
+}
+
 function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshot | undefined {
   let value: unknown;
   // @orb-gate-ignore caught-failure-ownership(default:catch): readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.
@@ -129,11 +170,18 @@ function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: strin
   if (snapshot["version"] !== 1 || snapshot["runner"] !== runner || snapshot["config"] !== config) {
     return;
   }
-  return runner === "vitest" ? parseVitestSnapshot(snapshot, config) : parseEslintSnapshot(snapshot, config);
+  if (runner === "vitest") {
+    return parseVitestSnapshot(snapshot, config);
+  }
+  if (runner === "eslint") {
+    return parseEslintSnapshot(snapshot, config);
+  }
+  return parseDepcruiseSnapshot(snapshot, config);
 }
 
 export function readConfigSnapshot(root: string, runner: "vitest", config: string): ConfigSnapshotRead<"vitest">;
 export function readConfigSnapshot(root: string, runner: "eslint", config: string): ConfigSnapshotRead<"eslint">;
+export function readConfigSnapshot(root: string, runner: "depcruise", config: string): ConfigSnapshotRead<"depcruise">;
 export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshotRead<ConfigSnapshotRunner> {
   const child = runNicedSync(process.execPath, [CLI, "config-snapshot", runner, config], {
     cwd: root,
