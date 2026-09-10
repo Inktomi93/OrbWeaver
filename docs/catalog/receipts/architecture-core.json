@@ -549,9 +549,10 @@
       "authority": "normative",
       "fullRead": true,
       "verifiedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
-      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+      "verifiedCommit": "06c560d8ee190754efdb0eeeff1036fda38cafdd",
       "verifiedAt": "2026-09-10",
       "evidence": [
+        "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
         "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
         "Main/world integration re-attestation: preserve the reviewed shared compiler, routing and native-tool contracts while adopting cd86c7189 commit-hook guidance and atomic document/receipt/catalog staging. Candidate input closure is tracked separately in #1912; this receipt does not claim program completion.",
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -583,11 +584,19 @@
       "summary": "Active tooling-tree law: package and process-adapter boundaries, shared capacity/compiler authorities, verification contracts and move discipline. Retains the incoming commit-hook and atomic documentation-staging policy.",
       "claims": [
         {
-          "claim": "The current world program owns acceptance of the shared compiler, capacity and native-tool execution changes; this receipt does not claim full program completion.",
+          "claim": "Tooling compiler ownership and verification use shared intent and readers, independently checked against native compiler and runner observations.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1351"
+              "kind": "code",
+              "target": "tooling/src/_shared/type-config-intent.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:06c560d8ee190754efdb0eeeff1036fda38cafdd"
             }
           ]
         }
