@@ -253,7 +253,8 @@ export const gate = defineGate({
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
-        "packages/client/src/features/a/x.tsx": 'import { QueryBoundary } from "../../components/query-boundary.tsx";\nexport const G = () => <QueryBoundary />;\n',
+        "packages/client/src/features/a/x.tsx":
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nexport const G = () => <QueryBoundary />;\n',
       },
       why: "no `renderError` prop at all — QueryBoundary defaults to the battery, which is the ideal case",
     },
