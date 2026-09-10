@@ -2,6 +2,7 @@ import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile
 import { budget } from "@orb/tooling/_shared/load-budget";
 import type { TestCompilerWorld, TestFamily, TestResource } from "@orb/tooling/_shared/test-kinds";
 import { runtimeForTestFamily, TEST_KIND_DEFINITIONS, vitestTypecheckGroupName } from "@orb/tooling/_shared/test-kinds";
+import { TEST_TAGS } from "@orb/tooling/_shared/test-tags";
 import { defineConfig } from "vitest/config";
 
 // Native runner globs compose the registered vocabulary. Browser-subject .dom tests still execute in
@@ -56,6 +57,8 @@ export default defineConfig({
     expect: { requireAssertions: true },
     chaiConfig: { truncateThreshold: 0 },
     passWithNoTests: false,
+    tags: [...TEST_TAGS],
+    strictTags: true,
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.ts"],

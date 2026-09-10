@@ -3,12 +3,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type { TypeConfigIntentInput } from "@orb/tooling/_shared/type-config-intent";
 import {
+  ambientRootsForProgram,
   BROWSER_LIB_ADDITIONS,
-  BROWSER_TEST_AMBIENTS,
   browserSurfaceRootPatterns,
   browserTestRootPatterns,
-  COMMON_PROGRAM_AMBIENTS,
-  GRAPH_ONLY_AMBIENTS,
   nodeTestExclusionPatterns,
   packageConfigPath,
   TEST_HELPER_ROOTS,
@@ -82,7 +80,7 @@ function relativeAmbientRoots(configPath: string, ambients: readonly string[]): 
 
 function packageConfig(packageName: string, world: Parameters<typeof worldTemplateFor>[0]): JsonObject {
   const configPath = packageConfigPath(packageName);
-  const include = ["src", ...relativeAmbientRoots(configPath, COMMON_PROGRAM_AMBIENTS)];
+  const include = ["src", ...relativeAmbientRoots(configPath, ambientRootsForProgram(configPath) ?? [])];
   // Drizzle Kit executes this package-root config under Node; every other package leaf owns source only.
   if (packageName === "db") {
     include.splice(1, 0, "drizzle.config.ts");
@@ -98,7 +96,7 @@ function toolingConfig(): JsonObject {
   const configPath = "tooling/tsconfig.json";
   return {
     extends: `../${TYPE_WORLD_TEMPLATE_PATHS.node}`,
-    include: ["src", ...relativeAmbientRoots(configPath, COMMON_PROGRAM_AMBIENTS)],
+    include: ["src", ...relativeAmbientRoots(configPath, ambientRootsForProgram(configPath) ?? [])],
     exclude: TYPE_CONFIG_EXCLUDES,
   };
 }
@@ -108,8 +106,7 @@ function graphConfig(intent: TypeConfigIntentInput): JsonObject {
     extends: `./${TYPE_WORLD_TEMPLATE_PATHS.node}`,
     compilerOptions: { jsx: "react-jsx" },
     include: [
-      ...COMMON_PROGRAM_AMBIENTS,
-      ...GRAPH_ONLY_AMBIENTS,
+      ...(ambientRootsForProgram("tsconfig.json") ?? []),
       "*.config.ts",
       "knip.ts",
       "packages/*/*",
@@ -139,8 +136,7 @@ function browserTestsConfig(intent: TypeConfigIntentInput): JsonObject {
     extends: `./${TYPE_WORLD_TEMPLATE_PATHS.browser}`,
     compilerOptions: { types: ["node"] },
     include: [
-      ...COMMON_PROGRAM_AMBIENTS,
-      ...BROWSER_TEST_AMBIENTS,
+      ...(ambientRootsForProgram("tsconfig.tests-dom.json") ?? []),
       ...browserTestRootPatterns(intent.testKinds),
       "tests/**/*.tsx",
       "scripts/**/*.tsx",
@@ -153,7 +149,7 @@ function browserTestsConfig(intent: TypeConfigIntentInput): JsonObject {
 function isoTestsConfig(): JsonObject {
   return {
     extends: "./tsconfig.base.json",
-    include: [...COMMON_PROGRAM_AMBIENTS, `${TEST_HELPER_ROOTS.iso}/**/*`],
+    include: [...(ambientRootsForProgram("tsconfig.tests-iso.json") ?? []), `${TEST_HELPER_ROOTS.iso}/**/*`],
     exclude: TYPE_CONFIG_EXCLUDES,
   };
 }

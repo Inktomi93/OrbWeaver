@@ -9,10 +9,14 @@
 //   catch this: it only asks "is this file in SOME program's closure", and the leak makes that question
 //   answer YES for every affected file — for the wrong reason. Only a direct ban on the MECHANISM closes
 //   the class; that ban is `findTripleSlashLibLeaks`, pinned here in both directions.
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { classifyMembership, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
+import process from "node:process";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runTestsTypeMembership } from "@orb/tooling/verify";
+import { vi } from "vitest";
+import type { MembershipReport } from "../../../../tooling/src/verify/contract/tests-type-membership.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function withScratchDir<T>(fn: (dir: string) => T): T {
@@ -21,6 +25,44 @@ function withScratchDir<T>(fn: (dir: string) => T): T {
     return fn(dir);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function plantNativeMembershipRepo(repoRoot: string, scratch: string, files: Readonly<Record<string, string>>): void {
+  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  writeFileSync(join(scratch, ".gitignore"), "node_modules\ndeps/\nscripts/ts7.cjs\n");
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+  mkdirSync(join(scratch, "scripts"), { recursive: true });
+  symlinkSync(join(repoRoot, "scripts", "ts7.cjs"), join(scratch, "scripts", "ts7.cjs"), "file");
+  for (const [rel, text] of Object.entries(files)) {
+    const path = join(scratch, rel);
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, text);
+  }
+}
+
+function runMembershipQuietly(root: string): number {
+  const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+  const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  try {
+    return runTestsTypeMembership(root);
+  } finally {
+    stdout.mockRestore();
+    stderr.mockRestore();
+  }
+}
+
+function readMembershipReport(root: string): MembershipReport {
+  let output = "";
+  const stdout = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    output += String(chunk);
+    return true;
+  });
+  try {
+    expect(runTestsTypeMembership(root, ["--json"])).toBe(1);
+    return JSON.parse(output) as MembershipReport;
+  } finally {
+    stdout.mockRestore();
   }
 }
 
@@ -129,11 +171,11 @@ test("the report covers source and config owners without blessing transitional t
     "tests/client/value.dom.test-d.ts",
   ] as const;
   const roots = new Map<string, ReadonlySet<string>>([
-    ["packages/kit/tsconfig.json", new Set([files[0]])],
-    ["tooling/tsconfig.json", new Set([files[1]])],
+    ["packages/kit/tsconfig.json", new Set([files[0], files[5]])],
+    ["tooling/tsconfig.json", new Set([files[1], files[5]])],
     ["tsconfig.json", new Set([files[0], files[1], files[2], files[5]])],
-    ["packages/client/tsconfig.json", new Set([files[3]])],
-    ["tsconfig.tests-dom.json", new Set([files[6], files[7]])],
+    ["packages/client/tsconfig.json", new Set([files[3], files[5]])],
+    ["tsconfig.tests-dom.json", new Set([files[5], files[6], files[7]])],
   ]);
   const closures = new Map([...roots].map(([config, paths]) => [config, new Set([...paths].map((file) => `/repo/${file}`))]));
   const rows = classifyMembership("/repo", files, roots, closures);
@@ -163,4 +205,153 @@ test("iso helpers can satisfy their primary owner and expose a wrong node owner"
   expect(owned[0]).toMatchObject({ world: "iso", predicted: "tsconfig.tests-iso.json", outcome: "predicted" });
   const wrong = classifyMembership("/repo", [file], new Map([["tsconfig.json", new Set([file])]]), new Map([["tsconfig.json", new Set([`/repo/${file}`])]]));
   expect(wrong[0]?.outcome).toBe("drift");
+});
+
+test("primary ownership requires the intended root and test roots remain exclusive", () => {
+  const source = "packages/kit/src/value.ts";
+  const testFile = "tests/server/value.test.ts";
+  const roots = new Map<string, ReadonlySet<string>>([
+    ["packages/contracts/tsconfig.json", new Set([source])],
+    ["tsconfig.json", new Set([testFile])],
+    ["tooling/tsconfig.json", new Set([testFile])],
+  ]);
+  const closures = new Map([...roots].map(([config, files]) => [config, new Set([...files].map((file) => `/repo/${file}`))]));
+  const rows = classifyMembership("/repo", [source, testFile], roots, closures);
+  expect(rows.map(({ outcome }) => outcome)).toEqual(["drift", "drift"]);
+});
+
+test("unknown intent is explicit even when the file is absent or compiler-owned", () => {
+  const file = "packages/fresh/src/value.ts";
+  const rooted = classifyMembership(
+    "/repo",
+    [file],
+    new Map([["packages/fresh/tsconfig.json", new Set([file])]]),
+    new Map([["packages/fresh/tsconfig.json", new Set([`/repo/${file}`])]]),
+  );
+  const absent = classifyMembership("/repo", [file], new Map(), new Map());
+  expect(rooted[0]?.outcome).toBe("unclassified");
+  expect(absent[0]?.outcome).toBe("unclassified");
+});
+
+test("ambient scopes require exact roots and refuse unauthorized closure distribution", () => {
+  const common = "reset.d.ts";
+  const browserOnly = "playwright/globals.d.ts";
+  const roots = new Map<string, ReadonlySet<string>>([
+    ["packages/kit/tsconfig.json", new Set([common])],
+    ["tsconfig.json", new Set([common, browserOnly])],
+    ["tsconfig.tests-dom.json", new Set([common, browserOnly])],
+  ]);
+  const validClosures = new Map([...roots].map(([config, files]) => [config, new Set([...files].map((file) => `/repo/${file}`))]));
+  expect(classifyMembership("/repo", [common, browserOnly], roots, validClosures).map(({ outcome }) => outcome)).toEqual(["ambient", "drift"]);
+
+  const correctedRoots = new Map<string, ReadonlySet<string>>([
+    ["packages/kit/tsconfig.json", new Set([common])],
+    ["tsconfig.json", new Set([common])],
+    ["tsconfig.tests-dom.json", new Set([common, browserOnly])],
+  ]);
+  const leakedClosures = new Map([...correctedRoots].map(([config, files]) => [config, new Set([...files].map((file) => `/repo/${file}`))]));
+  leakedClosures.get("tsconfig.json")?.add(`/repo/${browserOnly}`);
+  expect(classifyMembership("/repo", [common, browserOnly], correctedRoots, leakedClosures).map(({ outcome }) => outcome)).toEqual(["ambient", "drift"]);
+});
+
+test("native closure enforcement rejects ISO Node declarations and dependency-introduced browser libraries", ({ repoRoot, scratch }) => {
+  const base =
+    '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
+  plantNativeMembershipRepo(repoRoot, scratch, {
+    "tsconfig.base.json": base,
+    "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","compilerOptions":{"types":["node"]},"include":["src"]}',
+    "packages/kit/src/value.ts": "export const value = 1;\n",
+    "packages/server/tsconfig.json": '{"extends":"../../tsconfig.base.json","include":["src"]}',
+    "packages/server/src/value.ts": 'import "../../../deps/leaky/index.d.ts";\nexport const value = 1;\n',
+    "deps/leaky/index.d.ts": '/// <reference lib="dom" />\nexport {};\n',
+  });
+  const report = readMembershipReport(scratch);
+  expect(report.closureLeaks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ program: "packages/kit/tsconfig.json", kind: "node-declarations" }),
+      expect.objectContaining({ program: "packages/server/tsconfig.json", kind: "browser-libraries" }),
+    ]),
+  );
+});
+
+test("native closure enforcement accepts clean ISO and Node programs", ({ repoRoot, scratch }) => {
+  const base =
+    '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
+  plantNativeMembershipRepo(repoRoot, scratch, {
+    "tsconfig.base.json": base,
+    "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","include":["src"]}',
+    "packages/kit/src/value.ts": "export const value = 1;\n",
+    "packages/server/tsconfig.json": '{"extends":"../../tsconfig.base.json","compilerOptions":{"types":["node"]},"include":["src"]}',
+    "packages/server/src/value.ts": 'import type { Stats } from "node:fs";\nexport type Value = Stats;\n',
+  });
+  expect(runMembershipQuietly(scratch)).toBe(0);
+});
+
+test("the real membership stage blocks missing, wrong, duplicate, import-only, unclassified and ambient ownership plants", ({ repoRoot, scratch }) => {
+  const base =
+    '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
+  plantNativeMembershipRepo(repoRoot, scratch, {
+    "tsconfig.base.json": base,
+    "tsconfig.world-browser.json":
+      '{"extends":"./tsconfig.base.json","compilerOptions":{"module":"esnext","moduleResolution":"bundler","lib":["es2025","dom"]},"files":[]}',
+    "tsconfig.json": '{"extends":"./tsconfig.base.json","files":["reset.d.ts","tests/client/duplicate.dom.test.ts"]}',
+    "tsconfig.tests-dom.json":
+      '{"extends":"./tsconfig.world-browser.json","files":["reset.d.ts","playwright/globals.d.ts","tests/client/duplicate.dom.test.ts"]}',
+    "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","files":["src/anchor.ts","../../reset.d.ts"]}',
+    "packages/kit/src/anchor.ts": 'import "../../../tests/support/node/import-only.ts";\nexport {};\n',
+    "packages/kit/src/missing.ts": "export {};\n",
+    "packages/contracts/tsconfig.json": '{"extends":"../../tsconfig.base.json","files":["../kit/src/wrong.ts"]}',
+    "packages/kit/src/wrong.ts": "export {};\n",
+    "packages/fresh/tsconfig.json": '{"extends":"../../tsconfig.base.json","files":["src/value.ts","../../reset.d.ts"]}',
+    "packages/fresh/src/value.ts": "export {};\n",
+    "tests/support/node/import-only.ts": "export {};\n",
+    "tests/client/duplicate.dom.test.ts": "export {};\n",
+    "reset.d.ts": "export {};\n",
+    "playwright/globals.d.ts": "export {};\n",
+  });
+  const report = readMembershipReport(scratch);
+  const outcomes = Object.fromEntries(report.rows.map(({ file, outcome }) => [file, outcome]));
+  expect(outcomes).toMatchObject({
+    "packages/kit/src/missing.ts": "unowned",
+    "packages/kit/src/wrong.ts": "drift",
+    "tests/client/duplicate.dom.test.ts": "drift",
+    "tests/support/node/import-only.ts": "import-only",
+    "packages/fresh/src/value.ts": "unclassified",
+    "reset.d.ts": "drift",
+  });
+  expect(report.unknownPrograms).toContain("packages/fresh/tsconfig.json");
+});
+
+test("broken, empty and malformed native closure observations are tool errors", ({ repoRoot, scratch }) => {
+  const base =
+    '{"compilerOptions":{"noEmit":true,"strict":true,"target":"es2025","module":"nodenext","moduleResolution":"nodenext","lib":["es2025"],"types":[]},"files":[]}';
+  plantNativeMembershipRepo(repoRoot, scratch, {
+    "tsconfig.base.json": base,
+    "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","include":["src"]}',
+    "packages/kit/src/value.ts": "export {};\n",
+  });
+  const script = join(scratch, "scripts", "ts7.cjs");
+  rmSync(script);
+  writeFileSync(script, 'process.stdout.write("relative.ts\\n");\n');
+  expect(runMembershipQuietly(scratch)).toBe(2);
+  writeFileSync(script, "");
+  expect(runMembershipQuietly(scratch)).toBe(2);
+  writeFileSync(script, "process.exitCode = 70;\n");
+  expect(runMembershipQuietly(scratch)).toBe(2);
+});
+
+test("native/shared root parity remains an independent two-sided comparison", () => {
+  const program = {
+    id: "packages/kit/tsconfig.json",
+    config: "packages/kit/tsconfig.json",
+    files: ["packages/kit/src/shared.ts", "packages/kit/src/parser-only.ts"],
+    references: [],
+    configPaths: ["packages/kit/tsconfig.json"],
+  };
+  expect(compareRoutingParity([program], new Map([[program.config, new Set(["packages/kit/src/shared.ts", "packages/kit/src/native-only.ts"])]]))).toEqual([
+    { program: program.config, file: "packages/kit/src/native-only.ts", observedBy: "native-ts7" },
+    { program: program.config, file: "packages/kit/src/parser-only.ts", observedBy: "shared-parser" },
+  ]);
+  expect(compareRoutingParity([program], new Map([[program.config, new Set(program.files)]]))).toEqual([]);
+  expect(() => compareRoutingParity([program], new Map())).toThrow("native roots missing program observation");
 });

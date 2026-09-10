@@ -186,6 +186,6 @@ export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
-export { classifyMembership, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
+export { classifyMembership, compareRoutingParity, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
 export { classifyTypecheckChild, executeTypecheckPrograms, runTypecheck, TYPECHECK_HELP, typecheckCompilerArgv } from "./ops/typecheck.ts";
 export { runTypecheckPlan, TYPECHECK_PLAN_HELP } from "./ops/typecheck-plan.ts";

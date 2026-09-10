@@ -1,5 +1,5 @@
 {
-  "// path": "The product code only — the 5 packages' src. Tooling (scripts/, tools/) + the centralized tests/ mirror are excluded below.",
+  "// path": "Scan packages/; tooling/ and the centralized tests/ mirror are outside this root.",
   "path": ["packages"],
 
   "// formats": "The languages in play. `tsx` is REQUIRED to see the client — jscpd's `typescript` format does NOT tokenize .tsx, so without this the whole client (207 .tsx files) is invisible to the gate.",

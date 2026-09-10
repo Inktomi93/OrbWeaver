@@ -990,11 +990,6 @@ function writeFixtures(): void {
 // mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
 // enforcement-registry-parity: its `__g_` arm is retired (the gate-file-vs-registry job is now the loader's
 // fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance.
-// tsconfig-routing-parity spawns native TS7 `--showConfig` over the REAL tsconfig tree and reconciles those
-// roots against the shared compiler-program parser, then requires each test/harness root to have its
-// intended exclusive primary from project-worlds. A throwaway `__g_` file cannot alter a program's
-// resolved include/files, so it can't be fixture-driven. Its bite is proven by its conformance mustFlag
-// (a synthetic test rooted by both Node and browser programs) + a real-tree break-confirm.
 // bus-producer-coverage: MISSING needs an un-emitted REAL union member, which a throwaway `__g_` file can't
 // add to a single-home belt such as `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by its conformance
 // mustFlag rows (synthetic un-emitted members, one per belted bus) in the final policy's own proof set.
@@ -1080,7 +1075,6 @@ const UNFIXTURABLE_GATES = new Set([
   "warning-code-coverage",
   "verify-registry-parity",
   "enforcement-registry-parity",
-  "tsconfig-routing-parity",
   // The five per-union coverage modules are one policy since #1584 — see the note beside its fixture slot.
   "bus-producer-coverage",
   "bus-payload-allowlist",
