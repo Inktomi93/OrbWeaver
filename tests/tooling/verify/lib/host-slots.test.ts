@@ -54,7 +54,8 @@ test("the pool directory is derived from $XDG_RUNTIME_DIR — per-USER, never pe
 
 test("a free pool hands out a slot immediately, and the slot file names its holder", async () => {
   const env = scratchRuntime();
-  const lease = await acquireHostSlot(poolOf(2), { env, pid: 4242, alive: aliveOnly(4242) });
+  const clock = fakeClock();
+  const lease = await acquireHostSlot(poolOf(2), { env, pid: 4242, alive: aliveOnly(4242), ...clock });
   expect(lease.slot, "the first caller takes slot 1").toBe(1);
   expect(lease.waitedMs, "nothing to wait for").toBe(0);
   const record: unknown = JSON.parse(readFileSync(join(hostPoolDir(poolOf(2), env), "1.lock"), "utf8"));

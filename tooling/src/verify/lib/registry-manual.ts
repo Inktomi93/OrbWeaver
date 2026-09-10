@@ -4,7 +4,7 @@
 // carries the `manualReason` `verify --list` prints. Split out of lib/registry.ts at the @orb/tooling P6
 // move (size cap §4.3); lib/registry.ts concatenates this ordered tail after the runnable stages.
 import type { StageDef } from "../contract/stage.ts";
-import { asViolations } from "./exit-classifiers.ts";
+import { asViolations, ownScheme } from "./exit-classifiers.ts";
 
 export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
   {
@@ -56,6 +56,15 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "test:mutation"],
     classify: asViolations,
     manualReason: "exploratory Stryker report (break:null) — minutes-long, report-only",
+  },
+  {
+    name: "quality:mutation-arid",
+    group: "quality",
+    tiers: ["manual"],
+    argv: ["pnpm", "mutation:arid"],
+    classify: ownScheme,
+    manualReason:
+      "post-report denominator census — requires an existing Stryker JSON report path at invocation time; its ignored-by-reason delta is recalibration evidence, so there is no argument-free whole-tree form",
   },
   {
     name: "quality:respell",
