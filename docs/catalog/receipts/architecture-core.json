@@ -544,14 +544,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "1dfd2e024e83f9e0da088bb383ff9f7150b916da7062322043077b450c422a9a",
+      "assignedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "1dfd2e024e83f9e0da088bb383ff9f7150b916da7062322043077b450c422a9a",
-      "verifiedCommit": "a0b97f68c46fcf4057e814c0fc7b6040f2ec6d22",
+      "verifiedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
+      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
       "verifiedAt": "2026-09-10",
       "evidence": [
+        "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
         "Main/world integration re-attestation: preserve the reviewed shared compiler, routing and native-tool contracts while adopting cd86c7189 commit-hook guidance and atomic document/receipt/catalog staging. Candidate input closure is tracked separately in #1912; this receipt does not claim program completion.",
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -594,14 +595,15 @@
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "4aea430ca61ebb4889b9755da682dcf360f5f55c137321d315c1d0f63fa212f5",
+      "assignedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "4aea430ca61ebb4889b9755da682dcf360f5f55c137321d315c1d0f63fa212f5",
-      "verifiedCommit": "2ff1248088a97d83053f7c9d38b4d6da0055805f",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
+      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+      "verifiedAt": "2026-09-10",
       "evidence": [
+        "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
         "2ff1248088a97d83053f7c9d38b4d6da0055805f re-words the second TSDOC_SURFACE cite on the #1571 bullet (train 79 dangling-refs)",
         "210090bd6f50ad238e4000e9da93f538f908225c re-words the #1571 TSDoc-coverage bullet's surface cite (train 78 dangling-refs: TSDOC_SURFACE lives in the root eslint config, outside the gate's declaration corpus)",
         "34c2197ca0c8e903abab567ca81b4ca885fc3ecf (#1571 item 4, the TSDoc-ownership bullet) — re-attested at the linearized sha at the fold; the lane's own receipt cited its pre-rebase sha 0beea96d8",
@@ -638,7 +640,7 @@
           ]
         }
       ],
-      "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
+      "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer."
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",

@@ -1,15 +1,26 @@
-import { existsSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
-import { classifyTestFilename } from "@orb/tooling/_shared/test-kinds";
-import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { classifyTestFilename, runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
+import { descendantsOfKind, getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { TYPE_CONFIG_EXCLUDES } from "@orb/tooling/_shared/type-config-intent";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { testTagFilters } from "../../../vitest.config.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const TEST_FILE = "tagged.test.js";
+const VITEST_RUNTIME_KINDS = TEST_KIND_DEFINITIONS.filter(({ family }) => runtimeForTestFamily(family) === "vitest");
+
+function vitestRuntimeGlobs(root: string): readonly string[] {
+  return [...VITEST_RUNTIME_KINDS.map(({ suffix }) => `${root}/tests/**/*${suffix}`), ...TYPE_CONFIG_EXCLUDES.map((pattern) => `!${root}/${pattern}`)];
+}
+
+function isVitestRuntimeModule(sourceFile: SourceFile): boolean {
+  const classified = classifyTestFilename(sourceFile.getBaseName());
+  return classified !== undefined && runtimeForTestFamily(classified.definition.family) === "vitest";
+}
 
 function writeHarness(root: string, repoRoot: string, tag = "slow"): void {
   const registry = pathToFileURL(join(repoRoot, "tooling/src/_shared/test-tags.ts")).href;
@@ -51,7 +62,7 @@ function processChdirCalls(sourceFile: SourceFile): number {
     }
   }
 
-  return sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).filter((call) => {
+  return descendantsOfKind(sourceFile, SyntaxKind.CallExpression).filter((call) => {
     const expression = call.getExpression();
     if (Node.isIdentifier(expression)) {
       return chdirNames.has(expression.getText());
@@ -74,7 +85,7 @@ function hasModuleTag(sourceFile: SourceFile, tag: string): boolean {
 }
 
 function directProcessChdirModules(sourceFiles: readonly SourceFile[]): readonly SourceFile[] {
-  return sourceFiles.filter((sourceFile) => classifyTestFilename(sourceFile.getBaseName()) !== undefined && processChdirCalls(sourceFile) > 0);
+  return sourceFiles.filter((sourceFile) => isVitestRuntimeModule(sourceFile) && processChdirCalls(sourceFile) > 0);
 }
 
 function unregisteredProcessChdirModules(directModules: readonly SourceFile[]): readonly string[] {
@@ -116,11 +127,22 @@ test("existing opt-in flags remove only their corresponding default tag exclusio
 });
 
 test("every test module that directly invokes process.chdir registers the worker-thread capability", ({ repoRoot }) => {
-  const sourceFiles = getWorkspace({ root: repoRoot, globs: [`${repoRoot}/tests/**/*.ts`, `${repoRoot}/tests/**/*.tsx`] }).getSourceFiles();
+  const sourceFiles = getWorkspace({ root: repoRoot, globs: vitestRuntimeGlobs(repoRoot) }).getSourceFiles();
   const directModules = directProcessChdirModules(sourceFiles);
 
   expect(directModules.length).toBeGreaterThan(0);
   expect(unregisteredProcessChdirModules(directModules)).toEqual([]);
+});
+
+test("the runtime census includes an ordinary untracked module and excludes the governed transient namespace", ({ scratch }) => {
+  const dir = join(scratch, "tests", "tooling");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "new.test.ts"), 'process.chdir("/tmp");\n');
+  writeFileSync(join(dir, "__g_transient.test.ts"), 'process.chdir("/tmp");\n');
+
+  const sourceFiles = getWorkspace({ root: scratch, globs: vitestRuntimeGlobs(scratch) }).getSourceFiles();
+  expect(sourceFiles.map((sourceFile) => sourceFile.getBaseName())).toEqual(["new.test.ts"]);
+  expect(unregisteredProcessChdirModules(directProcessChdirModules(sourceFiles))).toEqual([join(dir, "new.test.ts")]);
 });
 
 test("the process.chdir census rejects an unregistered direct call, including an aliased node:process import", () => {
@@ -133,8 +155,16 @@ test("the process.chdir census rejects an unregistered direct call, including an
     "/registered.test.ts",
     '/**\n * @module-tag requires-process-chdir\n */\nimport process from "node:process";\ntest("moves", () => process.chdir("/tmp"));\n',
   );
+  const tooling = project.createSourceFile("/tests/tooling/untagged.test.ts", 'process.chdir("/tmp");\n');
+  const repository = project.createSourceFile("/tests/tooling/untagged.repo.int.test.ts", 'process.chdir("/tmp");\n');
+  const component = project.createSourceFile("/nonapplicable.ct.tsx", 'process.chdir("/tmp");\n');
+  const typeOnly = project.createSourceFile("/nonapplicable.test-d.ts", 'process.chdir("/tmp");\n');
 
-  expect(unregisteredProcessChdirModules(directProcessChdirModules([missing, registered]))).toEqual(["/missing.test.ts"]);
+  expect(unregisteredProcessChdirModules(directProcessChdirModules([missing, registered, tooling, repository, component, typeOnly]))).toEqual([
+    "/missing.test.ts",
+    "/tests/tooling/untagged.repo.int.test.ts",
+    "/tests/tooling/untagged.test.ts",
+  ]);
 });
 
 test("the native thread runner skips a process.chdir module while executing an ordinary module", ({ repoRoot, scratch }) => {

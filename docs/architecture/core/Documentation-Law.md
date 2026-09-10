@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-05
+updated: 2026-09-10
 ---
 
 # Documentation & Comments Law
@@ -198,8 +198,8 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
 - `dangling-doc-cite` — a source COMMENT naming a `docs/**.md` that does not exist is RED. The backstop that makes §Relocation step 2 unskippable: the next archival pass structurally cannot leave a lie. Its twin `dangling-refs` owns the DOCS side (gate descriptors + markdown links + backtick path/symbol cites in `core/`).
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.
-- **Doc-comment gates (wired 2026-07-03 on `server`/`kit`/`db`/`contracts` — the typed exported-API surface, both hard `error` gates):** `@typescript-eslint/no-deprecated` (type-aware) rejects any use of a `@deprecated` symbol. `tsdoc/syntax` (`eslint-plugin-tsdoc`, the official parser) rejects malformed doc comments + non-standard tags — a `{…}` prose token wants backticks, a bare `@orb/…` name wants `{@link}`. ESLint also runs on `ui`/`client`/`tests/ui` (the react-surface gates).
-- **TSDoc syntax has exactly ONE checker, ever: `tsdoc/syntax`.** `tsc`/`ts7.cjs` (any type program) validates TYPES, never doc-comment syntax, so a malformed block is invisible to `pnpm check`/`typecheck`/`types:graph` no matter how the program is scoped. Coverage is therefore exactly the four packages `eslint.config.js` names in its TSDoc surface list (the root config is outside every type program and the gate corpus, so the list is cited by file, not symbol) — a package outside that list (e.g. `packages/showcase-plugins/`, the seed demo-plugin bundle whose `.d.ts` host-surface types ship with the same TSDoc-commented shape as the four covered packages) gets NO wired TSDoc check from anything: not eslint (not in `eslint.config.js`'s TSDoc surface list or any other included glob), not any type program (structurally can't). A TSDoc error there is only caught by an ad-hoc/manual eslint run against that path, never by the standing gates (#1571).
+- **Doc-comment gates are ESLint-enforced hard errors:** `@typescript-eslint/no-deprecated` is type-aware and rejects use of a deprecated symbol; `tsdoc/syntax` uses the official TSDoc parser to reject malformed comments and non-standard tags. `eslint.config.js` is the ONE coverage home: shipped browser source, package-world-derived non-browser source (including the showcase packer), and tooling source/tests each name their applicable surface there. Guest JavaScript and declarations outside those globs are not claimed.
+- **TSDoc syntax has exactly ONE checker: `tsdoc/syntax`.** `tsc`/TS7 validates types, never TSDoc syntax; typecheck commands alone cannot catch a malformed block. `pnpm check` does catch it through its `lint:eslint` stage. Read effective coverage from `eslint.config.js`, never infer it from compiler membership.
 
 ## Evidence
 

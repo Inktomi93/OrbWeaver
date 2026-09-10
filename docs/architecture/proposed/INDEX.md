@@ -1,7 +1,7 @@
 ---
 kind: index
 status: active
-updated: 2026-08-30
+updated: 2026-09-10
 ---
 
 # proposed/ Index — committed program map
@@ -34,4 +34,3 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `message-reactions-mini-spec.md` | **FUTURE** | [#23](https://github.com/Inktomi93/orbweaver/issues/23) |
 | `spatial-maps-design-capture.md` | **FUTURE** | [#27](https://github.com/Inktomi93/orbweaver/issues/27) |
 | `world-state-clips-trackers-spec.md` | **FUTURE** | [#29](https://github.com/Inktomi93/orbweaver/issues/29) |
-| `type-worlds-program.md` | **FUTURE** | [#1351](https://github.com/Inktomi93/orbweaver/issues/1351) |

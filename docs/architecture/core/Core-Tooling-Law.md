@@ -44,6 +44,12 @@ tooling/
 
 The generated config extends the Node-world template. Shared compiler intent owns its source roots, ambient declaration roots and exclusions; do not maintain another array here. Module resolution remains NodeNext because Node executes tooling source directly. Native compiler ownership and root parity are checked by `pnpm check:type-ownership`.
 
+Compiler intent may declare a supported TypeScript dialect or an explicit helper root before its first
+member exists. Those empty roots are standing ownership policy, not stale selectors: generated configs
+consume the shared intent, while independent native ownership checks prove the files TypeScript actually
+owns. Test ownership is derived from kind and root, never from per-test filename exceptions. Ambient
+declarations remain a separate scoped input and do not inherit ownership from a generic source glob.
+
 **Consequence: there is no DOM lib.** A `page.evaluate` body must be a raw STRING, never a typed function form (§9.1-6).
 
 ### 2.4 `_shared/` — the ONE plumbing floor
@@ -173,7 +179,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | - | - |
 | root `package.json` scripts | command and path changes migrate all live callers; no compatibility aliases |
 | root `package.json` depcruise scripts | all five must cruise `packages tooling`, or the tooling stanzas are unfireable |
-| `tsconfig.json` (graph) | `include` carries `"tooling"`; the `scripts` include survives (the research zone is still typechecked) |
+| generated compiler intent | `tooling/tsconfig.json` owns tooling source; the root Node program retains scripts and tests. Update shared intent, regenerate, and verify native ownership rather than hand-editing compiler roots |
 | `tooling/src/_shared/test-kinds.ts` resource registration + `vitest.config.ts` execution groups | repository-resource tests retain their registered kind as they relocate into the mirror (§4.7); runner selectors derive from the kind data, never a filename roster |
 | `.dependency-cruiser.cjs` | the tooling stanzas (§4.6) |
 | `knip.ts` | the `tooling` workspace entry (`entry: ["src/*/cli.ts","src/_shared/index.ts","src/*/index.ts"]`). **A knip workspace boundary is a coupled site**: `scripts/**` is entry-globbed wholesale and was never analysed for unused exports, so anything moving into `tooling/` enters real analysis at once — an fs-discovered corpus needs its OWN entry row or every descriptor reads as dead |
@@ -183,7 +189,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | `_shared/ts-workspace.ts` `harnessGlobs` | the shared walk's scope — §3.2 governs any widening |
 | doc-catalog receipts | evidence targets citing a moved path RED at `pnpm check:doc-catalog`. Sweep `/usr/bin/grep -rn '"target": "…"' docs/catalog/receipts/` and RE-DERIVE each hit row (never re-prefix) |
 | law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the fences. Lanes never edit `.claude/` — flag those for the orchestrator |
-| `docs/test-baseline/manifest.json` | a RELOCATED test file is a manifest deletion: old path STAYS in `testFiles`, a `deletions` row states the relocation, the new home joins `testFiles`. Hand-edit the rows; never run the whole-tree regenerator on a shared tree |
+| `docs/test-baseline/manifest.json` | record the old path and relocation reason in `deletions`, stage the destination, then run the canonical `baseline test-baseline-manifest` writer after the shared tree is frozen. The writer derives `testFiles`, retaining only unaccounted removals; do not hand-edit that inventory |
 | `tests/**/*.ct.tsx` importers | a moved file with test-side importers may affect compiler programs outside its nearest config; run every native program selected by affected-mode routing through `pnpm typecheck --config <path>` |
 | comment/prose cites of the moved BASENAME | live code + `status: active` docs are updated; dated reviews and `history/` are frozen evidence and are never rewritten |
 | a ZONE-KEYED FENCE | a predicate that fenced the zone a file used to live in (`startsWith("scripts/")`) is a path literal too. After any cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only for old file paths — these fail SILENTLY and in both directions (a fence starts reporting the corpus's own documentation, or stops scanning it at all) |

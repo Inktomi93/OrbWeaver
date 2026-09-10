@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { PolicyScopeRequest } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { POLICY_SCOPE_KINDS } from "../../../../tooling/src/verify/contract/policy-scope.ts";
+import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { resolvePolicyScope } from "../../../../tooling/src/verify/lib/policy-scope.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -384,10 +385,6 @@ test("the real workspace maps @orb/tooling without a hard-coded package path tab
   expect(tooling.workspacePackage).toEqual({ name: "@orb/tooling", path: "tooling" });
   expect(tooling.currentPaths).toContain("tooling/package.json");
   expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.files).toContain("tooling/src/verify/lib/selection.ts");
-  const toolingConfig = resolvePolicyScope(repoRoot, { kind: "file", paths: ["tooling/tsconfig.json"] });
-  expect(toolingConfig.requestedProgramIds).toContain("tooling/tsconfig.json");
-  const baseConfig = resolvePolicyScope(repoRoot, { kind: "file", paths: ["tsconfig.base.json"] });
-  expect(baseConfig.requestedProgramIds).toEqual(baseConfig.programs.map((program) => program.id));
-  const whole = resolvePolicyScope(repoRoot, { kind: "whole" });
-  expect(whole.currentPaths).toEqual(expect.arrayContaining([".agents/skills", ".codex/agent-doctrine.md", ".codex/hooks"]));
+  expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.configPaths).toContain("tooling/tsconfig.json");
+  expect(readPolicyRepositoryInventory(repoRoot).paths).toEqual(expect.arrayContaining([".agents/skills", ".codex/agent-doctrine.md", ".codex/hooks"]));
 });

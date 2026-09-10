@@ -115,8 +115,6 @@ test("compact verification names the active stage before its held child exits an
   const ready = join(scratch, "stage-ready");
   const release = join(scratch, "stage-release");
   const heldOnce = join(scratch, "stage-held-once");
-  const pnpm = spawnSync("which", ["pnpm"], { encoding: "utf8" }).stdout.trim();
-  expect(pnpm).not.toBe("");
   await fakeBin(
     "pnpm",
     `#!/usr/bin/env bash
@@ -144,7 +142,7 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   let output = "";
   // biome-ignore lint/style/noProcessEnv: the child inherits fakeBin's isolated PATH and redirects its whole-run slot into scratch.
   const childEnv = Object.fromEntries([...Object.entries(process.env), [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")]]);
-  const child = spawn("nice", ["-n", "19", pnpm, "exec", "node", runner], {
+  const child = spawn("nice", ["-n", "19", process.execPath, runner], {
     cwd: repoRoot,
     detached: true,
     env: childEnv,

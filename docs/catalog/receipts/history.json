@@ -4509,6 +4509,51 @@
         "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
+    },
+    {
+      "path": "docs/history/type-worlds-program-2026-09-10.md",
+      "assignedSha256": "8c88423e03b896f06cbc6865215485ca67471bf8857999a9ac36bbfa91ad5143",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8c88423e03b896f06cbc6865215485ca67471bf8857999a9ac36bbfa91ad5143",
+      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+      "verifiedAt": "2026-09-10",
+      "evidence": [
+        "Full program read and exact move comparison: only historical frontmatter/introduction and two depth-sensitive relative links changed. Live gate citations moved to Core-Tooling-Law; the proposed index and future Home tile no longer advertise the program. Historical review and receipt prose retain their original paths. Source and rendered closeout controls passed; this record does not replace the program board acceptance receipts.",
+        "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
+        "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
+        "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
+        "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
+        "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
+        "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
+        "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
+        "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
+        "docs/architecture/proposed/INDEX.md:1 (FUTURE row added, routing to sprint #1351)",
+        "tsconfig.json / tsconfig.tests-dom.json / all 6 package tsconfigs + tooling/tsconfig.json (read in full; 26+25 per-file test entries, 4-of-9 program coverage in tests-type-membership.ts)",
+        "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
+        "pnpm check:docs (2026-09-04: 2 file(s) formatted)",
+        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+        "Full plan reread with parent and associated issue comments. Current design includes authored tooling CPD coverage and native ESLint discovery followed by compiler-owner process isolation. Independent reviews and native controls support the implementation; final composed acceptance and separate follow-ups remain explicit on #1351."
+      ],
+      "summary": "Historical type-world, test-registration and derived-configuration design; current compiler-root policy lives in Core-Tooling-Law and executable authorities remain in source.",
+      "claims": [
+        {
+          "claim": "Historical design and acceptance contract for the world/type/test-registration migration; standing compiler-root policy is maintained separately in current law.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:ee4a545f633d9f20f35f225e144aa16e2d22821e"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

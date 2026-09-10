@@ -994,9 +994,9 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 422,
-      "bytes": 49887,
-      "sha256": "1dfd2e024e83f9e0da088bb383ff9f7150b916da7062322043077b450c422a9a",
+      "lines": 428,
+      "bytes": 50551,
+      "sha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1009,14 +1009,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "1dfd2e024e83f9e0da088bb383ff9f7150b916da7062322043077b450c422a9a",
+        "assignedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "1dfd2e024e83f9e0da088bb383ff9f7150b916da7062322043077b450c422a9a",
-        "verifiedCommit": "a0b97f68c46fcf4057e814c0fc7b6040f2ec6d22",
+        "verifiedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
+        "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
         "verifiedAt": "2026-09-10",
         "evidence": [
+          "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
           "Main/world integration re-attestation: preserve the reviewed shared compiler, routing and native-tool contracts while adopting cd86c7189 commit-hook guidance and atomic document/receipt/catalog staging. Candidate input closure is tracked separately in #1912; this receipt does not claim program completion.",
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -1064,28 +1065,29 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 222,
-      "bytes": 29623,
-      "sha256": "4aea430ca61ebb4889b9755da682dcf360f5f55c137321d315c1d0f63fa212f5",
+      "bytes": 29006,
+      "sha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-05"
+          "updated": "2026-09-10"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Documentation-Law.md",
-        "assignedSha256": "4aea430ca61ebb4889b9755da682dcf360f5f55c137321d315c1d0f63fa212f5",
+        "assignedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "4aea430ca61ebb4889b9755da682dcf360f5f55c137321d315c1d0f63fa212f5",
-        "verifiedCommit": "2ff1248088a97d83053f7c9d38b4d6da0055805f",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
+        "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+        "verifiedAt": "2026-09-10",
         "evidence": [
+          "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
           "2ff1248088a97d83053f7c9d38b4d6da0055805f re-words the second TSDOC_SURFACE cite on the #1571 bullet (train 79 dangling-refs)",
           "210090bd6f50ad238e4000e9da93f538f908225c re-words the #1571 TSDoc-coverage bullet's surface cite (train 78 dangling-refs: TSDOC_SURFACE lives in the root eslint config, outside the gate's declaration corpus)",
           "34c2197ca0c8e903abab567ca81b4ca885fc3ecf (#1571 item 4, the TSDoc-ownership bullet) — re-attested at the linearized sha at the fold; the lane's own receipt cited its pre-rebase sha 0beea96d8",
@@ -1122,7 +1124,7 @@
             ]
           }
         ],
-        "summary": "Active documentation and comment law, re-read after the Project/workboard split and D141 source-comment ruling."
+        "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer."
       },
       "receiptCurrent": true
     },
@@ -4815,29 +4817,30 @@
       "path": "docs/architecture/proposed/INDEX.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 37,
-      "bytes": 2678,
-      "sha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
+      "lines": 36,
+      "bytes": 2574,
+      "sha256": "b781289c550c2c326b0e1e7c27c6273f80a3077fdb2722161b54fb7b15b80521",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "index",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-10"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/proposed/INDEX.md",
-        "assignedSha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
+        "assignedSha256": "b781289c550c2c326b0e1e7c27c6273f80a3077fdb2722161b54fb7b15b80521",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "117fbbb14ee0eca15cef6f14c1ab7910de58b39c38dbb748056009ea21c382ae",
-        "verifiedCommit": "19751fc25624428d89f5c31ddd588446a664d00c",
-        "verifiedAt": "2026-09-04",
+        "verifiedSha256": "b781289c550c2c326b0e1e7c27c6273f80a3077fdb2722161b54fb7b15b80521",
+        "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+        "verifiedAt": "2026-09-10",
         "evidence": [
+          "Full index read; world-program row removed with its archived record and future Home tile in the closeout candidate. Remaining program rows are unchanged. The source roadmap parity test and rendered roadmap control both pass.",
           "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
           "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
@@ -10856,98 +10859,6 @@
               {
                 "kind": "test",
                 "target": "tests/server/domain/tool-use/verbs/project-mcp.test.ts:37"
-              }
-            ]
-          }
-        ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/architecture/proposed/type-worlds-program.md",
-      "lane": "architecture-proposed",
-      "issue": 4,
-      "lines": 131,
-      "bytes": 19134,
-      "sha256": "3160a0ed8cc7beb453fe16cba42a0d4f5ac779cde9ff4f415e3da2e52f151338",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "spec",
-          "status": "active",
-          "updated": "2026-09-10"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/architecture/proposed/type-worlds-program.md",
-        "assignedSha256": "a36644679b4b995ab3d2298d3db109f1d28a357d258a56c70d7ba7242dc4a36f",
-        "disposition": "current",
-        "authority": "design",
-        "fullRead": true,
-        "verifiedSha256": "3160a0ed8cc7beb453fe16cba42a0d4f5ac779cde9ff4f415e3da2e52f151338",
-        "verifiedCommit": "05f9763f29bc72298d9e60e8844e12ad84e5e3f8",
-        "verifiedAt": "2026-09-10",
-        "evidence": [
-          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
-          "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
-          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
-          "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
-          "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
-          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
-          "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
-          "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
-          "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
-          "docs/architecture/proposed/INDEX.md:1 (FUTURE row added, routing to sprint #1351)",
-          "tsconfig.json / tsconfig.tests-dom.json / all 6 package tsconfigs + tooling/tsconfig.json (read in full; 26+25 per-file test entries, 4-of-9 program coverage in tests-type-membership.ts)",
-          "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
-          "pnpm check:docs (2026-09-04: 2 file(s) formatted)",
-          "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
-          "Full plan reread with parent and associated issue comments. Current design includes authored tooling CPD coverage and native ESLint discovery followed by compiler-owner process isolation. Independent reviews and native controls support the implementation; final composed acceptance and separate follow-ups remain explicit on #1351."
-        ],
-        "summary": "Active world/test/config program: shared intent and native observations, pure source contracts, canonical test kinds, native config adapters and worktree-aware typecheck routing; ordered remaining ownership/config acceptance stays explicit.",
-        "claims": [
-          {
-            "claim": "Active world/test/config program design with one vocabulary, independent native observations, reviewed prerequisites and ordered source-purity/reclassification work.",
-            "evidence": [
-              {
-                "kind": "test",
-                "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
-              },
-              {
-                "kind": "test",
-                "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
-              },
-              {
-                "kind": "provenance",
-                "target": "git:f2d3f1ddcd1ed5862b282a320f032f0957402ffa"
-              },
-              {
-                "kind": "issue",
-                "target": "#1351"
-              }
-            ]
-          },
-          {
-            "claim": "The active program records source purity, actual compiler ownership, imported ambient limits and the accepted bounded tRPC cleanup route.",
-            "evidence": [
-              {
-                "kind": "test",
-                "target": "tests/tooling/client-pure-doors.test-d.ts:1"
-              },
-              {
-                "kind": "test",
-                "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
-              },
-              {
-                "kind": "provenance",
-                "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
-              },
-              {
-                "kind": "issue",
-                "target": "#1351"
               }
             ]
           }
@@ -29003,6 +28914,70 @@
           "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
         ],
         "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/type-worlds-program-2026-09-10.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 131,
+      "bytes": 18970,
+      "sha256": "8c88423e03b896f06cbc6865215485ca67471bf8857999a9ac36bbfa91ad5143",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-09-10"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/type-worlds-program-2026-09-10.md",
+        "assignedSha256": "8c88423e03b896f06cbc6865215485ca67471bf8857999a9ac36bbfa91ad5143",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "8c88423e03b896f06cbc6865215485ca67471bf8857999a9ac36bbfa91ad5143",
+        "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
+        "verifiedAt": "2026-09-10",
+        "evidence": [
+          "Full program read and exact move comparison: only historical frontmatter/introduction and two depth-sensitive relative links changed. Live gate citations moved to Core-Tooling-Law; the proposed index and future Home tile no longer advertise the program. Historical review and receipt prose retain their original paths. Source and rendered closeout controls passed; this record does not replace the program board acceptance receipts.",
+          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
+          "Full current design read before the routing checkpoint dc8ccbd0bac24c2e48c463193974d4d59a3a9801; native routing, hook failure handling and public Vitest selector observation verified by 137 scoped behavioral tests and independent security review. World-config generation and program-wide predictive enforcement remain separate acceptance requirements.",
+          "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
+          "Full current design read at f2d3f1ddcd1ed5862b282a320f032f0957402ffa; actual post-transform root ownership and full native affected-program diagnostics verified by 53 tests, six cold public-harness probes, five native filename-equivalence cases and the no-write forms preview.",
+          "Full current design read at 4c846987b129ecaa342557a3b3c7789d39d832da; clarified actual-program codemod diagnostics versus later target-ownership enforcement, proven by the diagnostic regression suite and real barrel preview.",
+          "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
+          "type-worlds phase 0 landed: the world model, discovered programs, the membership report and its zero-escapee baseline recorded in the status section",
+          "type-worlds phase 1 + config half of phase 5 landed: dated status section added, paths repointed",
+          "docs/architecture/proposed/type-worlds-program.md:1 (full read; authored this session against main, frontmatter + lifecycle evaluated)",
+          "docs/architecture/proposed/INDEX.md:1 (FUTURE row added, routing to sprint #1351)",
+          "tsconfig.json / tsconfig.tests-dom.json / all 6 package tsconfigs + tooling/tsconfig.json (read in full; 26+25 per-file test entries, 4-of-9 program coverage in tests-type-membership.ts)",
+          "packages/client/src/{lib,state,data}/pure.ts (read in full; 524 lines, 55 consumers, 1 production)",
+          "pnpm check:docs (2026-09-04: 2 file(s) formatted)",
+          "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
+          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+          "Full plan reread with parent and associated issue comments. Current design includes authored tooling CPD coverage and native ESLint discovery followed by compiler-owner process isolation. Independent reviews and native controls support the implementation; final composed acceptance and separate follow-ups remain explicit on #1351."
+        ],
+        "summary": "Historical type-world, test-registration and derived-configuration design; current compiler-root policy lives in Core-Tooling-Law and executable authorities remain in source.",
+        "claims": [
+          {
+            "claim": "Historical design and acceptance contract for the world/type/test-registration migration; standing compiler-root policy is maintained separately in current law.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:ee4a545f633d9f20f35f225e144aa16e2d22821e"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/tests-type-membership.test.ts:1"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },

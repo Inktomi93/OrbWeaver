@@ -1,12 +1,12 @@
 ---
-kind: spec
-status: active
+kind: history
+status: archived
 updated: 2026-09-10
 ---
 
 # Type worlds, test registration, and derived tool configuration
 
-This document owns the durable design. [Program #1351](https://github.com/Inktomi93/orbweaver/issues/1351) owns execution, dependencies, decisions, and verification receipts. The implementation is pre-launch: remove superseded structures rather than maintaining compatibility copies. The separate [gate-runtime cutover](../../design/gate-runtime-standardization.md) remains its own program.
+This archived record captures the design pursued by [Program #1351](https://github.com/Inktomi93/orbweaver/issues/1351). The separate [gate-runtime cutover](../design/gate-runtime-standardization.md) remains its own program.
 
 ## Outcome
 
@@ -64,7 +64,7 @@ The tests-as-workspace-package fork remains unnecessary by default. Adopt it onl
 
 The client retains the server-owned inferred `AppRouter` contract and the canonical brands in `@orb/kit/ids`. Client data wiring owns the direct server type import; other client consumers use its client-owned types. Runtime backend imports and unrelated backend type reaches remain forbidden. This narrows the direct connection without claiming to remove the router's transitive compiler closure.
 
-The owner accepted the bounded input-typing repair and direct-connection cleanup in [#1889](https://github.com/Inktomi93/orbweaver/issues/1889) and [#1890](https://github.com/Inktomi93/orbweaver/issues/1890), with procedure-liveness adjudication in [#1891](https://github.com/Inktomi93/orbweaver/issues/1891). Generated router declarations, moving the source alias into kit/contracts, and contract-first restructuring are not part of this work. Reconsider generation for a demonstrated independent-client or compiler-performance need, with brand, streaming, freshness and full-surface equivalence proofs; the [tRPC investigation](../../reviews/trpc-walled-garden-2026-09-08.md) records the current API limits and portability findings.
+The owner accepted the bounded input-typing repair and direct-connection cleanup in [#1889](https://github.com/Inktomi93/orbweaver/issues/1889) and [#1890](https://github.com/Inktomi93/orbweaver/issues/1890), with procedure-liveness adjudication in [#1891](https://github.com/Inktomi93/orbweaver/issues/1891). Generated router declarations, moving the source alias into kit/contracts, and contract-first restructuring are not part of this work. Reconsider generation for a demonstrated independent-client or compiler-performance need, with brand, streaming, freshness and full-surface equivalence proofs; the [tRPC investigation](../reviews/trpc-walled-garden-2026-09-08.md) records the current API limits and portability findings.
 
 ## Tool configuration and jobs
 
