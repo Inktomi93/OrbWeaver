@@ -91,7 +91,7 @@ stands; the mock's 10.5px caption is NOT adopted, per the 2026-08-17 side-eye ru
 interactive text to zero), ember fill `bg-primary/15` + foreground ink when active, and the 2px primary bar
 on the cell's BOTTOM edge in BOTH rails (the mock's `.cell.on::after{bottom}` — restated for the top rail
 too; the fold arm's bar suppression stays). Locked: padlock + `opacity-60` + `aria-label "<name> — locked"`
-+ `title` reason. Crown, badge, wrap and no-clip tracks are unchanged from the HUD rail.
+and a `title` reason. Crown, badge, wrap and no-clip tracks are unchanged from the HUD rail.
 
 **Phone cells ≥ 52px.** No 52px token exists (control-md 48 · control-lg 56 at coarse); the cell takes
 `CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg"` from `#components/pointer-variants.ts`
@@ -156,12 +156,12 @@ chip's class by accident) and the #846 CT seats the notifications bell before me
 | `app-shell/components/context-region-host.tsx` | DELETE |
 | `app-shell/components/section-context-host.tsx` | `tabs` band → null; railLabel fallback |
 | `app-shell/surfaces/shell.css` | delete `.ctx-tab-strip`; re-key the padding drop; bracket ember (docked only); topbar yield; `.shell-chat-recall-chip` in the 30rem shed |
-| `rpg/components/rpg-hud.tsx` → `rpg-hud-band.tsx` · `rpg-hud-rail.tsx` DELETE · `rpg/lib/hud-cell-id.ts` DELETE · `rpg/lib/rpg-hud-region.tsx` · `rpg/lib/rpg-context-section.tsx` (instrument tier per body) |
-| `chat/components/chat-context-band.tsx` NEW · `chat/lib/chats-section.tsx` (`header`, `railLabel`) · `chat/hooks/use-chat-context-state.ts` (+`title`) · `chat/components/chat-header.tsx` (export the roster chip) · `chat/components/chat-recall-indicator.tsx` (class) |
+| `rpg/components/rpg-hud.tsx` → `rpg-hud-band.tsx` · `rpg-hud-rail.tsx` DELETE · `rpg/lib/hud-cell-id.ts` DELETE · `rpg/lib/rpg-hud-region.tsx` · `rpg/lib/rpg-context-section.tsx` (instrument tier per body) | |
+| `chat/components/chat-context-band.tsx` NEW · `chat/lib/chats-section.tsx` (`header`, `railLabel`) · `chat/hooks/use-chat-context-state.ts` (+`title`) · `chat/components/chat-header.tsx` (export the roster chip) · `chat/components/chat-recall-indicator.tsx` (class) | |
 | `client/src/components/pointer-variants.ts` + `index.ts` | `RPG_RAIL_WRAP`→`CONTEXT_RAIL_WRAP`, `RPG_RAIL_WRAPPED_EDGE_BAR_OFF`→`CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF`, `CONTEXT_CELL_FLOOR_AT_COARSE` NEW |
 | `tooling/src/verify/gates/context-definition-shape.ts` | arm 5 `{claims, band}`; arm 8 `data-context-bracket`; fixtures |
 | `tooling/src/verify/gates/ui-size-via-variant.ts` · `no-pointer-variants-in-features.ts` | allowlist path re-point; FIX text |
-| CTs: `app-shell/components/context-tabs-panel.ct.tsx` (rewritten) · `context-region-host.ct.tsx`→`context-bracket.ct.tsx` · `section-context-host.ct.tsx` · `app-shell/_ct-stories.tsx` · `app-shell/surfaces/app-shell.ct.tsx` (+the #846 pins) · `rpg/lib/rpg-context-section.ct.tsx` (slot names, #112 selectors, spend, selected state, coarse kicker) · `chat/lib/chats-section.ct.tsx` (38 `tab`→cell sites + the band pins) · `character/lib/characters-section.ct.tsx` + `character-chats-projection-shell.ct.tsx` (role only — source under `features/character` is fenced) · `tests/client/lib/registry-contracts.test.ts` · e2e `support/chat-room.ts` + `group-chat.spec.ts` (role) |
+| CTs: `app-shell/components/context-tabs-panel.ct.tsx` (rewritten) · `context-region-host.ct.tsx`→`context-bracket.ct.tsx` · `section-context-host.ct.tsx` · `app-shell/_ct-stories.tsx` · `app-shell/surfaces/app-shell.ct.tsx` (+the #846 pins) · `rpg/lib/rpg-context-section.ct.tsx` (slot names, #112 selectors, spend, selected state, coarse kicker) · `chat/lib/chats-section.ct.tsx` (38 `tab`→cell sites + the band pins) · `character/lib/characters-section.ct.tsx` + `character-chats-projection-shell.ct.tsx` (role only — source under `features/character` is fenced) · `tests/client/lib/registry-contracts.dom.test.ts` · e2e `support/chat-room.ts` + `group-chat.spec.ts` (role) | |
 | `tests/support/browser/ct-data-providers.tsx` | no change (regions registry shape unchanged) |
 | docs: `Context-Panel-Program.md` §4.1/§4.2 · `Core-Path-Registry.md` (D119 absorbed + the new row) · `client-architecture-lockdown.md` §6b/§6c/§4-band clause · this file | |
 | ledgers: `docs/test-baseline/manifest.json` · `docs/reviews/caught-failure-ownership/population.json` | regen in-worktree (a CT file is renamed) |
@@ -185,9 +185,8 @@ chip's class by accident) and the #846 CT seats the notifications bell before me
   tests/client/features/app-shell/surfaces/app-shell.ct.tsx tests/client/features/rpg/lib/rpg-context-section.ct.tsx
   tests/client/features/chat/lib/chats-section.ct.tsx tests/client/features/chat/components/chat-header.ct.tsx
   tests/client/features/character/lib/characters-section.ct.tsx --workers=2` · `pnpm test:scoped
-  tests/client/lib tests/client/features/app-shell tests/client/features/chat tests/client/features/rpg
-  --maxWorkers=4` · the gate's conformance rows through `tests/tooling/check-gates.int.test.ts` (scoped to
-  this gate) · both type programs + `typecheck:tests-dom` (e2e touched) · `check:structure` · depcruise.
+  tests/client/lib tests/client/features/app-shell tests/client/features/chat tests/client/features/rpg --maxWorkers=4` · the gate's conformance rows through `tests/tooling/check-gates.int.test.ts` (scoped to
+  this gate) · `pnpm typecheck` (all runnable programs, including the root Node and browser-test worlds) · `check:structure` · depcruise.
 - **Rendered:** `pnpm snap --isolated --ref <sha>` at 1280×800 dock+dock for Midnight Run and The Ashen
   Spire (Status · Game) + 430 coarse, beside the mock PNGs; `deadcss=0`; `design-audit` on both rooms
   desktop + mobile (the 28 sub-floor Game-tab targets are #850's other half — not regressed, not fixed).

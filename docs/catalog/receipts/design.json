@@ -1307,13 +1307,13 @@
     },
     {
       "path": "docs/design/pane-standardization-design.md",
-      "assignedSha256": "e0d2b6413837812c2cfd21e7e987045a5f2cbab4ce053ae0d12f063410ec7a87",
+      "assignedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e0d2b6413837812c2cfd21e7e987045a5f2cbab4ce053ae0d12f063410ec7a87",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "774710734c4a1a7595395e7f938b2edfe65d5ec0860aa83719cca51b8e7dae54",
+      "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
+      "verifiedAt": "2026-09-10",
       "claims": [
         {
           "claim": "The pane axes that never drifted are exactly the structural/type-forced ones (band presence, shell-panel-body padding, required content/context/useSelectionTitle); every optional slot and prose convention drifted (listHeader, CONTENT padding, band anatomy, empty/loading arms) — so each axis moves to the highest enforcement tier its variance allows.",
@@ -1382,6 +1382,8 @@
       ],
       "summary": "The #1191 convergence design: per-axis standards for the rail pane system (LIST band structural-via-data, shell-owned CONTENT inset with a reason-carrying edge arm, derived panel availability, 3-class empty floor, skeleton loading), each with its enforcement tier named, a designed-divergence grammar, per-section migration deltas and the sweep order.",
       "evidence": [
+        "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; tests/support/browser/ct-data-providers.tsx still owns fakeSection and the real section-registry mirrors while the old tests/support/ct path is absent; #1351 remains the live program",
+        "bounded post-174cc2961 delta: aafe68db3 replaced the retired zero-consumer lib/section-defs.ts citation with the live shared registryDefinitionFact; docs/reviews/gate-runtime/registry-family-1584-checkpoint.md and checkpoint-2026-09-05.md record the reviewed fact repair and deletion; #1584 remains the live gate-runtime program",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
         "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
