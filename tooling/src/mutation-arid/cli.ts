@@ -17,7 +17,7 @@ const HELP = [
   "",
   "Counts the mutants the ARID ignorer removed from the scored denominator, grouped by reason.",
   "Run it before and after changing the ignorer's rules: the delta IS the calibration change, and",
-  "`break` in stryker.gate.config.json must be re-measured whenever it moves.",
+  "`break` in stryker.gate.config.js must be re-measured whenever it moves.",
 ].join("\n");
 
 function main(): number {

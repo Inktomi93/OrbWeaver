@@ -1,6 +1,6 @@
 // What the ignorer actually DROPPED from a report's denominator.
 //
-// The ignorer is part of the gate's calibration, not a cosmetic: `stryker.gate.config.json` states that
+// The ignorer is part of the gate's calibration, not a cosmetic: `stryker.gate.config.js` states that
 // adding or removing it moves the denominator, so `break` must be re-measured whenever its rules change.
 // That makes "how many mutants does it drop, and for which reason" the evidence a recalibration rests on —
 // and before this op the only way to see it was to read a 20MB report by hand.
