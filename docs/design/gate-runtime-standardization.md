@@ -1,12 +1,63 @@
 ---
 kind: design
 status: active
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # One ts-morph runtime for every Orb gate
 
 This replaces the cancelled custom-ESLint Orb-policy cutover and supersedes [gate-config-system.md](gate-config-system.md). Native Biome/ESLint/community rules continue to own generic ecosystem lint. Every Orb-specific policy uses one ts-morph runtime and one capability contract. The migration is built in an isolated branch and lands atomically; no production state supports old and new descriptors together.
+
+## Resume after world-program closeout
+
+Resume on `codex/world-gate-integration`; #1584 owns mutable work and this document owns
+dependency order and acceptance. World-program #1351 is complete; its
+[archived record](../history/type-worlds-program-2026-09-10.md) and
+[final gate handoff](https://github.com/Inktomi93/orbweaver/issues/1584#issuecomment-5626608760)
+bound the carry-forward requirements below. Do not reopen completed world repairs.
+
+At integration commit `dc5da295de58fadad9ae368027cd9f3d626f7dcb`, a fresh `gate:contract`
+reports 264 modules, 145 modules with legacy violations, and 1,015 migration findings.
+These are descriptor/authoring findings, not application defects. Re-derive the census when
+assigning conversions; historical wave counts and file manifests are not a second registry.
+The final planner/pass is still programmatic; `verify --full` and the structure command still
+reach the legacy loader. A current composed final-policy run is required before crediting
+historical finding or performance results on this tree.
+
+Resume in this order, refining the migration sequence below:
+
+1. Retain a current composed baseline through the existing final runtime: exact populations,
+   findings, authority consumption, refusals, wall time and RSS. Compare against tinker evidence
+   without treating its earlier corpus as current acceptance.
+2. Repair imported/computed configuration resources for ESLint, dependency-cruiser and Vitest.
+   Native observations must evaluate the same configuration closure and virtual bytes that the
+   ResourceReader transaction represents; disk-only success cannot certify an edited overlay.
+   Reconcile CSS census and static-class discrepancies against current source before converting
+   dependent policies; neither stale counts nor historical reader failures establish today's verdict.
+3. Finish the shared resource/fact and fixture prerequisites. Replace live-tree fixture writers
+   with isolated successors before removing the repository-test barrier. Reassess the obsolete
+   workloads/runners presence arm; retain real contribution behavior and general presence controls.
+4. Convert simple visitors/file hooks, then shared-reader consumers, resource policies and finally
+   mixed-hook policies. Missing shared capabilities return to the prerequisite lane, never a private
+   gate reader. Record each retired harness mechanism's successor behavioral proof.
+5. Reconcile exact authority identities and unused runtime APIs after consumers settle. Product
+   violation repairs and bulk waiver translation remain final-launch work unless needed for a
+   conversion proof. Remove dead exports rather than adding Knip ignores.
+6. Switch loader, runtime, CLI/reporting, scaffold and authoring enforcement atomically. Connect
+   Git hooks to explicit candidate/changed inputs with dependency expansion and global-invariant
+   fallback; streamed progress alone does not make a hook scoped. Reconcile documentation and
+   individual catalog receipts, then satisfy the full acceptance below.
+
+The retained closeout reports identify mixed-loader failures, 77 Knip identities (32 exports,
+45 types), 33 catalog violations, and enforcement/dangling-reference debt. These are baseline
+evidence, not waived failures or a promise that later runs have no additional findings. CSS proof
+discrepancies require adjudication, not count updates. Lifecycle port isolation, the two scoped
+test-timeout repairs and the WebWeave CT repair are already completed world work.
+
+Additional workers, warm programs and wrapper-release contracts are optional measured follow-ups,
+not prerequisites. Preserve integrated tinker improvements and measure the completed corpus first.
+General workspace export-map protection (#1623) and the broader all-tools file lens (#1278) remain
+separate obligations; resource overlays and compiler membership do not complete them.
 
 ## Existing machinery we retain
 
@@ -164,40 +215,13 @@ Development commits may build migration tools and converted gate modules on this
 
 No adapter survives the branch. No gate is credited because a similarly named module exists; the loader, command, tests, and real run must exercise it.
 
-### Closed migration census and waves
+### Migration evidence
 
-The current 255-module corpus has four mutually exclusive hook shapes: 122 node-visitor, 34 file-hook, 86 run-only, and 13 mixed run plus visitor/file-hook. The mixed 13 migrate last because their post-walk ordering is load-bearing. Cross-cutting prerequisites are 188 population predicates, 66 `begin` hooks, 80 `finalize` hooks, 81 gate modules with descendant walks, 49 with `getSourceFiles`, 53 `fsBacked` gates, and only seven current consumers of the canonical symbol reader.
-
-The symbol-aware first-wave subset is 86 policies: 17 A-M and 69 N-Z have `visit`, no `visitFile`/`run`/`fsBacked`, and no proven direct walk. All 86 files were read in full and are mapped in [simple-visitors-a-m.md](../reviews/gate-runtime/simple-visitors-a-m.md) and [simple-visitors-n-z.md](../reviews/gate-runtime/simple-visitors-n-z.md). The resource manifest is separately closed at 53 policies: 29 resource-only, 24 hybrid, 50 entire-population, and three selected-file policies; its typed host and proof requirements are in [resource-gate-access-patterns.md](../reviews/gate-runtime/resource-gate-access-patterns.md). The disjoint remainder is 116 policies, classified by hook, population, authority, family dependency, and blocker in [uncovered-gate-conversion-census.md](../reviews/gate-runtime/uncovered-gate-conversion-census.md). Current exemptions, custom markers, grants, warnings, authoritative data, and deletion candidates are closed separately in [exception-authority-census.md](../reviews/gate-runtime/exception-authority-census.md). These sets are migration work shapes, not new production registries.
-
-Within the 86 first-wave policies, exactly 14 were immediately mechanical source edits: four A-M rows and ten N-Z rows labelled `codemod-mechanical` in those reports. The earlier “15/69” handoff was wrong: 69 is only the N-Z visitor intersection, and the apparent fifteenth policy requires both a codemod-shaped edit and reviewed-grant migration. The rejected converter also proved that shallow visitor shape cannot establish semantic eligibility. Those 14 policies are now direct final descriptors; [mechanical-gates-1584.md](../reviews/gate-runtime/mechanical-gates-1584.md) records 89 passing proofs, exact old/new population equality over 7,006 files, zero current-corpus finding deltas, and the ruled kebab rename of `bus-on-data-no-store-write`.
-
-The re-derived resource waves add `feature-owns-definition`, `package-layout`, `ui-exports-map-complete`, `server-layout`, `component-size`, and `component-size-ui`, bringing the credited total to twenty final legacy policies with 112/112 proofs. Their exact population and finding differentials are appended to [resource-layout-size-inventory.md](../reviews/gate-runtime/resource-layout-size-inventory.md); the remaining candidates stay uncredited until individually re-derived.
-
-The bus producer wave adds four converted legacy policies on one first-class fact provider, bringing the credited total to twenty-four with 127/127 migrated-policy proofs; the new hard `bus-fact-health` support policy adds two fact-health proofs. After merging local `main` at `f4fd77dbf`, the full typed project has 7,128 files while the semantic subject is the exact 1,585 contracts/server files declared by the provider. Current old/new findings are 0/0 for all four. The isolated final run is still slower than legacy, so composed command performance/RSS remains a cutover requirement. Exact evidence and rejected designs are in [bus-family-1584.md](../reviews/gate-runtime/bus-family-1584.md).
-
-`pnpm gate:contract` is the temporary migration census, not a second conformance runtime or a ratchet. On the 2026-09-05 base it reports 1,489 concrete sites across all 255 modules: 255 descriptor wrappers, 688 legacy fields, 345 symbol-proven direct walk/source lookups, two gate-owned Projects, 40 module-scope `let`/`var` statements, 145 proven mutated module bindings, and 14 baseline-path expressions. After the 14 mechanical conversions and final `defineGate` provenance repair, it reports 1,447 findings: 28 legacy-field sites and 14 false wrapper findings are gone. It is deleted after all counts reach zero and `gate-modernization` owns the permanent rules.
-
-The emergency fold at integration commit `8c677f8c5` preserves every active task and subagent checkpoint in this branch. [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md) is the exact resume ledger for resource declarations, waiver migration, schema, bus, registry, and CSS/static-class work. Several folded commits are candid red WIP; the 1,447 figure above is the last verified pre-WIP census and must be re-derived after the resume repairs before claiming further conversion credit.
-
-The 2026-09-06 resume converted the schema-fact and registry-definition families (five and nine legacy modules; `asset-refs-fk-coverage` retired into a Drizzle-runtime static stage; two registry modules split off reviewed-grant siblings) and added the central reviewed-grant data home. At `aafe68db3` the corpus is 259 modules, 52 final and 207 legacy, and `gate:contract` reports 1,276 findings. The first composed measurement over all 52 final policies is 59.5 s wall and 5.74 GB peak RSS on 7,151 loaded sources with zero errors and zero effective findings; the exact receipts are in [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md).
-
-The wave-3 resume converted the canonical-origin client family (twelve policies on three new type-level origin readers) and the canonical-origin server and test family (fourteen policies on four new readers, including the Drizzle client identity read by METHOD declaration rather than handle spelling). Neither family needed a reviewed grant, and three permanent legacy ignore markers were deleted because the converted policies pass their sites by identity. At `a827f2426` the corpus is 259 modules, 78 final and 181 legacy, and `gate:contract` reports 1,202 findings. The composed measurement over all 78 final policies is 64.0 s wall and 6.38 GB peak RSS on 7,205 loaded sources with zero errors and two effective findings, both the real side-gen bypass filed as #1816; family evidence is in [origin-client-family-1584.md](../reviews/gate-runtime/origin-client-family-1584.md) and [origin-server-family-1584.md](../reviews/gate-runtime/origin-server-family-1584.md).
-
-The wave-4 resume converted the two sanctioned-home families as exact reviewed grants (ten server gates into eleven policies with forty rows; fourteen client gates into fourteen policies with thirty rows and one authority split to ordinary), and modeled the `chatsChanged` conditional publisher in the shared bus producer fact: the blocking cause was the OVERLOADED `defineBusChannel` export closing the `.publish` door, which is now proven by the method's declaration home; a whole-union flow type is ruled a forward, never a producer and never a refusal. `user-bus-coverage` and `bus-definition-belts` then converted, the latter into four hard policies whose three legacy tables are derived from types and descriptors, and the deferred `connectionsChanged` member became typed warning debt on #1822. Every lane went through a fresh-context verifier loop (two, three and four rounds) whose findings were fixed on the warm lane before its fold. At `0688f876e` the corpus is 264 modules, 109 final and 155 legacy, and `gate:contract` reports 1,070 findings. The composed measurement over all 109 final policies on a near-quiet box is 83.3 s wall and 6.83 GB peak RSS on 7,243 loaded sources with zero errors and six effective findings, none introduced by the wave; family evidence is in [home-server-family-1584.md](../reviews/gate-runtime/home-server-family-1584.md), [home-client-family-1584.md](../reviews/gate-runtime/home-client-family-1584.md), [bus-pair-1584.md](../reviews/gate-runtime/bus-pair-1584.md) and the appended [bus-family-1584.md](../reviews/gate-runtime/bus-family-1584.md). The generic-producer consolidation the bus-family doc blocked on this relay is now unblocked.
-
-The wave-5 resume closed the shared-reader row three families were waiting on and consolidated the producer
-family. `resolveModuleMemberOrigin` used to refuse any multiply-declared export as `ambiguous`; a FUNCTION
-overload set (same kind, same source file, at most one implementation body) now resolves to one home (the declaration count is NOT carried — a review round dropped the field as consumerless), while a value/type merge, a `function`+`namespace` merge, an
-`export *` fan-in and a two-file split still refuse. 775 import specifiers across the authored tree (557 of them in `packages/{server,client}/src`) gained a precise verdict
-(React's `useState`/`useRef`, query's `useQuery`, drizzle's `inArray`, our own `defineBusChannel` and
-`createAutosaveEntityForm`), 180 correctly still refuse (88 in server+client; the `node:` builtins split per importing package), two gate-local trace-declaration workarounds were
-deleted as superseded, and the composed pre/post over the same corpus moved NOTHING — no per-policy count, no
-finding, no waiver or grant consumption — which is evidence rather than a false clean because the arm is
-proven reached by that census. The five per-union bus coverage policies then became one
-`bus-producer-coverage` quantified over the belted roster, retiring `bus-coverage-owner` (its guarantee is now
-the policy's own denominator plus two refusals) and its 270-module provider; all 21 proof rows' fixture maps moved byte-identical (messages and fix strings replaced by the generic policy's) and the 66-member/271-anchor producer census is set-identical; the review rounds pinned the three guarantees the retired owner gate used to carry (roster cross-check, zero-roster refusal, every-union quantification), reached the same-file overload guard through a `declare module` augmentation, and made the `(union, member)` deferral key injectable so it can be proven. At the lane tip the corpus was 259 modules, 104 final and 155 legacy; folded with the ordinary-visitors lane (ten gates into fifteen policies) it is 264 modules, 119 final and 145 legacy at `1470e7701`, `gate:contract` reports 1,015 findings, and the composed pass over all 119 is recorded in the checkpoint's wave-5 fold closeout. Evidence: [checkpoint-2026-09-05.md](../reviews/gate-runtime/checkpoint-2026-09-05.md)
-§"Resume 2026-09-06, wave 5" and [bus-pair-1584.md](../reviews/gate-runtime/bus-pair-1584.md) §5.
+The [checkpoint](../reviews/gate-runtime/checkpoint-2026-09-05.md) retains the historical
+wave populations, family conversions and differential receipts. The
+[uncovered conversion census](../reviews/gate-runtime/uncovered-gate-conversion-census.md)
+records the original partition and semantic prerequisites. Neither is a current task roster;
+use the live loader/census and the resume baseline above.
 
 Work proceeds in dependency order:
 
@@ -233,8 +257,8 @@ For all 13, `evaluate` runs after the shared walk and before central waiver/gran
 
 ## World-program changes that must survive cutover
 
-The world/test program (#1351, phase 4 #1862) continues to repair the production legacy path while this
-cutover is incomplete. Its changes are inputs to conversion, not disposable transitional behavior. Before
+The completed world/test program (#1351, phase 4 #1862) repaired the production legacy path while this
+cutover remained incomplete. Its changes are inputs to conversion, not disposable transitional behavior. Before
 converting a touched policy, re-read its current implementation and proofs on the integrated branch; do not
 restore the older gate-branch copy.
 

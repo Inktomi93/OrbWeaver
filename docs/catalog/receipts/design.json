@@ -2475,8 +2475,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b5cbbaaf534dd2d4c5b7dc789b8dfdbdeb734a1bcea334e50a967f6e7da8222d",
-      "verifiedCommit": "72e0aa008148a4d3a1d8ac6e5c9b5403abf1d564",
+      "verifiedSha256": "db1309cdd9c1273f2192afdf41057ebbdc0d0f9a562bf3af3b4958d5b2e4c2a0",
+      "verifiedCommit": "dc5da295de58fadad9ae368027cd9f3d626f7dcb",
       "verifiedAt": "2026-09-10",
       "claims": [
         {
@@ -2498,7 +2498,8 @@
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
         "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-        "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts."
+        "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts.",
+        "Full program and companion reads plus all 19 comments on #1584; resume instructions checked against integration dc5da295d and fresh gate:contract (264 modules, 145 legacy modules, 1015 findings). World closeout is complete; retained release/tooling reds remain evidence, not a fresh full-battery verdict. CSS discrepancies remain unadjudicated. This receipt attests the updated plan, not completed gate implementation."
       ]
     }
   ]
