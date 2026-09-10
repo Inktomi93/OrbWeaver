@@ -4,6 +4,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SpawnNicedResult } from "@orb/tooling/_shared/proc";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
@@ -11,6 +12,8 @@ import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "../contract/typecheck.ts";
 import { readCompilerPrograms } from "../lib/policy-program-membership.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm typecheck [--config <repo-relative-tsconfig>]...");
 
 const TS7_WRAPPER = fileURLToPath(new URL("../../../../scripts/ts7.cjs", import.meta.url));
 const COMPILER_DIAGNOSTIC_RE = /\berror TS\d+:/u;

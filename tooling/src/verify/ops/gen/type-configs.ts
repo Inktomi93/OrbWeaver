@@ -1,6 +1,7 @@
 // Deterministic complete TypeScript leaf configs, derived from authored world/test/ambient intent.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { TypeConfigIntentInput } from "@orb/tooling/_shared/type-config-intent";
 import {
   ambientRootsForProgram,
@@ -16,6 +17,8 @@ import {
   worldTemplateFor,
 } from "@orb/tooling/_shared/type-config-intent";
 import { ts } from "ts-morph";
+
+refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts baseline type-configs");
 
 type JsonObject = Readonly<Record<string, unknown>>;
 const JSON_LINE_WIDTH = 160;

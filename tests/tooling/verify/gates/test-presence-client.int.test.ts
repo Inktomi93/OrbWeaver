@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
+import { runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "../../../../tooling/src/_shared/test-kinds.ts";
 import type { Finding, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
@@ -20,6 +21,10 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STORE_REL = "packages/client/src/state/probe-store.ts";
 const MIRROR_DIR = "tests/client/state";
+const STORE_MIRROR_KINDS = TEST_KIND_DEFINITIONS.filter(({ family, mirror, sourceExtensions }) => {
+  const runtime = runtimeForTestFamily(family);
+  return mirror === "module" && sourceExtensions.includes(".ts") && (runtime === "vitest" || runtime === "playwright-ct");
+}).map(({ suffix }) => suffix);
 
 /** A store that mints via a real factory door and exports ONE action + one read hook. */
 const STORE_SRC =
@@ -71,7 +76,7 @@ test("test-presence-client retains every planted descriptor control", () => {
 });
 
 describe("test-presence-client clause C — the #619 silence, both directions, EVERY mirror kind", () => {
-  for (const suffix of [".ct.tsx", ".test.ts", ".test.tsx", ".int.test.ts"]) {
+  for (const suffix of STORE_MIRROR_KINDS) {
     test(`a ${suffix} mirror that never references the action is RED (it used to be silent)`, ({ scratch }) => {
       plantStore(scratch, suffix, 'import { useProbe } from "@orb/client/state";\nexport const t = useProbe;\n');
       expect(messages(runGate(scratch))).toContain("probeAction");
@@ -82,6 +87,13 @@ describe("test-presence-client clause C — the #619 silence, both directions, E
       expect(actionFindings(runGate(scratch))).toEqual([]);
     });
   }
+
+  test("an unsupported .test.tsx mirror is missing registered runtime coverage", ({ scratch }) => {
+    plantStore(scratch, ".test.tsx", 'import { probeAction } from "@orb/client/state";\nprobeAction();\n');
+    const out = runGate(scratch);
+    expect(messages(out)).toContain("has no test");
+    expect(actionFindings(out)).toEqual([]);
+  });
 });
 
 describe("test-presence-client clause C — a clause that cannot run must never report clean", () => {

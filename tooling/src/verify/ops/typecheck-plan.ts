@@ -1,10 +1,13 @@
 import process from "node:process";
 import { parseArgs } from "node:util";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { TypecheckPlanMode } from "../contract/typecheck-plan.ts";
 import { readPolicyRepositoryInventory, resolveExistingPolicyPath } from "../lib/policy-repo-inventory.ts";
 import { planTypecheckPrograms } from "../lib/program-routing.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts typecheck-plan --primary|--affected --file <paths...>");
 
 export const TYPECHECK_PLAN_HELP =
   "usage: pnpm exec node tooling/src/verify/cli.ts typecheck-plan (--primary|--affected) --file <repo-relative paths...> [--json]";

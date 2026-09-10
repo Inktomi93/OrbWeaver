@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "../contract/policy.ts";
@@ -12,6 +13,8 @@ import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 const TEMP_PREFIX = "orb-policy-conformance-";

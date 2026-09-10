@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { ConfigArray } from "@eslint/config-array";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type {
@@ -21,6 +22,8 @@ import type {
 } from "../contract/config-snapshot.ts";
 import { CONFIG_SNAPSHOT_RUNNERS } from "../contract/config-snapshot.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts config-snapshot <vitest|eslint|depcruise> <repo-relative-config>");
 
 export const CONFIG_SNAPSHOT_HELP =
   "usage: node tooling/src/verify/cli.ts config-snapshot <vitest|eslint|depcruise> <repo-relative-config>\n  Emits the runner's natively loaded selector fields as strict JSON.";

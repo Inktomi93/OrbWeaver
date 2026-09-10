@@ -51,6 +51,11 @@ const ARGV_ENTRIES: ExemptionTable = {
   },
 };
 
+/** The governed non-cli argv-entry authority, shared with the behavioural direct-invocation census. */
+export function isGovernedArgvEntry(rel: string): boolean {
+  return rel in ARGV_ENTRIES;
+}
+
 const seenEntries = new Set<string>();
 let seenCliReaders = 0;
 
@@ -96,7 +101,7 @@ export const gate: GateDescriptor = {
       seenCliReaders += 1;
       return;
     }
-    if (rel in ARGV_ENTRIES) {
+    if (isGovernedArgvEntry(rel)) {
       seenEntries.add(rel);
       return;
     }
