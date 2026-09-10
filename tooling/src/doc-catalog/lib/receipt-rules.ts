@@ -196,8 +196,8 @@ function receiptTruthErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined
   if (entry.verifiedSha256 !== facts.currentSha256) {
     errors.push(`${entry.path}: verifiedSha256 does not match the current document`);
   }
-  if (entry.verifiedSha256 !== facts.verifiedBlobSha256) {
-    errors.push(`${entry.path}: verifiedSha256 does not match the verified commit blob`);
+  if ((entry.verifiedSha256 !== facts.verifiedBlobSha256 || facts.candidateTouchesReceiptPair) && !facts.currentReceiptSnapshotExists) {
+    errors.push(`${entry.path}: current document and receipt do not coexist in a verified commit or the Git index`);
   }
   if (!facts.verifiedCommitExists) {
     errors.push(`${entry.path}: verifiedCommit does not resolve to a commit`);

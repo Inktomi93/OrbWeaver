@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "e6650e57e3843865549ba80e49da7ea40609b0797b643620515442508631f9f7",
+      "assignedSha256": "5a99ae519f8b185837fcf73fe17889d1dcce2a0a8532f1e072677b5a389a187e",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "e6650e57e3843865549ba80e49da7ea40609b0797b643620515442508631f9f7",
-      "verifiedCommit": "bdd812a89c1f5f38bedb2149151ae839808e76e4",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "5a99ae519f8b185837fcf73fe17889d1dcce2a0a8532f1e072677b5a389a187e",
+      "verifiedCommit": "a9d24d0c57b304155eaf767a43bdd4726070f31f",
+      "verifiedAt": "2026-09-10",
       "evidence": [
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
         "re-attested at 32f5554d3 by the orchestrator after reading the #1627 leg-3 diff in full: the domain map’s notifications row now lists chat + plugin + automation producers, the last three addressing a SINGLE human (why the inbox is no longer multi-human-gated, #1627); row shape unchanged; frontmatter dated 2026-09-05.",
@@ -30,7 +30,8 @@
         "re-attested at c5dd92e04 — the register-boundary paragraph's mis-citation of D151 corrected; verified against D151's own text, which disclaims the rpg register",
         "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md §3 + its §7 index row, D151's cite-not-copy line), the config design doc gained the §7.7/§7.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again",
         "re-attested at e652ecb17 — #1007 adds one §7 index row pointing at tooling/src/ui-audit/RULE-AUTHORING.md (the mechanism-match rule-authoring table), beneath the GATE-AUTHORING.md row; delta read, no other line changed",
-        "re-attested at e85447e4b — the §7 index row now points at tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md (moved into the walker slot for tooling-slot-template); delta read, one line"
+        "re-attested at e85447e4b — the §7 index row now points at tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md (moved into the walker slot for tooling-slot-template); delta read, one line",
+        "#1907: lines 24 and 138-141 replace the separate manual pnpm check + pnpm test commit ritual with normal commit-hook ownership; task-relevant behavioral tests remain development work, pre-commit owns the static check, and pre-push owns pnpm verify --push."
       ],
       "claims": [
         {
@@ -56,7 +57,7 @@
           ]
         }
       ],
-      "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
+      "summary": "Normative constitution re-attested for #1907: normal pre-commit and pre-push hooks own commit/push gates, while task-relevant behavioral tests remain part of development rather than a duplicate commit ritual."
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -512,13 +513,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "b113148dd24430f4ac94025321580ff49d5c0dec29e6703b9b021feeaede7c4a",
+      "assignedSha256": "c96415001dc1d52988b56d90eb7bc71a9de217c856fc093fa41ebca3e224add0",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b113148dd24430f4ac94025321580ff49d5c0dec29e6703b9b021feeaede7c4a",
-      "verifiedCommit": "bdd812a89c1f5f38bedb2149151ae839808e76e4",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "c96415001dc1d52988b56d90eb7bc71a9de217c856fc093fa41ebca3e224add0",
+      "verifiedCommit": "a9d24d0c57b304155eaf767a43bdd4726070f31f",
+      "verifiedAt": "2026-09-10",
       "evidence": [
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
         "ENGINE-dir arm (ea1952de5, from the #1584 program) + the three stub doors deleted at 7ce93bad4233a41c97ee255c48e1fa60a12c8623: §2.5 + §4.1 + the ui-audit roster row",
@@ -539,9 +540,10 @@
         "docs/design/tooling-package.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
         "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it.",
         "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
-        "docs/architecture/core/Core-Tooling-Law.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
+        "docs/architecture/core/Core-Tooling-Law.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts.",
+        "#1907: §9.12 replaces the bypass-dependent two-commit ritual with one normal-hook atomic document + complete lane-receipt + regenerated-catalog staging procedure; verifiedSha256 remains the current-byte bind, verifiedCommit names the ancestor review base, and check:doc-catalog requires exact current doc/receipt bytes in the candidate Git index while retaining legacy verified-blob receipts."
       ],
-      "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
+      "summary": "Normative tooling law re-attested for #1907: §9.12 defines atomic normal-hook staging for a changed document, its complete lane receipt, and the regenerated catalog without weakening legacy verified-blob receipts.",
       "claims": [
         {
           "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
@@ -1205,13 +1207,13 @@
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-      "assignedSha256": "9bed19ed8d0f587b56a5fc7f18d3b14bc6728af83ee149025ffb4af97f13ee05",
+      "assignedSha256": "bb409af09190970d527ce6a486dc149f7c5544a134f32178e49f6070246b6c22",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "9bed19ed8d0f587b56a5fc7f18d3b14bc6728af83ee149025ffb4af97f13ee05",
-      "verifiedCommit": "c13baf612a264212dde38a72e72a23709363a754",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "bb409af09190970d527ce6a486dc149f7c5544a134f32178e49f6070246b6c22",
+      "verifiedCommit": "a9d24d0c57b304155eaf767a43bdd4726070f31f",
+      "verifiedAt": "2026-09-10",
       "evidence": [
         "#1848 (cb-runner-budget): tests:node split into vitest + browser:ct with a profile-derived budget (stageBudgets), run-marker sweep, stage cap in the profile; re-attested at the merge sha after the lane's pre-rebase sha was orphaned",
         "re-attested at 6395e6a03 (#1848, full delta read): §3.7's `tests:node` row is the vitest half only (`pnpm test:node`), `browser:ct` is a push/full stage again with a profile-DERIVED hang ceiling, the push tier row and the pre-push bullet name both halves, and the new §3.7b states the stageBudgets derivation with its 2026-09-06 measurement. No other text moved.",
@@ -1234,7 +1236,8 @@
         "re-attested at da8503537 — #1107 fold (881c70701): §3.3b gains the structure record's timing shape (pass `timing: { totalMs, gateMs }`, per-gate `timing: { totalMs, phaseMs }` measured in the one `guard()` wrapper, floor/ceil arithmetic, the five-slowest console line). Delta read once against a live `pnpm check` artifact; no other text moved.",
         "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
         "re-attested at 6c12b4cf3737e94f96df5521f5bd9a5e8c85af1c (#1272, lane p-scoped-red): §3.7's `tests:node` bullet gains the scoped lane's exit semantics — a DERIVED-empty `--changed` selection is a clean skip, because the scoped child carries `--passWithNoTests` (tooling/src/verify/lib/registry.ts), while the whole-scope `pnpm test` and `tests:execution-membership` still red on an empty suite. PD-115 (`vitest.config.ts` passWithNoTests:false) is named and preserved: it judges an ASSERTED selector, this one is DERIVED. Verified by the landed pins (tests/tooling/verify/ops/run.int.test.ts, red-first against HEAD) and a real door run — `pnpm verify --scope tooling/src/verify/ops` on a clean committed tree exits 0 where it exited 1, a dirty-tree run still selected and ran 20 files / 235 tests, and the asserted-zero control (`scoped --scope no/such/dir`) still exits 2. Delta read once; no other text in this document moved.",
-        "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 re-attested at 8d9f25183 by the orchestrator after reading the #1523 diff in full: §3.2 conditional tier membership (`StageDef.tierPrecondition`, tri-state, null = RUN), `tests:tooling` split off `tests:node` (push conditional on tooling/** or tests/tooling/** in the branch diff; full unconditional), the measured 71.1/9.0/1.3 CPU-min receipt and the owner's ask quoted, the `tooling` vitest project partition (one glob, unit/integration subtract, execution-membership proves it)."
+        "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 re-attested at 8d9f25183 by the orchestrator after reading the #1523 diff in full: §3.2 conditional tier membership (`StageDef.tierPrecondition`, tri-state, null = RUN), `tests:tooling` split off `tests:node` (push conditional on tooling/** or tests/tooling/** in the branch diff; full unconditional), the measured 71.1/9.0/1.3 CPU-min receipt and the owner's ask quoted, the `tooling` vitest project partition (one glob, unit/integration subtract, execution-membership proves it).",
+        "#1907: §3.7 lines 379-381 retain pnpm test as the explicit product-test composite and manual registry row while removing the false separate commit-ritual label; pre-commit and pre-push remain the automatic commit/push gates."
       ],
       "claims": [
         {
@@ -1260,7 +1263,7 @@
           ]
         }
       ],
-      "summary": "Active verification design re-attested for #995: quality:boot-chunk measures the emitted boot set against the 818,188-byte production baseline with the existing five-percent convention."
+      "summary": "Active verification design re-attested for #1907: pnpm test remains the explicit combined product-test command and registry row, not a separate manual commit ritual."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",

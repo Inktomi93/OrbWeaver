@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-10
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -21,7 +21,7 @@ updated: 2026-09-06
 3. **Imports flow ONE direction (§2).** A change that needs an upward import is automatically WRONG — re-home it, never force it.
 4. **A green `pnpm check` proves STRUCTURE, not LOGIC** (assertion-free / lying tests still pass it). Never read green as "the logic is sound."
 5. **You have no standing to shortcut.** When the right path is tedious: do it RIGHT, or STOP and flag. Stub / simplify-away / weaken-a-test / swallow-an-error / sideways-import are the banned reflexes — the instant you reach for one is the moment this file exists to stop you.
-6. **Green-to-commit:** `pnpm check` AND `pnpm test` BOTH pass before any commit; commit on `main`; end the message with the `Co-Authored-By` trailer.
+6. **Commit through the hooks:** commit normally on `main`; the configured pre-commit hook runs the required static check, and pre-push owns `pnpm verify --push`. Run task-relevant behavioral tests while developing, but do not manually duplicate the hook or run the full `pnpm test` composite solely to commit. End the message with the `Co-Authored-By` trailer.
 7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
 8. **Grep is for CODE, never for LAW.** A law doc's ruling lives in the CONTEXT around a line, not the
    line — grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT import-privileged.
@@ -135,8 +135,10 @@ is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on s
 - **Scope every agent prompt to its EXACT tier responsibility** — tier-collapse is precisely how neo
   patterns crept in (domains return contract types; only the entry seam mints the Principal; infra
   verifies, domain resolves, entry constructs).
-- **Green-to-commit:** `pnpm check` AND `pnpm test` must BOTH pass before any commit. Commit on `main`;
-  end the message with the `Co-Authored-By` trailer.
+- **Commit through the hooks:** commit normally on `main`; the configured pre-commit hook runs the required
+  static check, and pre-push owns `pnpm verify --push`. Run task-relevant behavioral tests while developing,
+  but do not manually duplicate the hook or run the full `pnpm test` composite solely to commit. End the
+  message with the `Co-Authored-By` trailer.
 - **Lane verification is SCOPED; the big gates are the ORCHESTRATOR'S (owner ruling 2026-07-25).** A
   lane proves its work with exactly the test files it touched + a scoped typecheck + biome/eslint on its
   files; whole-tree `pnpm check`/`structure:full`/the full battery are banned in lanes. The orchestrator

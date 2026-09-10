@@ -318,8 +318,8 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   // manual-only row (`tests:product-composite`) that no tier includes.
   expect(push.has("browser:ct")).toBe(true);
   expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full"]);
-  // The composition is still the load-bearing half of the green-to-commit RITUAL (`pnpm check` + `pnpm
-  // test`, constitution §4): if `test` stops composing test:ct, a commit stops exercising CT entirely.
+  // The composition remains the explicit combined product-test command: if `test` stops composing
+  // test:ct, callers asking for the combined behavioral suites silently lose CT coverage.
   const rootPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };

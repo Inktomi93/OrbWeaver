@@ -272,9 +272,9 @@ const GATING_STAGES: readonly StageDef[] = [
     // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
     // the two halves shared one 45-minute hang ceiling that the sum outgrew the moment #1835 put CT on the
     // shared worker cap: `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that
-    // was still working. The composite is unchanged as the green-to-commit ritual (and keeps its own
-    // manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its own
-    // runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
+    // was still working. The composite remains available as the explicit product-test command (and keeps
+    // its own manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its
+    // own runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
     argv: ["pnpm", "test:node"],
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit + integration + tooling lanes
