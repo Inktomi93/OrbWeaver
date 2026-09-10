@@ -12732,9 +12732,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 280,
-      "bytes": 38988,
-      "sha256": "b518445592b4cdb861e586b1098ec899d2e0f5abe96aa3dffe54ea98c9b78a35",
+      "lines": 281,
+      "bytes": 39490,
+      "sha256": "b5cbbaaf534dd2d4c5b7dc789b8dfdbdeb734a1bcea334e50a967f6e7da8222d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12751,8 +12751,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b518445592b4cdb861e586b1098ec899d2e0f5abe96aa3dffe54ea98c9b78a35",
-        "verifiedCommit": "c92370a92c53d17618f47ef9eeff0b918af437f1",
+        "verifiedSha256": "b5cbbaaf534dd2d4c5b7dc789b8dfdbdeb734a1bcea334e50a967f6e7da8222d",
+        "verifiedCommit": "72e0aa008148a4d3a1d8ac6e5c9b5403abf1d564",
         "verifiedAt": "2026-09-10",
         "claims": [
           {
@@ -12773,7 +12773,8 @@
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
           "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
-          "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance."
+          "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
+          "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts."
         ]
       },
       "receiptCurrent": true
