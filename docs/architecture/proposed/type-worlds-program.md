@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: active
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # Type worlds, test registration, and derived tool configuration
@@ -82,6 +82,8 @@ Make repeated populations and execution facts authoritative, then simplify each 
 Command names must identify their subject and action. Consolidate duplicate public commands into one canonical entry point and migrate live callers, tests and documentation in the same change; do not retain compatibility aliases for agent familiarity. Historical transcript usage identifies migration sites and operational needs, not permission to preserve a redundant command. Distinct manual or lifecycle capabilities require a caller-and-purpose audit before removal.
 
 A shared glob string does not establish shared semantics. Compare each tool's native resolved population and effective policy against independent intended facts. Avoid expensive repository/compiler discovery on every editor save; materialize expensive observations at the appropriate invocation boundary.
+
+Whole ESLint execution uses `pnpm lint:eslint` through the verifier's explicit `eslint` operation. A separate native discovery process enumerates the same files as ESLint's whole-repository selection with rules and typed-program creation disabled; this is discovery data, never a lint verdict. Native configuration admission checks the resulting population, including untracked and Git-ignored files when ESLint admits them. The shared compiler reader assigns typed files to their primary actual owner, and native lint processes run those groups sequentially so completed compiler state can be released. Genuinely untyped files retain their own group. Typed files without ownership refuse rather than disappear. Actual linting retains the configured rules and parser contexts; scoped and ad hoc native adapter calls remain available. Memory containment must not remove rules, alter worlds or maintain another file roster.
 
 `verify baseline type-configs` writes the generated world templates and runnable configs from `tooling/src/_shared/type-config-intent.ts`; `--check` verifies freshness without writing. Common language libraries remain authored in the abstract strictness base. Package worlds, test kinds, helper homes and ambient scopes determine the generated fields. Explicit helper homes take precedence over a generic TSX pattern: pure ISO helpers remain ISO, while browser JSX in an ISO helper fails compilation.
 
