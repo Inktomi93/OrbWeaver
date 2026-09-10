@@ -26,6 +26,7 @@ export const VERIFY_VERBS = [
   "config-snapshot",
   "typecheck-plan",
   "typecheck",
+  "eslint",
 ] as const;
 
 export type VerifyVerb = (typeof VERIFY_VERBS)[number];

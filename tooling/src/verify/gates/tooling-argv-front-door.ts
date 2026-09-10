@@ -47,7 +47,7 @@ const ARGV_ENTRIES: ExemptionTable = {
     why: "the node half stack.sh execs for every PROD invocation — same bash-fronted exception. Ends if stack grows a cli.ts or this entry is retired.",
   },
   "tooling/src/verify/ops/config-snapshot-entry.ts": {
-    why: "the private process boundary readConfigSnapshot execs so native config loading does not eagerly import the whole verify CLI; its argv is a parent-authored runner/config request validated by the shared snapshot operation, never a second operator door. Ends if snapshot observation moves in-process or behind a different worker.",
+    why: "the private process boundary reads native config snapshots and ESLint's discovery-only filename list without eagerly importing the whole verify CLI; its argv is a parent-authored request validated by those operations, never a second operator door. Ends if both observations move in-process or behind a different worker.",
   },
 };
 

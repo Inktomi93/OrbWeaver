@@ -581,6 +581,14 @@ export async function snapshotEslintConfig(root: string, config: string): Promis
   return { version: 1, runner: "eslint", config, trackedFiles: trackedPaths.length, entries: model.configs.length, selectors };
 }
 
+/** Resolve an already-enumerated path set through ESLint's native flat-config selectors and ignores. */
+export async function eslintConfiguredPaths(root: string, config: string, paths: readonly string[]): Promise<readonly string[]> {
+  const [loaded, defaultConfig] = await Promise.all([loadEslintConfig(root, config), loadEslintDefaultConfig()]);
+  const model = nativeEslintModel(root, loaded, defaultConfig, config);
+  const selection = new ConfigArray([...model.globals, ...model.baseSelection], { basePath: root }).normalizeSync();
+  return paths.filter((path) => selection.getConfig(resolve(root, path)) !== undefined);
+}
+
 export async function runConfigSnapshot(root: string, rest: readonly string[]): Promise<number> {
   const [runner, config, ...unknown] = rest;
   if (runner === undefined || !isRunner(runner) || config === undefined || unknown.length > 0) {

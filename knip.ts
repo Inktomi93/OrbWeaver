@@ -43,13 +43,6 @@ const config: KnipConfig = {
       // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
-      // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
-      // ps/ss/pgrep all dropped off this list across #393 (P2 ps, P5 ss + pgrep): every system-binary
-      // shell-out now rides the _shared/proc doors as SPAWN ARGS, which knip's binary lens cannot see — so
-      // the ignore rows became dead and knip's own hint flagged them.
-      // orb-fake-probe-bin: tool-fixtures' fakeBin proof spawns a PATH-shimmed temp executable by that
-      // name (tests/support/tool-fixtures.test.ts) — never a real dependency.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
       // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
@@ -58,12 +51,6 @@ const config: KnipConfig = {
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
       // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
       ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native"],
-      // scripts/probes/st-goldens/generate-goldens.ts imports three virtual browser-context scripts that
-      // exist only in the sillytavern captured runtime, and resolves them relative to ST's OWN public/ root
-      // inside a page.evaluate — so the specifiers are unresolvable from here by construction, at any home
-      // (@ts-expect-error tags already document this). The specifiers are ST-relative, so re-homing the rig
-      // does NOT change them.
-      ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
@@ -112,8 +99,6 @@ const config: KnipConfig = {
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
-      // nvidia-smi/ss are system binaries the vllm engine shells.
-      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.

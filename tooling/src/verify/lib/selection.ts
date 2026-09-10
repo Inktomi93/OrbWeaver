@@ -13,9 +13,9 @@ import { planTypecheckPrograms } from "./program-routing.ts";
 import { classifyExplicitPaths, GIT_READ_PREFIX, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
-// Mirrors the lint:eslint script's path list in package.json — and the mirroring is LOAD-BEARING, not
-// cosmetic: a scoped lane linting a changed file only sees the rules if this regex agrees with that
-// script's argv. `tooling/src` + `tests/tooling` joined on 2026-08-22 (#459); the WHOLE `tests/` tree
+// Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
+// cosmetic: a scoped lane linting a changed file only sees rules if this predicate agrees with the
+// config. `tooling/src` + `tests/tooling` joined on 2026-08-22 (#459); the WHOLE `tests/` tree
 // joined the same day (#473), which is why the tests arm is a bare `tests` rather than a per-dir
 // alternation — the alternation is exactly what went stale twice. Both halves are pinned against each
 // other in tests/tooling/verify/ops/run.int.test.ts ("a tooling file IS in the eslint surface").

@@ -243,19 +243,19 @@ function optionValue(args: readonly string[] | undefined, option: string): strin
 
 test("all worker wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
   const cases = [
-    ["ts7.cjs", ["--checkers", "1", "--version"]],
-    ["eslint.cjs", ["--concurrency", "off", "--version"]],
+    ["ts7.cjs", ["--checkers", "1", "--version"], 1],
+    ["eslint.cjs", ["--concurrency", "off", "--version"], 2],
   ] as const;
-  for (const [script, args] of cases) {
+  for (const [script, args, expectedStatus] of cases) {
     const result = runWrapper(script, args, "true");
-    expect(result.status, script).toBe(1);
+    expect(result.status, script).toBe(expectedStatus);
     expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}="true"`);
     expect(result.capture, `${script} must refuse before spawnSync`).toBeNull();
   }
 
   const cpd = runWrapper("cpd.ts", ["--workers", "1", "--version"], "true");
   expect(cpd.status).toBe(2);
-  expect(cpd.stderr).toContain("capacity profile refused the run");
+  expect(cpd.stderr).toContain("launcher configuration refused the run");
   expect(cpd.stderr).toContain(`${DEDICATED_BOX_ENV}="true"`);
   expect(cpd.capture).toBeNull();
 });

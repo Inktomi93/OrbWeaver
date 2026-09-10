@@ -51,10 +51,9 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
  *  not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we hand it the
  *  path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
  *
- *  `node scripts/eslint.cjs`, never the bare `eslint` bin (#1835): that shim is the ONE place ESLint's
- *  `--concurrency` comes from (ESLint's own default is `off`, i.e. single-threaded). The whole-scope row
- *  reaches the same shim through `pnpm lint:eslint`; invoking the bin directly here would leave the scoped
- *  lane single-threaded while the whole lane was not — exactly the drift the shim exists to prevent. */
+ *  `node scripts/eslint.cjs`, never the bare `eslint` bin (#1835): the adapter validates the shared
+ *  concurrency profile and propagates native/abnormal exits honestly. Whole lint uses it too, once per
+ *  sequential compiler-owner process; invoking the bin directly here would bypass that shared boundary. */
 export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
   if (files.length === 0) {
     return "skip-empty";
