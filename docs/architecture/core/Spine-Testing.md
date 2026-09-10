@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # Orbweaver — Spine: Testing
@@ -32,7 +32,7 @@ Compiler world follows the contract being checked. Component props, element iden
 
 Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declarations but no DOM runtime; code that needs a rendered browser belongs in CT. Test-only helpers live under `tests/support/{iso,node,browser}` according to their dependency needs. Browser stories and component tests retain the DOM compiler world.
 
-- `pnpm test` runs product Vitest projects; `pnpm test:tooling` runs instrument projects. Type-only projects use `pnpm test:types`.
+- `pnpm test:node` runs product Vitest projects; `pnpm test:tooling` runs instrument projects. `pnpm test` composes product Node tests and the full CT run. Type-only projects use `pnpm test:types`.
 - `pnpm typecheck [--config <repo-relative-tsconfig>]...` is the one native compiler door. With no configs it discovers every runnable program through the shared compiler reader; scoped verification forwards every affected program as repeated configs through the single `types:native` stage. Type assertions and ownership reconciliation remain separate stages.
 - `pnpm check` selects the static verification tier. `pnpm verify --push` adds the product behavioral battery, CT and E2E smoke. The verification registry is authoritative for current stage admission.
 - Native compiler membership reports distinguish authored roots, imported closures and intended ownership. Merely appearing in some import closure does not prove that a test has the correct compiler owner.
@@ -40,7 +40,7 @@ Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declaratio
 - Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
 - Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/_shared/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
 
-The type-world program owns the migration to these rules. Its remaining target-ownership checks must not be described as enforced until their planted controls pass through the real verification path.
+Ownership enforcement claims require planted positive and negative controls through the real verification path. The linked type-world program owns migration and acceptance state.
 
 ## 2. The tree
 
@@ -53,7 +53,7 @@ tests/
 │   ├── iso/                    platform-independent helpers
 │   ├── node/                   Node drivers, filesystem and network helpers
 │   └── browser/                browser helpers and CT providers
-├── kit/ contracts/ db/ server/ ui/ client/   mirror packages/<pkg>/src
+├── <package>/                  mirror packages/<package>/src for registered workspaces
 ├── tooling/                    mirror tooling/src where a tool home exists
 └── e2e/                        full-stack Playwright tests
 ```
@@ -206,13 +206,12 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
   controls.
 
 - **Lane invocation** (the whole-tree `pnpm test:ct` is the orchestrator's instrument on a quiesced tree):
-  `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`. A CT report with
+  `pnpm test:ct <paths>`. The supervisor owns run/cache coordination and build identity. A CT report with
   ONE suite means the BUNDLE FAILED TO BUILD, not that the named spec failed.
 
-- **`pnpm test` runs the NODE lanes only — it does NOT run CT.** A new/changed shared provider or registry
-  Context throws in EVERY story that mounts the component without wrapping it, and `pnpm test` stays GREEN
-  while the CT lane is red. Any wave touching a CT-mounted component, a shared provider, or a registry
-  Context/Provider MUST run `pnpm test:ct` (or the touched `*.ct.tsx`), not just `pnpm test`.
+- **`pnpm test:node` does not run CT.** A shared provider or registry Context change can break rendered
+  stories while Node tests remain green. Such changes require the relevant `pnpm test:ct` coverage;
+  `pnpm test` includes the full CT run after its Node run.
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 
@@ -229,7 +228,7 @@ Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke ca
 Coverage proves a line *ran*; a **surviving mutant** is a line a test covered but never actually checked — a test that asserts presence-of-behavior without asserting correctness. Two lanes, both on-demand / CI, never in `pnpm check` (runs are minutes):
 
 - `pnpm test:mutation` (`stryker.config.js`) — exploratory, `break:null`; broaden scope via `--mutate`.
-- `pnpm test:mutation:gate` (`stryker.gate.config.js`) — the ratchet, pinned to the highest-stakes pure modules (prompt assembly + credential resolution); fails the build below `thresholds.break`. `break` stays `null` until a measured score calibrates it, then ratchets UP as a backslide floor.
+- `pnpm test:mutation:gate` (`stryker.gate.config.js`) — the calibrated ratchet. Its native config owns the target set and break threshold; changing either requires a fresh calibration.
 
 Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker, on
 the **native TypeScript 7 preview** (`typescriptChecker.experimentalNativePreview`) over a **patched**
