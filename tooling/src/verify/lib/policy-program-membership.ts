@@ -149,10 +149,6 @@ function readProgramMembership(inventory: PolicyRepositoryInventory, config: str
   return { id: canonical.relative, config: canonical.relative, files, references, configPaths };
 }
 
-export function readPolicyProgramMembership(inventory: PolicyRepositoryInventory, config: string): PolicyProgramMembership {
-  return readProgramMembership(inventory, config);
-}
-
 function readProgramGraph(
   inventory: PolicyRepositoryInventory,
   rootConfigs: readonly string[],
@@ -263,10 +259,6 @@ function discoverProgramConfigs(inventory: PolicyRepositoryInventory, sourceRead
     .toSorted(compare);
 }
 
-export function discoverPolicyProgramConfigs(inventory: PolicyRepositoryInventory): readonly string[] {
-  return discoverProgramConfigs(inventory);
-}
-
 function isExplicitTemplate(config: ParsedConfig): boolean {
   const files = config.raw["files"];
   const include = config.raw["include"];
@@ -277,7 +269,7 @@ function isExplicitTemplate(config: ParsedConfig): boolean {
 }
 
 export function readAvailablePolicyPrograms(inventory: PolicyRepositoryInventory): readonly PolicyProgramMembership[] {
-  return readPolicyProgramGraph(inventory, discoverPolicyProgramConfigs(inventory));
+  return readPolicyProgramGraph(inventory, discoverProgramConfigs(inventory));
 }
 
 /** Shares the validated authored graph and native options with transformation tools. */

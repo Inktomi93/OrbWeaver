@@ -17,7 +17,7 @@ import type {
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
-import { CONFIG_SNAPSHOT_RUNNERS, DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
+import { DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
 
 const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_MS = 30_000;
@@ -194,8 +194,4 @@ export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, c
   }
   const snapshot = parseSnapshot(child.stdout.trim(), runner, config);
   return snapshot === undefined ? { kind: "unreadable", detail: "config-snapshot emitted malformed or empty JSON" } : { kind: "ok", snapshot };
-}
-
-export function isConfigSnapshotRunner(value: string): value is ConfigSnapshotRunner {
-  return oneOf(value, CONFIG_SNAPSHOT_RUNNERS);
 }

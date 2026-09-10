@@ -24,13 +24,10 @@ export interface MembershipRow {
   readonly outcome: MembershipOutcome;
 }
 
-export const CLOSURE_LEAK_KINDS = ["node-declarations", "browser-libraries"] as const;
-export type ClosureLeakKind = (typeof CLOSURE_LEAK_KINDS)[number];
-
 export interface ClosureLeak {
   readonly program: string;
   readonly world: World;
-  readonly kind: ClosureLeakKind;
+  readonly kind: "node-declarations" | "browser-libraries";
   readonly files: readonly string[];
 }
 
