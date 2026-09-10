@@ -679,7 +679,17 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
-  expect(eslintPkg.scripts["lint:eslint"]).toContain("tooling/src tests ");
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("scripts/eslint.cjs . --max-warnings 0");
+});
+
+test("lint:eslint reaches root and package-root Node tools through shared world intent", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  for (const file of ["knip.ts", "playwright-ct.config.ts", "packages/ui/token-contract.ts"]) {
+    expect(resolveSelection({ kind: "file", paths: [file] }).eslintPaths).toEqual([file]);
+  }
+  const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
+    readonly scripts: Record<string, string>;
+  };
+  expect(eslintPkg.scripts["lint:eslint"]).toContain("scripts/eslint.cjs . --max-warnings 0");
 });
 
 test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {

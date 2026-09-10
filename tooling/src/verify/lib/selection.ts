@@ -5,7 +5,7 @@
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
 import { execNicedSync } from "@orb/tooling/_shared/proc";
-import { BROWSER_PACKAGES, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
 import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
@@ -56,7 +56,7 @@ function deriveViews(
   return {
     // Every direct-file view derives from the classification's ONE current-filesystem subset. The all-path
     // view below still drives tsconfig/graph/structure/deletion semantics.
-    eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p)),
+    eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p)),
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
     docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
     tsconfigs: typecheck.programs,

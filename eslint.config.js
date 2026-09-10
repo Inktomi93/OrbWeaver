@@ -50,6 +50,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { NODE_TOOL_SURFACE_GLOBS } from "@orb/tooling/_shared/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -239,6 +240,7 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // filename list here (that list moves; a copy of it would rot silently).
 const TOOLING_SRC = "tooling/src/**/*.ts";
 const TOOLING_TESTS = "tests/tooling/**/*.ts";
+const NODE_TOOL_SURFACE = [...NODE_TOOL_SURFACE_GLOBS];
 // Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
 // tsconfig.tests-dom.json any more). They keep riding the escapee parser below rather than
 // projectService, because the parser is handed BOTH root programs and picks whichever owns a file.
@@ -265,6 +267,18 @@ const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json"];
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
+const ASYNC_SAFETY_RULES = {
+  // The headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
+  // could not fail their own test. Nothing else in the stack can see a dropped Promise.
+  "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+  "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+  "@typescript-eslint/await-thenable": "error",
+  // The §5.5 string-union dispatch law: a default catch-all lets a new member inherit an arm silently.
+  "@typescript-eslint/switch-exhaustiveness-check": "error",
+  // Caught a real object interpolation that would have rendered `[object Object]` in gate output.
+  "@typescript-eslint/restrict-template-expressions": "error",
+  "@typescript-eslint/no-deprecated": "error",
+};
 
 // The typed exported-API packages governed by the Documentation-Law doc-comment gates
 // (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
@@ -435,26 +449,25 @@ export default tseslint.config(
     },
   },
   {
+    // Root and package-root TypeScript files are Node-executed build/config tools. Their structural
+    // population comes from the same world classifier used by compiler routing; declarations are ambient
+    // contracts, so this block excludes them rather than treating them as executable tools.
+    files: NODE_TOOL_SURFACE,
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: ASYNC_SAFETY_RULES,
+  },
+  {
     // ASYNC-SAFETY + dispatch + deprecation over the tooling + test surface — see the SAFETY_SURFACE
     // header for the mechanism of the old gap, both measurements (591 files at #459, 1,276 more at
     // #473), the three rules tracked at #472, and why require-await is off for `tests/**`.
     files: SAFETY_SURFACE,
     plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: {
-      // THE headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
-      // could not fail their own test. Nothing else in the stack can see a dropped Promise. (Measured 0
-      // across the #473 dirs — that zero is what closes the census, not an assumption.)
-      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
-      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
-      "@typescript-eslint/await-thenable": "error",
-      // The §5.5 string-union dispatch law as a lint rule: a `default:` catch-all lets a NEW union member
-      // silently inherit an arm. Seven sites in `stack/` were enumerated at the #459 landing.
-      "@typescript-eslint/switch-exhaustiveness-check": "error",
-      // Caught a real defect at the #459 landing: an ExemptionRow OBJECT interpolated into a gate's
-      // operator message, which would have rendered `[object Object]` (list-row-adoption.ts).
-      "@typescript-eslint/restrict-template-expressions": "error",
-      "@typescript-eslint/no-deprecated": "error",
-    },
+    rules: ASYNC_SAFETY_RULES,
   },
   {
     // #472 family 2, TOOLING ONLY — not the whole SAFETY_SURFACE. A condition the type system says can

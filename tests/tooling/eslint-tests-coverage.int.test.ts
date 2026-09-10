@@ -16,8 +16,10 @@
 // lesson), so a future story/fixture module that lands outside every glob reds HERE instead of silently
 // widening the hole again.
 import { execSync } from "node:child_process";
+import { isNodeToolSource } from "@orb/tooling/_shared/project-worlds";
 import { ESLint } from "eslint";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 /** Below this the derivation stopped reading (a moved tree, a broken `git ls-files`) — a bare zero census
  *  would read exactly like "everything is covered", which is the failure mode this pin exists to name. */
@@ -60,4 +62,20 @@ test("every tracked tests/** TS/TSX file resolves to a real eslint config block 
       ? undefined
       : `${uncovered.length} tests/** file(s) match NO eslint config block (add a \`files\` glob in eslint.config.js, or a documented exclusion + its own pin):\n  ${uncovered.join("\n  ")}`,
   ).toEqual([]);
+});
+
+test("every tracked root/package-root Node tool resolves to a real eslint config block", async ({ repoRoot }) => {
+  const census = execSync("git ls-files -- '*.ts' '*.mts' '*.cts'", { cwd: repoRoot, maxBuffer: LS_FILES_MAX_BUFFER })
+    .toString()
+    .split("\n")
+    .filter(isNodeToolSource)
+    .toSorted();
+  expect(census).toEqual(expect.arrayContaining(["knip.ts", "playwright-ct.config.ts", "packages/ui/token-contract.ts"]));
+  expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
+});
+
+test("the Node-tool surface executes the type-aware promise diagnostic", { timeout: scaledBudget(15_000) }, async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const [result] = await eslint.lintText("Promise.resolve('dropped');\n", { filePath: "knip.ts", warnIgnored: true });
+  expect(result?.messages.map(({ ruleId }) => ruleId)).toContain("@typescript-eslint/no-floating-promises");
 });

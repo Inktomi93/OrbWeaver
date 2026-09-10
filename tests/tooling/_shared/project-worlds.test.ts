@@ -1,5 +1,5 @@
 // World intent stays independent of filesystem and compiler discovery.
-import { BROWSER_PACKAGES, isWorldHelperPath, predictedProgram, TEST_WORLD_PROGRAMS, worldOf } from "@orb/tooling/_shared/project-worlds";
+import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath, predictedProgram, TEST_WORLD_PROGRAMS, worldOf } from "@orb/tooling/_shared/project-worlds";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import {
   AMBIENT_SCOPE_DEFINITIONS,
@@ -52,6 +52,16 @@ test("world helper population matches declared directories without prefix lookal
   expect(isWorldHelperPath("tests/support/browser/")).toBe(true);
   expect(isWorldHelperPath("tests/support/node-extra/value.ts")).toBe(false);
   expect(isWorldHelperPath("tests/support/chat/value.ts")).toBe(false);
+});
+
+test("node tool population is structural and excludes declarations and shipped package source", () => {
+  expect(isNodeToolSource("knip.ts")).toBe(true);
+  expect(isNodeToolSource("playwright-ct.config.ts")).toBe(true);
+  expect(isNodeToolSource("packages/ui/token-contract.ts")).toBe(true);
+  expect(isNodeToolSource("packages/client/vite.config.ts")).toBe(true);
+  expect(isNodeToolSource("reset.d.ts")).toBe(false);
+  expect(isNodeToolSource("packages/ui/src/index.ts")).toBe(false);
+  expect(isNodeToolSource("tests/tooling/example.test.ts")).toBe(false);
 });
 
 test("ambient scope and browser-kind roots are explicit shared intent", () => {
