@@ -130,10 +130,16 @@ function devCspMirror(): Plugin {
     apply: "serve",
     configureServer(server): void {
       server.middlewares.use((_req, res, next): void => {
-        void currentPolicy().then((csp: string): void => {
-          res.setHeader(CSP_HEADER, csp);
-          next();
-        });
+        currentPolicy()
+          .then((csp: string): void => {
+            res.setHeader(CSP_HEADER, csp);
+            next();
+          })
+          .catch((cause: unknown): void => {
+            const error = cause instanceof Error ? cause : new Error(String(cause));
+            server.config.logger.error(`orb: dev CSP mirror failed: ${error.message}`, { error, timestamp: true });
+            next(error);
+          });
       });
     },
   };
@@ -181,7 +187,10 @@ function orbWorkspaceExportsRestart(): Plugin {
         server.config.logger.info(`orb: ${file.slice(WORKSPACE_ROOT.length + 1)} changed — restarting dev server so workspace-export moves take effect`, {
           timestamp: true,
         });
-        void server.restart();
+        server.restart().catch((cause: unknown): void => {
+          const error = cause instanceof Error ? cause : new Error(String(cause));
+          server.config.logger.error(`orb: workspace-export restart failed: ${error.message}`, { error, timestamp: true });
+        });
       });
     },
   };
@@ -249,20 +258,16 @@ async function compilerToolchainDigest(presetOptions: object): Promise<string> {
   return digest.digest("hex");
 }
 
-/** Drop the oldest half once the cache outgrows its bound. Fire-and-forget: never blocks a transform. */
+/** Drop the oldest half once the cache outgrows its bound. */
 async function pruneCompilerCache(): Promise<void> {
-  try {
-    // A missing dir is the normal first-boot state (nothing cached yet), not a fault to warn about.
-    const names = await readdir(COMPILER_CACHE_DIR).catch(() => []);
-    if (names.length <= COMPILER_CACHE_MAX_ENTRIES) {
-      return;
-    }
-    const aged = await Promise.all(names.map(async (name: string) => ({ name, at: (await stat(join(COMPILER_CACHE_DIR, name))).mtimeMs })));
-    aged.sort((a, b) => a.at - b.at);
-    await Promise.all(aged.slice(0, aged.length - COMPILER_CACHE_MAX_ENTRIES / 2).map((entry) => rm(join(COMPILER_CACHE_DIR, entry.name), { force: true })));
-  } catch (cause) {
-    console.warn(`orb: react-compiler cache prune failed (harmless, the cache just keeps growing): ${String(cause)}`);
+  // A missing dir is the normal first-boot state (nothing cached yet), not a fault to warn about.
+  const names = await readdir(COMPILER_CACHE_DIR).catch(() => []);
+  if (names.length <= COMPILER_CACHE_MAX_ENTRIES) {
+    return;
   }
+  const aged = await Promise.all(names.map(async (name: string) => ({ name, at: (await stat(join(COMPILER_CACHE_DIR, name))).mtimeMs })));
+  aged.sort((a, b) => a.at - b.at);
+  await Promise.all(aged.slice(0, aged.length - COMPILER_CACHE_MAX_ENTRIES / 2).map((entry) => rm(join(COMPILER_CACHE_DIR, entry.name), { force: true })));
 }
 
 /**
@@ -284,7 +289,10 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
   const toolchain = await compilerToolchainDigest(presetOptions);
   const inner = hook.handler;
   let warnedWriteFailure = false;
-  void pruneCompilerCache();
+  // Keep pruning off the transform path, but make any rejected filesystem work visible.
+  pruneCompilerCache().catch((cause: unknown): void => {
+    console.warn(`orb: react-compiler cache prune failed (harmless, the cache just keeps growing): ${String(cause)}`);
+  });
 
   hook.handler = async function cachedBabelTransform(
     this: ThisParameterType<typeof inner>,
