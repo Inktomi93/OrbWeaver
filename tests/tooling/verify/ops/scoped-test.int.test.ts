@@ -37,8 +37,9 @@ const REAL_CT_B = "tests/client/features/discovery/components/corpus-context-hea
 const REFUSAL_TIMEOUT_MS = scaledBudget(30_000);
 const COLLECT_TIMEOUT_MS = scaledBudget(120_000);
 
-test("the near-miss shape: one stale CT path among two real ones REFUSES as misuse", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
-  const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, REAL_CT_B, STALE_CT, "--workers=2"], { timeoutMs: REFUSAL_TIMEOUT_MS });
+test("the near-miss shape: one stale CT path among two real ones REFUSES as misuse", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({ [REAL_CT_A]: "export {};\n", [REAL_CT_B]: "export {};\n" });
+  const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, REAL_CT_B, STALE_CT, "--workers=2"], { cwd: root, timeoutMs: REFUSAL_TIMEOUT_MS });
   await expect(res).toExitWith(3);
   expect(res.stderr, "the refusal NAMES the unresolved path").toContain(STALE_CT);
   expect(res.stderr, "and does not accuse the paths that are fine").not.toContain(REAL_CT_A);
@@ -109,14 +110,15 @@ test("--related forwards a native --dir directory value instead of treating it a
 // the cheap guard in front of the per-invocation cache; this arm proves the refusal happens at the front
 // door — no collection pass, no chromium, no CT SUMMARY. The mechanism's own directions (stale steal,
 // distinct cache dirs, release) are pinned in tests/tooling/verify/lib/ct-runner-lock.test.ts.
-test("a CT run refuses (exit 2) while another test:ct holds this worktree", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
+test("a CT run refuses (exit 2) while another test:ct holds this worktree", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({ [REAL_CT_A]: "export {};\n" });
   // THIS test process stands in for the live sibling: a real pid, so the child's liveness probe says yes.
-  const held = acquireCtRunnerLock(process.cwd(), { argv: ["(the #1581 pin)"] });
+  const held = acquireCtRunnerLock(root, { argv: ["(the #1581 pin)"] });
   if (held.kind !== "held") {
-    throw new Error("#1581 pin: the worktree lock was already held — a real test:ct is running here");
+    throw new Error("#1581 pin: the isolated fixture lock was unexpectedly held");
   }
   try {
-    const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, "--workers=2"], { timeoutMs: REFUSAL_TIMEOUT_MS });
+    const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, "--workers=2"], { cwd: root, timeoutMs: REFUSAL_TIMEOUT_MS });
     await expect(res).toExitWith(2);
     expect(res.stderr).toContain("CT RUNNER BUSY");
     expect(res.stderr, "the refusal names the pid holding the tree").toContain(`pid ${String(process.pid)}`);
