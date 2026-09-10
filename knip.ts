@@ -11,8 +11,11 @@ import type { KnipConfig } from "knip";
 // Deliberate-API escape hatch: tag an export `/** @public */` and it is exempt from unused-
 // export reporting (tags below) — the honest way to keep a real public surface, instead of
 // ignores nobody re-audits.
-const config: KnipConfig = {
+const config = {
   tags: ["-@public"],
+  // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
+  // while developer tools must not keep application exports alive in the shippable-only view.
+  ignoreWorkspaces: ["tooling!"],
   treatConfigHintsAsErrors: true,
   rules: {
     files: "error",
@@ -115,7 +118,7 @@ const config: KnipConfig = {
       ignoreDependencies: ["tailwindcss"],
     },
   },
-};
+} satisfies KnipConfig;
 
 // biome-ignore lint/style/noDefaultExport: knip's config loader requires the default export.
 export default config;
