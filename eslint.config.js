@@ -319,6 +319,8 @@ export default tseslint.config(
       "**/__g_*",
       // Mutation sandboxes contain rewritten source and generated runner setup, never authored inputs.
       ".stryker-tmp/**",
+      // Local tool caches are derived scratch artifacts, never authored inputs.
+      ".cache/**",
       "**/*.gen.ts",
       "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",

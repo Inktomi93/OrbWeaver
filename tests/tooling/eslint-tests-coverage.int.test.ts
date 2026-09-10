@@ -74,9 +74,10 @@ test("every tracked root/package-root/direct-script Node tool resolves to a real
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 
-test("mutation-generated setup is excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
+test("generated sandboxes and caches are excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   expect(await eslint.isPathIgnored(".stryker-tmp/sandbox-probe/stryker-setup-0.js")).toBe(true);
+  expect(await eslint.isPathIgnored(".cache/eslint-discovery-probe.mjs")).toBe(true);
   const results = await eslint.lintText("/* eslint-disable no-empty-pattern */\nexport const value = 1;\n", {
     filePath: "scripts/temporary-lint-control.js",
   });

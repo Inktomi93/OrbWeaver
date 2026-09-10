@@ -37,6 +37,11 @@ const RATIFIED: ExemptionTable<RatifiedRow> = {
     why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus. Delete this row when its sandbox directory changes or mutation execution is retired.",
     cite: "tooling/src/_shared/stryker-config.ts",
   },
+  "config[0].ignores[5]": {
+    value: ".cache/**",
+    why: "local tools write derived, refetchable cache artifacts outside the tracked corpus. Delete this row when the cache root changes or the repository starts tracking authored files there.",
+    cite: ".gitignore",
+  },
 };
 
 const MESSAGE =
