@@ -3723,6 +3723,33 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/mutation-config-calibration.md",
+      "assignedSha256": "cea69c76e9ac76260c41d42ba9be3ef702e56258c033c382cd117266ba9724e7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "39751b004db6aa7a263fe084a8d160b79d3075ed56e5940c2235425ab9e67477",
+      "verifiedCommit": "fd67d6ccbeac1d46cff4e5a08a35ffe3b1d8c525",
+      "verifiedAt": "2026-09-10",
+      "evidence": [
+        "Full read of both pre-migration JSON configs and this preserved calibration record; historical measurements explicitly distinguished from fresh proof.",
+        "Native exploratory and gate dry runs each passed 110 tests; no mutations executed.",
+        "tests/tooling/_shared/stryker-config.test.ts: complete options and mutable branch independence."
+      ],
+      "summary": "Preserved Stryker calibration history and bounded native config-migration evidence; no new score or threshold change.",
+      "claims": [
+        {
+          "claim": "Both Stryker profiles preserve authored options and allocate independent nested config branches.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/_shared/stryker-config.test.ts:110"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

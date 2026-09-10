@@ -2468,9 +2468,9 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "c2afe7d65684f00b2f5874248cd4e357cdbe79955cf38b30d47309a19161d62f",
-      "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "b518445592b4cdb861e586b1098ec899d2e0f5abe96aa3dffe54ea98c9b78a35",
+      "verifiedCommit": "c92370a92c53d17618f47ef9eeff0b918af437f1",
+      "verifiedAt": "2026-09-10",
       "claims": [
         {
           "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
@@ -2489,7 +2489,8 @@
       "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
-        "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred."
+        "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
+        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance."
       ]
     }
   ]
