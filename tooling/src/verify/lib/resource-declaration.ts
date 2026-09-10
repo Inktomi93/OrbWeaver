@@ -91,7 +91,7 @@ export function resolveResourceDeclarations(host: ResourceHost, requests: readon
       paths.add(path);
     }
   }
-  return [...paths].toSorted((left, right) => left.localeCompare(right));
+  return [...paths].toSorted();
 }
 
 /** Resolve descriptor-owned declarations once for planning; the returned map is derived, never maintained. */
