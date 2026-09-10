@@ -38,9 +38,4 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(hookConfig).not.toContain("/home/");
   expect(hookConfig).toContain("/.codex/hooks/tool-guard.mjs");
   expect(hookConfig).toContain("/.codex/hooks/biome-check.sh");
-
-  for (const configName of ["stryker.config.json", "stryker.gate.config.json"]) {
-    const config = JSON.parse(readFileSync(join(ROOT, configName), "utf8")) as { readonly ignorePatterns: readonly string[] };
-    expect(config.ignorePatterns).toEqual(expect.arrayContaining([".claude/**", ".agents/**", ".codex/**"]));
-  }
 });

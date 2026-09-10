@@ -507,7 +507,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   not static: the build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
   invocation is not the structural-fast commit bar. The ceiling (859,000 B = the measured 818,188 + 4.99%,
   re-derived 2026-09-01 after #995 separated production readiness from dev instrumentation)
-  carries the `stryker.gate.config.json` `_thresholds_comment` calibration discipline in its own header:
+  carries the `docs/reviews/mutation-config-calibration.md` calibration discipline in its own header:
   measured value, headroom arithmetic, re-calibrate conditions. UNMEASURABLE IS EXIT 2, never a pass — zero
   matching entry chunks or more than one, an unreadable `index.html`, a module script that is not the entry
   chunk, a referenced asset absent from disk, or an `/assets/*.js` referenced in a shape the boot-ref parser

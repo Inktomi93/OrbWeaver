@@ -97,8 +97,8 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "mutation:arid": "node tooling/src/mutation-arid/cli.ts",
     "mutation:probe": "node tooling/src/mutation-probe/cli.ts",
-    "test:mutation": "nice -n 19 stryker run stryker.config.json",
-    "test:mutation:gate": "nice -n 19 stryker run stryker.gate.config.json",
+    "test:mutation": "nice -n 19 stryker run stryker.config.js",
+    "test:mutation:gate": "nice -n 19 stryker run stryker.gate.config.js",
     "check": "nice -n 19 node tooling/src/verify/cli.ts run --static",
     "verify": "nice -n 19 node tooling/src/verify/cli.ts run"
   },

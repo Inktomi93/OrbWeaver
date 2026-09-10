@@ -222,8 +222,8 @@ Sanctioned but not yet wired for the node lanes (no Vitest test needs them yet).
 
 Coverage proves a line *ran*; a **surviving mutant** is a line a test covered but never actually checked — a test that asserts presence-of-behavior without asserting correctness. Two lanes, both on-demand / CI, never in `pnpm check` (runs are minutes):
 
-- `pnpm test:mutation` (`stryker.config.json`) — exploratory, `break:null`; broaden scope via `--mutate`.
-- `pnpm test:mutation:gate` (`stryker.gate.config.json`) — the ratchet, pinned to the highest-stakes pure modules (prompt assembly + credential resolution); fails the build below `thresholds.break`. `break` stays `null` until a measured score calibrates it, then ratchets UP as a backslide floor.
+- `pnpm test:mutation` (`stryker.config.js`) — exploratory, `break:null`; broaden scope via `--mutate`.
+- `pnpm test:mutation:gate` (`stryker.gate.config.js`) — the ratchet, pinned to the highest-stakes pure modules (prompt assembly + credential resolution); fails the build below `thresholds.break`. `break` stays `null` until a measured score calibrates it, then ratchets UP as a backslide floor.
 
 Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker, on
 the **native TypeScript 7 preview** (`typescriptChecker.experimentalNativePreview`) over a **patched**
@@ -238,7 +238,7 @@ overrides mutation testing requires — mutants violate all three by constructio
 to the strict on-disk config. Unpatched, the whole `if (cond)` → `if (false)` mutant class is disqualified
 via TS7027 and leaves the score. Measured on one file, 47 mutants: stock native 57.89 in 9m41s; patched
 native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster. Full four-arm
-receipts live in `stryker.config.json`'s `_checkers_comment`.
+receipts live in `docs/reviews/mutation-config-calibration.md`.
 
 **An ARID mutant is not a test failure.** `tooling/src/mutation-arid/` (a `PluginKind.Ignore` plugin,
 wired through `ignorers: ["arid"]` in BOTH configs) drops two families that are unkillable BY DESIGN:
@@ -267,7 +267,7 @@ coverage credits module-load-scope mutants to whichever unrelated test loaded th
 before writing kill-tests for a survivor list.
 
 **The gate's `mutate` list is frozen to its calibrated set; new candidates enter the EXPLORATORY config as
-sentinels** (`stryker.config.json` — currently the runtime-string-key and shipped-inversion classes: chat
+sentinels** (`stryker.config.js` — currently the runtime-string-key and shipped-inversion classes: chat
 stats-delta, stats rebuild-from-canon, chat canon-write, chat memory recall). Promoting a sentinel into the
 gate requires a fresh calibration run, because `break` is bound to the measured set.
 
