@@ -49,6 +49,14 @@ const PKG_TOOL_RE = /^packages\/([^/]+)\/[^/]+$/u;
 const TEST_SURFACE_RE = /^(?:tests|scripts|playwright)\//u;
 const TS_SOURCE_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const DECLARATION_RE = /\.d\.(?:ts|mts|cts)$/u;
+const NODE_TOOL_RE = /^(?:[^/]+|packages\/[^/]+\/[^/]+)\.(?:ts|mts|cts)$/u;
+
+/** Root and package-root TypeScript tools execute under Node regardless of the package's shipped world. */
+export const NODE_TOOL_SURFACE_GLOBS = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}"] as const;
+
+export function isNodeToolSource(rel: string): boolean {
+  return NODE_TOOL_RE.test(rel) && !DECLARATION_RE.test(rel) && worldOf(rel) === "node";
+}
 
 /** The compiler-membership universe includes declaration files and all authored TypeScript dialects. */
 export function isTypeWorldSource(rel: string): boolean {
