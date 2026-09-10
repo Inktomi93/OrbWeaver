@@ -3,12 +3,15 @@
 // retired `pnpm check` orchestrator spoke — now generalized to the registry's named adapters (this test
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { execNicedSync, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import YAML from "yaml";
 import type { Parsed, StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
@@ -43,6 +46,137 @@ function stage(name: string): StageDef {
   }
   return s;
 }
+
+async function eventually(predicate: () => boolean, attempts = Math.ceil(scaledBudget(10_000) / 20)): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) {
+      return true;
+    }
+    await delay(20);
+  }
+  return false;
+}
+
+test("Lefthook forwards each long gate before its held child exits and preserves the nonzero exit", { timeout: scaledBudget(60_000) }, async ({
+  repoRoot,
+  scratch,
+}) => {
+  const live = YAML.parse(readFileSync(join(repoRoot, "lefthook.yml"), "utf8")) as Record<string, { readonly follow?: boolean }>;
+  const hooks = ["pre-commit", "pre-merge-commit", "pre-push"] as const;
+  writeFileSync(join(scratch, "package.json"), '{"name":"lefthook-progress-fixture","private":true}\n');
+  expect(spawnSync("git", ["init", "-q"], { cwd: scratch }).status).toBe(0);
+  writeFileSync(
+    join(scratch, "hold.cjs"),
+    "const fs=require('node:fs');const hook=process.argv[2];process.stdout.write('HELD '+hook+'\\n',()=>fs.writeFileSync('ready-'+hook,'yes'));const timer=setInterval(()=>{if(fs.existsSync('release-'+hook)){clearInterval(timer);process.exitCode=7}},20);\n",
+  );
+  // biome-ignore lint/style/noProcessEnv: the native hook child needs the caller's toolchain environment; only its config and PATH are overlaid.
+  const parentEnv = process.env;
+  for (const hook of hooks) {
+    const config = join(scratch, `lefthook-${hook}.yml`);
+    writeFileSync(
+      config,
+      `colors: false\noutput: [summary, failure, execution_out]\n${hook}:\n  follow: ${String(live[hook]?.follow)}\n  commands:\n    held:\n      run: pnpm exec node hold.cjs ${hook}\n`,
+    );
+    let output = "";
+    const child = spawn("pnpm", ["exec", "lefthook", "run", hook, "--force", "--no-tty"], {
+      cwd: scratch,
+      env: Object.fromEntries([
+        ...Object.entries(parentEnv),
+        ["LEFTHOOK_CONFIG", config],
+        ["PATH", `${join(repoRoot, "node_modules", ".bin")}:${parentEnv["PATH"] ?? ""}`],
+      ]),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    child.stdout.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+    });
+    const exit = new Promise<number | null>((resolve) => child.once("exit", resolve));
+    const ready = join(scratch, `ready-${hook}`);
+    const release = join(scratch, `release-${hook}`);
+    const announcedReady = await eventually(() => existsSync(ready) || child.exitCode !== null);
+    const streamedBeforeRelease = announcedReady && child.exitCode === null && (await eventually(() => output.includes(`HELD ${hook}`)));
+    writeFileSync(release, "release");
+    const code = await exit;
+    expect(announcedReady, `${hook} child never reached its readiness barrier:\n${output}`).toBe(true);
+    expect(streamedBeforeRelease, `${hook} buffered its child output until exit:\n${output}`).toBe(true);
+    expect(code, `${hook} swallowed the held command's nonzero exit:\n${output}`).not.toBe(0);
+  }
+  expect(hooks.map((hook) => live[hook]?.follow)).toEqual([true, true, true]);
+});
+
+test("compact verification names the active stage before its held child exits and preserves the stage verdict", { timeout: scaledBudget(60_000) }, async ({
+  fakeBin,
+  repoRoot,
+  scratch,
+}) => {
+  const ready = join(scratch, "stage-ready");
+  const release = join(scratch, "stage-release");
+  const heldOnce = join(scratch, "stage-held-once");
+  const pnpm = spawnSync("which", ["pnpm"], { encoding: "utf8" }).stdout.trim();
+  expect(pnpm).not.toBe("");
+  await fakeBin(
+    "pnpm",
+    `#!/usr/bin/env bash
+set -u
+if [ ! -f ${JSON.stringify(heldOnce)} ]; then
+  touch ${JSON.stringify(heldOnce)}
+  echo HELD VERIFY STAGE
+  touch ${JSON.stringify(ready)}
+  while [ ! -f ${JSON.stringify(release)} ]; do sleep 0.02; done
+  exit 1
+fi
+exit 0
+`,
+  );
+  const runner = join(scratch, "run-verify.ts");
+  writeFileSync(
+    runner,
+    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
+const parsed = parse(["--static"]);
+if ("error" in parsed) throw new Error(parsed.error);
+process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
+`,
+  );
+  let output = "";
+  // biome-ignore lint/style/noProcessEnv: the child inherits fakeBin's isolated PATH and redirects its whole-run slot into scratch.
+  const childEnv = Object.fromEntries([...Object.entries(process.env), [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")]]);
+  const child = spawn("nice", ["-n", "19", pnpm, "exec", "node", runner], {
+    cwd: repoRoot,
+    detached: true,
+    env: childEnv,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  const exit = new Promise<number | null>((resolve) => child.once("exit", resolve));
+  try {
+    expect(await eventually(() => existsSync(ready) || child.exitCode !== null), output).toBe(true);
+    expect(child.exitCode, output).toBeNull();
+    expect(output).toContain("[verify] START lint:biome");
+    expect(output).not.toMatch(/^[✓✗‼] lint:biome/mu);
+    writeFileSync(release, "release");
+    expect(await exit, output).toBe(2);
+    expect(output).toContain("‼ lint:biome");
+    expect(output.indexOf("[verify] START lint:biome")).toBeLessThan(output.indexOf("‼ lint:biome"));
+  } finally {
+    writeFileSync(release, "release");
+    if (child.exitCode === null && child.pid !== undefined) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // The readiness-controlled group may finish between the exitCode read and cleanup signal.
+      }
+    }
+  }
+});
 
 test("asViolations: clean 0, any non-zero is a violation (tsc's 2 = type errors, not tool-error)", () => {
   expect(asViolations(0)).toBe(0);
@@ -347,8 +481,8 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   // manual-only row (`tests:product-composite`) that no tier includes.
   expect(push.has("browser:ct")).toBe(true);
   expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full"]);
-  // The composition is still the load-bearing half of the green-to-commit RITUAL (`pnpm check` + `pnpm
-  // test`, constitution §4): if `test` stops composing test:ct, a commit stops exercising CT entirely.
+  // The composition remains the explicit combined product-test command: if `test` stops composing
+  // test:ct, callers asking for the combined behavioral suites silently lose CT coverage.
   const rootPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };

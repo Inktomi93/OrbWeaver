@@ -105,10 +105,9 @@ test("--scale refuses loudly rather than silently writing a huge PNG or a nonsen
 //
 // THE PLANT IS ANCHORED TO A RUN PHASE, NOT TO A WALL CLOCK. Three clock-based fixtures were tried first
 // and all three passed against the OLD code (a fence, not a proof): everything the run does before the
-// shutter — readiness, mount settle, the evidence pass — is seconds long and swallowed the delay. Here the
-// late image is requested by `window.__orb.snap()`, which the app-snapshot arm calls in the evidence pass,
-// immediately before the shutter. If that call ever stops happening the image never loads and this arm
-// goes RED — it fails closed, never silently green.
+// shutter — readiness and mount settle — is seconds long and swallowed the delay. An explicit queued click
+// starts the late request after readiness and before the shutter. The trigger belongs to the action tape,
+// independent of optional performance captures such as `window.__orb.snap()`.
 const LATE_IMAGE_MS = 1000;
 const PLANT_VIEWPORT = "800x400";
 
@@ -116,16 +115,16 @@ const PLANT_MODES = ["eager", "late", "missing"] as const;
 type PlantMode = (typeof PLANT_MODES)[number];
 
 /** `eager` puts the image in the markup (the artifact every arm is compared against); `late` and
- *  `missing` leave the slot empty until the app-snapshot arm asks the page for its snapshot. */
+ *  `missing` leave the slot empty until the queued click starts its request. */
 function plantPage(mode: PlantMode): string {
   const src = mode === "eager" ? ' src="/plant.png"' : "";
-  const late = mode === "eager" ? "" : `document.getElementById('plant-image').src='/plant.png';`;
   return `<!doctype html><html lang="en" data-app-ready="settled"><head><style>
 html,body{margin:0;background:#ffffff}
 #plant-image{display:block;width:200px;height:120px}
 </style></head><body>
 <img id="plant-image"${src} width="200" height="120" alt="decode plant">
-<script>globalThis.__orb={snap:()=>{${late}return {fixture:true}},flags:()=>[],resetEvidence:()=>{},consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>
+<button id="load-image" onclick="document.getElementById('plant-image').src='/plant.png'">load image</button>
+<script>globalThis.__orb={snap:()=>({fixture:true}),flags:()=>[],resetEvidence:()=>{},consoleErrors:()=>({records:[],dropped:0,cap:128})};</script>
 </body></html>`;
 }
 
@@ -191,9 +190,11 @@ test("the shot waits for an image that starts loading after the app settled, not
     const server = await plantPaintServer(mode, png);
     const out = join(scratch, `paint-settle-${mode}.png`);
     try {
-      const run = await runCli("snap", ["/", "--base", server.base, "--viewport", PLANT_VIEWPORT, "--out", out, "--no-deadcss", "--no-failure-evidence"], {
-        timeoutMs: BROWSER_TIMEOUT_MS,
-      });
+      const run = await runCli(
+        "snap",
+        ["/", "--base", server.base, "--viewport", PLANT_VIEWPORT, "--click", "#load-image", "--out", out, "--no-deadcss", "--no-failure-evidence"],
+        { timeoutMs: BROWSER_TIMEOUT_MS },
+      );
       expect(run.timedOut, `the ${mode} arm did not finish inside its own child budget:\n${run.stdout}`).toBe(false);
       // PLANTED CONTROL (the plant fired at all): a fixture whose late image was never REQUESTED would
       // make every comparison below trivially true for the wrong reason.

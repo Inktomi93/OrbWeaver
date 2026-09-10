@@ -46,7 +46,7 @@ test("tests:node stays the push bar for everything else, and no longer carries t
   // The argv changed in #1848: this stage was `pnpm test`, the COMPOSITE that also ran the whole CT suite,
   // and the two halves shared one 45-minute hang ceiling that the sum outgrew (a false `[tool-error]` on a
   // quiet box). CT is now the sibling `browser:ct` stage with its own profile-derived ceiling; `pnpm test`
-  // survives untouched as the green-to-commit ritual and as the manual `tests:product-composite` row.
+  // survives untouched as the explicit product-test command and manual `tests:product-composite` row.
   expect(stage("push", "tests:node").argv).toEqual(["pnpm", "test:node"]);
   expect(stagesForTier("push").some((row) => row.name === "tests:node")).toBe(true);
   // The `changed` inner loop still reaches `tests/tooling` (#1566) through Vitest's native configured

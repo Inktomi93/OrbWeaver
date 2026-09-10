@@ -42,9 +42,10 @@
 # OUTPUT is tuned for agent/CI consumption (the recurring pain: lefthook's truecolor banner blew the
 # commit output to ~30KB of ANSI, which truncates to a useless preview — you can't even tell the commit
 # landed). `colors:false` drops lefthook's own ANSI; `output` keeps only the summary + a FAILED command's
-# output (no banner, no per-step chrome); `NO_COLOR:"1"` on each command makes the gate tools
-# (Biome/tsc/depcruise/vitest) emit plain, greppable text. A pass is ~1 line; a fail shows the actual
-# errors and nothing else. An interactive `pnpm check` in a TTY is unaffected (still colorizes).
+# output (no banner or per-step chrome); `follow:true` on each long gate forwards its compact progress as
+# it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
+# makes the gate tools (Biome/tsc/depcruise/vitest) emit plain, greppable text. An interactive `pnpm check`
+# in a TTY is unaffected (still colorizes).
 colors: false
 output:
   - summary
@@ -52,6 +53,7 @@ output:
   - execution_out
 
 pre-commit:
+  follow: true
   commands:
     check:
       run: pnpm check
@@ -65,6 +67,7 @@ pre-commit:
 # Same body as pre-commit: the merged working tree is in place when the hook fires, so `pnpm check`
 # verdicts the exact tree the merge commit would snapshot. Bypass: `git merge --no-verify` (emergencies).
 pre-merge-commit:
+  follow: true
   commands:
     check:
       run: pnpm check
@@ -100,6 +103,7 @@ post-checkout:
         NO_COLOR: "1"
 
 pre-push:
+  follow: true
   commands:
     # The ONE push-tier command (V3 repoint): static + deps:orphan-ratchet + tests:node (`pnpm test` =
     # the configured vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd`,

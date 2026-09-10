@@ -258,11 +258,16 @@ export function MotionAnchoredPortalStory(): ReactElement {
         type="button"
         onClick={(): void => {
           const target = styleTargetRef.current;
-          if (target !== null) {
-            target.style.width = "180px";
-            void target.offsetWidth;
+          if (target === null) {
+            return;
           }
-          blockMainThread(60);
+          // Run outside the click dispatch so this is an ordinary app-owned style frame, not the one
+          // bounded input-dispatch layout frame motion-audit deliberately exempts. Leave the write dirty
+          // for the frame tail; reading offsetWidth here would consume the very render work under test.
+          setTimeout(() => {
+            target.style.width = "180px";
+            blockMainThread(60);
+          }, 0);
         }}
       >
         plant app style
@@ -541,7 +546,9 @@ export function MotionFlaggersAuditPauseStory(): ReactElement {
  *      frame's first task — i.e. its LoAF `startTime` — is strictly later than the retirement instant.
  *      The nested-rAF wait this replaced left a MEASURED 0.1ms margin (probe, 2026-08-22: retire 663.8,
  *      blocked frame start 663.9), which is a coin flip, and collapsing the hop reproduced the issue's
- *      verbatim line with a frame starting 13.5ms BEFORE the retirement.
+ *      verbatim line with a frame starting 13.5ms BEFORE the retirement. The rendering update's rAF
+ *      timestamp is the ordering boundary: unlike `Event.timeStamp` (when the event was created), it is
+ *      sampled after both retirement listeners have run and before the timer task can start.
  *   2. The ordering verdict is rendered from THE app's single LoAF observer
  *      (`subscribeLongAnimationFrames` — never a second PerformanceObserver), so the test can barrier on
  *      a SETTLED state: the blocked frame observed AND classified. Without it `expect(lines).toEqual([])`
@@ -576,18 +583,17 @@ export function MotionFlaggersWaapiDropStory(): ReactElement {
           }
           const finished = target.animate({ transform: ["translateX(0)", "translateX(20px)"] }, { duration: 2000 });
           const canceled = target.animate({ opacity: [1, 0.5] }, { duration: 2000 });
-          const finishEvent = new Promise<number>((resolve) => finished.addEventListener("finish", (e) => resolve(e.timeStamp), { once: true }));
-          const cancelEvent = new Promise<number>((resolve) => canceled.addEventListener("cancel", (e) => resolve(e.timeStamp), { once: true }));
+          const finishEvent = new Promise<void>((resolve) => finished.addEventListener("finish", () => resolve(), { once: true }));
+          const cancelEvent = new Promise<void>((resolve) => canceled.addEventListener("cancel", () => resolve(), { once: true }));
           finished.finish();
           canceled.cancel();
-          void Promise.all([finishEvent, cancelEvent]).then(([finishedAt, canceledAt]) => {
+          void Promise.all([finishEvent, cancelEvent]).then(() => {
             // Both flagger listeners were registered inside the `Element.animate` wrapper, so they ran
-            // BEFORE these — and each event's own timeStamp IS the dispatch instant on the performance
-            // timeline (test-determinism bans an ambient performance.now() here; the event-provided
-            // stamp is both gate-clean and MORE conservative: it is at or after the bookkeeping's
-            // `endTime` by construction of the listener order).
-            retiredAtRef.current = Math.max(finishedAt, canceledAt);
-            requestAnimationFrame(() => {
+            // BEFORE these. The next rendering update is therefore a conservative post-retirement
+            // boundary; its callback timestamp belongs to that update, while Event.timeStamp belongs to
+            // event creation and can precede the flagger listener's retirement bookkeeping.
+            requestAnimationFrame((postRetirementAt) => {
+              retiredAtRef.current = postRetirementAt;
               setTimeout(() => {
                 blockMainThread(80);
                 setRetired(true);
