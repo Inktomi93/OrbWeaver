@@ -220,7 +220,9 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
 
 Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Mutation filtering uses declared capabilities rather than filename lists. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner. A capability exemption needs a native runner proof and must remain visible in collected/executed test accounting.
 
-Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke cases, while real-provider cases remain opt-in through the live entry point. Do not translate these into unused Vitest tags.
+Vitest live-provider suites carry `live` and are excluded unless `E2E_LIVE=1`; local ONNX suites carry `local-model-cache` and require `ORB_LOCAL_LIGHT_E2E=1`. Backend construction and live model discovery happen inside selected callbacks, so default collection cannot activate them. Pure backend-matrix checks remain untagged. The mutation overlay excludes both categories even when those environment opt-ins are present.
+
+Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke cases, while real-provider cases remain opt-in through its live entry point. The shared `E2E_LIVE` spelling expresses operator intent; each runner retains its native selection mechanism.
 
 ## 9. Mutation testing (Stryker) — the test-quality ratchet
 
