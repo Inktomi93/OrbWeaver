@@ -9,6 +9,8 @@ import type { Plugin, ResolvedConfig } from "vite";
 import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
+const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
+
 // Dev-server port + API-proxy target are env-overridable so `snap --isolated` can boot a SECOND, fully
 // isolated dev stack at a frozen HEAD worktree on OFFSET ports (tooling/src/snap/ops/stage.ts) without
 // fighting the primary dev stack's HMR/crash-loops. Unset = the canonical dev origin, byte-for-byte
@@ -162,10 +164,9 @@ function devCspMirror(): Plugin {
 // the three files that actually define what a workspace import resolves to change, and it self-heals
 // a LIVE session without requiring the operator to notice, hand-clear the cache, and bounce :5173.
 function orbWorkspaceExportsRestart(): Plugin {
-  const workspaceRoot = searchForWorkspaceRoot(import.meta.dirname);
   // db/server are excluded ON PURPOSE — client never imports through them (package cake:
   // kit ← contracts ← db ← server ← client, + the sealed ui: kit ← ui ← client).
-  const watchedPkgJson = new Set(["kit", "contracts", "ui"].map((pkg) => `${workspaceRoot}/packages/${pkg}/package.json`));
+  const watchedPkgJson = new Set(["kit", "contracts", "ui"].map((pkg) => `${WORKSPACE_ROOT}/packages/${pkg}/package.json`));
   return {
     name: "orb:workspace-exports-restart",
     apply: "serve",
@@ -177,7 +178,7 @@ function orbWorkspaceExportsRestart(): Plugin {
         if (!watchedPkgJson.has(file)) {
           return;
         }
-        server.config.logger.info(`orb: ${file.slice(workspaceRoot.length + 1)} changed — restarting dev server so workspace-export moves take effect`, {
+        server.config.logger.info(`orb: ${file.slice(WORKSPACE_ROOT.length + 1)} changed — restarting dev server so workspace-export moves take effect`, {
           timestamp: true,
         });
         void server.restart();
@@ -424,14 +425,13 @@ let fsFilter: Promise<ResolvedConfig> | null = null;
  * `tests/tooling/vite-fs-deny.test.ts` is the reader.
  */
 export async function devServerServes(absolutePath: string): Promise<boolean> {
-  const workspaceRoot = searchForWorkspaceRoot(import.meta.dirname);
   fsFilter ??= resolveConfig(
     {
       configFile: false,
-      root: workspaceRoot,
+      root: WORKSPACE_ROOT,
       logLevel: "silent",
       plugins: [],
-      server: { fs: { strict: true, allow: [workspaceRoot], deny: [...devFsDeny(workspaceRoot)] } },
+      server: { fs: { strict: true, allow: [WORKSPACE_ROOT], deny: [...devFsDeny(WORKSPACE_ROOT)] } },
     },
     "serve",
   );
@@ -600,10 +600,10 @@ export default defineConfig({
     // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
     // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
     fs: {
-      allow: [searchForWorkspaceRoot(import.meta.dirname)],
+      allow: [WORKSPACE_ROOT],
       // Spread: vite's `deny` is a MUTABLE `string[]`, and `devFsDeny` hands back a readonly view so no
       // caller can edit the list in place.
-      deny: [...devFsDeny(searchForWorkspaceRoot(import.meta.dirname))],
+      deny: [...devFsDeny(WORKSPACE_ROOT)],
     },
     // Forward browser console → terminal (dev half of PD-58 client observability).
     forwardConsole: true,
