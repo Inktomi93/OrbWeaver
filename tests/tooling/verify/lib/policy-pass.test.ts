@@ -714,6 +714,63 @@ test("fact access is declared and post-finish while one provider failure withhol
   ]);
 });
 
+test.each([
+  ["population", 0, 0],
+  ["population", 1, 1],
+  ["resource", 0, 0],
+  ["resource", 1, 1],
+] as const)("a fact %s receipt with count %i and unresolved %i withholds every consumer without stale authority", (kind, count, unresolved) => {
+  const resourceFact = kind === "resource";
+  const provider = defineFact({
+    id: "invalid-receipt-fact",
+    population: resourceFact ? ({ of: "none", why: "resource receipt fixture" } as const) : "@tooling",
+    analysis: resourceFact ? "resource" : "syntax",
+    resources: resourceFact ? ([{ kind: "package-metadata", id: "root" }] as const) : [],
+    create: (ctx) => ({
+      finish: () => {
+        if (resourceFact) {
+          ctx.resources.packageMetadata("root");
+          ctx.receipt({ kind: "resource", source: "invalid-receipt", resources: count, unresolved });
+        } else {
+          ctx.receipt({ kind: "population", source: "invalid-receipt", members: count, unresolved });
+        }
+        return "ready";
+      },
+    }),
+  });
+  const evaluated: string[] = [];
+  const consumer = (id: string): GatePolicy =>
+    policy(id, {
+      authority: "reviewed-grant",
+      execution: "entire-population",
+      facts: [provider],
+      create: (ctx) => ({
+        evaluate: () => {
+          evaluated.push(id);
+          ctx.fact(provider);
+        },
+      }),
+    });
+  const consumers = [consumer("invalid-receipt-consumer-a"), consumer("invalid-receipt-consumer-b")];
+  const reviewedGrants = consumers.map((gate) => ({
+    id: `grant-${gate.id}`,
+    policyId: gate.id,
+    subject: "unused-subject",
+    operation: "read",
+    why: "fixture",
+    endsWhen: "the incomplete owner becomes complete",
+  }));
+  const result = run(consumers, projectOf({ "packages/client/src/a.ts": "export const client = 1;\n", "tooling/src/fact.ts": "export const fact = 1;\n" }), {
+    reviewedGrants,
+    resourceOptions: { overlay: { "package.json": '{"name":"orb","private":true}\n' } },
+  });
+
+  expect(result.factErrors).toMatchObject([{ factId: provider.id, phase: "receipt", message: expect.stringMatching(/zero|unresolved/i) }]);
+  expect(result.authority.withheldPolicyIds).toEqual(consumers.map(({ id }) => id));
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(evaluated).toEqual([]);
+});
+
 test("different provider objects cannot claim the same fact id", () => {
   const fact = (value: number): GateFact<number> =>
     defineFact({
