@@ -66,6 +66,7 @@ Gates do NOT all need every capability. Use the smallest complete contract for t
 | `resources: [{kind,id}]` | `analysis: "resource"` (or a declared hybrid); read via `ctx.resources.*` |
 | `ctx.checker()` | type identity or compiler-resolved semantics (`analysis: "types"`) |
 | `workItem` | `severity: "warning"` only (positive issue number; forbidden on `error`) |
+| `fix` naming the waiver spelling | `authority: "ordinary"` — the author needs the exact `@orb-waive <id>(<position>)` to type, and a policy whose reported token is a whole member chain (`no-form-state-in-useeffect` reports `node.getText()`, so `form.state.values` and `form["state"]["values"]` are different positions) is unusable without it |
 | `execution: "entire-population"` | the verdict cannot compose over a subset (liveness, completeness, grants, tripwires) |
 | `-health` sibling | an arm that differs in authority or severity from the rest of the module (identical `family`) |
 
@@ -113,9 +114,24 @@ family.
    `malformed`, `unknown-policy`, `stale`, `over-broad`; `gate-authority.ts:390` folds them in). So a wrong position
    FAILS the proof, a fixture that never flagged FAILS it as unused, and only a marker that actually bound yields zero
    effective findings and passes. No separate test and no planted break are owed. Template:
-   `schema-branding.ts:137`. **Limit:** `runPass` pins `knownPolicies: [policy]` and `reviewedGrants: []`, so a
+   `schema-branding.ts:137`. **The exact mechanism, so nobody re-derives it:** `reconcileMatch`
+   (`ordinary-waiver.ts:608-620`) treats `stale`, `dead-position`, `unbound-trivia`, `ambiguous-trivia`, `over-broad`
+   and `duplicate-target` as COMPLETION-BOUND — suppressed unless the policy entered `completedOrdinary` — while
+   `malformed`, `unknown-policy` and `wrong-authority` alarm unconditionally. An ordinary policy enters
+   `completedOrdinary` whenever it runs without a wrong-grant-authority condition (`gate-authority.ts:286-291`), and a
+   proof row's owner must succeed or `toolFailure` fails first, so inside a proof row the policy is ALWAYS completed
+   and every one of those alarms is live. **The one place they go quiet is a WITHHELD or wrong-grant-authority owner**,
+   which never completes; that cannot occur inside a passing proof row, but it is why a real-tree run can hold a dead
+   marker silently while the proof corpus cannot. A `mustPass` arm does NOT separately assert `waivedFindings === 1`,
+   and it does not need to: a fixture that stopped flagging leaves the marker `stale`, which alarms. Naming the twin
+   `mustFlag` row in the arm's `why` is good practice for the next reader, never a correctness requirement.
+   **Limit:** `runPass` pins `knownPolicies: [policy]` and `reviewedGrants: []`, so a
    reviewed-grant policy cannot prove grant consumption in a module row at all — that belongs in a family test with a
-   real grant table (§4.3).
+   real grant table (§4.3). **A marker naming your policy inside ANOTHER policy's negative arm is not your arm**: a
+   grep for `@orb-waive <id>(` overcounts, matching sibling negative arms, live product-tree waivers and a module's own
+   header prose. Measured 2026-09-11: three of 29 policies credited with an arm by grep had none
+   (`no-form-state-in-useeffect`, `zod-modern-spellings`, `no-off-token-radius-shadow`), so the real gap is 60 of 86,
+   not 57 (#1952). Counting arms is a READING task; a script can only bound it.
 3. **Reviewed-grant policies** prove exact `(subject, operation)` identity beside the family: the intended row is
    consumed exactly once; a wrong operation stays effective; a renamed/missing subject stales the row or withholds
    (`home-client-family.test.ts`). Generic grant-table validation is `tests/tooling/verify/lib/reviewed-grants.test.ts`.

@@ -186,6 +186,15 @@ idle composed-pass remeasurement; catalog re-attest.
   `resource-gate-access-patterns.md:126` already forbid ("never returns absence"; "never collapse missing/unparseable
   into `{}`"). The owner had to say "search the docs, I bet the answer is in there." It was, twice, in files this
   playbook already points at.
+- **Measuring proof coverage is a READING task; a script only bounds it.** Grepping `@orb-waive <id>(` overcounts
+  (sibling negative arms, live product-tree waivers, a module's own header prose promising a spelling) and the absence
+  side undercounts. Two Opus verifiers reading gate + family test + fixtures turned "29 policies have an arm" into 26,
+  and 57 missing into 60. Escalate to `verifier` for this class, never `scout`, and require a PER-SUBJECT verdict line
+  so a miss shows up as a missing row instead of hiding inside "none found".
+- **Verify a subagent's mechanism claim before you write it into law.** A verifier reported that a `mustPass` identity
+  arm "silently degenerates" when its twin `mustFlag` row changes. Reading `ordinary-waiver.ts:608-620` plus
+  `gate-authority.ts:286-291` refuted it — those alarms are completion-bound and a proof row's owner always completes.
+  The false caveat was one commit from becoming guide law, and a lane had already been told to skip work because of it.
 - **Cheap read-only agents return FALSE CLEANS on exhaustive enumeration.** Three scouts audited the converted corpus
   on 2026-09-11; two claimed their slices were clean of a mechanical defect that a one-line script found in six of
   their files, while asserting completeness ("no other file in my slice…"). The third was exactly right, which is the
