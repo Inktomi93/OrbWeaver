@@ -1,50 +1,59 @@
-// Gate: commented-code — a `//` comment whose content is a parked code STATEMENT (starts with a code
-// keyword and ends in `;`/`{`/`}`). Delete it — git history keeps it; comments are for prose, not
-// parked code. Conservative on purpose (prose comments, doc refs, and `// e.g. …` notes never match).
-import type { GateDescriptor } from "../contract/gate.ts";
+// Gate: commented-code — parked `//` code statements are deleted; comments explain why.
+// TypeScript's shared trivia reader distinguishes real comments from string and template data.
+import { SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { forEachCommentRange } from "../lib/comment-spans.ts";
 
-const CODE_COMMENT_RE = /^\s*\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
+const CODE_COMMENT_RE = /^\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
+const MESSAGE = "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (Documentation-Law.md §Code comments).";
 
-const COMMENTED_CODE_MESSAGE =
-  "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (Documentation-Law.md §Code comments).";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-export const gate: GateDescriptor = {
-  name: "commented-code",
-  docRow: "Documentation-Law.md §Code comments",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: COMMENTED_CODE_MESSAGE,
+export const gate = defineGate({
+  id: "commented-code",
+  family: "commented-code",
+  authority: "hard",
+  severity: "error",
+  population: { of: "all", why: "parked code is forbidden in every compiler source except gate contract prose", notUnder: ["tooling/src/verify/gates/**"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
   fix: "delete the parked code — git history keeps it; comments are for prose (WHY), not commented-out statements.",
-  // A gate file's own `// export const …` activation-snippet comments are documentation, not parked code.
-  scanRoot: (p) => !p.startsWith("tooling/src/verify/gates/"),
-  visitFile: (sf, ctx) => {
-    for (const [index, line] of sf.getFullText().split("\n").entries()) {
-      if (CODE_COMMENT_RE.test(line)) {
-        ctx.report({
-          file: relPath(ctx.root, sf.getFilePath()),
-          line: index + 1,
-          column: 0,
-          token: "commented code",
-        });
-      }
-    }
-  },
+  create: (ctx) => ({
+    visitFile: (sourceFile) => {
+      const path = ctx.relativePath(sourceFile);
+      const seen = new Set<number>();
+      forEachCommentRange(sourceFile, (range) => {
+        if (range.kind !== SyntaxKind.SingleLineCommentTrivia || seen.has(range.pos)) {
+          return;
+        }
+        seen.add(range.pos);
+        const comment = sourceFile.getFullText().slice(range.pos, range.end);
+        if (CODE_COMMENT_RE.test(comment)) {
+          const position = sourceFile.getLineAndColumnAtPos(range.pos);
+          ctx.report.file(path, { line: position.line, column: position.column, token: "commented code" });
+        }
+      });
+    },
+  }),
   mustFlag: [
     {
-      files: "// const dead = compute();\nexport const x = 1;\n",
-      at: "packages/ui/src/x/x.ts",
-      why: "a `//`-parked code statement (`const … ;`) — delete it, git history keeps it",
+      mode: "source",
+      files: { "packages/ui/src/x/x.ts": "// const dead = compute();\nexport const x = 1;\n" },
+      expect: { line: 1, token: "commented code" },
+      why: "a parked const statement is code retained as a comment",
     },
   ],
   mustPass: [
     {
-      files: "// this explains WHY the value is 1 (a prose comment)\nexport const x = 1;\n",
-      at: "packages/ui/src/x/y.ts",
-      why: "a prose comment (no code keyword + terminator) — the conservative scan leaves it alone",
+      mode: "source",
+      files: { "packages/ui/src/x/y.ts": "// this explains WHY the value is 1 (a prose comment)\nexport const x = 1;\n" },
+      why: "a prose comment has neither the parked-code keyword and terminator shape",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x/template.ts": "export const source = `\n// const rendered = true;\n`;\n" },
+      why: "comment-looking text inside a template string is data, not parked code",
     },
   ],
-};
+});

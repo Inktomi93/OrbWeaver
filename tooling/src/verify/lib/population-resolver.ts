@@ -7,6 +7,7 @@ const ROOT_REFS = new Set<string>(Object.keys(POPULATION_ROOTS));
 const SET_REFS = new Set<string>(Object.keys(POPULATION_SETS));
 const EXPRESSION_KEYS = new Set(["in", "not", "under", "notUnder", "named", "notNamed", "ext", "notExt", "depth"]);
 const SENTINEL_KEYS = new Set(["of", "why"]);
+const ALL_SENTINEL_KEYS = new Set(["of", "why", "notUnder"]);
 const LOADABLE_EXTENSIONS = new Set<string>(["ts", "tsx"] satisfies readonly LoadableExt[]);
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
@@ -172,9 +173,12 @@ export function assertPopulationExpr(value: unknown): asserts value is Populatio
     invalid("expected a ref, ref union, operator object, or reasoned sentinel");
   }
   if ("of" in value) {
-    assertExactKeys(value, SENTINEL_KEYS);
+    assertExactKeys(value, value["of"] === "all" ? ALL_SENTINEL_KEYS : SENTINEL_KEYS);
     if ((value["of"] !== "all" && value["of"] !== "none") || typeof value["why"] !== "string" || value["why"].trim().length === 0) {
       invalid('sentinel requires of "all" or "none" and a non-empty why');
+    }
+    if (value["of"] === "all") {
+      assertOptionalArray(value["notUnder"], "notUnder", (member) => assertPattern(member, "notUnder"));
     }
     return;
   }
@@ -300,7 +304,8 @@ export function compilePopulation(expr: PopulationExpr): (repoRelativePosixPath:
     includes = (path): boolean => hasRoot(path, roots);
   } else if ("of" in expr) {
     const admitted = expr.of === "all";
-    includes = (): boolean => admitted;
+    const notUnder = expr.of === "all" ? compilePatterns(expr.notUnder) : undefined;
+    includes = (path): boolean => admitted && (notUnder === undefined || !matchesAny(path, notUnder));
   } else {
     includes = compileOperator(expr);
   }

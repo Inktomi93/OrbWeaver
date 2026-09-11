@@ -40,7 +40,8 @@ export type PopulationExpr =
       readonly notExt?: NonEmptyTuple<LoadableExt>;
       readonly depth?: "flat";
     }
-  | { readonly of: "all" | "none"; readonly why: string };
+  | { readonly of: "all"; readonly why: string; readonly notUnder?: NonEmptyTuple<string> }
+  | { readonly of: "none"; readonly why: string };
 
 export interface ResolvedPopulation {
   readonly paths: readonly string[];
