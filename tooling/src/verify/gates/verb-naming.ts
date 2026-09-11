@@ -57,7 +57,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const wrongName = 1;\n" },
-      expect: { token: "expected createStartChat" },
+      expect: { count: 1, token: "expected createStartChat" },
       why: "a verb module exports the wrong runtime name",
     },
     {
