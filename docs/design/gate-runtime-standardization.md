@@ -129,10 +129,14 @@ family.
    every alarm is live: a wrong position, a foreign id, an over-broad match and a fixture that no longer flags each
    FAIL the row. No separate test and no planted break are owed. A `mustPass` arm need not assert
    `waivedFindings === 1`; naming the twin `mustFlag` row in its `why` is legibility, not correctness.
-   **Build the arm on a fixture that produces exactly ONE finding.** One marker consumes one occurrence, so a founding
-   row that fires twice (an import door plus its call site, as in `no-forward-ref` and `no-use-context`) leaves the
-   second finding effective and fails the row; use the member or namespace arm instead, and state that cardinality in
-   the `why`. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
+   **Build the arm on a fixture that produces exactly ONE finding**, because one marker consumes one occurrence: a
+   founding row that fires twice (an import door plus its call site, as in `no-forward-ref`) leaves the second finding
+   effective and fails the row. Use the member or namespace arm instead and state the cardinality in the `why`. This is
+   the arm-authoring face of a standing rule — **finding granularity must match waiver granularity, and two findings in
+   ONE statement make a site unwaivable** (`checkpoint-2026-09-05.md`), since a single marker matching both is
+   over-broad and suppresses neither. Findings in DIFFERENT statements stay waivable with one marker each. An ordinary
+   policy whose shape cannot be suppressed by any marker has no working door and was mis-authored; #1954 classifies the
+   corpus. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
    `cp`-backed copy, run the family test, expect `AUTHORITY ALARM … names a dead position`, then `mv` the backup back.
    That converts "my arm is green" into "my arm discriminates".
 
