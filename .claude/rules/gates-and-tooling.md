@@ -46,6 +46,14 @@ paths:
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.
+  - **Every NEW proof row ships with a planted-break receipt** (Opus verifier ruling, 2026-09-11, after two
+    Sonnet lanes each shipped one proof that cannot fail): for each new `mustFlag`, negative identity arm,
+    or differential row, break the property it claims to guard in a SCRATCH COPY of the module (never the
+    tracked file), run the row, record "went red with <message>" in your report, restore. A row that stays
+    green under the break is a fence, not a proof — fix the fixture until it discriminates (offsets must
+    actually overlap; a wrong-policy marker must reach the `policyId` filter, so pass BOTH policies in
+    `knownPolicies` and pair it with a positive same-position arm). A header that claims "this row proves X"
+    without that receipt is a defect.
   - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
     `under: ["x/"]` matches nothing (use `"x/**"`); state in `create`; `ctx.fact()` only in
     evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
