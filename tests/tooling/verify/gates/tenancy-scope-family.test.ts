@@ -23,52 +23,48 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
 }
 
 // ---------------------------------------------------------------------------------------------------
-// REPORT IDENTITY, NEGATIVE ARM. Each of the three by-id tenancy policies has its own waiver position
-// (owner-scoped-reads / -writes / -upserts). A marker naming a SIBLING policy id at the exact matching
-// position must not suppress the finding — the central engine binds a waiver only to the exact policy id
-// it names, never to "some tenancy marker at this spot".
+// REPORT IDENTITY, POSITIVE ARM. Each of the three by-id tenancy policies has its own waiver position
+// (owner-scoped-reads / -writes / -upserts): a marker that names THIS policy at its own reported position
+// suppresses the finding it targets. (The wrong-policy / stale / malformed report-identity cases are the
+// CENTRAL engine's own proof — `ordinary-waiver.test.ts` — proved once there, not re-proved per gate; a
+// per-gate negative arm here duplicated that proof and, with only the tested policy in `knownPolicies`,
+// was vacuous — owner ruling 2026-09-11, #1935.)
 // ---------------------------------------------------------------------------------------------------
-test("owner-scoped-reads: a marker naming owner-scoped-writes at this position suppresses nothing", () => {
-  const mismatched = passOf(ownerScopedReads, {
+test("owner-scoped-reads: a marker naming its own policy at this position suppresses the finding", () => {
+  const waived = passOf(ownerScopedReads, {
     "packages/db/src/schema/character.ts":
       'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
     "packages/server/src/domain/character/persistence/queries.ts":
-      'import { characters } from "@orb/db";\n// @orb-waive owner-scoped-writes(characters): wrong gate.\nexport async function loadById(db: Db, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
+      'import { characters } from "@orb/db";\n// @orb-waive owner-scoped-reads(characters): the proof stand-in reason and its end condition.\nexport async function loadById(db: Db, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
   });
 
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.effectiveFindings[0]).toMatchObject({ policyId: "owner-scoped-reads" });
-  expect(mismatched.authority.authorityAlarms).toMatchObject([
-    { kind: "ordinary-waiver", message: expect.stringContaining("targets unknown policy owner-scoped-writes") },
-  ]);
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("owner-scoped-writes: a marker naming owner-scoped-reads at this position suppresses nothing", () => {
-  const mismatched = passOf(ownerScopedWrites, {
+test("owner-scoped-writes: a marker naming its own policy at this position suppresses the finding", () => {
+  const waived = passOf(ownerScopedWrites, {
     "packages/db/src/schema/character.ts":
       'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
     "packages/server/src/domain/character/persistence/card.ts":
-      'import { characters } from "@orb/db";\n// @orb-waive owner-scoped-reads(characters): wrong gate.\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(characters).set({ name }).where(eq(characters.id, id));\n}\n',
+      'import { characters } from "@orb/db";\n// @orb-waive owner-scoped-writes(characters): the proof stand-in reason and its end condition.\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(characters).set({ name }).where(eq(characters.id, id));\n}\n',
   });
 
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.effectiveFindings[0]).toMatchObject({ policyId: "owner-scoped-writes" });
-  expect(mismatched.authority.authorityAlarms).toMatchObject([
-    { kind: "ordinary-waiver", message: expect.stringContaining("targets unknown policy owner-scoped-reads") },
-  ]);
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("owner-scoped-upserts: a marker naming owner-scoped-writes at this position suppresses nothing (the retired UPSERT-not-a-WRITE scenario)", () => {
-  const mismatched = passOf(ownerScopedUpserts, {
+test("owner-scoped-upserts: a marker naming its own policy at this position suppresses the finding", () => {
+  const waived = passOf(ownerScopedUpserts, {
     "packages/db/src/schema/plugin.ts":
       'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
     "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-      'import { pluginKv } from "@orb/db";\n// @orb-waive owner-scoped-writes(pluginKv): wrong gate.\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values({ pluginId: scope.pluginId, ownerId: scope.ownerId, key: entry.key, value: entry.value }).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: entry.value } });\n}\n',
+      'import { pluginKv } from "@orb/db";\n// @orb-waive owner-scoped-upserts(pluginKv): the proof stand-in reason and its end condition.\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values({ pluginId: scope.pluginId, ownerId: scope.ownerId, key: entry.key, value: entry.value }).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: entry.value } });\n}\n',
   });
 
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.effectiveFindings[0]).toMatchObject({ policyId: "owner-scoped-upserts" });
-  expect(mismatched.authority.authorityAlarms).toMatchObject([
-    { kind: "ordinary-waiver", message: expect.stringContaining("targets unknown policy owner-scoped-writes") },
-  ]);
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
