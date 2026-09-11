@@ -110,6 +110,57 @@ test("the first-class schema provider uses dispatcher declarations once and expo
   expect(captured?.schema()).toMatchObject({ status: "ready", receipt: { tables: 1, columns: 1, members: 2 } });
 });
 
+test("THE FAIL-OPEN SHAPE: a consumer that neither re-receipts nor reads the status renders a clean verdict over an EMPTY census", () => {
+  // THE PLANTED CONTROL the phase move owes (#1962, coordinator-required). Moving the emptiness verdict off
+  // the PROVIDER receipt and onto the consumer changes a UNIVERSAL refusal into a PER-CONSUMER one, and
+  // `policyReceiptFailures` judges only the receipts a policy DID file — it has no "policy produced no
+  // semantic receipt" arm, unlike `factReceiptFailures`. So a consumer that declares the fact, consumes it,
+  // and files nothing passes SILENTLY over a schema tree that declares no table. Asserted here as the
+  // runtime's actual shape rather than assumed either way.
+  //
+  // WHAT MAKES THE GUARANTEE UNIVERSAL TODAY IS THE SHARED HELPER, NOT THE RUNTIME: all 18 production
+  // consumers of `drizzleSchemaFact` call `recordReadySchemaFact`, which THROWS on any non-`ready` status
+  // AND files the census receipt (`contract/schema-fact.ts`; census by `grep -c recordReadySchemaFact` over
+  // every module importing the provider, 2026-09-11). The probe below is deliberately the one shape no
+  // production consumer has. A new consumer that skips the helper inherits no blindness door — which is why
+  // the helper, not the receipt, is where a reviewer must look.
+  let seen: SchemaFact<SchemaModel> | undefined;
+  const silent: GatePolicy = defineGate({
+    id: "schema-silent-consumer-probe",
+    family: "schema-provider-control",
+    authority: "hard",
+    severity: "error",
+    population: "@db",
+    analysis: "types",
+    execution: "entire-population",
+    facts: [drizzleSchemaFact],
+    resources: [],
+    message: "schema silent consumer probe",
+    create: (ctx) => ({
+      evaluate: () => {
+        seen = ctx.fact(drizzleSchemaFact).schema();
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/db/src/schema/flag.ts": "export const flag = true;\n" }, why: "provider control" }],
+    mustPass: [{ mode: "types", files: { "packages/db/src/schema/pass.ts": "export const pass = true;\n" }, why: "provider control" }],
+  });
+  const result = runPolicyPass({
+    knownPolicies: [silent],
+    policies: [silent],
+    root: ROOT.slice(0, -1),
+    project: projectOf({ "packages/db/src/schema/x.ts": "export const notATable = true;\n" }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(seen?.status).toBe("empty");
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(result.policies[0]?.receipts).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+});
+
 test("derives canonical tables, columns, FK, indexes, and open JSON through aliases and namespaces", () => {
   const { project, query } = queryOf({
     "packages/db/src/schema/drizzle-door.ts":
