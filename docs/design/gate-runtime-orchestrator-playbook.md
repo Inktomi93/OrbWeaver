@@ -176,7 +176,18 @@ idle composed-pass remeasurement; catalog re-attest.
    `refute` with the spec; the fix goes back to a lane.
 7. Fold the lane's lessons into the memory hub (`gate-migration-1584-lessons-hub.md`); if a correction had to be sent
    to a second lane, fix the FILE the lanes load, not the next brief.
-8. Tear down the worktree only after the verifier confirmed and nothing may need resuming.
+8. **Tear down the worktree. This is YOUR job and it happens at EVERY landing, not at end of session** — nothing
+   fires it automatically, and stale checkouts are not merely untidy: each one is a full copy of the tree, so every
+   later repo-root `grep -r`/`find` returns one extra hit per worktree with a real-looking `path:line`. Eight live at
+   once inflated a marker census 8x.
+   Gate it on CONTAINMENT, measured, not remembered: `git rev-list --count main..wt/agent-<id>` = 0 AND
+   `git -C <wt> status --short` empty means teardown loses zero bytes. Then
+   `git worktree remove --force <path>` → `git branch -D wt/agent-<id>` → `git worktree prune`; never `rm -rf`, which
+   strands registered metadata.
+   **The one thing containment does NOT cover:** deleting a merged lane's branch forfeits the warm leg, so a later
+   REFUTED verdict costs a fresh cold lane instead of resuming that agent. So keep a contained-but-unverified lane's
+   worktree until its verifier confirms, and sweep everything already verified immediately. A lane still holding
+   uncommitted work or commits ahead of main is never swept — checkpoint it (§0.3) and leave it.
 
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
