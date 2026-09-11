@@ -23,6 +23,14 @@
 // block's ASSERTION ("zero dead rows on the real tree") is not restored; real-tree finding correctness for
 // a resource policy is the ORCHESTRATOR's `pnpm check:structure` floor. This file pins that the policy
 // RESOLVES AND RUNS at repository scope.
+//
+// THE REAL-TREE VERDICT MOVED TO THE FRONT DOOR (#1584 mixed runtime, 2026-09-11) — the full reasoning is in
+// the twin header at `eslint-grant-liveness.int.test.ts`. The `effectiveFindings` stopgap this arm carried
+// while the production loader was legacy-only is deleted only because the transfer was PROVEN first: the mixed
+// `pnpm check:structure` roster names `depcruise-grant-liveness` (contract final, owner success, population
+// complete, 210 native-config rows + 9 package facts over 9,426 tracked files), and a dead file-exact
+// `from.path` row planted in the real `.dependency-cruiser.cjs` was reported by the mixed run, then restored —
+// receipt in the deleting commit. The runnability arms stay.
 import { Project } from "ts-morph";
 import { classifyRegex, gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
 import { irreducibleBudgetFindings } from "../../../../tooling/src/verify/lib/grant-liveness.ts";
@@ -73,8 +81,6 @@ test("the REAL repository root: this hard policy resolves and runs to a receipte
   expect(result.policies[0]?.receipts.some(({ kind }) => kind === "resource")).toBe(true);
   // A hard policy has no waiver door, so its population demands no ordinary-waiver text carrier.
   expect(result.waiverCarrierRefusals).toEqual([]);
-  // AND the real-tree verdict, which only this arm can take while the production loader is still legacy
-  // (`pnpm check:structure` is RED by construction until the #1584 cutover): every live import-law row
-  // still points at a tracked path.
-  expect(result.authority.effectiveFindings).toEqual([]);
+  // The real-tree VERDICT (zero effective findings) is no longer asserted here: the mixed front door runs this
+  // policy on the real corpus on every `pnpm check:structure` and owns that verdict — see the header.
 });

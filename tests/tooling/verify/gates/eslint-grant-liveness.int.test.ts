@@ -24,6 +24,16 @@
 // populations") is NOT restored here: real-tree finding correctness for a resource policy is the
 // ORCHESTRATOR's `pnpm check:structure` floor. What this file pins is that the policy RESOLVES AND RUNS at
 // repository scope at all — the exact thing that was dead.
+//
+// THE REAL-TREE VERDICT MOVED TO THE FRONT DOOR (#1584 mixed runtime, 2026-09-11). While the production
+// loader was legacy-only this arm also asserted `effectiveFindings` empty, because nothing else executed the
+// policy on the real corpus. The mixed `pnpm check:structure` now runs it there on every invocation, and the
+// transfer was PROVEN before the stopgap line was deleted (owner challenge: "zero findings doesn't mean remove
+// it"): the run manifest roster names `eslint-grant-liveness` (contract final, owner success, population
+// complete, 108 native-config rows over 9,426 tracked files), and a dead file-exact selector planted in the
+// real `eslint.config.js` was reported by the mixed run at its config-entry token, then restored — the receipt
+// is in the commit that deleted the line. The runnability arms below stay: they are what a planted temp root
+// cannot show.
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -53,8 +63,6 @@ test("the REAL repository root: this hard policy resolves and runs to a receipte
   expect(result.policies[0]?.receipts.some(({ kind }) => kind === "resource")).toBe(true);
   // A hard policy has no waiver door, so its population demands no ordinary-waiver text carrier.
   expect(result.waiverCarrierRefusals).toEqual([]);
-  // AND the real-tree verdict, which only this arm can take while the production loader is still legacy
-  // (`pnpm check:structure` is RED by construction until the #1584 cutover): every ratified zero-member
-  // selector still resolves and every cited path is still tracked.
-  expect(result.authority.effectiveFindings).toEqual([]);
+  // The real-tree VERDICT (zero effective findings) is no longer asserted here: the mixed front door runs this
+  // policy on the real corpus on every `pnpm check:structure` and owns that verdict — see the header.
 });
