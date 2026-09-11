@@ -78,7 +78,12 @@ reviewed-grant identity → `no-raw-matchmedia.ts`; warning debt → `user-bus-d
 
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
 private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in `create`;
-`report.node` token is an exact slice of the node text; every anchor inside the policy's own resolved population;
+`report.node` token is an exact slice of the node text, and when a policy passes NO token the sink DERIVES one
+(`policy-pass-context.ts:109`): the first identifier, literal or keyword token in the reported node's own text that
+contains no paren or newline. The derived token is what an author must type in `@orb-waive <id>(<position>)`, so a
+policy reporting the type argument `Registry<string, number> | null` is waived at `Registry` and one reporting a cast
+operand is waived at the operand's own text — unguessable from the message, which is why an ordinary policy's `fix`
+owes the spelling; every anchor inside the policy's own resolved population;
 population `under: ["x/**"]` (a `"x/"` matches nothing). A read the seven shipped resource kinds cannot serve, or a
 shared reader that does not exist in `lib/`, STOPS that module (it stays legacy and armed) and returns the exact read to
 \#1930. That refusal is a success; keeping a private reader behind `defineGate` lowers the census while leaving the
@@ -99,7 +104,12 @@ family.
    population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one
    finding exists, so a row without `expect` asserts only that the fixture produced at least one effective finding, and
    passes when the gate flags the WRONG node or flags several where one was meant. Name `count` always, and `token`
-   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags.
+   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags. `token` is available on EVERY
+   node-reporting policy because the position is derived when not supplied (§3). The expectation shape has no
+   `column`, so `count + line + token` is the ceiling: add `line` when the derived token repeats inside the fixture
+   (a statement's first identifier is weak identity). Before reaching for `messageIncludes`, check that the module
+   emits more than one message — most converted modules pass a bare `report.*` and carry exactly one policy-level
+   message, which makes any row `why` promising a "distinct message" a defect rather than a pinnable claim.
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
@@ -119,6 +129,12 @@ family.
    every alarm is live: a wrong position, a foreign id, an over-broad match and a fixture that no longer flags each
    FAIL the row. No separate test and no planted break are owed. A `mustPass` arm need not assert
    `waivedFindings === 1`; naming the twin `mustFlag` row in its `why` is legibility, not correctness.
+   **Build the arm on a fixture that produces exactly ONE finding.** One marker consumes one occurrence, so a founding
+   row that fires twice (an import door plus its call site, as in `no-forward-ref` and `no-use-context`) leaves the
+   second finding effective and fails the row; use the member or namespace arm instead, and state that cardinality in
+   the `why`. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
+   `cp`-backed copy, run the family test, expect `AUTHORITY ALARM … names a dead position`, then `mv` the backup back.
+   That converts "my arm is green" into "my arm discriminates".
 
    **Where the protection stops.** Completion-bound alarms are suppressed for a WITHHELD or wrong-grant-authority
    owner, which never completes, so a real-tree run can hold a dead marker silently where the proof corpus cannot. And
