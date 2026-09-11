@@ -85,7 +85,11 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(sideEyeManifest).toContain("Read `.agents/skills/side-eye-design-review/SKILL.md`, `.agents/skills/snap-driving/SKILL.md` in full");
 
   const claudeHookConfig = readFileSync(join(ROOT, ".claude", "settings.json"), "utf8");
-  expect(claudeHookConfig).not.toContain("tool-guard.mjs");
+  // Re-registered 2026-09-11 by owner ruling, superseding the #1898 archival that made this a `not`:
+  // the Bash guard is the only enforcement of the destroy-uncommitted ban, and its day unregistered cost
+  // five lanes their uncommitted files to one `git stash -u`. The Codex half below stays empty — that
+  // loader cannot be exercised from here, and an unverifiable registration is worse than none.
+  expect(claudeHookConfig).toContain("/.claude/hooks/tool-guard.mjs");
   expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-setup.sh");
