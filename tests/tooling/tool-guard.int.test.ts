@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { REGISTRY } from "../../tooling/src/verify/lib/registry.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const HOOK = fileURLToPath(new URL("../../.claude/hooks/tool-guard.mjs", import.meta.url));
@@ -389,6 +390,23 @@ const ROWS: Row[] = [
   ["pass", null, "./node_modules/.bin/playwright test -c playwright.config.ts tests/e2e/login.spec.ts"],
   ["pass", null, "pnpm e2e:smoke"],
   ["pass", null, "pnpm e2e"],
+  // ---- #1946 item 1: THE WRAPPER PREFIX THE HOUSE ORDERS. PW_ANCHOR named only WRAP_PREFIX's old
+  // vocabulary (`VAR=…`, `timeout`, `nice`), so `env -C <wt> ./node_modules/.bin/playwright test …` PASSED
+  // un-floored while `env -C <wt> npx playwright …` and `env -C <wt> pnpm playwright …` both bit — and
+  // `env -C <wt>` is the spelling .claude/rules/lane-standing-facts.md tells every lane to use, i.e. the
+  // one shape nobody was taught to type was the one the guard caught. The anchor now reads the SHARED
+  // vocabulary (COMMAND_WRAPPERS), as does the rewrite head, so the prefix survives into the sanctioned
+  // call rather than costing the run a deny. ----
+  ["allow", "playwright-ct", "env -C /wt ./node_modules/.bin/playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "env -C /wt npx playwright test tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "nice -n 19 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "CT_PORT=3181 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "nice -n 19 pnpm exec playwright test -c playwright-ct.config.ts --list"],
+  // MUST PASS, the other half of the same widening: the SANCTIONED call wearing the same prefix must not
+  // start being rewritten or refused, and an e2e run through it is still not this rule's business.
+  ["pass", null, "env -C /wt pnpm test:ct tests/client/x.ct.tsx"],
+  ["pass", null, "env -C /wt ./node_modules/.bin/playwright test -c playwright.config.ts tests/e2e/login.spec.ts"],
+  ["pass", null, "env -C /wt pnpm e2e:smoke"],
   // ---- #1943 F6: the rewrite forwards flags verbatim, and `pnpm test:ct` → `scoped-test`'s preflight
   // reads any non-flag operand carrying a `/` as a PATH CLAIM (isPathShaped) — so a space-form
   // `--output reports/ct-out` / `-g chat/composer` turned a working raw run into exit 3/2. Refused with
@@ -420,6 +438,34 @@ const ROWS: Row[] = [
   ["pass", null, "bash -c 'echo $HOME'"],
   ["pass", null, 'eval "$(ssh-agent -s)"'],
   ["pass", null, 'CMD="pnpm check"; bash -c "$CMD"'],
+  // ---- #1946 item 3: THE WRAPPER PREFIX IN FRONT OF A SHELL HEAD. `execHead`'s vocabulary skipped a
+  // wrapper NAME and a bare number but not a wrapper's own FLAGS, so `nice -n 19 bash -c "git stash"` and
+  // `env -C /tmp bash -c "git stash"` resolved their head to `-n` / `-C`, found no shell, and passed a
+  // LITERAL `git stash` — while `timeout 60 …`, `FOO=1 …` and a bare `env …` denied. One flag apart, and
+  // the two that escaped are the two the lane rules prescribe. ----
+  ["deny", "inline:git-destructive", 'nice -n 19 bash -c "git stash"'],
+  ["deny", "inline:git-destructive", 'env -C /tmp bash -c "git stash"'],
+  ["deny", "inline:git-destructive", 'env -i bash -c "git stash"'],
+  ["deny", "inline:git-destructive", 'env --chdir=/wt bash -c "git stash"'],
+  ["deny", "inline:git-destructive", 'timeout -k 5 60 bash -c "git stash"'],
+  ["deny", "inline:git-destructive", 'setsid nohup nice -n 19 bash -c "git stash"'],
+  // ---- #1946 item 4: THE OPPOSITE ERROR, from the same misreading of who expands what. A SINGLE-quoted
+  // `-c` operand is not expanded by the parent, and a bare `CMD=…` is shell-LOCAL, so the child's `$CMD`
+  // is unset and the command it runs is the EMPTY STRING — `CMD="git stash"; bash -c '$CMD'` was an
+  // over-refusal of a command that does nothing. The same read turns the genuinely destructive PREFIX
+  // form (which DOES export to the child) from a mere ask into the deny it always deserved. ----
+  ["pass", null, `CMD="git stash"; bash -c '$CMD'`],
+  ["pass", null, "CMD='git stash'; sh -c '${CMD}'"],
+  ["deny", "inline:git-destructive", `CMD="git stash" bash -c '$CMD'`], // an assignment PREFIX reaches the child
+  ["deny", "inline:git-destructive", `env CMD="git stash" bash -c '$CMD'`],
+  ["deny", "inline:git-destructive", `export CMD="git stash"; bash -c '$CMD'`],
+  ["deny", "inline:git-destructive", `export CMD; CMD="git stash"; bash -c '$CMD'`],
+  // …and `eval` is NOT this exception: it re-parses in the SAME shell, so a single-quoted `$CMD` is
+  // expanded from the shell's own variables and really does run. The distinction is the whole fix.
+  ["deny", "inline:git-destructive", `CMD="git stash"; eval '$CMD'`],
+  // a name this command never mentions stays an ASK: it may be exported in the session, and `allow`
+  // bypasses the permission flow, so "I did not look" must never read as "I have no objection".
+  ["ask", "inline-unresolved-operand", "bash -c '$CMD'"],
   // ---- #1943 F5: a heavy tool through a spelling with NO HEAP FLOOR. Measured: a bare `node`/`npx` child
   // gets heap_size_limit 4192 MiB and no NODE_OPTIONS; anything through pnpm gets 16480. `npx eslint` had
   // 380 corpus sightings and `npx tsc` 269 — and the bare in-process ts-morph verb is the recorded
@@ -450,6 +496,30 @@ const ROWS: Row[] = [
   ["pass", null, "pnpm check:structure"],
   ["pass", null, "pnpm test:mutation"],
   ["pass", null, "npx biome check packages/ui/src/x.ts"], // biome is Rust: no heap question, no door to name
+  // ---- #1946 item 3, the heavy-tool half of the SAME head: `execHead` is this rule's only anchor, so
+  // every un-floored tool wearing a wrapper FLAG escaped it too. 36 rows of the 171,473-command replay
+  // moved on this alone, and they are the house idiom (`env -C $W npx eslint …`). ----
+  ["deny", "heavy-tool-unfloored", "env -C /wt npx eslint packages/client/src"],
+  ["deny", "heavy-tool-unfloored", "nice -n 19 npx tsc -p packages/server --noEmit"],
+  ["deny", "heavy-tool-unfloored", "nice -n 19 node_modules/.bin/tsc -p packages/server --noEmit"],
+  ["deny", "heavy-tool-unfloored", "env -C /wt node tooling/src/ast/cli.ts refs resolveChat"],
+  // MUST PASS — the FLOORED doors wearing the same prefix. This is the direction that decides whether the
+  // widening taught lanes anything or just moved the wall: `env -C <wt> pnpm …` is the lane recipe.
+  ["pass", null, "env -C /wt pnpm test:scoped tests/tooling/tool-guard.int.test.ts"],
+  ["pass", null, "env -C /wt pnpm exec eslint packages/client/src/x.ts"],
+  ["pass", null, "env -C /wt pnpm exec tsc --noEmit -p packages/ui"],
+  ["pass", null, "env -C /wt pnpm ast refs resolveChat"],
+  ["pass", null, "env -C /wt pnpm lint:eslint"],
+  ["pass", null, "nice -n 19 pnpm typecheck"],
+  ["pass", null, "env -C /wt git status --short"],
+  ["pass", null, "env -C /wt rg --files-with-matches useMemo packages/client/src"],
+  // …and the false-positive control for the whole vocabulary: a COMMIT MESSAGE naming the wrapper
+  // spellings is text, and a guard that fires on its own changelog is the one that gets turned off.
+  ["pass", null, 'nice -n 19 git commit -m "fix(tool-guard): env -C and nice -n 19 now reach the head"'],
+  // …and the harness-pipe twin, which shares WRAP_PREFIX: `env -C <wt> pnpm check | tail` used to run
+  // un-rewritten (58 replay rows) while the `nice` spelling of the same pipe was redirected.
+  ["allow", "harness-piped", "env -C /wt pnpm check 2>&1 | tail -20"],
+  ["pass", null, "env -C /wt pnpm check"],
   // …and the vitest family is a WARN, not a deny: those spellings DO carry the heap floor (the pnpm ones)
   // — what they miss is the supervisor watchdog, the path preflight and the nice floor. The silent halves
   // (`pnpm exec vitest`, the vitest.mjs entry) were `pass/null` before; the WARN names the door and RUNS.
@@ -730,6 +800,34 @@ test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner f
   expect(sanctionedPiped.rewrite?.command).toContain("< /repo/reports/tool-guard/run-");
 });
 
+// #1946 item 1. The rewrite head carried `timeout N` alone, so every OTHER wrapper prefix left rule 6 with
+// no rewrite to offer and it DENIED — 12 rows of the 171,473-command replay, every one a real lane's CT
+// run wearing `env -C <wt>`, `nice -n 19` or `CT_PORT=<n>`. A deny there is not "safe by default": the
+// lane loses the turn and learns the sanctioned door is refused too. The prefix is the lane's WORKING
+// DIRECTORY or its port, so it must survive into the rewritten call BYTE FOR BYTE or the run lands in the
+// wrong tree — which is why this asserts the text and not just the decision.
+test("rewrite: every wrapper prefix survives the CT rewrite verbatim, so the run keeps its cwd and port", () => {
+  const rows: [string, string][] = [
+    ["env -C /wt ./node_modules/.bin/playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx", "env -C /wt pnpm test:ct tests/client/x.ct.tsx"],
+    ["nice -n 19 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx", "nice -n 19 pnpm test:ct tests/client/x.ct.tsx"],
+    ["CT_PORT=3181 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx", "CT_PORT=3181 pnpm test:ct tests/client/x.ct.tsx"],
+    [
+      "rm -rf playwright/.cache && env -C /wt npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx",
+      "rm -rf playwright/.cache && env -C /wt pnpm test:ct tests/client/x.ct.tsx",
+    ],
+  ];
+  const got = runBatch(rows.map(([command]) => ({ command })));
+  for (const [i, [command, want]] of rows.entries()) {
+    expect([command, at(got, i).decision]).toEqual([command, "allow"]);
+    expect([command, at(got, i).rewrite?.command]).toEqual([command, want]);
+  }
+  // …and the widening may not reach PAST the wrapper: an over-cap worker count still DENIES ahead of the
+  // rewrite (rule 3b), or the rewrite would launder the one number that rule exists to hold.
+  const overCap = at(runBatch([{ command: "env -C /wt npx playwright test tests/client/x.ct.tsx --workers=64" }]), 0);
+  expect(overCap.decision).toBe("deny");
+  expect(overCap.rule).toBe("worker-over-cap");
+});
+
 // #1943 F5. The cap is DATA — tooling/concurrency-profile.json is its ONE home (#1835) — so the pin
 // DERIVES the numbers from it: cap+1 denies, cap passes, and the refusal quotes the cap it read. A
 // hard-coded number here would go quietly wrong the day a cap is retuned, which is the whole reason that
@@ -922,6 +1020,23 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`( bash ${evil})`, "deny", "script:git-destructive"],
     [`(bash ${evil}) | cat`, "deny", "script:git-destructive"],
     [`(bash ${evil})2>&1`, "deny", "script:git-destructive"], // the closer GLUED to a redirect
+    // ---- #1946 item 2: A BACKGROUNDING `&` GLUED TO THE OPERAND. The tail stripper required a group
+    // CLOSER first (`[)}]+…`), so `&` alone was never stripped — and the sharp case is not the grouped one
+    // the review reported (that reached the `ask`) but the UNGROUPED `bash <evil>.sh&`, which resolved
+    // `<evil>.sh&`, ENOENT'd, and PASSED SILENTLY with the body never read. `&` is the commonest thing a
+    // lane glues to a scratch script, since it is how work is backgrounded. One space apart from a deny.
+    [`bash ${evil}&`, "deny", "script:git-destructive"],
+    [`(bash ${evil}&)`, "deny", "script:git-destructive"],
+    [`{ bash ${evil}& }`, "deny", "script:git-destructive"],
+    [`(setsid nohup bash ${evil}&)`, "deny", "script:git-destructive"],
+    [`(env -C /tmp bash ${evil} &)`, "deny", "script:git-destructive"], // …and with item 3's wrapper flags
+    [`bash ${evil}>${join(dir, "run.log")}`, "deny", "script:git-destructive"], // a redirect glued the same way
+    // MUST PASS — a BACKGROUNDED sanctioned wrapper is still a sanctioned wrapper (this is how a lane runs
+    // one), and a missing path glued to an `&` is still the ungrouped fail-open silence, not new noise.
+    [`(setsid nohup bash ${ct} &)`, "pass", null],
+    [`bash ${ct}&`, "pass", null],
+    [`(bash ${clean} arg1)&`, "pass", null],
+    [`bash ${join(dir, "does-not-exist.sh")}&`, "pass", null],
     [`SP=${dir}; (bash "$SP/lane-run.sh")`, "deny", "script:git-destructive"],
     [`(source ${evil})`, "deny", "script:git-destructive"],
     [`(. ${evil})`, "deny", "script:git-destructive"],
@@ -1453,6 +1568,41 @@ test("advice: every recommended spelling exists on this branch, and no retired o
     expect([live, advice.includes(live)]).toEqual([live, true]);
   }
   expect(advice).toContain("pnpm test:ct <paths>");
+});
+
+// #1946 item 5. `lint:hook-syntax` is the guard's ONLY executing check below `--full` that can catch the
+// failure the guard's own header calls out: a syntax error here exits node non-zero with NO JSON, the hook
+// contract reads that as a non-blocking error, and every Bash call in every session then runs UNGUARDED
+// while the push bar stays green. The stage shipped with #1943 with no committed proof that it fails — an
+// always-green loop (a typo'd glob, a swallowed `||`, a `node --check` that stopped erroring) would be
+// indistinguishable from a clean tree. This runs the REGISTRY'S OWN argv, never a re-spelling of it, so
+// the pin measures the shipped command and cannot drift from it.
+test("lint:hook-syntax: the shipped argv fails on a broken hook, passes on a good one, and passes on this tree", () => {
+  const stage = REGISTRY.find((s) => s.name === "lint:hook-syntax");
+  if (stage === undefined) {
+    throw new Error("lint:hook-syntax is not registered — the guard's static floor is gone");
+  }
+  const [bin, ...args] = stage.argv;
+  const run = (cwd: string): number | null => spawnSync(bin, args, { cwd, encoding: "utf8" }).status;
+
+  const dir = mkdtempSync(join(tmpdir(), "tg-hook-syntax-"));
+  mkdirSync(join(dir, ".claude", "hooks"), { recursive: true });
+  // GREEN CONTROL first, so the red below cannot be "the loop fails on everything".
+  writeFileSync(join(dir, ".claude", "hooks", "fine.mjs"), "export const ok = 1;\n");
+  expect(run(dir)).toBe(0);
+  // RED: one unparseable hook beside the good one.
+  const broken = join(dir, ".claude", "hooks", "broken.mjs");
+  writeFileSync(broken, "export const broken = (;\n");
+  expect(run(dir)).not.toBe(0);
+  // …and THIS tree is green, which is what makes the stage a usable gate rather than a permanent red.
+  expect(run(REPO)).toBe(0);
+
+  // THE WHY, pinned rather than asserted in prose: a hook with a syntax error produces no decision at all.
+  // Non-zero exit + EMPTY stdout is exactly the shape the PreToolUse contract treats as a non-blocking
+  // error, i.e. the command runs with no guard in front of it.
+  const dead = spawnSync(process.execPath, [broken], { input: JSON.stringify(bashInput("git stash")), encoding: "utf8", env: env() });
+  expect(dead.status).not.toBe(0);
+  expect(dead.stdout.trim()).toBe("");
 });
 
 test("registration: settings.json wires this guard on PreToolUse, at a path that exists and can execute", () => {
