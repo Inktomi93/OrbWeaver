@@ -50,6 +50,56 @@ test("an edited overlay changes the observed selectors beyond what disk-only suc
   });
 });
 
+// The same closure proof for the OTHER two runners (#1584 resume step 2: a native observation must
+// evaluate the virtual bytes the ResourceReader transaction represents, and disk-only success cannot
+// certify an edited overlay). `ops/config-snapshot.int.test.ts` proves the process boundary stages helper
+// bytes for both; these two arms prove it at the seam a POLICY actually consumes — `loadNativeConfig` —
+// and each carries the disk-only counter-read that shows the unedited tree would have reported the other
+// value, so the overlay result cannot be a disk read wearing an overlay's name.
+test("an edited ESLint overlay changes the observed selectors, and the disk-only read of the same root does not", ({ scratch }) => {
+  writeFileSync(join(scratch, "package.json"), '{"type":"module"}\n');
+  writeFileSync(join(scratch, "eslint.config.js"), 'import { FILES } from "./selector-values.js";\nexport default [{ name: "disk", files: FILES }];\n');
+  writeFileSync(join(scratch, "selector-values.js"), 'export const FILES = ["disk/**/*.js"];\n');
+  gitInit(scratch);
+
+  const overlayOptions = { root: scratch, overlay: { "selector-values.js": 'export const FILES = ["src/**/*.js"];\n' } };
+  const overlaid = loadNativeConfig(createResourceReader(overlayOptions), overlayOptions, "eslint");
+  expect(overlaid).toMatchObject({
+    status: "ready",
+    value: { selectors: expect.arrayContaining([expect.objectContaining({ owner: "config[0]:disk", field: "files", value: "src/**/*.js" })]) },
+  });
+
+  const diskOptions = { root: scratch };
+  const diskOnly = loadNativeConfig(createResourceReader(diskOptions), diskOptions, "eslint");
+  expect(diskOnly).toMatchObject({
+    status: "ready",
+    value: { selectors: expect.arrayContaining([expect.objectContaining({ owner: "config[0]:disk", field: "files", value: "disk/**/*.js" })]) },
+  });
+});
+
+test("an edited dependency-cruiser overlay changes the observed selectors, and the disk-only read of the same root does not", ({ scratch }) => {
+  writeFileSync(
+    join(scratch, ".dependency-cruiser.cjs"),
+    'const { PATH } = require("./depcruise-helper.cjs");\nmodule.exports = { forbidden: [{ name: "r", from: { path: PATH }, to: {} }] };\n',
+  );
+  writeFileSync(join(scratch, "depcruise-helper.cjs"), 'exports.PATH = "^disk/";\n');
+  gitInit(scratch);
+
+  const overlayOptions = { root: scratch, overlay: { "depcruise-helper.cjs": 'exports.PATH = "^overlay/";\n' } };
+  const overlaid = loadNativeConfig(createResourceReader(overlayOptions), overlayOptions, "depcruise");
+  expect(overlaid).toMatchObject({
+    status: "ready",
+    value: { selectors: expect.arrayContaining([expect.objectContaining({ field: "path", value: "^overlay/" })]) },
+  });
+
+  const diskOptions = { root: scratch };
+  const diskOnly = loadNativeConfig(createResourceReader(diskOptions), diskOptions, "depcruise");
+  expect(diskOnly).toMatchObject({
+    status: "ready",
+    value: { selectors: expect.arrayContaining([expect.objectContaining({ field: "path", value: "^disk/" })]) },
+  });
+});
+
 test("an overlay deletion removes the deleted path from the reported inventory", ({ scratch }) => {
   writeFileSync(join(scratch, "vitest.config.ts"), 'export default { test: { include: ["tests/disk.test.ts"] } };');
   writeFileSync(join(scratch, "extra.txt"), "unrelated tracked file");
