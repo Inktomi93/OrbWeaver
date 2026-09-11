@@ -224,16 +224,19 @@ export const gate = defineGate({
         // biome-ignore lint/suspicious/noTemplateCurlyInString: gate self-proof fixture, not a template.
         "packages/ui/src/x/variants.ts": "export const v = tv({ base: `group-hover:hidden \\${MOTION}` });\n",
       },
+      expect: { count: 1, token: "group-hover:hidden" },
       why: "an interpolated template PART inside tv() — the variants-file carrier a plain-string scan misses",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/x/negated.tsx": `export const G = <div className="not-hover:hidden" />;\n` },
+      expect: { count: 1, token: "not-hover:hidden" },
       why: "the negation reads the same pointer state — `not-hover:hidden` swaps display on hover just as hard",
     },
     {
       mode: "source",
       files: { "packages/ui/src/x/arbitrary.tsx": `export const G = <div className="[&:hover]:hidden" />;\n` },
+      expect: { count: 1, token: "[&:hover]:hidden" },
       why: "the ARBITRARY-variant escape hatch: a hand-written `:hover` selector — proves the bracket-aware colon splitter",
     },
     {

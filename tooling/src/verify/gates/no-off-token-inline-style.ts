@@ -216,16 +216,19 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/demo/components/thing.tsx": 'export const G = <div style={{ borderRadius: "8px" }} />;\n' },
+      expect: { count: 1, token: "borderRadius" },
       why: "a raw-literal JSX inline style (borderRadius: '8px') — bypasses the className + CSS token gates",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/demo/negative.tsx": "export const G = <div style={{ margin: -8 }} />;\n" },
+      expect: { count: 1, token: "margin" },
       why: "#1506: a NEGATIVE off-token number. `-8` is a PrefixUnaryExpression, not a NumericLiteral, so this produced ZERO findings while `margin: 8` flagged — every negative offset was invisible",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/demo/named-number.tsx": "const GAP = 12;\nexport const G = <div style={{ gap: GAP }} />;\n" },
+      expect: { count: 1, line: 2, token: "gap" },
       why: "#1506: an identifier standing for the raw number — the rendered result is the same off-token gap",
     },
     {
@@ -233,26 +236,31 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/demo/bracket-target.tsx": 'export function f(el: HTMLElement): void {\n  el.style["borderRadius"] = "8px";\n}\n',
       },
+      expect: { count: 1, line: 2, token: "el" },
       why: '#1506: the bracket spelling of the imperative assignment target — `el.style["borderRadius"]` sets the same declaration as `el.style.borderRadius`',
     },
     {
       mode: "source",
       files: { "packages/ui/src/primitives/demo/demo.ts": 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n' },
+      expect: { count: 1, line: 2, token: "el" },
       why: "an imperative `.style.x = 'raw'` assignment — the second carrier the class gates can't see",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/demo/components/hex.tsx": 'export const G = <div style={{ color: "#fff" }} />;\n' },
+      expect: { count: 1, token: "color" },
       why: "a raw hex color in a JSX inline style — a token-backed color axis written off-token",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/demo/components/cast.tsx": 'export const G = <div style={{ borderRadius: "8px" as string }} />;\n' },
+      expect: { count: 1, token: "borderRadius" },
       why: 'a raw-literal inline style value wrapped in an AsExpression (`"8px" as string`) — the wrapped-literal shape the plain-literal reader silently PASSED before hardening',
     },
     {
       mode: "source",
       files: { "packages/ui/src/primitives/demo/setprop.ts": 'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n' },
+      expect: { count: 1, line: 2, token: "el" },
       why: "an imperative `.style.setProperty('gap','12px')` — the third carrier, a token-backed spacing axis",
     },
   ],

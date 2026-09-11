@@ -143,16 +143,19 @@ export const gate = defineGate({
         // biome-ignore lint/suspicious/noTemplateCurlyInString: gate self-proof fixture, not a template.
         "packages/ui/src/x/variants.ts": "export const v = tv({ base: `shadow-lg \\${MOTION}` });\n",
       },
+      expect: { count: 1, token: "shadow-lg" },
       why: "interpolated template PART (TemplateHead) inside tv() — the case a plain-string scan misses",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/x/bare.tsx": 'export const G = <div className="shadow" />;\n' },
+      expect: { count: 1, token: "shadow" },
       why: "bare `shadow` (no scale suffix) is a default-scale utility — flags",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/x/variant.tsx": 'export const G = <div className="hover:shadow-lg" />;\n' },
+      expect: { count: 1, token: "hover:shadow-lg" },
       why: "a variant-prefixed off-token shadow (hover:shadow-lg) — the terminal segment still flags",
     },
     {

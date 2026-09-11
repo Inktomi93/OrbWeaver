@@ -54,11 +54,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "tests/support/factories/user.ts": "export function makeUser(db: unknown) {\n  return db;\n}\n" },
+      expect: { count: 1, token: "makeUser" },
       why: "a `make*` pure builder accepting a db — it must stay db-free (§4)",
     },
     {
       mode: "source",
       files: { "tests/support/factories/seed-user.ts": "export function seedUser() {\n  return {};\n}\n" },
+      expect: { count: 1, token: "seedUser" },
       why: "a `seed*` persisted builder with NO db param — the persisted-must-have-db arm (distinct message)",
     },
     {
@@ -67,6 +69,7 @@ export const gate = defineGate({
         "tooling/src/example/tests/support/factories/nested.ts":
           "interface Database {}\nexport function makeNested(connection: Database) {\n  return connection;\n}\n",
       },
+      expect: { count: 1, line: 2, token: "makeNested" },
       why: "a nested authored factory and a non-db parameter whose Database type still violates the pure make contract",
     },
   ],

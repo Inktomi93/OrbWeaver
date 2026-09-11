@@ -63,16 +63,19 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export type createStartChat = () => void;\n" },
+      expect: { count: 1, token: "expected createStartChat" },
       why: "a same-spelled type is not a runtime verb factory",
     },
     {
       mode: "types",
       files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n" },
+      expect: { count: 1, token: "expected createStartChat" },
       why: "a non-callable runtime constant is not a verb factory",
     },
     {
       mode: "types",
       files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat: () => void = 1 as never;\n" },
+      expect: { count: 1, token: "expected createStartChat" },
       why: "a callable annotation cannot make the runtime initializer callable",
     },
   ],

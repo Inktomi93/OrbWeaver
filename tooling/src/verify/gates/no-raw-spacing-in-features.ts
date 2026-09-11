@@ -76,11 +76,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/test.tsx": 'const x = <div className="p-4" />;' },
+      expect: { count: 1, token: '"p-4"' },
       why: "raw spacing class in className",
     },
     {
       mode: "source",
       files: { "packages/client/src/test.tsx": 'const y = cn("gap-2", "text-black");' },
+      expect: { count: 1, token: '"gap-2"' },
       why: "raw spacing class in cn",
     },
   ],

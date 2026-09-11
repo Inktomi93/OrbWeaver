@@ -48,16 +48,19 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/components/foo.tsx": "export const A = () => <div data-testid='foo' />;\n" },
+      expect: { count: 1, token: "data-testid" },
       why: "freeform string literal testid",
     },
     {
       mode: "source",
       files: { "packages/client/src/components/foo.tsx": "export const A = () => <div data-testid={'foo' as string} />;\n" },
+      expect: { count: 1, token: "data-testid" },
       why: "a braced freeform testid wrapped in an AsExpression (`{'foo' as string}`) — the wrapped/braced-literal shape the plain StringLiteral reader silently PASSED before hardening",
     },
     {
       mode: "source",
       files: { "packages/client/src/components/foo.tsx": "export const A = () => <div data-testid={(`foo` satisfies string)} />;\n" },
+      expect: { count: 1, token: "data-testid" },
       why: "a no-substitution template remains a freeform testid through satisfies and parentheses",
     },
   ],

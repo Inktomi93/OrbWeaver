@@ -43,6 +43,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/a/data.ts": 'export const q = { queryKey: ["users", 1] };\n' },
+      expect: { count: 1, token: "queryKey" },
       why: "an inline array-literal queryKey — the neo drift a proxy-minted key locks out",
     },
     {

@@ -76,11 +76,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/test.tsx": 'const x = <div className="text-sm" />;' },
+      expect: { count: 1, token: '"text-sm"' },
       why: "raw typography class in className",
     },
     {
       mode: "source",
       files: { "packages/client/src/test.tsx": 'const y = cn("text-xl", "font-bold");' },
+      expect: { count: 1, token: '"text-xl"' },
       why: "raw typography class in cn",
     },
   ],
