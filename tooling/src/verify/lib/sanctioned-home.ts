@@ -19,6 +19,25 @@ export function sanctionedHome(homes: ExemptionTable, rel: string): string | und
   return Object.keys(homes).find((key) => covers(key, rel));
 }
 
+/** The final-contract equivalent of {@link homeFiles}: every file in an explicit resolved `files` list a
+ *  row covers, read through the policy's own `relativePath` rather than `ctx.project`/`ctx.root`. Additive
+ *  — the `GateRunCtx`-shaped `homeFiles`/`reportUnresolvedHomes` below are untouched for gates still on the
+ *  legacy contract. */
+export function coveredFiles(files: readonly SourceFile[], relativePath: (sourceFile: SourceFile) => string, key: string): readonly SourceFile[] {
+  return files.filter((sourceFile) => covers(key, relativePath(sourceFile)));
+}
+
+/** THE RENAME TRIPWIRE, migrated: the keys among `homes` whose row resolves to zero files among `files`.
+ *  Callers guard this on their own real-tree anchor (a fixture/mini-project run never loads the anchor, so
+ *  it never falsely claims every row dead) — see `GATE-AUTHORING.md` §4.5 and the callers below. */
+export function unresolvedSanctionedHomeKeys(
+  files: readonly SourceFile[],
+  relativePath: (sourceFile: SourceFile) => string,
+  homes: ExemptionTable,
+): readonly string[] {
+  return Object.keys(homes).filter((key) => coveredFiles(files, relativePath, key).length === 0);
+}
+
 /** Every loaded file one row covers — a directory row's whole subtree, a file row's single file. The
  *  substrate for a gate's own mode-A arm ("the home no longer carries the shape it is the home OF"),
  *  which only some homes can honestly claim. */

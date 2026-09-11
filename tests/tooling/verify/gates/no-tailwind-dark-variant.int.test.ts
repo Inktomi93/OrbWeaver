@@ -1,16 +1,20 @@
-// Integration proof for #954: exact candidates come from AST/declaration provenance first; Oxide only
-// tokenizes those candidates, and cross-file producer/consumer changes force whole-project deferral.
+// Integration proof for #954, migrated to the final `defineGate` contract (#1917). Exact candidates come
+// from AST/declaration provenance first; Oxide only tokenizes those candidates. The founding shapes, the
+// cross-file re-export report site, and the fail-closed unresolved-cycle arm are proven by the policy's own
+// `mustFlag`/`mustPass` rows through `verifyPolicyProofs` (see `tests/tooling/static-class-consumers.int.test.ts`).
+// This file keeps only what those isolated fixtures cannot show: that a multi-file real run with an
+// unresolved static cycle still completes (the per-occurrence finding is the receipt — see the gate's own
+// "NOT a ctx.receipt()" note), and that `execution: "entire-population"` defers under a narrowed scope —
+// the generic deferral mechanics are the planner's own contract, proven for every shape at
+// `tests/tooling/verify/lib/policy-plan.test.ts`; this pins it for this one real policy.
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
-import type { GatePassResult } from "../../../../tooling/src/verify/contract/pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
-import type { GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
-import { runPass, runScopedPass } from "../../../../tooling/src/verify/index.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 
-function baseFor(files: Readonly<Record<string, string>>): Omit<GateRunCtx, "report" | "scan"> {
+function projectFor(files: Readonly<Record<string, string>>): Project {
   const project = new Project({
     useInMemoryFileSystem: true,
     compilerOptions: { module: ModuleKind.NodeNext, moduleResolution: ModuleResolutionKind.NodeNext, jsx: 4 },
@@ -18,33 +22,11 @@ function baseFor(files: Readonly<Record<string, string>>): Omit<GateRunCtx, "rep
   for (const [path, text] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, text, { scriptKind: path.endsWith(".tsx") ? ScriptKind.TSX : ScriptKind.TS });
   }
-  return { root: ROOT, project, scope: { kind: "project" }, files: project.getSourceFiles(), checker: () => project.getTypeChecker() };
+  return project;
 }
 
-function passFor(files: Readonly<Record<string, string>>): GatePassResult {
-  const result = runPass([gate], baseFor(files));
-  expect(result.toolErrors).toEqual([]);
-  const pass = result.gates[0];
-  expect(pass).toBeDefined();
-  return pass as GatePassResult;
-}
-
-function findings(files: Readonly<Record<string, string>>): readonly Finding[] {
-  return passFor(files).findings;
-}
-
-test("Oxide candidates are checked for an exact top-level dark segment across bracket/paren nesting", () => {
-  const got = findings({
-    "packages/ui/src/x.tsx": `
-      export const A = <div className="[&:where(.x:y)]:dark:bg-card supports-[selector(:has(*))]:dark:text-foreground" />;
-      export const B = <div className="[&_.dark:x]:bg-card darkroom:bg-card" />;
-    `,
-  });
-  expect(got.map((finding) => finding.token)).toEqual(["[&:where(.x:y)]:dark:bg-card", "supports-[selector(:has(*))]:dark:text-foreground"]);
-});
-
-test("runtime-assembled dark prefix is a separate finding and unresolved static cycles fail loud", () => {
-  const pass = passFor({
+test("a multi-file real run with a runtime prefix and an unresolved static cycle completes and reports both", () => {
+  const project = projectFor({
     "packages/ui/src/x.tsx": `
       declare const tone: string;
       const A = B;
@@ -53,32 +35,25 @@ test("runtime-assembled dark prefix is a separate finding and unresolved static 
       export const Y = <div className={A} />;
     `,
   });
-  const got = pass.findings;
-  // Oxide emits no complete candidate for this partial string; the dedicated AST-prefix arm owns `dark:`.
-  expect(got.some((finding) => finding.token === "dark:")).toBe(true);
-  expect(got.some((finding) => finding.token?.startsWith("unresolved:") === true)).toBe(true);
-  expect(pass.scan.declared?.skipReasons).toMatchObject({ unresolved: 1, "opaque-runtime": 1 });
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  const owner = result.policies.find((policy) => policy.id === gate.id);
+  expect(owner?.owner.status).toBe("success");
+  expect(owner?.findings).toHaveLength(2);
+  expect(owner?.findings.some((finding) => finding.token === "dark:")).toBe(true);
+  expect(owner?.findings.some((finding) => (finding.message ?? "").includes("unresolved:"))).toBe(true);
 });
 
-test("a cross-file re-exported class is reported at its producer, not its JSX consumer", () => {
-  const got = findings({
-    "packages/ui/src/producer.ts": 'export const CARD = "dark:bg-card";\n',
-    "packages/ui/src/barrel.ts": 'export { CARD as SURFACE } from "./producer.ts";\n',
-    "packages/client/src/consumer.tsx": 'import { SURFACE } from "../../ui/src/barrel.ts";\nexport const X = <div className={SURFACE} />;\n',
-  });
-  expect(got).toHaveLength(1);
-  expect(got[0]).toMatchObject({ file: "packages/ui/src/producer.ts", line: 1, token: "dark:bg-card" });
-});
-
-test("producer-only and consumer-only scoped runs both defer the whole-project gate", () => {
-  const base = baseFor({
+test("a narrowed request defers the entire-population policy instead of running it partially", () => {
+  const project = projectFor({
     "packages/ui/src/producer.ts": 'export const CARD = "dark:bg-card";\n',
     "packages/client/src/consumer.tsx": 'import { CARD } from "../../ui/src/producer.ts";\nexport const X = <div className={CARD} />;\n',
   });
-  for (const path of ["packages/ui/src/producer.ts", "packages/client/src/consumer.tsx"]) {
-    const scope: Scope = { kind: "changed", paths: [path] };
-    const scoped = runScopedPass([gate], base, { scope, inScope: (candidate) => candidate === path });
-    expect(scoped.deferred.map((deferred) => deferred.name)).toEqual(["no-tailwind-dark-variant"]);
-    expect(scoped.pass.gates).toEqual([]);
+  for (const requestedPaths of [["packages/ui/src/producer.ts"], ["packages/client/src/consumer.tsx"]]) {
+    const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, requestedPaths, reviewedGrants: [], failOnWarnings: false });
+    expect(result.toolErrors).toEqual([]);
+    const owner = result.policies.find((policy) => policy.id === gate.id);
+    expect(owner?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
+    expect(owner?.findings).toEqual([]);
   }
 });
