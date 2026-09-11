@@ -660,6 +660,32 @@ comparison anchor is tinker commit `6c8424806704ac9322cc2ff5fe0334801b3d1801`, a
 re-derive the complete delta with `git diff 6c8424806 HEAD -- <the policy and its readers>`, including shared readers,
 native configs, hooks, moved source owners and tests. The per-row SHAs below are the evidence to read, not a roster.
 
+**WHAT #1351 ACTUALLY BUILT — read this before proposing any config, path, program or liveness work, because this
+program does NOT own these and has repeatedly tried to rebuild them.** Its own record is
+[`docs/history/type-worlds-program-2026-09-10.md`](../history/type-worlds-program-2026-09-10.md); the table below is
+the map, not a substitute for it. Note the dates: the gate program STARTED FIRST, so every gate-runtime review
+document predates this and describes a tree where none of it existed.
+
+| What #1351 built | Mechanism, and what it means for a conversion |
+| - | - |
+| **Program purity** — every authored TS file has an intended world and explicit compiler ownership | `_shared/project-worlds.ts` (intent) + `ops/tests-type-membership.ts` (enforcement). A file being IN some program is not being in the CORRECT program, and a correct root does not prove its imported closure is compatible. `types: []` disables ambient inclusion but does NOT stop imported declarations adding Node globals — ISO acceptance inspects the real declaration closure |
+| **Derived paths and programs** | The shared compiler reader (`lib/policy-program-membership.ts`) is the one parser: authored roots, imported closures, ambient worlds and references all come from it. **No directory heuristic and no hand-maintained per-program command table is authoritative.** `pnpm typecheck` discovers every runnable program; scoped verification forwards the affected set as repeated `--config` |
+| **Generated tsconfigs** | `verify baseline type-configs` WRITES the world templates and runnable configs from `_shared/type-config-intent.ts`; `--check` verifies freshness without writing. Package worlds, test kinds, helper homes and ambient scopes determine the generated fields. **Never hand-edit a generated field — change the intent.** Abstract templates carry `files: []` |
+| **vitest / playwright / CT liveness** | `verify config-snapshot vitest <config>` loads selector fields through Vitest's PUBLIC config loader; `runner-config-path-liveness` consumes that observation instead of interpreting imported JS. Exact paths keep field-specific file/directory semantics and repo containment; glob rows are explicitly reported as UNJUDGED |
+| **eslint liveness** | `ops/config-snapshot.ts` + `gates/eslint-grant-liveness.ts` (`084991033` / #1895). Real `ConfigArray` evaluation — default selection, local ignores/basePath, ordering and per-entry identities preserved. Whole execution is `pnpm lint:eslint`; a separate native discovery pass enumerates the same files with rules disabled, and that is DISCOVERY DATA, never a lint verdict |
+| **dependency-cruiser liveness** | `gates/depcruise-grant-liveness.ts`, same `native-config` shape as eslint. Both are `authority: "hard"` — which is WHY they work: a `native-config` declaration drags the whole repo inventory into the policy's resource population, and an ORDINARY consumer's waiver-carrier demand then throws on tracked symlinks |
+| **biome** | **No loader exists and none is coming** — `@biomejs/biome` ships `bin/biome` plus a schema, no `main`, no `exports`, no `@biomejs/js-api`, and no subcommand emits a resolved configuration. Biome is a strict JSON read. It is also a policy HOST, not only a lint config: `1bf7ff7d9` moved D12's import ban INTO biome's `noRestrictedImports`, and `0df3fa9d6` (#1245) ruled that **biome checking ZERO files is a REFUSAL, never a clean lint** |
+| **stryker** | `_shared/stryker-config.ts` composes both configs natively (`a24feaadb` / #1897). Derivation stays PURE — importing it cannot mutate the base Vitest config — and a native dry run proves loading and test execution but NEVER substitutes for mutation-score calibration |
+| **vite** | Not a liveness surface. The dev stack self-heals on source changes; workspace packages are source-consumed. It appears here only so nobody adds a vite gate looking for symmetry |
+
+**The rule that binds every row above** (#1351's own words): *"Preserve and adapt native-config liveness checks when
+selectors move behind imports or generated layers. A static reader that cannot follow the new form must REFUSE or be
+replaced by an effective-config witness, never silently pass."* `runner-config-path-liveness`'s documented refusal to
+convert is that rule working correctly, not a gap in this program. And #1351 scoped itself explicitly: *"the remaining
+gate conversions are not bundled into this program by default … the gate program remains a subsequent work queue."*
+So these are OUTPUTS we inherit and must convert without breaking — never evidence that the gate contract can already
+express them.
+
 | Guarantee | Current owners / evidence | Required proof |
 | - | - | - |
 | Test-kind registration and source mirroring | `_shared/test-kinds.ts`; `gates/test-layout.ts`; a8c4461db, #1862 follow-ups | registered DOM/runtime/type/suite kinds keep distinct meaning; unsupported test-shaped names fail, including in helper trees |
