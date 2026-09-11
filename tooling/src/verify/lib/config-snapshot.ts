@@ -1,5 +1,8 @@
 // Synchronous client for the private native-config snapshot worker. Gates remain synchronous; executable
 // runner config is evaluated only in the narrow niced child, and the parent accepts no malformed/partial JSON.
+
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
@@ -7,6 +10,7 @@ import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,
   ConfigSnapshotByRunner,
+  ConfigSnapshotReadOptions,
   ConfigSnapshotRunner,
   DepcruiseConfigSnapshot,
   DepcruiseConfigSnapshotField,
@@ -18,6 +22,8 @@ import type {
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
 import { DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
+import { materializeConfigSnapshotTransaction } from "../ops/config-snapshot-transaction.ts";
+import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
 const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
 const SNAPSHOT_TIMEOUT_MS = 30_000;
@@ -26,6 +32,10 @@ const SNAPSHOT_MAX_BUFFER = 16_777_216;
 export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =
   | { readonly kind: "ok"; readonly snapshot: ConfigSnapshotByRunner[R] }
   | { readonly kind: "unreadable"; readonly detail: string };
+
+function deletedByOverlay(path: string, overlay: Readonly<Record<string, string | null>>): boolean {
+  return Object.entries(overlay).some(([entry, value]) => value === null && (path === entry || path.startsWith(`${entry}/`)));
+}
 
 function oneOf<T extends string>(value: unknown, values: readonly T[]): value is T {
   return typeof value === "string" && (values as readonly string[]).includes(value);
@@ -179,15 +189,44 @@ function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: strin
   return parseDepcruiseSnapshot(snapshot, config);
 }
 
-export function readConfigSnapshot(root: string, runner: "vitest", config: string): ConfigSnapshotRead<"vitest">;
-export function readConfigSnapshot(root: string, runner: "eslint", config: string): ConfigSnapshotRead<"eslint">;
-export function readConfigSnapshot(root: string, runner: "depcruise", config: string): ConfigSnapshotRead<"depcruise">;
-export function readConfigSnapshot(root: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshotRead<ConfigSnapshotRunner> {
-  const child = runNicedSync(process.execPath, [SNAPSHOT_ENTRY, runner, config], {
-    cwd: root,
-    maxBuffer: SNAPSHOT_MAX_BUFFER,
-    timeout: SNAPSHOT_TIMEOUT_MS,
-  });
+export function readConfigSnapshot(root: string, runner: "vitest", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"vitest">;
+export function readConfigSnapshot(root: string, runner: "eslint", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"eslint">;
+export function readConfigSnapshot(root: string, runner: "depcruise", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"depcruise">;
+export function readConfigSnapshot(
+  root: string,
+  runner: ConfigSnapshotRunner,
+  config: string,
+  options: ConfigSnapshotReadOptions = {},
+): ConfigSnapshotRead<ConfigSnapshotRunner> {
+  const overlay = options.overlay ?? {};
+  const cache = join(root, ".cache");
+  let transaction: ReturnType<typeof materializeConfigSnapshotTransaction> | undefined;
+  let requestDirectory: string | undefined;
+  let child: ReturnType<typeof runNicedSync>;
+  try {
+    transaction = Object.keys(overlay).length === 0 ? undefined : materializeConfigSnapshotTransaction({ root, overlay });
+    const args = [SNAPSHOT_ENTRY, runner, config];
+    if (transaction !== undefined && runner === "eslint") {
+      const population = readPolicyRepositoryInventory(root).trackedPaths.filter((path) => !deletedByOverlay(path, overlay));
+      mkdirSync(cache, { recursive: true });
+      requestDirectory = mkdtempSync(join(cache, "config-snapshot-request-"));
+      const manifest = join(requestDirectory, "eslint-population.json");
+      writeFileSync(manifest, JSON.stringify(population));
+      args.push("--eslint-population", manifest);
+    }
+    child = runNicedSync(process.execPath, args, {
+      cwd: transaction === undefined ? root : transaction.root,
+      maxBuffer: SNAPSHOT_MAX_BUFFER,
+      timeout: SNAPSHOT_TIMEOUT_MS,
+    });
+  } catch (error) {
+    return { kind: "unreadable", detail: error instanceof Error ? error.message : String(error) };
+  } finally {
+    transaction?.cleanup();
+    if (requestDirectory !== undefined) {
+      rmSync(requestDirectory, { recursive: true, force: true });
+    }
+  }
   if (child.status !== 0) {
     const detail = child.stderr.trim() || child.stdout.trim() || `child exited ${String(child.status)}`;
     return { kind: "unreadable", detail };

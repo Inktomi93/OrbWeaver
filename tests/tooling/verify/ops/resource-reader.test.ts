@@ -52,6 +52,22 @@ test("raw byte and NUL counts do not depend on UTF8 text decoding", ({ scratch }
   expect(reader.read("bytes/empty.txt").status).toBe("empty");
 });
 
+test("an authored transaction snapshot preserves binary bytes and overlay identity", ({ scratch }) => {
+  writeFileSync(join(scratch, "raw.bin"), Buffer.from([255, 0, 10]));
+  writeFileSync(join(scratch, "gone.bin"), Buffer.from([1]));
+  const result = createResourceReader({ root: scratch, overlay: { "virtual.txt": "overlay", "gone.bin": null } }).snapshot(["raw.bin", "virtual.txt"]);
+  expect(result.status).toBe("ready");
+  if (result.status !== "ready") {
+    throw new Error(result.reason);
+  }
+  expect(result.paths).toEqual(["raw.bin", "virtual.txt"]);
+  expect(result.value.map((entry) => ({ path: entry.path, kind: entry.kind, origin: entry.origin }))).toEqual([
+    { path: "raw.bin", kind: "file", origin: "disk" },
+    { path: "virtual.txt", kind: "file", origin: "overlay" },
+  ]);
+  expect(result.value[0]?.kind === "file" ? [...result.value[0].bytes] : []).toEqual([255, 0, 10]);
+});
+
 test("file snapshots survive disk edits and a new invocation observes the change", ({ scratch }) => {
   writeFileSync(join(scratch, "data.txt"), "before");
   const first = createResourceReader({ root: scratch });
@@ -77,6 +93,7 @@ test("missing facts remain missing within an invocation and refusals never becom
 test("invalid and conflicting overlay paths are refused before acquisition", ({ scratch }) => {
   expect(() => createResourceReader({ root: scratch, overlay: { "../outside.ts": "x" } })).toThrow(/path/);
   expect(() => createResourceReader({ root: scratch, overlay: { a: null, "a/b.ts": "x" } })).toThrow(/conflicting/);
+  expect(() => createResourceReader({ root: scratch, overlay: { "node_modules/pkg/index.ts": "x" } })).toThrow(/non-authored/);
   const reader = createResourceReader({ root: scratch });
   expect(() => reader.read("/absolute")).toThrow(/path/);
 });

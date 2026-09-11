@@ -67,3 +67,13 @@ export interface ConfigSnapshotByRunner {
 }
 
 export type ConfigSnapshot = ConfigSnapshotByRunner[ConfigSnapshotRunner];
+
+export interface ConfigSnapshotReadOptions {
+  readonly overlay?: Readonly<Record<string, string | null>>;
+}
+
+export interface ConfigSnapshotTransaction {
+  readonly root: string;
+  readonly paths: readonly string[];
+  readonly cleanup: () => void;
+}
