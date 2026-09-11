@@ -8,7 +8,7 @@
 // lookalike arm, proven separately).
 //
 // The real-module arms (one REAL legacy descriptor + REAL final policies loaded and executed through the CLI door
-// in one invocation) live in tests/tooling/verify/ops/structure-mixed.int.test.ts; this file proves the loader.
+// in one invocation) live in tests/tooling/verify/ops/structure-mixed.suite.int.test.ts; this file proves the loader.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
