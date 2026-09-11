@@ -131,12 +131,18 @@ family.
    `waivedFindings === 1`; naming the twin `mustFlag` row in its `why` is legibility, not correctness.
    **Build the arm on a fixture that produces exactly ONE finding**, because one marker consumes one occurrence: a
    founding row that fires twice (an import door plus its call site, as in `no-forward-ref`) leaves the second finding
-   effective and fails the row. Use the member or namespace arm instead and state the cardinality in the `why`. This is
-   the arm-authoring face of a standing rule — **finding granularity must match waiver granularity, and two findings in
-   ONE statement make a site unwaivable** (`checkpoint-2026-09-05.md`), since a single marker matching both is
-   over-broad and suppresses neither. Findings in DIFFERENT statements stay waivable with one marker each. An ordinary
-   policy whose shape cannot be suppressed by any marker has no working door and was mis-authored; #1954 classifies the
-   corpus. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
+   effective and fails the row. Use the member or namespace arm instead and state the cardinality in the `why`. This is the arm-authoring face of a
+   standing rule — **finding granularity must match waiver granularity** — whose exact predicate is POSITION identity,
+   not statement identity. `ordinary-waiver.ts` narrows candidates TWICE: carrier containment, then exact
+   `finding.token === marker.position`. So two findings inside one statement are still separately waivable when their
+   position tokens DIFFER (`className="rounded-lg shadow-md"` takes two markers), and a site is unwaivable only when
+   two findings share the same carrier AND the same token — then every marker is `over-broad` and suppresses neither,
+   and adding markers makes it worse. `checkpoint-2026-09-05.md` states this as "two findings per statement", which is
+   the approximate form; the predicate above was measured against the corpus by planting real markers (#1954: 37 of 40
+   multi-finding rows waivable, 3 not). **The shape that produces it** is a report call inside a loop, or one shared
+   anchor spread into two report calls — both emit byte-identical findings. An ordinary policy with such a shape has no
+   working door and was mis-authored; fix by reporting once per call site or giving each finding its own subject
+   anchor. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
    `cp`-backed copy, run the family test, expect `AUTHORITY ALARM … names a dead position`, then `mv` the backup back.
    That converts "my arm is green" into "my arm discriminates".
 
