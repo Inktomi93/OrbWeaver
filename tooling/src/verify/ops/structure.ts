@@ -31,7 +31,7 @@ import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
 import { populationAlarms } from "../lib/population.ts";
 import { renderPass, renderPolicyPass } from "../lib/render.ts";
-import { REVIEWED_GRANTS } from "../lib/reviewed-grants.ts";
+import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { finalToolErrorCount, policyReport, policyRows } from "../lib/structure-report.ts";
 import { policyTimingAlarms, policyTimingLine, timingAlarms, timingLine } from "../lib/timing.ts";
 
@@ -135,8 +135,11 @@ function keepProbeFindings(): boolean {
 }
 
 /** The FINAL dispatcher over the SAME Project the legacy pass walked: the full roster as `knownPolicies` (a
- *  narrower roster manufactures unknown-policy waiver alarms) and the WHOLE central grant table (a filtered table
- *  would silence a row naming a legacy gate or a deleted policy; `validateReviewedGrants` is the loud path). */
+ *  narrower roster manufactures unknown-policy waiver alarms) and the grant rows that name a LOADED policy. The
+ *  door filters (`reviewedGrantsFor`) so a partial roster — every planted tree, every future scoped policy
+ *  selection — is not buried under `invalid-grant` errors for rows naming policies it never loaded; the
+ *  WHOLE table against the WHOLE roster is the conformance stage's job (ops/policy-conformance-stage.ts), where a
+ *  row naming a legacy gate, a deleted policy or a non-reviewed-grant policy is a tool error on every check. */
 function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | "scan">): PolicyPassResult | null {
   if (corpus.final.length === 0) {
     return null;
@@ -146,7 +149,7 @@ function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | 
     policies: corpus.final,
     root: ctx.root,
     project: ctx.project,
-    reviewedGrants: REVIEWED_GRANTS,
+    reviewedGrants: reviewedGrantsFor(corpus.final),
     failOnWarnings: false,
   });
   return keepProbeFindings() ? raw : stripProbePolicyFindings(raw);

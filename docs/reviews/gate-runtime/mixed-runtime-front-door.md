@@ -105,11 +105,13 @@ final  = corpus.final.length === 0 ? null :
   `packages/*/src`, `tests`, `tooling/src`, `scripts` — the same universe every composed baseline in the checkpoint
   loaded. The lazy checker is `project.getTypeChecker()` on both sides (ts-morph caches it on the Project). Both
   dispatchers bracket their own `beginReferencePass`/`endReferencePass`; they run sequentially. Measured in §8.
-- **Grants.** `REVIEWED_GRANTS` whole, not `reviewedGrantsFor(final)`. With the FULL roster as `knownPolicies` the
-  two are byte-identical when the table is consistent; when it is not, the filter is a SILENCER (a row naming a legacy
-  gate or a deleted policy vanishes) and `validateReviewedGrants` is the loud path (`invalid-grant … targets an unknown
-  policy`, `lib/gate-authority-validation.ts:55-64` — a tool error). The brief named `reviewedGrantsFor`; its WHY
-  (partial rosters manufacturing unknown-policy alarms) does not apply to a full-roster door. Deviation, with receipt.
+- **Grants.** The door passes `reviewedGrantsFor(corpus.final)` — the brief's spelling, and the only one that keeps a
+  PARTIAL roster honest: with the whole table, every planted tree and every future scoped policy selection drowns in
+  `invalid-grant` errors for rows naming policies it never loaded (measured while writing the mixed test: ~100 per
+  planted run). The silence that filter would otherwise buy — a row naming a legacy gate or a deleted policy vanishing —
+  is closed where it is a WHOLE-corpus fact: the conformance stage validates `REVIEWED_GRANTS` against the whole final
+  roster on every check (`validateReviewedGrants`, `lib/gate-authority-validation.ts:55-76`: unknown policy, wrong
+  authority, duplicate id/identity are tool errors naming the row). Two doors, one loud answer each.
 - **Empty final roster** (a planted tree with only legacy gates): `runPolicyPass` refuses an empty policy array, so the
   door records `policy: null` and the manifest says `final.registered: 0`; the legacy half is unchanged
   (`structure.int.test.ts`'s planted controls keep their meaning).
@@ -134,7 +136,10 @@ existing ruling; a follow-up if the owner wants them promoted.
 | `REVIEWED_GRANTS` row | final reviewed-grant policies only | naming an ordinary/hard final policy → `invalid-grant-authority` tool error; naming a legacy gate or nothing → `invalid-grant` tool error |
 
 Nothing on the legacy side reads `@orb-waive`; nothing on the final side reads `@orb-gate-ignore`. The mixed test drives
-each row of the table.
+each row of the table. DECLARED LIMIT (the engine's, pre-existing): the final side acquires `@orb-waive` carriers only
+from its policies' EFFECTIVE populations (`policy-pass.ts#ordinaryWaiverAcquisition`), so a marker in a file no final
+policy covers is unread — on the real tree every authored TS/TSX path sits in some final population; in a partial
+roster it may not (the mixed test plants its alarm carrier inside `@client` for that reason).
 
 ### 3.3 Report schema mapping (`reports/check-structure.json`, one artifact, one reader)
 
@@ -253,7 +258,7 @@ renamed in a scratch copy.
 | A second `structure` artifact / a `policies[]` array beside `gates[]` | "no second artifact, no second reader"; two arrays would split the roster and every `check:show` filter would need two loops. One discriminated roster keeps every existing reader working on the union. |
 | Synthesising a legacy `GateScan` for final rows | An adapter making a policy look like a descriptor at the report layer; final rows carry their own population/receipt vocabulary instead. |
 | Collect loader refusals and continue (a `refused[]` roster) | Both loaders' law is fail-closed at load with the path in sorted order; the #410 controls pin the in-flight stub for load failures. A refused load is not a verdict at all, which is honest. Recorded as the alternative; revisit at legacy deletion. |
-| `reviewedGrantsFor(final)` at the front door | A silencer for a misrouted row once the roster is full (§3). |
+| `REVIEWED_GRANTS` whole at the front door | Buries every partial roster under `invalid-grant` errors (planted trees, scoped selections); the whole-table check is whole-corpus by nature and lives in the conformance stage (§3, §4). |
 | Skip `@orb-waive` acquisition for scoped runs | The engine's alarms are completion-bound already; nothing to add. |
 | Make `factReceiptFailures` presence-only again for #1948 | Reopens the fail-open fact hole ab675b23b closed, against §12.3; its four controls would go red. |
 | Special-case health policies in the dispatcher | An adapter by another name. |
