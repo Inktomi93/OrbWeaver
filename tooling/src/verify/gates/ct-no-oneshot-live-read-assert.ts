@@ -272,6 +272,13 @@ export const gate = defineGate({
       },
     ],
   }),
+  // EXPECTATION DISCRIMINATORS, #1935. This policy has exactly ONE `report.node` call (above) and ONE
+  // policy-level `message`, and that call passes a CONSTANT `token: "expect"`. So `messageIncludes` and
+  // `token` are both tautologies here — they match every finding this policy can ever emit, and a row
+  // carrying only one of them asserts nothing beyond "at least one effective finding exists"
+  // (`expectationFailure` returns early once one does). The expectation shape has no `column`, so
+  // `count` + `line` are the only real discriminators and every row below carries both. Each `count` was
+  // re-derived by running the row, not read off the fixture by eye.
   mustFlag: [
     {
       mode: "source",
@@ -279,7 +286,7 @@ export const gate = defineGate({
         "tests/client/data/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
       },
-      expect: { messageIncludes: "MUTABLE ASYNC" },
+      expect: { count: 1, line: 3 },
       why: "the create-entity-mutation flake verbatim — a bare `expect(recorder.count(...)).toBe(N)` read before the async call registered",
     },
     {
@@ -288,7 +295,7 @@ export const gate = defineGate({
         "tests/ui/content/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  expect(await dialog.evaluate((n) => n.contains(document.activeElement))).toBe(true);\n});\n',
       },
-      expect: { messageIncludes: "MUTABLE ASYNC" },
+      expect: { count: 1, line: 3 },
       why: "the lightbox focus-trap flake — a bare `expect(await locator.evaluate(...activeElement...)).toBe(true)` focus read",
     },
     {
@@ -297,7 +304,7 @@ export const gate = defineGate({
         "tests/ui/charts/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ canvas }) => {\n  expect((await canvas.boundingBox())?.width).toBeGreaterThan(300);\n});\n',
       },
-      expect: { messageIncludes: "MUTABLE ASYNC" },
+      expect: { count: 1, line: 3 },
       why: "the chart-resize flake — a bare `expect(await locator.boundingBox()?.width).toBeGreaterThan(...)` one-shot rect read",
     },
     {
@@ -306,7 +313,7 @@ export const gate = defineGate({
         "tests/ui/primitives/snap.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  const el = document.activeElement;\n  expect(el).toBe(document.body);\n});\n',
       },
-      expect: { messageIncludes: "MUTABLE ASYNC" },
+      expect: { count: 1, line: 4 },
       why: "an `activeElement` snapshot captured into a local then asserted non-retrying — the variable-capture focus-read shape",
     },
     {
@@ -315,8 +322,8 @@ export const gate = defineGate({
         "tests/ui/pane.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("live", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\ntest("static", () => {\n  const text = "settled";\n  expect(text).toBe("settled");\n});\n',
       },
-      expect: { count: 1, messageIncludes: "MUTABLE ASYNC" },
-      why: "symbol identity matters: the live-read local is flagged while a same-named local in another test scope stays clean",
+      expect: { count: 1, line: 4 },
+      why: "symbol identity matters: the live-read local (line 4) is flagged while the same-named local in the second test scope (line 8) stays clean — `count: 1` is the half of this claim that the clean scope rests on",
     },
     {
       mode: "source",
@@ -324,8 +331,8 @@ export const gate = defineGate({
         "tests/ui/taint.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("box", async ({ pane }) => {\n  const box = await pane.boundingBox();\n  expect(box?.width).toBeGreaterThan(0);\n});\ntest("text", async ({ pane }) => {\n  const text = (await pane.textContent())?.trim().toLowerCase();\n  expect(text).toBe("ready");\n});\n',
       },
-      expect: { count: 2, messageIncludes: "MUTABLE ASYNC" },
-      why: "property selection and pure transforms do not settle the mutable DOM snapshot",
+      expect: { count: 2, line: 4 },
+      why: "property selection and pure transforms do not settle the mutable DOM snapshot — both locals flag; `line` pins the `box?.width` read at line 4 and `count: 2` holds the `text` read at line 8, which the expectation shape cannot name individually",
     },
   ],
   mustPass: [
