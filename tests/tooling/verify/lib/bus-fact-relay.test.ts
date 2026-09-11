@@ -9,6 +9,7 @@ import { Project } from "ts-morph";
 import type { BusFact } from "../../../../tooling/src/verify/contract/bus-fact.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { busDefinitionFact } from "../../../../tooling/src/verify/lib/bus-definition-fact.ts";
 import { busProducerFact } from "../../../../tooling/src/verify/lib/bus-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -339,6 +340,84 @@ test("a local function named publish credits nothing", () => {
   });
   expect(fact.unresolved).toEqual([]);
   expect(emittedMembers(fact, "ProbeBusEvent")).toEqual([]);
+});
+
+test("an EMPTY census is DELIVERED to its consumers — the provider receipt is not the accuser", () => {
+  // THE #1955 REGRESSION ROW. The provider receipt used to carry the census counts, and
+  // `factReceiptFailures` refuses `members === 0` / `unresolved > 0` and withholds every consumer BEFORE
+  // `evaluate`. So the one corpus `bus-fact-health` exists to accuse — an authored tree with no bus union
+  // at all — could never reach the policy that accuses it: its `mustFlag[0]` read as a FACT TOOL ERROR and
+  // `pnpm check:policy-conformance` sat at exit 2, unusable as a commit bar. The census's emptiness is the
+  // fact's own modelled VALUE; it is delivered, and `bus-fact-health` (hard/error) is what reports it.
+  const { fact, result } = runFact({ "packages/server/src/domain/settings/plain.ts": "export const plain = 1;\n" });
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(fact.status).toBe("empty");
+  expect(fact.receipt.members).toBe(0);
+  expect(fact.unresolved.map(({ stage, reason }) => `${stage}/${reason}`)).toEqual(["union/missing"]);
+});
+
+test("a provider that can look at NOTHING still refuses — and withholds only ITS OWN consumers", () => {
+  // THE PLANTED CONTROL for the row above: moving the census counts out of the receipt must not disarm
+  // blindness. It does not — it moves the refusal one phase EARLIER. A corpus holding only a client file
+  // admits zero paths for the producer fact's `@contracts`/`@server` population, so `bus-producers` refuses
+  // at its population phase and every policy declaring it is withheld, while `bus-definitions` — whose
+  // population does reach that file — runs to success and its consumer evaluates. Per-provider failure, not
+  // a family-wide blackout.
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/packages/client/src/x.ts`, "export const x = 1;\n");
+  const producerProbe = defineGate({
+    id: "bus-producer-wide-probe",
+    family: "bus-fact",
+    authority: "hard",
+    severity: "error",
+    population: { in: ["@contracts", "@client", "@server"], ext: ["ts", "tsx"] },
+    analysis: "types",
+    execution: "entire-population",
+    facts: [busProducerFact],
+    resources: [],
+    message: "bus producer wide probe",
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.fact(busProducerFact);
+        ctx.receipt({ kind: "population", source: "bus-producer-wide-probe", members: 1 });
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/server/src/flag.ts": "export const flag = 1;\n" }, why: "descriptor proof control" }],
+    mustPass: [{ mode: "types", files: { "packages/server/src/pass.ts": "export const pass = 1;\n" }, why: "descriptor proof control" }],
+  });
+  const defProbe = defineGate({
+    id: "bus-definition-probe",
+    family: "bus-definition",
+    authority: "hard",
+    severity: "error",
+    population: { in: ["@contracts", "@client", "@server"], ext: ["ts", "tsx"] },
+    analysis: "types",
+    execution: "entire-population",
+    facts: [busDefinitionFact],
+    resources: [],
+    message: "bus definition probe",
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.fact(busDefinitionFact);
+        ctx.receipt({ kind: "population", source: "bus-definition-probe", members: 1 });
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/server/src/flag.ts": "export const flag = 1;\n" }, why: "descriptor proof control" }],
+    mustPass: [{ mode: "types", files: { "packages/server/src/pass.ts": "export const pass = 1;\n" }, why: "descriptor proof control" }],
+  });
+  const result = runPolicyPass({
+    knownPolicies: [producerProbe, defProbe],
+    policies: [producerProbe, defProbe],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.factErrors.map(({ factId, phase }) => `${factId}/${phase}`)).toEqual(["bus-producers/population"]);
+  expect(result.facts.map(({ id, status }) => `${id}/${status}`)).toEqual(["bus-definitions/success", "bus-producers/incomplete"]);
+  expect(result.policies.map(({ id, owner }) => `${id}/${owner.status}`)).toEqual(["bus-definition-probe/success", "bus-producer-wide-probe/incomplete"]);
+  expect(result.toolErrors[0]?.message).toContain("declared fact failed: bus-producers");
 });
 
 test("a local arrow bound to the name publish credits nothing", () => {
