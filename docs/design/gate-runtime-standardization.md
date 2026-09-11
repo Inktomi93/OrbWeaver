@@ -6,11 +6,12 @@ updated: 2026-09-11
 
 # One ts-morph runtime for every Orb gate
 
-This replaces the cancelled custom-ESLint Orb-policy cutover and supersedes [gate-config-system.md](gate-config-system.md). Native Biome/ESLint/community rules continue to own generic ecosystem lint. Every Orb-specific policy uses one ts-morph runtime and one capability contract. The migration is built in an isolated branch and lands atomically; no production state supports old and new descriptors together.
+This replaces the cancelled custom-ESLint Orb-policy cutover and supersedes [gate-config-system.md](gate-config-system.md). Native Biome/ESLint/community rules continue to own generic ecosystem lint. Every Orb-specific policy uses one ts-morph runtime and one capability contract. The migration was built on the `codex/world-gate-integration` branch until 2026-09-11, when the owner fast-forwarded `main` onto it; it continues on `main`. The production loader stays legacy until the atomic cutover, so the tree carries both descriptor shapes mid-implementation and every whole-tree check (`pnpm check`, the pre-commit hook, `check-gates.repo.int.test.ts`) is RED by construction until cutover: that red is baseline, never a lane's defect and never laundered green. Scoped floors are the per-change verdict, and commits bypass the pre-commit hook by owner order until cutover, naming the scoped floor they ran. No production state will support old and new descriptors together after cutover.
 
 ## Resume after world-program closeout
 
-Resume on `codex/world-gate-integration`; #1584 owns mutable work and this document owns
+Resume on `main` (the integration branch was folded into it on 2026-09-11; lanes run in isolated
+worktrees off `main` and fast-forward back); #1584 owns mutable work and this document owns
 dependency order and acceptance. World-program #1351 is complete; its
 [archived record](../history/type-worlds-program-2026-09-10.md) and
 [final gate handoff](https://github.com/Inktomi93/orbweaver/issues/1584#issuecomment-5626608760)
