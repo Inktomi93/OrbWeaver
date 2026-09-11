@@ -48,7 +48,7 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 
    **Apply the guide's STALENESS RULE to every one of them**: the gate program predates the type-worlds program
    (#1351), so a 2026-09-05/06 document's "blocked", "required" or "missing" may have been satisfied or retired by
-   #1351 rather than by us. Re-derive against the tree before acting. Two carry superseded ATOMIC-premise banners —
+   \#1351 rather than by us. Re-derive against the tree before acting. Two carry superseded ATOMIC-premise banners —
    read the banner before citing the body, and brief a lane off the banner. Constitution §0.1 makes a lane follow a doc
    over your brief, so an unbannered stale premise misbriefs silently.
 
@@ -68,8 +68,12 @@ order); §12 is what lanes read. This file is what YOU do, in order.
   decisions get rows. `done` only after the verifier CONFIRMED; `--evidence` under \~700 characters; `refute` returns a
   Verify row to Ready with the fix spec as its evidence.
 - Conversion lanes translate their own legacy markers in the same commit (comment-only edits under `packages/**` and
-  `tests/**` are inside that lane's fence). The pre-existing backlog (315 `ONESHOT-OK` in CT files, 55 `@owner-scope*`
-  under `packages/server`) is one mech-executor lane, resumed from its worktree.
+  `tests/**` are inside that lane's fence). **The pre-existing backlog that was 315 `ONESHOT-OK` in CT files plus 55
+  `@owner-scope*` under `packages/server` is CLOSED — both measure ZERO live markers (2026-09-11 evening); every
+  remaining site is a gate self-quote, an engine fixture, or explanatory prose.** What is NOT closed is the rest of the
+  taxonomy: guide §7's NINE KINDS table, and its dated per-grammar census. Three grammars still carry 12 live markers
+  and all three owners are still legacy, so they are PARKED behind the owner-is-final fence and convert with their
+  gates — they are not a lane.
 - **ESCALATION: ASK-AND-CONTINUE is the default; REFUSE-AND-STOP is the exception.** A lane that needs something it
   does not have **SendMessages you, you rule, and it goes back to work** — it does not die with a receipt. Refusal is
   correct for exactly two cases: the work is genuinely outside its fence (a sibling lane owns the file, or it would
@@ -89,7 +93,15 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
 
 **Phase B — three slots, after A.**
 
-1. Marker backlog: resume `.claude/worktrees/agent-a588b7202b748d71e`, **checkpointed at `8f1b31897` (121 files) — the
+1. ~~Marker backlog~~ **DONE — both vocabularies measure ZERO live markers (2026-09-11 evening), and worktree
+   `agent-a588b7202b748d71e` is contained (`main..HEAD` = 0, clean), so its work is on `main`.** Verified by the
+   marker-form predicate, not a mention count: every surviving `ONESHOT-OK` site is the gate's own grammar string
+   (`ct-no-oneshot-live-read-assert.ts`), the legacy engine (`lib/gate-ignore.ts`) or one fixture suite; every
+   surviving `@owner-scope*` site is explanatory prose, which the three gate headers state themselves
+   (`owner-scoped-reads.ts:13,17`, `owner-scoped-writes.ts:32,36`, `owner-scoped-upserts.ts:13`). **Do not re-open
+   this as "the marker backlog" — the remaining work is per-grammar and lives in guide §7's NINE KINDS table.**
+   Original brief, kept for the adjudication shapes it names, which recur in every marker lane:
+   resume `.claude/worktrees/agent-a588b7202b748d71e`, **checkpointed at `8f1b31897` (121 files) — the
    lane does NOT redo it, it rebases onto `main` first**. Both vocabularies are substantially translated: the
    `@owner-scope*` markers under `packages/server` AND \~110 CT files of `ONESHOT-OK`. mech-executor. The checkpoint
    contains **26 non-comment diff lines that must each be adjudicated** before merge, in two shapes: a trailing marker
@@ -122,7 +134,7 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
    §4.2 — positive same-position arm per tenancy policy, delete the vacuous negative arms — then item 2: the
    `test-no-stubs` cross-file fixture whose offsets must actually OVERLAP (the prior attempt's never did), plus its
    `@tests` header note. That fixture is an invented row for a new property, so it owes a planted break. This is
-   #1935's rework, already Running and claimed; `review` → `verify` → verifier → `done`.
+   \#1935's rework, already Running and claimed; `review` → `verify` → verifier → `done`.
 3. \#1946 guard residuals (Sonnet mech-executor; hook + its pin + `registry.test.ts`; both-direction pins; no-loosening
    A/B over the pin ROWS table).
 
@@ -130,7 +142,7 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
 gates in a pristine place before converting old ones"). Precedes C and D.**
 
 **DONE 2026-09-11:** the conformance bar itself. `pnpm check:policy-conformance` is **0 failures, exit 0** at
-`097958302` (162 policies · 1,471 rows · ~10.7 s), down from 95 failures that morning. Both remaining failures were
+`097958302` (162 policies · 1,471 rows · \~10.7 s), down from 95 failures that morning. Both remaining failures were
 one class, closed by #1953 (`registry-fact`, per subject) and #1955 (`bus-fact` + `bus-definition-fact`, per
 provider): a provider receipting what it FOUND rather than what it MEASURED, which preempts its own `-health`
 accuser. The rule is guide §12.3. Also done: the `mustFlag`/`expect` half (39 rows, `cf38cd6df`), #1954 in full
@@ -144,7 +156,7 @@ honestly, or told the truth in its `message`. What green bought is that the audi
 tree tells you the moment a fix breaks a row.
 
 **Why this precedes D and is not optional polish:** the converted set is the transmission mechanism for the other
-106. A defect left in an exemplar gets copied, so B2 debt is the only debt in this program that multiplies.
+106\. A defect left in an exemplar gets copied, so B2 debt is the only debt in this program that multiplies.
 
 1. **The §5b exemplar audit — the main event.** Seven criteria per module over 162 modules. `verifier`-class lanes at
    family granularity, one family per lane, a per-module verdict line required so a miss surfaces as a missing row
@@ -155,7 +167,7 @@ tree tells you the moment a fix breaks a row.
 2. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
    every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
    dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
-   batches of ~8 by family, self-checking
+   batches of \~8 by family, self-checking
    (guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
 3. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
    and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
@@ -196,7 +208,7 @@ filesystem read" — it imports `existsSync` at :22 and calls it at :109). **Ver
 | - | -: | - |
 | servable by an authored-tree id that ALREADY EXISTS | 6+ | `tooling-slot-template`, `ui-primitive-structure`, `tooling-instrument-proof`, `test-layout`, `gate-ignore-inventory`, `db-structure`. Zero new capability — unconverted, not blocked |
 | DATA entries in existing enums | 3 | `docs` and `scripts` ids absent from `AUTHORED_TREE_PATHS` (12 ids, `resource-tree.ts:4-17`); `biome` and `typescript` absent from `CONFIG_SNAPSHOT_RUNNERS` |
-| ONE new declarable kind — arbitrary tracked-file TEXT | ~10 | **Already built and private.** `ResourceHost.ordinaryWaiverCarriers(paths)` (`contract/resource-host.ts:30-33`) is exactly it: comment-aware, demand-driven text snapshots of exact demanded paths, sourced from declared doors. No shipped kind returns text for an arbitrary path — `ResourceTreeEntry` is metadata only (`resource.ts:24-31`), `TrackedResourceIndex` is `{ repoPaths }` (`:51-53`), `STATIC_CONFIG_RESOURCE_PATHS` is closed at five (`resource-config.ts:19-25`). Exposing this one door covers the ledgers, the docs corpus, the test mirrors and the manifests |
+| ONE new declarable kind — arbitrary tracked-file TEXT | \~10 | **Already built and private.** `ResourceHost.ordinaryWaiverCarriers(paths)` (`contract/resource-host.ts:30-33`) is exactly it: comment-aware, demand-driven text snapshots of exact demanded paths, sourced from declared doors. No shipped kind returns text for an arbitrary path — `ResourceTreeEntry` is metadata only (`resource.ts:24-31`), `TrackedResourceIndex` is `{ repoPaths }` (`:51-53`), `STATIC_CONFIG_RESOURCE_PATHS` is closed at five (`resource-config.ts:19-25`). Exposing this one door covers the ledgers, the docs corpus, the test mirrors and the manifests |
 | a shared `defineFact`, NOT a kind | 4 | `integer-line-boxes`, `motion-token-purity`, `rest-transform-grid`, `over-art-plate-arm` each re-implement the SAME recursive `.css` walk over `packages/{ui,client}/src`. One census fact over `authored-css` absorbs all four |
 | **genuinely open — and it is THREE shapes, not one** | 3 | `baseui-surface-manifest` wants a parsed `.d.ts` AST tree of one named dependency at unbounded depth (`packages/ui/node_modules/@base-ui/react`); `devtools-frontend-assets` wants installed-package METADATA FIELDS from two others (`@playwright/test`, `playwright-core/browsers.json`); `no-manual-memo` wants a raw SUBSTRING search in one bundled dist file (`babel-plugin-react-compiler/dist/index.js`). Different return shapes — **do not collapse them into one `node_modules` kind** |
 | genuine outliers | 2 | `devtools-frontend-assets`'s hash-pinned binary/license asset closure resembles no shipped kind; `tooling-shared-plumbing` wants pattern-based root discovery (`playwright*.config.ts`) plus raw AST from a config whose kinds expose only selectors and key/value rows |
@@ -286,7 +298,7 @@ idle composed-pass remeasurement; catalog re-attest.
    census recorded.
 5. The fence: files it owns; sibling lanes' files it must not touch; `packages/**`/`tests/**` only for comment lines.
 6. Floors, exactly as the guide §8.8; never whole-tree; runs over ten minutes report and stop.
-6b. Fixtures: a proof row's `files` map is VIRTUAL (in-memory for source/types, an auto-cleaned tmpdir for resource) and
+   6b. Fixtures: a proof row's `files` map is VIRTUAL (in-memory for source/types, an auto-cleaned tmpdir for resource) and
    its paths are population coordinates, not locations — see guide §4.8. A final policy never plants in the working
    tree and cannot. Probing a REAL file is the separate `cp`/`mv` rule; never `git stash`/`checkout`/`restore`.
 7. Git: `git -C <wt>` always; `git add -A` fine in its own worktree; `git status --short` empty; `git show --stat` in
@@ -324,7 +336,7 @@ idle composed-pass remeasurement; catalog re-attest.
    `echo '{"worktree_path":"<abs worktree>","cwd":"<main checkout>"}' | .claude/hooks/worktree-remove.sh`.
    It refuses any path outside `.claude/worktrees/`, removes and prunes, and deletes only a `wt/`-prefixed branch.
    Critically it does one thing raw git cannot: if the worktree owns a live `snap --isolated` stage
-   (`<main>/.cache/snap-stage/bands.json` records the owning checkout) it stops that ~7-process stack through snap's
+   (`<main>/.cache/snap-stage/bands.json` records the owning checkout) it stops that \~7-process stack through snap's
    own door first. Remove the directory without that and the stage keeps running with a DELETED cwd, holding a band,
    a port pair and real CPU until the 60-minute idle keeper reaps it (#1848, two orphans observed 2026-09-06). If you
    ever do sweep by hand, check `bands.json` for rows whose `checkout` no longer exists and clear each with
@@ -341,6 +353,18 @@ idle composed-pass remeasurement; catalog re-attest.
   capability set, biome's loader, `jsonc`'s consumer, a `JUDGMENT_DEFERRED` table's disposition — was already answered
   in the review layer, and each was caught by a lane or the owner instead of by me. Quoting §12.5 correctly is not a
   substitute for reading the census that already classified the row.
+- **"THE MARKERS" IS NINE KINDS, AND A CENSUS OF ONE GRAMMAR IS EVIDENCE ABOUT NOTHING ELSE** (owner correction,
+  2026-09-11 evening). The orchestrator measured `ONESHOT-OK` and `@owner-scope*`, found both at zero live markers,
+  and reported "the marker backlog is CLOSED" in a #1584 comment. Two of thirteen-plus spellings. **Marker passes are
+  each legacy gate's own responsibility** — its own regex, its own consumption map, its own stale sweep, each named by
+  `file:line` in `ordinary-waiver-source-migration.md` §"Closed 11-grammar disposition" and again in
+  `exception-authority-census.md` — which is precisely why the kinds multiply and why one grammar's zero proves
+  nothing about the next. The full taxonomy is now guide §7 ("NINE KINDS OF IGNORE"); the per-gate classification is
+  the conversion census's `O`/`X`/`MI`/`B` authority notation. Two traps that bit inside this one mistake: a
+  `rg -c <opener>` counts MENTIONS, and every converted gate's header prose, `fix` string and proof fixtures name the
+  retired spelling (so `@swallowed-ok` reads 56 mentions against 8 real markers); and a grammar at zero may be
+  CENTRALIZED or merely PARKED behind the owner-is-final fence, which the count cannot distinguish. Same root as the
+  lesson above it: I ruled before reading the document that owns the question.
 - **A table's NAME is not evidence of its nature.** `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds two
   PERMANENT geometry rulings, so it is reviewed-grant work, not marker translation — `exception-authority-census.md`
   had read the rows and said so (`:113,142`). Read the rows and their reasons; that document classified 97 tables and

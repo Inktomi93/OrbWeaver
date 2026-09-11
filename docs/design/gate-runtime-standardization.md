@@ -19,7 +19,7 @@ The single operating document for the gate-runtime standardization program: the 
 | what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent |
 | **what does THIS gate actually enforce?** | **[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md) — 270 rows, one per gate module, and each "Enforces" cell is a dense SPECIFICATION, not a label.** `caught-failure-ownership`'s single row names its three arms with their position shapes (`promise:<work>`, `empty:<binding>`, `default:<binding>`), every owner-provenance rule and its lookalike traps, the success-discriminator refusal, that provenance dies on reassignment, the exact escape spelling, and **five DECLARED LIMITS each stated to have a `mustPass` row** — which is directly checkable, and exactly where this program keeps finding unpinned claims. **Read your gate's row before converting it.** It is also a COUPLED SITE: a conversion rewrites its row, a split adds and removes them |
 
-**THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s ~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
+**THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s \~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
 
 ## 1. The decision that changed everything: mixed runtime, not atomic cutover
 
@@ -54,7 +54,7 @@ for exactly once; nothing vanishes from the roster.
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | 166 final policies · 1,567 rows · **0 failures**, exit 0 · ~11 s | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
+| whole-corpus conformance | 166 final policies · 1,567 rows · **0 failures**, exit 0 · \~11 s | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | ResourceHost kinds beyond the seven — and whether they SHOULD exist is the Phase C fork, not a backlog (playbook §2); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, checkpoint "runtime follow-ups" |
@@ -64,7 +64,7 @@ for exactly once; nothing vanishes from the roster.
 Open rows: **#1930** (the ruled capability build — §11, and the design it implements is
 `resource-gate-access-patterns.md`), **#1922** (sanctioned-home tables → reviewed grants, one lane not pair-by-pair,
 incl. `ALLOWLIST`/`CALLER_FREE_OPS`), **#1950** (forge, the 13 mixed-hook splits — the only remaining forge-class work),
-#1946. Defects found by the 2026-09-11 exemplar wave and its verifier, none blocking a conversion: **#1956**
+\#1946. Defects found by the 2026-09-11 exemplar wave and its verifier, none blocking a conversion: **#1956**
 (`css-family-ownership`'s real-tree manifest stale since 2026-09-07), **#1957** (two unwaivable finding classes — a
 paren in the position, and a file-constant position), **#1958** (`analysis: "syntax"` fences only `ctx.checker()`;
 blast radius currently zero, the gap is recurrence), **#1959** (`ext: ["ts","tsx"]` is inert and survives in 32
@@ -215,6 +215,7 @@ family.
 8. **Fixtures — where a proof's files actually go, and why a final policy CANNOT plant in the working tree.**
    A proof row declares `mode` plus a `files` map of path → content. **The MODULE never chooses the substrate; the
    runtime does**, from `mode` (`ops/policy-conformance.ts`):
+
    - `mode: "source"` / `"types"` → `runVirtualExample`. Files are created with `Project#createSourceFile` under the
      synthetic root `/orb-policy-conformance-<n>` in a project built `useInMemoryFileSystem: true`. **Nothing is
      written to disk anywhere** — there is no file, not merely no file in the repo. Sources are removed before and
@@ -259,7 +260,7 @@ This is no longer work; it is the substrate every lane now builds on. What it gu
 - **A converted policy is LIVE the moment it lands.** It no longer runs only where a family test imports it.
 - **Its proof rows run on the commit bar.** `structure:policy-conformance` is a STATIC stage (in `pnpm verify --list`,
   under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,510 rows
-  across 162 policies in ~11 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
+  across 162 policies in \~11 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
   test is still owed for what the rows cannot express: the §4.2 identity arm driven through `runPolicyPass`, §4.3 grant
   identity, §4.5 refusal/receipt pins, and the §4.6 conversion differential.
 - **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
@@ -361,12 +362,15 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 
 - The mixed front door (§5) precedes everything. Until it lands, a converted policy runs only where a committed family
   test imports it, so "converted" does not mean "enforcing".
+
 - **No gate converts on a resource kind before that kind lands** (#1930). Each kind ships as a provider with
   ready/missing/empty/unresolved receipts and its own controls.
+
 - A conversion lane translates its own legacy markers in the SAME commit — comment-only edits under `packages/**` and
   `tests/**` are inside that lane's fence — so the converted gate is green on the live tree at landing. Marker
   translation is conversion work, never a separate final-launch lane. Grammar and binding:
   `ordinary-waiver-source-migration.md` §"Exact central grammar".
+
 - **A GRAMMAR'S MARKERS TRANSLATE ONLY WHEN ITS OWNING GATE IS ALREADY FINAL, and the runtime will not tell you
   otherwise.** Marker routing is fenced (§5): the legacy grammars reach only LEGACY owners, `@orb-waive` only FINAL
   ordinary policies. Translating a marker whose gate has not converted loses the legacy suppression AND binds the new
@@ -376,6 +380,58 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   grammars still had LEGACY owners (`@swallowed-ok`, `@sub-floor-ok`, `@surface-focus-elsewhere`, `@first-boot-only`,
   `@over-art-plate-ok`), and `@finding-overload-ok`'s delete-with-the-gate disposition means its 24 sites cannot be
   removed ahead of that gate either.
+
+- **"THE MARKERS" IS NOT ONE THING — THERE ARE NINE KINDS OF IGNORE, AND EACH LEGACY GATE OWNS ITS OWN PASS.** This is
+  the single most miscounted thing in the program (owner correction 2026-09-11, after the orchestrator measured TWO
+  spellings and reported the backlog closed on #1584). A census of one grammar tells you nothing about the others,
+  because **a legacy gate implements its own marker parser, its own consumption map and its own stale sweep** — the
+  disposition table in `../reviews/gate-runtime/ordinary-waiver-source-migration.md` §"Closed 11-grammar disposition"
+  names each one by `file:line`, and `exception-authority-census.md` names each parser receipt again. The whole point of
+  the final contract is that this per-gate ownership **ends**: §12.5, no gate-specific exemption grammar, gate modules
+  receive neither grant tables nor marker parsers.
+
+  **The `uncovered-gate-conversion-census.md` authority notation is the per-gate classification: `O` ordinary shared
+  marker · `X` gate-local table, sanction, deferred row, stale arm OR custom marker · `MI` marker-immune · `B` baseline
+  ratchet.** A gate marked `X` has something gate-owned that must find a central home before it converts. Read your
+  gate's row.
+
+  | # | Kind | Spelling / home | Reaches | Disposition |
+  | -: | - | - | - | - |
+  | 1 | central LEGACY marker | `@orb-gate-ignore <gate>`; parser `lib/gate-ignore.ts:10-43`, consumption `lib/pass.ts:192-234`, auditor `gate-ignore-inventory.ts` | LEGACY owners ONLY | translate per converted owner; parser + auditor delete at Phase F |
+  | 2 | central FINAL waiver | `@orb-waive <policy-id>(<position>): <reason>`; `contract/ordinary-waiver.ts` + `lib/ordinary-waiver.ts` | FINAL **ordinary** policies ONLY | the one surviving vocabulary |
+  | 3 | eleven gate-owned CUSTOM grammars | each gate's own regex + maps + stale loop (receipts in both censuses) | that gate only | 7 CENTRALIZE · 3 DELETE EMPTY · 1 DELETE WITH ITS GATE |
+  | 4 | `markerImmune` (`MI`) | `contract/gate.ts:181-194`, a legacy DESCRIPTOR door | refuses every marker | deletes with `GateDescriptor` — authority is required data on `GatePolicy`, so a hard policy has no parser door BY CONSTRUCTION |
+  | 5 | reviewed grants | typed central `(policy, subject, operation)` + `why`/`endsWhen` | FINAL **reviewed-grant** policies ONLY | 97 `ExemptionTable` decls / 73 files / 319 rows · 20 equivalent non-`ExemptionTable` collections / 79 rows · 25 `SANCTIONED_HOMES` tables / 42 rows (#1922) |
+  | 6 | baseline ratchets (`B`) | 9 tracked `*.baseline.json` | their own gate | retire to a fix, an exact grant, or `workItem` warning debt |
+  | 7 | **native tool directives — NOT an Orb waiver** | `biome-ignore` / `eslint-disable` / `@ts-expect-error`; parsed by `suppressions.ts:20-35`, shared carriers with `no-blanket-suppression` | neither engine | **EXPLICIT NON-MIGRATION.** 274 file rows / 572 occurrences. Do NOT route these through `ordinary-waiver.ts` |
+  | 8 | `@public` | push-tier reader for `orphan-export-ratchet` | that ratchet | **OUTSIDE this migration.** A hard semantic fact, not a waiver |
+  | 9 | the AST lens's own `@swallowed-ok` | `tooling/src/ast/ops/swallowed.ts:32-43,149-193` — a SECOND consumer of a spelling a gate also reads | the lens, on demand | **explicitly NOT an alias.** Translating the six shared source files can silently change the LENS verdict; resolve it as its own migrate-or-retire decision |
+
+  **So a marker census names its grammar, its carrier test and its universe, or it is not a census.** The honest
+  marker-form predicate is a comment whose CONTENT BEGINS with the opener (`^\s*(//|/\*|\{/\*)\s*<opener>`) — the same
+  fence §"Exact central grammar" states as *"a spelling inside a string, template, JSX text, regular expression, or
+  later in explanatory prose is a mention, not a marker."* Counting mentions instead of markers inflates every
+  grammar, because each converted gate's header PROSE names the retired spelling it no longer parses, its `fix` names
+  the new one, and its proof fixtures carry both as strings.
+
+  **Live custom-grammar census, marker-form, measured 2026-09-11 evening (re-derive; never quote).** Baseline is the
+  census vector `70, 2, 24, 20, 31, 0, 0, 8, 2, 1, 0` = 158 custom openers + 633 central = 791.
+
+  | Grammar | live | census | owner FINAL? | state |
+  | - | -: | -: | - | - |
+  | `@foreign-id-ok` | **0** | 70 | yes | CENTRALIZED |
+  | `@owner-scope-ok` + `@owner-scope-write-ok` | **0** | 51 | yes | CENTRALIZED |
+  | `@nullable-cmp-ok` | **0** | 1 | yes | CENTRALIZED |
+  | `@sub-floor-ok` | 2 | 2 | **no** (`sub-floor-disclosure`, a #1950 split) | PARKED behind the fence above |
+  | `@swallowed-ok` | 8 | 8 | **no** (`detached-work-traced`) | PARKED — and kind 9 above is its second consumer |
+  | `@surface-focus-elsewhere` | 2 | 2 | **no** (`surface-a11y-focus`) | PARKED |
+  | `@finding-overload-ok` | 21 | 24 | n/a | DELETE with its gate; never translate |
+  | `@owner-scope-upsert-ok` · `@first-boot-only` · `@over-art-plate-ok` | 0 | 0 | — | delete the empty grammar at Phase F |
+
+  **The 12 parked markers are correctly parked, not missed.** All four owners are still legacy `GateDescriptor`s, and
+  the fence above is the reason: translating them would lose the legacy suppression AND bind the new marker to
+  nothing, silently in both directions. They convert with their gates.
+
 - **THE MARKER BACKLOG IS NOT A BACKLOG — it is one conversion.** Measured 2026-09-11 over the tracked `.ts`/`.tsx`
   universe: **681** central `@orb-gate-ignore` markers name **36** distinct gates, and **578 of them name one gate,
   `caught-failure-ownership`** (126 files under `tooling/src`, 112 under `packages/server`, 78 under
@@ -384,6 +440,7 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   (`no-such-gate`, `real-gate`, `line-scan-probe`, `dormant-gate`) which live in `gate-ignore.test.ts` and
   `gate-ignore-inventory.ts` and retire with the legacy engine rather than translating. So do not plan marker lanes:
   plan the conversions, and the markers ride with them.
+
 - **Translation is not a text codemod, but it is not opaque either — a legacy position is `<arm>:<token>`.** An earlier
   version of this paragraph called the legacy vocabulary "a taxonomy of the site's shape"; that was an overstatement
   and is withdrawn. The PREFIX is the arm, the SUFFIX is a real source identifier: the enforcement roster's row for
@@ -399,8 +456,10 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   there, carry the legacy reason verbatim, and use the suffix to CHECK the join rather than to skip it. Then classify
   the three exceptions rather than guessing — DEAD (a marker with no finding: list it, never invent a waiver), MULTI
   (N findings need N markers with distinct tokens), UNWAIVABLE (two findings sharing carrier AND token).
+
 - Authority reconciliation (#1922, the nine baseline JSON ledgers, decisions #1939 and #1921) needs the central grant
   table stable, so it follows the conversions that feed it. Per-row dispositions: `exception-authority-census.md`.
+
 - Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
   `ordinary-waiver-source-migration.md` §"Atomic cutover checklist" (legacy parser/pass accounting, `markerImmune`, the
   two retired auditors, `__g_` suites, baselines, census command), plus rewriting `GATE-AUTHORING.md`, `gate:new` and
@@ -475,7 +534,7 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
   ruling re-derived a worse subset of it from scratch; that is withdrawn. Its COUNTS are stale (255-module corpus,
   atomic premise); its ENGINEERING binds. What is ruled here is only what that document could not know:
 
-  1. **Eight of its ~15 typed facts are SHIPPED** (`contract/resource-host.ts`): `authoredTree`, `authoredCss`,
+  1. **Eight of its \~15 typed facts are SHIPPED** (`contract/resource-host.ts`): `authoredTree`, `authoredCss`,
      `productCss`, `cssInventory`, `packageMetadata`, `staticConfig`, `nativeConfig`, `trackedFiles`. In particular
      §2's "preserve the static reader's algorithm, put its loading behind `staticConfig`" is DONE, and §1's
      `authoredTree` carries 12 closed ids covering every identity §1 names. **Genuinely absent:** `json`, `jsonc`,
@@ -513,19 +572,24 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
      the four duplicating modules declare `authored-css` as `no-raw-color-in-css` does. A fifth CSS home is the rot.
 
 - 2026-09-05: final AST source populations are `.ts`/`.tsx` only; `.mts/.cts/.mjs/.cjs` are cleanup.
+
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
   `chatsChanged` conditional publisher is modeled, not parked; a compact map is written only when a sentinel fires.
+
 - 2026-09-10: `--dod` is optional; red instruments are expected mid-migration and are baselined, never laundered.
+
 - 2026-09-11 (night): #1939 — `duplicate-action-doors` converts as a HARD cardinality policy (the algorithm owns
   "one door per action per surface"); its six ratified surfaces become exact `(surface, action)` reviewed grants and
   the ratchet JSON is deleted. #1921 — no third receipt kind; a counter is a field on a ready fact/resource receipt.
   The lefthook hooks come back on when the mixed `check:structure` is green on `main`, not before and not later.
   \#1948 (`schema-fact-health` proof red) is fixed inside the phase A runtime lane.
+
 - 2026-09-11 (evening): forge runs the mixed-runtime lane alone, and forge runs the 13 mixed-hook splits (#1950 ruled);
   conversion lanes translate their own markers in-commit and the pre-existing 370-marker backlog is one resumed
   mech-executor lane; the #1947 lane's two real-tree zero-findings arms stay until the mixed front door lands, then are
   deleted; executors run Opus by definition (Sonnet only where the owner names it). The orchestrator's step list is
   [gate-runtime-orchestrator-playbook.md](gate-runtime-orchestrator-playbook.md).
+
 - 2026-09-11: main is the integration tree (ff of `codex/world-gate-integration`); mixed runtime replaces atomic cutover;
   lanes in isolated worktrees, orchestrator merges, hooks bypassed until `check:structure` is green; cap 3; Sonnet
   executors for fully-specified gate work, Opus on judgment-heavy work and every verifier; conversions are #1584
