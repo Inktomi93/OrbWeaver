@@ -12659,9 +12659,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 169,
-      "bytes": 13650,
-      "sha256": "34b8cadb8cd4d9443de315a46ddf88d91c9a8f8c46f88fa9a24377c77d98b66c",
+      "lines": 219,
+      "bytes": 19267,
+      "sha256": "e19190bcab04cd704dcf8aa2cf35f45043ddadb77cb6be14b3984cf970f0afd9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12695,7 +12695,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
