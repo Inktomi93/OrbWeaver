@@ -14,6 +14,12 @@ export const AUTHORED_TREE_PATHS = {
   "client-source": "packages/client/src",
   "ui-source": "packages/ui/src",
   gate: "tooling/src/verify/gates",
+  // The two authored trees that are not source packages. `docs` admits the prose corpus the citation and
+  // dangling-reference policies judge; `scripts` admits the root script tree. Both exist so those policies
+  // can ADMIT the paths whose text they then demand through `authoredText` — a demand-driven text read is
+  // parasitic on an acquiring declaration and has no population of its own (`resource-text.ts`).
+  docs: "docs",
+  scripts: "scripts",
 } as const;
 
 export type AuthoredTreeId = keyof typeof AUTHORED_TREE_PATHS;

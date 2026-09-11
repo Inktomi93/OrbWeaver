@@ -1,5 +1,5 @@
 // Runs every final policy proof through runPolicyPass on an isolated example population.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -20,6 +20,8 @@ refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/o
 
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 const TEMP_PREFIX = "orb-policy-conformance-";
+/** The reader's own non-authored vocabulary (`ops/resource-reader.ts`), in path-segment form. */
+const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\/|$)/u;
 
 interface ExampleRun {
   readonly result?: PolicyPassResult;
@@ -85,6 +87,13 @@ function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): Example
         project.addSourceFileAtPath(absolute);
       }
     }
+    // Links are created AFTER every file, so a link may point at a fixture file, and are never added to the
+    // Project: a symlink is a subject for the resource doors, not a compiler input.
+    for (const [path, target] of Object.entries(proof.links ?? {}).toSorted(([left], [right]) => left.localeCompare(right))) {
+      const absolute = join(root, path);
+      mkdirSync(dirname(absolute), { recursive: true });
+      symlinkSync(target, absolute);
+    }
     // Resource proofs own their index, including native config and tracked-file consumers.
     const env = repoGitEnvironment();
     for (const args of [
@@ -97,8 +106,13 @@ function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): Example
       }
     }
     const parser = new Project({ useInMemoryFileSystem: true });
+    // The overlay is the AUTHORED transaction, and the reader refuses a non-authored segment outright
+    // (`ops/resource-reader.ts`). An `installed-package` fixture legitimately plants `node_modules/…`, which
+    // belongs on disk for node's resolver and must NOT enter the overlay — otherwise every such proof dies
+    // in host construction rather than in the arm it was written to test.
+    const overlay = Object.fromEntries(Object.entries(proof.files).filter(([path]) => !NON_AUTHORED_SEGMENT_RE.test(path)));
     const resourceOptions: Omit<ResourceHostOptions, "root"> = {
-      overlay: proof.files,
+      overlay,
       parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }),
     };
     return { result: runPass(policy, root, project, resourceOptions), root };

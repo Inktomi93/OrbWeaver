@@ -6,12 +6,20 @@ import type { GatePolicy } from "../contract/policy.ts";
 import type { ResourceFact } from "../contract/resource.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
+import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import type { ResourceHost, ResourceHostOptions } from "../contract/resource-host.ts";
+import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
 export function resourceRequestIdentity(request: GateResourceRequest): string {
+  if (request.kind === "installed-package") {
+    // The MODE and the named file are part of the identity: `text` of one file and `ast` of the same
+    // package are two different acquisitions, and collapsing them would let one declaration authorize the
+    // other.
+    return request.mode === "text" ? `${request.kind}:${request.id}:text:${request.file}` : `${request.kind}:${request.id}:${request.mode}`;
+  }
   return "id" in request ? `${request.kind}:${request.id}` : request.kind;
 }
 
@@ -30,6 +38,16 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
     case "native-config":
       return { kind: request.kind, id: request.id };
     case "tracked-files":
+      return { kind: request.kind };
+    case "json":
+      return { kind: request.kind, id: request.id };
+    case "installed-package":
+      return request.mode === "text"
+        ? { kind: request.kind, id: request.id, mode: request.mode, file: request.file }
+        : { kind: request.kind, id: request.id, mode: request.mode };
+    case "authored-path":
+      return { kind: request.kind };
+    case "authored-text":
       return { kind: request.kind };
   }
 }
@@ -55,6 +73,16 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       return host.nativeConfig(request.id);
     case "tracked-files":
       return host.trackedFiles();
+    case "json":
+      return host.json(request.id);
+    case "installed-package":
+      return host.installedPackage(request);
+    case "authored-path":
+    case "authored-text":
+      // A demand kind has no subject at planning time. `resolveResourceDeclarations` never reaches here —
+      // it partitions the declarations first — and this arm exists so a future caller that forgets that
+      // rule fails LOUDLY instead of acquiring a fact with an empty subject and reading it as a clean zero.
+      throw new Error(`resource declaration ${request.kind} is demand-driven and cannot be acquired without a subject`);
   }
 }
 
@@ -74,13 +102,27 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return true;
     case "native-config":
       return true;
+    case "json":
+      return path === JSON_RESOURCE_PATHS[request.id];
+    case "installed-package":
+      // An installed package publishes no authored paths at all (`ops/resource-installed.ts` returns an
+      // empty `paths`), so nothing can belong to this request and reaching here at all is the bug.
+      return false;
+    case "authored-path":
+    case "authored-text":
+      return false;
   }
 }
 
-/** Resolve one declaration set to exact fact paths; malformed or non-ready facts are never absence. */
+/** Resolve one declaration set to exact fact paths; malformed or non-ready facts are never absence.
+ *
+ *  UNPOPULATED KINDS ARE PARTITIONED OUT BY NAME, NOT SKIPPED SILENTLY. The two demand kinds and
+ *  `installed-package` contribute no authored path and would fail the empty-fact refusal below — which is
+ *  the correct rule for every other kind and wrong for these three. The rule is stated here, at the one
+ *  place that could otherwise turn "this declaration resolved nothing" into a clean zero. */
 export function resolveResourceDeclarations(host: ResourceHost, requests: readonly GateResourceRequest[]): readonly string[] {
   const paths = new Set<string>();
-  for (const request of canonicalResourceDeclarations(requests)) {
+  for (const request of canonicalResourceDeclarations(requests).filter((candidate) => !isGateResourceUnpopulatedKind(candidate.kind))) {
     const fact = requestFact(host, request);
     const identity = resourceRequestIdentity(request);
     if (fact.status !== "ready") {

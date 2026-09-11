@@ -107,6 +107,103 @@ test("shared fact descriptors are branded, exact, and restricted to entire-popul
   expect(() => assertGatePolicyDescriptor(duplicate)).toThrow(/duplicate.*fixture-fact/i);
 });
 
+/** A minimal valid resource policy to mutate one field of at a time. */
+function resourcePolicy(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): unknown {
+  return defineGate({
+    id: "resource-shape",
+    family: "resource-shape",
+    authority: "hard",
+    severity: "error",
+    population: { of: "none", why: "resource subjects only" },
+    analysis: "resource",
+    execution: "entire-population",
+    facts: [],
+    resources: [{ kind: "json", id: "biome" }],
+    message: "fixture",
+    create: () => ({ evaluate: () => undefined }),
+    mustFlag: [{ mode: "resource", files: { "biome.json": "{}" }, why: "founding defect" }],
+    mustPass: [{ mode: "resource", files: { "biome.json": "{}" }, why: "nearest legal shape" }],
+    ...overrides,
+  } as Parameters<typeof defineGate>[0]);
+}
+
+test("an installed-package request declares a closed MODE, and `file` is required exactly for text", () => {
+  expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "ast" }] }))).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "playwright-core", mode: "text", file: "browsers.json" }] })),
+  ).not.toThrow();
+  // The four malformed shapes below are ALREADY refused by tsc — the closed `InstalledPackageRequest` union
+  // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove
+  // the RUNTIME backstop, which is what actually judges a loaded module the compiler never saw.
+  const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
+  // A `text` request with no file would read nothing; an `ast` request with one carries a file nobody reads.
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "text" }))).toThrow(/file.*nonempty|unknown property/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "ast", file: "x.js" }))).toThrow(
+    /unknown property.*file/i,
+  );
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "types" }))).toThrow(/mode/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "nope", mode: "ast" }))).toThrow(/id is unknown/i);
+});
+
+test("the same installed package in two MODES is two declarations, not a duplicate", () => {
+  // Collapsing them would let one declaration authorize the other; the mode and the named file are part of
+  // the request identity.
+  expect(() =>
+    assertGatePolicyDescriptor(
+      resourcePolicy({
+        resources: [
+          { kind: "installed-package", id: "base-ui", mode: "ast" },
+          { kind: "installed-package", id: "base-ui", mode: "metadata" },
+        ],
+      }),
+    ),
+  ).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor(
+      resourcePolicy({
+        resources: [
+          { kind: "installed-package", id: "base-ui", mode: "ast" },
+          { kind: "installed-package", id: "base-ui", mode: "ast" },
+        ],
+      }),
+    ),
+  ).toThrow(/duplicate/i);
+});
+
+test("authored-text cannot be declared without a door that ADMITS paths", () => {
+  // It reads only what a sibling admitted, so declared alone it can return nothing but `unacquired`
+  // refusals — a door structurally guaranteed to answer nothing, which reads like a clean corpus.
+  expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "authored-text" }] }))).toThrow(/authored-text.*admits paths/i);
+  expect(() =>
+    assertGatePolicyDescriptor(
+      resourcePolicy({ resources: [{ kind: "authored-text" }, { kind: "authored-path" }, { kind: "installed-package", id: "base-ui", mode: "ast" }] }),
+    ),
+  ).toThrow(/authored-text.*admits paths/i);
+  expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "authored-text" }, { kind: "authored-tree", id: "docs" }] }))).not.toThrow();
+  // `authored-path` has no such rule: its selectors are arbitrary by design, so it stands alone.
+  expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "authored-path" }] }))).not.toThrow();
+});
+
+test("a proof `links` map is resource-mode only and cannot collide with a declared file", () => {
+  const linked = (links: Record<string, string>): unknown =>
+    resourcePolicy({ mustPass: [{ mode: "resource", files: { "biome.json": "{}" }, links, why: "w" }] });
+  expect(() => assertGatePolicyDescriptor(linked({ "selector.ts": ".." }))).not.toThrow();
+  // A VIRTUAL fixture has no filesystem to link on; silently ignoring the map would make the row a no-op
+  // that reads like a passing symlink proof.
+  const virtualLink = resourcePolicy({
+    analysis: "syntax",
+    population: "@tooling",
+    resources: [],
+    mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const p = 1;\n" }, why: "w" }],
+    mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const c = 1;\n" }, links: { "selector.ts": ".." }, why: "w" }],
+  });
+  expect(() => assertGatePolicyDescriptor(virtualLink)).toThrow(/links.*resource mode/i);
+  // Written-and-then-linked is ambiguous: the proof would describe whichever won.
+  expect(() => assertGatePolicyDescriptor(linked({ "biome.json": ".." }))).toThrow(/also a declared file/i);
+  expect(() => assertGatePolicyDescriptor(linked({}))).toThrow(/links.*nonempty/i);
+  expect(() => assertGatePolicyDescriptor(linked({ "/absolute.ts": ".." }))).toThrow(/repo-relative/i);
+});
+
 test("refuses an absent or empty corpus", async ({ scratch }) => {
   await expect(loadPolicyCorpus(join(scratch, "absent"))).rejects.toThrow(/zero|empty|no gate/i);
   const empty = join(scratch, "empty");

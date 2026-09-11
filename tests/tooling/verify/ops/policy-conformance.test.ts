@@ -452,6 +452,66 @@ test("native configuration proofs share their isolated authored Git inventory", 
   expect(verifyPolicyProofs([nativeResourcePolicy()])).toEqual([]);
 });
 
+/** The authored-path door's own proof shape: one policy, two rows, differing ONLY in a link target. */
+function escapingSelectorPolicy(): GatePolicy {
+  return defineGate({
+    id: "escaping-selector-proof",
+    family: "escaping-selector-proof",
+    authority: "hard",
+    severity: "error",
+    population: { of: "none", why: "a config SELECTOR is the subject, not a compiler population" },
+    analysis: "resource",
+    execution: "entire-population",
+    facts: [],
+    resources: [{ kind: "tracked-files" }, { kind: "authored-path" }],
+    message: "a file-exact selector resolves outside the repository",
+    create: (context) => ({
+      evaluate: () => {
+        const tracked = context.resources.trackedFiles();
+        if (tracked.status !== "ready") {
+          throw new Error("proof resource acquisition failed");
+        }
+        // THE POINT: the selector IS a tracked repo path in both rows. Git lists a symlink as an ordinary
+        // path, so nothing here distinguishes them — only the identity door does.
+        expect(tracked.value.repoPaths).toContain("selector.ts");
+        const identities = context.resources.authoredPaths(["selector.ts"]);
+        if (identities.status !== "ready") {
+          throw new Error("proof identity acquisition failed");
+        }
+        for (const identity of identities.value.identities) {
+          if (identity.status === "outside") {
+            context.report.file("vitest.config.ts", { token: identity.selector });
+          }
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": "export default {};\n", "target.ts": "export const t = 1;\n" },
+        // `..` from the proof root is the OS tmpdir: it exists, it is outside, and it needs no host state.
+        links: { "selector.ts": ".." },
+        expect: { count: 1, token: "selector.ts" },
+        why: "an in-repo symlink whose target resolves OUTSIDE the root is the escape `trackedFiles()` cannot see — git lists it as an ordinary tracked path, so this row is red only because the identity door realpaths it",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": "export default {};\n", "target.ts": "export const t = 1;\n" },
+        links: { "selector.ts": "target.ts" },
+        why: "THE CONTROL — byte-identical to the flagging row except for the link TARGET. A symlink is not itself suspicious, so without this row the arm above could be a blanket refusal of links and no proof would notice",
+      },
+    ],
+  });
+}
+
+test("a proof can express a SYMLINK, and the identity door judges its containment", () => {
+  // Item 3's fixture-side half. `runResourceExample` only ever wrote files, so before this the door's one
+  // reason to exist had no expressible proof at all.
+  expect(verifyPolicyProofs([escapingSelectorPolicy()])).toEqual([]);
+});
+
 for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] as const) {
   test(`resource proofs ignore ambient ${key} without changing the caller index`, async ({ scratch }) => {
     writeFileSync(join(scratch, "outside.txt"), "outside");

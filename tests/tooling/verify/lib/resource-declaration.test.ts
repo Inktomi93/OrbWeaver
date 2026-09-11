@@ -1,6 +1,7 @@
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
+import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import { resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -41,6 +42,20 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
       throw new Error("native config requires an explicit fixture");
     },
     trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"] }),
+    json: (id) => fact(`json:${id}`, [JSON_RESOURCE_PATHS[id]], { id, path: JSON_RESOURCE_PATHS[id], value: {} }),
+    // The three UNPOPULATED doors. Each returns a ready fact with ZERO paths, which is the exact shape the
+    // planning resolver would otherwise refuse as "an empty fact".
+    installedPackage: (request) =>
+      fact(`installed-package:${request.id}:${request.mode}`, [], {
+        id: request.id,
+        mode: "metadata",
+        name: "x",
+        version: "1",
+        directory: null,
+        exportKeys: [],
+      }),
+    authoredPaths: () => fact("authored-path", [], { identities: [] }),
+    authoredText: () => fact("authored-text", [], { files: [], refusals: [] }),
     ...overrides,
   };
 }
@@ -48,6 +63,38 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
 test("resolves closed requests to one exact sorted path set", () => {
   const requests: readonly GateResourceRequest[] = [{ kind: "tracked-files" }, { kind: "authored-tree", id: "tooling-slot" }];
   expect(resolveResourceDeclarations(host(), requests)).toEqual(["a.ts", "tooling/src/a.ts", "tooling/src/z.ts", "z.ts"]);
+});
+
+test("an UNPOPULATED declaration contributes no path and is not refused as an empty fact", () => {
+  // The three unpopulated kinds each return a ready fact with zero paths. Without the named partition in
+  // `resolveResourceDeclarations` every one of them throws "resolved an empty fact" — and a lane that
+  // "fixed" that by weakening the rule for ALL kinds would silently un-arm the empty-population refusal
+  // that every populated door depends on.
+  const requests: readonly GateResourceRequest[] = [
+    { kind: "authored-tree", id: "docs" },
+    { kind: "authored-path" },
+    { kind: "authored-text" },
+    { kind: "installed-package", id: "base-ui", mode: "metadata" },
+  ];
+  expect(resolveResourceDeclarations(host({ authoredTree: (id) => fact(`authored-tree:${id}`, ["docs/a.md"], []) }), requests)).toEqual(["docs/a.md"]);
+});
+
+test("the demand doors are never ACQUIRED during planning — their host methods are not called", () => {
+  // The partition must skip them, not call them with an empty subject: a demand door handed nothing would
+  // answer "zero selectors, zero refusals", which reads as a clean corpus.
+  let calls = 0;
+  const counting = host({
+    authoredPaths: () => {
+      calls += 1;
+      return fact("authored-path", [], { identities: [] });
+    },
+    authoredText: () => {
+      calls += 1;
+      return fact("authored-text", [], { files: [], refusals: [] });
+    },
+  });
+  expect(resolveResourceDeclarations(counting, [{ kind: "tracked-files" }, { kind: "authored-path" }, { kind: "authored-text" }])).toEqual(["a.ts", "z.ts"]);
+  expect(calls).toBe(0);
 });
 
 test.each(["missing", "empty", "unresolved"] as const)("refuses a %s declared fact", (status) => {

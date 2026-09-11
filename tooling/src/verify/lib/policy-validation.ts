@@ -11,7 +11,9 @@ import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
 import { NATIVE_CONFIG_RESOURCE_PATHS, PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
-import { GATE_RESOURCE_REQUEST_KINDS } from "../contract/resource-declaration.ts";
+import { GATE_RESOURCE_REQUEST_KINDS, isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { INSTALLED_PACKAGE_IDS, INSTALLED_PACKAGE_MODES } from "../contract/resource-installed.ts";
+import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertPopulationExpr } from "./population-resolver.ts";
@@ -48,7 +50,7 @@ const REQUIRED_POLICY_KEYS = [
   "mustFlag",
   "mustPass",
 ] as const;
-const PROOF_KEYS = new Set(["mode", "files", "expect", "why"]);
+const PROOF_KEYS = new Set(["mode", "files", "links", "expect", "why"]);
 const EXPECT_KEYS = new Set(["count", "line", "token", "messageIncludes"]);
 const HOOK_KEYS = new Set(["visitors", "visitFile", "evaluate"]);
 const VISITOR_KEYS = new Set(["kinds", "visit"]);
@@ -57,6 +59,8 @@ const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 const RESOURCE_KEYS = new Set(["kind", "id"]);
 const RESOURCE_KIND_ONLY_KEYS = new Set(["kind"]);
+const INSTALLED_KEYS = new Set(["kind", "id", "mode"]);
+const INSTALLED_TEXT_KEYS = new Set(["kind", "id", "mode", "file"]);
 const FACT_KEYS = new Set(["id", "population", "analysis", "resources", "create"]);
 const REQUIRED_FACT_KEYS = ["id", "population", "analysis", "resources", "create"] as const;
 const FACT_HOOK_KEYS = new Set(["visitors", "visitFile", "finish"]);
@@ -136,6 +140,31 @@ function assertExpectation(value: unknown, label: string): void {
   }
 }
 
+/** A link is only expressible on a real filesystem, so it is `resource` mode only; its PATH is a repo
+ *  identity while its TARGET is left free, because an escaping target is the thing under test. A link may
+ *  not collide with a declared file — the runtime would then have written one and linked the other, and the
+ *  resulting proof would describe whichever won. */
+function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: string, files: Readonly<Record<string, unknown>>): void {
+  if (proof["links"] === undefined) {
+    return;
+  }
+  if (proof["mode"] !== "resource") {
+    invalid(`${label}.links is valid only in resource mode`);
+  }
+  const links = record(proof["links"], `${label}.links`);
+  const entries = Object.entries(links);
+  if (entries.length === 0) {
+    invalid(`${label}.links must be a nonempty path-to-target map when present`);
+  }
+  for (const [path, target] of entries) {
+    assertRepoPathIdentity(path, `${label}.links path`);
+    nonBlank(target, `${label}.links target`);
+    if (Object.hasOwn(files, path)) {
+      invalid(`${label}.links path is also a declared file: ${path}`);
+    }
+  }
+}
+
 function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, allowExpectation: boolean): asserts value is GatePolicyProof {
   const proof = record(value, label);
   exactKeys(proof, PROOF_KEYS, label);
@@ -160,6 +189,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
   if (proof["mode"] !== "resource" && entries.some(([path]) => !isPolicySourceCandidate(path))) {
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
+  assertProofLinks(proof, label, files);
   if (proof["expect"] !== undefined) {
     if (!allowExpectation) {
       invalid(`${label}.expect is valid only for mustFlag proofs`);
@@ -205,8 +235,30 @@ function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string,
     ids = STATIC_CONFIG_RESOURCE_PATHS;
   } else if (kind === "native-config") {
     ids = NATIVE_CONFIG_RESOURCE_PATHS;
+  } else if (kind === "json") {
+    ids = JSON_RESOURCE_PATHS;
   }
   return ids;
+}
+
+/** `installed-package` is the one kind with a shape of its own: a closed mode, and a named file that is
+ *  REQUIRED for `text` and FORBIDDEN otherwise — so a `text` declaration cannot silently read nothing and an
+ *  `ast` declaration cannot carry a file nobody reads. */
+function assertInstalledPackageRequest(request: Readonly<Record<string, unknown>>, label: string): string {
+  const textMode = request["mode"] === "text";
+  exactKeys(request, textMode ? INSTALLED_TEXT_KEYS : INSTALLED_KEYS, label);
+  nonBlank(request["id"], `${label}.id`);
+  if (!(INSTALLED_PACKAGE_IDS as readonly unknown[]).includes(request["id"])) {
+    invalid(`${label}.id is unknown for installed-package`);
+  }
+  if (!(INSTALLED_PACKAGE_MODES as readonly unknown[]).includes(request["mode"])) {
+    invalid(`${label}.mode must be ast, metadata, or text`);
+  }
+  if (!textMode) {
+    return `installed-package:${String(request["id"])}:${String(request["mode"])}`;
+  }
+  assertRepoPathIdentity(request["file"], `${label}.file`);
+  return `installed-package:${String(request["id"])}:text:${String(request["file"])}`;
 }
 
 function assertGateResourceDeclaration(candidate: unknown, index: number): string {
@@ -216,6 +268,9 @@ function assertGateResourceDeclaration(candidate: unknown, index: number): strin
     invalid(`${label}.kind is unknown`);
   }
   const kind = request["kind"] as GateResourceRequest["kind"];
+  if (kind === "installed-package") {
+    return assertInstalledPackageRequest(request, label);
+  }
   const ids = resourceIds(kind);
   exactKeys(request, ids === undefined ? RESOURCE_KIND_ONLY_KEYS : RESOURCE_KEYS, label);
   if (ids === undefined) {
@@ -233,6 +288,12 @@ function assertAnalysisResources(policy: Readonly<Record<string, unknown>>): voi
   const resources = policy["resources"] as readonly GateResourceRequest[];
   if (policy["analysis"] === "resource" && resources.length === 0) {
     invalid("descriptor.resources must be nonempty when analysis is resource");
+  }
+  // `authored-text` reads only paths that a SIBLING declaration already admitted, so a policy declaring it
+  // alone can receive nothing but `unacquired` refusals — a door that is structurally guaranteed to answer
+  // nothing, which reads in a report exactly like a corpus that is genuinely clean.
+  if (resources.some((request) => request.kind === "authored-text") && !resources.some((request) => !isGateResourceUnpopulatedKind(request.kind))) {
+    invalid("descriptor.resources declaring authored-text must also declare a resource that admits paths");
   }
   if (policy["analysis"] !== "resource" && resources.length > 0) {
     invalid("descriptor.resources must be empty unless analysis is resource");
