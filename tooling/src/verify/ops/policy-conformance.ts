@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "../contract/policy.ts";
@@ -13,6 +14,7 @@ import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
+import { repoGitEnvironment } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
@@ -81,6 +83,17 @@ function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): Example
       writeFileSync(absolute, content);
       if (isPolicySourceCandidate(path)) {
         project.addSourceFileAtPath(absolute);
+      }
+    }
+    // Resource proofs own their index, including native config and tracked-file consumers.
+    const env = repoGitEnvironment();
+    for (const args of [
+      ["init", "--quiet"],
+      ["add", "--all"],
+    ]) {
+      const git = runNicedSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: root, env });
+      if (git.status !== 0) {
+        throw new Error(`proof Git ${args[0]} failed: ${git.stderr.trim()}`);
       }
     }
     const parser = new Project({ useInMemoryFileSystem: true });

@@ -10,7 +10,7 @@ import type {
   PolicySemanticPath,
   PolicyWorkspacePackage,
 } from "../contract/policy-scope.ts";
-import { GIT_READ_PREFIX } from "./repo-paths.ts";
+import { GIT_READ_PREFIX, repoGitEnvironment } from "./repo-paths.ts";
 
 const TRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "-z"] as const;
 const UNTRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"] as const;
@@ -100,7 +100,7 @@ function currentAuthoredFile(root: string, path: string): string | null {
 }
 
 function gitRead(root: string, args: readonly string[]): string {
-  const result = runNicedSync("git", args, { cwd: root });
+  const result = runNicedSync("git", args, { cwd: root, env: repoGitEnvironment() });
   if (result.status !== 0) {
     const detail = result.stderr.trim();
     throw new Error(`git ${args.find((arg) => !arg.startsWith("-")) ?? "read"} failed with exit ${String(result.status)}${detail === "" ? "" : `: ${detail}`}`);
@@ -230,7 +230,7 @@ export function readPolicyWorkspacePackages(inventory: PolicyRepositoryInventory
 
 function mergeBase(root: string): NonNullable<PolicyScopeInventoryReceipt["mergeBase"]> {
   for (const ref of MERGE_BASE_REFS) {
-    const result = runNicedSync("git", [...GIT_READ_PREFIX, "merge-base", "HEAD", ref], { cwd: root });
+    const result = runNicedSync("git", [...GIT_READ_PREFIX, "merge-base", "HEAD", ref], { cwd: root, env: repoGitEnvironment() });
     const commit = result.status === 0 ? result.stdout.trim() : "";
     if (SHA_RE.test(commit)) {
       return { ref, commit };
