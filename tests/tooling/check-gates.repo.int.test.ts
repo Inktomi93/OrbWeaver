@@ -445,7 +445,11 @@ function writeFixtures(): void {
   // slot the gate scopes out. (The `__g_asw2` fixture above trips it too, incidentally; this row is the
   // deliberate one, so a change to that fixture can never silently un-fire this gate.)
   fx(`${D}/__g_own/verbs/x.ts`, 'import { characters } from "@orb/db";\nexport const x = characters;\n');
-  // serde-core-seal: the PNG card-chunk engine imported outside the import/export serde homes.
+  // serde-core-seal: the PNG card-chunk engine imported outside the import/export serde homes. Converted
+  // to a final `defineGate` occurrence policy (gate-runtime-standardization.md, #1584) — same per-file
+  // AST bite, still driven by this real-tree fixture; its new entire-population `serde-core-seal-health`
+  // stale-ratchet sibling is proven separately by its own conformance rows
+  // (tests/tooling/verify/gates/contract-shape-wave-1.test.ts).
   fx(`${D}/hub/__g_serde.ts`, 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n');
   // query-freshness-coverage: a consumed query key with no invalidation row and no registry cite — the
   // frozen-surface class (the read is keyed on a ghost router so it can never collide with a real proc).
@@ -625,7 +629,10 @@ function writeFixtures(): void {
   // public-route-body-cap: a mutating non-tRPC route that parses the body with no cap middleware.
   fx("packages/server/src/entry/http/__g_bodycap.ts", 'app.post("/api/__g", async (c) => c.json(await c.req.json()));\n');
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
-  // no caller/scope param and no CALLER_FREE_OPS row.
+  // no caller/scope param and no CALLER_FREE_OPS row. Converted to a final `defineGate` occurrence policy
+  // (gate-runtime-standardization.md, #1584) — same per-file AST bite, still driven by this real-tree
+  // fixture; its new entire-population `injected-op-caller-param-health` stale/blindness sibling is proven
+  // separately by its own conformance rows (tests/tooling/verify/gates/contract-shape-wave-1.test.ts).
   fx(
     "packages/server/src/domain/__g_opcaller/contract/__g_opcaller.ts",
     'import type { CharacterId } from "@orb/kit/ids";\nexport type GRenameCardOp = (characterId: CharacterId, name: string) => Promise<void>;\n',
@@ -859,7 +866,10 @@ function writeFixtures(): void {
   // `__g_` domain has no contracts sibling (planting one would need a SECOND fixture in contracts/ whose
   // domain name matches — the same shape, twice the surface, for no extra proof).
   // The gate's ALLOWLIST stale arm keys on the REAL-TREE anchor + real files, which this fixture does not
-  // touch, so the added finding is the ARM-B bite alone.
+  // touch, so the added finding is the ARM-B bite alone. Converted to a final `defineGate` occurrence
+  // policy (gate-runtime-standardization.md, #1584) — same per-file AST bite, still driven by this
+  // real-tree fixture; the new entire-population `contract-derives-not-respells-health` staleness sibling
+  // is proven separately by its own conformance rows (tests/tooling/verify/gates/contract-shape-wave-1.test.ts).
   fx(`${D}/__g_cdnr/contract/probe-row.ts`, "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n");
   // gate-modernization ARM A: a module in the gate corpus that exports no `gate` descriptor. The loader
   // SKIPS such a file (`mod.gate === undefined ⇒ continue`), so it enforces nothing forever with no signal
