@@ -41,7 +41,7 @@ for exactly once; nothing vanishes from the roster.
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | 162 final policies · 1,471 rows · **0 failures**, exit 0 · ~10.7 s | `pnpm check:policy-conformance` at `097958302`. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
+| whole-corpus conformance | 162 final policies · 1,510 rows · **0 failures**, exit 0 · ~11 s | `pnpm check:policy-conformance` at `493beea1a`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | ResourceHost kinds beyond the seven — and whether they SHOULD exist is the Phase C fork, not a backlog (playbook §2); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, checkpoint "runtime follow-ups" |
@@ -238,8 +238,8 @@ This is no longer work; it is the substrate every lane now builds on. What it gu
   Exit classes unchanged: 0 clean, 1 violations, 2 tool error, 3 misuse.
 - **A converted policy is LIVE the moment it lands.** It no longer runs only where a family test imports it.
 - **Its proof rows run on the commit bar.** `structure:policy-conformance` is a STATIC stage (in `pnpm verify --list`,
-  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,471 rows
-  across 162 policies in ~10.7 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
+  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,510 rows
+  across 162 policies in ~11 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
   test is still owed for what the rows cannot express: the §4.2 identity arm driven through `runPolicyPass`, §4.3 grant
   identity, §4.5 refusal/receipt pins, and the §4.6 conversion differential.
 - **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
@@ -546,9 +546,18 @@ unresolved fact or a tool error and NEVER returns absence, and collapsing the tw
 
 **A provider's receipt states what it MEASURED, never what it FOUND.** `members` is the denominator the provider
 actually walked — the authored sources admitted by its population — and `unresolved` is reserved for syntax the
-provider could not read. It is NOT the census the provider built. The reason is mechanical: `factReceiptFailures`
-(`lib/policy-pass.ts:641`) refuses `members === 0` or `unresolved > 0` and `withholdFactDependents` (`:679`) drops
-every consumer BEFORE `evaluate` runs. So a provider that receipts its findings preempts its own designated accuser —
+provider could not read. It is NOT the census the provider built. The reason is mechanical: the predicate is
+`receiptFailures` (`lib/policy-pass.ts:628-639` — `count === 0` at `:631`, `unresolved > 0` at `:635`), flat-mapped by
+`factReceiptFailures` (`:641`), and `withholdFactDependents` (`:679`) drops every consumer BEFORE `evaluate` runs
+(`finishFactRuns` → `withholdFactDependents` → `evaluateRuns`, `:821-822`).
+
+**Two different things are called a receipt; do not confuse them.** The PROVIDER's semantic receipt is what the
+refusal above judges, and **no policy can reach it at all** — `$X.receipts` appears zero times across `gates/`
+(control: the same pattern in `lib/policy-pass.ts` returns 8). What several consumers DO read is `fact.receipt.<field>`
+on the fact VALUE, a plain data field the provider publishes for its consumers (e.g. `bus-definition-fact.ts:330-340`,
+source `"bus-definition-fact"`), which is a different object from the provider's own receipt (`:372`, source
+`"bus-definition-sources"`). The discriminator below means the consumer's `ctx.receipt` call and its fail-closed throw,
+never the fact value's data field. So a provider that receipts its findings preempts its own designated accuser —
 an empty or holed census becomes a FACT TOOL ERROR instead of reaching the `-health` policy whose whole job is to
 report it, and that policy's empty-corpus `mustFlag` arm can never execute. That was both of the last two conformance
 failures: `bus-producers` and `bus-definitions` each receipted their census (#1955), exactly as `registry-fact.ts` had
