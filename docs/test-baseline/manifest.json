@@ -2368,6 +2368,7 @@
     "tests/tooling/verify/lib/css-rules.test.ts",
     "tests/tooling/verify/lib/ct-runner-lock.test.ts",
     "tests/tooling/verify/lib/drizzle-client-call.test.ts",
+    "tests/tooling/verify/lib/drizzle-write-target.test.ts",
     "tests/tooling/verify/lib/gate-authority.test.ts",
     "tests/tooling/verify/lib/gate-contract.test.ts",
     "tests/tooling/verify/lib/gate-ignore.test.ts",

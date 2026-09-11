@@ -891,6 +891,17 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/client/src/features/probe/finally-owned.ts":
+          "import { notify } from '#lib';\n" +
+          "export function finallyOwned(): void {\n" +
+          '  try { risky(); } catch {} finally { notify.error("Couldn\'t sync."); }\n' +
+          "}\n",
+      },
+      why: "THE CATCH ARM'S FINALLY NARROWING, and the row that dies without it: `ARM_MESSAGE.empty` claims the site names no owner `(and its finally)`, so the finally clause of `unownedCatch` is a claim this module's own message makes (§5b.2). §4.1 proved nothing enforced it — replacing the finally-owner pair with `return true` left all 1,659 corpus rows green, because cutting a narrowing only ADDS findings at sites no row visits. A bindingless catch whose FINALLY carries the governed user-visible surface with failure-valued copy has an owner, so it is not a site. Its twin is the `notice-laundering` mustFlag, whose fourth line is the NEGATIVE direction: a finally whose notice owns nothing still flags",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/infra/probe/cleanup.ts":
           "export function cleanup(stream: S): void {\n  // @orb-waive caught-failure-ownership(stream.cancel): teardown has no user result; failure only leaves an already-closing stream for process exit. Ends if teardown becomes retryable.\n  void stream.cancel().catch(() => undefined);\n}\n",
       },
