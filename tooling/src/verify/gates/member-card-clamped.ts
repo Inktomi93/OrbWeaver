@@ -56,9 +56,12 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   // No scanRoot in the legacy shape: absence there means admit-all over the shared harness workspace,
-  // which is exactly the "@authored" population (packages/*/src, tests/, tooling/src, scripts/ —
-  // tooling/src/_shared/ts-workspace.ts harnessGlobs). The three arms scope themselves per-file
-  // (contracts / server-src / clamp-home) inside the visitor, unchanged from the legacy `visit`.
+  // and `@authored` is the closest declared population (tooling/src/_shared/ts-workspace.ts harnessGlobs).
+  // `@authored` is a LITERAL nine-root list — client, ui, server, db, contracts, kit, tooling/src, tests/,
+  // scripts/ — so it is NOT "every packages/*/src": `packages/showcase-plugins/src` is a root of its own
+  // (`@showcase`) and is outside `@authored` today. See contract/population.ts, which records that gap as
+  // open rather than settled. The three arms scope themselves per-file (contracts / server-src /
+  // clamp-home) inside the visitor, unchanged from the legacy `visit`.
   population: "@authored",
   analysis: "syntax",
   execution: "selected-files",

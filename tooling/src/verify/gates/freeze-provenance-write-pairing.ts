@@ -27,6 +27,10 @@
 //     mustFlag rows is carried and still bites.
 //   · The door is now checked. Legacy keyed on the NAME alone, so any same-named export anywhere would
 //     have matched; identity now also requires the `@orb/db` door or the `packages/db/src/schema/` home.
+//     That HOME read must be TOTAL and is taken off the declaration's own path: `ctx.relativePath` throws
+//     for a file outside the effective population, and the canonical declaration of an unrelated import is
+//     routinely a node_modules `.d.ts` — which withheld this policy on every real-tree run until 2026-09-11
+//     (see `declaredAtSchemaHome` and its mustPass row).
 //   · A CROSS-MODULE const spread is now READ instead of refused. The shared binding resolver follows the
 //     import, so the legacy "build them in the same module" limit is gone; the UNREADABLE-OBJECT arm keeps
 //     its fail-closed row against a payload that is genuinely unreadable (a runtime member read).
@@ -94,28 +98,40 @@ const UNREADABLE_TABLE =
   "(a computed lookup, a namespace member). Silence here is exactly how an aliased or computed table walks " +
   "past a column invariant, so it is REFUSED: name the table INLINE at the builder.";
 
+/** A declaration's HOME is read off the declaration's OWN path — the house spelling for this question
+ *  (`lib/id-brand.ts`, `lib/sealed-origin.ts`) and, here, the only TOTAL one. `ctx.relativePath` refuses any
+ *  file outside the effective population (`lib/policy-pass-context.ts:214`), and a binding's canonical
+ *  declaration is routinely outside it: on the real tree the first `import { useQuery } from
+ *  "@tanstack/react-query"` in a `@packages` file resolves into a node_modules `.d.ts`, which threw and
+ *  WITHHELD this policy for the whole run (2026-09-11). Its mustPass row plants a declaration outside the
+ *  population. Membership in `ctx.files` is NOT the alternative — `policy-pass.ts:316` intersects that with
+ *  a scoped run's requested paths, so it would read clean under every `--scope`. */
+function declaredAtSchemaHome(sourceFile: SourceFile): boolean {
+  return sourceFile.getFilePath().replaceAll("\\", "/").includes(`/${SCHEMA_HOME_PREFIX}`);
+}
+
 /** THE TABLE-IDENTITY QUESTION, answered by BINDING and by the DOOR rather than by spelling. `other` is a
  *  name that provably is not ours — including an identifier nothing binds, which is a plain name this
  *  policy has simply never met. `unreadable` is reserved for a table EXPRESSION that reduces to no name at
  *  all, which is ARM 5's subject. */
-export function guardedTableVerdict(tableNode: MorphNode, relativePath: (sourceFile: SourceFile) => string): "ours" | "other" | "unreadable" {
+export function guardedTableVerdict(tableNode: MorphNode): "ours" | "other" | "unreadable" {
   const origin = resolveModuleMemberOrigin(tableNode);
   if (origin.kind === "unresolved") {
     return origin.reason === "missing" ? "other" : "unreadable";
   }
   const { memberPath, canonical } = origin.value;
-  const home = canonical.kind === "project" ? relativePath(canonical.sourceFile).startsWith(SCHEMA_HOME_PREFIX) : canonical.moduleSpecifier === DB_DOOR;
+  const home = canonical.kind === "project" ? declaredAtSchemaHome(canonical.sourceFile) : canonical.moduleSpecifier === DB_DOOR;
   return memberPath.length === 0 && canonical.exportedName === GUARDED_TABLE && home ? "ours" : "other";
 }
 
 /** The table a write chain under `callee` targets, or `null` when the chain has no Drizzle write verb in it
  *  at all (`map.set(…)`) — the boundary that stops ARM 5's fail-closed posture from redding every `.set()`. */
-export function writeChainVerdict(callee: MorphNode, relativePath: (sourceFile: SourceFile) => string): "ours" | "other" | "unreadable" | "no-write-chain" {
+export function writeChainVerdict(callee: MorphNode): "ours" | "other" | "unreadable" | "no-write-chain" {
   const table = readDrizzleWriteTable(callee);
   if (table.kind === "unresolved") {
     return "unreadable";
   }
-  return table.value === null ? "no-write-chain" : guardedTableVerdict(table.value, relativePath);
+  return table.value === null ? "no-write-chain" : guardedTableVerdict(table.value);
 }
 
 /** ARM 1 — an UPDATE that replaces `content` without deciding the provenance pair: the row keeps a record
@@ -200,7 +216,7 @@ export const gate = defineGate({
           kinds: [SyntaxKind.ImportSpecifier],
           visit: (node, sourceFile): void => {
             const named = Node.isImportSpecifier(node) ? (node.getAliasNode() ?? node.getNameNode()) : undefined;
-            if (named !== undefined && guardedTableVerdict(named, ctx.relativePath) === "ours") {
+            if (named !== undefined && guardedTableVerdict(named) === "ours") {
               importers.add(sourceFile);
             }
           },
@@ -212,7 +228,7 @@ export const gate = defineGate({
             if (write === undefined) {
               return;
             }
-            const verdict = writeChainVerdict(write.receiver, ctx.relativePath);
+            const verdict = writeChainVerdict(write.receiver);
             if (verdict === "unreadable") {
               unreadableTables.push({ node: write.nameNode, method: write.method, sourceFile });
               return;
@@ -475,6 +491,29 @@ export const gate = defineGate({
           "}\n",
       },
       why: "THE DOOR HALF OF IDENTITY, and the row that dies without it: legacy keyed on the NAME alone, so any export anywhere spelled `messageVariants` was this table. Identity now also requires the `@orb/db` door or the `packages/db/src/schema/` home — drop that clause and this foreign same-named table flags",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/persistence/x.ts":
+          'import { messageVariants } from "../../../../../../tooling/src/probe/tables.ts";\n' +
+          "export function foreignHome(db: D, id: string, content: string) {\n" +
+          "  return db.update(messageVariants).set({ content }).where(eq(messageVariants.id, id));\n" +
+          "}\n",
+        "tooling/src/probe/tables.ts": "export const messageVariants = { id: 'id' };\n",
+      },
+      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: a binding's CANONICAL declaration is routinely outside this policy's population — on the real tree the very first `import { useQuery } from \"@tanstack/react-query\"` in a `@packages` file resolves into a node_modules `.d.ts`. `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:214), so asking it for a foreign declaration's home THREW and withheld the whole policy on every `check:structure` run (measured 2026-09-11: `owner incomplete: visit: source file is outside the effective population` → the exemplar reported NOTHING on the real tree). The home is now read off the declaration's own path, the house spelling for this question (lib/id-brand.ts:88, lib/sealed-origin.ts:27). THIS ROW REDS AS A TOOL ERROR, NOT AS A FINDING, and that is not a mis-authored row: against the unmodified source the planted out-of-population declaration makes `visit` THROW, which is exactly the real-tree failure reproduced inside conformance (§4.7 planted break, receipt 2026-09-11: `PASS TOOL ERROR [visit] source file is outside the effective population: tooling/src/probe/tables.ts`). Membership in `ctx.files` is NOT the test: policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling would go silently clean under `--scope`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/persistence/x.ts":
+          'import { messageVariants } from "@orb/db";\n' +
+          "export function columnAsTable(db: D, id: string, content: string) {\n" +
+          "  return db.update(messageVariants.id).set({ content }).where(eq(messageVariants.id, id));\n" +
+          "}\n",
+      },
+      why: "THE MEMBER HALF OF IDENTITY, and the row that dies without it: identity is the table BINDING itself, never any name reachable THROUGH it. `messageVariants.id` is a COLUMN — its module-origin fact carries the same `exportedName` and the same door as the table, and `memberPath.length === 0` is the only clause that separates them. Drop it and this column-as-table write is judged as if it named the guarded table (§4.1: cutting the clause left all 1,659 corpus rows green before this row existed)",
     },
     {
       mode: "types",

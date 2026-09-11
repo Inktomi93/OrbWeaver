@@ -79,7 +79,7 @@ export const gate = defineGate({
               return;
             }
             const verb = callee.getName();
-            if ((verb === "update" || verb === "insert") && writeChainVerdict(node, ctx.relativePath) === "ours") {
+            if ((verb === "update" || verb === "insert") && writeChainVerdict(node) === "ours") {
               writeSites += 1;
             }
           },

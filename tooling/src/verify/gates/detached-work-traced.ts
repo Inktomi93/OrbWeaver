@@ -473,40 +473,6 @@ function guardedSites(sf: SourceFile, openers: ReadonlySet<string>): GuardedSite
   });
 }
 
-/** A live positioned `@swallowed-ok` is ALREADY two-sided ownership evidence — this gate reds it the moment
- *  it stops guarding a live site — so a sibling gate may read it as proof instead of demanding a second
- *  marker on the same line. Exact path + exact position + exact guarded line, or nothing. */
-export function hasLiveDetachedSwallowOwner(node: Node, position: string): boolean {
-  const sf = node.getSourceFile();
-  if (!inScope(sf.getFilePath())) {
-    return false;
-  }
-  // RESOLVE ONCE PER PASS, via this gate's own `begin`-derived vocabulary. The derivation walks every source
-  // file, and a sibling gate asks this per candidate SITE, so it must not be inline — but the cache lifetime
-  // is the PASS, never the Project.
-  //
-  // A Project-keyed memo was tried and REJECTED (2026-08-28). Project identity is only stable-per-example
-  // because conformance happens to build a fresh Project each time; measured against a prototype that
-  // amortizes that substrate (a 14.5x win the harness may well take), a Project-keyed memo served a
-  // PREVIOUS example's vocabulary and three of this gate's own conformance rows silently changed verdict.
-  // A cache whose correctness depends on how often its key happens to be thrown away is a trap for whoever
-  // optimises the substrate. `begin` fires once per pass, which is exactly this value's valid lifetime.
-  //
-  // When this gate did not run in the caller's pass (conformance runs ONE gate standalone), the vocabulary
-  // is empty and we derive directly — correct, and cheap on a mini-project.
-  const openers = passOpeners.size > 0 ? passOpeners : deriveRootSpanOpeners(sf.getProject().getSourceFiles());
-  if (openers.size === 0) {
-    return false;
-  }
-  const site = guardedSites(sf, openers).find(
-    (candidate) => candidate.position === position && candidate.node.getStart() <= node.getStart() && candidate.node.getEnd() >= node.getEnd(),
-  );
-  if (site === undefined) {
-    return false;
-  }
-  return resolveMarkers(sf.getFullText().split(LINE_BREAK_RE)).some((marker) => marker.guards === site.line && marker.name === site.position);
-}
-
 /** A NODE-anchored unmarked guarded site — never a `{file,line,column}` Finding literal
  *  (finding-overload-provenance): the node carries its own position, and `token` is the guarded position
  *  name (the gate's static `message` carries the general reason). */
@@ -554,9 +520,11 @@ export function inScope(path: string): boolean {
   return path.includes("packages/server/src/");
 }
 
-/** The opener vocabulary for THIS pass, re-derived in `begin`. Its lifetime is the PASS, never a Project,
- *  which is what makes it safe for the sibling-gate reader above to ride (see the rejection of a
- *  Project-keyed memo there). */
+/** The opener vocabulary for THIS pass, re-derived in `begin`. Its lifetime is the PASS, never a Project:
+ *  a Project-keyed memo was tried and REJECTED (2026-08-28) because Project identity is only stable per
+ *  example while conformance happens to build a fresh Project each time — against a substrate that
+ *  amortizes it, the memo served a PREVIOUS example's vocabulary and three of this gate's own rows
+ *  silently changed verdict. `begin` fires once per pass, which is exactly this value's valid lifetime. */
 let passOpeners: ReadonlySet<string> = new Set<string>();
 
 export const gate: GateDescriptor = {

@@ -26,6 +26,13 @@ export const POPULATION_SETS = {
   "@frontend": ["@client", "@ui"],
   "@backend": ["@server", "@db", "@contracts"],
   "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
+  /** "everything this repo authors" is a LITERAL nine-root list, so `@showcase` — an authored workspace
+   *  package — is deliberately OUTSIDE it today, and 19 policies declaring `@authored` therefore do not see
+   *  `packages/showcase-plugins/src`. That is an OPEN QUESTION rather than a settled boundary: widening the
+   *  set is a behaviour change across all 19, so it is measured and ruled, never done in passing. Measured
+   *  2026-09-11 (`@showcase` added here, `pnpm check:structure` + `pnpm check:policy-conformance`): ZERO new
+   *  findings and zero proof-row failures — the blast radius is empty today because the package holds one
+   *  file, which is why the decision is cheap now and gets more expensive with every file added to it. */
   "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
 } as const satisfies Readonly<Record<`@${string}`, readonly PopulationRoot[]>>;
 
