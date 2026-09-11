@@ -184,6 +184,11 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   `git show HEAD:<path> > <path>`). Always `=`-join it to an absolute scratch path
   (`--json=/tmp/.../out.json`). Same shape as the `rg -r` hazard below: an optional-value flag turns the
   next argument into a destination.
+- **The sanctioned `__probe` path is INVISIBLE to biome.** `.gitignore` covers the constitution §4 scratch-probe idiom
+  (`features/__probe/...`) and `biome.json` sets `vcs.useIgnoreFile: true`, so `biome check` on a probe reports
+  "No files were processed in the specified paths" and exits as if nothing was wrong — a false green that reads exactly
+  like a pass. To probe BIOME behaviour, plant at a normal untracked path inside a real source dir and `rm` it; the
+  `__probe` idiom still works for everything that does not honour the ignore file.
 - **rg flag discipline is a standing hazard:** `-r` + a shorthand cluster (`-rln`) silently REPLACES match
   text. Spell `--files-with-matches` / `-n` out.
 - **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides.** A negative claim

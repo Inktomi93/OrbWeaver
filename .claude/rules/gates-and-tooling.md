@@ -69,6 +69,30 @@ paths:
     direct walks are banned regardless of receiver.
   - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on
     #1584. Only defects, prerequisites and decisions get rows, and only the orchestrator files them.
+- **NATIVE CONFIG OWNERSHIP — two mechanisms, do not confuse them (world program #1351).**
+  - **GENERATED:** the TypeScript configs. `tooling/src/_shared/type-config-intent.ts` is the source;
+    `verify baseline type-configs` writes the world templates and runnable configs, `--check` verifies freshness
+    without writing. Package worlds, test kinds, helper homes and ambient scopes determine the generated fields. Never
+    hand-edit a generated field; change the intent.
+  - **HAND-AUTHORED BUT LIVENESS-GATED:** `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`. Nothing writes
+    them — deliberately, because "preserve tool-specific rule policy, deliberate grants, public-entry semantics" and
+    "a current violation must not generate its own permission". What keeps their hand-maintained path lists honest is a
+    gate per config (`biome-grant-liveness`, `eslint-grant-liveness`, `depcruise-grant-liveness`) plus
+    `verify/ops/config-snapshot.ts` reading the native loader. A file-exact path in a `biome.json` override `includes`
+    that names nothing is a finding, and the arms are two-sided so a stale exemption row is caught too.
+  - So "the config is hand-maintained" is NOT a defect here and NOT a missing generator. Reach for the liveness gate,
+    not for generation, when a native config's list rots.
+- **`biome`'s `noUselessUndefined` fights tsc's `noImplicitReturns`; the house answer is ONE TAIL RETURN.**
+  `biome.json` sets `noUselessUndefined: "error"` and `tsconfig.base.json` sets `noImplicitReturns: true`. On a
+  function typed `T | undefined` with early returns, `biome check --write` DELETES a trailing `return undefined;` as a
+  SAFE fix, and the implicit fall-through is then `TS7030: Not all code paths return a value`. Reproduced end to end
+  2026-09-11. Two sanctioned answers already in the tree, prefer the first: restructure to a single tail return
+  expression (`baseui-expand.ts:68` calls it "the pass.ts idiom" — an accumulator satisfies both without suppressing
+  either), or, where that is genuinely worse, an explicit
+  `// biome-ignore lint/complexity/noUselessUndefined: <config> enables noImplicitReturns.` (`pending-guard.ts:76`).
+  Do NOT disable the rule: all 8 surviving `return undefined;` sites pass biome today because each one takes one of
+  those two routes. **Order your floor biome FIRST, then typecheck** — the reverse reports a green tsc that biome is
+  about to invalidate.
 - `.claude/agent-doctrine.md` carries the marker-gate laws, the gates-land-on-a-fixed-tree rule, and the
   exemption-row coupled-site rule — the last applies to LEGACY descriptors only.
 - **Invoke through the `pnpm` rows, never a bare `node tooling/src/<tool>/cli.ts …`.** The bare
