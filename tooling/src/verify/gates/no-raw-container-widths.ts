@@ -1,5 +1,5 @@
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =
   'raw content width in className (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size="sm|md|lg">` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.';
@@ -27,55 +27,62 @@ function bannedWidthTokens(nodeText: string): BannedWidth[] {
   return out;
 }
 
-export const gate: GateDescriptor = {
-  name: "no-raw-container-widths",
-  docRow: "UI-Architecture-and-Layout.md §4",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-raw-container-widths",
+  family: "no-raw-container-widths",
+  authority: "ordinary",
+  severity: "error",
+  // The legacy predicate admitted @client/@ui and subtracted the two primitive homes that IMPLEMENT the
+  // container-width scale — `notUnder` is the non-lossy replacement for that exclusion.
+  population: { in: ["@client", "@ui"], notUnder: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: 'wrap in <Container size="sm|md|lg"> instead of hardcoded length',
-  scanRoot: (p) => {
-    if (p.includes("packages/ui/src/layout/") || p.includes("packages/ui/src/markdown/")) {
-      return false;
-    }
-    return p.includes("packages/client/src/") || p.includes("packages/ui/src/");
-  },
-  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
-  visit: (node, _sf, ctx) => {
-    const hits = bannedWidthTokens(node.getText());
-    for (const hit of hits) {
-      ctx.report(node, hit);
-    }
-  },
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
+        visit: (node) => {
+          const hits = bannedWidthTokens(node.getText());
+          for (const hit of hits) {
+            ctx.report.node(node, hit);
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const G = <div className="w-[600px]" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="w-[600px]" />;\n' },
       expect: { count: 1 },
       why: "w-[len]",
     },
     {
-      files: 'export const G = <div className="max-w-96" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="max-w-96" />;\n' },
       expect: { count: 1 },
       why: "max-w-96",
     },
   ],
   mustPass: [
     {
-      files: 'export const G = <div className="w-1/2" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="w-1/2" />;\n' },
       why: "w-1/2 is allowed",
     },
     {
-      files: 'export const G = <div className="w-full" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="w-full" />;\n' },
       why: "w-full is allowed",
     },
     {
-      files: 'export const G = <div className="min-w-24" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="min-w-24" />;\n' },
       why: "min-w floors are allowed",
     },
   ],
-};
+});

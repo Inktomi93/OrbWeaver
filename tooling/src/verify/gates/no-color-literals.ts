@@ -1,5 +1,5 @@
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE_NON_TOKEN =
   "named non-token color in className (bg-black/bg-white/…-black/…-white) — D43 / UI-Gates-and-Lessons.md §11.4: use a theme token; for overlays use bg-backdrop (a bg-black/50 scrim is invisible on a true-black theme).";
@@ -44,59 +44,67 @@ function bannedColorTokens(nodeText: string): BannedColor[] {
   return out;
 }
 
-export const gate: GateDescriptor = {
-  name: "no-color-literals",
-  docRow: "UI-Architecture-and-Layout.md / D43",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-color-literals",
+  family: "no-color-literals",
+  authority: "ordinary",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE_HEX,
   fix: "use a design token (bg-card, text-foreground, text-success, text-destructive).",
-  scanRoot: (p) => p.startsWith("packages/client/src") || p.startsWith("packages/ui/src"),
-  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
-  visit: (node, _sf, ctx) => {
-    // Ignore line suppressions manually if needed? ts-morph visit won't trigger if node has biome-ignore?
-    // Wait, the ts-morph harness handles biome-ignore? We don't have to worry.
-    const hits = bannedColorTokens(node.getText());
-    for (const hit of hits) {
-      ctx.report(node, hit);
-    }
-  },
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
+        visit: (node) => {
+          const hits = bannedColorTokens(node.getText());
+          for (const hit of hits) {
+            ctx.report.node(node, hit);
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const G = <div className="text-[#abc]" />;\n',
-      at: "packages/client/src/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/x.tsx": 'export const G = <div className="text-[#abc]" />;\n' },
       expect: { count: 1 },
       why: "arbitrary hex color",
     },
     {
-      files: 'export const G = <div className="bg-black" />;\n',
-      at: "packages/ui/src/x.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x.tsx": 'export const G = <div className="bg-black" />;\n' },
       expect: { count: 1 },
       why: "named non-token color",
     },
     {
-      files: 'export const G = <div className="text-red-500" />;\n',
-      at: "packages/client/src/palette.tsx",
+      mode: "source",
+      files: { "packages/client/src/palette.tsx": 'export const G = <div className="text-red-500" />;\n' },
       expect: { count: 1 },
       why: "a Tailwind palette scale (text-red-500) — the tighten's new arm: a fixed palette step bypasses the theme, RED",
     },
     {
-      files: 'export const G = <div className="rounded-md border bg-blue-300/50 ring-emerald-600" />;\n',
-      at: "packages/ui/src/palette-multi.tsx",
+      mode: "source",
+      files: { "packages/ui/src/palette-multi.tsx": 'export const G = <div className="rounded-md border bg-blue-300/50 ring-emerald-600" />;\n' },
       expect: { count: 2 },
       why: "two palette-scale tokens (bg-blue-300/50 with an opacity step + ring-emerald-600) in one className — one finding PER offending token, RED",
     },
   ],
   mustPass: [
     {
-      files: 'export const G = <div className="text-foreground" />;\n',
-      at: "packages/client/src/ok.tsx",
+      mode: "source",
+      files: { "packages/client/src/ok.tsx": 'export const G = <div className="text-foreground" />;\n' },
       why: "design token",
     },
     {
-      files: 'export const G = <div className="bg-primary text-muted-foreground border-border" />;\n',
-      at: "packages/client/src/ok-semantic.tsx",
+      mode: "source",
+      files: { "packages/client/src/ok-semantic.tsx": 'export const G = <div className="bg-primary text-muted-foreground border-border" />;\n' },
       why: "semantic theme tokens (bg-primary / text-muted-foreground / border-border) have no numeric palette step — the palette arm must NOT catch them, passes",
     },
   ],
-};
+});
