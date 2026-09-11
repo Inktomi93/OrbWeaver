@@ -1,10 +1,14 @@
 // Pins that EVERY ts-morph/fs structural gate actually fires on a violation — the gate self-test the
 // dep-cruiser suite has, now for tooling/src/verify/gates/*. A gate with a broken regex / AST query silently
 // matches nothing and passes green (the exact failure the dep-cruiser test was built to catch); this is
-// its structural-gate twin. The gate registry is DERIVED from `report.ts`'s own output — the LIVE
-// single-pass run (loadGates → runPass → renderPass); every ACTIVE gate it prints must fire on some
-// fixture, so a new gate added without a fixture FAILS here (anti-drift). This is the live-tree complement
-// to gate-conformance.repo.int.test.ts's synthetic mustFlag/mustPass examples.
+// its structural-gate twin. The gate roster is DERIVED from the MIXED `check:structure` run's own output
+// (loadMixedGateCorpus → runPass + runPolicyPass → renderPass + renderPolicyPass, #1584): every LEGACY gate it
+// prints must fire on some fixture, so a new legacy gate added without a fixture FAILS here (anti-drift). A
+// FINAL `defineGate` policy is printed on the same roster (its line carries the population denominator instead
+// of a file scan) but is NOT asserted to fire on a `__g_` fixture: its bite receipt is `structure:policy-conformance`
+// (`pnpm check:policy-conformance`), which runs every final policy's own mustFlag/mustPass rows through the
+// production dispatcher on every `pnpm check` — a stronger receipt than one planted file. This is the live-tree
+// complement to gate-conformance.repo.int.test.ts's synthetic mustFlag/mustPass examples.
 //
 // Each fixture is a minimal violation at the path its gate anchors on, all named `__g_*` so cleanup is a
 // single find -prune -rm. We run `check:structure` clean (→ the registry), then with fixtures (→ the
@@ -23,7 +27,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { loadGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
+import { loadMixedGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { runPnpmWithBudget, scaledBudget } from "./_load-budget.ts";
 
@@ -31,16 +35,18 @@ import { runPnpmWithBudget, scaledBudget } from "./_load-budget.ts";
 // scan-health/ratchet/denominator assertions, which MUST read a clean tree) and once WITH `__g_` fixtures
 // (→ the fired set). The two are NOT collapsible: the clean pass measures blindness/denominators over the
 // REAL tree, and a fixture landing in a rotted gate's scanRoot would MASK a gate that is blind on the real
-// tree — so both passes stay. Each pass is ~214s quiet and ~250s under load; two of them never fit the old
-// fixed 300s hook budget under any real contention. Now each pass runs under its OWN load-scaled child
-// `timeout` that throws a SELF-IDENTIFYING load kill (ORB-LOAD-KILL, exit-2 class) instead of letting
-// vitest's opaque hook timeout fire and read as a real red. Solo (factor 1): PER_PASS=300s, HOOK=660s —
-// both comfortably above the measured ~250s/pass, so solo behavior is unchanged.
+// tree — so both passes stay. A legacy-only pass measured ~214s quiet and ~250s under load; the MIXED pass
+// (both dispatchers over one shared ts-morph Project) measured 173s quiet on 2026-09-11 — 129s legacy + 38s
+// final, 7.7GB peak RSS (docs/reviews/gate-runtime/mixed-runtime-front-door.md §11.3) — so the 300s base still
+// holds with margin and is KEPT, not re-guessed. Two passes never fit the old fixed 300s hook budget under any
+// real contention. Each pass runs under its OWN load-scaled child `timeout` that throws a SELF-IDENTIFYING
+// load kill (ORB-LOAD-KILL, exit-2 class) instead of letting vitest's opaque hook timeout fire and read as a
+// real red. Solo (factor 1): PER_PASS=300s, HOOK=660s — both above the measured pass, so solo behavior is unchanged.
 const PER_PASS_BUDGET = scaledBudget(300_000, 4);
 const HOOK_BUDGET = 2 * PER_PASS_BUDGET + scaledBudget(60_000, 4);
 
 const ROOT = join(import.meta.dirname, "..", "..");
-// Both patterns are ANCHORED to renderPass's EXACT line shapes (`  ✓ <name>` / `  ✗ <name> (<n>)`,
+// Both patterns are ANCHORED to the renderers' EXACT line shapes (`  ✓ <name>` / `  ✗ <name> (<n>)` / `  ⚠ <name>`,
 // tooling/src/verify/lib/render.ts) — two-space indent, whole line. An unanchored `✓\s+(\w+)` scraped ANY ✓ on
 // the child's stdout, and `pnpm exec` interleaves its own: after a deps-state invalidation (a sibling
 // worktree install, a lockfile mtime bump) pnpm 11 runs an implicit install and prints
@@ -50,17 +56,24 @@ const ROOT = join(import.meta.dirname, "..", "..");
 // scrape total w.r.t. any ambient child chatter; if renderPass's format ever drifts the registry goes
 // empty and the `registry.size > 8` test below fails LOUD rather than silently.
 //
-// The `  ·  scanned N/M files…` SCAN-HEALTH suffix (2026-08-13) rides every gate line, so both patterns
-// end in an optional suffix group rather than a bare `$` — still anchored (the whole line is described),
-// still total against ambient `pnpm` chatter. A third shape joined at the same time: `  ! <name>` for a
-// gate that scanned ZERO files, which is neither a pass nor a violation but a BLIND checker. It is
-// scraped into the registry (the gate did run) AND asserted absent by its own test below — without the
-// scrape, a blind gate would silently drop out of `registry` and surface as a baffling
-// "unregistered gate file" red instead of the thing it is.
+// The `  ·  scanned N/M files…` SCAN-HEALTH suffix (2026-08-13) rides every LEGACY gate line, and since the
+// mixed runtime (#1584) every FINAL policy line carries `  ·  final <authority>/<severity> · population N source
+// · M resource…` instead — the same denominator claim in the final vocabulary — so each pattern ends in ONE
+// optional suffix group that admits either shape rather than a bare `$`: still anchored (the whole line is
+// described), still total against ambient `pnpm` chatter. A third shape joined with scan health: `  ⚠ <name>`
+// for a gate whose run is NOT A VERDICT — a legacy gate that scanned ZERO files, or a final policy whose owner
+// failed or was WITHHELD by authority. It is scraped into the registry (the gate did run) AND asserted absent
+// by its own test below — without the scrape, such a gate would silently drop out of `registry` and surface as
+// a baffling "unregistered gate file" red instead of the thing it is. (This pin used to spell that glyph `!`;
+// the renderer has printed `⚠` since the tooling move (68c8f42d6), so the arm matched nothing and `blind` was
+// an unfailable empty set — repaired with the mixed-roster re-derivation, 2026-09-11.)
 const SCAN_SUFFIX = String.raw` {2}·  scanned \d+/\d+ files.*`;
-const OK_RE = new RegExp(`^ {2}✓ (?<gate>[a-z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
-const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-z0-9-]+) \(\d+\)(?:${SCAN_SUFFIX})?$`, "gmu");
-const BLIND_RE = new RegExp(`^ {2}! (?<gate>[a-z0-9-]+)(?:${SCAN_SUFFIX})?$`, "gmu");
+const FINAL_SUFFIX = String.raw` {2}·  final (?:hard|ordinary|reviewed-grant)/(?:error|warning) · population \d+ source · \d+ resource.*`;
+const LINE_SUFFIX = `(?:${SCAN_SUFFIX}|${FINAL_SUFFIX})`;
+// A final ✓ line may carry `(N warning(s))` between the name and its suffix — warning-severity findings never block.
+const OK_RE = new RegExp(String.raw`^ {2}✓ (?<gate>[a-z0-9-]+)(?: \(\d+ warning\(s\)\))?(?:${LINE_SUFFIX})?$`, "gmu");
+const FIRED_RE = new RegExp(String.raw`^ {2}✗ (?<gate>[a-z0-9-]+) \(\d+\)(?:${LINE_SUFFIX})?$`, "gmu");
+const BLIND_RE = new RegExp(`^ {2}⚠ (?<gate>[a-z0-9-]+)(?:${LINE_SUFFIX})?$`, "gmu");
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "tooling", "src", "verify", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
@@ -475,9 +488,9 @@ function writeFixtures(): void {
   // `rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage`, `user-bus-coverage`) collapsed
   // into this ONE final `defineGate` policy on the shared bus producer fact (#1584), quantified over every
   // belted union; their DEFERRED maps are gone. MISSING needs an un-emitted REAL union member, which a
-  // throwaway `__g_` file cannot add to a single-home `*_EVENT_TYPES` belt, so it stays unfixturable and its
-  // bite is proven by its own conformance rows plus `user-bus-deferred-member`, both through the production
-  // dispatcher (tests/tooling/verify/gates/bus-fact-health.test.ts, bus-pair.test.ts).
+  // throwaway `__g_` file cannot add to a single-home `*_EVENT_TYPES` belt. As a FINAL policy it is partitioned
+  // out of the anti-drift arm below (not an UNFIXTURABLE row): its bite is `structure:policy-conformance` running
+  // its own rows through the production dispatcher, plus `user-bus-deferred-member`.
   // domain-freshness-plane: a mutating domain with no DOMAIN_FRESHNESS row — the refinery arm, which is the
   // state the tree was actually in before 2026-08-14.
   fx(
@@ -664,9 +677,8 @@ function writeFixtures(): void {
   fx(`${D}/__g_vanity/x.ts`, 'import { Foo as Bar } from "@orb/kit/x";\nexport const g = Bar;\n');
   // warning-code-coverage: NOT fixtured here — it is a whole-corpus emit-coverage RATCHET (a tuple member
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
-  // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture; it is
-  // proven to fire by its dedicated self-test (tests/tooling/warning-code-coverage.residual.test.ts) and is
-  // exempted from the anti-drift assertion below.
+  // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture. It is a
+  // FINAL policy now, partitioned out of the anti-drift arm below; its bite is `structure:policy-conformance`.
   // list-row-adoption: a LIST-surface file (imports LibrarySurfaceShell) whose `.map()` row roots in a
   // plain interactive <div>, not ListRow/LibraryRow (client-architecture-lockdown.md §16 G6).
   fx(
@@ -991,18 +1003,17 @@ function writeFixtures(): void {
   );
 }
 
-// Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
+// Registered LEGACY gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
 // trigger needs the real single-home tuple + emit corpus (removing an emit / adding a tuple member),
 // which a throwaway file can't reproduce. Each is proven to fire by its OWN self-test in tests/tooling/.
-// verify-registry-parity reconciles the ROOT package.json against the verify registry — a throwaway `__g_`
-// file can't add a verification-shaped script to the real package.json (and injecting one there would be a
-// real, non-throwaway edit), so it can't be driven by a fixture. Its bite is proven by its conformance
-// mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
+// A FINAL `defineGate` policy is NEVER a row here: the anti-drift arm partitions final ids out by the mixed
+// roster (`loadMixedGateCorpus`), because their bite is `structure:policy-conformance` on every `pnpm check`,
+// and the two-sided test below REDs a row that names a converted policy — seven rows had gone stale that way
+// (eslint-grant-liveness, depcruise-grant-liveness, warning-code-coverage, verify-registry-parity,
+// bus-producer-coverage, message-kind-policy-coverage, ct-poll-schedule-and-paint-health) by 2026-09-11.
 // enforcement-registry-parity: its `__g_` arm is retired (the gate-file-vs-registry job is now the loader's
-// fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance.
-// bus-producer-coverage: MISSING needs an un-emitted REAL union member, which a throwaway `__g_` file can't
-// add to a single-home belt such as `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by its conformance
-// mustFlag rows (synthetic un-emitted members, one per belted bus) in the final policy's own proof set.
+// fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance and by
+// tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts over both contracts.
 // bus-payload-allowlist: scopes to 8 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
 // type identity, after #1024/#1025 added the open-key-space and imported-zod-schema arms, and after #1047
@@ -1027,13 +1038,6 @@ function writeFixtures(): void {
 // a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
 // need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
 // paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
-// message-kind-policy-coverage: every REAL MessageKindPolicy axis (prompt/memory/reading) now has either a
-// production reader or is single-LITERAL, and its DEFERRED map is empty — so on the real tree there is no
-// unread axis left for a `__g_` file to fake a MISSING finding against (the interface itself is a single-home
-// real file this fixture can't extend), and the STALE/ORPHAN arms need a live DEFERRED row that doesn't exist
-// (see the note beside DEFERRED in message-kind-policy-coverage.ts). Its bite is proven by gate-conformance's
-// mustFlag rows (a fresh unread axis, and mode B) + the founding catch when the `comment` row's
-// `prompt:"never"` cell shipped unenforced.
 // baseui-surface-manifest: it compares two ARTIFACTS — the installed `@base-ui/react` under
 // packages/ui/node_modules and the committed surface manifest — and neither is something a `__g_`
 // source file can perturb. Its bite is proven by six conformance mustFlag examples that materialize a
@@ -1051,12 +1055,7 @@ function writeFixtures(): void {
 // `__g_` path (its discovery matches `tsconfig*.json`, not `__g_*`) and un-plantable without perturbing the
 // real type program. Its bite is proven by conformance (dead row, classifier, absent/unparseable config,
 // zero-rows, both exemption arms) and by its own permanent pin, tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts.
-// eslint-grant-liveness / depcruise-grant-liveness: the same posture again — each unit is a value inside a
-// REPO-ROOT config (eslint.config.js, .dependency-cruiser.cjs), unreachable by any `__g_` path and
-// un-plantable without perturbing the live lint/import-law config for every concurrent consumer. Their bite
-// is proven by conformance (dead row · the const/spread/template CODE shapes · unreadable-shape refusal ·
-// absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
-// runner-config-path-liveness: the fourth of that family — its units are values inside the REPO-ROOT
+// runner-config-path-liveness: the third legacy member of that family — its units are values inside the REPO-ROOT
 // runner configs (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts), which no `__g_` path
 // can express and which cannot be perturbed without changing WHICH TESTS RUN for every concurrent lane.
 // Vitest selectors are observed through the native config-snapshot boundary; the still-literal Playwright
@@ -1078,39 +1077,36 @@ function writeFixtures(): void {
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
-  "eslint-grant-liveness",
-  "depcruise-grant-liveness",
   "runner-config-path-liveness",
   "baseui-surface-manifest",
-  "warning-code-coverage",
-  "verify-registry-parity",
   "enforcement-registry-parity",
-  // The five per-union coverage modules are one policy since #1584 — see the note beside its fixture slot.
-  "bus-producer-coverage",
   "bus-payload-allowlist",
   "knob-wire-coverage",
-  "message-kind-policy-coverage",
   "tokens-contract",
   "css-family-ownership",
   "css-selector-has-a-writer",
   "devtools-frontend-assets",
   // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
   "playwright-css-topology",
-  // ct-poll-schedule-and-paint-health: the founding-anchor blindness tripwire split from
-  // ct-poll-schedule-and-paint (gate-runtime-standardization.md conversion, #1935). A __g_ file cannot
-  // move or rewrite the real tests/client/lib/motion-stats.ct.tsx anchor, so this arm keeps judging the
-  // untouched real tree and stays quiet across the whole fixture run — proven instead by its own mustFlag
-  // row.
-  "ct-poll-schedule-and-paint-health",
 ]);
 
 let registry = new Set<string>();
 let fired = new Set<string>();
 let cleanRun = "";
 let blind = new Set<string>();
+/** The mixed roster the assertions partition on — read through the loader, never scraped from a name. */
+let corpusFiles: readonly string[] = [];
+let unregisteredModules: readonly string[] = [];
+let legacyNames = new Set<string>();
+let finalIds = new Set<string>();
 
-beforeAll(() => {
+beforeAll(async () => {
   cleanFixtures();
+  const corpus = await loadMixedGateCorpus(ROOT);
+  corpusFiles = corpus.files;
+  unregisteredModules = corpus.unregistered;
+  legacyNames = new Set(corpus.legacy.map((g) => g.name));
+  finalIds = new Set(corpus.final.map((p) => p.id));
   // registry = every gate report.ts prints, ✓ OR ✗. A gate can be legitimately ✗ on the real tree
   // (e.g. test-presence flagging a not-yet-tested infra/foundation file) and must still count as
   // "registered" — otherwise the dir-cross-check below would mistake an honest red for an unregistered gate.
@@ -1130,31 +1126,45 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
   expect(registry.size).toBeGreaterThan(8);
 });
 
-test("reserved proof files stay project inputs but never become descriptor corpus", async () => {
-  const corpus = await loadGateCorpus(ROOT);
-  expect(corpus.files.filter((file) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
-  expect(corpus.unregistered).toEqual([]);
+test("reserved proof files stay project inputs but never become descriptor corpus, and the roster accounts for every module once", () => {
+  expect(corpusFiles.filter((file) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
+  expect(unregisteredModules).toEqual([]);
+  // The accounting identity the run manifest reconciles (contract/gate-corpus.ts): one roster row per module.
+  expect(corpusFiles.length).toBe(legacyNames.size + finalIds.size + unregisteredModules.length);
 });
 
-// Any glyph, then the scan suffix — a status line that carries no count fails this.
-const SCANNED_RE = /^ {2}[✓✗!] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
+// Any glyph, then the denominator suffix — a status line that carries no count fails this. A legacy line carries the
+// FILE scan; a final line carries the resolved POPULATION (source + resource paths).
+const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
+const FINAL_POPULATION_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}final [a-z-]+\/[a-z]+ · population \d+ source · \d+ resource/gmu;
 const DENSITY_ADMITTED_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: \d+/mu;
 // #569: the admitted number is SPLIT BY CLASS everywhere it prints — a ratified admission is permanent by a
 // recorded ruling and must not read as burnable backlog. `suppressions` is the ledger that carries both.
 const SUPPRESSIONS_SPLIT_RE = /^ {2}[✓✗!] suppressions.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 const SINGLE_PASS_SPLIT_RE = /^single-pass: (?<total>\d+) finding\(s\) admitted by ratchet baselines \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 
-test("every gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
+test("every LEGACY gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
   // A verdict without a denominator cannot be audited: ✓ reads identically whether the gate examined
-  // 4,796 files or none of them. This is the permanent form of that guarantee over the REAL corpus.
+  // 4,796 files or none of them. This is the permanent form of that guarantee over the REAL corpus; a final
+  // policy's denominator is its POPULATION, asserted by the next test in the final vocabulary.
   const counted = names(SCANNED_RE, cleanRun);
-  expect([...registry].filter((g) => !counted.has(g))).toEqual([]);
+  expect([...registry].filter((g) => !(counted.has(g) || finalIds.has(g)))).toEqual([]);
 });
 
-test("no active gate scanned ZERO files on the real tree (the zero-scan placebo)", () => {
-  // A gate whose scanRoot admits nothing runs, finds nothing, and renders green. report.ts calls that a
-  // TOOL error (exit 2) — this pins the population at zero so the day one appears it is attributed here
-  // and not mistaken for an unregistered-gate drift red.
+test("every FINAL policy reports the POPULATION DENOMINATOR behind its verdict — the same claim, the final vocabulary", () => {
+  const counted = names(FINAL_POPULATION_RE, cleanRun);
+  expect([...registry].filter((g) => finalIds.has(g) && !counted.has(g))).toEqual([]);
+  // The partition above is only as honest as the final set it reads: an EMPTY set would hand every row to the
+  // legacy arm and the two anti-drift arms silently. The mixed loader classifies by brand, so zero here means the
+  // classifier died, not that the corpus is legacy-only (163 final at re-derivation, never restated as a pin).
+  expect(finalIds.size).toBeGreaterThan(0);
+});
+
+test("no gate's real-tree run is a NON-VERDICT: no legacy gate scanned ZERO files, no final owner failed or was WITHHELD", () => {
+  // A gate whose scanRoot admits nothing runs, finds nothing, and renders green; a final policy whose owner threw
+  // or whose fact was refused is withheld before it can judge. The front door calls both a TOOL error (exit 2) —
+  // this pins the population at zero so the day one appears it is attributed here and not mistaken for an
+  // unregistered-gate drift red.
   expect([...blind]).toEqual([]);
 });
 
@@ -1180,9 +1190,19 @@ test("the admitted number is split into DEBT and RATIFIED, and the split adds up
   expect(Number(footer?.["debt"]) + Number(footer?.["ratified"])).toBe(Number(footer?.["total"]));
 });
 
-test("every registered structural gate fires on its fixture (anti-drift)", () => {
-  const unfired = [...registry].filter((g) => !(fired.has(g) || UNFIXTURABLE_GATES.has(g)));
+test("every registered LEGACY gate fires on its fixture (anti-drift)", () => {
+  // A FINAL policy is partitioned out by the mixed roster, not carried as an UNFIXTURABLE row: its bite is
+  // `structure:policy-conformance` running its own mustFlag/mustPass rows through the production dispatcher
+  // (`runPolicyPass`) on every `pnpm check` — a stronger receipt than one `__g_` fixture.
+  const unfired = [...registry].filter((g) => !(fired.has(g) || UNFIXTURABLE_GATES.has(g) || finalIds.has(g)));
   expect(unfired).toEqual([]);
+});
+
+test("every UNFIXTURABLE row names a LEGACY module on the mixed roster — a row naming a converted policy or nothing is stale", () => {
+  // The two-sided arm this exemption table owed (GATE-AUTHORING.md §4.4): when a gate converts to `defineGate`
+  // its bite moves to the conformance stage and its row here is dead text that hides nothing and teaches the
+  // wrong home. Seven rows had gone stale that way by 2026-09-11; this arm was RED on them before they were removed.
+  expect([...UNFIXTURABLE_GATES].filter((g) => !legacyNames.has(g))).toEqual([]);
 });
 
 // Gates DELIBERATELY held DORMANT (`status:"dormant"` descriptors) — built + self-tested but not run by

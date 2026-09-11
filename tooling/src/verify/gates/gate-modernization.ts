@@ -1,15 +1,27 @@
 // Gate: gate-modernization — the META-gate. The gate corpus is the enforcement layer; nothing else
 // enforces ITS shape, so a gate could register nothing, carry a one-sided exemption table, cite a
 // section that does not exist, or carry a ratchet ledger nobody counts, forever and silently. Four
-// mechanical axes, all keyed on the corpus itself: A DESCRIPTOR (a gate file must register a proven
-// descriptor) · B EXEMPTIONS (an exemption vocabulary promises a STALE arm) · C CITATION (a docRow `§`
-// anchor must resolve in the doc it names) · D ADMITTED (a gate reading a committed ratchet ledger must
+// mechanical axes, all keyed on the corpus itself: A DESCRIPTOR (a gate file must register under one of
+// the two contracts) · B EXEMPTIONS (an exemption vocabulary promises a STALE arm) · C CITATION (a docRow
+// `§` anchor must resolve in the doc it names) · D ADMITTED (a gate reading a committed ratchet ledger must
 // DECLARE what it admitted). The law these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
+//
+// MIXED RUNTIME (#1584, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): arm A recognises a module
+// as REGISTERED under either contract — a legacy `gate` descriptor object, or a `gate = defineGate(…)` call
+// whose callee resolves BY IMPORT ORIGIN to `contract/policy.ts` (`lib/gate-contract-origin.ts`; a same-named
+// local `defineGate` is not the contract and the module registers nothing). A final module's proof floor
+// (≥1 mustFlag/mustPass, no legacy fields) is `lib/policy-validation.ts`'s at load time, so arm A judges
+// nothing further on it; arms B and D are MODULE-shape arms and run over both contracts (a one-sided
+// exemption table or a silent ledger read is a defect whatever the descriptor); arm C reads `docRow`,
+// which only a legacy descriptor carries. The corpus is the LOADER's corpus — top-level `gates/*.ts` —
+// so the shared proof surfaces under `gates/_proof/` are inputs to policy proofs, never modules that owe
+// a descriptor.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { isCanonicalDefineGate } from "../lib/gate-contract-origin.ts";
 import { fileLoaded, repoRel } from "../lib/pass.ts";
 
 const GATES_REL = "tooling/src/verify/gates/";
@@ -46,7 +58,7 @@ const ANCHOR_TERMINATORS = ".):; ";
 // message: it anchors on a file, not a node.
 const MESSAGE =
   "a gate file breaks the gate-authoring law (tooling/src/verify/gates/GATE-AUTHORING.md): it registers no proven " +
-  "descriptor, carries an exemption vocabulary with no STALE arm, or cites a `§` anchor that does not exist " +
+  "descriptor under either contract, carries an exemption vocabulary with no STALE arm, or cites a `§` anchor that does not exist " +
   "in the doc it names. The gate corpus is the enforcement layer — nothing else enforces its shape. " +
   "A `mustFlag`/`mustPass` token: the descriptor has no non-empty array for that field — a gate without a " +
   "self-proof cannot be shown to bite, so add ≥1 example WITH a `why`. A `§<anchor>` token: the docRow cites " +
@@ -62,7 +74,8 @@ const MESSAGE =
   "nobody granted it.";
 
 const FIX =
-  "A: export a `gate: GateDescriptor` with ≥1 mustFlag + ≥1 mustPass (tooling/src/verify/contract/gate.ts). " +
+  "A: export `gate = defineGate({…})` from tooling/src/verify/contract/policy.ts (its validator owns the proof floor), or a legacy " +
+  "`gate: GateDescriptor` with ≥1 mustFlag + ≥1 mustPass (tooling/src/verify/contract/gate.ts). " +
   "B: give the exemption table a STALE arm in `finalize` — a row matching zero live sites must be RED, " +
   `guarded on a real-tree anchor, not on \`scope.kind\` alone (${LAW} §4); if the collection is a ` +
   "scan-SCOPE decision rather than an exemption, rename it out of the exemption vocabulary. " +
@@ -72,13 +85,31 @@ const FIX =
 
 // ── ARM A ────────────────────────────────────────────────────────────────────────────────────────────
 const NO_DESCRIPTOR = (rel: string): string =>
-  `${rel} lives in the gate corpus but exports no \`gate\` descriptor object — the loader SKIPS such a ` +
-  "module (`mod.gate === undefined ⇒ continue`, tooling/src/verify/lib/loader.ts), so the file enforces nothing and " +
-  `reports nothing, forever. Export a valid descriptor or delete the file (${LAW} §1).`;
+  `${rel} lives in the gate corpus but exports no \`gate\` descriptor object and no canonical \`defineGate\` policy — ` +
+  "the mixed loader records such a module as UNREGISTERED (tooling/src/verify/lib/loader.ts) and the front door " +
+  "reconciles the roster, but the file itself enforces nothing and reports nothing, forever. Export a valid legacy " +
+  `descriptor, a \`defineGate\` policy imported from tooling/src/verify/contract/policy.ts, or delete the file (${LAW} §1).`;
 
-/** The `gate` descriptor object literal of a gate module, if it declares one. */
-function descriptorOf(sf: SourceFile): Node | undefined {
-  return sf.getVariableDeclaration("gate")?.getInitializer()?.asKind(SyntaxKind.ObjectLiteralExpression);
+/** How a gate module registers: the legacy descriptor OBJECT (judged field by field below), or a canonical
+ *  `defineGate(…)` CALL (registered; its shape is the final contract's own validation). */
+type Registration = { readonly contract: "legacy"; readonly obj: Node } | { readonly contract: "final" };
+
+/** The module's registration under either contract, or undefined when it registers under neither. Identity, not
+ *  spelling: a `defineGate` whose import origin is not `contract/policy.ts` is a lookalike and registers nothing. */
+function registrationOf(sf: SourceFile): Registration | undefined {
+  const init = sf.getVariableDeclaration("gate")?.getInitializer();
+  if (init === undefined) {
+    return;
+  }
+  const value = unwrap(init);
+  if (TsNode.isObjectLiteralExpression(value)) {
+    return { contract: "legacy", obj: value };
+  }
+  if (!TsNode.isCallExpression(value)) {
+    return;
+  }
+  const callee = value.getExpression();
+  return TsNode.isIdentifier(callee) && isCanonicalDefineGate(callee) ? { contract: "final" } : undefined;
 }
 
 /** Is a descriptor property a non-empty array literal? */
@@ -88,14 +119,20 @@ function hasNonEmptyArrayProp(obj: Node, field: string): boolean {
   return init !== undefined && TsNode.isArrayLiteralExpression(init) && init.getElements().length > 0;
 }
 
+/** ARM A for one module. Returns the LEGACY descriptor object for arm C, or undefined when there is nothing further
+ *  to judge — a registered final policy (its floor is `lib/policy-validation.ts`) or an unregistered module. */
 function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | undefined {
-  const obj = descriptorOf(sf);
-  if (obj === undefined) {
+  const registration = registrationOf(sf);
+  if (registration === undefined) {
     // THE SANCTIONED Finding overload (§1): FILE-LEVEL by construction — the module exports no descriptor,
     // so there is no node to anchor on or hang a marker off.
     ctx.report({ file: rel, line: 1, column: 0, message: NO_DESCRIPTOR(rel) });
     return;
   }
+  if (registration.contract === "final") {
+    return;
+  }
+  const { obj } = registration;
   for (const field of ["mustFlag", "mustPass"]) {
     if (!hasNonEmptyArrayProp(obj, field)) {
       // The missing FIELD is the token — both fields can be missing on the SAME descriptor node, which is
@@ -358,12 +395,14 @@ function armAdmitted(sf: SourceFile, ctx: GateRunCtx): boolean {
 }
 
 // ── the pass ─────────────────────────────────────────────────────────────────────────────────────────
-/** Gate modules in this run's project, repo-relative path → SourceFile, sorted. */
+/** Gate modules in this run's project, repo-relative path → SourceFile, sorted. The LOADER's corpus predicate —
+ *  top-level `gates/*.ts` only (lib/loader.ts `corpusFiles`): a file under `gates/_proof/` is a shared proof surface
+ *  the policy proofs import, not a module that owes a descriptor. */
 function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
   const out = new Map<string, SourceFile>();
   for (const sf of ctx.project.getSourceFiles()) {
     const rel = repoRel(ctx.root, sf.getFilePath());
-    if (rel.startsWith(GATES_REL) && TS_EXT_RE.test(rel)) {
+    if (rel.startsWith(GATES_REL) && TS_EXT_RE.test(rel) && !rel.slice(GATES_REL.length).includes("/")) {
       out.set(rel, sf);
     }
   }
@@ -414,7 +453,15 @@ export const gate: GateDescriptor = {
     {
       files: { "tooling/src/verify/gates/__probe.ts": "export const notAGate = 1;\n" },
       expect: { messageIncludes: "exports no `gate` descriptor" },
-      why: "ARM A — the loader's silent `continue`: a module in the gate corpus that registers nothing enforces nothing, forever, with no signal",
+      why: "ARM A — a module in the gate corpus that registers under neither contract enforces nothing, forever; the mixed loader records it as unregistered, and this is the finding that names the file",
+    },
+    {
+      files: {
+        "tooling/src/verify/gates/__probe.ts":
+          'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate({ id: "__probe", message: "m", mustFlag: [1], mustPass: [1] });\n',
+      },
+      expect: { messageIncludes: "exports no `gate` descriptor" },
+      why: "ARM A — IDENTITY, not spelling: a same-named LOCAL `defineGate` has no import origin in contract/policy.ts, so the module registers nothing (the loader would refuse its unbranded result too) and the arm names it rather than trusting the callee's name",
     },
     {
       files: {
@@ -455,6 +502,20 @@ export const gate: GateDescriptor = {
         "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
       },
       why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` three findings at landing",
+    },
+    {
+      files: {
+        // The origin reader resolves the relative import on disk (this gate is fsBacked, so its example is a real
+        // temp root), exactly as it resolves the real contract/policy.ts on the real tree.
+        "tooling/src/verify/contract/policy.ts": "export function defineGate(policy: unknown): unknown {\n  return policy;\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", mustFlag: [1], mustPass: [1] });\n',
+      },
+      why: "ARM A — a CANONICAL `defineGate` module is REGISTERED (the mixed loader classifies it final by brand; this arm by import origin), and its proof floor belongs to lib/policy-validation.ts — the arm judges nothing further on it (the #1584 widening: 163 converted modules read as 'exports no descriptor' before it)",
+    },
+    {
+      files: { "tooling/src/verify/gates/_proof/__probe-surface.ts": "export const SURFACE = 1;\n" },
+      why: "ARM A — the corpus is the LOADER's corpus (top-level `gates/*.ts`): a shared proof surface under `gates/_proof/` is an input the policy proofs import, not a module that owes a descriptor (six such files read as unregistered before the predicate matched the loader's)",
     },
 
     {

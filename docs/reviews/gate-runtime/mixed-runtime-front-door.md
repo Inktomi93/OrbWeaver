@@ -48,10 +48,10 @@ Classification of one module `rel`, in this order, by exact contract identity:
 3. `mod.gate` is **not branded** and fails legacy validation → **tool error**: the loader throws
    `gate module <rel>: exports a \`gate\` that is neither branded by defineGate nor a valid legacy descriptor: <legacy reason>`.
    The message ADDS a hint when the object carries the final contract's required keys (`id`, `family`, `authority`,
-   `create`): "it has the final contract's shape but was not created through defineGate (a spread, clone or copy
+   `create\`): "it has the final contract's shape but was not created through defineGate (a spread, clone or copy
    loses the brand)". The hint is text in the refusal; it is never a dispatch decision.
 4. `mod.gate === undefined` but the module exports a branded value under another name → **tool error**
-   (`exactly one defineGate descriptor named \`gate\``, the existing final-loader rule).
+   (`exactly one defineGate descriptor named \`gate\`\`, the existing final-loader rule).
 5. `mod.gate === undefined` and no branded export → **unregistered** (recorded on the roster as today; the run
    manifest reconciles it into `incompleteReasons` and exit 2 — the #410 control stays green).
 6. An import-time throw (syntax error, missing dependency) stays FATAL, attributed to the path in sorted order
@@ -107,7 +107,7 @@ final  = corpus.final.length === 0 ? null :
   dispatchers bracket their own `beginReferencePass`/`endReferencePass`; they run sequentially. Measured in §8.
 - **Grants.** The door passes `reviewedGrantsFor(corpus.final)` — the brief's spelling, and the only one that keeps a
   PARTIAL roster honest: with the whole table, every planted tree and every future scoped policy selection drowns in
-  `invalid-grant` errors for rows naming policies it never loaded (measured while writing the mixed test: ~100 per
+  `invalid-grant` errors for rows naming policies it never loaded (measured while writing the mixed test: \~100 per
   planted run). The silence that filter would otherwise buy — a row naming a legacy gate or a deleted policy vanishing —
   is closed where it is a WHOLE-corpus fact: the conformance stage validates `REVIEWED_GRANTS` against the whole final
   roster on every check (`validateReviewedGrants`, `lib/gate-authority-validation.ts:55-76`: unknown policy, wrong
@@ -159,7 +159,7 @@ type StructureGateRow =
 
 - `Violation` (`contract/harness.ts`) widens by optional `column`, `token`, `severity` — additive; legacy rows keep
   `{file,line,message}`.
-- Population is carried as COUNTS: 163 policies × ~7,300 paths as lists would make the artifact unreadable and
+- Population is carried as COUNTS: 163 policies × \~7,300 paths as lists would make the artifact unreadable and
   `check:show` unusable; the per-policy receipts (semantic members) stay whole.
 - `run` (`contract/run-manifest.ts`) gains `legacy: { registered, active, ran }` and `final: { registered, ran, withheld }`;
   the totals `registered/active/ran` become the sums, so `show`'s `ran/active` reading is unchanged.
@@ -196,7 +196,7 @@ Exit: the same `max` composition. The scoped door writes no artifact today and s
 
 ## 4. Whole-corpus conformance stage (deliverable 3, #1941)
 
-- verb `policy-conformance` on the ONE front door (`contract/verbs.ts` → `cli.ts` VERB_HELP/dispatch → `lib/verb-tail.ts`
+- verb `policy-conformance` on the ONE front door (`contract/verbs.ts` → `cli.ts` VERB\_HELP/dispatch → `lib/verb-tail.ts`
   `none`); op `ops/policy-conformance-stage.ts#runPolicyConformance(root)`; script `check:policy-conformance`; registry
   row `structure:policy-conformance` in `group: "structure"`, `tiers: STATIC`, `classify: ownScheme`, whole-only.
 - It loads the mixed corpus and runs `verifyPolicyProofs(corpus.final)`. Zero final policies is exit 2 (a bare zero is
@@ -300,4 +300,87 @@ doc's count line and rows, this file's catalog receipt.
 
 ## 11. Receipts (appended as the build lands)
 
-(filled in below as each leg commits)
+### 11.1 Commits (this worktree, merge-base `205540e98`)
+
+| Leg | Commit | What |
+| - | - | - |
+| 1 | `2c24d62e7` | mixed loader (`lib/loader.ts`, `lib/policy-module.ts`, `contract/gate-corpus.ts`), the two singleton-family renames, `tests/tooling/verify/lib/loader.test.ts` (10 arms), this doc |
+| 2 | `c05dcad77` | the front door (`ops/structure.ts`), the scoped door, `contract/structure-report.ts`, `lib/structure-report.ts`, `lib/render.ts#renderPolicyPass`, the final timing ledger in `lib/timing.ts`, `lib/pass.ts#stripProbePolicyFindings`, `check:show` + `lib/show-policy.ts` |
+| 3 | `d9fe852ce` | `structure:policy-conformance` (verb, op, script, registry row, pins, planted-tree int test); the stale `lint:hook-syntax` pin repaired |
+| 4 | `ff67d9c70` | `tests/tooling/verify/ops/structure-mixed.int.test.ts` (9 arms); `reviewedGrantsFor` at the door, whole-table validation in the stage |
+
+Floors per leg are in each commit message; every count was read off the run (scoped-test logs in the session
+scratchpad; `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` exit 0 after every leg).
+
+### 11.2 Loader census on the real corpus (leg 1, `loadMixedGateCorpus` in-process)
+
+271 files → 108 legacy (all active) + 163 final + 0 unregistered; 110 families; 351 ms; the accounting identity holds.
+`baseui-render-prop-composition` loaded as final WITHOUT an edit — the legacy loader's throw was its misreading, and
+classification by identity makes it impossible. Two final modules the mixed door was the first loader ever to run
+violated the singleton-family law and were renamed to their ids with header notes: `no-raw-color-in-css` (was
+`css-literal-geometry`, its 14 siblings still legacy) and `no-chat-trpc-in-surface` (was `trpc-proxy-origin`).
+
+### 11.3 First real mixed `pnpm check:structure` on this worktree (leg 2, `/usr/bin/time -v`, box quiet)
+
+- run COMPLETE: ran 271/271 (108/108 legacy · 163/163 final); no tool errors, no scan alarms, no population alarms,
+  no withheld owners, no authority tool errors, no waiver-carrier refusals; 5 facts ready (bus-definitions 8,
+  bus-producers 66, drizzle-schema 1,288, registry-definitions 99, tuple-vocabularies 2,138 members).
+- exit 1; `total` 959 = 525 legacy violations + 434 final blocking (434 error, 0 warning, 0 alarms).
+- wall 2:53.18; peak RSS 7.72 GB (7,718,808 kB); legacy pass 129.2 s (gates 125.3 s); final pass 37.8 s
+  (policies 30.7 s, facts 2.5 s, dispatcher 4.7 s) sharing the legacy Project — against 2:03 / 6.55 GB for the
+  isolated composed pass in the checkpoint. Slowest legacy: caught-failure-ownership 13.1 s, gate-ignore-inventory
+  8.3 s, knob-wire-coverage 8.0 s, enforcement-registry-parity 7.7 s, dangling-refs 7.0 s. Slowest final:
+  test-world-browser-contracts 4.1 s, ct-poll-schedule-and-paint 4.0 s, eslint-grant-liveness 3.9 s.
+- legacy violations by gate: gate-modernization 173 (163 = the final modules, arm A's false "exports no `gate`
+  descriptor"; 6 `_proof/` files; 4 other), enforcement-registry-parity 155 (doc rows for final policies read as
+  orphans/missing), diagnostic-legibility 83 (final policies' `message` strings judged by the legacy pointer law —
+  every site a gates/\*.ts final module), test-layout 22 (21 family/wave tests with no source mirror),
+  caught-failure-ownership 19, suppressions 16, gate-ignore-inventory 15 (STALE markers naming converted gates — the
+  marker backlog seen from the legacy side), no-test-fabrication 15, tooling-shared-plumbing 12,
+  no-inline-union-redecl 8, dangling-refs 3, monotonic-tests 3, playwright-css-topology 1.
+- final effective by policy: ct-no-oneshot-live-read-assert 315 (the ONESHOT-OK backlog), owner-scoped-writes 32 +
+  owner-scoped-reads 26 (the @owner-scope backlog), test-determinism 25 (the same sites as the 15 stale legacy
+  markers), no-inline-types 18 (waived 5), tooling-size 10 (hard: bus-fact 635, ordinary-waiver 640, policy-pass 870,
+  pass.ts 483 — pass.ts was 459 at the base), brand-in-name-position 2 (waived 73), no-hardcoded-side-gen-sampling 2
+  (#1816), test-fixture-imports 2, component-size 1, fetch-fn-in-features 1. Waived 181, granted 105 (every grant row
+  consumed exactly once).
+- `check:show` could not be read after this run: the `cli.int` heap-ceiling control ran `structure` in this checkout
+  and died, leaving an abandoned slot newer than the run — the #1029 refusal, correct; read again after the final run.
+
+### 11.4 Whole-corpus conformance stage on the real corpus (leg 3)
+
+163 final policies · 1,434 proof rows · 97 failures · 10.4 s → exit 2, RED BY CONSTRUCTION and pre-existing: every
+failure is `ab675b23b`'s fact-receipt refusal (`fact receipt refused: population "…" resolved zero members / left N
+unresolved`) withholding fact consumers before `evaluate` — the registry-definitions family 94 rows
+(modal-registry-completeness 16, section-factory-contribution-bundle 16, config-group-completeness 12,
+placeholder-copy-registry 12, section-registry-completeness 12, chrome-registry-completeness 11,
+modal-body-not-placeholder 9, config-anchor-in-registry 6: one aggregate receipt over six kinds, so a one-kind fixture
+leaves five homes unresolved), schema-fact-health 2 (#1948), bus-fact-health 1. None of policy-pass.ts, registry-fact.ts,
+bus-fact.ts, schema-fact.ts, contract/fact.ts or policy-validation.ts differs from the merge-base.
+
+Diagnosis (orchestrator, 2026-09-11, recorded in `docs/design/gate-runtime-standardization.md` §12.3 — cite it, do not
+re-derive it): a provider is atomic by contract, so "one kind failed" is not a representable state of a single
+`defineFact`; `registry-fact.ts:300-304` sums `members`/`unresolved` across six kinds that every consumer reads one at a
+time through `forKind`. The fix is a provider split (six providers, one physical walk, zero contract change) — #1953,
+READY, a diagnosed and filed defect with a known fix, not a ruling in flight. The refusal itself stays exactly as
+`ab675b23b` wrote it: unsupported or absent input is an unresolved fact or a tool error, never absence. The registry family
+is out of this lane's fence. `bus-fact-health`'s zero-members arm is the same class and rides #1953's row.
+
+Caveat, so this section does not overclaim: a GREEN conformance run means every proof row RAN through the production
+dispatcher and held, not that the rows are strong — 39 mustFlag rows across 14 modules carry no `expect` (a bare row
+asserts only "at least one finding") and 57 of 86 ordinary policies have no positive identity arm (#1952). The stage is the
+foundation those rows will be strengthened on; it is not their strength.
+
+### 11.5 Planted-break receipts for the mixed test (leg 4; scratch-copy break → run → restore; worktree clean after)
+
+| Arm | Break (file, neutralization) | Result |
+| - | - | - |
+| one invocation, one roster | `ops/structure.ts`: the final dispatcher never runs | RED (that arm and every arm reading a final row) |
+| legacy marker → legacy owner only | `lib/pass.ts`: node-arm suppression neutralized | RED |
+| `@orb-waive` → final ordinary only | `lib/policy-pass.ts`: no TypeScript carriers acquired | RED (+ the roster and withheld arms) |
+| grant → reviewed-grant only | `ops/structure.ts`: the door hands no grant rows | RED (+ show and roster arms) |
+| unbranded lookalike refuses | `lib/loader.ts`: the lookalike hint unreachable | RED |
+| duplicate id refuses | `lib/loader.ts`: uniqueness never judged | RED |
+| failed owner withheld, siblings reconcile | `lib/structure-report.ts`: `withheld` always false | RED |
+| deterministic exit + JSON | `lib/structure-report.ts`: a random value in a kept row | RED (+ grant and roster arms) |
+| `check:show` renders both | `lib/show-policy.ts`: the contract word dropped | RED |

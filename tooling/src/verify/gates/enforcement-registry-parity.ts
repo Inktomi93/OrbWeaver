@@ -1,8 +1,16 @@
 // Gate: enforcement-registry-parity — Core-Enforcement-Active-Gates.md must agree with the DISCOVERED
-// gate-descriptor set (the loader IS the registry): its Layer-3 ACTIVE table names exactly the
-// `status:"active"` descriptors, its DORMANT table exactly the `status:"dormant"` ones, and its "(N
-// registered gates)" count matches — and that count has ONE home, so a SECOND core doc stating a figure for
-// it is RED too (`client-architecture-lockdown.md` froze at 133 while the registry held 207). Both directions RED. Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
+// gate roster (the loader IS the registry): its Layer-3 ACTIVE table names exactly the `status:"active"`
+// LEGACY descriptors PLUS every FINAL `defineGate` policy (a policy has no status — it is always active), its
+// DORMANT table exactly the `status:"dormant"` descriptors, and its "(N registered gates)" count matches the
+// active-legacy + final total — and that count has ONE home, so a SECOND core doc stating a figure for it is
+// RED too (`client-architecture-lockdown.md` froze at 133 while the registry held 207). Both directions RED.
+// Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
+// BOTH CONTRACTS, BY IDENTITY (#1584 mixed runtime, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): a
+// module is FINAL when its `gate` initializer is a call whose callee resolves — by import origin, through
+// `lib/gate-contract-origin.ts#isCanonicalDefineGate` — to `contract/policy.ts`'s `defineGate`, never by the
+// spelling of the callee; a same-named local or re-branded `defineGate` is not the contract and its module
+// registers nothing here, so its doc row reads as an ORPHAN (the loud direction). Until this reader learned
+// the final shape the gate was blind to 163 converted modules and reported 154 live doc rows as orphans.
 // DESCRIPTION MIRRORS (#910): a row whose description COPIES its descriptor's runtime `message` is a
 // coupled site, and it drifted silently for months (`no-if-is-group` taught retired vocabulary in the very
 // string a violating agent reads). A mirror is DECLARED by ending the description cell with
@@ -17,10 +25,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
+import { Node, Project } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { Violation } from "../contract/harness.ts";
 import { readExpressionString } from "../lib/config-static-read.ts";
+import { isCanonicalDefineGate } from "../lib/gate-contract-origin.ts";
 
 const CORE_DOCS_REL = "docs/architecture/core";
 const DOC_REL = `${CORE_DOCS_REL}/Core-Enforcement-Active-Gates.md`;
@@ -58,20 +68,28 @@ function activeTableRows(doc: string): DocRow[] {
 }
 
 // The loader IS the registry, so this gate compares the doc to the contract: every gate file exports a
-// `gate` descriptor with a name + a status; the doc's ACTIVE table == the set of `status:"active"`
-// descriptors, the DORMANT table == the `status:"dormant"` descriptors, and the "(N registered gates)"
-// count == the active-descriptor count. It reads each `tooling/src/verify/gates/*.ts` descriptor's
-// name+status straight from the source AST, never importing report.ts.
+// `gate` — a legacy descriptor object (name + status) or a canonical `defineGate({ id, … })` call; the doc's
+// ACTIVE table == the `status:"active"` descriptors ∪ every final policy, the DORMANT table == the
+// `status:"dormant"` descriptors, and the "(N registered gates)" count == that active total. It reads each
+// `tooling/src/verify/gates/*.ts` module straight from the source AST, never importing report.ts.
 const STATUS_ACTIVE = "active";
 const STATUS_DORMANT = "dormant";
 
 interface DescriptorMeta {
   readonly name: string;
   readonly status: string;
+  /** Which contract the module registers under — a final policy is `status:"active"` by construction. */
+  readonly contract: GateContractKind;
   /** The descriptor's runtime `message`, statically evaluated — `undefined` when its initializer is a
    *  shape the ordered evaluator cannot read (a call, a property access). Never guessed. */
   readonly message: string | undefined;
 }
+
+/** How a missing-row finding names the module's contract, so the reader repairs the right doc region. */
+const CONTRACT_NOUN: Record<GateContractKind, string> = {
+  legacy: 'a legacy descriptor with status:"active"',
+  final: "a final defineGate policy, which is always active",
+};
 
 /** One Layer-3 doc row: its gate name, its description cell, and the 1-based line it sits on. */
 interface DocRow {
@@ -86,6 +104,17 @@ interface DocRow {
 /** Conformance fixture paths — the gate reads exactly these two real-tree coordinates. */
 const GATE_FILE = `${GATES_DIR_REL}/x.ts`;
 const DOC_FILE = DOC_REL;
+/** The FINAL-shape fixtures: a planted `contract/policy.ts` whose `defineGate` the origin reader resolves, and a
+ *  canonical module importing it. Both land beside `x.ts` in the fs-backed mini-project — the gate's own Project is
+ *  real-fs, so the relative import resolves on disk exactly as it does on the real tree. */
+const POLICY_STUB_FILE = "tooling/src/verify/contract/policy.ts";
+const POLICY_STUB = "export function defineGate(policy: unknown): unknown {\n  return policy;\n}\n";
+const FINAL_GATE_FILE = `${GATES_DIR_REL}/y.ts`;
+const FINAL_MODULE = (message: string): string =>
+  `import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "y", message: ${message} });\n`;
+/** The same spelling with a LOCAL `defineGate` — identity, not spelling, decides the contract. */
+const LOOKALIKE_MODULE = 'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate({ id: "y", message: "m" });\n';
+const LEGACY_X = 'export const gate = { name: "x", status: "active" };\n';
 const MIRROR_MARKER = "(@mirrors-message)";
 /** The corpus size at which the mirror reader's blindness tripwire comes alive — the real gate dir holds
  *  ~250 descriptors; a conformance mini-project plants one or two. */
@@ -93,12 +122,14 @@ const MIRROR_READER_ANCHOR = 50;
 /** An UNESCAPED table-cell boundary — a description may carry `\|` inside it. */
 const CELL_END_RE = /(?<!\\)\|/u;
 
-const DOC_ACTIVE_MISSING = (name: string): string =>
-  `active gate "${name}" (its descriptor is status:"active") has no row in ${DOC_REL}'s Layer-3 ACTIVE ` +
+const DOC_ACTIVE_MISSING = (name: string, contract: GateContractKind): string =>
+  `active gate "${name}" (${CONTRACT_NOUN[contract]}) has no row in ${DOC_REL}'s Layer-3 ACTIVE ` +
   "table — add it (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
 const DOC_ACTIVE_ORPHAN = (name: string): string =>
-  `${DOC_REL} Layer-3 ACTIVE table names "${name}" but no active descriptor of that name exists ` +
-  '(tooling/src/verify/gates/) — remove the row, or set the gate\'s status to "active".';
+  `${DOC_REL} Layer-3 ACTIVE table names "${name}" but no active gate of that name exists — neither a ` +
+  'status:"active" legacy descriptor nor a canonical defineGate policy (tooling/src/verify/gates/) — remove the ' +
+  'row, set the legacy gate\'s status to "active", or register the module under the contract it claims.';
+// Only a LEGACY descriptor can be dormant (a final policy has no status), so this arm needs no contract noun.
 const DOC_DORMANT_MISSING = (name: string): string =>
   `dormant gate "${name}" (its descriptor is status:"dormant") has no row in ${DOC_REL}'s Layer-3 ` +
   "DORMANT table — add it (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
@@ -110,9 +141,10 @@ const SECOND_COUNT_HOME = (rel: string): string =>
   "gate checks it against the discovered descriptor set. A second copy is ungated by construction and " +
   'rots silently (this one sat at "133 registered gates" for a month past the real 207). Cite ' +
   `${DOC_REL} instead of restating the number.`;
-const COUNT_CONTRACT_MISMATCH = (docCount: number, actual: number): string =>
-  `${DOC_REL} declares "${docCount} registered gates" but there are ${actual} active gate descriptors ` +
-  "(tooling/src/verify/gates/) — update the count line (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
+const COUNT_CONTRACT_MISMATCH = (docCount: number, legacy: number, final: number): string =>
+  `${DOC_REL} declares "${docCount} registered gates" but there are ${legacy + final} active gate modules ` +
+  `(${legacy} status:"active" legacy descriptors + ${final} final defineGate policies, tooling/src/verify/gates/) — ` +
+  "update the count line (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
 
 const MIRROR_DRIFT = (name: string): string =>
   `${DOC_REL}'s row for "${name}" declares itself a MIRROR of the gate's runtime \`message\` ` +
@@ -196,17 +228,47 @@ function mirrorViolations(rows: readonly DocRow[], byName: ReadonlyMap<string, D
   return out;
 }
 
-/** One gate file's `export const gate: GateDescriptor = { name, status, message, … }` descriptor, or
- *  undefined when the file registers nothing readable (the loader tolerates a legacy-only module). */
-function descriptorOf(sf: SourceFile): DescriptorMeta | undefined {
-  const init = sf.getVariableDeclaration("gate")?.getInitializer();
-  const obj = init?.asKind(SyntaxKind.ObjectLiteralExpression);
-  if (obj === undefined) {
-    return;
+/** `as` / `satisfies` / parentheses around the `gate` initializer are spelling, not identity. */
+function unwrap(node: Node): Node {
+  let n = node;
+  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
+    n = n.getExpression();
   }
+  return n;
+}
+
+/** The LEGACY shape: `export const gate: GateDescriptor = { name, status, message, … }`. */
+function legacyMeta(obj: Node): DescriptorMeta | undefined {
   const name = literalProp(obj, "name");
   const status = literalProp(obj, "status");
-  return name === undefined || status === undefined ? undefined : { name, status, message: evaluatedProp(obj, "message") };
+  return name === undefined || status === undefined ? undefined : { name, status, contract: "legacy", message: evaluatedProp(obj, "message") };
+}
+
+/** The FINAL shape: `export const gate = defineGate({ id, message, … })` — and ONLY when the callee's import origin
+ *  is `contract/policy.ts`'s `defineGate` (a local or re-branded function of the same name registers nothing;
+ *  its doc row then reads as an orphan). A policy carries no status: it is active by construction. */
+function finalMeta(call: Node): DescriptorMeta | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const callee = call.getExpression();
+  const arg = call.getArguments()[0];
+  if (!(Node.isIdentifier(callee) && isCanonicalDefineGate(callee)) || arg === undefined || !Node.isObjectLiteralExpression(arg)) {
+    return;
+  }
+  const id = literalProp(arg, "id");
+  return id === undefined ? undefined : { name: id, status: STATUS_ACTIVE, contract: "final", message: evaluatedProp(arg, "message") };
+}
+
+/** One gate file's registration under either contract, or undefined when the file registers nothing readable
+ *  (the mixed loader records such a module as unregistered — `gate-modernization` arm A is its finding). */
+function descriptorOf(sf: SourceFile): DescriptorMeta | undefined {
+  const init = sf.getVariableDeclaration("gate")?.getInitializer();
+  if (init === undefined) {
+    return;
+  }
+  const value = unwrap(init);
+  return Node.isObjectLiteralExpression(value) ? legacyMeta(value) : finalMeta(value);
 }
 
 /** Every descriptor's name+status+message, read from the gate-file source AST (fsBacked — this gate's own
@@ -236,15 +298,16 @@ function dormantTableRows(doc: string): DocRow[] {
 }
 
 function reconcileTable(
-  descriptorNames: ReadonlySet<string>,
+  descriptors: readonly DescriptorMeta[],
   docNames: ReadonlySet<string>,
-  missing: (name: string) => string,
+  missing: (name: string, contract: GateContractKind) => string,
   orphan: (name: string) => string,
 ): Violation[] {
   const violations: Violation[] = [];
-  for (const name of descriptorNames) {
-    if (!docNames.has(name)) {
-      violations.push({ file: DOC_REL, line: 0, message: missing(name) });
+  const descriptorNames = new Set(descriptors.map((d) => d.name));
+  for (const d of descriptors) {
+    if (!docNames.has(d.name)) {
+      violations.push({ file: DOC_REL, line: 0, message: missing(d.name, d.contract) });
     }
   }
   for (const name of docNames) {
@@ -255,19 +318,19 @@ function reconcileTable(
   return violations;
 }
 
-function contractCountViolations(doc: string, activeCount: number): Violation[] {
+function contractCountViolations(doc: string, legacyActive: number, final: number): Violation[] {
   const match = COUNT_RE.exec(doc);
   if (match === null) {
     return [
       {
         file: DOC_REL,
         line: 0,
-        message: `${DOC_REL} has no "(N registered gates)" count line to check against the active descriptor set (docs/architecture/core/Core-Enforcement-Active-Gates.md).`,
+        message: `${DOC_REL} has no "(N registered gates)" count line to check against the active gate roster (docs/architecture/core/Core-Enforcement-Active-Gates.md).`,
       },
     ];
   }
   const declared = Number(match.groups?.["count"]);
-  return declared === activeCount ? [] : [{ file: DOC_REL, line: 0, message: COUNT_CONTRACT_MISMATCH(declared, activeCount) }];
+  return declared === legacyActive + final ? [] : [{ file: DOC_REL, line: 0, message: COUNT_CONTRACT_MISMATCH(declared, legacyActive, final) }];
 }
 
 /** The count has ONE home. A SECOND copy of it in another core law doc is ungated by construction (this
@@ -309,8 +372,10 @@ function reconcileContract(root: string): Violation[] {
   }
   const doc = readFileSync(docPath, "utf-8");
   const descriptors = discoverDescriptorMeta(join(root, GATES_DIR_REL));
-  const active = new Set(descriptors.filter((d) => d.status === STATUS_ACTIVE).map((d) => d.name));
-  const dormant = new Set(descriptors.filter((d) => d.status === STATUS_DORMANT).map((d) => d.name));
+  // A final policy is `status:"active"` by construction (finalMeta), so this partition needs no contract branch.
+  const active = descriptors.filter((d) => d.status === STATUS_ACTIVE);
+  const dormant = descriptors.filter((d) => d.status === STATUS_DORMANT);
+  const legacyActive = active.filter((d) => d.contract === "legacy").length;
   const byName = new Map(descriptors.map((d) => [d.name, d] as const));
   const rows = [...activeTableRows(doc), ...dormantTableRows(doc)];
   // The §4.6 blindness tripwire for the mirror reader: an anchor-sized corpus yielding NO readable message
@@ -320,7 +385,7 @@ function reconcileContract(root: string): Violation[] {
   const readerBlind =
     descriptors.length >= MIRROR_READER_ANCHOR && readable === 0 ? [{ file: DOC_REL, line: 0, message: MIRROR_READER_BLIND(descriptors.length) }] : [];
   return [
-    ...contractCountViolations(doc, active.size),
+    ...contractCountViolations(doc, legacyActive, active.length - legacyActive),
     ...secondCountHomeViolations(root),
     ...reconcileTable(active, new Set(activeTableRows(doc).map((r) => r.name)), DOC_ACTIVE_MISSING, DOC_ACTIVE_ORPHAN),
     ...reconcileTable(dormant, new Set(dormantTableRows(doc).map((r) => r.name)), DOC_DORMANT_MISSING, DOC_DORMANT_ORPHAN),
@@ -336,8 +401,8 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate-descriptor set — its ACTIVE table must list exactly the status:"active" gates, its DORMANT table exactly the status:"dormant" gates, and its "(N registered gates)" count must equal the active-descriptor count; that count has ONE home, so no other docs/architecture/core doc may state a figure for it; and a row whose description MIRRORS the gate\'s runtime `message` declares it with the `(@mirrors-message)` marker and then matches byte-for-byte, in both directions (Core-Enforcement-Active-Gates.md).',
-  fix: "add/remove the doc row for the gate (ACTIVE vs DORMANT tables match the descriptor's status), update the \"(N registered gates)\" count to the active-descriptor total in docs/architecture/core/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number. For a MIRROR row: repair the description to the descriptor's message byte-for-byte and keep the `(@mirrors-message)` marker at the end of the cell, or drop the marker and write an independent summary — a copy that does not say it is a copy is the row that drifts.",
+    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate roster — its ACTIVE table must list exactly the status:"active" legacy descriptors plus every canonical defineGate policy, its DORMANT table exactly the status:"dormant" descriptors, and its "(N registered gates)" count must equal that active total; that count has ONE home, so no other docs/architecture/core doc may state a figure for it; and a row whose description MIRRORS the gate\'s runtime `message` declares it with the `(@mirrors-message)` marker and then matches byte-for-byte, in both directions (Core-Enforcement-Active-Gates.md).',
+  fix: "add/remove the doc row for the gate (a legacy descriptor's row follows its status — ACTIVE vs DORMANT; a defineGate policy's row is always ACTIVE), update the \"(N registered gates)\" count to the active-legacy + final total in docs/architecture/core/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number. For a MIRROR row: repair the description to the descriptor's message byte-for-byte and keep the `(@mirrors-message)` marker at the end of the cell, or drop the marker and write an independent summary — a copy that does not say it is a copy is the row that drifts.",
   run: (ctx) => {
     for (const v of reconcileContract(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
@@ -360,8 +425,36 @@ export const gate: GateDescriptor = {
         "docs/architecture/core/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `ghost` | names no descriptor |\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | dormant x |\n",
       },
-      expect: { messageIncludes: "no active descriptor of that name exists" },
+      expect: { messageIncludes: "no active gate of that name exists" },
       why: "the ACTIVE table names `ghost` with no matching active descriptor — the DOC_ACTIVE_ORPHAN arm",
+    },
+    {
+      files: {
+        [GATE_FILE]: LEGACY_X,
+        [FINAL_GATE_FILE]: FINAL_MODULE('"m"'),
+        [POLICY_STUB_FILE]: POLICY_STUB,
+        [DOC_FILE]: "## Layer 3 — Structural gates\n\n(2 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      expect: { count: 1, messageIncludes: "final defineGate policy" },
+      why: "the MIXED roster (#1584): a canonical defineGate module is a registered ACTIVE gate — the count already includes it, so its missing ACTIVE row is the one finding, and the finding names the contract the reader must repair against",
+    },
+    {
+      files: {
+        [FINAL_GATE_FILE]: LOOKALIKE_MODULE,
+        [DOC_FILE]: "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `y` | a lookalike |\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      expect: { count: 1, messageIncludes: "no active gate of that name exists" },
+      why: "IDENTITY, not spelling: a same-named LOCAL `defineGate` is not the contract (its import origin is not contract/policy.ts), so the module registers nothing and its doc row is an ORPHAN — the loud direction, never a silent pass",
+    },
+    {
+      files: {
+        [FINAL_GATE_FILE]: FINAL_MODULE('"the exact runtime text"'),
+        [POLICY_STUB_FILE]: POLICY_STUB,
+        [DOC_FILE]:
+          "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `y` | the DRIFTED text (@mirrors-message) |\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      expect: { count: 1, messageIncludes: "declares itself a MIRROR" },
+      why: "the mirror arms read a FINAL policy's `message` off the defineGate object literal exactly as they read a legacy descriptor's — a drifted declared mirror of a converted gate is the same #910 defect",
     },
     {
       files: {
@@ -449,6 +542,16 @@ export const gate: GateDescriptor = {
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
       },
       why: "the ACTIVE table lists exactly the one active descriptor and the count matches — the doc agrees with the registry, passes",
+    },
+    {
+      files: {
+        [GATE_FILE]: LEGACY_X,
+        [FINAL_GATE_FILE]: FINAL_MODULE('"the exact " + "runtime text"'),
+        [POLICY_STUB_FILE]: POLICY_STUB,
+        [DOC_FILE]:
+          "## Layer 3 — Structural gates\n\n(2 registered gates)\n\n| `x` | enforces x |\n| `y` | the exact runtime text (@mirrors-message) |\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      why: "the MIXED roster agrees: one legacy active descriptor + one canonical defineGate policy = a count of 2, both rows present, and the final policy's declared mirror matches a message the ORDERED evaluator assembles from `+`-fragments — the shape converted modules actually use",
     },
     {
       files: {

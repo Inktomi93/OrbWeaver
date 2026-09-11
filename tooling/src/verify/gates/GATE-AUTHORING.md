@@ -66,8 +66,9 @@ and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Co
 **The loader IS the registry.** `loader.ts` globs `tooling/src/verify/gates/*.ts`, imports each in sorted order,
 and validates the exported `gate`. There is no registration list to edit. Consequences:
 
-- A gate-dir module that exports **no** `gate` is silently skipped by the loader (`mod.gate === undefined
-  ⇒ continue`). That hole is closed by `gate-modernization` arm A — a gate file that registers nothing is RED.
+- A gate-dir module that exports **no** `gate` (and no branded descriptor under another name) is recorded by
+  the mixed loader as UNREGISTERED — never silently skipped (`lib/loader.ts`, #1584); `check:structure`
+  reconciles the roster and `gate-modernization` arm A REDs the file — a gate file that registers nothing is RED.
 - An INVALID descriptor is a hard load error attributed to its file, aborting the whole run. Never
   "temporarily" ship a half-descriptor.
 - A duplicate `name` is a hard error.
