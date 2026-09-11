@@ -5,6 +5,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt, TrackedResourceIndex } from "../contract/resource.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
+import { repoGitEnvironment } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -12,7 +13,12 @@ const GIT_INDEX_TIMEOUT_MS = 30_000;
 const GIT_INDEX_MAX_BYTES = 16_777_216;
 
 export function loadTrackedFiles(root: string): ResourceLoad<TrackedResourceIndex> {
-  const result = runNicedSync("git", ["ls-files", "-z", "--full-name"], { cwd: resolve(root), timeout: GIT_INDEX_TIMEOUT_MS, maxBuffer: GIT_INDEX_MAX_BYTES });
+  const result = runNicedSync("git", ["ls-files", "-z", "--full-name"], {
+    cwd: resolve(root),
+    env: repoGitEnvironment(),
+    timeout: GIT_INDEX_TIMEOUT_MS,
+    maxBuffer: GIT_INDEX_MAX_BYTES,
+  });
   const subprocess: ResourceSubprocessReceipt = { command: "git-index", exitStatus: result.status, timeoutMs: GIT_INDEX_TIMEOUT_MS };
   if (result.status !== 0) {
     return {

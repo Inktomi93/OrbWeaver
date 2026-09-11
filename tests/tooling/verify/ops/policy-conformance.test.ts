@@ -1,7 +1,9 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { SyntaxKind } from "ts-morph";
+import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -402,6 +404,72 @@ test("resource proofs materialize exact content and clean temp roots after succe
   const after = readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-") && !before.has(name));
   expect(after).toEqual([]);
 });
+
+function nativeResourcePolicy(): GatePolicy {
+  const config = 'import { SELECTOR } from "./selector.js"; export default { test: { include: [SELECTOR] } };';
+  return defineGate({
+    id: "native-resource-proof",
+    family: "native-resource-proof",
+    authority: "hard",
+    severity: "error",
+    population: { of: "none", why: "native configuration and tracked paths are the proof subjects" },
+    analysis: "resource",
+    execution: "entire-population",
+    facts: [],
+    resources: [{ kind: "native-config", id: "vitest" }, { kind: "tracked-files" }],
+    message: "forbidden selector",
+    create: (context) => ({
+      evaluate: () => {
+        const native = context.resources.nativeConfig("vitest");
+        const tracked = context.resources.trackedFiles();
+        if (native.status !== "ready" || tracked.status !== "ready") {
+          throw new Error("proof resource acquisition failed");
+        }
+        expect(tracked.value.repoPaths).toEqual(["selector.js", "vitest.config.ts"]);
+        if (native.value.selectors.some((row) => row.values.includes("forbidden"))) {
+          context.report.file("selector.js");
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": config, "selector.js": 'export const SELECTOR = "forbidden";' },
+        why: "the native loader follows the planted helper",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": config, "selector.js": 'export const SELECTOR = "allowed";' },
+        why: "the next isolated helper supplies a legal selector",
+      },
+    ],
+  });
+}
+
+test("native configuration proofs share their isolated authored Git inventory", () => {
+  expect(verifyPolicyProofs([nativeResourcePolicy()])).toEqual([]);
+});
+
+for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] as const) {
+  test(`resource proofs ignore ambient ${key} without changing the caller index`, async ({ scratch }) => {
+    writeFileSync(join(scratch, "outside.txt"), "outside");
+    execFileSync("git", ["init", "--quiet"], { cwd: scratch });
+    execFileSync("git", ["add", "--all"], { cwd: scratch });
+    const index = join(scratch, ".git/index");
+    const before = readFileSync(index);
+    let target = scratch;
+    if (key === "GIT_DIR") {
+      target = join(scratch, ".git");
+    } else if (key === "GIT_INDEX_FILE") {
+      target = index;
+    }
+    const failures = await withProcessEnv(key, target, () => Promise.resolve(verifyPolicyProofs([nativeResourcePolicy()])));
+    expect(failures).toEqual([]);
+    expect(readFileSync(index)).toEqual(before);
+  });
+}
 
 test("typed authored-tree declarations keep resource-only TS proofs off source dispatch", () => {
   const sourceCounts: number[] = [];

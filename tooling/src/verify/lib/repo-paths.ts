@@ -4,7 +4,8 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
@@ -63,10 +64,18 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
  *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
 export const GIT_READ_PREFIX: readonly string[] = ["--no-optional-locks"];
 
+/** Explicit repository roots must not inherit a caller's alternate repository or index. */
+export function repoGitEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([name]) => !name.startsWith("GIT_")));
+}
+
 /** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
 export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
-  const source = execNicedSync("git", [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root });
-  return classifyGitNameStatus(source, root);
+  const result = runNicedSync("git", [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root, env: repoGitEnvironment() });
+  if (result.status !== 0) {
+    throw new Error(`git changed-path read failed (${String(result.status)}): ${result.stderr.trim()}`);
+  }
+  return classifyGitNameStatus(result.stdout, root);
 }
 
 /** Compatibility read for the structure-scoped door: deletions remain in this all-path view. */
