@@ -72,6 +72,21 @@ test.describe("populationIncludes", () => {
     expect(populationIncludes({ of: "all", why: "resource gate owns the complete candidate manifest" }, "custom/tree/file.ts")).toBe(true);
     expect(populationIncludes({ of: "none", why: "resource-only gate dispatches no source files" }, "packages/client/src/file.ts")).toBe(false);
   });
+
+  test("all may subtract exact nested zones without losing root or package-root sources", () => {
+    const expression = {
+      of: "all",
+      why: "all compiler sources except gate contracts",
+      notUnder: ["tooling/src/verify/gates/**"],
+    } as const satisfies PopulationExpr;
+    expect(
+      ["vitest.config.ts", "packages/ui/tokens.build.ts", "packages/client/src/a.ts", "tests/tooling/verify/gates/countercontrol.test.ts"].map((path) =>
+        populationIncludes(expression, path),
+      ),
+    ).toEqual([true, true, true, true]);
+    expect(populationIncludes(expression, "tooling/src/verify/gates/commented-code.ts")).toBe(false);
+    expect(populationIncludes(expression, "tooling/src/verify/gates-extra/commented-code.ts")).toBe(true);
+  });
 });
 
 test.describe("compilePopulation", () => {
@@ -133,6 +148,9 @@ test.describe("runtime validation", () => {
     ["parent traversal", { in: ["@client"], under: ["../features/**"] }],
     ["named path instead of basename", { in: ["@client"], named: ["features/*.ts"] }],
     ["empty why", { of: "all", why: "  " }],
+    ["none filter", { of: "none", why: "resource only", notUnder: ["tooling/**"] }],
+    ["empty all filter", { of: "all", why: "all source", notUnder: [] }],
+    ["absolute all filter", { of: "all", why: "all source", notUnder: ["/tooling/**"] }],
     ["unknown property", { in: ["@client"], customResolver: "escape" }],
     ["contradictory extensions", { in: ["@client"], ext: ["ts"], notExt: ["ts"] }],
     ["contradictory names", { in: ["@client"], named: ["*.ts"], notNamed: ["*.ts"] }],

@@ -1,73 +1,66 @@
-// Gate: tooling-size (docs/architecture/core/Core-Tooling-Law.md §4.3) — the tooling twin of component-size: any
-// tooling/src file >450 lines is RED; a cli.ts >200 is RED (argv parse + dispatch ONLY — the cap is what
-// decomposes the monoliths BEFORE they land: snap 4,513 / ast 6,241 / codemod-kit 3,385 cannot move
-// un-split). DECLARED CARVE: `verify/gates/**` is cap-exempt after P6 — a gate file is a single-purpose
-// contract-headed module (largest live: 883 lines) and splitting one is worse than a long one. Counts comment lines (comments-INTENDED, like component-size).
-import type { GateDescriptor } from "../contract/gate.ts";
+// Gate: tooling-size — tooling source stays below the decomposition caps in Core-Tooling-Law §4.3.
+// Gate modules are the declared carve: a single-purpose contract can be longer than ordinary tooling.
+import { defineGate } from "../contract/policy.ts";
+import { authoredLineCount } from "../lib/source-line-count.ts";
 
 const CAP_DEFAULT = 450;
 const CAP_CLI = 200;
-const TOOLING_PREFIX = "tooling/src/";
-const GATES_CARVE = "tooling/src/verify/gates/";
-const TRAILING_NL = /\n$/u;
-function relOf(abs: string): string | null {
-  const i = abs.replace(/\\/gu, "/").indexOf(`/${TOOLING_PREFIX}`);
-  return i === -1 ? null : abs.slice(i + 1);
-}
+const MESSAGE =
+  "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/architecture/core/Core-Tooling-Law.md §4.3).";
 
-export const gate: GateDescriptor = {
-  name: "tooling-size",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.3)",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/architecture/core/Core-Tooling-Law.md §4.3).",
+export const gate = defineGate({
+  id: "tooling-size",
+  family: "tooling-size",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@tooling"], notUnder: ["tooling/src/verify/gates/**"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
   fix: "decompose: one ops/ file per command family, pure logic to lib/, shapes to contract/; a cli.ts holds argv parse + dispatch only.",
-  scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
-  visitFile: (sf, ctx) => {
-    const rel = relOf(sf.getFilePath());
-    if (rel === null || rel.startsWith(GATES_CARVE)) {
-      return;
-    }
-    // Trim a single trailing newline so a file ending in "\n" isn't counted one line over (the
-    // component-size counting rule).
-    const lines = sf.getFullText().replace(TRAILING_NL, "").split("\n").length;
-    const cap = rel.endsWith("/cli.ts") ? CAP_CLI : CAP_DEFAULT;
-    if (lines > cap) {
-      // The pointer stays a LITERAL at the end of this template: diagnostic-legibility reads the message
-      // statically and cannot see through an interpolated suffix.
-      ctx.report({
-        file: rel,
-        line: 0,
-        column: 0,
-        message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/architecture/core/Core-Tooling-Law.md §4.3)`,
-      });
-    }
-  },
+  create: (ctx) => ({
+    visitFile: (sourceFile) => {
+      const path = ctx.relativePath(sourceFile);
+      const cap = path.endsWith("/cli.ts") ? CAP_CLI : CAP_DEFAULT;
+      const lines = authoredLineCount(sourceFile);
+      if (lines > cap) {
+        ctx.report.file(path, {
+          line: cap + 1,
+          column: 1,
+          message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/architecture/core/Core-Tooling-Law.md §4.3)`,
+        });
+      }
+    },
+  }),
   mustFlag: [
     {
-      files: "export const x = 1;\n".repeat(CAP_DEFAULT + 1),
-      at: "tooling/src/snap/ops/big.ts",
-      expect: { messageIncludes: "cap 450" },
+      mode: "source",
+      files: { "tooling/src/snap/ops/big.ts": "export const x = 1;\n".repeat(CAP_DEFAULT + 1) },
+      expect: { line: CAP_DEFAULT + 1, messageIncludes: "cap 450" },
       why: "one line over the default cap — the decomposition trigger",
     },
     {
-      files: "export const x = 1;\n".repeat(CAP_CLI + 1),
-      at: "tooling/src/snap/cli.ts",
-      expect: { messageIncludes: "cap 200" },
+      mode: "source",
+      files: { "tooling/src/snap/cli.ts": "export const x = 1;\n".repeat(CAP_CLI + 1) },
+      expect: { line: CAP_CLI + 1, messageIncludes: "cap 200" },
       why: "a cli.ts over its tighter cap — argv parse + dispatch only",
     },
   ],
   mustPass: [
     {
-      files: "export const x = 1;\n".repeat(CAP_DEFAULT),
-      at: "tooling/src/snap/ops/fits.ts",
+      mode: "source",
+      files: { "tooling/src/snap/ops/fits.ts": "export const x = 1;\n".repeat(CAP_DEFAULT) },
       why: "exactly at the cap — passes",
     },
     {
-      files: "export const x = 1;\n".repeat(CAP_DEFAULT + 1),
-      at: "tooling/src/verify/gates/long-gate.ts",
-      why: "the DECLARED verify/gates carve — a gate file over the default cap is deliberate (§4.3)",
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/long-gate.ts": "export const x = 1;\n".repeat(CAP_DEFAULT + 1),
+        "tooling/src/verify/lib/admitted-control.ts": "export const admitted = true;\n",
+      },
+      why: "the declared verify/gates carve excludes the long gate while an admitted legal file keeps the proof population nonempty",
     },
   ],
-};
+});
