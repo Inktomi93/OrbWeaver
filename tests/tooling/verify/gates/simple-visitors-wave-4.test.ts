@@ -12,7 +12,9 @@
 //   persist-partialize-and-total-migrate    — ARM A (bare `persist(` outside the factories) RETIRED as a
 //                                              duplicate of `no-raw-zustand-persist`'s stronger `persistMint`
 //                                              reviewed-grant arm; only ARM B (factory options completeness)
-//                                              survives under this id.
+//                                              survives under this id, and since #1954 ARM B reports ONE
+//                                              finding per call site rather than one per missing key, so its
+//                                              ordinary waiver door is addressable at all.
 //
 // Same recipe as simple-visitors-wave-2.test.ts: `verifyPolicyProofs` runs each final policy's own proofs
 // through the production runtime; the differential replays every ORIGINAL mustFlag/mustPass example from
@@ -161,27 +163,102 @@ test("the final policies match the frozen legacy policies on every original proo
   }
 });
 
-// persist-partialize ARM B: same COUNT and FILE per surviving legacy example (the message text
-// legitimately changed — see the module header). Both legacy ARM A examples (the bare persist mustFlag at
+// persist-partialize ARM B differential. Both legacy ARM A examples (the bare persist mustFlag at
 // packages/client/src/features/x/store.ts, and the factory-mint mustPass negative control at
 // packages/client/src/features/x/store2.ts — neither is a factory file, both belong to the retired arm)
-// are excluded here and covered by the successor proof below.
+// are excluded here and covered by the successor proof further down.
+//
+// THE ONE CLASSIFIED DIFFERENCE (#1954, 2026-09-11): cardinality collapsed from N findings per missing key
+// to ONE finding per persist() call site. Until 2026-09-11 this test asserted exact COUNT parity, which the
+// collapse necessarily breaks — the ruling survives, its INPUT changed, so the assertion keeps everything
+// except the number.
+//
+// WHY THE COLLAPSE IS FORCED, not a convenience: the legacy descriptor distinguished its per-key findings
+// with SYNTHETIC tokens (`persist opts missing <key>`). The final runtime forbids that —
+// `lib/ordinary-waiver.ts` `locateFinding` requires a finding's position token to be an EXACT slice of the
+// authored source at its reported line/column, and an ABSENT key has no authored text to anchor on. So
+// under the final contract the per-key findings could only share the `persist` callee's token, which made
+// them byte-identical and the ORDINARY policy permanently unwaivable (every marker resolved `over-broad`
+// and suppressed nothing; a second marker made it worse). One finding per call site is the only shape the
+// contract permits.
+//
+// What the differential still catches (guide §4.6 — the point is UNINTENDED drift):
+//   1. FILE-SET parity — the set of files carrying at least one finding is identical. This is the property
+//      that catches a site silently going quiet, which is the real risk of a cardinality change.
+//   2. Final >= 1 wherever legacy >= 1 — no flagged site is downgraded to clean.
+//   3. Final <= legacy — the difference is a COLLAPSE only; the conversion may not invent findings.
+//   4. SUCCESSOR PROOF for the merged arm: the surviving single finding still NAMES every missing key in
+//      its message, so the per-key diagnostic the legacy cardinality carried is preserved in text rather
+//      than lost. An author loses nothing but the ability to waive one key while leaving the others live —
+//      and that ability never existed under the final runtime, since it had no addressable position.
 const FACTORY_FILES = new Set(["packages/client/src/state/create-persisted-store.ts", "packages/client/src/state/create-entity-draft-store.ts"]);
+const REQUIRED_PERSIST_KEYS = ["version", "partialize", "migrate"] as const;
 
 function isArmBExample(files: Readonly<Record<string, string>>): boolean {
   return Object.keys(files).every((path) => FACTORY_FILES.has(path));
 }
 
-test("persist-partialize-and-total-migrate's surviving ARM B matches the frozen legacy finding COUNT", async ({ scratch }) => {
+function fileSet(findings: readonly { readonly file: string }[]): readonly string[] {
+  return [...new Set(findings.map(({ file }) => file))].toSorted((left, right) => left.localeCompare(right));
+}
+
+function countsByFile(findings: readonly { readonly file: string }[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const { file } of findings) {
+    counts.set(file, (counts.get(file) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** The keys an ARM-B fixture's own source does not spell — these fixtures are one persist() call with a
+ *  literal options object, so a text read is exact and needs no second parse. */
+function missingKeysOf(files: Readonly<Record<string, string>>): readonly string[] {
+  const source = Object.values(files).join("\n");
+  return REQUIRED_PERSIST_KEYS.filter((key) => !source.includes(key));
+}
+
+test("persist-partialize-and-total-migrate's surviving ARM B flags the same FILE SET as the frozen legacy, collapsed to one finding per call site", async ({
+  scratch,
+}) => {
   const legacy = await frozenLegacyGate(PATHS[3], scratch);
   const armBExamples = [...legacy.mustFlag, ...legacy.mustPass].filter((example) => isArmBExample(legacyFiles(example)));
   expect(armBExamples.length).toBeGreaterThan(0);
   for (const example of armBExamples) {
     const files = legacyFiles(example);
-    const legacyCount = legacyFindings(legacy, files).length;
-    const finalCount = finalFindings(persistPartializeAndTotalMigrate, files).length;
-    expect(finalCount, `${persistPartializeAndTotalMigrate.id}: ${example.why}`).toBe(legacyCount);
+    const label = `${persistPartializeAndTotalMigrate.id}: ${example.why}`;
+    const legacyResult = legacyFindings(legacy, files);
+    const finalResult = finalFindings(persistPartializeAndTotalMigrate, files);
+    // 1 — no site goes quiet and no new site appears.
+    expect(fileSet(finalResult), label).toEqual(fileSet(legacyResult));
+    const legacyCounts = countsByFile(legacyResult);
+    const finalCounts = countsByFile(finalResult);
+    for (const [file, legacyCount] of legacyCounts) {
+      const finalCount = finalCounts.get(file) ?? 0;
+      // 2 — still flagged, and 3 — collapsed, never inflated.
+      expect(finalCount, `${label} @ ${file}`).toBeGreaterThanOrEqual(1);
+      expect(finalCount, `${label} @ ${file}`).toBeLessThanOrEqual(legacyCount);
+    }
+    // 4 — successor proof: the collapsed finding still names every key the legacy reported separately.
+    const missing = missingKeysOf(files);
+    const text = finalResult.map(({ message }) => message).join(" ");
+    expect(
+      missing.filter((key) => text.includes(key)),
+      `${label}: the collapsed finding must still name every missing key`,
+    ).toEqual(missing);
   }
+});
+
+test("the ordinary waiver door on persist-partialize-and-total-migrate is REACHABLE — the #1954 defect", () => {
+  const waived = passOf(persistPartializeAndTotalMigrate, {
+    "packages/client/src/state/create-persisted-store.ts":
+      "// @orb-waive persist-partialize-and-total-migrate(persist): probe — the ordinary door must be reachable.\nexport const s = persist(() => ({}), {});\n",
+  });
+  // Before the collapse this same fixture produced three byte-identical findings, so the marker resolved
+  // `over-broad` and suppressed NONE of them — an ordinary policy whose only recourse was editing the
+  // factory it objected to.
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------------------------------
