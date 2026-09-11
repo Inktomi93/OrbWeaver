@@ -304,6 +304,20 @@ export const x = <div className={\`dark:\${tone}\`} />;
       expect: { messageIncludes: "unresolved" },
       why: "a static cycle is counted and fails loud instead of producing a clean zero",
     },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x.tsx": 'export const A = <div className="[&:where(.x:y)]:dark:bg-card" />;\n' },
+      expect: { token: "[&:where(.x:y)]:dark:bg-card" },
+      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside :where()",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/x.tsx": 'export const A = <div className="supports-[selector(:has(*))]:dark:text-foreground" />;\n',
+      },
+      expect: { token: "supports-[selector(:has(*))]:dark:text-foreground" },
+      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside an @supports arbitrary selector",
+    },
   ],
   mustPass: [
     {
