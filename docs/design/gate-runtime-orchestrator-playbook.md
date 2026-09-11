@@ -181,9 +181,16 @@ idle composed-pass remeasurement; catalog re-attest.
    later repo-root `grep -r`/`find` returns one extra hit per worktree with a real-looking `path:line`. Eight live at
    once inflated a marker census 8x.
    Gate it on CONTAINMENT, measured, not remembered: `git rev-list --count main..wt/agent-<id>` = 0 AND
-   `git -C <wt> status --short` empty means teardown loses zero bytes. Then
-   `git worktree remove --force <path>` → `git branch -D wt/agent-<id>` → `git worktree prune`; never `rm -rf`, which
-   strands registered metadata.
+   `git -C <wt> status --short` empty means teardown loses zero bytes.
+   **Then tear down through the SANCTIONED hook, never raw git:**
+   `echo '{"worktree_path":"<abs worktree>","cwd":"<main checkout>"}' | .claude/hooks/worktree-remove.sh`.
+   It refuses any path outside `.claude/worktrees/`, removes and prunes, and deletes only a `wt/`-prefixed branch.
+   Critically it does one thing raw git cannot: if the worktree owns a live `snap --isolated` stage
+   (`<main>/.cache/snap-stage/bands.json` records the owning checkout) it stops that ~7-process stack through snap's
+   own door first. Remove the directory without that and the stage keeps running with a DELETED cwd, holding a band,
+   a port pair and real CPU until the 60-minute idle keeper reaps it (#1848, two orphans observed 2026-09-06). If you
+   ever do sweep by hand, check `bands.json` for rows whose `checkout` no longer exists and clear each with
+   `pnpm snap --stage-down --stage-owner <dir> --force`.
    **The one thing containment does NOT cover:** deleting a merged lane's branch forfeits the warm leg, so a later
    REFUTED verdict costs a fresh cold lane instead of resuming that agent. So keep a contained-but-unverified lane's
    worktree until its verifier confirms, and sweep everything already verified immediately. A lane still holding
