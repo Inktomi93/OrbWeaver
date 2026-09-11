@@ -10,6 +10,16 @@
 // (`{...props}`) that MIGHT carry `id` is given the benefit of the doubt (empty-state-has-action precedent).
 // The complement to config-group-completeness (whose anchor-outside-registry arm polices the OTHER
 // direction: an anchor stamped by a file no contribution renders).
+//
+// FAMILY: declared SINGLETON (`settings-section-anchored`). The one shared `lib/` reader it consumes is
+// `lib/comment-spans.ts` `codeIncludes` — a generic comment-blindness primitive used across unrelated
+// policies, not a shared SUBJECT reader — and no sibling policy judges the config-section/anchor subject.
+// The named complement (`config-group-completeness`, which polices the opposite direction) resolves a
+// different subject through a different reader, so a merge would join two verdicts that share no computation.
+//
+// THE REPORTED POSITION is the literal `<Section` opening-tag slice, supplied with offset 0 on the element
+// node; `fix` states the spelling. The population is a byte-identical port of the legacy predicate
+// `/packages\/client\/src\/.*\.tsx$/` as `{ in: ["@client"], ext: ["tsx"] }`.
 import type { JsxAttributeLike, JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -63,7 +73,13 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "stamp `id={configAnchorId(group, sub)}` on the heading-bearing <Section>, where `sub` is the owning ConfigSectionContribution's `nav.id`, so the LIST + search can reach it.",
+  fix:
+    "stamp `id={configAnchorId(group, sub)}` on the heading-bearing <Section>, where `sub` is the owning " +
+    "ConfigSectionContribution's `nav.id`, so the LIST + search can reach it. A section that is deliberately " +
+    "unreachable is waived with `// @orb-waive settings-section-anchored(<Section): <reason>` on a line above " +
+    "the offending element — the position is the literal opening-tag slice `<Section`, angle bracket included, " +
+    "and it is the SAME for every finding in a file, so two unanchored Sections under one statement cannot " +
+    "both be waived; split them or anchor one.",
   create: (ctx) => ({
     visitors: [
       {
@@ -92,8 +108,8 @@ export const gate = defineGate({
         "packages/client/src/features/credentials/components/connections-keys-section.tsx":
           'import { configAnchorId } from "#state";\nexport const G = <Section heading="Host Claude" id={configAnchorId("connections", "host-claude")} />;\nexport const H = <Section heading="Saved keys"><Text>x</Text></Section>;\n',
       },
-      expect: { messageIncludes: "no `id`" },
-      why: "a heading-bearing <Section> with no id in a contributed section body (the decomposed connections surface's shape, §6.8) — invisible to the LIST/search",
+      expect: { count: 1, line: 3, token: "<Section" },
+      why: "a heading-bearing <Section> with no id in a contributed section body (the decomposed connections surface's shape, §6.8) — invisible to the LIST/search. `count` proves the ANCHORED sibling on line 2 is not also flagged, and `line` names which of the two Sections bit (the derived token cannot: both spell `<Section`)",
     },
     {
       mode: "source",
@@ -101,8 +117,8 @@ export const gate = defineGate({
         "packages/client/src/features/user-admin/components/rate-limits-section.tsx":
           'import { configAnchorId } from "#state";\nexport const A = <Section heading="A" id={configAnchorId("admin", "a")} />;\nexport const G = <Section heading="B"><Text>x</Text></Section>;\n',
       },
-      expect: { messageIncludes: "no `id`" },
-      why: "the SET-SEAMS fragment arm: a contributed SECTION file (it stamps configAnchorId) with a second, unanchored heading Section — the exact file class the old *-settings-surface-only scanRoot went silently GREEN on",
+      expect: { count: 1, line: 3, token: "<Section" },
+      why: "the SET-SEAMS fragment arm: a contributed SECTION file (it stamps configAnchorId) with a second, unanchored heading Section — the exact file class the old *-settings-surface-only scanRoot went silently GREEN on. `count` + `line` name the unanchored one; the anchored Section on line 2 must not flag",
     },
     {
       mode: "source",
@@ -161,6 +177,14 @@ export const gate = defineGate({
           'import { configAnchorId } from "#state";\nexport const A = configAnchorId("x", "a");\nexport const G = <SectionAlias heading="A" />;\nexport const H = <UI.Section heading="B" />;\n',
       },
       why: "aliased and member component names are declared near-misses of the exact Section tag convention",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/components/waived-section.tsx":
+          'import { configAnchorId } from "#state";\nexport const A = configAnchorId("x", "a");\n// @orb-waive settings-section-anchored(<Section): a stand-in reason and its end condition.\nexport const G = <Section heading="A" />;\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position (the literal `<Section` opening-tag slice) suppresses the twin of mustFlag[2] — one finding, one marker, zero effective findings and zero authority alarms. A wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`. The fixture carries ONE unanchored Section deliberately: two would share this policy's position token and every marker would be over-broad",
     },
   ],
 });

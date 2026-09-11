@@ -8,6 +8,15 @@
 // and a local type that merely shares the name is not. The placeholder component is resolved to its
 // canonical module export, so `import { SectionPlaceholder as Empty }` is caught and an unrelated local
 // component named `SectionPlaceholder` is not. The import-name set is a CANDIDATE filter only.
+//
+// FAMILY: `registry-definitions` — the shared `lib/` subject reader is `lib/registry-fact.ts`
+// `registryDefinitionFacts` (this policy declares the `.modal` provider), with `lib/registry-definition-anchor.ts`
+// `definitionAnchor`/`definitionName` and `lib/registry-definition-field.ts` `definitionField` supplying the
+// shared anchor and field readers every sibling in the family uses. Not a singleton, not a topic.
+//
+// THE REPORTED POSITION is the definition's DECLARED NAME (`themeModal`), supplied by `definitionAnchor` —
+// never derived, because the runtime's deriver would return the `export` keyword and every finding in the
+// family would then share one position (that module's own header states why). `fix` states the spelling.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -24,7 +33,11 @@ const MESSAGE =
   "(§6d gives the definition ONE home, so the placeholder law cannot be established through it), or a function `body` " +
   'that renders <SectionPlaceholder> — an unbuilt modal is the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`), ' +
   "never a placeholder-rendering function body (client-architecture-lockdown.md §6d).";
-const FIX = 'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body.';
+const FIX =
+  'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body. A deliberate exception is ' +
+  "waived with `// @orb-waive modal-body-not-placeholder(<position>): <reason>` on a line above the " +
+  "definition, where <position> is the definition's DECLARED NAME (`themeModal`) — not the tag, not the " +
+  "`body` field and not the `export` keyword the runtime would otherwise derive.";
 
 /** The local names an import binds to the canonical placeholder — a candidate filter, never a verdict. */
 function notePlaceholderImport(node: MorphNode, names: Set<string>): void {
@@ -210,6 +223,16 @@ export const gate = defineGate({
           'import { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\ninterface ModalDefinition {\n  readonly id: string;\n}\nexport const fake: ModalDefinition = { id: "fake", body: () => <SectionPlaceholder /> };\n',
       },
       why: "THE COUNTERFACTUAL for the SUBJECT's identity: `fake` renders the real placeholder from a real function body, but it is annotated with a LOCAL type that merely shares the ModalDefinition name — it is not a modal, so it is not this policy's subject",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+        "packages/client/src/features/settings/lib/theme-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\n// @orb-waive modal-body-not-placeholder(themeModal): a stand-in reason and its end condition.\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <SectionPlaceholder /> };\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position — the definition's declared NAME, which `definitionAnchor` anchors on precisely so a waiver is stable and legible — suppresses the twin of mustFlag[0]. One definition, one finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
     },
   ],
 });

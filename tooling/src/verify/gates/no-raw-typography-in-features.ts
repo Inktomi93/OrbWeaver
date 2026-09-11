@@ -16,7 +16,14 @@
 // attribute and a class-composer call (`cn`/`clsx`/`cva`/`tv`) — so the `tv()` variant maps that made an
 // ancestry fence wrong for `no-color-literals` are INSIDE this fence, not blinded by it. The fence is pinned
 // in both directions: the `cn(…)` mustFlag row proves the composer arm bites, and the bare-constant mustPass
-// row proves an uncarried string does not. Deleting either leaves the header's claim unproven.
+// row proves an uncarried string does not. Deleting either leaves the header's claim unproven. RE-VERIFIED
+// 2026-09-11 (#1584 pristine pass) by the two-command narrowing test the claim asks for: with
+// `inClassCarrier(node)` deleted from the visitor, `mustPass[2]` goes red and conformance reports 1 failure.
+// The message now names BOTH admitted carriers rather than only the attribute, because a `cn(…)` argument is
+// not a `className` and the mustFlag row above proves that arm bites.
+//
+// THE REPORTED POSITION is the WHOLE QUOTED LITERAL (`token: text, offset: 0` — `text` is `node.getText()`,
+// which INCLUDES the quotes), so a waiver names `"text-sm"`, quotes and all; `fix` states the spelling.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable } from "../contract/gate.ts";
@@ -48,7 +55,7 @@ function inClassCarrier(node: Node): boolean {
 }
 
 const MESSAGE =
-  "raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "raw font-size utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.";
 
 const TYPOGRAPHY_REGEX = /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])/u;
 
@@ -63,7 +70,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "Use a typography intent token instead of raw text-size classes.",
+  fix:
+    "Use a typography intent token instead of raw text-size classes. A deliberate raw utility is waived with " +
+    "`// @orb-waive no-raw-typography-in-features(<position>): <reason>` on a line above the offending " +
+    'statement, where <position> is the WHOLE QUOTED LITERAL INCLUDING ITS QUOTES — `"text-sm"`, not text-sm ' +
+    "and not the class token inside a longer string. One literal is one finding, so one marker suffices.",
   create: (ctx) => ({
     visitors: [
       {
@@ -108,7 +119,15 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/test.ts": 'export const label = "text-sm rendering of the size in prose";' },
-      why: "THE CARRIER FENCE (#1954): the exact banned utility `text-sm`, in an ordinary string constant with no className attribute and no cn/clsx/cva/tv call above it, does NOT flag. This is the pin for the header's fenced claim and for the message's 'in className' wording — drop `inClassCarrier` and this row goes red instead of the claim silently becoming false.",
+      why: "THE CARRIER FENCE (#1954): the exact banned utility `text-sm`, in an ordinary string constant with no className attribute and no cn/clsx/cva/tv call above it, does NOT flag. This is the pin for the header's fenced claim and for the message's class-string wording — drop `inClassCarrier` and this row goes red instead of the claim silently becoming false. VERIFIED 2026-09-11: the deletion reds exactly this row.",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/test.tsx":
+          '// @orb-waive no-raw-typography-in-features("text-sm"): a stand-in reason and its end condition.\nconst x = <div className="text-sm" />;\n',
+      },
+      why: 'THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position — the whole quoted literal `"text-sm"`, quotes included, because the report passes `token: node.getText()` — suppresses the twin of mustFlag[0]. One finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`',
     },
   ],
 });

@@ -16,7 +16,14 @@
 // attribute and a class-composer call (`cn`/`clsx`/`cva`/`tv`) — so the `tv()` variant maps that made an
 // ancestry fence wrong for `no-color-literals` are INSIDE this fence, not blinded by it. The fence is pinned
 // in both directions: the `cn(…)` mustFlag row proves the composer arm bites, and the bare-constant mustPass
-// row proves an uncarried string does not. Deleting either leaves the header's claim unproven.
+// row proves an uncarried string does not. Deleting either leaves the header's claim unproven. RE-VERIFIED
+// 2026-09-11 (#1584 pristine pass) by the two-command narrowing test the claim asks for: with
+// `inClassCarrier(node)` deleted from the visitor, `mustPass[2]` goes red and conformance reports 1 failure.
+// The message now names BOTH admitted carriers rather than only the attribute, because a `cn(…)` argument is
+// not a `className` and the mustFlag row above proves that arm bites.
+//
+// THE REPORTED POSITION is the WHOLE QUOTED LITERAL (`token: text, offset: 0` — `text` is `node.getText()`,
+// which INCLUDES the quotes), so a waiver names `"p-4"`, quotes and all; `fix` states the spelling.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable } from "../contract/gate.ts";
@@ -35,7 +42,7 @@ export const SANCTIONED_HOMES: ExemptionTable = {
 };
 
 const MESSAGE =
-  "raw spacing utility in className — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "raw spacing utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.";
 
 const SPACING_REGEX = /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u;
 
@@ -63,7 +70,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "Use layout primitives or intent tokens instead of raw spacing classes.",
+  fix:
+    "Use layout primitives or intent tokens instead of raw spacing classes. A deliberate raw utility is " +
+    "waived with `// @orb-waive no-raw-spacing-in-features(<position>): <reason>` on a line above the " +
+    'offending statement, where <position> is the WHOLE QUOTED LITERAL INCLUDING ITS QUOTES — `"p-4"`, not ' +
+    "p-4 and not the class token inside a longer string. One literal is one finding, so one marker suffices.",
   create: (ctx) => ({
     visitors: [
       {
@@ -108,7 +119,15 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/test.ts": 'export const note = "set p-4 on the wrapper to reproduce";' },
-      why: "THE CARRIER FENCE (#1954): the exact banned utility `p-4`, in an ordinary string constant with no className attribute and no cn/clsx/cva/tv call above it, does NOT flag. This is the pin for the header's fenced claim and for the message's 'in className' wording — drop `inClassCarrier` and this row goes red instead of the claim silently becoming false.",
+      why: "THE CARRIER FENCE (#1954): the exact banned utility `p-4`, in an ordinary string constant with no className attribute and no cn/clsx/cva/tv call above it, does NOT flag. This is the pin for the header's fenced claim and for the message's class-string wording — drop `inClassCarrier` and this row goes red instead of the claim silently becoming false. VERIFIED 2026-09-11: the deletion reds exactly this row.",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/test.tsx":
+          '// @orb-waive no-raw-spacing-in-features("p-4"): a stand-in reason and its end condition.\nconst x = <div className="p-4" />;\n',
+      },
+      why: 'THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position — the whole quoted literal `"p-4"`, quotes included, because the report passes `token: node.getText()` — suppresses the twin of mustFlag[0]. One finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`',
     },
   ],
 });
