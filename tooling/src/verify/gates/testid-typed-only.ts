@@ -1,3 +1,15 @@
+// Gate: testid-typed-only (UI-Gates-and-Lessons.md §11.5) — a `data-testid` whose value is a FREEFORM
+// string is a silently-breakable e2e selector; the typed registry (`testId("key")`, client lib/test-ids.ts)
+// turns a typo into a tsc error. The subject is the value SHAPE at the attribute position, read through the
+// shared `readStringValue` unwrapper so `as`/`satisfies`/parens/no-substitution templates cannot dodge it.
+//
+// FAMILY: a declared SINGLETON under its own id. `testid-liveness` is the only other testid policy and it
+// is still legacy, asks a different question (is a registry row consumed) and shares no reader; a common
+// topic is not a family, so this policy stands under its own name until that one converts.
+//
+// POPULATION: `@client` — the typed registry and every e2e selector
+// live there. The root is a NARROWING and mustPass[1] is the row that dies without it. The other narrowing
+// is the attribute NAME test, which is the subject itself rather than a fence.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
@@ -31,7 +43,7 @@ export const gate = defineGate({
   resources: [],
   message:
     'freeform data-testid string — use the typed registry: data-testid={testId("key")} (lib/test-ids.ts); a typo becomes a tsc error instead of a silently-broken e2e selector. See UI-Gates-and-Lessons.md §11.5.',
-  fix: 'use the typed registry: data-testid={testId("key")}',
+  fix: 'use the typed registry: data-testid={testId("key")} (client lib/test-ids.ts). A deliberate freeform id waives that occurrence with `@orb-waive testid-typed-only(data-testid): <reason + end condition>` — the reported position is the literal text `data-testid`, which the report passes as its token at offset 0 of the attribute, never the string value and never the element.',
   create: (ctx) => ({
     visitors: [
       {
@@ -87,6 +99,14 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/components/foo.tsx": "const ID = 'foo';\nexport const A = () => <div data-testid={ID} />;\n" },
       why: "DECLARED LIMIT: a freeform value reached through a resolved constant is not a literal at the attribute position",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/components/waived.tsx":
+          "// @orb-waive testid-typed-only(data-testid): the proof stand-in reason; ends when this fixture stops flagging.\nexport const A = () => <div data-testid='foo' />;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report passes the token `data-testid` explicitly at offset 0 of the JsxAttribute, so an author waives the ATTRIBUTE NAME — not the freeform value `foo` the message is about, and not the element. A hyphenated position is legal: the marker grammar's position group is `[^()\\r\\n]+`. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });

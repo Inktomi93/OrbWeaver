@@ -3,6 +3,14 @@
 // is a DOMAIN step (`sessions.validate`/`provisionIdentity`), and `Principal` is constructed once at
 // entry/auth/seam. A `userId` identifier under infra/auth/** is the neo tier-collapse reborn — RED. AST
 // identifiers only: `// NO userId` comments and string literals documenting the ban are exempt.
+//
+// FAMILY: a declared SINGLETON under its own id. The subject is one identifier spelling inside one tier
+// directory, and no other policy on the tree reads it — there is no shared `lib/` computation to name, and
+// a shared topic (identity) is not a family.
+//
+// POPULATION: `@server` narrowed to `infra/auth/**`, a tier directory rather than a package. The
+// `under` fence is what makes the policy a tier rule rather than a spelling ban, so mustPass[1] places the
+// same identifier in `domain/sessions/verbs/` and proves the fence bites.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
@@ -24,7 +32,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "resolve the id ONCE at the seam (entry/auth/seam.ts) via a domain step (sessions.validate / provisionIdentity); infra yields a pre-row ResolvedIdentity with NO userId.",
+  fix: "resolve the id ONCE at the seam (entry/auth/seam.ts) via a domain step (sessions.validate / provisionIdentity); infra yields a pre-row ResolvedIdentity with NO userId. A site that genuinely must carry the spelling waives that exact occurrence with `@orb-waive infra-auth-no-userid(userId): <reason + end condition>` — the reported position is always the identifier text `userId`, because the report passes that token explicitly at offset 0.",
   create: (ctx) => ({
     visitors: [
       {
@@ -74,6 +82,14 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/server/src/infra/auth/modes/quoted.ts": 'export const identity = { "userId": "documented", ["userId"]: "computed" };\n' },
       why: "declared limit: quoted and computed property keys contain no userId Identifier node and are outside this spelling policy",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/infra/auth/modes/waived.ts":
+          "// @orb-waive infra-auth-no-userid(userId): the proof's stand-in reason; ends when this fixture stops flagging.\nexport function f(userId: string) {}\n",
+      },
+      why: "POSITIONAL IDENTITY: the report passes the token `userId` explicitly and anchors on the Identifier node itself, so the position an author types is the identifier text — never the parameter's declaration or the enclosing function's name. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });

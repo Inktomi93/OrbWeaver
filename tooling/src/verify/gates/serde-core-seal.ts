@@ -10,6 +10,14 @@
 // sanctioned domain that stops doing byte surgery loses its standing permission — is `hard` and lives in
 // its own policy id, because that claim needs the ENTIRE declared population and must never be
 // suppressible (spacing-tier-home-health's precedent).
+//
+// FAMILY "serde-core-seal": a REAL two-policy family, and the shared reader is `pngChunkImport` exported
+// from this module and imported by the health sibling — the no-raw-spacing-in-features / SANCTIONED_HOMES
+// precedent, so both arms judge one import identity and cannot drift apart.
+//
+// POPULATION: `@server`, whole — the seal is about who imports, and every server tier can. The three narrowings below are all
+// carrier fences and each has a mustPass row that dies without it: the `packages/server/src/` + sanctioned-
+// domain prefix test (mustPass[0]/[1]), and the card-chunk SYMBOL set plus the module SPECIFIER (mustPass[2]).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -49,7 +57,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "domain/import (read) and domain/export (write) are the only sanctioned callers of the PNG card-chunk engine — route through one of those, never a new direct importer.",
+  fix: "domain/import (read) and domain/export (write) are the only sanctioned callers of the PNG card-chunk engine — route through one of those, never a new direct importer. A reviewed third home waives that exact occurrence with `@orb-waive serde-core-seal(<symbol>): <reason + end condition>`, where `<symbol>` is the IMPORTED ENGINE SYMBOL (`readCardChunk` / `writeCardChunk` / `isPng`) the report passes as its token — never the module specifier and never the local alias it is renamed to.",
   create: (ctx) => ({
     visitors: [
       {
@@ -74,8 +82,8 @@ export const gate = defineGate({
       files: {
         "packages/server/src/domain/hub/x.ts": 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n',
       },
-      expect: { messageIncludes: "sanctioned serde homes" },
-      why: "the PNG card-chunk engine imported outside domain/import and domain/export — a new importer",
+      expect: { count: 1, token: "readCardChunk" },
+      why: "the PNG card-chunk engine imported outside domain/import and domain/export — a new importer. Count 1 pins that only the ImportSpecifier is the finding, not the value reference on the next line; the token pins WHICH node, which `messageIncludes` could not (this module emits exactly one message, so a message assertion discriminates nothing)",
     },
   ],
   mustPass: [
@@ -93,6 +101,22 @@ export const gate = defineGate({
           'import { readCardChunk, isPng } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\nexport const p = isPng;\n',
       },
       why: "import reading the card chunk — a sanctioned caller, passes",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/hub/symbols.ts":
+          'import { encodeCard } from "@orb/kit/png-card-chunk";\nimport { readCardChunk } from "@orb/kit/other-engine";\nexport const e = encodeCard;\nexport const r = readCardChunk;\n',
+      },
+      why: "BOTH IDENTITY FENCES, pinned in one unsanctioned home: a NON-engine symbol from the sealed module, and an engine-NAMED symbol from a different module. Deleting either the PNG_CHUNK_SYMBOLS test or the PNG_CHUNK_SPECIFIER test reds this row while every founding row stays green — the seal is the pair (symbol, specifier), not one of them",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/hub/waived.ts":
+          '// @orb-waive serde-core-seal(readCardChunk): the proof stand-in reason; ends when this fixture stops flagging.\nimport { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n',
+      },
+      why: "POSITIONAL IDENTITY: the report passes the IMPORTED SYMBOL as its token at offset 0 of the ImportSpecifier, so an author waives `readCardChunk` — not the module specifier the message names and not the value reference below. The marker sits above the ImportDeclaration, which is the finding's enclosing statement carrier. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });

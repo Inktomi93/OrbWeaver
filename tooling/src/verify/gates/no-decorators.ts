@@ -1,4 +1,17 @@
-import { Node, SyntaxKind } from "ts-morph";
+// Gate: no-decorators (Spine-TypeScript-and-Patterns.md §5) — a decorator is NOT erasable syntax, so the
+// type-stripping runtime this repo ships on has no decorator semantics at all and the call is a runtime
+// error; `erasableSyntaxOnly` does not catch them either. The subject is the Decorator NODE KIND, which is
+// why this gate has no fence: every authored tree runs on the same runtime, so there is nowhere the syntax
+// is legal and nothing to narrow.
+//
+// FAMILY: a declared SINGLETON under its own id. There is no shared `lib/` reader behind "the parser
+// produced a Decorator node", and no sibling policy asks about decorators; a shared topic (erasability)
+// would not be a family either.
+//
+// POPULATION: the declaration listed all nine named roots individually, which IS the `@authored`
+// composite set (contract/population.ts POPULATION_SETS). Spelled as the set here: same admitted paths by
+// definition, one fewer place for the next root to be forgotten.
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
 export const gate = defineGate({
@@ -6,21 +19,21 @@ export const gate = defineGate({
   family: "no-decorators",
   authority: "ordinary",
   severity: "error",
-  population: ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
+  population: "@authored",
   analysis: "syntax",
   execution: "selected-files",
   facts: [],
   resources: [],
   message:
     "decorators are not erasable — tsx/node type-stripping has no decorator runtime (runtime error), and the erasableSyntaxOnly compiler flag does NOT catch them. Use function composition / zod, not decorators. See Spine-TypeScript-and-Patterns.md §5.",
+  fix: "replace the decorator with function composition (wrap the value at its call site) or a zod schema. A file that provably never reaches the stripping runtime waives that occurrence with `@orb-waive no-decorators(<name>): <reason + end condition>`, where `<name>` is the DECORATOR'S OWN NAME: the report passes no token, so the sink derives the first identifier of the Decorator node's own text — the identifier just past the `@`, never the class, member or parameter being decorated (mustPass[1] pins exactly that).",
   create: (ctx) => ({
     visitors: [
       {
         kinds: [SyntaxKind.Decorator],
+        // No guard: the visitor is kind-indexed on Decorator, so every delivered node IS the finding.
         visit: (node) => {
-          if (Node.isDecorator(node)) {
-            ctx.report.node(node);
-          }
+          ctx.report.node(node);
         },
       },
     ],
@@ -45,7 +58,7 @@ export const gate = defineGate({
         "packages/server/src/probe.ts":
           "class Foo {\n  @Trace()\n  method(@Inject() value: string): string { return value; }\n  @Read()\n  get current(): string { return ''; }\n  @Write()\n  set current(value: string) {}\n}\n",
       },
-      expect: { count: 4 },
+      expect: { count: 4, token: "Inject" },
     },
   ],
   mustPass: [
@@ -60,7 +73,7 @@ export const gate = defineGate({
         "packages/server/src/probe.ts":
           "// @orb-waive no-decorators(Injectable): the proof's stand-in reason; ends when this fixture stops flagging.\n@Injectable()\nclass Foo {}\n",
       },
-      why: "POSITIONAL IDENTITY: `ctx.report.node(node)` passes no token, so the sink DERIVES one from the Decorator node's own text — the first identifier past the `@`, which is the decorator's NAME (`Injectable`), never the class it decorates. The fixture is mustFlag[0] (:29, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+      why: "POSITIONAL IDENTITY: `ctx.report.node(node)` passes no token, so the sink DERIVES one from the Decorator node's own text — the first identifier past the `@`, which is the decorator's NAME (`Injectable`), never the class it decorates. The fixture is mustFlag[0] (count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
   ],
 });
