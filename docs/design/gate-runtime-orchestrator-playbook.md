@@ -110,8 +110,11 @@ gates in a pristine place before converting old ones"). Precedes C and D.**
 5. The two message overclaims the audit found beyond `no-color-literals`: the false "in className" context claim
    repeats in `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`.
 
-**Phase C — CLOSE THE CONTRACT, ONCE. Forge. This is a design pass, not an executor lane** (owner, 2026-09-11:
-"we do it once and we do it the right way — skimping out is what bit us the first time").
+**Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
+
+Standing principle this serves (owner, 2026-09-11, general — not a mandate for any particular structure): *do not take
+the easy or short way just because the right way is more work.* The analysis below is the orchestrator's, and the
+implementation shape is open; what is NOT open is deriving the requirement from whoever happened to trip over it.
 
 **Why #1930 as written is not the shape.** It names seven capabilities derived from ELEVEN gates that three lanes
 happened to trip over. The remaining legacy set is **106**. Implement those seven and the 107th gate trips over an
@@ -124,7 +127,10 @@ policer broke when the thing it polices moved. Seven dribbles is seven rounds of
 legacy means a private reader, a gate-owned exemption table and a direct walk — the exact rot the closed contract
 exists to eliminate. Tolerating it forever is the skimp that produced this program.
 
-**So Phase C is one pass:**
+**What that rules out, and what it leaves open.** Ruled out: deriving the capability set from the eleven gates three
+lanes tripped over, and adding kinds one gate at a time. Left open, deliberately: whether the implementation lands as
+one pass or as batches. Batching is fine if the SET is settled first — what costs is an unsettled set, not a staged
+build. Steps 1 and 2 are the part that must happen before any code:
 
 1. **Derive the capability requirement across ALL remaining legacy modules**, not the eleven already tripped over.
    Inputs: the 53-row resource manifest in `resource-gate-access-patterns.md`, the per-gate blocker tables in
@@ -136,8 +142,9 @@ exists to eliminate. Tolerating it forever is the skimp that produced this progr
    all; whether the population algebra gains one reviewed directory-tier operator (which would shrink path-liveness
    and #1922 together). A capability serving ONE gate is that gate's private reader wearing a contract's clothes —
    either it generalises or that gate's shape is wrong.
-3. **Build it in one pass, then update the policing layer ONCE.** Includes the fixture-runtime work the kinds need —
-   `runResourceExample` only writes files and cannot express a symlink, which path-liveness proofs require.
+3. **Build against the settled set**, batched or in one pass as the design decides, including the fixture-runtime work
+   the kinds need — `runResourceExample` only writes files and cannot express a symlink, which path-liveness proofs
+   require. Batch the policing-layer update with it rather than per capability.
 4. **Then the contract is FROZEN** and conversions proceed against a set that no longer moves.
 
 Sequencing note: two of the five gates path-liveness was supposed to unblock (`depcruise-grant-liveness`,
