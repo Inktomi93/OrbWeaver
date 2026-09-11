@@ -22,6 +22,14 @@
 // THE SELECTOR BODY IS JUDGED AS AUTHORED, never through the binding reader: `useX(s => DEFAULT)` where
 // DEFAULT is a frozen module constant is the sanctioned FIX, so following the alias to its object literal
 // would red the remedy the message prescribes.
+//
+// FAMILY: a declared SINGLETON under its own id. The identity readers it stands on (`resolveTypeIdentityChain`,
+// `declaredByFile`/`declaredByPackage` in lib/type-member-origin.ts) are shared with the whole canonical-origin
+// wave, but a shared PRIMITIVE is not a family; no sibling policy reads this policy's store-hook subject, and
+// `zustand-selector-derived` — the one policy that would share it — is still legacy.
+//
+// POPULATION: `@authored` minus `*.test.ts`/`*.test.tsx`. The notNamed fence is a
+// NARROWING with its own mustPass row; the arity fence and the unnamed-type verdict each have one too.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -107,7 +115,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "select a stored ref, use a frozen module-constant default, or wrap in useShallow.",
+  fix: "select a stored ref, use a frozen module-constant default, or wrap in useShallow. A deliberate fresh literal waives that occurrence with `@orb-waive zustand-selector-stability(<hook>): <reason + end condition>`, where `<hook>` is the STORE HOOK NAME the call is made on — the report anchors the token on the callee's last member segment (`store.useUser` reports `useUser`), never the selector parameter and never the literal itself.",
   create: (ctx) => {
     const candidates: MorphNode[] = [];
     return {
@@ -302,6 +310,26 @@ export const gate = defineGate({
           "declare const properties: any;\nexport const durations = (): unknown => properties.map((property: any, index: number) => ({ property, index }));\n",
       },
       why: "THE ARITY FENCE, and the last two real-tree survivors: a two-parameter `.map((property, index) => ({ … }))` inside a CT spec's in-browser closure is typed `any` by this analysis program (the root tsconfig is DOM-less), so the erasure check alone would report it. A zustand selector is `(state) => U` and takes exactly ONE parameter, so a two-parameter callback is provably not one — the fence is semantic, not a convenience filter",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]:
+          "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare function createGatedStore<T>(name: string, initial: T): GatedStoreHook<T>;\n",
+        "packages/client/src/components/foo.test.tsx":
+          'import { createGatedStore } from "../state/create-gated-store.ts";\nconst useUserStore = createGatedStore("user", { user: "a" });\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n',
+      },
+      why: "THE notNamed POPULATION FENCE, pinned: mustFlag[0]'s exact bytes under a `*.test.tsx` name are NOT admitted, because a re-render loop in a spec is a test's own business. Deleting `notNamed` leaves every other row green — this is the only row that dies without it",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]:
+          "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare function createGatedStore<T>(name: string, initial: T): GatedStoreHook<T>;\n",
+        "packages/client/src/components/waived.tsx":
+          'import { createGatedStore } from "../state/create-gated-store.ts";\nconst useUserStore = createGatedStore("user", { user: "a" });\n// @orb-waive zustand-selector-stability(useUserStore): the proof stand-in reason; ends when this fixture stops flagging.\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the CALL but its token is the callee's last member segment, so an author waives the STORE HOOK NAME `useUserStore` — never the selector parameter `s`, which is neither stable nor unique, and never the object literal the message is about. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });

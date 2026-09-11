@@ -12,6 +12,10 @@
 // THE SUBJECT IS THE NAME, deliberately: §5 rule 1 bans the mutating registration VOCABULARY, not one
 // module's export. There is nothing to resolve — the finding is about a declaration this file authored, and
 // its shape (a method, a function declaration, or a const bound to a function/arrow) is authored syntax.
+//
+// POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
+// which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
+// narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -22,7 +26,8 @@ const MESSAGE =
   "a mutating `register()`-named function/method — side-effect registration is banned wherever it is " +
   "declared (client-architecture-lockdown.md §5 rule 1), because what a registry contains then depends on " +
   "import order. Export a definition VALUE and let the door assemble it.";
-const FIX = "replace the register() API with an exported definition value assembled at the composition root (main.tsx or a compose/ module).";
+const FIX =
+  "replace the register() API with an exported definition value assembled at the composition root (main.tsx or a compose/ module). A deliberate occurrence waives with `@orb-waive no-mutating-register-api(register): <reason + end condition>` — the reported position is always the literal text `register`, because the report passes that token explicitly at the declaration's own offset, never the enclosing object or variable.";
 
 /** Function-VALUED declarations named exactly `register`, in every shape they can take. */
 function isBannedRegisterDeclaration(node: MorphNode): boolean {
@@ -101,6 +106,22 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/lib/other.ts": "export function registerAll(ids: readonly string[]): void {\n  void ids;\n}\n" },
       why: "a differently-named function is a different vocabulary — the rule names `register` exactly",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/lib/clean.ts": "export const clean = true;\n",
+        "packages/server/src/domain/tool-use/registry.ts": "export function register(id: string): void {\n  void id;\n}\n",
+      },
+      why: "THE POPULATION FENCE, pinned: §5 rule 1 is a CLIENT assembly law, so the identical declaration in `@server` — where registries legitimately register at startup — is not a finding. Deleting the `@client` population leaves every other row green; this is the only row that dies without it",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/lib/waived.ts":
+          "// @orb-waive no-mutating-register-api(register): the proof's stand-in reason; ends when this fixture stops flagging.\nexport function register(id: string): void {\n  void id;\n}\n",
+      },
+      why: "POSITIONAL IDENTITY: the report passes the token `register` explicitly at the declaration's own offset, so an author waives the NAME — not the module and not the value it is bound to. The fixture is mustFlag[1] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });

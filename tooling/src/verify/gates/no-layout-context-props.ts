@@ -1,5 +1,13 @@
 // Direct JSX attribute spellings are the policy subject on any client/ui component, including member tags.
 // Spread-provided props are deliberately unresolved and outside this syntax-only detector.
+//
+// FAMILY: a declared SINGLETON under its own id. The banned vocabulary is four prop names owned by this
+// policy alone; no sibling reads them and there is no shared `lib/` computation behind an attribute-name
+// test, so there is nothing to name but itself.
+//
+// POPULATION PORT: byte-identical to the legacy `@client` + `@ui` scan roots — the two packages that author
+// JSX. The root fence is a NARROWING, so mustPass[2] places the same attribute in `@server` and proves it
+// bites; without that row, deleting the fence would only ever ADD findings at sites no row visits.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
@@ -19,7 +27,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use @container / data-density attribute instead",
+  fix: "use @container (axis 1) or the data-density attribute instead. A deliberate occurrence waives with `@orb-waive no-layout-context-props(<prop>): <reason + end condition>`, where `<prop>` is the BANNED PROP NAME: the report passes no token, so the sink derives the first identifier of the JsxAttribute's own text, which is always the attribute name — never the component tag and never the value.",
   create: (ctx) => ({
     visitors: [
       {
@@ -63,6 +71,22 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/features/x/spread.tsx": "export const G = <EntityCard {...{ compact: true }} />;\n" },
       why: "a JSX spread is the declared unresolved limit of the direct-attribute syntax policy",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/clean.tsx": "export const Clean = () => <div />;\n",
+        "packages/server/src/transport/render.tsx": "export const G = <EntityCard compact={true} />;\n",
+      },
+      why: "THE POPULATION FENCE, pinned: the identical attribute in `@server` is NOT a finding, because the container/density model is a client-and-ui law. Deleting the root fence leaves every other row green — this is the only row that dies without it. The clean client file keeps the selection non-empty so the row measures the fence and not an empty population",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/waived.tsx":
+          "// @orb-waive no-layout-context-props(compact): the proof's stand-in reason; ends when this fixture stops flagging.\nexport const G = <EntityCard compact={true} />;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report passes no token, so the sink DERIVES the first identifier of the JsxAttribute's own text — the PROP NAME (`compact`), never the component tag `EntityCard` (which is outside the attribute node) and never the value. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
   ],
 });
