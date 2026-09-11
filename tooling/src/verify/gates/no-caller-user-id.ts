@@ -69,5 +69,14 @@ export const gate = defineGate({
       },
       why: "quoted and computed string keys are the declared boundary of the identifier-only policy",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/chat/waived.ts":
+          "// @orb-waive no-caller-user-id(callerUserId): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const forward = (callerUserId: string): void => undefined;\n",
+      },
+      why: "POSITIONAL IDENTITY: each banned identifier occurrence is its own finding at the token `callerUserId`. The fixture is authored with exactly ONE occurrence instead of reusing a mustFlag row, because both mustFlag rows fire two and three times inside one carrier and one marker consumes one occurrence",
+    },
   ],
 });

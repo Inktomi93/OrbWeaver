@@ -137,5 +137,14 @@ export const gate = defineGate({
       files: { "packages/contracts/src/chat/card.ts": "export const note = getRosterCardView;\n" },
       why: "the resurrection-verb identifier OUTSIDE server-src (in contracts) — the verb arm's SERVER_SRC scope, passes",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/character/x.ts":
+          "// @orb-waive member-card-clamped(MemberCardView): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export interface MemberCardView { name: string }\n",
+      },
+      why: "POSITIONAL IDENTITY: the type arm reports on the declaration's NAME node (reportName), so the position is the type name `MemberCardView`, never the `interface` keyword its declaration text starts with. Built on the type-arm mustFlag row — a ONE-finding fixture, and one marker consumes one occurrence",
+    },
   ],
 });

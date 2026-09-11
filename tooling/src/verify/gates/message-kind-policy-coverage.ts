@@ -334,5 +334,18 @@ export const gate = defineGate({
       },
       why: "the CONTRACTS-INTERNAL derivation is a carrier, not an enforcer: `SELF` alone would not cover the axis, and the behavior-tier read here is what does — so this row pins that a home-file read is never counted as production coverage on its own",
     },
+    {
+      mode: "types",
+      files: {
+        [HOME]:
+          "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n" +
+          "  // @orb-waive message-kind-policy-coverage(wire): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "  readonly wire: 'carry' | 'drop';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { prompt: 'conversation', wire: 'carry' } };\n",
+        "packages/server/src/domain/chat/assembly/shape.ts":
+          'import { MESSAGE_KIND_POLICY } from "../../../../../contracts/src/chat/participants.ts";\nexport const p = MESSAGE_KIND_POLICY.standard.prompt;\n',
+      },
+      why: "POSITIONAL IDENTITY: the finding is anchored on the axis PropertySignature but OFFSET to the axis NAME, so the marker names `wire` — not `readonly`, which is where a signature-anchored position would land. Built on the no-reader mustFlag row — a ONE-finding fixture, since `prompt` has its direct production reader in the same map",
+    },
   ],
 });

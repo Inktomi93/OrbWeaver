@@ -90,5 +90,14 @@ export const gate = defineGate({
       },
       why: "THE POPULATION BOUNDARY the split preserves: infra is not a domain feature, and legacy judged an exported interface ONLY under domain/. Widening it here would have been a silent new accusation on every infra/transport/foundation module",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/x/verb.ts":
+          "// @orb-waive no-inline-domain-interface(Foo): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export interface Foo {\n  readonly x: string;\n}\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the interface's NAME node, so the position is the shape's own name `Foo` and not the `export`/`interface` keywords the declaration text opens with. Built on the founding mustFlag row — a ONE-finding fixture",
+    },
   ],
 });

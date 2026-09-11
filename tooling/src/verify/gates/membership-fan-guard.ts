@@ -72,5 +72,14 @@ export const gate = defineGate({
       files: { "packages/server/src/domain/chat/verbs/computed.ts": 'export const emitter = { "emitUserEvent": 1, ["emitUserEvent"]: 2 };\n' },
       why: "declared limit: quoted and computed property keys contain no emitUserEvent Identifier node and are outside this spelling policy",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/chat/verbs/__probe-waived.ts":
+          "// @orb-waive membership-fan-guard(emitUserEvent): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const forward = emitUserEvent;\n",
+      },
+      why: "POSITIONAL IDENTITY: each banned identifier occurrence is its own finding at the token `emitUserEvent`. This fixture is authored with exactly ONE occurrence instead of reusing a mustFlag row, because BOTH mustFlag rows produce two findings inside one carrier and one marker consumes one occurrence — a marker there would be over-broad and suppress nothing",
+    },
   ],
 });
