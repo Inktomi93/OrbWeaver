@@ -112,7 +112,7 @@ test("clicking a dice chip rolls rpg.rollDice for that notation and inserts the 
 
   // The server roll fired for the clicked notation.
   await expect.poll(() => trpc.count("rpg.rollDice"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder — the roll is recorded, so its input is a fixed value.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder — the roll is recorded, so its input is a fixed value.
   expect((trpc.lastInput("rpg.rollDice") as { readonly notation?: string }).notation).toBe("d20");
   // The baked stamp lands in THIS room's composer draft (observable in the real textarea) — canon on send.
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("[dice: d20 → 14]");

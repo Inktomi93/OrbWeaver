@@ -77,7 +77,7 @@ test("side variants place the panel on the chosen edge", async ({ mount, page })
   }
   // Right drawer: flush to the right edge, full height.
   expect(box.x + box.width).toBeCloseTo(viewport.width, 0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.height).toBeCloseTo(viewport.height, 0);
 });
 

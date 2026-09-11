@@ -28,12 +28,12 @@ test.describe("coarse pointer — the touch floor", () => {
   test("every size meets the 44px touch floor; lg is taller than sm", async ({ mount }) => {
     const small = await mount(<Button size="sm">Save</Button>);
     const smallBox = await small.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(smallBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     await small.unmount();
     const large = await mount(<Button size="lg">Save</Button>);
     const largeBox = await large.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(largeBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
   });
@@ -41,7 +41,7 @@ test.describe("coarse pointer — the touch floor", () => {
   test("wrap size keeps the floor for a short label (its height is a MINIMUM, not a release)", async ({ mount }) => {
     const button = await mount(<Button size="wrap">Go</Button>);
     const box = await button.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
   });
 
@@ -55,22 +55,22 @@ test.describe("coarse pointer — the touch floor", () => {
       const style = getComputedStyle(el, "::after");
       return { height: Number.parseFloat(style.height), width: Number.parseFloat(style.width) };
     });
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(hit.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(hit.width).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     // The hit area is LAYOUT-NEUTRAL: it expands past the button's own text-height box, never resizes it.
     expect(box?.height ?? 0).toBeLessThan(TOUCH_FLOOR_PX);
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(hit.height).toBeGreaterThan(box?.height ?? 0);
   });
 
   test("icon size is a square control meeting the floor with no horizontal padding", async ({ mount }) => {
     const button = await mount(<Button aria-label="Regenerate" size="icon" />);
     const box = await button.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.width).toBeCloseTo(box?.height ?? 0, 0);
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     await expect(button).toHaveCSS("padding-left", "0px");
     await expect(button).toHaveCSS("padding-right", "0px");
@@ -122,9 +122,9 @@ test("media size takes its child's box exactly, with no padding of its own", asy
     </Button>,
   );
   const box = await button.boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.width).toBeCloseTo(MEDIA_CHILD_PX, 0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.height).toBeCloseTo(MEDIA_CHILD_PX, 0);
   await expect(button).toHaveCSS("padding-left", "0px");
   await expect(button).toHaveCSS("padding-top", "0px");
@@ -184,17 +184,17 @@ test("inline size reproduces the `!h-auto !py-0` geometry it replaces: text-heig
     };
   });
   // TEXT-HEIGHT: the box is its own line box — no control height under it (the `!h-auto` the sites bought).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.height).toBeCloseTo(style.lineHeight, 0);
   // `!py-0`: the arm ships no block padding at all, so a call site never has to fight one.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.paddingBlock).toBe("0px/0px");
   // `!px-field`: the call site's own inset lands unopposed — no `!` needed, resolved against the token.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.paddingInline).toBeCloseTo(style.field, 1);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.fontWeight).toBe("400");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(style.justifyContent).toBe("flex-start");
 });
 

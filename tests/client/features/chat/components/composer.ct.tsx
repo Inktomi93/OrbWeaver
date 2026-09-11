@@ -1256,7 +1256,7 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
     return !event.defaultPrevented;
   });
 
-  // ONESHOT-OK: dispatching the paste twice would mutate the composer twice; this asserts the one event's synchronous cancellation result.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): dispatching the paste twice would mutate the composer twice; this asserts the one event's synchronous cancellation result.
   expect(defaultSurvived).toBe(true);
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
 });

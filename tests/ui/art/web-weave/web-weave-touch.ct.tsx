@@ -38,7 +38,7 @@ test("instrument control: the CT context is a COARSE-pointer touch device", asyn
   }));
   expect(probe.coarse, "hasTouch must flip @media(pointer: coarse)").toBe(true);
   expect(probe.touch, "the touch event pipeline must exist").toBe(true);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(probe.maxTouchPoints).toBeGreaterThan(0);
 });
 
@@ -94,7 +94,7 @@ test("the web does NOT eat scroll: a vertical thumb drag over a weave behind scr
   await expect(scroller).toBeVisible();
   const canvas = page.locator('[data-slot="web-weave-canvas"]');
   await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
-  // ONESHOT-OK: a freshly-mounted scroller is at the top by construction; this pins the start line.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a freshly-mounted scroller is at the top by construction; this pins the start line.
   expect(await scroller.evaluate((el) => el.scrollTop)).toBe(0);
   const mid = await boxCentre(canvas);
   // A long, unambiguously VERTICAL drag — the gesture a reader makes over the backdrop.

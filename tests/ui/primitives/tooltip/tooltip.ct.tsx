@@ -139,7 +139,7 @@ test("a caller-supplied aria-describedby is MERGED with the seal's, never replac
   const popupId = await popup.getAttribute("id");
   const describedBy = (await trigger.getAttribute("aria-describedby")) ?? "";
   const ids = describedBy.split(/\s+/u).filter((id) => id.length > 0);
-  // ONESHOT-OK: the popup is already asserted VISIBLE above, so the seal's id and the trigger's describedby list are both settled — nothing further mutates either.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the popup is already asserted VISIBLE above, so the seal's id and the trigger's describedby list are both settled — nothing further mutates either.
   expect(popupId).not.toBeNull();
   // BOTH: the tooltip's description survives, and the caller's is honoured beside it.
   expect(ids).toContain(popupId);

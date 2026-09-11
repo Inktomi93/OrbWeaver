@@ -230,7 +230,7 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
   await expect(page.getByTestId("chat-source")).toHaveText("vllm");
 
   await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBe(1);
-  // ONESHOT-OK: a belt over the DOM pin above — this story wires NO refetch path at all (the mutation is busDriven, so its settle invalidates nothing, and a CT has no bus), so the read count cannot move.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a belt over the DOM pin above — this story wires NO refetch path at all (the mutation is busDriven, so its settle invalidates nothing, and a CT has no bus), so the read count cannot move.
   expect(trpc.count("settings.getUserSettings")).toBe(1);
 });
 

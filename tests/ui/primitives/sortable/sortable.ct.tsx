@@ -227,9 +227,9 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   // `useSortable`'s own internal prefers-reduced-motion check, and the drop-settle because this
   // seal's `Feedback.configure({ dropAnimation: null })` skips it before any WAAPI call runs at
   // all (so it never even reaches this patched `animate`).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(durations.length).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(durations.every((duration) => duration === 0)).toBe(true);
 });
 

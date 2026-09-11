@@ -83,7 +83,7 @@ test("the built-in default fires NO attachment query and says off as a KNOWN fac
   const rows = page.locator("[data-pipeline-step^='regex:']");
   await expect(rows.first()).toContainText("off");
   await expect(component).not.toContainText("couldn’t read");
-  // ONESHOT-OK: the settled-state barrier above has already rendered; a query, had one been enabled, would have been sent during that mount. The count is a read of finished state, not a sample mid-flight.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled-state barrier above has already rendered; a query, had one been enabled, would have been sent during that mount. The count is a read of finished state, not a sample mid-flight.
   expect(trpc.count("regex.listForPreset")).toBe(0);
 });
 

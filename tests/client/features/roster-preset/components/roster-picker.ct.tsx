@@ -235,7 +235,7 @@ test.describe("the roster row under a COARSE pointer (the phone arm)", () => {
     await routeTrpc(page, { "rosterPreset.list": [ROSTER_A], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
     await mount(<RosterPickerStory width={316} />);
 
-    // ONESHOT-OK: the pointer media is a browser-CONTEXT option (`hasTouch`) fixed before this page existed — not mutable async state.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the pointer media is a browser-CONTEXT option (`hasTouch`) fixed before this page existed — not mutable async state.
     expect(await page.evaluate(() => globalThis.matchMedia("(pointer: coarse)").matches)).toBe(true);
   });
 

@@ -188,7 +188,7 @@ test("a 906-row measured list resets a settled 30-row scope after old-offset cla
       visibleCount: visibleRows.length,
     };
   });
-  // ONESHOT-OK: the pre-scope-change poll settled oldOffset above 30,000 before this retained-value assertion.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the pre-scope-change poll settled oldOffset above 30,000 before this retained-value assertion.
   expect(oldOffset).toBeGreaterThan(30_000);
   expect(settled.scrollTop).toBe(0);
   expect(settled.firstIndex).toBe(0);
@@ -270,7 +270,7 @@ test("rapid settled scope churn lands only the latest reset and cancels older fr
   const landing = await page.evaluate(() =>
     (globalThis as typeof globalThis & { __resetFrameHarness: { pendingIds: () => number[] } }).__resetFrameHarness.pendingIds(),
   );
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(landing.length).toBeGreaterThan(0);
   await scroll.evaluate((node) => {
     node.scrollTop = 600;
@@ -362,7 +362,7 @@ test("unmount before the reset frame cancels the stale landing without errors or
   await page.evaluate(() => {
     (globalThis as typeof globalThis & { __resetFrameHarness: { flushAll: () => void } }).__resetFrameHarness.flushAll();
   });
-  // ONESHOT-OK: flushAll is synchronous and the detached node cannot receive later browser work.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): flushAll is synchronous and the detached node cannot receive later browser work.
   expect(await detachedScroll?.getAttribute("data-reset-writes")).toBeNull();
   expect(errors).toEqual([]);
 });

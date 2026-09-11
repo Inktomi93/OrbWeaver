@@ -135,7 +135,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
 
   // THE PIN: no write. The debounce plus a full round-trip have had their chance.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
-  // ONESHOT-OK: settled — the preceding 900ms real-timer wait IS the negative-assertion window.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 900ms real-timer wait IS the negative-assertion window.
   expect(trpc.count(UPDATE_PROC)).toBe(0);
   // The block is legible: this surface's cards are bound `<Field>`s, so the refusal renders as the field's
   // own error (with the aria-invalid wiring), not as a hand-rolled badge.

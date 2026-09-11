@@ -129,7 +129,7 @@ test("a live run replaces the door with its own progress state and never double-
   await expect(component.getByText("Reading your cards")).toBeVisible();
   await expect(component.getByRole("button", { name: RUN_DOOR })).toHaveCount(0);
   // Nothing on this surface can enqueue while a run holds the floor.
-  // ONESHOT-OK: this arm performs NO interaction, and `onClick` on the (absent) door is the only enqueue path in the component — so there is no in-flight call for a retry to catch, and the two settled barriers above already prove the running arm rendered. A poll here would pass at t=0 regardless and prove less.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): this arm performs NO interaction, and `onClick` on the (absent) door is the only enqueue path in the component — so there is no in-flight call for a retry to catch, and the two settled barriers above already prove the running arm rendered. A poll here would pass at t=0 regardless and prove less.
   expect(recorder.count("workloads.start")).toBe(0);
 });
 

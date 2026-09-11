@@ -434,7 +434,7 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
   test.use({ hasTouch: true });
 
   test("a face is at least the 44px WCAG floor, and in practice the 48px coarse control box", async ({ mount, page }) => {
-    // ONESHOT-OK: a media-query match on a context flag set BEFORE the page opened — nothing async can change it (the touch-target-floor suite's own R6 probe reads it the same way).
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): a media-query match on a context flag set BEFORE the page opened — nothing async can change it (the touch-target-floor suite's own R6 probe reads it the same way).
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
     const button = component.getByRole("button", { name: "Open Azarael", exact: true });

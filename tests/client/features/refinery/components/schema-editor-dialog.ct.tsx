@@ -301,6 +301,6 @@ test("EDIT-EXISTING opens populated and saves through the UPDATE verb — the br
   await expect.poll(() => trpc.count("refinery.updateSchema")).toBe(1);
   await expect.poll(() => trpc.lastInput("refinery.updateSchema")).toMatchObject({ schemaId, patch: { name: "cosiness v2" } });
   // …and NOT through create — an edit that silently forked a second library row is the defect this pins.
-  // ONESHOT-OK: the two calls are alternatives inside ONE click handler (`saveDraft` takes either the create branch or the update branch), and the update's arrival was already awaited above — so at this point the press has provably resolved and no create can still be in flight.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the two calls are alternatives inside ONE click handler (`saveDraft` takes either the create branch or the update branch), and the update's arrival was already awaited above — so at this point the press has provably resolved and no create can still be in flight.
   expect(trpc.count("refinery.createSchema")).toBe(0);
 });

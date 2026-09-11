@@ -113,7 +113,7 @@ test.describe("coarse pointer — the touch floor", () => {
       </Toggle>,
     );
     const smallBox = await small.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(smallBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     await small.unmount();
     const large = await mount(
@@ -122,7 +122,7 @@ test.describe("coarse pointer — the touch floor", () => {
       </Toggle>,
     );
     const largeBox = await large.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(largeBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
     expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
   });

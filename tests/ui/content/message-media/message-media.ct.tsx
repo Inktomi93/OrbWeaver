@@ -54,7 +54,7 @@ test("external video has controls and NEVER autoplay (non-overridable)", async (
 test("aspect box is reserved before load (no layout shift)", async ({ mount }) => {
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: EXTERNAL }} media="image" alt="a" dims={{ w: 4, h: 3 }} />);
   const ratio = await cmp.evaluate((el) => getComputedStyle(el).aspectRatio);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(ratio.replace(/\s/gu, "")).toBe("4/3");
 });
 

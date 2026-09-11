@@ -95,7 +95,7 @@ test("a GAME chat attaches exactly ONE rpg room, and its frames drive the invali
   await expect(page.getByTestId("rpg-events")).toHaveText("gameChanged");
   // …and NO gap-heal on the room's first live edge (BOOT-4X). The frame above is the barrier: it is
   // delivered strictly after the room went live, so a heal would already be counted here if one had fired.
-  // ONESHOT-OK: settled by the frame-delivery assertion above.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the frame-delivery assertion above.
   expect(await page.getByTestId("rpg-heals").textContent()).toBe("0");
 });
 

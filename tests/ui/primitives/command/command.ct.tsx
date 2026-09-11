@@ -148,7 +148,7 @@ test.describe("coarse pointer", () => {
         return box;
       })
       .not.toBeNull();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(SNAPPED_LENGTH_BASE_PX["spacing.touch-target"]);
   });
 });

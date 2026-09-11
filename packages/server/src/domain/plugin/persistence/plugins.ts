@@ -209,10 +209,7 @@ export async function listEnabledAcrossOwners(db: Db): Promise<readonly { readon
 
 /** Set the lifecycle status (+ `lastError`), stamping `updatedAt`. `lastError` clears to null on a clean
  *  enable/disable; carries the failure detail on an activation error. */
-// @owner-scope-write-ok: the lifecycle write. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the lifecycle write. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function setStatus(
   db: Db,
   pluginId: PluginId,
@@ -261,10 +258,7 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
   );
 }
 
-// @owner-scope-write-ok: the upgrade swap. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the upgrade swap. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePluginRow): AwaitableBatchStmt<unknown> {
   return db
     .update(plugins)
@@ -288,10 +282,7 @@ function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePlug
  *  the grant (plus the lifecycle status the verb re-derives), so a re-grant can never smuggle a manifest or a
  *  bundle swap past the install/upgrade trust edge. `lastError` clears: the row's stored failure described the
  *  PREVIOUS grant, and carrying it forward would misattribute it to this one. */
-// @owner-scope-write-ok: the re-grant write. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`set-grant`/`uninstall`) loads it through the
-// owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends
-// the day a pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the re-grant write. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`set-grant`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function applyGrant(
   db: Db,
   pluginId: PluginId,
@@ -331,10 +322,7 @@ export async function applyGrant(
  *  `previous` is DERIVED (`count - 1`) rather than read: SQLite's RETURNING is post-update and this statement
  *  adds exactly one, so a second read would be a slower way to compute the same number — and a racier one.
  *  Stamps `updatedAt`. */
-// @owner-scope-write-ok: the crash-policy counter, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the crash-policy counter, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function incrementCrashes(db: Db, pluginId: PluginId, updatedAt: number): Promise<{ readonly previous: number; readonly count: number }> {
   const rows = await db
     .update(plugins)
@@ -346,29 +334,20 @@ export async function incrementCrashes(db: Db, pluginId: PluginId, updatedAt: nu
 }
 
 /** Reset the consecutive-crash counter to 0 (a clean invocation). */
-// @owner-scope-write-ok: the crash-policy reset, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the crash-policy reset, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function resetCrashes(db: Db, pluginId: PluginId, updatedAt: number): Promise<void> {
   await db.update(plugins).set({ consecutiveCrashes: 0, updatedAt }).where(eq(plugins.id, pluginId));
 }
 
 /** Record an activation/invocation failure detail without touching status. */
-// @owner-scope-write-ok: the activation error detail, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the activation error detail, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function setLastError(db: Db, pluginId: PluginId, lastError: string, updatedAt: number): Promise<void> {
   await db.update(plugins).set({ lastError, updatedAt }).where(eq(plugins.id, pluginId));
 }
 
 /** Delete the plugins row (uninstall). `plugin_kv` cascades; the bundle asset is reaped AFTER (the FK is
  *  RESTRICT, so the row's reference must be gone before the asset can be reaped — 02 §3). */
-// @owner-scope-write-ok: the uninstall. The `plugins` row's owner is the installing principal;
-// every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
-// `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
-// pluginId reaches a plugin write without that load.
+// @orb-waive owner-scoped-writes(plugins): the uninstall. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 export async function deletePlugin(db: Db, pluginId: PluginId): Promise<void> {
   await db.delete(plugins).where(eq(plugins.id, pluginId));
 }

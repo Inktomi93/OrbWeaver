@@ -33,7 +33,7 @@ test("no registered display transforms ⇒ the row's own text, and ZERO per-row 
   // Settle on the gate query itself before reading the count — otherwise a zero could just be "nothing has
   // happened yet", which is the un-failable shape.
   await expect.poll(() => recorder.count("plugin.listDisplayTransforms")).toBeGreaterThan(0);
-  // ONESHOT-OK: provably settled at read-time by the two barriers above — the row's SETTLED text has painted AND the gate query has answered, which is every event that could schedule the per-row read. A poll here would pass instantly against 0 and prove nothing.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): provably settled at read-time by the two barriers above — the row's SETTLED text has painted AND the gate query has answered, which is every event that could schedule the per-row read. A poll here would pass instantly against 0 and prove nothing.
   expect(recorder.count("plugin.transformForDisplay")).toBe(0);
 });
 

@@ -118,7 +118,7 @@ test("send mode: clicking a chip posts the arm's rendered sendText as the member
   await component.getByRole("button", { name: "Draw your blade" }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder — the send is recorded, so its input is a fixed value.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder — the send is recorded, so its input is a fixed value.
   expect((trpc.lastInput("chat.send") as { readonly content?: string }).content).toBe("I draw my blade.");
 });
 

@@ -130,9 +130,9 @@ test("partialFill draws a hard-stop gradient at the fraction and the path resolv
     const target = el.ownerDocument.getElementById(el.querySelector("linearGradient")?.id ?? "");
     return { ref, targetTag: target?.tagName ?? "" };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(resolved.ref).toContain("url(");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(resolved.targetTag).toBe("linearGradient");
 });
 

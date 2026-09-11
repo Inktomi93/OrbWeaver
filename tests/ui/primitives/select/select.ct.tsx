@@ -266,9 +266,9 @@ test("option description: paints in the row, stays off the trigger, and is a des
     const d = desc?.getBoundingClientRect();
     return { labelBottom: l?.bottom ?? 0, descTop: d?.top ?? 0, descHeight: d?.height ?? 0 };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(geo.descHeight).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(geo.descTop).toBeGreaterThanOrEqual(geo.labelBottom - 1);
 
   // An option with no `description` renders no gloss node — the slot is opt-in, not an empty row.

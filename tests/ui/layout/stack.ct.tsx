@@ -51,8 +51,8 @@ test("rows='control' floors every direct child at the control-sm token; without 
   expect(floor, "the control-sm token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
   const floored = await page.getByText("floored").boundingBox();
   const bare = await page.getByText("bare").boundingBox();
-  // ONESHOT-OK: the preceding mount completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(floored?.height).toBeGreaterThanOrEqual(floor);
-  // ONESHOT-OK: the preceding mount completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(bare?.height).toBeLessThan(floor);
 });

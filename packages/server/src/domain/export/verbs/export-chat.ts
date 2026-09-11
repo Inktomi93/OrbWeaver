@@ -46,15 +46,13 @@ function toParsedVariant(v: VariantRow): ParsedVariant {
 
 // The per-chat speaker-name maps: characterId → card name, personaId → persona name. Built once from the
 // canon's distinct ids so each turn resolves to its own speaker, not the header primary.
-// @owner-scope-ok: the export ran the HOST gate on the chat first (file header — a non-host caller collapses
-// to null before any of this), and the ids are the room's own message attribution stamps, not caller input.
-// The read returns display names only. Owner-scoping on the caller would blank a co-member's card name in a
-// multi-human room. Ends if export ever runs without the roster gate.
 async function loadSpeakerNames(ctx: ExportContext, slots: readonly MessageRow[]): Promise<{ char: Map<string, string>; persona: Map<string, string> }> {
   const charIds = [...new Set(slots.flatMap((m) => (m.characterId !== null ? [m.characterId] : [])))];
   const personaIds = [...new Set(slots.flatMap((m) => (m.personaId !== null ? [m.personaId] : [])))];
+  // @orb-waive owner-scoped-reads(characters): the export ran the HOST gate on the chat first (file header — a non-host caller collapses to null before any of this), and the ids are the room's own message attribution stamps, not caller input. The read returns display names only. Owner-scoping on the caller would blank a co-member's card name in a multi-human room. Ends if export ever runs without the roster gate.
   const charRows =
     charIds.length === 0 ? [] : await ctx.db.select({ id: characters.id, name: characters.name }).from(characters).where(inArray(characters.id, charIds));
+  // @orb-waive owner-scoped-reads(personas): the export ran the HOST gate on the chat first (file header — a non-host caller collapses to null before any of this), and the ids are the room's own message attribution stamps, not caller input. The read returns display names only. Owner-scoping on the caller would blank a co-member's card name in a multi-human room. Ends if export ever runs without the roster gate.
   const personaRows =
     personaIds.length === 0 ? [] : await ctx.db.select({ id: personas.id, name: personas.name }).from(personas).where(inArray(personas.id, personaIds));
   return {
@@ -136,10 +134,6 @@ async function loadParsedMessages(
 
 // The chat-level header facts: the primary character's name, the anchor persona's name, and the branch
 // round-trip ref. Every miss degrades, never a throw.
-// @owner-scope-ok: same host-gated chat as `loadSpeakerNames`; the character id is read off this room's own
-// roster and the persona id off its own `anchorPersonaId` column — both already-authorized room state, not
-// caller input. Names only, and every miss degrades to a default rather than throwing. Ends with the roster
-// gate above it.
 async function loadExportMeta(ctx: ExportContext, chat: ChatRow): Promise<{ characterName: string; userName: string | null; parentRef: string | null }> {
   const [firstChar] = await ctx.db
     .select({ characterId: chatParticipants.characterId })
@@ -149,11 +143,13 @@ async function loadExportMeta(ctx: ExportContext, chat: ChatRow): Promise<{ char
     .limit(1);
   let characterName = "Character";
   if (firstChar?.characterId !== null && firstChar?.characterId !== undefined) {
+    // @orb-waive owner-scoped-reads(characters): same host-gated chat as `loadSpeakerNames`; the character id is read off this room's own roster and the persona id off its own `anchorPersonaId` column — both already-authorized room state, not caller input. Names only, and every miss degrades to a default rather than throwing. Ends with the roster gate above it.
     const [c] = await ctx.db.select({ name: characters.name }).from(characters).where(eq(characters.id, firstChar.characterId)).limit(1);
     characterName = c?.name ?? characterName;
   }
   let userName: string | null = null;
   if (chat.anchorPersonaId !== null) {
+    // @orb-waive owner-scoped-reads(personas): same host-gated chat as `loadSpeakerNames`; the character id is read off this room's own roster and the persona id off its own `anchorPersonaId` column — both already-authorized room state, not caller input. Names only, and every miss degrades to a default rather than throwing. Ends with the roster gate above it.
     const [p] = await ctx.db.select({ name: personas.name }).from(personas).where(eq(personas.id, chat.anchorPersonaId)).limit(1);
     userName = p?.name ?? null;
   }

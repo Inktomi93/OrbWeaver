@@ -49,13 +49,13 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
-  // ONESHOT-OK: the code path completed (the barrier asserted web-first above), so this 'never fired' count is settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the code path completed (the barrier asserted web-first above), so this 'never fired' count is settled.
   expect(trpc.count("credentials.markRevokedByUser")).toBe(0);
 
   await page.getByTestId(testId("credentialMarkRevoked")).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Mark revoked" }).click();
   await expect.poll(() => trpc.count("credentials.markRevokedByUser"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled — the matching count was polled to its target above, so lastInput is the settled last call.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so lastInput is the settled last call.
   expect((trpc.lastInput("credentials.markRevokedByUser") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
 });
 
@@ -68,7 +68,7 @@ test("a custom_openai row's Test button fires the honest credentials.testHealth 
 
   await page.getByRole("button", { name: "Test", exact: true }).click();
   await expect.poll(() => trpc.lastInput("credentials.testHealth"), { intervals: [20, 50, 100] }).toEqual({ credentialId: "user_credential_ctstory0002" });
-  // ONESHOT-OK: the code path completed (testHealth's input was polled to arrival above), so this 'never fired' fetchModels count is settled (#SID-01/#9 — the reachability shortcut is retired).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the code path completed (testHealth's input was polled to arrival above), so this 'never fired' fetchModels count is settled (#SID-01/#9 — the reachability shortcut is retired).
   expect(trpc.count("credentials.fetchModels")).toBe(0);
   await expect(page.getByText("ok", { exact: true })).toBeVisible();
 });
@@ -134,6 +134,6 @@ test("a revoked row's clear-revoked fires credentials.clearRevoked directly", as
 
   await page.getByTestId(testId("credentialClearRevoked")).click();
   await expect.poll(() => trpc.count("credentials.clearRevoked"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled — the matching count was polled to its target above, so lastInput is the settled last call.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so lastInput is the settled last call.
   expect((trpc.lastInput("credentials.clearRevoked") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0003");
 });

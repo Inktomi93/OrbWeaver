@@ -75,7 +75,7 @@ test("a MULTI-character room turns Response into a speaker menu: picking a name 
   await page.getByRole("menuitem", { name: "Bolt" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder at exactly 1 call.
   expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: "character_bolt" });
 });
 

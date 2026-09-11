@@ -105,12 +105,12 @@ test("shape passes through — the RULED portrait arm, against the circular defa
     return { own: own.borderTopLeftRadius, portraitStep, width: own.width };
   });
 
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(shape.own).toBe(shape.portraitStep);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(shape.own).not.toBe(roundRadius);
   // …and it is a real rounded RECT, not a capsule wearing a token name.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(shape.own)).toBeLessThan(Number.parseFloat(shape.width) / 2);
 });
 

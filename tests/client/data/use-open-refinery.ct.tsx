@@ -63,9 +63,9 @@ test("a card with NO session mints one, opens it, and lands the rail on Refinery
   await component.getByRole("button", { name: "open refinery" }).click();
 
   await expect(state).toHaveText(`session=${MINTED_SESSION} section=refinery pending=false`);
-  // ONESHOT-OK: the settled readout above is the flow's own LAST write, so the recording is closed here.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled readout above is the flow's own LAST write, so the recording is closed here.
   expect(trpc.count("refinery.startSession")).toBe(1);
-  // ONESHOT-OK: same settled barrier.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier.
   expect(trpc.lastInput("refinery.startSession")).toEqual({ characterId: CHARACTER_ID });
 });
 
@@ -86,7 +86,7 @@ test("a card with an OPEN session resumes the NEWEST one and mints nothing (#79)
   await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${NEWEST_OPEN_SESSION} section=refinery pending=false`);
   // THE DEFECT, on the wire: nothing was created. Measured 2026-08-14 before this rule existed — 3
   // duplicate sessions on one card in five minutes, the scored work sitting behind a collapsed roster.
-  // ONESHOT-OK: the settled readout above is the barrier (see the sibling test).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled readout above is the barrier (see the sibling test).
   expect(trpc.count("refinery.startSession")).toBe(0);
 });
 
@@ -97,7 +97,7 @@ test("a FINISHED session is not resumable — picking the card again starts over
 
   // `completed` means an apply took the snapshot; `abandoned` means it was discarded. Neither reopens.
   await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${MINTED_SESSION} section=refinery pending=false`);
-  // ONESHOT-OK: same settled barrier.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier.
   expect(trpc.count("refinery.startSession")).toBe(1);
 });
 
@@ -122,6 +122,6 @@ test("the roster is AWAITED, not gated on — a first-ever click still resumes r
   await component.getByRole("button", { name: "open refinery" }).click();
 
   await expect(component.getByTestId("open-refinery-state")).toHaveText(`session=${NEWEST_OPEN_SESSION} section=refinery pending=false`);
-  // ONESHOT-OK: same settled barrier.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier.
   expect(trpc.count("refinery.startSession")).toBe(0);
 });

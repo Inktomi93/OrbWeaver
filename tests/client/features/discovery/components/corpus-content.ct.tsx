@@ -300,7 +300,7 @@ test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a nu
 
   // …and the surface asked for the alignment report ZERO times — the pin that the second owner-scoped read
   // is GONE, not merely redundant. (The Visuals CONTEXT tab still reads that verb; it is not mounted here.)
-  // ONESHOT-OK: settled by construction — every query on this surface is a `useSuspenseQuery` fired in the first render and batched into ONE http request by httpBatchLink, and the portraits asserted above only paint after that batch's response. A `portraitAlignment` call could only have ridden that same flight, so by the time a face is visible the recorder has seen everything this mount will ever ask for.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by construction — every query on this surface is a `useSuspenseQuery` fired in the first render and batched into ONE http request by httpBatchLink, and the portraits asserted above only paint after that batch's response. A `portraitAlignment` call could only have ridden that same flight, so by the time a face is visible the recorder has seen everything this mount will ever ask for.
   expect(recorder.count("discovery.portraitAlignment")).toBe(0);
 });
 

@@ -38,28 +38,28 @@ test("animates by default: the orb spin on the svg, the WEAVE loop (with its das
   const root = page.locator('[data-slot="web-spinner"]');
   await expect(root).toHaveAttribute("data-animate", "");
   const svgAnimation = await page.locator("svg").evaluate((el) => getComputedStyle(el).animationName);
-  // ONESHOT-OK: animationName is a static style-rule resolution, not settling async state.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): animationName is a static style-rule resolution, not settling async state.
   expect(svgAnimation).toBe("orb-web-spin");
   const spiral = page.locator("svg .orb-web-pulse");
   const spiralStyle = await spiral.evaluate((el) => {
     const s = getComputedStyle(el);
     return { animation: s.animationName, dash: s.strokeDasharray, offset: s.strokeDashoffset };
   });
-  // ONESHOT-OK: same — declared-rule reads, no transition in flight.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same — declared-rule reads, no transition in flight.
   expect(spiralStyle.animation).toBe("orb-web-weave");
   // ONE dash as long as the whole spiral — that is what makes the loop DRAW THE SILK OUT rather than
   // running a lit segment along it (the shipped pulse was `12px <gap>`, two values).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(spiralStyle.dash).not.toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(spiralStyle.dash.split(",")).toHaveLength(1);
   const spiralLength = Number.parseFloat(spiralStyle.dash);
   // The offset is mid-flight (the loop is running), so assert what a running weave looks like: it is
   // somewhere inside [0, length] now, and it has MOVED a few frames later.
   const offsetNow = Number.parseFloat(spiralStyle.offset);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(offsetNow).toBeGreaterThanOrEqual(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(offsetNow).toBeLessThanOrEqual(spiralLength);
   await expect.poll(async () => spiral.evaluate((el) => getComputedStyle(el).strokeDashoffset)).not.toBe(spiralStyle.offset);
   // The spokes breathe under it instead of sitting at a fixed dim.
@@ -72,7 +72,7 @@ test("reduced motion renders the STATIC glyph — no animation, and the spiral i
   const root = page.locator('[data-slot="web-spinner"]');
   await expect(root).not.toHaveAttribute("data-animate", "");
   const svgAnimation = await page.locator("svg").evaluate((el) => getComputedStyle(el).animationName);
-  // ONESHOT-OK: static style-rule resolution.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): static style-rule resolution.
   expect(svgAnimation).toBe("none");
   const spiralStyle = await page.locator("svg .orb-web-pulse").evaluate((el) => {
     const s = getComputedStyle(el);
@@ -80,11 +80,11 @@ test("reduced motion renders the STATIC glyph — no animation, and the spiral i
   });
   // Settled snapshot: static style resolution leaves no dash and no animation, so the
   // resting glyph is the FULLY WOVEN web (not a half-drawn spiral frozen mid-loop).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(spiralStyle.animation).toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(spiralStyle.dash).toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(spiralStyle.offset)).toBe(0);
   await expect.poll(async () => await page.locator("svg .orb-web-spokes").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
 });

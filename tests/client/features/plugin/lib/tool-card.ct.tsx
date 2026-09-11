@@ -155,9 +155,9 @@ test("an UNREGISTERED plugin_* tool keeps the generic block — byte-identically
 
   // Both operands were captured after their own settled barrier (the card visible / the block count), and
   // both mounts are already gone.
-  // ONESHOT-OK: comparing two captured strings — no DOM read remains that could re-sample.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): comparing two captured strings — no DOM read remains that could re-sample.
   expect(claimed).toBe(baseline);
-  // ONESHOT-OK: a re-read of that captured string — non-vacuity (an empty string on both sides would satisfy the equality while the block was missing).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a re-read of that captured string — non-vacuity (an empty string on both sides would satisfy the equality while the block was missing).
   expect(baseline).toContain(REVEAL);
 });
 
@@ -181,9 +181,9 @@ test("a NON-plugin tool name is untouched by the contribution — byte-identical
     .nth(1)
     .evaluate((el) => el.outerHTML);
 
-  // ONESHOT-OK: captured strings, taken after the settled barriers above; both mounts are already gone.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): captured strings, taken after the settled barriers above; both mounts are already gone.
   expect(claimed).toBe(baseline);
-  // ONESHOT-OK: a re-read of that captured string — non-vacuity, not a DOM read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a re-read of that captured string — non-vacuity, not a DOM read.
   expect(baseline).toContain("roll_check");
 });
 

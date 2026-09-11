@@ -149,10 +149,10 @@ test("size: the DEFAULT clears the pointer's control floor and `text` (the marke
 
   const textBox = await page.getByRole("button", { name: "Running text" }).boundingBox();
   const defaultBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(defaultBox?.height).toBeGreaterThanOrEqual(floor);
   // The opt-out stays text-height: the inversion must not re-box a disclosure that sits in running copy.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(textBox?.height).toBeLessThan(floor);
 });
 
@@ -164,12 +164,12 @@ test.describe("size at a COARSE pointer", () => {
 
     // Positive control that coarse emulation actually fired (a fine-pointer run makes the 44 unreachable
     // and this pin would green at 32 for the wrong reason).
-    // ONESHOT-OK: pointer capability is a context-level constant for the page's whole life — nothing transitions it.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): pointer capability is a context-level constant for the page's whole life — nothing transitions it.
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const floor = await readControlFloor(page);
     expect(floor).toBeGreaterThanOrEqual(44);
     const defaultBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(defaultBox?.height).toBeGreaterThanOrEqual(floor);
   });
 });

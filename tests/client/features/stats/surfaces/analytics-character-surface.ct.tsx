@@ -63,7 +63,7 @@ test("the character drill's content region carries a non-zero inset (#1221, the 
 
   const region = component.locator('[data-slot="analytics-content"]');
   const padding = await region.evaluate((el) => getComputedStyle(el).paddingTop);
-  // ONESHOT-OK: static CSS from the `padding="section"` prop, settled by the name-text visibility barrier above — it cannot change after mount.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): static CSS from the `padding="section"` prop, settled by the name-text visibility barrier above — it cannot change after mount.
   expect(padding).not.toBe("0px");
 });
 

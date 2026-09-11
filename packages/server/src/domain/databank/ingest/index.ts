@@ -126,10 +126,7 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
 /** Re-derive `extractedText` from the CAS bytes when the document was extracted by an OLDER extractor (the
  *  mode:'re-extract' predicate). A purged blob or a bytesless origin ('text') is skipped (nothing better to
  *  extract from). Returns the refreshed row when it re-extracted, else the original. */
-// @owner-scope-write-ok: the ingest plane's own row — `doc` came from `loadDocument`, which carries the twin
-// read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids
-// the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content.
-// Ends the day ingest takes a documentId straight off a request.
+// @orb-waive owner-scoped-writes(documents): the ingest plane's own row — `doc` came from `loadDocument`, which carries the twin read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content. Ends the day ingest takes a documentId straight off a request.
 async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: IngestAccumulator, signal: AbortSignal): Promise<LoadedDocument> {
   if (isAborted(signal) || doc.sourceAssetId === null || doc.extractorVersion === ctx.extractorVersion) {
     return doc;

@@ -17,7 +17,7 @@ test("reserves the aspect box via aspectRatio even when src is null", async ({ m
 
   const box = await root.boundingBox();
   // width must be nonzero (the caller sizes width via className/container; the ratio is what we own).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.width).toBeGreaterThan(0);
   expect(Math.round((box?.width ?? 0) / (16 / 9))).toBe(Math.round(box?.height ?? 0));
 });

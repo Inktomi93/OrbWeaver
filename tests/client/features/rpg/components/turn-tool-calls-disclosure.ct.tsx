@@ -209,7 +209,7 @@ test("a room with NO live game NEVER asks for the record — no request, and the
   // before it, "no request yet" is true of every mount for a millisecond.
   await expect(component.getByTestId("room-kind")).toHaveText("plain");
   await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
-  // ONESHOT-OK: settled by the barrier above — the gated query would have been issued during the same commit that painted "plain", so this is a read of finished state, not a mid-flight sample.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the barrier above — the gated query would have been issued during the same commit that painted "plain", so this is a read of finished state, not a mid-flight sample.
   expect(trpc.count("rpg.listTurnToolCalls")).toBe(0);
 });
 
@@ -233,7 +233,7 @@ test("a game toggled OFF asks for nothing either — the OFF arm gates identical
   // an absent pointer. The game EXISTS here — it is switched off.
   await expect(component.getByTestId("room-kind")).toHaveText("off");
   await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
-  // ONESHOT-OK: settled by the barrier above — the gated query would have been issued during the same commit that painted `off`. A read of finished state, not a mid-flight sample.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the barrier above — the gated query would have been issued during the same commit that painted `off`. A read of finished state, not a mid-flight sample.
   expect(trpc.count("rpg.listTurnToolCalls")).toBe(0);
 });
 

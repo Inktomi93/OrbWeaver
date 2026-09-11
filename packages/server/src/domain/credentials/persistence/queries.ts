@@ -62,10 +62,7 @@ export async function hasAnyInSlot(db: Db, ownerId: UserId, provider: Credential
 }
 
 /** Rotate the sealed secret in place (preserve id/active; CLEAR revocation — a fresh key voids it). */
-// @owner-scope-write-ok: the id is not the caller's to name — `add`'s rotate arm passes the row `findSlotLabelRow`
-// just resolved from the caller's OWN `(ownerId, provider, label)` slot, so a foreign credential is not
-// reachable at this call. Ends the day a caller-supplied credentialId reaches rotate (then it takes `ownerId`,
-// the `promoteActive` shape below).
+// @orb-waive owner-scoped-writes(userCredentials): the id is not the caller's to name — `add`'s rotate arm passes the row `findSlotLabelRow` just resolved from the caller's OWN `(ownerId, provider, label)` slot, so a foreign credential is not reachable at this call. Ends the day a caller-supplied credentialId reaches rotate (then it takes `ownerId`, the `promoteActive` shape below).
 export function rotateSealed(
   db: Db,
   args: {

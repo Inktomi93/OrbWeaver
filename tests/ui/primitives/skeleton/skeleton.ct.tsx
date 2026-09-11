@@ -25,11 +25,11 @@ test("the shimmer sweep translates a compositor layer over --motion-shimmer", as
     const sweep = getComputedStyle(el, "::after");
     return { rootAnimation: root.animationName, image: sweep.backgroundImage, name: sweep.animationName };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(styles.image).toContain("linear-gradient");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(styles.name).toBe("orb-skeleton-shimmer");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(styles.rootAnimation).toBe("none");
 });
 
@@ -40,9 +40,9 @@ test("reduced-motion drops to a FLAT muted fill (no gradient, no animation)", as
     const sweep = getComputedStyle(el, "::after");
     return { display: sweep.display, rootAnimation: getComputedStyle(el).animationName };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(styles.display).toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(styles.rootAnimation).toBe("none");
 });
 

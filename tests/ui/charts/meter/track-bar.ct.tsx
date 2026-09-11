@@ -81,6 +81,6 @@ test("width defaults to full — the magnitude bar still spans its column", asyn
   );
   const bar = component.locator("[data-slot=track-bar]");
   const box = await bar.boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.width).toBeCloseTo(300, 0);
 });

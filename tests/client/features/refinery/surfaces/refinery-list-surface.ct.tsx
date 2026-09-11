@@ -76,7 +76,7 @@ test("a session whose card is past the client's page still NAMES itself — the 
   await expect(page.getByText("Accept")).toBeVisible();
   await expect(page.getByText(ITERATION_READOUT)).toBeVisible();
   // And the surface never asked for a character page at all — there is no join left to break.
-  // ONESHOT-OK: the row above is rendered, and the roster is a SUSPENSE surface — it cannot paint until every query it declared has resolved. A `character.list` this surface still owed would have suspended the row, so a settled row IS the barrier for "it asked for nothing else".
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the row above is rendered, and the roster is a SUSPENSE surface — it cannot paint until every query it declared has resolved. A `character.list` this surface still owed would have suspended the row, so a settled row IS the barrier for "it asked for nothing else".
   expect(trpc.count("character.list")).toBe(0);
 });
 
@@ -183,9 +183,9 @@ test("#308: the desktop landing fetches character.list once and listSessions onc
   await expect(page.getByText("No refinery sessions yet")).toBeVisible();
   await expect(page.getByPlaceholder(PICKER_SEARCH)).toBeVisible();
 
-  // ONESHOT-OK: the two settled arms above are the barrier — a read either surface still owed would have suspended the arm that asserts here.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the two settled arms above are the barrier — a read either surface still owed would have suspended the arm that asserts here.
   expect(trpc.count("character.list")).toBe(1);
-  // ONESHOT-OK: same settled barrier — header, surface and selection-title share one `listSessions` key.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier — header, surface and selection-title share one `listSessions` key.
   expect(trpc.count("refinery.listSessions")).toBe(1);
 });
 

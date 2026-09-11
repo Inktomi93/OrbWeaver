@@ -465,7 +465,7 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
   // pre-reset "balanced" back over the starter — a NEW `preset.update` past the snapshot. Wait it out; none.
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
-  // ONESHOT-OK: settled — the preceding 700ms real-timer wait is the negative-assertion window itself (proving NO late `preset.update` fires); there is no later state to race against.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 700ms real-timer wait is the negative-assertion window itself (proving NO late `preset.update` fires); there is no later state to race against.
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
 });
 
@@ -736,7 +736,7 @@ test("FORK-CHOICE — with a fork already in the library, a built-in edit is INT
 
   // THE PIN: the save is PARKED. A dialog that appears after the write already landed is theatre.
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
-  // ONESHOT-OK: settled — the preceding wait is the negative-assertion window itself (the debounce + a full save round-trip have had their chance; the dialog is what holds the chain).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding wait is the negative-assertion window itself (the debounce + a full save round-trip have had their chance; the dialog is what holds the chain).
   expect(trpc.count("preset.update")).toBe(0);
 });
 
@@ -963,7 +963,7 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   // red side, and THIS is the defect (measured on the unfixed tree: exactly one `preset.update` fired,
   // carrying 4499 characters the schema would then heal to nothing).
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
-  // ONESHOT-OK: settled — the preceding 900ms real-timer wait IS the negative-assertion window.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the preceding 900ms real-timer wait IS the negative-assertion window.
   expect(trpc.count("preset.update")).toBe(0);
 
   // …and the withheld save is STATED, as an alert: the autosave that would normally reassure is the thing
@@ -2006,7 +2006,7 @@ test("UNREADABLE — a corrupt stored preset says so on OPEN, disables saving, a
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
   // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
   // plus the full debounce window, so the read IS settled at this line.
-  // ONESHOT-OK: a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
   expect(trpc.count("preset.update")).toBe(0);
   // The status has not drifted to "Saving…"/"Saved" behind the edit either — the one lie this state exists
   // to kill is a success word over a write that cannot happen.

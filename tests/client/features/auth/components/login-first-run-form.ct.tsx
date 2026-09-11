@@ -74,6 +74,6 @@ test("AUTOFILL ANATOMY: owner + confirm are real password inputs inside a <form>
   await expect(owner).toHaveAttribute("autocomplete", "new-password");
   await expect(confirm).toHaveAttribute("autocomplete", "new-password");
   const tags = await form.evaluate((el) => [...el.querySelectorAll("[data-testid=first-run-password],[data-testid=first-run-confirm]")].map((n) => n.tagName));
-  // ONESHOT-OK: static DOM structure, already awaited visible above.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): static DOM structure, already awaited visible above.
   expect(tags).toEqual(["INPUT", "INPUT"]);
 });

@@ -1196,7 +1196,7 @@ test("UNREADABLE SETTINGS — the pane says so once, the footer stops saying Sav
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1200)));
   // Polling can only wait for a call that must never come; the barrier is the rendered settled edit above
   // plus the full debounce window, so the read IS settled at this line.
-  // ONESHOT-OK: a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a NEGATIVE recorder read, taken after the rendered settled edit and the whole debounce window.
   expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
 });
 
@@ -1216,7 +1216,7 @@ test("UNREADABLE SETTINGS — the reset door is the ONE repair, and it is confir
   await expect(confirm).toContainText("Reset all your settings?");
   // The confirm dialog's own rendered text is the barrier immediately above; this asserts the mutation has
   // NOT fired yet, and a call that must not exist cannot be polled for.
-  // ONESHOT-OK: a NEGATIVE recorder read, taken after the confirm dialog's rendered text settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a NEGATIVE recorder read, taken after the confirm dialog's rendered text settled.
   expect(trpc.count("settings.resetUserConfig")).toBe(0);
   await confirm.getByRole("button", { name: "Reset settings" }).click();
   await expect.poll(() => trpc.count("settings.resetUserConfig")).toBe(1);

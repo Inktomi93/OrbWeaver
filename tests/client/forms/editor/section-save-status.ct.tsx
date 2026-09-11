@@ -52,6 +52,6 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
   const before = trpc.count(UPDATE_PROC);
   await retry.click();
   await expect.poll(() => trpc.count(UPDATE_PROC), { intervals: [20, 50, 100] }).toBeGreaterThan(before);
-  // ONESHOT-OK: the poll above already settled the recorder — this reads the call it just observed.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already settled the recorder — this reads the call it just observed.
   expect((trpc.lastInput(UPDATE_PROC) as { section?: string } | undefined)?.section).toBe("worldInfo");
 });

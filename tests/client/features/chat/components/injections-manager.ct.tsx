@@ -326,7 +326,7 @@ for (const width of PANE_WIDTHS) {
         return { reserved: box("injections-reserve"), settled: box("injections-settled") };
       });
       // Liveness first: a zero here is "I could not measure", which must never read as a pass.
-      // ONESHOT-OK: the settled arm was polled to its resolved text before the read, so both boxes come out of ONE settled frame — which is the point (two polls would compare two layout passes).
+      // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled arm was polled to its resolved text before the read, so both boxes come out of ONE settled frame — which is the point (two polls would compare two layout passes).
       expect(heights.settled).toBeGreaterThan(0);
       expect(Math.abs(heights.reserved - heights.settled) / heights.settled).toBeLessThanOrEqual(RESERVE_TOLERANCE);
     });

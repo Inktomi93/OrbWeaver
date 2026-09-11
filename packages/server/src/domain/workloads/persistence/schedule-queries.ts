@@ -82,10 +82,7 @@ export async function insertSchedule(db: Db, row: ScheduleInsert): Promise<void>
 }
 
 /** Load one schedule by id, or `null` (absent). */
-// @owner-scope-ok: the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/
-// `delete-schedule`) runs `isVisibleToCaller(isAdmin, caller, existing.ownerId)` on the loaded row and
-// collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm
-// unrepresentable. Ends if the admin arm goes.
+// @orb-waive owner-scoped-reads(workloadSchedules): the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/ `delete-schedule`) runs `isVisibleToCaller(isAdmin, caller, existing.ownerId)` on the loaded row and collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if the admin arm goes.
 export async function loadSchedule(db: Db, id: WorkloadScheduleId): Promise<WorkloadScheduleRow | null> {
   const rows = await db.select().from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
   const row = rows[0];
@@ -113,8 +110,7 @@ export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Pr
 
 /** Apply a patch to a schedule, returning the updated row (or `null` if the id vanished between the verb's
  *  load and this write — a benign race). Always bumps `updatedAt`. */
-// @owner-scope-write-ok: `verbs/update-schedule` — the `loadSchedule` F3-AUTHZ twin above: it loads the row and runs `isVisibleToCaller(ctx.isAdmin, caller, existing.ownerId)`, collapsing a foreign id to the leak-free NOT_FOUND, before this write. An ownerId in this WHERE
-// would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
+// @orb-waive owner-scoped-writes(workloadSchedules): `verbs/update-schedule` — the `loadSchedule` F3-AUTHZ twin above: it loads the row and runs `isVisibleToCaller(ctx.isAdmin, caller, existing.ownerId)`, collapsing a foreign id to the leak-free NOT_FOUND, before this write. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
 export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch: SchedulePatch, now: number): Promise<WorkloadScheduleRow | null> {
   const updated = await db
     .update(workloadSchedules)
@@ -133,8 +129,7 @@ export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch
 }
 
 /** Flip a schedule's `enabled` flag, returning the updated row (or `null` if it vanished). */
-// @owner-scope-write-ok: `verbs/set-schedule-enabled` — the `loadSchedule` F3-AUTHZ twin above: it loads-and-visibility-checks the row first, so a foreign id never reaches this flip. An ownerId in this WHERE
-// would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
+// @orb-waive owner-scoped-writes(workloadSchedules): `verbs/set-schedule-enabled` — the `loadSchedule` F3-AUTHZ twin above: it loads-and-visibility-checks the row first, so a foreign id never reaches this flip. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
 export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, enabled: boolean, now: number): Promise<WorkloadScheduleRow | null> {
   const updated = await db.update(workloadSchedules).set({ enabled, updatedAt: now }).where(eq(workloadSchedules.id, id)).returning();
   const row = updated[0];
@@ -142,8 +137,7 @@ export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, en
 }
 
 /** Delete a schedule by id. Returns whether a row was removed (false = already gone). */
-// @owner-scope-write-ok: `verbs/delete-schedule` — the `loadSchedule` F3-AUTHZ twin above: it loads-and-visibility-checks the row first, with NO state change on a foreign or absent id. An ownerId in this WHERE
-// would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
+// @orb-waive owner-scoped-writes(workloadSchedules): `verbs/delete-schedule` — the `loadSchedule` F3-AUTHZ twin above: it loads-and-visibility-checks the row first, with NO state change on a foreign or absent id. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
 export async function deleteScheduleRow(db: Db, id: WorkloadScheduleId): Promise<boolean> {
   const removed = await db.delete(workloadSchedules).where(eq(workloadSchedules.id, id)).returning({ id: workloadSchedules.id });
   return removed.length > 0;
@@ -159,9 +153,7 @@ export async function findDueSchedules(db: Db, now: number): Promise<WorkloadSch
 }
 
 /** Advance a schedule after an enqueue attempt: set the next due instant + the last-run stamp. */
-// @owner-scope-write-ok: the SCHEDULE-TICK engine plane (D20 un-principal) — the id comes from the tick's own
-// `findDueSchedules` enumeration and the write is the engine's own cursor (`next_run_at`/`last_run_at`), not
-// user-authored config. There is no principal in scope. Ends if a door advances a schedule.
+// @orb-waive owner-scoped-writes(workloadSchedules): the SCHEDULE-TICK engine plane (D20 un-principal) — the id comes from the tick's own `findDueSchedules` enumeration and the write is the engine's own cursor (`next_run_at`/`last_run_at`), not user-authored config. There is no principal in scope. Ends if a door advances a schedule.
 export async function advanceSchedule(db: Db, id: WorkloadScheduleId, nextRunAt: number, lastRunAt: number): Promise<void> {
   await db.update(workloadSchedules).set({ nextRunAt, lastRunAt, updatedAt: lastRunAt }).where(eq(workloadSchedules.id, id));
 }

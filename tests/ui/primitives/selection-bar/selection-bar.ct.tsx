@@ -161,11 +161,13 @@ test("#1137 the dismiss stays on the count's row, at the bar's trailing edge, at
     };
   });
   // Positive control: a missing element reads as -1/-2 and would make both claims below meaningless.
-  // ONESHOT-OK: one settled evaluate over a static bar at a fixed host width — no images, no transitions, one snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): one settled evaluate over a static bar at a fixed host width — no images, no transitions, one snapshot.
   expect(geometry.countTop).toBeGreaterThanOrEqual(0);
-  expect(geometry.clearTop).toBeGreaterThanOrEqual(0); // ONESHOT-OK: same snapshot
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same snapshot
+  expect(geometry.clearTop).toBeGreaterThanOrEqual(0);
   // SAME ROW: the dismiss's top edge sits inside the count's line box, not on a row beneath it.
-  expect(geometry.clearTop).toBeLessThan(geometry.countBottom); // ONESHOT-OK: same snapshot
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same snapshot
+  expect(geometry.clearTop).toBeLessThan(geometry.countBottom);
   // TRAILING EDGE: the dismiss ends at the bar's inner right edge (its padding), never mid-row.
   expect(geometry.rootRight - geometry.clearRight).toBeLessThanOrEqual(geometry.rootPaddingRight + 1);
 });

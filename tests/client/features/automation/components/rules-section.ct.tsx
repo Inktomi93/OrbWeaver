@@ -567,7 +567,7 @@ test("#621 P1-1/P1-2: Delete needs a confirm — one click no longer destroys th
   await expect.poll(async () => trpc.count("automation.deleteRule")).toBe(0);
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  // ONESHOT-OK: the dialog is gone — the cancel is settled, and cancelling issues no request.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the dialog is gone — the cancel is settled, and cancelling issues no request.
   expect(trpc.count("automation.deleteRule")).toBe(0);
 
   // Confirming does delete it, with the right id.
@@ -1342,7 +1342,7 @@ test("#815: a full rules-editing session stays inside this surface's layout-shif
   //
   // LIVENESS FIRST: a run that saw no `layout-shift` entry AT ALL did not measure this surface — the
   // observer never attached, or the drive never reached a paint. A bare zero must not read as a pass.
-  // ONESHOT-OK: the drive is over and two input-window lapses have passed since the last state change.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the drive is over and two input-window lapses have passed since the last state change.
   expect(ledger.seen).toBeGreaterThan(0);
   const paid = ledger.paid;
   const total = paid.reduce((sum, shift) => sum + shift.value, 0);

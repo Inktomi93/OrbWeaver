@@ -283,7 +283,7 @@ test("keyboard Tab into the panel paints the focus ring (not the bare UA outline
   // The ring rides the `--color-ring` token and stays INSIDE the panel box (no offset halo to be clipped
   // by a scroll parent) — read the token from the same document, never a hardcoded color.
   const ring = await panel.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-ring").trim());
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(ring.length).toBeGreaterThan(0);
   await expect.poll(async () => await panel.evaluate((el) => getComputedStyle(el).boxShadow)).toContain("inset");
 });

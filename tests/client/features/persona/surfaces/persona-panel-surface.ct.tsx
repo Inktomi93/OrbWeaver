@@ -121,7 +121,8 @@ test("a sheet switch writes the SEED pointer (Everywhere is the only sheet scope
   await mount(<PersonaYouSheetStory />);
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
-  expect(trpc.count(ACTIVE_PROC)).toBe(0); // ONESHOT-OK: settled — the seed write above already resolved
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the seed write above already resolved
+  expect(trpc.count(ACTIVE_PROC)).toBe(0);
 });
 
 test("the pin writes defaultPersonaId — and never the current pointer", async ({ mount, page }) => {
@@ -158,7 +159,8 @@ test("with a chat open the contextual block renders, and the DEFAULT scope still
 
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
-  expect(trpc.count(ACTIVE_PROC)).toBe(0); // ONESHOT-OK: settled — the seed write above already resolved
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the seed write above already resolved
+  expect(trpc.count(ACTIVE_PROC)).toBe(0);
 });
 
 test("flipping the scope to This chat routes the SAME row to persona.setActivePersona for THIS room", async ({ mount, page }) => {
@@ -170,7 +172,8 @@ test("flipping the scope to This chat routes the SAME row to persona.setActivePe
   await page.getByRole("button", { name: "This chat" }).click();
   await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
   await expect.poll(() => trpc.lastInput(ACTIVE_PROC), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, personaId: ORION });
-  expect(trpc.count(SEED_PROC)).toBe(0); // ONESHOT-OK: settled — the setActivePersona write above already resolved
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the setActivePersona write above already resolved
+  expect(trpc.count(SEED_PROC)).toBe(0);
 });
 
 test("under the This-chat scope the MARKED row is the chat's active persona, not the global pointer", async ({ mount, page }) => {

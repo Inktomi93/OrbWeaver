@@ -60,7 +60,7 @@ test("#1098: picking a SECOND story theme holds the detail card's measured box â
   hold.release(DETAIL_B);
   await expect(component.getByText("The map changes hands", { exact: false }).first()).toBeVisible();
   // TWO genuine reads â€” one served from cache would make the whole pin vacuous.
-  // ONESHOT-OK: read after the released card re-rendered; the story issues no third read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the released card re-rendered; the story issues no third read.
   expect(trpc.count("discovery.themeDetail")).toBe(2);
 });
 

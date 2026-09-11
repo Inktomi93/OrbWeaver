@@ -128,7 +128,7 @@ test("image detail: Set as background resolves the asset and writes chat.setChat
   await setBg.click();
 
   await expect.poll(() => rec.count("chat.setChatBackground")).toBe(1);
-  // ONESHOT-OK: the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
   expect(rec.lastInput("chat.setChatBackground")).toMatchObject({
     chatId,
     background: { kind: "asset", assetId, assetHash: "cafebabe", mime: "image/png" },

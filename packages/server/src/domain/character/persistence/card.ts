@@ -40,9 +40,7 @@ function backgroundAssetId(value: CharacterInsert["backgroundOverride"]): AssetI
   return value?.kind === "asset" && value.assetId.length > 0 ? castId<AssetId>(value.assetId) : undefined;
 }
 
-// @owner-scope-ok: character creation may carry a background from an already-authorized duplicate/import
-// source owned by someone else. This existence-only arbitration ends if carried backgrounds become
-// owner-only or move to a normalized FK-backed relation.
+// @orb-waive owner-scoped-reads(assets): character creation may carry a background from an already-authorized duplicate/import source owned by someone else. This existence-only arbitration ends if carried backgrounds become owner-only or move to a normalized FK-backed relation.
 function carriedBackgroundExists(db: Db, assetId: AssetId | undefined): SQL {
   return assetId === undefined ? sql`1` : exists(db.select({ one: sql`1` }).from(assets).where(eq(assets.id, assetId)));
 }
