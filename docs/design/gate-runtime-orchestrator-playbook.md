@@ -110,12 +110,31 @@ gates in a pristine place before converting old ones"). Precedes C and D.**
 5. The two message overclaims the audit found beyond `no-color-literals`: the false "in className" context claim
    repeats in `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`.
 
-**Phase C — resource kinds (#1930), one Opus executor lane per kind, at most one at a time beside conversions,** in
-the order that unblocks the most gates: path-identity door (exists / file-or-directory / symlink-resolves-outside +
-absolute-selector normalization: unblocks `runner-config-path-liveness`, `tsconfig-entry-liveness`); document/ledger
-facts (9 doc/registry gates); CSS census and static-class parity adjudication (14 CSS gates); Base UI installed surface
-(7); token contract + devtools closure; tsconfig programs. Each ships with ready/missing/empty/unresolved receipts and
-its own controls; no gate converts on a kind before the kind lands.
+**Phase C — resource kinds (#1930). THIS IS DESIGN-FIRST, NOT AN EXECUTOR LANE.** It unblocks the most conversions
+(11+ named gates, and the pattern recurs across the remaining 106), but the row itself says it owes THREE decisions
+before any implementation, and a lane briefed without them can only refuse or paper over:
+
+1. Which capabilities are RESOURCE KINDS versus `defineFact` PROVIDERS. The row's own analysis: the Base UI surface
+   and token contract are whole-population facts wanted once per invocation, so they fit `defineFact`; path liveness,
+   raw bytes and staged blobs are per-subject reads, so they fit resource kinds.
+2. Whether `node_modules` traversal becomes declarable AT ALL. An installed `.d.ts` tree is neither authored nor
+   currently declarable, so this is new vocabulary rather than an extension of the source-universe rule.
+3. Whether the population algebra gains ONE reviewed, tested operator for directory-tier permission — it would shrink
+   the path-liveness and sanctioned-home (#1922) work at once.
+
+**Also note the path-liveness kind needs a FIXTURE-RUNTIME change, not just a kind:** `runResourceExample` only writes
+files and cannot express a symlink, which that kind's proofs require. That makes it runtime work, adjacent to Phase A.
+
+Ordering once the decisions land, by what each unblocks: path liveness (5 — `runner-config-path-liveness` plus the
+four grant-liveness/`tsconfig-entry-liveness` siblings still on `lib/grant-liveness.ts`) → document/ledger facts (9)
+→ CSS census and static-class parity (14) → Base UI installed surface (7) → token contract → tsconfig programs. Each
+ships as a provider or kind with ready/missing/empty/unresolved receipts and its own controls. **No gate converts on a
+kind before the kind lands**, and a conversion that keeps a private reader behind a `defineGate` wrapper lowers the
+census while leaving the forbidden machinery in place — the exact false green the census cannot catch.
+
+**`gate:contract`'s simple tier is blind to this by construction.** It is mechanical AST shape-matching on the
+descriptor literal and cannot see what a gate READS, so "simple by gate:contract" is never "convertible". The
+convertibility oracle is the proposed-vs-shipped diff in `resource-gate-access-patterns.md`.
 
 **Phase D — conversions, cap 3 minus the running prerequisite lane.** Pick families from the legacy roster (re-derived
 in §0.5) in this order: direct-walking visitors and file hooks whose reader already exists → run-only evaluators on an
