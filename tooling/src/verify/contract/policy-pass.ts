@@ -2,6 +2,7 @@
 import type { Project } from "ts-morph";
 import type { GateFact } from "./fact.ts";
 import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant } from "./gate-authority.ts";
+import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
 import type { GatePolicy } from "./policy.ts";
 import type { ResourceHostOptions } from "./resource-host.ts";
 
@@ -94,6 +95,8 @@ export interface PolicyPassResult {
   readonly policies: readonly PolicyOwnerResult[];
   readonly factErrors: readonly GateFactToolError[];
   readonly toolErrors: readonly PolicyToolError[];
+  /** Ordinary-waiver carriers the reader refused. A skip with a reason, not a suppressed population. */
+  readonly waiverCarrierRefusals: readonly OrdinaryWaiverCarrierRefusal[];
   readonly authority: GateAuthorityBatchResult;
   readonly timing: PolicyPassTiming;
 }

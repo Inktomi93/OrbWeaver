@@ -14,28 +14,21 @@
 //   2. the irreducible BACKREFERENCE budget is two-sided (unit-pinned directly — the arm is guarded by the
 //      real-tree BUDGET_ANCHOR, which no resource proof carries).
 //
-// RETIRED, NOT SUCCEEDED — the old "REAL tree: zero dead rows" describe block (`{ repoRoot }` invoking the
-// real policy over the actual `.dependency-cruiser.cjs`). `native-config`'s resolved resource population is
-// the WHOLE tracked+untracked repository inventory (`lib/policy-repo-inventory.ts`'s `git ls-files` +
-// `git ls-files --others`), not a scoped subset — so any policy declaring it fails population resolution at
-// real-repo scope with "ordinary waiver resource population has no exact text carrier: <some .md/.css/.json
-// file>" (`lib/policy-pass.ts` `ordinaryWaiverSources`): `resource-host.ts` supplies an ordinary-waiver TEXT
-// CARRIER only for the resources it reads as text itself (authoredCss, staticConfig, …), never for the
-// incidental thousands of unrelated files a native-config's inventory happens to include. This is a
-// resource-host gap for the `native-config` kind, not a defect in this policy — `resource-*.ts` under
-// `verify/ops/` is fenced from this lane; see the report for the FORK. MEASURED 2026-09-11 (#1932 lane):
-// running this policy's sibling through `runPolicyPass` at the real repository root throws
-// `ordinary waiver resource population has no exact text carrier: .codex/agent-doctrine.md` — the carrier
-// is missing because that path is a tracked SYMLINK and `ops/resource-reader.ts` refuses symlink
-// traversal by design, so the first trigger on this tree is symlink policy, not file format. Every other already-converted
-// resource-analysis policy (`package-layout`, `ui-exports-map-complete`, `feature-structure`,
-// `server-layout`, `no-raw-color-in-css`) likewise carries no bespoke real-root int test — real-tree
-// correctness for a resource policy is the ORCHESTRATOR'S `pnpm check:structure` floor, not a lane unit test.
+// THE REAL-ROOT ARM IS BACK (#1947, 2026-09-11) — the full reconstruction is in the twin header at
+// `eslint-grant-liveness.int.test.ts`. In short: the #1932 lane's measurement and diagnosis were right (the
+// whole-inventory `native-config` population contains the tracked symlink `.codex/agent-doctrine.md`, which
+// `ops/resource-reader.ts` refuses by design), but its RULING that no `native-config` policy can run at
+// repository scope was a defect in `lib/policy-pass.ts`: it demanded an ordinary-waiver text carrier from
+// EVERY completed owner, including HARD owners, which have no waiver door and can demand none. The old
+// block's ASSERTION ("zero dead rows on the real tree") is not restored; real-tree finding correctness for
+// a resource policy is the ORCHESTRATOR's `pnpm check:structure` floor. This file pins that the policy
+// RESOLVES AND RUNS at repository scope.
 import { Project } from "ts-morph";
 import { classifyRegex, gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
 import { irreducibleBudgetFindings } from "../../../../tooling/src/verify/lib/grant-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 test("classifyRegex — the CONSERVATIVE direction (import law must never false-RED)", () => {
   for (const pattern of [
@@ -64,4 +57,24 @@ test("a MISSING .dependency-cruiser.cjs refuses the whole run as a population-ph
   expect(result.toolErrors).toHaveLength(1);
   expect(result.toolErrors[0]).toMatchObject({ policyId: gate.id, phase: "population" });
   expect(result.toolErrors[0]?.message).toContain("is missing");
+});
+
+// The mechanism and its receipt live at `lib/policy-pass.ts#ordinaryWaiverAcquisition`.
+// The real inventory read plus the native config load measures ~0.7s here (~4.0s for the ESLint twin), so
+// this arm carries an explicit load-scaled budget rather than sitting one contention spike away from
+// vitest's 5s default.
+test("the REAL repository root: this hard policy resolves and runs to a receipted, successful owner", { timeout: scaledBudget(60_000) }, ({ repoRoot }) => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner).toMatchObject({ status: "success" });
+  expect(result.policies[0]?.population.effectiveResourcePaths.length).toBeGreaterThan(1000);
+  expect(result.policies[0]?.receipts.some(({ kind }) => kind === "resource")).toBe(true);
+  // A hard policy has no waiver door, so its population demands no ordinary-waiver text carrier.
+  expect(result.waiverCarrierRefusals).toEqual([]);
+  // AND the real-tree verdict, which only this arm can take while the production loader is still legacy
+  // (`pnpm check:structure` is RED by construction until the #1584 cutover): every live import-law row
+  // still points at a tracked path.
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
