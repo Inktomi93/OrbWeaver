@@ -1,9 +1,15 @@
 // Gate: package-layout (Core-0-Architecture-and-Structure.md §7 / D15). A package src root contains
 // only index.ts plus module directories. ResourceHost owns tree acquisition; the TS source population
 // remains declared so an ordinary waiver can bind to the exact loose file occurrence.
+// A broken declared resource refuses one phase EARLIER than this module: `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) throws during the POPULATION phase and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` (guide §11 ruling 3). So the read goes through
+// `readyResourceValue` — a loud assertion that the runtime's refusal held — and never through an in-module
+// not-ready branch, which would be unreachable and would model a silent return as the right answer.
 
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const PACKAGES = new Set(["kit", "contracts", "client", "db", "ui"]);
 const MESSAGE =
@@ -40,11 +46,9 @@ export const gate = defineGate({
   fix: "move the loose module into its own directory with an index.ts front door.",
   create: (ctx) => ({
     evaluate: () => {
-      const tree = ctx.resources.authoredTree("packages");
-      if (tree.status !== "ready") {
-        return;
-      }
-      for (const row of tree.value.map(looseModule).filter((value): value is NonNullable<typeof value> => value !== undefined)) {
+      for (const row of readyResourceValue(ctx.resources.authoredTree("packages"))
+        .map(looseModule)
+        .filter((value): value is NonNullable<typeof value> => value !== undefined)) {
         const path = `packages/${row.packageName}/src/${row.file}`;
         ctx.report.file(path, { line: 1, column: 1, subject: path, operation: "loose-package-root-module" });
       }
