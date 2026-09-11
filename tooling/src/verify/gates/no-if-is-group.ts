@@ -88,5 +88,13 @@ export const gate = defineGate({
       why: "DECLARED LIMIT: a destructured isGroup binding pattern is outside the direct VariableDeclaration-name arm",
       files: { "packages/client/src/probe.ts": "const { isGroup } = state;\n" },
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/probe.ts":
+          "// @orb-waive no-if-is-group(isGroup): the proof's stand-in reason; ends when this fixture stops flagging.\nconst isGroup = true;\n",
+      },
+      why: "POSITIONAL IDENTITY: the VariableDeclaration arm calls `ctx.report.node(node)` with no token, so the sink DERIVES the first identifier of the declaration's text — the BINDING NAME (`isGroup`), never the initializer. The fixture is mustFlag[0] (:42, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

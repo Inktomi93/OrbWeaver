@@ -147,5 +147,14 @@ export const gate = defineGate({
       },
       why: `SAME METHOD NAME, WRONG PACKAGE: another library's client declared in ${LOOKALIKE_HOME} is not the cache this law fences, and only the declaring package can say so`,
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/some-surface.tsx":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function Surface(): void {\n  const queryClient = useQueryClient();\n  // @orb-waive no-inline-optimistic-in-surface(setQueryData): the proof\'s stand-in reason; ends when this fixture stops flagging.\n  queryClient.setQueryData(["key"], 1);\n}\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors the CALLEE with `token: name, offset: callee.getText().lastIndexOf(name)`, so an author waives the query-core METHOD NAME (`setQueryData`) at its own occurrence — never the receiver binding, and each of the two methods keeps its own position. The fixture is mustFlag[0] (:80, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

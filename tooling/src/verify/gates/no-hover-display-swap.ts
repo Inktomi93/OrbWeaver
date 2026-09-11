@@ -290,5 +290,12 @@ export const gate = defineGate({
       files: { "packages/client/src/features/x/copy.ts": `export const copy = "hidden on hover";\n` },
       why: "UI prose — an unfenced scan is safe precisely because the flagged shape needs a hover VARIANT prefix, which no sentence carries",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/row.tsx": `// @orb-waive no-hover-display-swap(group-hover/row:hidden): the proof's stand-in reason; ends when this fixture stops flagging.\nexport const G = <div className="group-hover/row:hidden" />;\n`,
+      },
+      why: "POSITIONAL IDENTITY: `swapTokens` reports the whitespace-split CLASS TOKEN itself at its own offset one past the opening delimiter, so an author waives the exact offending utility (`group-hover/row:hidden`) and not the className string, the element, or a sibling token in the same literal. The fixture is mustFlag[0] (:197, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

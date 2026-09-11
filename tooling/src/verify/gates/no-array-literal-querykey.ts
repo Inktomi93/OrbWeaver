@@ -80,5 +80,13 @@ export const gate = defineGate({
       },
       why: "declared limits: resolved constants, arrow factories, and a queryKey hidden behind object spread are not inline array initializers on the delivered property",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/data.ts":
+          '// @orb-waive no-array-literal-querykey(queryKey): the proof\'s stand-in reason; ends when this fixture stops flagging.\nexport const q = { queryKey: ["users", 1] };\n',
+      },
+      why: 'POSITIONAL IDENTITY: the report anchors the PropertyAssignment with an explicit `token: "queryKey", offset: 0`, so an author waives the PROPERTY NAME — never the array literal or its first element. The fixture is mustFlag[0] (:43, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes',
+    },
   ],
 });

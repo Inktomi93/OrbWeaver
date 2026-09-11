@@ -212,5 +212,14 @@ export const gate = defineGate({
       },
       why: "MIXED OPERANDS: one real mutation error beside a plain row is not two sticky slots multiplexed. BOTH sides must be proven, which is what the per-operand identity buys",
     },
+    {
+      mode: "types",
+      files: {
+        [ENTITY_MUTATION_HOME]: "export interface EntityMutationResult {\n  readonly error: unknown;\n  readonly clearError: () => void;\n}\n",
+        "packages/client/src/features/x/x.tsx":
+          'import type { EntityMutationResult } from "../../data/create-entity-mutation.ts";\n// @orb-waive no-multiplexed-mutation-error(error): the proof\'s stand-in reason; ends when this fixture stops flagging.\nexport const g = (a: EntityMutationResult, b: EntityMutationResult): unknown => a.error ?? b.error;\n',
+      },
+      why: 'POSITIONAL IDENTITY: the report anchors the whole BinaryExpression but overrides the token to `error` at `indexOf("error")`, i.e. the LEFT operand\'s member — deliberately, because a derived token would have taken the receiver name (`a`), which names no position. So an author waives `error`, never `a` and never the `??`. The fixture is mustFlag[0] (:126, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes',
+    },
   ],
 });
