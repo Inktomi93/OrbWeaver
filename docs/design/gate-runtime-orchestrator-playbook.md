@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # Gate-runtime orchestrator playbook — how a fresh session runs #1584
@@ -164,6 +164,25 @@ tree tells you the moment a fix breaks a row.
    behavior and cannot be delegated to a script or a `scout`. Mechanically bounded so far: 2 ordinary policies carry
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
+
+   **MEASURED SCOPE (wave 1, 2026-09-12) — this is a 167-module sweep, not an item, and the rate is the reason it
+   precedes D.** Wave 1 audited the ten modules `exemplars-2026-09-11.md` cites as "copy these shapes" and **REFUTED
+   NINE**; only `user-bus-deferred-member` survives as copyable. Two of the three the doc marked **"Wart: none found"**
+   were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior \~1-in-5 rate.**
+   Receipts per module: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md).
+
+   **157 modules remain unaudited.** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
+   number to plan against rather than rediscover. Run them by FAMILY so one cold read covers the batch, and fold both
+   mandatory sweeps into each lane rather than as separate passes: the §4.1 narrowing cut test, and #1968's
+   expectation-row check.
+
+   **Every audit lane runs `pnpm check:structure` ONCE and reports two numbers** — `N tool error(s)` and `N withheld`.
+   Wave 1 did not, declared the gap honestly, and a defect landed exactly in it: a policy at 0 conformance failures,
+   fully withheld on the real tree (guide §5, #1972/#1973). Conformance runs on virtual projects with no
+   `node_modules` and is structurally blind to that class.
+
+   **Fix lanes split by MODULE, not by defect**, because the fences then cannot collide and one cold read serves every
+   defect in a module. Wave 1's nine refutations split cleanly into two fix lanes on that rule.
 2. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
    every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
    dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
@@ -375,6 +394,19 @@ idle composed-pass remeasurement; catalog re-attest.
   capability set, biome's loader, `jsonc`'s consumer, a `JUDGMENT_DEFERRED` table's disposition — was already answered
   in the review layer, and each was caught by a lane or the owner instead of by me. Quoting §12.5 correctly is not a
   substitute for reading the census that already classified the row.
+- **A BRIEF THAT SAYS "DELETE" NAMES THE FILE AND LINE YOU READ TO JUSTIFY IT. If you cannot cite a read, write
+  "convert" or "investigate" instead** (2026-09-12, my own failure, caught by the lane). I told a lane to delete a
+  resource-not-ready guard from two EXEMPLARS because an audit said it could not execute and guide §11 ruling 3 said
+  the runtime throws one phase earlier. Two sources agreed, so I never opened `contract/resource.ts` — where four
+  lines show `ResourceLoad<T>` is a DISCRIMINATED UNION whose `value` exists only on the `ready` arm. **The narrowing
+  is a type requirement; it cannot be deleted, only written correctly.** Both sources were about runtime semantics and
+  neither was about the call site's type obligation — I answered the question the docs were about instead of the one I
+  was asking. **Two documents agreeing is not a read; it is the same unread question twice.**
+  The asymmetry is what makes this a rule rather than a nit: being wrong about KEEPING something breaks nothing, and
+  being wrong about DELETING it strips a requirement out of a module 104 conversions copy. One file read is the whole
+  price. And the correct shape already existed — `depcruise-grant-liveness.ts:157-164`'s `readyValue<T>`, findable by
+  one grep — so ruling on how resource policies should behave without reading a single other resource policy was the
+  second miss inside the first.
 - **NEVER DISPATCH A MARKER SWEEP LANE — THE RECONCILIATION IS THE CONVERTING LANE'S OWN FLOOR LINE** (owner
   correction, 2026-09-11, on my own dispatch). Guide §7 says *"do not plan marker lanes: plan the conversions, and the
   markers ride with them"*, and §8.6 makes translation in-commit work. When a verifier found that a merged conversion

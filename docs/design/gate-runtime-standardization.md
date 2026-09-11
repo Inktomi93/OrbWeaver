@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # One ts-morph runtime for every Orb gate — the program guide (#1584)
@@ -16,7 +16,7 @@ The single operating document for the gate-runtime standardization program: the 
 | what blocks THIS gate, and what family is it? | [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md) — per-gate blocker class, family, population notation, authority and source-line receipts. **This is the Phase D ordering source**, not a filesystem grep: its blockers are shared readers and grant migration, which no `fs` test can see |
 | where does this exemption table / baseline / marker go? | [`exception-authority-census.md`](../reviews/gate-runtime/exception-authority-census.md) — 97 exemption tables, 319 rows, 25 sanctioned-home tables, 9 baselines and 11 duplicate grammars, each already classified as grant, waiver, warning debt, policy data or delete. **A table's NAME is not evidence of its nature** — `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds permanent rulings that belong under reviewed grants (`:113,142`) |
 | what is a marker, and what happens to this legacy grammar? | [`ordinary-waiver-source-migration.md`](../reviews/gate-runtime/ordinary-waiver-source-migration.md) §"Exact central grammar", §"Closed 11-grammar disposition", §"Explicit non-migrations". Its atomic-cutover framing is dead (see its banner); its grammar contract and per-grammar verdicts bind |
-| what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent |
+| what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent. **REFUTED 2026-09-12 — NINE OF ITS TEN ARE NOT COPYABLE; read its banner FIRST.** A §5b audit refuted nine (two of the three it marked "Wart: none found" were refuted SEVERE) and found 12 of 30 narrowings unenforced; only `user-bus-deferred-member` survives. What still binds: its central-files table, the capability→shape mapping, and every §4.2 identity arm. Receipts: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md) |
 | **what does THIS gate actually enforce?** | **[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md) — 270 rows, one per gate module, and each "Enforces" cell is a dense SPECIFICATION, not a label.** `caught-failure-ownership`'s single row names its three arms with their position shapes (`promise:<work>`, `empty:<binding>`, `default:<binding>`), every owner-provenance rule and its lookalike traps, the success-discriminator refusal, that provenance dies on reassignment, the exact escape spelling, and **five DECLARED LIMITS each stated to have a `mustPass` row** — which is directly checkable, and exactly where this program keeps finding unpinned claims. **Read your gate's row before converting it.** It is also a COUPLED SITE: a conversion rewrites its row, a split adds and removes them |
 
 **THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s \~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
@@ -274,6 +274,24 @@ here is a regression.
 It cannot tell you the module declared the RIGHT rows, used the smallest complete contract, named its family honestly,
 or told the truth in its `message`. A module with two trivial rows and a lying message sits at 0 failures. Three did
 (#1954).
+
+**AND IT IS STRUCTURALLY BLIND TO A WHOLE DEFECT CLASS — a policy at 0 failures can be FULLY WITHHELD on the real
+tree.** Proof rows run on virtual projects (`useInMemoryFileSystem: true`, `ops/policy-conformance.ts`) with no
+`node_modules` and no real repo layout, so **no fixture can resolve an import into an installed `.d.ts`, express a
+symlink, or reach a real absolute path.** Any defect whose trigger is one of those is invisible to this stage by
+construction — and this stage is what lanes use as their verdict. Measured 2026-09-11: `freeze-provenance-write-pairing`
+sat at 0 conformance failures while reporting NOTHING on every real-tree run (#1972).
+
+**The only instrument that asks is `pnpm check:structure`, and the answer is two numbers in its tail:**
+`N tool error(s)` and `N withheld`, plus the per-policy `⚠ … owner incomplete … WITHHELD by authority` line. The
+cheap habit for a converted module is to read those two numbers once, before and after. §8.8 names that run in the
+per-conversion floor; it costs \~4 min / 6.5 GB, no lane was executing it, and that economy is exactly what let a dead
+gate ship (#1973, and #1964 for the gate-scoped door that would make it affordable).
+
+**A fresh-context verifier's "what I did NOT cover" section is therefore load-bearing, not a footnote.** The batch
+verifier declared *"I did not run `pnpm check:structure` … the real-tree finding delta is therefore UNMEASURED by me"*
+— and the defect landed precisely there. A CONFIRMED verdict covers what its report says it measured, and nothing
+its own not-covered list disclaims.
 
 ## 5b. PRISTINE — the bar a converted module is actually held to (owner, 2026-09-11)
 
@@ -700,6 +718,40 @@ collector over an exact population, read-only sibling consumers); one fixture ru
 Gate modules may inspect the node delivered to a visitor, iterate their resolved `ctx.files`, request a canonical source
 file, request the shared checker, and call shared readers. They may not call `Project#getSourceFiles`,
 `SourceFile#getDescendants*`, `forEachDescendant`, `new Project`, or maintain their own workspace cache.
+
+**`ctx.relativePath` IS PARTIAL — IT THROWS, AND IT KILLED A CONVERTED EXEMPLAR FOR AN ENTIRE RUN** (measured
+2026-09-11). `lib/policy-pass-context.ts:211-217` raises `source file is outside the effective population: …` for any
+file not in the resolved population. That is safe for a node the policy VISITED, and unsafe for a declaration reached
+by RESOLUTION — `canonical.sourceFile`, `symbol.declaration.getSourceFile()` — because an imported `.d.ts` is in the
+ts-morph Project but in no policy's population. `freeze-provenance-write-pairing` asked it about every named import in
+`@packages`; the first `import { useQuery } from "@tanstack/react-query"` resolved into a `node_modules` `.d.ts`, threw,
+and the policy reported NOTHING on every real-tree run while sitting at 0 conformance failures.
+
+**The total house idiom is the declaration's own path** — `lib/id-brand.ts:88` and `lib/sealed-origin.ts:27` both use
+`canonical.sourceFile.getFilePath().replaceAll("\\","/")`. Use it for any home question about a resolved declaration.
+**Do NOT substitute membership in `ctx.files`:** `policy-pass.ts:316` intersects `run.files` with a scoped run's
+requested paths, so that test reads silently clean under every `--scope`/`--changed` run — a false clean, strictly
+worse than the loud throw it replaces. Class census 2026-09-12: seven call sites in six modules, live once and latent
+six times, because whether a resolution escapes the population is a property of what the SUBJECT imports, not of the
+policy (#1972).
+
+**A RESOURCE FACT IS A DISCRIMINATED UNION, so consuming one is a TYPE obligation, not a style choice.**
+`ResourceLoad<T>` (`contract/resource.ts:3-4`) carries `value` only on the `ready` arm; the other four carry `reason`.
+So a policy cannot read `.value` without narrowing, and the narrowing CANNOT be deleted — only written correctly.
+§11 ruling 3 settles what a non-ready fact MEANS (`resolveResourceDeclarations` throws at the POPULATION phase and
+withholds every consumer before `evaluate`), which makes one reaching a policy a broken runtime guarantee: **a TOOL
+ERROR, never a reportable finding and never a silent zero.** So the branch THROWS; it does not `return`.
+
+```ts
+/** Every resource this policy declares is checked ready by `resolveResourceDeclarations` before `create`
+ *  ever runs — a non-ready fact here means the runtime's own guard broke, not a reportable finding. */
+readyResourceValue(fact) // lib/resource-declaration.ts — the module that owns the refusal law at :182
+```
+
+Measured 2026-09-12: **nine of ten resource policies answered a broken resource with a silent `return`**, and
+`depcruise-grant-liveness.ts:157-164` was the only one that refused loudly. A silent return there is a policy
+reporting CLEAN on a run it could not perform — and the exemplars document was teaching it as a headline virtue, so it
+was propagating into every future resource conversion.
 
 Shared whole-population work is a branded `defineFact` provider with its own id, population, analysis, resources,
 collector, finish hook, receipts, timing and errors. Policies declare provider tokens in `facts` and read them only via
