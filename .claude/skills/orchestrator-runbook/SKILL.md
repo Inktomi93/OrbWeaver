@@ -51,6 +51,27 @@ named by its exact filename. Assume the index, never the body.
   the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
   interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with
   raw `gh` calls.
+- **THE COMPLETE VERB SET — never run `--help` to rediscover this.**
+
+  | verb | shape | note |
+  | - | - | - |
+  | `file` | `--title <t> --kind <work\|bug\|decision\|program\|evidence> [--priority P] [--area A] [--review R] [--body-file f\|-] [--ready] [--claim <lane>] [--dod '<cmd>']` | create + metadata + ready + claim in ONE call. No `--body-file` ⇒ body IS the title. A `decision` enters Needs owner and REFUSES `--ready`/`--claim`. |
+  | `land` | `<issue…> --evidence <receipt> [--lane <lane>] [--comment-file f] [--force-close --reason <text>]` | claim-if-needed → review → verify → done. `--lane` required only for a row still Ready. |
+  | `overview` / `show` / `list` | `overview` · `show <issue…>` · `list [--status <status>]` | `overview` is the board-read ritual verb. |
+  | `create` | `<class> --title <t> --body-file <f>` | prefer `file`. |
+  | `ready` · `claim` · `review` · `needs-owner` | `ready <issue…>` · `claim <issue…> --lane <lane>` · `review <issue…>` · `needs-owner <issue…>` | every one takes a LIST. |
+  | `set` | `<issue…> <field> <value> [<field> <value>…]` | `Lane` is lifecycle-controlled and REFUSED here — use `claim`. |
+  | `block` · `unblock` · `park` | `block <issue…> --by <blocker>` · `unblock <issue…> --by <blocker>` · `park <issue…> --wake <condition>` | `--by` and `--wake` are mandatory. |
+  | `verify` · `reverify` · `done` | `verify <issue…> --evidence <r>` · `reverify <issue…> --evidence <replacement>` · `done <issue…> --evidence <same-r> [--force-close --reason <t>]` | `done` takes the SAME receipt `verify` took. |
+  | `refute` | `<issue…> --evidence <refutation> [--dod '<cmd>']` | **Verify only.** Returns the row to Ready with Evidence replaced; the outcome stands and the rework is claimable. |
+  | `dod` | `<issue…> [--cmd '<command>']` | mint/re-mint a Definition of Done, red-first; bare form ADOPTS the body's block. Runs capped at 300000 ms. `npx` is refused at mint — use a pnpm script or `pnpm exec`. |
+
+- **TRANSITIONS ARE GUARDED, and the guard that bites is `ready`.** Lifecycle is Triage → Ready → Running →
+  Review → Verify → Done. **`ready` REFUSES a Running row** — its legal pre-states are Triage, Needs owner, Blocked,
+  Parked or Ready. So there is no backward step out of Running: to free a row whose lane died, use `park --wake
+  <condition>` (the honest one — it forces a wake), or `block --by`, or `needs-owner`, or carry it forward through
+  `review`. Interrupted transitions are safe to rerun, including the composite verbs, which resume at the row's
+  current status.
 - **Lifecycle hygiene (Codex control-plane review, 2026-08-16 — the four measured misses):**
   1. **Claim FIRST, always.** The issue exists and is claimed BEFORE the fixing work starts — an issue
      created seconds after its fixing commit is retrospective paperwork, not tracking (#75 was minted
