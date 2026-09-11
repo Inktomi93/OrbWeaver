@@ -828,7 +828,7 @@ test("Clear time nulls the TIME and keeps the day counter (the clock's two facts
   await component.getByRole("button", { name: "Clear time" }).click();
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: the poll settled the recorder, so this reads a frozen payload, not a race.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder, so this reads a frozen payload, not a race.
   expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: { clock: { day: 3, hour: null, minute: null } } });
 });
 
@@ -855,7 +855,7 @@ test("RV-11: the Scene npcs card shows the standing guides, omits the unwritten 
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: the poll above already settled the recorder — the call IS recorded, so reading its payload is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already settled the recorder — the call IS recorded, so reading its payload is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
   expect(trpc.lastInput("rpg.patchActor")).toMatchObject({
     targetRef: { kind: "npc", npcKey: "sera" },
     ops: [{ op: "setIdentityText", field: "appearance", text: "shaven-headed, a fresh scar" }],
@@ -968,7 +968,7 @@ test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the O
   await section.getByRole("button", { name: "Confirm dismissing Sister Vesna" }).click();
 
   await expect.poll(() => trpc.count("rpg.dismissActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the poll above (see the `patchActor` payload read for the same reasoning).
   expect(trpc.lastInput("rpg.dismissActor")).toMatchObject({ targetRef: { kind: "npc", npcKey: "vesna" } });
 });
 
@@ -1013,7 +1013,7 @@ test("R4: an offstage npc can be PROMOTED to the room's characters — two-step,
   await section.getByRole("button", { name: "Confirm promoting Sister Vesna" }).click();
 
   await expect.poll(() => trpc.count("rpg.promoteActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning). The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the poll above (see the `patchActor` payload read for the same reasoning). The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
   expect(trpc.lastInput("rpg.promoteActor")).toEqual({ chatId: "chat_ct_keystone", targetRef: { kind: "npc", npcKey: "vesna" } });
 });
 
@@ -2068,7 +2068,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
   await pin.click();
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue would leave a pin the panel no longer renders and the host can never reach.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue would leave a pin the panel no longer renders and the host can never reach.
   expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: {}, releaseLocks: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] });
 });
 
@@ -2086,7 +2086,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
   await expect(pin).toBeVisible();
   await pin.click();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: the poll above settled the recorder — the call IS recorded, so this reads a frozen payload.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above settled the recorder — the call IS recorded, so this reads a frozen payload.
   expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ releaseLocks: ["actorState.character:character_ct_mara.volatile.inventory"] });
 });
 
@@ -3567,7 +3567,8 @@ test("a FAILED restamp aborts the rebuild — the rebuild never runs on the stam
   await expect.poll(() => trpc.count("chat.reattributePersona"), { intervals: [20, 50, 100] }).toBe(1);
   // The button settles back out of its pending state — the sequence is over, and the rebuild never fired.
   await expect(component.getByRole("button", { name: "Resync from story" })).toBeEnabled();
-  expect(trpc.count("rpg.resyncFromStory")).toBe(0); // ONESHOT-OK: settled — the button left `Resyncing…` above, so the whole sequence has finished
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the button left `Resyncing…` above, so the whole sequence has finished
+  expect(trpc.count("rpg.resyncFromStory")).toBe(0);
 });
 
 test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the host didn't ask it to", async ({ mount, page }) => {
@@ -3578,7 +3579,8 @@ test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the
   await component.getByRole("button", { name: "Resync from story" }).click();
 
   await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.count("chat.reattributePersona")).toBe(0); // ONESHOT-OK: settled — the restamp would precede the rebuild the poll above awaited
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the restamp would precede the rebuild the poll above awaited
+  expect(trpc.count("chat.reattributePersona")).toBe(0);
 });
 
 // RESYNC-OR — THE RESYNC DOOR IS LOUD. The verb returned `void`, so all three endings looked identical to the

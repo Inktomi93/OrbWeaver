@@ -36,10 +36,7 @@ interface AssetCasRef {
 }
 
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
-// @owner-scope-ok: the D20 un-principal CAS resolver — it exists to RESOLVE the owner (it projects
-// `ownerId` for `purgeAsset`'s per-owner blob path), so scoping it on an owner it does not yet know is
-// circular. Consumers are the reap/GC/indexer ports; the owner-gated byte-read has its own resolver
-// (`ownedAssetCasRef`, directly below). Ends if a user-facing door ever calls this.
+// @orb-waive owner-scoped-reads(assets): the D20 un-principal CAS resolver — it exists to RESOLVE the owner (it projects `ownerId` for `purgeAsset`'s per-owner blob path), so scoping it on an owner it does not yet know is circular. Consumers are the reap/GC/indexer ports; the owner-gated byte-read has its own resolver (`ownedAssetCasRef`, directly below). Ends if a user-facing door ever calls this.
 export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {
   const rows = await db.select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
   return rows[0];

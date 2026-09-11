@@ -85,12 +85,12 @@ test("maxRows caps the autosize and the overflow becomes the field's OWN scroll"
   // The ceiling is the SAME line-box arithmetic the floor uses (6 lines + block padding + borders), so it is
   // asserted against the resolved line-height rather than a px literal. The +2 lines of slack is the padding
   // + border the formula adds; the point of the assertion is that it is SIX-ish, not sixty.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.client).toBeLessThanOrEqual(measured.lineHeight * 8);
   // Not a clip: every byte is still reachable inside the control.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.content).toBeGreaterThan(measured.client);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.overflowY).toBe("auto");
 });
 
@@ -107,6 +107,6 @@ test("rows sets a min-height floor under field-sizing: content", async ({ mount,
       return minHeight;
     })
     .toBeGreaterThanOrEqual(singleLineHeight * 3);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.height).toBeGreaterThanOrEqual(minHeight - 1);
 });

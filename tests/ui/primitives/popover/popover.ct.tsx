@@ -37,7 +37,7 @@ test("a tall popover clamps to the available height and scrolls instead of runni
   expect(box?.height ?? 0).toBeLessThanOrEqual(viewportHeight);
   expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1);
   const scroll = await popup.evaluate((el) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(scroll.content).toBeGreaterThan(scroll.client);
   await popup.evaluate((el) => {
     el.scrollTop = el.scrollHeight;

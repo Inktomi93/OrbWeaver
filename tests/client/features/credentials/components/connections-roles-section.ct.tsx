@@ -146,7 +146,7 @@ test("a drafted row says so and names what a turn still resolves; it reads LIVE 
   // Let the write through, then replay the bus-driven settings refetch.
   release();
   await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
-  // ONESHOT-OK: the poll above settled the recorder at exactly one recorded call — this reads THAT input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above settled the recorder at exactly one recorded call — this reads THAT input.
   expect(recorder.lastInput("settings.updateUserSettingsSection")).toMatchObject({
     section: "routing",
     patch: { roleDefaults: { chat: { source: "openrouter", model: DRAFT_MODEL, api: "chat-completions" } } },
@@ -239,7 +239,7 @@ test("switching the source re-derives the protocol in the SAME patch — no inco
   // The display and the store agree: vLLM cannot take agent-sdk, so the protocol is genuinely cleared.
   await expect(page.getByRole("combobox", { name: "Chat protocol" })).toContainText("Auto");
   await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly one recorded call — this reads THAT input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder at exactly one recorded call — this reads THAT input.
   expect(recorder.lastInput("settings.updateUserSettingsSection")).toMatchObject({
     section: "routing",
     patch: { roleDefaults: { chat: { source: "vllm", model: null, api: null } } },

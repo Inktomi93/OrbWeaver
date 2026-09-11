@@ -75,6 +75,6 @@ test("AUTOFILL ANATOMY: real <form>, real inputs, autocomplete=username/current-
   await expect(password).toHaveAttribute("type", "password");
   // Both are REAL <input> elements rendered by the sealed primitive — not styled editables.
   const tags = await form.evaluate((el) => [...el.querySelectorAll("[data-testid=login-handle],[data-testid=login-password]")].map((n) => n.tagName));
-  // ONESHOT-OK: static DOM structure, already awaited visible above.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): static DOM structure, already awaited visible above.
   expect(tags).toEqual(["INPUT", "INPUT"]);
 });

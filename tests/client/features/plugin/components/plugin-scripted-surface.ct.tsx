@@ -301,7 +301,7 @@ test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO netw
   expect(after, "a keystroke must not touch the network").toBe(before);
   // …and the POSITIVE CONTROL that the counter can move at all: the startup read DID happen, so a zero delta
   // above is a real "nothing more fired" rather than a recorder that was never wired.
-  // ONESHOT-OK: the "3 of 3 rooms" barrier cannot render before that startup read completed.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the "3 of 3 rooms" barrier cannot render before that startup read completed.
   expect(recorder.count("plugin.uiHostCall")).toBe(1);
 });
 
@@ -347,9 +347,9 @@ async function drivesHangToCollapse(
   // The poll above settled on `crashes > 0`, so the recorder provably HOLDS this call: the two reads below are
   // of a FINISHED record, not of a race.
   const reported = recorder.lastInput("plugin.reportUiCrash") as { pluginId: PluginId; surfaceId: string; reason: string };
-  // ONESHOT-OK: the `crashes > 0` poll above proves the call was recorded before this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the `crashes > 0` poll above proves the call was recorded before this read.
   expect(reported.pluginId).toBe(SCRIPTED_ID);
-  // ONESHOT-OK: same settled poll — the record exists and is final.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled poll — the record exists and is final.
   expect(reported.surfaceId).toBe("browser");
   return reported.reason;
 }

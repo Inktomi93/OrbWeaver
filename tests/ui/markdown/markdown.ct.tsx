@@ -557,9 +557,9 @@ test("M5: an OFF-SCREEN code block is laid out at its content height, not a 200p
     own: Math.round(el.getBoundingClientRect().height),
     children: Math.round([...el.children].reduce((sum, c) => sum + c.getBoundingClientRect().height, 0)),
   }));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.children).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.own).toBeLessThan(200);
 });
 
@@ -595,16 +595,16 @@ test("issue 238: a blockquote renders its rule + indent + separation, and does n
     };
   });
   // All three measured 0 before #238 — the whole defect.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderLeft).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingLeft).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingTop).toBeGreaterThan(0);
   // The rule is a real, visible edge — not a transparent one (a 4px transparent border still measures 4).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderAlpha).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.borderColor).not.toBe(box.bg);
   // …and the narration voice beside it carries NONE of that geometry: the two are no longer the same
   // rendering (both are italic + muted by design; the quote's distinctness has to come from its box).
@@ -672,19 +672,19 @@ test("issue 490: inline code renders at the CODE token size with the tight verti
     });
   // Both tokens must actually resolve, or every equality below is a vacuous ""==="" (the same
   // positive-control discipline a planted fixture gives a gate).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.codeToken).not.toBe("");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.tightPx).toBeGreaterThan(0);
   const px = (rem: string): number => Number.parseFloat(rem) * measured.remPx;
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeCloseTo(px(measured.codeToken), 1);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.paddingTop)).toBeCloseTo(measured.tightPx, 1);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.paddingBottom)).toBeCloseTo(measured.tightPx, 1);
   // …and it is still SMALLER than the prose it sits in — the reader-visible half of the finding.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeLessThan(measured.proseFontSize);
 });
 
@@ -740,31 +740,31 @@ test("issue 1085: an unordered list renders a marker, a hanging indent and inter
   const tokens = box.tokens;
   // The tokens must actually resolve, or every equality below is a vacuous NaN comparison (the same
   // positive-control discipline a planted fixture gives a gate).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(tokens.section).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(tokens.tight).toBeGreaterThan(0);
   // Preflight's `list-style: none` was the whole defect — a bullet, not bare text.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.marker).not.toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.itemDisplay).toBe("list-item");
   // A HANGING indent: the marker sits outside the text column (so a wrapped line aligns under the text,
   // not under the bullet) and the list's own padding is what keeps that marker inside the bubble.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.markerPosition).toBe("outside");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingLeft).toBeCloseTo(tokens.section, 1);
   // …and that indent is wide enough to HOLD an outside marker at any list length — a two-digit ordered
   // marker is about 1.3× the prose font, so a padding under 1.5em would spill it past the list's own
   // left edge once a list reaches ten items. A point measurement on a three-item list cannot see that.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingLeft).toBeGreaterThanOrEqual(box.fontSize * 1.5);
   // Vertical rhythm: separation from the surrounding prose (padding, not margin — the seal root's own
   // trim out-specifies any sibling margin a descendant could set, the #238 mechanism) and between items.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.paddingTop).toBeCloseTo(tokens.row, 1);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box.itemPaddingTop).toBeCloseTo(tokens.tight, 1);
 });
 
@@ -776,7 +776,7 @@ test("issue 1085: an ordered list numbers, and a nested list indents past its pa
   );
   const ordered = cmp.locator("ol").first();
   await expect(ordered).toBeVisible();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(await ordered.evaluate((el) => getComputedStyle(el).listStyleType)).toBe("decimal");
   const nested = cmp.locator("ul ul").first();
   await expect(nested).toBeVisible();
@@ -790,7 +790,7 @@ test("issue 1085: an ordered list numbers, and a nested list indents past its pa
       outer: outer === null ? 0 : outer.getBoundingClientRect().left,
     };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(lefts.inner).toBeGreaterThan(lefts.outer);
 });
 
@@ -828,9 +828,9 @@ test("H19: a thematic break renders a real gap either side, and carries no uncom
     const box = line?.getBoundingClientRect();
     return { above: (box?.top ?? 0) - (before?.bottom ?? 0), below: (after?.top ?? 0) - (box?.bottom ?? 0) };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(gaps.above).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(gaps.below).toBeGreaterThan(0);
 });
 

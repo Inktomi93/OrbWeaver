@@ -328,13 +328,13 @@ test("VOICE: `hero` is THE number a surface exists to produce — display step, 
     const style = getComputedStyle(el);
     return { size: style.fontSize, family: style.fontFamily, weight: style.fontWeight, variant: style.fontVariantNumeric };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(hero.size).toBe(resolved.display);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(hero.family).toContain("Mono");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(hero.weight).toBe("600");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(hero.variant).toContain("tabular-nums");
   // The whole point of the voice: it is NOT the `datum` step. A regression that collapsed them would
   // silently restore the 13px hero the review filed.
@@ -345,7 +345,7 @@ test("VOICE: `hero` is THE number a surface exists to produce — display step, 
       return datumSize;
     })
     .toBe(resolved.label);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(hero.size).not.toBe(datumSize);
 });
 
@@ -410,17 +410,17 @@ test("VOICE: `monogram` is the decorative display glyph — title step, semibold
     const style = getComputedStyle(el);
     return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform, color: style.color };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(glyph.size).toBe(resolved.title);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(glyph.size).not.toBe(resolved.body); // the size default did NOT leak through
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(glyph.weight).toBe("600");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(glyph.transform).toBe("none");
   // No color of its own ⇒ it lands on the tone default, which a skin's one className can still beat.
   const prose = await glyphs.getByTestId("prose").evaluate((el) => getComputedStyle(el).color);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(glyph.color).toBe(prose);
 });
 
@@ -518,7 +518,7 @@ test("VOICE: `promoted` is the TITLE step — the name of one item in a shelf, a
       return name;
     })
     .toBe(titleStep);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(name)).toBeGreaterThan(Number.parseFloat(gloss));
 });
 
@@ -551,19 +551,19 @@ test("VOICE: `credit` is the mock's micro-caps register AT THE LABEL STEP, never
     return { size: style.fontSize, transform: style.textTransform, family: style.fontFamily, tracking: style.letterSpacing, color: style.color, muted };
   });
 
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(credit.size).toBe(label);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(credit.size).not.toBe(micro);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(credit.transform).toBe("uppercase");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(credit.family).toContain("Mono");
   // Tracked like the kicker it shares a register with — caps without tracking is a shout, not a credit.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(credit.tracking)).toBeGreaterThan(0);
   // …and MUTED: a credit stands behind the thing it credits.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(credit.color).toBe(credit.muted);
 });
 

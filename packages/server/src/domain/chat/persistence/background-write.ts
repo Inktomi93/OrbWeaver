@@ -21,9 +21,7 @@ export function guardedChatId(db: Db, chatId: ChatId, metadata: ChatMetadata | n
 }
 
 /** Existing room metadata may carry a background across owners, but never across deletion of its asset. */
-// @owner-scope-ok: the authorized source room or import operation supplied this carried asset id, and
-// carried room backgrounds intentionally remain valid across owners. This ends if carried backgrounds
-// become owner-only or move to a normalized FK-backed relation.
+// @orb-waive owner-scoped-reads(assets): the authorized source room or import operation supplied this carried asset id, and carried room backgrounds intentionally remain valid across owners. This ends if carried backgrounds become owner-only or move to a normalized FK-backed relation.
 export function carriedBackgroundAvailable(db: Db, metadata: ChatMetadata | null): SQL {
   const assetId = backgroundAssetId(metadata);
   if (assetId === undefined) {

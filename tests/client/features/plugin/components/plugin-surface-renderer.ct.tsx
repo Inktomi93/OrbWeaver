@@ -110,7 +110,7 @@ test("THE U1 DONE-CRITERIA — the affinity-tracker panel renders, its button ro
   // read flips (post-invoke), so this barrier cannot pass on the pre-click empty panel.
   await expect(page.getByText("Tracking 3 chats, at an average warmth of 6.2 out of 10.")).toBeVisible();
   // The round-trip fired with the whole action shape (no chat scope on a settings surface).
-  // ONESHOT-OK: the settled summary above proves the mutation + its invalidate completed before this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled summary above proves the mutation + its invalidate completed before this read.
   expect(recorder.lastInput("plugin.invokeUiAction")).toEqual({ pluginId: AFFINITY_ID, surfaceId: "affinity_summary", actionId: "refresh", values: {} });
 });
 
@@ -183,7 +183,7 @@ test("#820 the BUNDLE arm — a shipped path paints, and one the plugin never sh
   await expect(page.getByText("a path this plugin never shipped")).toBeVisible();
   await expect(page.locator('img[alt="a path this plugin never shipped"]')).toHaveCount(0);
   // Only real asset ids ever reached the owner-scoped resolve — no bundle PATH crossed as an id.
-  // ONESHOT-OK: the two image assertions above settled the rendered surface, so the resolve call it is built from has already been recorded.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the two image assertions above settled the rendered surface, so the resolve call it is built from has already been recorded.
   expect(recorder.lastInput("assets.resolveBlobRefs")).toEqual({ assetIds: [shippedId] });
 });
 
@@ -202,7 +202,7 @@ test("#820 a spec with NO bundle path never asks for the map — the extra read 
   await mount(<PluginsSurfaceStory />);
 
   await expect(page.locator('img[alt="a declared id"]')).toHaveCount(1);
-  // ONESHOT-OK: the rendered <img> above proves the resolve pass completed, so a map read would have fired by now.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the rendered <img> above proves the resolve pass completed, so a map read would have fired by now.
   expect(recorder.count("plugin.listBundleAssets")).toBe(0);
 });
 
@@ -353,12 +353,12 @@ test("F2: a masterDetail DETAIL stage renders its column at the house --reading-
     return { maxWidth, tokenPx, renderedWidth, uncappedWidth };
   }, '[data-slot="plugin-detail-stage"]');
 
-  // ONESHOT-OK: the evaluate ran after the visible-text barrier over a STATIC spec — max-width is stylesheet state, not async state, and cannot transition after settle.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the evaluate ran after the visible-text barrier over a STATIC spec — max-width is stylesheet state, not async state, and cannot transition after settle.
   expect(reading.maxWidth).not.toBe("none");
   expect(Math.abs(Number.parseFloat(reading.maxWidth) - reading.tokenPx)).toBeLessThanOrEqual(1);
   // The cap BINDS: released, the column stretches toward the wide mount (the A/B mutation is same-tick
   // synchronous inside the evaluate above, so all four numbers are one settled sample).
-  // ONESHOT-OK: same settled evaluate sample as above — geometry read synchronously inside one evaluate, no async transition between reads.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled evaluate sample as above — geometry read synchronously inside one evaluate, no async transition between reads.
   expect(reading.uncappedWidth).toBeGreaterThan(reading.renderedWidth + 100);
 });
 
@@ -540,7 +540,7 @@ test("#799: a `tabs` node renders the house one-of-N strip and a pick round-trip
   await expect(strip.getByRole("radio", { name: "RisuRealm" })).toHaveAttribute("aria-checked", "true");
   await expect(strip.getByRole("radio", { name: "Character Tavern" })).toHaveAttribute("aria-checked", "false");
   // The pick IS the act, and it carries the FRESH value — not the stale draft the async state write leaves.
-  // ONESHOT-OK: the settled status line above proves the mutation + its invalidate completed before this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled status line above proves the mutation + its invalidate completed before this read.
   expect(recorder.lastInput("plugin.invokeUiAction")).toEqual({
     pluginId: AFFINITY_ID,
     surfaceId: "atlas",

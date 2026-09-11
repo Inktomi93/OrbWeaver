@@ -45,7 +45,7 @@ test("each segment rides its own track-ramp step (the categorical series colors)
   await expect(component.locator("[data-segment=cards]")).toHaveCSS("background-color", resolvedTokenColor("color.track-4"));
 
   const history = await component.locator("[data-segment=history]").evaluate((el) => getComputedStyle(el).backgroundColor);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(colorComponents(history)).toEqual(colorComponents(resolvedTokenColor("color.track-5")));
 });
 

@@ -325,7 +325,7 @@ test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) =>
   const component = await mount(<NotificationBellSheetStory />);
 
   await expect(component.getByText("nate invited you to a chat")).toBeVisible();
-  // ONESHOT-OK: the row rendering IS the landed read; the effect runs in that same commit, so a write it was going to make has already been made. A settled read of a negative.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the row rendering IS the landed read; the effect runs in that same commit, so a write it was going to make has already been made. A settled read of a negative.
   expect(trpc.count("notifications.markAllRead")).toBe(0);
 });
 

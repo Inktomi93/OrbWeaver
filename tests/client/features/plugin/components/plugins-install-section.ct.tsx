@@ -272,7 +272,7 @@ test("a bundle that is not a plugin is refused with a reason, before anything is
 
   await expect(page.getByRole("alert")).toContainText("manifest.json");
   // Nothing was sent: a refusal a person can read costs no round trip.
-  // ONESHOT-OK: the preceding `toContainText` settled on the refusal, and the refusal is raised BEFORE any network call by construction (the bundle read is local) — there is no in-flight install to race.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding `toContainText` settled on the refusal, and the refusal is raised BEFORE any network call by construction (the bundle read is local) — there is no in-flight install to race.
   expect(recorder.count("plugin.install")).toBe(0);
 });
 
@@ -305,7 +305,7 @@ test("installing from a URL previews the manifest on the server, shows the SAME 
   await expect(page.getByText("api.weather.example")).toBeVisible();
   await expect(page.getByText("turn.trigger")).toHaveCount(0);
   // The preview carried exactly the URL the person pasted.
-  // ONESHOT-OK: the consent screen above only renders after previewFromUrl's own response settled, so its recorded input is final.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the consent screen above only renders after previewFromUrl's own response settled, so its recorded input is final.
   expect(recorder.lastInput("plugin.previewFromUrl")).toEqual({ url: WEATHER_URL });
 
   await page.getByRole("button", { name: "Install" }).click();
@@ -316,7 +316,7 @@ test("installing from a URL previews the manifest on the server, shows the SAME 
   // The install went through the LINK verb (no bytes uploaded — `plugin.install` was never called), carrying
   // the URL and the full confirmed grant.
   await expect.poll(async () => recorder.lastInput("plugin.installFromUrl")).toEqual({ url: WEATHER_URL, grant: ["chat.read", "turn.trigger", "net.fetch"] });
-  // ONESHOT-OK: the installFromUrl lastInput poll + the visible row above prove the URL path SETTLED, so the mutually-exclusive `plugin.install` (byte-upload) count is final at read-time.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the installFromUrl lastInput poll + the visible row above prove the URL path SETTLED, so the mutually-exclusive `plugin.install` (byte-upload) count is final at read-time.
   expect(recorder.count("plugin.install")).toBe(0);
 });
 
@@ -346,7 +346,7 @@ test("an unreachable or blocked URL shows one leak-free line, and never forwards
   await expect(page.getByText("not a permitted destination")).toHaveCount(0);
   // No consent screen and nothing installed: a failed probe costs no install.
   await expect(page.getByText("What it's asking for")).toHaveCount(0);
-  // ONESHOT-OK: the leak-free alert + the absent consent screen above prove the preview FAILED and settled, so no install could have followed — the `plugin.installFromUrl` count is final at read-time.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the leak-free alert + the absent consent screen above prove the preview FAILED and settled, so no install could have followed — the `plugin.installFromUrl` count is final at read-time.
   expect(recorder.count("plugin.installFromUrl")).toBe(0);
 });
 
@@ -387,7 +387,7 @@ test("an installed plugin says whether it is on and what it is allowed to do", a
   await page.getByRole("switch", { name: "Turn Weather Teller on" }).click();
   // SETTLED: the invalidate repainted the row from the server's new truth.
   await expect(page.getByText("On", { exact: true })).toBeVisible();
-  // ONESHOT-OK: the "On" assertion above settled on the post-invalidate repaint, which the stub only serves AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the "On" assertion above settled on the post-invalidate repaint, which the stub only serves AFTER `plugin.setEnabled` was called and recorded — the call is provably complete at this read.
   expect(recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: INSTALLED_ROW.id, enabled: true });
 });
 
@@ -565,7 +565,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // own manifest, so the client MUST send exactly the host list it RENDERED (`plugin.netHosts`) — not an
   // empty array, not a client-computed guess, and NOT a function of which boxes were ticked. Both hosts
   // are echoed even though the person only ticked one capability.
-  // ONESHOT-OK: the settle assertions above prove the call completed before this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertions above prove the call completed before this read.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
     grant: upgradedRow.declaredCapabilities,
@@ -648,7 +648,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
   // The row the owner just allowed now reads as granted — from the server's truth, after the reset.
   await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toBeChecked();
 
-  // ONESHOT-OK: the settle assertions above prove the call completed before this read. The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`. The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertions above prove the call completed before this read. The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`. The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
     grant: ["chat.read", "net.fetch", "worldinfo.write"],
@@ -693,7 +693,7 @@ test("url plugin one-click update; a widening one lands disabled pending re-cons
   // What widened — the new capability by its own plain-English name (never the wire spelling).
   await expect(notice).toContainText("Write world book entries");
 
-  // ONESHOT-OK: the notice settle above proves the mutation completed; the one-click input names ONLY the pluginId (no url) because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the notice settle above proves the mutation completed; the one-click input names ONLY the pluginId (no url) because the server re-fetches the remembered `sourceUrl` (the whole point of 2b).
   expect(recorder.lastInput("plugin.upgradeFromStoredUrl")).toEqual({ pluginId: URL_INSTALLED_ROW.id });
 });
 
@@ -893,7 +893,7 @@ test("clicking a capability's CONSEQUENCE text toggles its grant, and the box si
   // SETTLED: the row is in the list and the confirm step is gone, so the write is provably complete.
   await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
-  // ONESHOT-OK: the settled read above only renders after `plugin.install` was called and recorded.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled read above only renders after `plugin.install` was called and recorded.
   expect((recorder.lastInput("plugin.install") as { grant: readonly string[] } | undefined)?.grant).toEqual(["turn.trigger", "net.fetch"]);
 });
 
@@ -949,7 +949,7 @@ test("the snippet console shows what a run logged, and shows a contained failure
   await expect(output).toContainText("3 messages");
   // The contained `error` is DATA, not a throw — a REPL that swallowed it would look like a hang.
   await expect(output).toContainText("TypeError: host.nope is not a function");
-  // ONESHOT-OK: the output region above settled on this run's OWN response, so the call it counts has already returned; nothing else in the story can call the proc.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the output region above settled on this run's OWN response, so the call it counts has already returned; nothing else in the story can call the proc.
   expect(recorder.count("plugin.runSnippet")).toBe(1);
 });
 
@@ -974,7 +974,7 @@ test("a fresh console's shipped starter is code that can actually run — no top
   // real run, not the parse-error path this issue exists to catch.
   const output = page.getByRole("status", { name: "Snippet output" });
   await expect(output).toContainText("5 messages");
-  // ONESHOT-OK: the toContainText barrier above only passes once the stubbed runSnippet response has RENDERED, so the recorder's last input is settled — no later call can race this read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the toContainText barrier above only passes once the stubbed runSnippet response has RENDERED, so the recorder's last input is settled — no later call can race this read.
   expect(recorder.lastInput("plugin.runSnippet")).toEqual({ chatId: CHAT, code: starter });
 });
 

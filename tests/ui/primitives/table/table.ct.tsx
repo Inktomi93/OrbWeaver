@@ -203,7 +203,7 @@ test("compact density is shorter than default density", async ({ mount, page }) 
     .evaluate((el) => el.getBoundingClientRect().height);
   await defaultMount.unmount();
 
-  // ONESHOT-OK: web-first visibility settled each table before its cross-mount row-height sample.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): web-first visibility settled each table before its cross-mount row-height sample.
   expect(compactHeight).toBeLessThan(defaultHeight);
 });
 

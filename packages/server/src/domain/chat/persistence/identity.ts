@@ -88,14 +88,11 @@ function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, sourc
  * (`ChatDetail.identities`/`MessagesPage.identities`); consumers project it via `buildIdentityNameContext` /
  * `buildIdentityAvatarMaps` (`@orb/contracts/chat`).
  */
-// @owner-scope-ok: the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats +
-// per-message attribution stamps), never from caller input, and the read returns only display names, the
-// persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's
-// transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if
-// the producer ever accepts an id set from a request.
 export async function loadChatIdentityProducer(db: Db, args: ChatIdentityLoadArgs): Promise<readonly ChatIdentity[]> {
   const characterIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.character);
   const personaIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.persona);
+  // @orb-waive owner-scoped-reads(characters): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
+  // @orb-waive owner-scoped-reads(personas): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
   const [characterRows, personaRows] = await Promise.all([
     characterIds.length === 0
       ? Promise.resolve([])

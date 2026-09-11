@@ -27,11 +27,11 @@ test("mounts as a labelled status veil riding the background token, with the ent
     probe.remove();
     return resolved;
   });
-  // ONESHOT-OK: both reads are of settled computed style (the entered state was awaited above).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): both reads are of settled computed style (the entered state was awaited above).
   expect(veilBg).toBe(tokenBg);
   // The transition NAMES its properties (interruptibility without animating focus rings/layout).
   const transitionProperty = await veil.evaluate((el) => getComputedStyle(el).transitionProperty);
-  // ONESHOT-OK: transitionProperty is a static declaration, not mutable async state.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): transitionProperty is a static declaration, not mutable async state.
   expect(transitionProperty).toBe("opacity, filter");
 });
 

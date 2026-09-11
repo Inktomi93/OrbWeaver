@@ -138,7 +138,7 @@ test("the picker offers ONLY the global half of the catalogue, and mints with no
   await expect.poll(() => trpc.count("automation.createRuleFromPreset")).toBe(1);
   // `chatId: null` IS the lane — the mint carries it explicitly rather than omitting the field, so a caller
   // can never silently mint a global rule by forgetting one.
-  // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already barriered on the call having been recorded; its input cannot change.
   expect(trpc.lastInput("automation.createRuleFromPreset")).toMatchObject({ chatId: null, presetId: "livingLibrary" });
 });
 
@@ -151,7 +151,7 @@ test("a row's lifecycle actions address the OWNER list, not a chat's", async ({ 
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
   // The wire input is `{ruleId, enabled}` — the scope rides the mutation VARS to address the cached list and
   // is stripped server-side, which is why it must not appear here.
-  // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already barriered on the call having been recorded; its input cannot change.
   expect(trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: GLOBAL_RULE.id, enabled: true });
 });
 
@@ -179,13 +179,13 @@ test("the OWNER rate ceiling autosaves the FINAL value on blur, never a mid-type
   await expect(field).toHaveValue("50");
   // Still mid-edit — the belt has not tightened. A count of ZERO is the assertion and it can only be
   // falsified by a call that ALREADY happened, so there is nothing to poll-wait for.
-  // ONESHOT-OK: a settled count of ZERO has no positive call to poll-barrier for; the toHaveValue("50") above settled the edit, and onValueCommitted fires only on blur/Enter, so no write can be in flight while focused.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a settled count of ZERO has no positive call to poll-barrier for; the toHaveValue("50") above settled the edit, and onValueCommitted fires only on blur/Enter, so no write can be in flight while focused.
   expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
 
   // Blur commits the FINAL value — 50, never the transient 5.
   await field.blur();
   await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
-  // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already barriered on the call having been recorded; its input cannot change.
   expect(trpc.lastInput("automation.setOwnerBudgets")).toMatchObject({ maxFiresPerHour: 50 });
 });
 
@@ -202,7 +202,7 @@ test("the OWNER rate ceiling commits on Enter with the final value", async ({ mo
   await field.pressSequentially("7");
   await field.press("Enter");
   await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
-  // ONESHOT-OK: the poll above already barriered on the call having been recorded; its input cannot change.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already barriered on the call having been recorded; its input cannot change.
   expect(trpc.lastInput("automation.setOwnerBudgets")).toMatchObject({ maxFiresPerHour: 7 });
 });
 
@@ -228,7 +228,7 @@ test("committing an UNCHANGED value writes nothing — the belt only saves a rea
   await field.pressSequentially("9");
   await field.blur();
   await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
-  // ONESHOT-OK: the poll above already barriered on exactly one call having been recorded; the input list cannot change after that.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already barriered on exactly one call having been recorded; the input list cannot change after that.
   expect(trpc.inputs("automation.setOwnerBudgets")).toEqual([{ maxFiresPerHour: 9 }]);
 });
 

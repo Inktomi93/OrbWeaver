@@ -43,7 +43,7 @@ test("soft tone swaps the fill for a tinted background + intent-colored text + a
   await soft.unmount();
   const solid = await mount(<Badge intent="info">Filtered</Badge>);
   const solidBg = await solid.evaluate((el) => getComputedStyle(el).backgroundColor);
-  // ONESHOT-OK: the preceding web-first CSS assertions settled both badges before this cross-mount comparison.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding web-first CSS assertions settled both badges before this cross-mount comparison.
   expect(softBg).not.toBe(solidBg);
 });
 

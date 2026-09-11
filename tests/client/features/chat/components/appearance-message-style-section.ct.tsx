@@ -100,7 +100,7 @@ test("all EIGHT previews are structurally distinct — no two modes draw the sam
   const previews = await cards.evaluate((group): readonly string[] => [...group.querySelectorAll('[data-slot="picker-cell-art"]')].map((art) => art.innerHTML));
   // Positive control first: an empty list would satisfy "all distinct" vacuously — and an empty preview
   // set is a live defect class here (the Layered elevation diagram painted nothing for a whole era).
-  // ONESHOT-OK: read after the awaited toHaveCount barrier — the eight cells are mounted and their art is static markup.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toHaveCount barrier — the eight cells are mounted and their art is static markup.
   expect(previews).toHaveLength(CHAT_STYLE_COUNT);
   for (const markup of previews) {
     expect(markup.length).toBeGreaterThan(0);

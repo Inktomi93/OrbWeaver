@@ -66,7 +66,7 @@ test("blockPaddingToken: a sticky top-0 band pins FLUSH at the scrollport top; t
     const row = el.querySelector('[data-slot="message-list-row"]');
     return row === null ? Number.NaN : row.getBoundingClientRect().top - el.getBoundingClientRect().top;
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Math.round(firstRowGap)).toBe(12);
 });
 
@@ -350,9 +350,9 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
 
   // FABRICATION-OK: in-page globalThis scaffolding (see the mount-time instrumentation above).
   const behaviors = await page.evaluate(() => (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(behaviors.length).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(behaviors.at(-1)).toBe("auto");
 });
 
@@ -427,7 +427,7 @@ test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scro
   await expect(component.getByTestId("is-at-end")).toHaveText("true");
   // Bottom-anchored at mount — the true distance from the end is (near enough) zero.
   const pinnedDistance = Number(await component.getByTestId("distance-from-end").innerText());
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(pinnedDistance).toBeLessThanOrEqual(2);
 
   // Scroll well away from the tail.
@@ -439,7 +439,7 @@ test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scro
   await component.getByTestId("read-status").click();
   await expect(component.getByTestId("is-at-end")).toHaveText("false");
   const scrolledDistance = Number(await component.getByTestId("distance-from-end").innerText());
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(scrolledDistance).toBeGreaterThan(0);
 });
 

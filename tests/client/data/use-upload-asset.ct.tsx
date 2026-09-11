@@ -67,6 +67,6 @@ test("a FAILED upload invalidates nothing — nothing was minted, so nothing is 
 
   // The throw propagates to the caller (every feature owns its own failure UI) — the story records it.
   await expect(page.getByTestId("upload-state")).toContainText("failed:");
-  // ONESHOT-OK: the failure text is rendered only AFTER the hook's promise rejected, i.e. after the point where a success path would have invalidated — so any refetch it caused would already be recorded. A poll would be wrong here (counts only climb; poll goes green on a value it merely transits).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the failure text is rendered only AFTER the hook's promise rejected, i.e. after the point where a success path would have invalidated — so any refetch it caused would already be recorded. A poll would be wrong here (counts only climb; poll goes green on a value it merely transits).
   expect(trpc.count("assets.listOwned")).toBe(1);
 });

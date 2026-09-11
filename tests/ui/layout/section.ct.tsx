@@ -62,7 +62,7 @@ test("kicker renders the section NAME as a real heading in the micro-caps voice,
     probe.remove();
     return { actual: getComputedStyle(el).fontSize, micro };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(sized.actual).toBe(sized.micro);
   // The hairline still PAINTS — it is a real element in the DOM (`data-slot="separator"`, visible).
   await expect(component.locator('[data-slot="separator"]')).toBeVisible();

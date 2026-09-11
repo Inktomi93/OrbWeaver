@@ -17,7 +17,7 @@ test("actionBar exposes four explicit tracks in a wide container", async ({ moun
     </Container>,
   );
   const template = await page.getByTestId("action-bar").evaluate((element) => getComputedStyle(element).gridTemplateColumns);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(trackCount(template)).toBe(4);
 });
 
@@ -40,9 +40,9 @@ test("actionBar packs the four homes onto ONE line below the md container step w
     display: getComputedStyle(element).display,
     rows: new Set([...element.children].map((child) => Math.round(child.getBoundingClientRect().top))).size,
   }));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.display).toBe("flex");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.rows).toBe(1);
 });
 

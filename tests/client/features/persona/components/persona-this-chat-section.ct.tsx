@@ -118,10 +118,12 @@ test("Restamp sends the server-resolved all-my-rows scope — and reads no messa
       personaId: NOVA,
     });
   // No `messageIds` anywhere on the wire: the client no longer enumerates rows it cannot fully page.
-  expect(trpc.lastInput(RESTAMP_PROC)).not.toHaveProperty("scope.messageIds"); // ONESHOT-OK: settled — the poll above already resolved this exact input
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the poll above already resolved this exact input
+  expect(trpc.lastInput(RESTAMP_PROC)).not.toHaveProperty("scope.messageIds");
   // The window read is a NEGATIVE, and it is settled: the old client fetched it BEFORE mutating, so by the
   // time the mutation input polled above exists, a window read would already have been recorded.
-  expect(trpc.count("chat.listMessages")).toBe(0); // ONESHOT-OK: settled — the restamp call the poll awaited strictly follows any window read
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the restamp call the poll awaited strictly follows any window read
+  expect(trpc.count("chat.listMessages")).toBe(0);
 });
 
 test("the restamp's confirming notify honors persona.showNotifications (ON ⇒ a toast; OFF ⇒ none)", async ({ mount, page }) => {

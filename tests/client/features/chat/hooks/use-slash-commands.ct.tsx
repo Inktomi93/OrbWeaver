@@ -27,7 +27,7 @@ test("a registered /command dispatches to its runner with the args after the tok
 
   // The runner FIRED, with the projection's chatId and the raw remainder.
   await expect(component.getByTestId("ct-slash-fired")).toHaveText(`${COMPOSER_CHAT_ID}:hello world`);
-  // ONESHOT-OK: the barrier above already awaited the completed dispatch path, so this 'never posted' count is settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the barrier above already awaited the completed dispatch path, so this 'never posted' count is settled.
   expect(trpc.count("chat.send")).toBe(0);
 });
 
@@ -44,7 +44,7 @@ test("an UNKNOWN /command is refused with a visible reason and is NOT posted as 
   await expect(component.getByText(ESCAPE_HINT)).toBeVisible();
   // The draft is kept (nothing was destroyed) and nothing was posted.
   await expect(textarea).toHaveValue("/nope thing");
-  // ONESHOT-OK: the barriers above already awaited the completed submit path, so this count is settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the barriers above already awaited the completed submit path, so this count is settled.
   expect(trpc.count("chat.send")).toBe(0);
 });
 
@@ -78,7 +78,7 @@ test("an UNAVAILABLE command is still offered (disabled, with its reason) and is
 
   await expect(component.getByText(SLASH_LOCKED_REASON)).toBeVisible();
   await expect(component.getByTestId("ct-slash-fired")).toHaveText("");
-  // ONESHOT-OK: the barriers above already awaited the completed submit path, so this count is settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the barriers above already awaited the completed submit path, so this count is settled.
   expect(trpc.count("chat.send")).toBe(0);
 });
 
@@ -174,7 +174,7 @@ test("with NO row highlighted, Enter still sends the full-typed command (the typ
   await textarea.press("Enter");
 
   await expect(component.getByTestId("ct-slash-fired")).toHaveText(`${COMPOSER_CHAT_ID}:hi`);
-  // ONESHOT-OK: the fired barrier above awaited the completed dispatch path — a run never posts.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the fired barrier above awaited the completed dispatch path — a run never posts.
   expect(trpc.count("chat.send")).toBe(0);
 });
 
@@ -244,6 +244,6 @@ test("with ZERO registrations /nope is still refused, never silently posted", as
   await component.getByRole("button", { name: "Send message" }).click();
 
   await expect(component.getByText(UNKNOWN_NOTICE)).toBeVisible();
-  // ONESHOT-OK: the barrier above already awaited the completed submit path, so this count is settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the barrier above already awaited the completed submit path, so this count is settled.
   expect(trpc.count("chat.send")).toBe(0);
 });

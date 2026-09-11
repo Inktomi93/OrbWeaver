@@ -33,7 +33,7 @@ test("opens on the row action, fires inspectEndpoint with the row id, renders th
 
   // The verb fired on open, with the custom row's credential id.
   await expect.poll(() => trpc.count("credentials.inspectEndpoint"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // ONESHOT-OK: settled — the count was polled to target above, so lastInput is the settled call.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the count was polled to target above, so lastInput is the settled call.
   expect((trpc.lastInput("credentials.inspectEndpoint") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0002");
 
   // The redacted request + raw response render.

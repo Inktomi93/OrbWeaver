@@ -236,7 +236,7 @@ test.describe("on a real phone (coarse pointer, 430px)", () => {
   test("the suggestion rows meet the touch floor, and the list still fits inside the card", async ({ mount, page }) => {
     // The floor is a coarse-only guarantee — assert the emulation landed before trusting any geometry it
     // explains, or a fine-pointer run reads as a pass at 28px.
-    // ONESHOT-OK: pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page state — there is no transition for a retry to wait out, and a poll here would only mask a config miss.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page state — there is no transition for a retry to wait out, and a poll here would only mask a config miss.
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     await stub(page, CROWDED);
     await mount(<TagPickerDialogHarness />);

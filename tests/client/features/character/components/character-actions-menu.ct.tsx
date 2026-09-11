@@ -73,7 +73,7 @@ test("the CHARACTERS menu jumps straight into a refinery session on that card â€
   // Settled snapshot: the readout above only paints after the flow resolved (it is the flow's own last write),
   // so the recording is closed by the time this reads.
   await expect.poll(async () => trpc.count("refinery.startSession")).toBe(1);
-  // ONESHOT-OK: same settled barrier.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier.
   expect(trpc.lastInput("refinery.startSession")).toEqual({ characterId: CHARACTER_ID });
 });
 
@@ -87,7 +87,7 @@ test("the jump obeys the ONE resume-or-mint rule â€” a card with an open session
   // the scripted mint's id here, and the user's scored work would be sitting in a session nothing opens.
   await expect(page.getByTestId("refinery-session")).toHaveText(`session=${OPEN_SESSION_ID}`);
   await expect(page.getByTestId("active-section")).toHaveText("section=refinery");
-  // ONESHOT-OK: the settled readout above is the barrier (see the sibling test).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled readout above is the barrier (see the sibling test).
   expect(trpc.count("refinery.startSession")).toBe(0);
 });
 
@@ -146,7 +146,7 @@ test("Archive is reachable from the OPEN character and fires the identity patch"
   await page.getByRole("menuitem", { name: "Archive", exact: true }).click();
 
   await expect.poll(async () => trpc.count("character.update")).toBe(1);
-  // ONESHOT-OK: the settled count above is the barrier.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled count above is the barrier.
   expect(trpc.lastInput("character.update")).toEqual({ characterId: CHARACTER_ID, input: { archived: true } });
 });
 

@@ -59,9 +59,9 @@ test("the BUILT-IN default asks for nothing and says WHY — never a failure wit
   // No failure surface, and above all no button promising a retry that is refused by construction.
   await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
   await expect(component.getByText(RE_COULDNT_LOAD)).toHaveCount(0);
-  // ONESHOT-OK: the settled barrier has already painted; a query, had one been fired, would have gone out during that mount — a read of finished state.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled barrier has already painted; a query, had one been fired, would have gone out during that mount — a read of finished state.
   expect(trpc.count("regex.listForPreset")).toBe(0);
-  // ONESHOT-OK: same settled barrier — the picker (which is what reads the library) is not mounted at all on this arm.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier — the picker (which is what reads the library) is not mounted at all on this arm.
   expect(trpc.count("regex.listScripts")).toBe(0);
 });
 

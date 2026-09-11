@@ -62,6 +62,6 @@ test("#1098: the notifications section RESERVES its measured box on a second col
   const afterY = (await tail.boundingBox())?.y ?? Number.NaN;
   expect(Math.abs(afterY - (settledY ?? Number.NaN)), "the pane jumped when the settings read landed").toBeLessThanOrEqual(1);
   // TWO genuine reads — a cached second open would make the whole pin vacuous.
-  // ONESHOT-OK: read after the released switch re-rendered; the story issues no third read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the released switch re-rendered; the story issues no third read.
   expect(trpc.count("settings.getUserSettings")).toBe(2);
 });

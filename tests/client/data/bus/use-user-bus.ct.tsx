@@ -43,7 +43,7 @@ test("the FIRST connect does not gap-heal — a page load fetches each user root
   // the connection went live, so once it lands, any heal the connect could have caused is already counted.
   await expect.poll(() => trpc.count("tag.listTags")).toBe(2);
   // Still the mount's single fetch — the connect healed NOTHING (pre-fix this was 2).
-  // ONESHOT-OK: settled by the barrier above — the tag refetch is driven by an `onEvent` frame, which the link delivers strictly AFTER the `pending` connection-state transition, so a heal would already have issued (and been recorded) by the time that refetch landed.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the barrier above — the tag refetch is driven by an `onEvent` frame, which the link delivers strictly AFTER the `pending` connection-state transition, so a heal would already have issued (and been recorded) by the time that refetch landed.
   expect(trpc.count("persona.list")).toBe(1);
 });
 
@@ -87,6 +87,6 @@ test("a RECONNECT gap-heals — every user root refetches after the stream drops
 
   await expect.poll(() => socket.connects(), { timeout: 15_000 }).toBeGreaterThan(1);
   await expect.poll(() => trpc.count("persona.list")).toBe(2);
-  // ONESHOT-OK: settled by the persona poll above — ONE heal invalidates every user root in the same synchronous pass, so once persona's refetch is recorded, tag's already is too.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the persona poll above — ONE heal invalidates every user root in the same synchronous pass, so once persona's refetch is recorded, tag's already is too.
   expect(trpc.count("tag.listTags")).toBe(2);
 });

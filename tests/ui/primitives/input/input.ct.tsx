@@ -28,9 +28,9 @@ test("full motion: focus is immediate — the seal transitions nothing, so the r
     const style = getComputedStyle(element);
     return { boxShadow: style.boxShadow, transitionDuration: style.transitionDuration };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focus.boxShadow).not.toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focus.transitionDuration).toBe("0s");
 });
 
@@ -42,9 +42,9 @@ test("reduced motion: focus is immediate and the global floor removes transition
     const style = getComputedStyle(element);
     return { boxShadow: style.boxShadow, transitionProperty: style.transitionProperty };
   });
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focus.boxShadow).not.toBe("none");
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focus.transitionProperty).toBe("none");
 });
 
@@ -62,7 +62,7 @@ test.describe("coarse pointer — the touch floor", () => {
   test("meets the touch floor", async ({ mount }) => {
     const input = await mount(<Input />);
     const box = await input.boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
   });
 });

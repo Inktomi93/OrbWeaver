@@ -41,7 +41,7 @@ test("respects step and reports through onValueChange", async ({ mount, page }) 
 test("the interactive surface meets the touch floor", async ({ mount }) => {
   const slider = await mount(<Slider defaultValue={50} label="Volume" />);
   const box = await slider.boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
 });
 

@@ -39,9 +39,9 @@ test.describe("coarse pointer — the touch floor", () => {
   test("stepper buttons meet the touch floor", async ({ mount, page }) => {
     await mount(<NumberField defaultValue={0} />);
     const box = await page.getByLabel("Increase").boundingBox();
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.width).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
     expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
   });
 });
@@ -172,9 +172,9 @@ test("the bounds description costs no layout — the root is exactly the stepper
   ]);
   expect(root?.height).toBe(group?.height);
   const bounds = await page.locator('[data-slot="number-field-bounds"]').boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(bounds?.width).toBeLessThanOrEqual(1);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(bounds?.height).toBeLessThanOrEqual(1);
 });
 
@@ -255,7 +255,7 @@ test("size=inline is the mono right-aligned token box; md keeps the centered ful
   // The BOX comes from the size axis: a fixed token width beside a slider vs the form field's full column.
   await expect(inlineRoot).toHaveCSS("width", INLINE_WIDTH_PX);
   const formBox = await formRoot.boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(formBox?.width).toBe(400);
 
   // Heights ride the pointer-conditional control tokens, resolved live.

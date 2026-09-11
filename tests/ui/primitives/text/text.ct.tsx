@@ -59,7 +59,7 @@ test("Heading level drives the default size — h1 headline steps down to h2 tit
   await expect(h1).toHaveCSS("font-size", sizePx("text.headline"));
   await expect(h1).toHaveCSS("color", TOKENS["color.foreground"].value);
   // Default weight is semibold — heavier than a body <Text>'s regular.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number(await h1.evaluate((el) => getComputedStyle(el).fontWeight))).toBe(600);
   await h1.unmount();
   // h2 steps down to title — a REAL size hierarchy (headline 1.25rem > title 1rem), not flat.
@@ -80,7 +80,7 @@ test("code size rides the code token and switches to the mono font stack", async
   const text = await mount(<Text size="code">const x = 1;</Text>);
   await expect(text).toHaveCSS("font-size", sizePx("text.code"));
   const family = await text.evaluate((el) => getComputedStyle(el).fontFamily);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(family.toLowerCase()).toContain("mono");
 });
 

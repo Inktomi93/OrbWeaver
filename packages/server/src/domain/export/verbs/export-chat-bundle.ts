@@ -89,11 +89,7 @@ async function loadInjections(ctx: ExportContext, chatId: ChatId): Promise<reado
 
 // The persona NAMES this chat's user turns (and its anchor) were authored under. Names, never ids — a
 // persona is re-linked on the far side by `(ownerId, name)`, the same key its own import verb dedups on.
-// @owner-scope-ok: the export ran the HOST gate on the chat first (`loadHostedChat` — a non-host caller
-// collapses to null before any of this), and the ids are the room's own message-attribution stamps plus its
-// own `anchorPersonaId` column, not caller input. The read returns display NAMES only. Owner-scoping on the
-// caller would blank a co-member's persona name in a multi-human room, which is the same reasoning
-// `export-chat.ts::loadSpeakerNames` carries. Ends if the bundle export ever runs without the host gate.
+// @orb-waive owner-scoped-reads(personas): the export ran the HOST gate on the chat first (`loadHostedChat` — a non-host caller collapses to null before any of this), and the ids are the room's own message-attribution stamps plus its own `anchorPersonaId` column, not caller input. The read returns display NAMES only. Owner-scoping on the caller would blank a co-member's persona name in a multi-human room, which is the same reasoning `export-chat.ts::loadSpeakerNames` carries. Ends if the bundle export ever runs without the host gate.
 async function loadPersonaNames(ctx: ExportContext, ids: readonly PersonaId[]): Promise<ReadonlyMap<PersonaId, string>> {
   if (ids.length === 0) {
     return new Map<PersonaId, string>();

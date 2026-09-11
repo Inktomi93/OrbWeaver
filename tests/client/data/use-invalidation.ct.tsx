@@ -87,7 +87,7 @@ test("chatCreated does NOT refetch the chat list — the same-commit chatsChange
   await getChatBarrier(page, trpc);
 
   // Still the mount's single fetch: the chatCreated click fetched NOTHING (pre-fix it made this 2).
-  // ONESHOT-OK: settled by the barrier above — the getChat request was issued AFTER the chatCreated click and has already landed, so any listChats request that click caused is necessarily already recorded. A poll here would be WRONG (the count only climbs; poll goes green on a value it merely transits).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the barrier above — the getChat request was issued AFTER the chatCreated click and has already landed, so any listChats request that click caused is necessarily already recorded. A poll here would be WRONG (the count only climbs; poll goes green on a value it merely transits).
   expect(trpc.count("chat.listChats")).toBe(1);
 });
 
@@ -102,7 +102,7 @@ test("messageCommitted does NOT refetch getChat — nothing in ChatDetail derive
   await listChatsBarrier(page, trpc);
 
   // Still the mount's single fetch: a canon commit leaves the room read alone (pre-fix it made this 2).
-  // ONESHOT-OK: settled by the listChats barrier above — its request was issued after the messageCommitted click and has landed, so any getChat request that click caused is already recorded.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the listChats barrier above — its request was issued after the messageCommitted click and has landed, so any getChat request that click caused is already recorded.
   expect(trpc.count("chat.getChat")).toBe(1);
 });
 
@@ -118,6 +118,6 @@ test("the whole startChat burst fetches the chat list EXACTLY once", async ({ mo
 
   // 1 mount + EXACTLY 1 burst refetch (the `chatsChanged` member fan). Pre-fix: 3 — `chatCreated` fetched
   // the list a second time, which is the ⚠ "listChats invalidated 3× in 79ms" the devlog tripwire reported.
-  // ONESHOT-OK: settled by the getChat barrier above — issued after the burst click and already landed, so every request the burst caused is recorded by now.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the getChat barrier above — issued after the burst click and already landed, so every request the burst caused is recorded by now.
   expect(trpc.count("chat.listChats")).toBe(2);
 });

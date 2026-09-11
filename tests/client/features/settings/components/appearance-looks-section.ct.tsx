@@ -139,10 +139,10 @@ test("thumbnail provenance: Hearth stamps nothing, a named seed stamps its block
   // nested under a Light or Mocha root it means "inherit the ambient", and a card that paints itself in
   // somebody else's palette is the F2 family. Read as a computed value off the rendered box, not as a class.
   const hearthBackground = await surfaceOf("Hearth").evaluate((box) => getComputedStyle(box).getPropertyValue("--color-background").trim());
-  // ONESHOT-OK: read after the awaited toHaveCount on the same box — inline custom properties are render-time markup
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toHaveCount on the same box — inline custom properties are render-time markup
   expect(hearthBackground.length).toBeGreaterThan(0);
   const mochaBackground = await surfaceOf("Mocha").evaluate((box) => getComputedStyle(box).getPropertyValue("--color-background").trim());
-  // ONESHOT-OK: same settled mount; the two blocks are static CSS
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled mount; the two blocks are static CSS
   expect(hearthBackground).not.toBe(mochaBackground);
 
   // …and a CUSTOM theme is the opposite arm: it paints through the clamp, and stamps no block.
@@ -157,7 +157,7 @@ test("no thumbnail injects a theme's custom CSS", async ({ mount, page }) => {
   const component = await mount(<LooksSectionStory />);
   await expect(component.getByRole("radio", { name: "With CSS", exact: true })).toBeVisible();
   const canary = await page.evaluate(() => document.documentElement.innerHTML.includes("orb-thumbnail-canary"));
-  // ONESHOT-OK: read after the awaited toBeVisible on the custom-CSS theme's own cell — an injection would already have happened.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toBeVisible on the custom-CSS theme's own cell — an injection would already have happened.
   expect(canary).toBe(false);
 });
 
@@ -254,9 +254,9 @@ test("builder door + zero edits + Back mints NOTHING — no row ever existed", a
   await component.getByRole("button", { name: "← Back to Looks" }).click();
   await expect(component.getByRole("radio", { name: "My Theme", exact: true })).toBeVisible();
 
-  // ONESHOT-OK: read after the list re-rendered; a mint could only have fired during the torn-down session.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the list re-rendered; a mint could only have fired during the torn-down session.
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
-  // ONESHOT-OK: same settled barrier — either mint landing would be the same defect.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled barrier — either mint landing would be the same defect.
   expect(trpc.count("settings.createTheme")).toBe(0);
 });
 
@@ -271,7 +271,7 @@ test("the first real edit mints the copy of the CURRENT look — and the autosav
   await expect
     .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
     .toMatchObject({ id: OWNED.id, input: { name: "Hearth but mine" } });
-  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — no further mint can arrive from this edit.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): reads AFTER the awaited updateTheme poll settled — no further mint can arrive from this edit.
   expect(trpc.count("settings.duplicateTheme")).toBe(1);
 });
 
@@ -289,7 +289,7 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
   await expect
     .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [50, 100, 200] })
     .toMatchObject({ id: OWNED.id, input: { name: "My Theme, retouched" } });
-  // ONESHOT-OK: after the settled update — an owned edit must never mint.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): after the settled update — an owned edit must never mint.
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
 });
 
@@ -301,7 +301,7 @@ test("Delete does not destroy immediately — it opens an AlertDialog confirm (F
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByText("Delete this theme?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
-  // ONESHOT-OK: reads AFTER the awaited alertdialog assertions; the still-open confirm makes a later fire impossible.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): reads AFTER the awaited alertdialog assertions; the still-open confirm makes a later fire impossible.
   expect(trpc.count("settings.removeTheme")).toBe(0);
 });
 
@@ -370,7 +370,7 @@ test("#1100 reopening Looks holds its box: the heading stays, the boundary reser
   const afterY = (await tail.boundingBox())?.y ?? Number.NaN;
   expect(Math.abs(afterY - (settledY ?? Number.NaN)), "the pane jumped when the themes read landed").toBeLessThanOrEqual(1);
   // Two genuine reads — a cached second open would make the whole pin vacuous.
-  // ONESHOT-OK: read after the released collection re-rendered; the story issues no third read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the released collection re-rendered; the story issues no third read.
   expect(trpc.count("settings.listThemes")).toBe(2);
 });
 

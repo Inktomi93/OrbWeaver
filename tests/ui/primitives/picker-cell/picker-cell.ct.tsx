@@ -28,7 +28,7 @@ test("the grid is a REAL grid and the LAST ROW does not stretch — every cell i
   const template = await host.locator('[data-slot="radio-group-picker"]').evaluate((el) => getComputedStyle(el).gridTemplateColumns);
   // The positive control: `none` is what a flex-wrap masquerading as a grid reports, and it is exactly
   // what the five shipped families reported.
-  // ONESHOT-OK: a computed grid-template-columns on a mounted static grid — no async source.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a computed grid-template-columns on a mounted static grid — no async source.
   expect(template).not.toBe("none");
 
   const boxes = await host.locator('[data-slot="picker-cell"]').evaluateAll((cells): readonly Box[] =>
@@ -102,9 +102,9 @@ test("the cell is named by its visible label and described by its gloss — neve
       describedText: described === null ? null : (document.getElementById(described)?.textContent ?? null),
     };
   });
-  // ONESHOT-OK: read after the awaited toBeVisible — the id wiring is render-time markup.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toBeVisible — the id wiring is render-time markup.
   expect(wiring.labelText).toBe("One");
-  // ONESHOT-OK: same settled read, same evaluate.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same settled read, same evaluate.
   expect(wiring.describedText).toContain("The first option");
   // A gloss-less option carries no dangling description pointer.
   await expect(page.getByRole("radio", { name: "Three" })).not.toHaveAttribute("aria-describedby", /.+/);
@@ -140,6 +140,7 @@ test("the presentation-only frame renders with no interaction wired — and rese
   await expect(page.getByText("current", { exact: true })).toBeVisible();
   // `shape="square"` — the aperture is reserved and square BEFORE the feature's art has laid anything out.
   const art = await cell.locator('[data-slot="picker-cell-art"]').boundingBox();
-  expect(art).not.toBeNull(); // ONESHOT-OK: read after the awaited toBeVisible on the cell label; the aperture is a CSS aspect box, not a loaded asset
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toBeVisible on the cell label; the aperture is a CSS aspect box, not a loaded asset
+  expect(art).not.toBeNull();
   expect(Math.round(art?.width ?? 0)).toBe(Math.round(art?.height ?? -1));
 });

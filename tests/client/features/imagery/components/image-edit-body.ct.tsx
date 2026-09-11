@@ -164,7 +164,7 @@ test("image edit: an instruction drives imagery.editImage and hands off to the d
   await cmp.getByRole("button", { name: "Generate edit" }).click();
 
   await expect.poll(() => rec.count("imagery.editImage")).toBe(1);
-  // ONESHOT-OK: the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
   expect(rec.lastInput("imagery.editImage")).toMatchObject({ sourceAssetId, instruction: "make it night", chatId });
 
   // Hand-off: the detail body appears on the edited asset (its Set-as-background action is the tell).

@@ -30,11 +30,11 @@ test("the band starts a reading measure in from the host's inline start — the 
   });
 
   // It bleeds to the host's own end edge…
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(geometry.bandRight).toBeCloseTo(geometry.hostRight, 0);
   // …and it begins AT or AFTER the measure — never inside the column a host reserves for prose. The
   // clearance above the measure is the host-padding allowance the recipe documents.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(geometry.bandLeft).toBeGreaterThanOrEqual(geometry.hostLeft + geometry.measure);
   expect(geometry.bandLeft - geometry.hostLeft - geometry.measure).toBeLessThan(geometry.measure);
 });

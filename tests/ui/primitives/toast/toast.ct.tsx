@@ -351,13 +351,13 @@ test("the action button's fill clears the 3:1 non-text contrast floor against th
 
   const fill = await action.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
   const surface = await toast.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(await contrastRatio(page, fill, surface)).toBeGreaterThanOrEqual(3);
 
   // …and its LABEL stays readable on that new fill (4.5:1 text floor) — a boundary fix that blinds the
   // text is not a fix.
   const label = await action.evaluate((element: Element) => getComputedStyle(element).color);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(await contrastRatio(page, label, fill)).toBeGreaterThanOrEqual(4.5);
 });
 

@@ -233,37 +233,37 @@ test("keyboard: the native color input paints a visible focus ring when the popo
     };
   });
   // The modality heuristic actually fired — otherwise every assertion below is vacuous.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.matchesFocusVisible).toBe(true);
   // The UA outline is retired rather than layered under our ring (two competing focus paints is the other
   // failure mode, and Tailwind's `outline-none` is also what would silently kill a FOCUS_RING_OUTLINE).
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.outlineStyle).toBe("none");
   // The ring is a real PAINT, not a class list that merely READS as ringed. Tailwind always emits five
   // box-shadow slots and leaves the unused ones fully transparent, so the pin is on how many slots actually
   // CARRY INK: an element whose shadow composite is already owned collapses every ring slot to
   // `rgba(0, 0, 0, 0) 0px 0px 0px 0px`, which is the trap FOCUS_RING_OUTLINE exists for.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.boxShadow).not.toBe("none");
   const inked = focused.boxShadow.split(BOX_SHADOW_LAYER_SPLIT_RE).filter((layer) => !layer.includes("rgba(0, 0, 0, 0)"));
   // Two: the offset MOAT and the ring itself.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(inked).toHaveLength(2);
   // …and the moat is the POPOVER tone, not the page background — this control only ever renders inside a
   // popup, so a plain FOCUS_RING would paint a page-toned band around it. Guarded against the vacuous case
   // where a theme happens to give the two tokens the same value.
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.popover).not.toBe(focused.background);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.boxShadow).toContain(focused.popover);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.boxShadow).not.toContain(focused.background);
 
   // …and it is the FOCUS state that paints it: Tab on to the hex field and the same element goes bare.
   await page.keyboard.press("Tab");
   await expect(native).not.toBeFocused();
   const resting = await native.evaluate((el) => getComputedStyle(el).boxShadow);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(focused.boxShadow).not.toBe(resting);
 });
 

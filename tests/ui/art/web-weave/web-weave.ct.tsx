@@ -148,7 +148,7 @@ test("the settled web PAINTS — and the probe itself can read a blank canvas (i
     }
     return painted;
   });
-  // ONESHOT-OK: probes a canvas created inside that very evaluate — no async state exists to settle.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): probes a canvas created inside that very evaluate — no async state exists to settle.
   expect(blank).toBe(0);
 
   await mount(<WeaveBox state="settled" />);
@@ -228,7 +228,7 @@ test("settled ANIMATED runs off the offscreen cache — the loop advances AND th
   const framesEarly = Number(await canvas.getAttribute("data-orb-weave-frames"));
   await waitFrames(page, 10);
   const framesLater = Number(await canvas.getAttribute("data-orb-weave-frames"));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(framesLater).toBeGreaterThan(framesEarly);
   // Establish the AMBIENT ceiling (glint/dew/spider) with NO token change — a max over repeated
   // short and long spans, because one two-frame sample of this web is a lottery, not a floor …

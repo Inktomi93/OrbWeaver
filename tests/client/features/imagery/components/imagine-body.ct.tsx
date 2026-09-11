@@ -26,7 +26,7 @@ test("imagine free mode: Generate requests chat.generateImage with the verbatim 
   await generate.click();
 
   await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
-  // ONESHOT-OK: the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
   expect(rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", prompt: "a dragon over the castle" });
 });
 
@@ -45,13 +45,13 @@ test("imagine extraction mode: Preview fills the prompt from extractPrompt, then
 
   const prompt = cmp.getByRole("textbox", { name: "Image prompt" });
   await expect(prompt).toHaveValue(extracted);
-  // ONESHOT-OK: toHaveValue(extracted) only passes AFTER extractPrompt resolved and set the prompt, so its input is recorded and settled.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): toHaveValue(extracted) only passes AFTER extractPrompt resolved and set the prompt, so its input is recorded and settled.
   expect(rec.lastInput("imagery.extractPrompt")).toMatchObject({ mode: "scenario" });
 
   await cmp.getByRole("button", { name: "Generate" }).click();
   await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
   // A resolved prompt IS the image — sent verbatim as free mode even though the mode strip said "scenario".
-  // ONESHOT-OK: the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding expect.poll(rec.count).toBe(1) barriers on the call being recorded, so this reads a settled input.
   expect(rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", prompt: extracted });
 });
 

@@ -238,9 +238,9 @@ test("maxRows reaches the control, so a long value scrolls the box instead of gr
     client: el.clientHeight,
     content: el.scrollHeight,
   }));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.client).toBeLessThanOrEqual(measured.lineHeight * 8);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(measured.content).toBeGreaterThan(measured.client);
   // The helper is the thing an uncapped box pushes away — it must still be in the viewport with the field.
   await expect(page.locator('[data-slot="macro-textarea-helper"]')).toBeInViewport();

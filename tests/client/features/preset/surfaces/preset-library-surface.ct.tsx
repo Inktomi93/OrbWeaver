@@ -370,7 +370,7 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
   // THE PIN: the duplicate's OWN id reaches `preset.remove` (a row-indexed delete would send the wrong one).
   await expect.poll(() => (trpc.inputs("preset.remove") as RemoveCall[]).map((call) => call.id)).toEqual([EDITED_TWO]);
   // Nothing was active, so nothing clears the pointer.
-  // ONESHOT-OK: settled — `onDelete` fires the (conditional) settings write and `preset.remove` in the SAME click handler, and the batch link sends that tick's mutations in ONE request; the recorded remove above therefore proves the request landed, so a settings write, had it happened, is already recorded too.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — `onDelete` fires the (conditional) settings write and `preset.remove` in the SAME click handler, and the batch link sends that tick's mutations in ONE request; the recorded remove above therefore proves the request landed, so a settings write, had it happened, is already recorded too.
   expect(trpc.count("settings.updateUserSettingsSection")).toBe(0);
 });
 
@@ -1016,7 +1016,7 @@ test("G6 an orb.preset file rides the ONE import verb with its own bytes, after 
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
   // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.
   await expect.poll(() => (trpc.inputs("preset.importFile") as ImportFileCall[]).map((call) => call.fileText)).toEqual([ORB_FILE]);
-  // ONESHOT-OK: settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above proves the click's request already landed; a `create` from the same click would be recorded by now.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above proves the click's request already landed; a `create` from the same click would be recorded by now.
   expect(trpc.count("preset.create")).toBe(0);
 });
 
@@ -1032,7 +1032,7 @@ test("G6 the SAME door takes a SillyTavern preset — sniffed to the ST arm, cre
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
 
   await expect.poll(() => trpc.count("preset.create")).toBe(1);
-  // ONESHOT-OK: settled — same single-arm confirm handler; the recorded `create` proves the click landed.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — same single-arm confirm handler; the recorded `create` proves the click landed.
   expect(trpc.count("preset.importFile")).toBe(0);
 });
 

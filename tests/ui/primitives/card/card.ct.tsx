@@ -87,7 +87,7 @@ test("nested drops the border and steps the radius one below the grouped step", 
   // The BORDER is the axis that goes: the host box already has one, and two edges in two colours is the
   // box-in-box the rule exists to kill.
   const borderWidth = await island.evaluate((el) => getComputedStyle(el).borderTopWidth);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(borderWidth)).toBe(0);
   await expect(island).toHaveAttribute("data-nested", "");
   const radius = (testid: string): Promise<number> => both.getByTestId(testid).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius));

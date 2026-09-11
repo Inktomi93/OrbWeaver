@@ -22,7 +22,7 @@ test("rides the micro type-scale token and the mono font stack", async ({ mount 
   const kbd = await mount(<Kbd>⌘</Kbd>);
   await expect(kbd).toHaveCSS("font-size", microPx);
   const family = await kbd.evaluate((el) => getComputedStyle(el).fontFamily);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(family.toLowerCase()).toContain("mono");
   // The micro tracking is applied (not the default "normal") — the micro-caps voice.
   await expect.poll(async () => await kbd.evaluate((el) => getComputedStyle(el).letterSpacing)).not.toBe("normal");

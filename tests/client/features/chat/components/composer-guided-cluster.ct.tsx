@@ -320,7 +320,7 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
   await page.getByRole("menuitem", { name: "Simple send" }).click();
 
   await expect.poll(() => trpc.count("chat.commitMessage"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll above settled the recorder at exactly 1 call, so lastInput is stable at read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above settled the recorder at exactly 1 call, so lastInput is stable at read.
   expect(trpc.lastInput("chat.commitMessage")).toMatchObject({ content: "just a note, no reply" });
   await expect(box).toHaveValue("");
 });
@@ -394,7 +394,7 @@ test("game steers live in the ✨ menu (the Plot submenu) and fire a gameSteer K
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. The steer rides as a trusted-template KIND.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder at exactly 1 call. The steer rides as a trusted-template KIND.
   expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "advance" } });
 });
 
@@ -435,7 +435,7 @@ test("a NON-GAME chat's ✨ menu offers 'Offer choices', and it fires the choice
   await page.getByRole("menuitem", { name: "Offer choices" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. The wire carries the KIND, never template text.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll settled the recorder at exactly 1 call. The wire carries the KIND, never template text.
   expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "choices" } });
 });
 

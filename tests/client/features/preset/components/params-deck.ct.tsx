@@ -287,7 +287,7 @@ test("STALENESS — Keep dismisses the row for the session without touching the 
 
   await expect(deck.getByText("Set but not honored by this model: top_a 0.2", { exact: true })).toBeHidden();
   await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
-  // ONESHOT-OK: settled — the wait above IS the negative-assertion window (Keep is a dismissal, not a write).
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the wait above IS the negative-assertion window (Keep is a dismissal, not a write).
   expect(await saved(deck).textContent()).toContain("keys=- ");
 });
 

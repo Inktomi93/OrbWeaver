@@ -106,9 +106,7 @@ export async function loadOwnedDocument(db: Db, ownerId: UserId, id: DocumentId)
 
 /** The full row by id ALONE — used by the ingest/reindex subsystem, which runs AFTER the enqueue authority
  *  check (the workload row's owner is the gate; the chunk FK is to this document). */
-// @owner-scope-ok: D20 un-principal — ingest/reindex runs AFTER the enqueue authority check (the workload
-// row's owner is the gate) over ids the enqueue itself resolved; the owner-facing read is `loadOwnedDocument`
-// above. Ends the day ingest takes a documentId straight off a request.
+// @orb-waive owner-scoped-reads(documents): D20 un-principal — ingest/reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids the enqueue itself resolved; the owner-facing read is `loadOwnedDocument` above. Ends the day ingest takes a documentId straight off a request.
 export async function loadDocument(db: Db, id: DocumentId): Promise<DocumentRow | undefined> {
   const rows = await db.select().from(documents).where(eq(documents.id, id)).limit(LIMIT_ONE);
   return rows[0];
@@ -239,10 +237,7 @@ export async function listAllDocumentIds(db: Db): Promise<DocumentId[]> {
 /** Meta rows by id set (NO owner filter) — the room-public `listActiveForChat` read: a member views the
  *  HOST's active documents, so it can't owner-scope. The caller has already resolved the id set through the
  *  host-scoped junction union (scope.ts). Preserves the input id order for a stable list. */
-// @owner-scope-ok: DELIBERATELY unscoped — the room-public `listActiveForChat` read. A member views the
-// HOST's active documents, so an owner predicate on the CALLER would return nothing; the id set was already
-// resolved through the host-scoped junction union (`scope.ts`), which is the authorization. This is the
-// (b)-membership rung standing in for the (a) predicate. Ends if the id set stops coming from that union.
+// @orb-waive owner-scoped-reads(documents): DELIBERATELY unscoped — the room-public `listActiveForChat` read. A member views the HOST's active documents, so an owner predicate on the CALLER would return nothing; the id set was already resolved through the host-scoped junction union (`scope.ts`), which is the authorization. This is the (b)-membership rung standing in for the (a) predicate. Ends if the id set stops coming from that union.
 export async function loadMetaByIds(db: Db, ids: readonly DocumentId[]): Promise<DocumentMetaRow[]> {
   if (ids.length === 0) {
     return [];

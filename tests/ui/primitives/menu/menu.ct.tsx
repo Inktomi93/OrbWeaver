@@ -318,7 +318,7 @@ test("a long menu clamps to the available height and scrolls instead of running 
   expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1);
   // And the content that no longer fits is REACHABLE — the popup is its own scroller.
   const scroll = await popup.evaluate((el) => ({ client: el.clientHeight, content: el.scrollHeight }));
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(scroll.content).toBeGreaterThan(scroll.client);
   await popup.evaluate((el) => {
     el.scrollTop = el.scrollHeight;
@@ -423,7 +423,7 @@ test("every command row's LABEL starts on one column — icon-less rows and subm
       return lefts;
     })
     .toHaveLength(4);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(lefts.every((left) => left > 0)).toBe(true);
   expect(new Set(lefts).size, `label left edges drifted: ${lefts.join(", ")}`).toBe(1);
 });

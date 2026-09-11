@@ -18,9 +18,9 @@ test("TTFT: shows the shimmer before any text has arrived", async ({ mount }) =>
   // though every assertion above still passes).
   await expect(component).toBeVisible();
   const box = await component.boundingBox();
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.width).toBeGreaterThan(0);
-  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(box?.height).toBeGreaterThan(0);
 });
 
@@ -151,7 +151,7 @@ test("a second stream is paced from the beginning, not from where the last one e
   // FABRICATION-OK: in-page globalThis scaffolding (the trace installed above).
   const trace = await page.evaluate(() => (globalThis as unknown as { __orbRevealTrace?: number[] }).__orbRevealTrace ?? []);
   // POSITIVE CONTROL: an observer that recorded nothing would make every claim below vacuously true.
-  // ONESHOT-OK: the second stream is asserted fully rendered above, so the trace is a CLOSED history — a later sample could only append.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the second stream is asserted fully rendered above, so the trace is a CLOSED history — a later sample could only append.
   expect(trace.length).toBeGreaterThan(0);
   // The reveal was SEEN near its start. A cursor carried over from the first stream shows ~LONG_TEXT.length
   // characters on the very first commit and never dips below it.
