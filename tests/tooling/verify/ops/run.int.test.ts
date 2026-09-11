@@ -380,6 +380,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
   expect(staticNames).toEqual([
     "lint:biome",
     "lint:eslint",
+    // #1943 F3: the PreToolUse Bash guard is linted by nothing else, so its syntax rides the commit bar. The
+    // registry row landed in 515b775cc without this pin — a stale exact-list pin reads red for every later row.
+    "lint:hook-syntax",
     "types:native",
     "types:testd",
     "types:ownership",
@@ -395,6 +398,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "structure:drizzle-kit",
     "structure:agent-config",
     "structure:full",
+    // #1941: every final defineGate policy's own proofs through the production dispatcher, on every check —
+    // before it, 21 of 163 converted modules were imported by no committed test.
+    "structure:policy-conformance",
     // #817: the committed single-writer ledgers (the caught-failure census, the test-baseline manifest)
     // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
     // main sat red on the next whole node run.
@@ -731,6 +737,8 @@ test("types:testd + types:ownership + browser:e2e* are whole-only (no scopedArgv
     "structure:asset-refs",
     // The ONE migrations dir's journal/snapshot chain — likewise no partial-file form.
     "structure:drizzle-kit",
+    // #1941: a policy's proofs are its own fixtures, not a property of any changed file; the roster is the corpus.
+    "structure:policy-conformance",
     // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
     // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",

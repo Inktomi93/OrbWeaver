@@ -13,6 +13,7 @@ export const VERIFY_VERBS = [
   "scoped-test",
   "new-gate",
   "gate-contract",
+  "policy-conformance",
   "baseline",
   "tests-membership",
   "tests-execution-membership",

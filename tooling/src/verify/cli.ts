@@ -8,6 +8,7 @@
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
 //   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
 //   gate:new                 → cli.ts new-gate <kebab-name>
+//   check:policy-conformance → cli.ts policy-conformance  (every final policy's own proofs, #1941)
 //   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
 //   check:type-ownership   → cli.ts tests-membership
 //   check:tests-execution-membership → cli.ts tests-execution-membership
@@ -42,6 +43,7 @@ import {
   runLedgersFresh,
   runNewGate,
   runOrphanRatchet,
+  runPolicyConformance,
   runRatchetGateCli,
   runScopedCli,
   runScopedTest,
@@ -81,6 +83,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "scoped-test": SCOPED_TEST_USAGE,
   "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
   "gate-contract": "usage: node tooling/src/verify/cli.ts gate-contract\n  Reports gate modules that bypass the shared ts-morph runtime contract.",
+  "policy-conformance":
+    "usage: node tooling/src/verify/cli.ts policy-conformance\n  Runs every final defineGate policy's own mustFlag/mustPass rows through the production dispatcher (#1941); a failed proof is exit 2.",
   baseline: BASELINE_HELP,
   "tests-membership":
     "usage: node tooling/src/verify/cli.ts tests-membership [--json]\n  Reports intended and actual compiler ownership for every authored TypeScript file.",
@@ -131,6 +135,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runNewGate(root, rest);
     case "gate-contract":
       return runGateContract(root);
+    case "policy-conformance":
+      return await runPolicyConformance(root);
     case "baseline":
       return runBaseline(root, rest);
     case "tests-membership":

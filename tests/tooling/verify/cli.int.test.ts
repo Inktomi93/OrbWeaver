@@ -72,6 +72,7 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
   ["structure", ["--changed"], "takes no arguments"],
   ["gate-contract", ["--changed"], "takes no arguments"],
+  ["policy-conformance", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],
   ["asset-refs", ["extra"], "takes no arguments"],
   ["tests-membership", ["--scope", "tests"], "accepts only --json"],
