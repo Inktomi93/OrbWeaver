@@ -12,135 +12,51 @@
 // PASSES. Reads (`x.externalId`), the PROVISION_COLS SELECT map (no enclosing write call), and audit
 // `metadata:{externalId}` (enclosing call is `audit`) are structurally excluded.
 //
-// FAMILY: this per-node detector is one half of the `external-id-single-writer` family; the whole-population
-// stale-carve-out + blindness tripwire is `external-id-single-writer-health.ts` (GATE-AUTHORING.md's
-// per-file-check-plus-whole-population-tripwire split). `hard`: there is no marker vocabulary here — a third
+// FAMILY: this per-node detector and `external-id-single-writer-health.ts` (the whole-population carve-out
+// proof) BOTH read `verify/lib/external-id-writer.ts` — the one shared reader for the write-shape predicate,
+// the two sanctioned files, and the atomic-claim-writer name (a family means a shared `lib/` reader, never a
+// shared theme, gate-runtime-standardization.md). `hard`: there is no marker vocabulary here — a third
 // caller is either one of the two sanctioned files or a defect, never a reviewable exemption.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
+//
+// POPULATION CORRECTION (re-derived 2026-09-11, #1937): the conversion had widened this policy's population
+// from the legacy `scanRoot`'s server-only reach (`packages/server/src/`, 1,493 files) to `@backend`
+// (`@server` + `@db` + `@contracts`, +147 files: 42 under `packages/db/src`, 105 under
+// `packages/contracts/src`) with no recorded reason. Reverted to `@server`: every sanctioned/violating shape
+// this family judges is a CALL SITE against the write verbs (`insertUser`/`updateUser`/`.set`/`.values`/
+// `.onConflictDoUpdate`) or the atomic claim writer, and every real caller of those lives under
+// `packages/server/src/domain/**` / `infra/**` — `db` only DECLARES the `externalId` column (a schema
+// definition, not a call to a write verb) and `contracts` carries wire shapes, neither of which this
+// predicate's AST shapes match. Widening bought no coverage and would have let a db/contracts file "carry"
+// this family's reads/writes with no real consumer having asked for it.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { unwrapExpression } from "../lib/ast-read.ts";
-
-const KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
-/** The users-row write verbs: the two sessions persistence wrappers + the raw drizzle write surface. An
- *  `externalId` object-key whose nearest enclosing call is one of these is a COLUMN write; the same key in a
- *  `.select(...)` map / an `audit(...)` metadata object / a bare return object is not. */
-const WRITE_VERBS: ReadonlySet<string> = new Set(["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"]);
+import {
+  claimWriterAnchor,
+  EXTERNAL_ID_CLAIM_CALLERS,
+  EXTERNAL_ID_SANCTIONED_FILES,
+  externalIdWriteAnchor,
+  isClaimWriterCall,
+  isExternalIdAssignment,
+  isExternalIdWriteKey,
+  LINK_CAPABILITY,
+  PROVISION_CAPABILITY,
+} from "../lib/external-id-writer.ts";
 
 const MESSAGE =
   "a `users.externalId` write or atomic-claim call outside the two sanctioned sessions capabilities (Spine-Identity-and-Auth.md U1 — the bind-once identity chokepoint). `externalId` is the STABLE SSO subject; it is bound only by provision-identity.ts or link-external-id.ts through its single persistence writer. A second linking site is the fragmented-provisioning hole (OpenWebUI W1 takeover) this invariant forbids.";
 const FIX =
   "route the link through the injected sessions `linkExternalId` capability (the admin path) or `provisionIdentity` — never write the externalId column directly; the bind-once guard (isSubjectMismatch) lives on those two verbs.";
 
-const SESSIONS = "packages/server/src/domain/sessions/";
-export const LINK_CAPABILITY = `${SESSIONS}verbs/link-external-id.ts`;
-export const PROVISION_CAPABILITY = `${SESSIONS}verbs/provision-identity.ts`;
-export const CLAIM_WRITER = "claimExternalIdIfUnbound";
-/** WHO MAY CALL THE ATOMIC CLAIM: the TWO sanctioned capability VERBS this gate's own message names, and
- *  nobody else. It was LINK-only until 2026-09-05 (#1451), which forbade the consolidation U1 asks for:
- *  provision-identity could bind the column by hand (`changes.externalId = …`, its carve-out below) but not
- *  through the ONE atomic writer — so the owner-flip bind stayed a read-then-plain-UPDATE and two concurrent
- *  owner logins with different subjects both won it. Widening this set REDUCES the bind mechanisms from two
- *  to one; a THIRD caller is still the fragmentation hole (the `second-link.ts` mustFlag row). */
-const CLAIM_CALLERS: ReadonlySet<string> = new Set([LINK_CAPABILITY, PROVISION_CAPABILITY]);
-/** The TWO physical externalId writers serving the sanctioned capabilities (Spine-Identity-and-Auth.md U1).
- *  Shared with `external-id-single-writer-health.ts` by VALUE (not import — see that file's header for why a
- *  sibling family member keeps its own copy of this tiny, stable table rather than a new shared-lib home). */
-export const SANCTIONED_FILES = [`${SESSIONS}verbs/provision-identity.ts`, `${SESSIONS}persistence/users.ts`] as const;
-
-/** The simple name of a call's callee: `insertUser(…)` → "insertUser"; `db.x(…).set(…)` → "set". */
-export function calleeName(call: Node): string | undefined {
-  if (!call.isKind(SyntaxKind.CallExpression)) {
-    return;
-  }
-  const callee = call.getExpression();
-  if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return callee.getName();
-  }
-  return callee.isKind(SyntaxKind.Identifier) ? callee.getText() : undefined;
-}
-
-/** A literal `null` / `undefined` value — a non-binding write (the local-user default + the un-bind). Seen
- *  through `as`/`satisfies`/parens (`null as ExternalId | null`). */
-function isNullish(value: Node | undefined): boolean {
-  if (value === undefined) {
-    return false;
-  }
-  const inner = unwrapExpression(value);
-  return inner.isKind(SyntaxKind.NullKeyword) || (inner.isKind(SyntaxKind.Identifier) && inner.getText() === "undefined");
-}
-
-/** Is an `externalId`/`external_id` object-KEY (assignment or shorthand) a users-COLUMN BIND — its nearest
- *  enclosing call is a write verb AND its value is not literal null? A key in a `.select()` map / `audit()`
- *  metadata / a bare return object has no enclosing write call; `externalId: null` binds no subject. A
- *  ShorthandPropertyAssignment carries a live variable (never a null literal) so it always binds. */
-export function isExternalIdWriteKey(node: Node): boolean {
-  if (node.isKind(SyntaxKind.PropertyAssignment)) {
-    if (!KEYS.has(node.getNameNode().getText().replace(/["']/gu, "")) || isNullish(node.getInitializer())) {
-      return false;
-    }
-  } else if (node.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
-    if (!KEYS.has(node.getNameNode().getText())) {
-      return false;
-    }
-  } else {
-    return false;
-  }
-  const enclosingCall = node.getFirstAncestorByKind(SyntaxKind.CallExpression);
-  return enclosingCall !== undefined && WRITE_VERBS.has(calleeName(enclosingCall) ?? "");
-}
-
-/** Is `node` an `<expr>.externalId = <value>` (or `.external_id =`) assignment of a NON-null value — the
- *  patch-building bind (`changes.externalId = …`)? `===` (an equality read) is a different token and is NOT
- *  matched; `= null` (the un-bind) is not a bind. */
-export function isExternalIdAssignment(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.BinaryExpression) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
-    return false;
-  }
-  const lhs = node.getLeft();
-  return lhs.isKind(SyntaxKind.PropertyAccessExpression) && KEYS.has(lhs.getName()) && !isNullish(node.getRight());
-}
-
-export function isClaimWriterCall(node: Node): boolean {
-  return node.isKind(SyntaxKind.CallExpression) && calleeName(node) === CLAIM_WRITER;
-}
-
-/** The exact node/token pair to report a claim-writer call at — the callee's own name node, never the
- *  whole call (`report.node` requires the token be an exact slice of the reported node's text at its
- *  offset, and a call's text starts with its arguments' receiver for a member form). */
-function claimWriterAnchor(call: Node): { readonly node: Node; readonly token: string } {
-  const callee = call.isKind(SyntaxKind.CallExpression) ? call.getExpression() : call;
-  const nameNode = callee.isKind(SyntaxKind.PropertyAccessExpression) ? callee.getNameNode() : callee;
-  return { node: nameNode, token: nameNode.getText() };
-}
-
-/** The exact node/token pair for one detected externalId write — the property NAME node (assignment,
- *  shorthand, or the LHS of `<x>.externalId = …`), never the whole guarded node: `report.node` requires
- *  its token be an exact slice of the reported node's OWN text, and a keyed assignment's or a patch
- *  assignment's full text does not start with the key. Returns the AUTHORED spelling
- *  (`external_id` stays `external_id`) rather than a hardcoded literal. */
-function writeAnchor(node: Node): { readonly node: Node; readonly token: string } {
-  if (node.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
-    return { node: node.getNameNode(), token: node.getNameNode().getText() };
-  }
-  if (node.isKind(SyntaxKind.PropertyAssignment)) {
-    const nameNode = node.getNameNode();
-    return { node: nameNode, token: nameNode.getText() };
-  }
-  const lhs = node.asKindOrThrow(SyntaxKind.BinaryExpression).getLeft().asKindOrThrow(SyntaxKind.PropertyAccessExpression);
-  const nameNode = lhs.getNameNode();
-  return { node: nameNode, token: nameNode.getText() };
-}
-
-const SANCTIONED_SET: ReadonlySet<string> = new Set(SANCTIONED_FILES);
+const SANCTIONED_SET: ReadonlySet<string> = new Set(EXTERNAL_ID_SANCTIONED_FILES);
 
 export const gate = defineGate({
   id: "external-id-single-writer",
   family: "external-id-single-writer",
   authority: "hard",
   severity: "error",
-  population: "@backend",
+  population: "@server",
   analysis: "syntax",
   execution: "selected-files",
   facts: [],
@@ -151,10 +67,10 @@ export const gate = defineGate({
     visitors: [
       {
         kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
-        visit: (node, sourceFile) => {
+        visit: (node: Node, sourceFile) => {
           const rel = ctx.relativePath(sourceFile);
           if (isClaimWriterCall(node)) {
-            if (!CLAIM_CALLERS.has(rel)) {
+            if (!EXTERNAL_ID_CLAIM_CALLERS.has(rel)) {
               const anchor = claimWriterAnchor(node);
               ctx.report.node(anchor.node, { token: anchor.token, offset: 0 });
             }
@@ -168,7 +84,7 @@ export const gate = defineGate({
           if (SANCTIONED_SET.has(rel)) {
             return;
           }
-          const anchor = writeAnchor(node);
+          const anchor = externalIdWriteAnchor(node);
           ctx.report.node(anchor.node, { token: anchor.token, offset: 0 });
         },
       },

@@ -7,6 +7,16 @@
 // identifier tracing to no declared table) reports too — an unreadable target is unproven. DECLARED LIMITS:
 // an unreadable config (a spread/identifier, or drizzle's DEPRECATED ambiguous `where:`) fails CLOSED, and
 // `onConflictDoNothing` is out of scope (it overwrites nothing).
+//
+// MARKER CENSUS: this is a NEW gate (the legacy corpus had no separate upsert checker — the legacy
+// `owner-scoped-writes` treated `onConflictDoUpdate` as out of scope entirely), so there is no legacy
+// `@owner-scope-*` marker to translate here. Its OWN waiver position (`owner-scoped-upserts(<ident>)`) is
+// distinct from the sibling gates': a `@orb-waive owner-scoped-writes(<ident>)` marker sitting on an
+// upsert candidate targets the WRONG policy id and must not suppress it — the retired legacy scenario
+// "a WRITE marker does not exempt an UPSERT" — proven via runPolicyPass in
+// tests/tooling/verify/gates/tenancy-scope-family.test.ts (a report-identity assertion, not a conformance
+// row: an authority alarm from a mismatched marker is itself a conformance FAILURE, so this case can only
+// be proven by driving the dispatcher directly and asserting the alarm).
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
