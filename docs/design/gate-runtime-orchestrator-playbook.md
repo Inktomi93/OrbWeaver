@@ -108,18 +108,28 @@ accuser. The rule is guide §12.3. Also done: the `mustFlag`/`expect` half (39 r
 (`bus-on-data-no-store-write`'s unspellable paren token, plus the false "in className" claim in
 `no-raw-container-widths` / `no-raw-typography-in-features` / `no-raw-spacing-in-features`).
 
-**A conversion now proves itself by landing** — that is what B2 bought, and it is why D is cheap.
+**0 failures is the FLOOR B2 stands on, not B2's goal.** The owner's bar is guide §5b: every converted module must be
+one you can point a conversion lane at and say *go look how they do it*. Conformance green only proves a module's
+DECLARED rows execute — not that it declared the right rows, used the smallest complete contract, named its family
+honestly, or told the truth in its `message`. What green bought is that the audit below is now CHEAP, because the
+tree tells you the moment a fix breaks a row.
 
-1. **#1952 — identity arms, 24 of 86 remaining** (grep floor; ~26 true), batches of ~8 by family. Self-checking
-   (guide §4.2), so cheap and parallelisable. This is the last open B2 item that blocks nothing and compounds.
-2. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
-   pins have no home. Re-derive the list before dispatching — three lanes have been chipping at it; guide §2's row
-   names the last measured set.
-3. **Fenced modules whose fence no proof row exercises** (found by #1954, and the reason that row grew): deleting
-   `inClassCarrier` from `no-raw-spacing-in-features` and `no-raw-typography-in-features` left every pre-existing
-   proof row GREEN. A message or header that claims a narrowing owes a row that goes red when the narrowing is
-   deleted. Sweep the corpus for the same shape — it is cheap (delete the fence in a `cp`-backed copy, run
-   conformance, restore) and it is exactly the defect class the whole B2 phase exists to find.
+**Why this precedes D and is not optional polish:** the converted set is the transmission mechanism for the other
+106. A defect left in an exemplar gets copied, so B2 debt is the only debt in this program that multiplies.
+
+1. **The §5b exemplar audit — the main event.** Seven criteria per module over 162 modules. `verifier`-class lanes at
+   family granularity, one family per lane, a per-module verdict line required so a miss surfaces as a missing row
+   rather than hiding inside "none found" (§5). Items 2, 3 and 5 of §5b are judgment about whether prose matches
+   behavior and cannot be delegated to a script or a `scout`. Mechanically bounded so far: 2 ordinary policies carry
+   no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
+   `testid-typed-only`).
+2. **#1952 — identity arms, 24 of 86 remaining** (grep floor; ~26 true), batches of ~8 by family. Self-checking
+   (guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
+3. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
+   and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
+   fence in a `cp`-backed copy, run its rows, restore — so it goes inside the audit lane for each family.
+4. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
+   pins have no home. Re-derive the list before dispatching; guide §2's row names the last measured set.
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 

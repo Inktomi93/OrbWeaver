@@ -245,10 +245,53 @@ This is no longer work; it is the substrate every lane now builds on. What it gu
 - **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
   policies, reviewed grants only final reviewed-grant policies.
 
-**Read the conformance stage's exit as a real verdict — it is GREEN as of `097958302`, so it is now a bar.** It was
-never baselined red the way the whole-tree checks are; it exited 2 only while fact-provider defects were open, and
-those are closed. A red here is a regression, and the stage is the cheapest proof a conversion owes: land the module
-and its declared rows run.
+**Read the conformance stage's exit as a real verdict — it is GREEN as of `097958302`.** It was never baselined red
+the way the whole-tree checks are; it exited 2 only while fact-provider defects were open, and those are closed. A red
+here is a regression.
+
+**But green is a FLOOR, not the bar — see §5b.** The stage proves that each module's DECLARED rows execute and pass.
+It cannot tell you the module declared the RIGHT rows, used the smallest complete contract, named its family honestly,
+or told the truth in its `message`. A module with two trivial rows and a lying message sits at 0 failures. Three did
+(#1954).
+
+## 5b. PRISTINE — the bar a converted module is actually held to (owner, 2026-09-11)
+
+> *"Pristine does not mean the number goes to 0. It means the gates that are new all need to maximally be set, and
+> proper, and not violate the rules that we set forth — so when we convert legacy shit we can point to them and say:
+> see, go look how they do it."*
+
+**The test is not "does it pass." The test is "can I point a conversion lane at this module and tell it to copy?"**
+A module that passes conformance but cannot survive that sentence is NOT done, whatever the verdict says. This matters
+more than it sounds: the exemplars are the transmission mechanism for the whole remaining corpus, so a defect in a
+converted module does not stay in that module — it gets copied 106 times.
+
+A converted module is pristine when all seven hold. The first six are the contract; the seventh is why the bar exists.
+
+1. **Smallest complete contract for its evidence plane** (§3's table). Nothing declared that it does not use: no
+   `facts:` entry it never reads, no `ctx.checker()` on a pure-syntax gate, no `execution: "entire-population"` where
+   the verdict composes over a subset. An over-declared contract teaches the next lane to over-declare.
+2. **The `message` is TRUE of what the code flags.** Every context clause is a claim — "in `className`", "in a feature
+   surface", "at a call site" — and it must match the population, the carrier and the report call. Three modules
+   claimed "in className" and did not mean it (#1954); each was green.
+3. **`fix` names the exact waiver spelling**, for every ordinary policy, read off the `report.node` call and never off
+   the message. The position is routinely not what a reader would call the offense (§3), so a missing or guessed `fix`
+   makes the policy unusable by the person it fires on.
+4. **The family is a real shared `lib/` reader** (module + function, named in the header) or a declared singleton with
+   its reason. A theme, a filename prefix and a shared topic are not families.
+5. **The header records the decisions**: the family and its reader, the population port (byte-identical, or the
+   intentional correction and why), and the marker census if a private vocabulary was retired.
+6. **The proofs meet §4 in full**: legacy rows carried; `expect` on every `mustFlag`; a row that dies without each
+   narrowing (§4.1); the positive identity arm for every ordinary policy (§4.2); refusal/receipt pins where the verdict
+   depends on a derived population (§4.5).
+7. **Nothing forbidden survives behind the contract** — no private reader, walk, cache, exemption table, scope
+   predicate or filesystem read, and none smuggled into a `lib/` helper that only this module calls. A private reader
+   wearing a shared reader's clothes is the same rot with a better address.
+
+**Measuring this is a READING task and a script can only bound it.** Items 1, 4, 6 and 7 are partly greppable; items 2,
+3 and 5 are judgment about whether prose matches behavior, which is exactly where a mechanical sweep returns a false
+clean (playbook §5). Audit it with `verifier`-class lanes at family granularity, requiring a per-module verdict line so
+a miss surfaces as a missing row rather than hiding inside "none found". Gaps are defects and get rows; they are not
+conversion debt to be carried forward, because every one of them propagates.
 
 ## 6. What is done and what remains
 
