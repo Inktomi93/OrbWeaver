@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 32,
+    "pending": 33,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -452,8 +452,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 426,
-      "bytes": 256648,
-      "sha256": "928890463972e1db899e1eb6e6564cc4e93c927cda490ad5a194324ef5beaaa6",
+      "bytes": 257374,
+      "sha256": "a7eec1a4bb70784d9e1a6e04de199f7fbe77723a003bd0fcb9f8e87ef1a73f8e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -625,7 +625,7 @@
         ],
         "summary": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -12660,9 +12660,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 400,
-      "bytes": 37434,
-      "sha256": "1ac441490b78a10dbecce7fd221c859f210cd945e4a4683e5a30384c1c928dda",
+      "lines": 424,
+      "bytes": 40061,
+      "sha256": "513ea0c4e1982d460bd118c9f74900cf38891448a21d8f9d1638c4ebaa84bf15",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12702,9 +12702,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 755,
-      "bytes": 81076,
-      "sha256": "d2b16d9f1e5160af371ff292a6824100e517e9218f4efa72b7725f31acab7bdd",
+      "lines": 819,
+      "bytes": 86519,
+      "sha256": "35148bdef3eaee0c185b782ea21f184da9e3fe1402df2402491070527c4cc874",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30444,6 +30444,37 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
         "assignedSha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 549,
+      "bytes": 41840,
+      "sha256": "82c064f1e034d90118cab2295c47855f2c73df45a6a90e95fde76a9403f68d75",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-11"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md",
+        "assignedSha256": "82c064f1e034d90118cab2295c47855f2c73df45a6a90e95fde76a9403f68d75",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
