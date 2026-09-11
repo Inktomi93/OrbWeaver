@@ -110,31 +110,39 @@ gates in a pristine place before converting old ones"). Precedes C and D.**
 5. The two message overclaims the audit found beyond `no-color-literals`: the false "in className" context claim
    repeats in `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`.
 
-**Phase C — resource kinds (#1930). THIS IS DESIGN-FIRST, NOT AN EXECUTOR LANE.** It unblocks the most conversions
-(11+ named gates, and the pattern recurs across the remaining 106), but the row itself says it owes THREE decisions
-before any implementation, and a lane briefed without them can only refuse or paper over:
+**Phase C — CLOSE THE CONTRACT, ONCE. Forge. This is a design pass, not an executor lane** (owner, 2026-09-11:
+"we do it once and we do it the right way — skimping out is what bit us the first time").
 
-1. Which capabilities are RESOURCE KINDS versus `defineFact` PROVIDERS. The row's own analysis: the Base UI surface
-   and token contract are whole-population facts wanted once per invocation, so they fit `defineFact`; path liveness,
-   raw bytes and staged blobs are per-subject reads, so they fit resource kinds.
-2. Whether `node_modules` traversal becomes declarable AT ALL. An installed `.d.ts` tree is neither authored nor
-   currently declarable, so this is new vocabulary rather than an extension of the source-universe rule.
-3. Whether the population algebra gains ONE reviewed, tested operator for directory-tier permission — it would shrink
-   the path-liveness and sanctioned-home (#1922) work at once.
+**Why #1930 as written is not the shape.** It names seven capabilities derived from ELEVEN gates that three lanes
+happened to trip over. The remaining legacy set is **106**. Implement those seven and the 107th gate trips over an
+eighth, and every capability added costs a mandatory pass over FOUR policing surfaces — `policy-conformance.ts`'s
+fixture runner, `gate-modernization`, `enforcement-registry-parity`, `policy-validation.ts`. That already happened
+once: `gate-modernization`'s arm A had to be widened the day 163 modules became `defineGate` calls, because the
+policer broke when the thing it polices moved. Seven dribbles is seven rounds of policer churn.
 
-**Also note the path-liveness kind needs a FIXTURE-RUNTIME change, not just a kind:** `runResourceExample` only writes
-files and cannot express a symlink, which that kind's proofs require. That makes it runtime work, adjacent to Phase A.
+**And "leave them legacy" is not the answer either.** Mixed runtime makes a legacy module tolerable INDEFINITELY, but
+legacy means a private reader, a gate-owned exemption table and a direct walk — the exact rot the closed contract
+exists to eliminate. Tolerating it forever is the skimp that produced this program.
 
-Ordering once the decisions land, by what each unblocks: path liveness (5 — `runner-config-path-liveness` plus the
-four grant-liveness/`tsconfig-entry-liveness` siblings still on `lib/grant-liveness.ts`) → document/ledger facts (9)
-→ CSS census and static-class parity (14) → Base UI installed surface (7) → token contract → tsconfig programs. Each
-ships as a provider or kind with ready/missing/empty/unresolved receipts and its own controls. **No gate converts on a
-kind before the kind lands**, and a conversion that keeps a private reader behind a `defineGate` wrapper lowers the
-census while leaving the forbidden machinery in place — the exact false green the census cannot catch.
+**So Phase C is one pass:**
 
-**`gate:contract`'s simple tier is blind to this by construction.** It is mechanical AST shape-matching on the
-descriptor literal and cannot see what a gate READS, so "simple by gate:contract" is never "convertible". The
-convertibility oracle is the proposed-vs-shipped diff in `resource-gate-access-patterns.md`.
+1. **Derive the capability requirement across ALL remaining legacy modules**, not the eleven already tripped over.
+   Inputs: the 53-row resource manifest in `resource-gate-access-patterns.md`, the per-gate blocker tables in
+   `uncovered-gate-conversion-census.md` (counts stale, engineering durable), and a fresh read of every legacy
+   module's actual reads. `gate:contract`'s simple tier is BLIND here by construction — it shape-matches the
+   descriptor literal and cannot see what a gate READS, so "simple by gate:contract" is never "convertible."
+2. **Rule the final closed set in one decision**, answering #1930's three open questions for the whole population:
+   resource kind versus `defineFact` provider per capability; whether `node_modules` traversal becomes declarable at
+   all; whether the population algebra gains one reviewed directory-tier operator (which would shrink path-liveness
+   and #1922 together). A capability serving ONE gate is that gate's private reader wearing a contract's clothes —
+   either it generalises or that gate's shape is wrong.
+3. **Build it in one pass, then update the policing layer ONCE.** Includes the fixture-runtime work the kinds need —
+   `runResourceExample` only writes files and cannot express a symlink, which path-liveness proofs require.
+4. **Then the contract is FROZEN** and conversions proceed against a set that no longer moves.
+
+Sequencing note: two of the five gates path-liveness was supposed to unblock (`depcruise-grant-liveness`,
+`eslint-grant-liveness`) are ALREADY converted without it, so the row's own blocked-count needs re-deriving as part
+of step 1 rather than trusted.
 
 **Phase D — conversions, cap 3 minus the running prerequisite lane.** Pick families from the legacy roster (re-derived
 in §0.5) in this order: direct-walking visitors and file hooks whose reader already exists → run-only evaluators on an
