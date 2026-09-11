@@ -496,10 +496,24 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
  *  tree that no longer declares its guarded table. That arm — blindness mode B — was recorded as BLOCKED in
  *  that module's header for exactly this reason (#1962); it is enabled in the same commit as this line.
  *
- *  What the refusal still bites: a population admitting zero authored paths — the provider genuinely could
+ *  WHY THE CONSUMER CAN OWN THIS AND THE PROVIDER CANNOT — the ordering, which is the non-obvious fact the
+ *  whole rule rests on: `evaluateRuns` (`lib/policy-pass.ts:721-733`) runs a policy's `evaluate`, THEN
+ *  collects its receipts, THEN judges them. A consumer therefore REPORTS FIRST and refuses after, so one
+ *  cause yields a finding OR a refusal by the consumer's own choice. `finishFactRuns` (`:668-686`) does the
+ *  reverse for a provider — it judges the receipt before any consumer runs — so a provider receipting its
+ *  census can only ever preempt. Same shape, opposite order, and that is the entire asymmetry.
+ *
+ *  WHAT THE REFUSAL STILL BITES: a population admitting zero authored paths — the provider genuinely could
  *  not look, which no consumer can distinguish from a schema tree that honestly declares nothing. That
  *  refusal is per-provider and fires one phase EARLIER, at population. Same ruling, same reason as
- *  `bus-fact.ts#PROVIDER_RECEIPT_SOURCE` (#1955) and `registry-fact.ts` (#1953). */
+ *  `bus-fact.ts#PROVIDER_RECEIPT_SOURCE` (#1955) and `registry-fact.ts` (#1953).
+ *
+ *  WHAT THE RUNTIME DOES NOT BACKSTOP, so a reviewer must: `policyReceiptFailures` has no "policy produced
+ *  no semantic receipt" arm (`factReceiptFailures` does), so a consumer that declares this fact, reads it and
+ *  files NO receipt renders a clean verdict over an EMPTY census — measured, and pinned as the fail-open
+ *  shape in `tests/tooling/verify/lib/schema-fact.test.ts`. What keeps THIS provider's guarantee universal is
+ *  the shared helper: all 18 consumers call `recordReadySchemaFact`, which throws on any non-`ready` status
+ *  and files the census receipt. A new consumer that skips it inherits no blindness door. */
 const PROVIDER_RECEIPT_SOURCE = "drizzle-schema-sources";
 
 export const DRIZZLE_SCHEMA_POPULATION = {

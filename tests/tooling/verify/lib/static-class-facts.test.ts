@@ -302,12 +302,15 @@ test("a frontend corpus with NO class token is DELIVERED — the provider receip
   });
 });
 
-test("UNRESOLVED authored syntax still refuses at the provider — the asymmetric half that did NOT move", () => {
-  // THE PLANTED CONTROL for the row above, and the §12.3 asymmetry: `members` is the census (moved),
-  // `unresolved` counts syntax this reader could NOT READ (kept). A mutated alias is unread, not absent, and
-  // no consumer can tell the two apart from a clean `tokens: []` — so the provider refuses and withholds,
-  // rather than handing a consumer a confident zero. Delete `unresolved` from the receipt and this row goes
-  // green while the tree it describes stays unreadable.
+test("UNREADABLE authored syntax is DELIVERED as corpus data, never receipted as a broken instrument", () => {
+  // THE SECOND HALF OF THE SAME RULE (owner ruling, 2026-09-11). A receipt's `unresolved` means "I could not
+  // complete my MEASUREMENT"; `receiptFailures` treats it as a broken instrument and withholds every
+  // consumer. A `className` bound to a mutated alias is something this reader successfully measured and
+  // CLASSIFIED — a fact about the corpus — so it rides `facts.unresolved` on the value, where a consumer can
+  // read it and REPORT it. Publishing it as a receipt field was the steady-state detonation: one mutated
+  // alias anywhere in `@client`/`@ui` would have withheld every consumer of a frontend-wide reader forever.
+  // Restore `unresolved: facts.unresolved.length` to the provider receipt and this row dies on the first
+  // assertion (measured: the fact refuses at `receipt` and `captured` never arrives).
   let captured: StaticClassFactResult | undefined;
   const gate = deliveryProbe((facts) => {
     captured = facts;
@@ -323,12 +326,16 @@ test("UNRESOLVED authored syntax still refuses at the provider — the asymmetri
     failOnWarnings: false,
   });
 
-  expect(captured).toBeUndefined();
-  expect(result.factErrors).toMatchObject([
-    { factId: "static-class", phase: "receipt", message: expect.stringContaining('population "static-class-sources" left 1 unresolved') },
-  ]);
-  expect(result.authority.withheldPolicyIds).toEqual(["static-class-delivery-probe"]);
-  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  // The consumer ran, and the unreadable syntax reached it AS DATA — reason and node included, which is what
+  // a policy needs to report it. The receipt states only the denominator walked.
+  expect(captured?.unresolved.map(({ reason }) => reason).join(" ")).toContain("mutable");
+  expect(captured?.tokens.map((token) => token.value)).not.toContain("probe:stale");
+  // One walked source, and ZERO declared instrument failures even though the corpus holds one unreadable
+  // expression — the receipt normalizes an omitted `unresolved` to 0, which is exactly the claim being made.
+  expect(result.facts[0]?.receipts).toEqual([{ kind: "population", source: "static-class-sources", members: 1, unresolved: 0 }]);
 });
 
 test("a provider that could not LOOK refuses one phase EARLIER, at its own population", () => {
