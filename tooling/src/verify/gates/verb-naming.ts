@@ -1,12 +1,9 @@
-// Gate: verb-naming (Core-0 §4/§7) — a verb file exports a callable runtime create<Pascal(base)>.
-// COMMENT POSTURE: comment-SAFE — exported AST declarations and callable initializers only.
-// domain/<f>/verbs/**/<verb>.ts must export `create<Pascal(verb)>(ctx, deps?)` (e.g. create.ts →
-// createCreate, bulk-archive.ts → createBulkArchive). index.ts barrels are exempt.
+// Gate: verb-naming — each server verb module exports the callable create<Pascal(filename)> factory.
+// Export and callable identity use the compiler surface; comments and same-spelled types are inert.
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-
-const VERB_FILE = /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u;
 
 function pascal(kebab: string): string {
   return kebab
@@ -15,12 +12,8 @@ function pascal(kebab: string): string {
     .join("");
 }
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-function isCallableRuntimeExport(sf: Parameters<NonNullable<GateDescriptor["visitFile"]>>[0], name: string): boolean {
-  return (sf.getExportedDeclarations().get(name) ?? []).some((declaration) => {
+function isCallableRuntimeExport(sourceFile: SourceFile, name: string): boolean {
+  return (sourceFile.getExportedDeclarations().get(name) ?? []).some((declaration) => {
     if (Node.isFunctionDeclaration(declaration)) {
       return true;
     }
@@ -36,67 +29,74 @@ function isCallableRuntimeExport(sf: Parameters<NonNullable<GateDescriptor["visi
   });
 }
 
-export const gate: GateDescriptor = {
-  name: "verb-naming",
-  docRow: "core/Core-0-Architecture-and-Structure.md §4/§7",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "a domain verb file does not export `create<Pascal(filename)>(ctx, deps?)` — one verb per file, named for the file (Core-0-Architecture-and-Structure.md §4/§7).",
+const MESSAGE =
+  "a domain verb file does not export `create<Pascal(filename)>(ctx, deps?)` — one verb per file, named for the file (Core-0-Architecture-and-Structure.md §4/§7).";
+
+export const gate = defineGate({
+  id: "verb-naming",
+  family: "verb-naming",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@server"], under: ["packages/server/src/domain/*/**/verbs/**/*.ts"], notNamed: ["index.ts"], ext: ["ts"] },
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
   fix: "rename the exported factory to `create<Pascal(filename)>` (create.ts → createCreate, bulk-archive.ts → createBulkArchive).",
-  scanRoot: (p) => VERB_FILE.test(`/${p}`),
-  visitFile: (sf, ctx) => {
-    const base = sf.getBaseNameWithoutExtension();
-    if (base === "index") {
-      return;
-    }
-    const expected = `create${pascal(base)}`;
-    if (!isCallableRuntimeExport(sf, expected)) {
-      ctx.report({
-        file: relPath(ctx.root, sf.getFilePath()),
-        line: 0,
-        column: 0,
-        token: `expected ${expected}`,
-      });
-    }
-  },
+  create: (ctx) => ({
+    visitFile: (sourceFile) => {
+      ctx.checker();
+      const expected = `create${pascal(sourceFile.getBaseNameWithoutExtension())}`;
+      if (!isCallableRuntimeExport(sourceFile, expected)) {
+        ctx.report.file(ctx.relativePath(sourceFile), { line: 1, column: 1, token: `expected ${expected}` });
+      }
+    },
+  }),
   mustFlag: [
     {
-      files: "export const wrongName = 1;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "a verb file exporting the wrong name (not createStartChat) — one verb per file, named for it",
+      mode: "types",
+      files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const wrongName = 1;\n" },
+      expect: { token: "expected createStartChat" },
+      why: "a verb module exports the wrong runtime name",
     },
     {
-      files: "export type createStartChat = () => void;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "a type-only export has the expected spelling but provides no callable runtime verb factory",
+      mode: "types",
+      files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export type createStartChat = () => void;\n" },
+      why: "a same-spelled type is not a runtime verb factory",
     },
     {
-      files: "export const createStartChat = 1;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "a non-callable runtime constant has the expected spelling but is not a verb factory",
+      mode: "types",
+      files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n" },
+      why: "a non-callable runtime constant is not a verb factory",
     },
     {
-      files: "export const createStartChat: () => void = 1 as never;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "a callable annotation cannot turn a non-callable runtime initializer into a verb factory — judge the value that will execute, not its declared call signature",
+      mode: "types",
+      files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat: () => void = 1 as never;\n" },
+      why: "a callable annotation cannot make the runtime initializer callable",
     },
   ],
   mustPass: [
     {
-      files: "export const createStartChat = (ctx: unknown) => ctx;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "the verb file exports create<Pascal(base)> = createStartChat — the sanctioned shape, passes",
+      mode: "types",
+      files: { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = (ctx: unknown) => ctx;\n" },
+      why: "the module exports the callable factory named for its file",
     },
     {
-      files: "function buildStartChat() { return () => undefined; }\nexport const createStartChat = buildStartChat;\n",
-      at: "packages/server/src/domain/chat/verbs/start-chat.ts",
-      why: "a runtime alias whose initializer resolves to a callable value remains a sanctioned verb factory",
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/start-chat.ts":
+          "function buildStartChat() { return () => undefined; }\nexport const createStartChat = buildStartChat;\n",
+      },
+      why: "a stable local alias of a callable runtime value remains a verb factory",
     },
     {
-      files: 'export { createStartChat } from "./start-chat";\n',
-      at: "packages/server/src/domain/chat/verbs/index.ts",
-      why: "an index.ts barrel in a verbs/ dir is exempt (base === 'index') — passes without a create<Pascal> export",
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/index.ts": 'export { createStartChat } from "./start-chat";\n',
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => undefined;\n",
+      },
+      why: "the index barrel carve is declared by population while an admitted legal verb keeps the proof nonempty",
     },
   ],
-};
+});
