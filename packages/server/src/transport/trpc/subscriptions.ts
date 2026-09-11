@@ -28,7 +28,7 @@ export interface SubscriptionErrorFrame {
 export async function* withSubscriptionErrors<TData>(
   source: AsyncIterable<TrackedEnvelope<TData>>,
 ): AsyncGenerator<TrackedEnvelope<TData> | TrackedEnvelope<SubscriptionErrorFrame>> {
-  // @orb-gate-ignore caught-failure-ownership(empty:err): documented above — a DomainError becomes a
+  // @orb-waive caught-failure-ownership(err): documented above — a DomainError becomes a
   // typed terminal frame consumed by the client; a non-domain error is re-thrown. Ends if the re-throw
   // for non-domain errors is removed.
   try {

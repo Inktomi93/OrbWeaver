@@ -913,7 +913,7 @@ function preTurnCoveragePoint(args: {
 /** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
  *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
 async function emitQuiet(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): `deps.emit` is the chat bus, which already
+  // @orb-waive caught-failure-ownership(catch): `deps.emit` is the chat bus, which already
   // classifies + reports a dropped append (FLAG[emit-is-total], bus.ts) and never rejects in practice — this
   // is the fire-and-forget background-hook's own belt. Ends if `emit` grows a path that can actually reject.
   try {
@@ -1848,6 +1848,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
           // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
           // warning code.
           getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
+          // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
           try {
             await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
             // @swallowed-ok(catch): a failed WARNING emit must not mask `memErr` — the build failure the
@@ -1873,7 +1874,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
 
     return committedOutcome([view]);
   } catch (err) {
-    // @orb-gate-ignore caught-failure-ownership(empty:deltaErr): explicitly classified below — a `deltaErr` equal
+    // @orb-waive caught-failure-ownership(deltaErr): explicitly classified below — a `deltaErr` equal
     // to `err` is already owned by the outer catch; a distinct secondary failure is logged via
     // getLog().warn so it stays visible while the primary error still wins. Ends if this needs to fail the
     // turn outcome instead of only warning.
@@ -1996,6 +1997,7 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
     // returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's
     // `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still
     // pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
+    // @orb-waive caught-failure-ownership(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
     void releasedBody.catch((): undefined => undefined);
   }
 }

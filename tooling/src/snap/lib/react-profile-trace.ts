@@ -89,7 +89,7 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
     return null;
   }
   let endSent = false;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError.
+  // @orb-waive caught-failure-ownership(error): the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError.
   try {
     await capture.cdp.send("Tracing.end");
     endSent = true;
@@ -120,7 +120,7 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
     capture.started = false;
     // Tracing.end above owns browser-side trace shutdown; detaching releases the transport. The retained
     // traceError remains explicit without replacing independently valid Fiber evidence.
-    // @orb-gate-ignore caught-failure-ownership(promise:detach): Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.
+    // @orb-waive caught-failure-ownership(capture.cdp.detach): Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.
     await capture.cdp.detach().catch(() => undefined);
   }
 }
@@ -151,7 +151,7 @@ export async function startTrace(page: Page): Promise<{ readonly capture: TraceC
     return { capture, error: null };
   } catch (error) {
     if (cdp !== null) {
-      // @orb-gate-ignore caught-failure-ownership(promise:detach): a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.
+      // @orb-waive caught-failure-ownership(cdp.detach): a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.
       await cdp.detach().catch(() => undefined);
     }
     return { capture: null, error: errorMessage(error) };

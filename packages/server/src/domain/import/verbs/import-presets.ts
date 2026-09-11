@@ -50,7 +50,7 @@ async function liftPresetScripts(args: {
   // discarding the counts and notes of every preset the run had already imported and handing the operator an
   // exception instead of a partial report (#1469 item 7). The preset itself landed; only its scripts did not,
   // and that is exactly one recorded skip.
-  // @orb-gate-ignore caught-failure-ownership(empty:err): bookkeeping — the failure is recorded into
+  // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded into
   // `skippedPresets` (with the lift's own reason), part of the verb's own returned result. Ends if
   // `skippedPresets` stops being read by the caller.
   try {

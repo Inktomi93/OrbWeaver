@@ -29,7 +29,7 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
   if (typeof pid !== "number") {
     return;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.
+  // @orb-waive caught-failure-ownership(error): ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.
   try {
     process.kill(-pid, signal);
   } catch (error) {
@@ -228,7 +228,7 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
       if (child.exitCode !== null || child.signalCode !== null) {
         return;
       }
-      // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.
+      // @orb-waive caught-failure-ownership(error): ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.
       try {
         child.kill(signal);
       } catch (error) {
@@ -378,7 +378,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     /** Settle, and NAME a teardown that itself failed — the promise must resolve on every path, or the one
      *  door written to end a hang becomes the hang. A failed teardown is `code: null` (a tool error). */
     const finish = (code: number | null): void => {
-      // @orb-gate-ignore caught-failure-ownership(promise:settle): the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.
+      // @orb-waive caught-failure-ownership(settle): the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.
       settle(code).catch((error: unknown) => {
         resolvePromise({ code: null, transcript: `${chunks.join("")}\n[proc] teardown failed: ${String(error)}\n` });
       });

@@ -39,7 +39,7 @@ export function RefineryStartPane(): ReactElement {
         // The flow owns the whole outcome — resume or mint, then the selection write. Errors are already
         // toasted by the mutation's own `errorToast`, and a failed open leaves the user on this pane with
         // the picker still in front of them, which is the honest place to be.
-        // @orb-gate-ignore caught-failure-ownership(promise:openRefinery): useOpenRefinery's own errorToast
+        // @orb-waive caught-failure-ownership(openRefinery): useOpenRefinery's own errorToast
         // surfaces the failure; a failed open just leaves the person on this pane. Ends if useOpenRefinery
         // drops its errorToast.
         void openRefinery(characterId).catch(() => undefined);

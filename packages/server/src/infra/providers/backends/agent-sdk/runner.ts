@@ -369,7 +369,7 @@ async function probeContextUsage(query: Query): Promise<ContextUsage | undefined
     timer.unref();
   });
   let usage: ContextUsage | undefined;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.
+  // @orb-waive caught-failure-ownership(catch): a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.
   try {
     const res = await Promise.race([query.getContextUsage(), timeout]);
     usage = res !== undefined ? toContextUsage(res) : undefined;

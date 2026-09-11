@@ -122,7 +122,7 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
         },
       });
     };
-    // @orb-gate-ignore caught-failure-ownership(promise:boot): "FAILURE IS SILENCE (§4.9)" is the file header's
+    // @orb-waive caught-failure-ownership(boot): "FAILURE IS SILENCE (§4.9)" is the file header's
     // stated design law — a surface with no tree renders null exactly like a Tier-S surface with nothing
     // published, and a crash still feeds reportCrash + the 3-strike policy. Ends if that law is retired.
     void boot().catch(() => undefined);

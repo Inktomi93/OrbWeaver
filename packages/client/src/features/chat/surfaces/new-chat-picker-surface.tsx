@@ -167,7 +167,7 @@ export function NewChatPicker(): ReactElement {
     }
     // `startChat` navigates into the new room itself (it owns the cache seed + the enter action). A failure
     // is already toasted by the mutation; we simply do not close, so the picked characters survive for a retry.
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): useStartChat's mutation carries
+    // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
     // errorToast: "Couldn't start the chat." — the toast is the surface; not closing lets the picked characters survive
     // a retry. Ends if useStartChat drops errorToast.
     startChat({ ...intent, ...(characterIds.length > 0 ? { characterIds } : {}) })

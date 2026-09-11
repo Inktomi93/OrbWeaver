@@ -144,7 +144,7 @@ function skipStringLiteral(raw: string, open: number): number {
 }
 
 function tryParse(slice: string): Record<string, unknown> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null flows to extractJsonObject's null →
+  // @orb-waive caught-failure-ownership(catch): null flows to extractJsonObject's null →
   // the typed "no JSON object found in the reply" refusal path. Ends if that refusal path is removed.
   try {
     const parsed: unknown = JSON.parse(slice);

@@ -76,7 +76,7 @@ function utilFractions(): EngineUtilFractions {
 }
 
 async function healthOk(engine: (typeof VLLM_ENGINES)[number]): Promise<boolean> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.
+  // @orb-waive caught-failure-ownership(catch): a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.
   try {
     const res = await fetch(`http://127.0.0.1:${engineLaunchEnvFloor()[portKey(engine)]}/health`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
     return res.ok;
@@ -98,7 +98,6 @@ function gib(bytes: number): string {
 
 /** Best-effort "who" for the stopped marker — the file is a human-readable receipt, not an auth record. */
 function safeUsername(): string {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable OS user identity falls back to a fixed label ("unknown") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal.
   try {
     return userInfo().username;
   } catch {

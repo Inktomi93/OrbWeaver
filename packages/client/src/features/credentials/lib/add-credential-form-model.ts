@@ -45,7 +45,7 @@ export function parseJsonObject(text: string): Record<string, unknown> | null {
   if (trimmed === "") {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): parse returns null so the caller's validator
+  // @orb-waive caught-failure-ownership(catch): parse returns null so the caller's validator
   // flags a non-blank invalid value before save is reached. Ends if a caller stops validating a null result.
   try {
     const parsed: unknown = JSON.parse(trimmed);

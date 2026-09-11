@@ -48,7 +48,7 @@ export function ringLineLevel(record: Record<string, unknown>): number {
 
 /** Parse ONE serialized ring line. `null` ⇒ skip it (a non-JSON or non-object line). */
 export function parseLogRingLine(line: string): Record<string, unknown> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null is consumed by every caller as "skip this
+  // @orb-waive caught-failure-ownership(catch): null is consumed by every caller as "skip this
   // ring line". Ends if a caller stops filtering out the null.
   try {
     const value: unknown = JSON.parse(line);

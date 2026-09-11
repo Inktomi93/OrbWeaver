@@ -170,7 +170,7 @@ function liveAdmitted(root: string): { readonly runId: string; readonly byOwner:
     return null;
   }
   let report: StructureReportView;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): returns null, which the doc comment above says is printed as "unavailable" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.
+  // @orb-waive caught-failure-ownership(catch): returns null, which the doc comment above says is printed as "unavailable" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.
   try {
     report = JSON.parse(readFileSync(path, "utf8")) as StructureReportView;
   } catch {

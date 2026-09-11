@@ -133,7 +133,7 @@ async function probeMcpHealth(query: Query): Promise<readonly AgentMcpServerHeal
     timer.unref();
   });
   let statuses: readonly McpServerStatus[] | undefined;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an MCP status-probe failure is a diagnostic miss that collapses to undefined (no health reported); it gates no auth/credential/turn decision. Ends if MCP health ever gates a turn.
+  // @orb-waive caught-failure-ownership(catch): an MCP status-probe failure is a diagnostic miss that collapses to undefined (no health reported); it gates no auth/credential/turn decision. Ends if MCP health ever gates a turn.
   try {
     statuses = await Promise.race([query.mcpServerStatus(), timeout]);
   } catch {

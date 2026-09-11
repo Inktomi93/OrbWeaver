@@ -19,7 +19,7 @@ export function clearJoinParam(): void {
   const remainingFields = fields.filter((field) => {
     const equalsIndex = field.indexOf("=");
     const rawKey = equalsIndex === -1 ? field : field.slice(0, equalsIndex);
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): a malformed percent-encoding falls back to
+    // @orb-waive caught-failure-ownership(catch): a malformed percent-encoding falls back to
     // comparing the raw key, a deliberate fail-safe so a garbled field never blocks the scrub. Ends if the
     // fallback comparison stops being equivalent for well-formed keys.
     try {

@@ -14,7 +14,7 @@ import type { SettingsContext, SettingsService } from "../contract/service.ts";
 
 /** A human name for the entry, from the URL's last path segment (minus extension); "Background" otherwise. */
 function deriveName(url: string): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): safe floor — a display NAME derivation only; any
+  // @orb-waive caught-failure-ownership(catch): safe floor — a display NAME derivation only; any
   // parse/decode failure falls back to the same generic "Background" the empty-basename arm already returns.
   // Ends if this name feeds anything beyond cosmetic display.
   try {

@@ -227,7 +227,7 @@ function killGroupOf(pid: number): boolean {
 
 function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: number): string {
   // Best-effort: the dir may already be gone (a hand-cleaned strand), which is not a failure to report.
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.
+  // @orb-waive caught-failure-ownership(catch): best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.
   try {
     removeStageDir(root, row);
   } catch {

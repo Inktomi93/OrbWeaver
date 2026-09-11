@@ -261,7 +261,7 @@ export function RosterPicker(): ReactElement {
     if (isStarting) {
       return; // one creation at a time — a double-fire would mint two rooms for one intent.
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy.
+    // @orb-waive caught-failure-ownership(startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy.
     startChat({
       characterIds: roster.members.map((m) => m.characterId),
       anchorPersonaId: roster.anchorPersonaId,

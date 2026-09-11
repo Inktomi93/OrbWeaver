@@ -168,7 +168,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
   const client = createClient({ url: `file:${path}` });
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the QUESTION this function asks IS "does this
+  // @orb-waive caught-failure-ownership(catch): the QUESTION this function asks IS "does this
   // file read as a complete db?" — an unreadable/corrupt/truncated file answers it by throwing, and `false`
   // is that answer, consumed by `backupBeforeMigrate` (which then deletes the file and re-copies). Ends if
   // a caller starts needing the reason rather than the verdict.
@@ -679,7 +679,7 @@ export async function resetDevDatabase(db: Db): Promise<void> {
     // `exec` stops at the failing statement and leaves the transaction OPEN; without this the connection
     // would carry a half-applied teardown into whatever the caller does next. Rolling back restores the
     // schema the boot step is about to re-migrate, and the original failure is what propagates.
-    // @orb-gate-ignore caught-failure-ownership(promise:execute): the rollback is best-effort BY DESIGN —
+    // @orb-waive caught-failure-ownership(client.execute): the rollback is best-effort BY DESIGN —
     // when no transaction is active (the BEGIN itself failed) `ROLLBACK` errors, and THAT error must not
     // mask the real one, which is rethrown on the very next line and is the owned failure. Ends if the
     // rethrow below goes away.

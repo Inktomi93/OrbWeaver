@@ -76,7 +76,7 @@ export function buildClient(): boolean {
  *  token lives, never what it is (a credential echoed into a terminal is a credential leaked). */
 export function debugToken(): string {
   const path = TOKEN_PATH();
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.
+  // @orb-waive caught-failure-ownership(error): ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.
   try {
     const existing = readFileSync(path, "utf8").trim();
     if (existing.length > 0) {
@@ -109,7 +109,7 @@ export function uptimeText(startedAt: string): string {
 }
 
 export function removePidfile(): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.
+  // @orb-waive caught-failure-ownership(error): ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.
   try {
     unlinkSync(PIDFILE());
   } catch (error) {
@@ -124,7 +124,7 @@ export function safeSize(path: string): number {
 }
 
 export function readFrom(path: string, offset: number): string {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.
+  // @orb-waive caught-failure-ownership(catch): an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.
   try {
     return readFileSync(path, "utf8").slice(offset);
   } catch {
@@ -133,7 +133,7 @@ export function readFrom(path: string, offset: number): string {
 }
 
 export function tailLog(lines: number): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.
+  // @orb-waive caught-failure-ownership(catch): an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.
   try {
     return `${readFileSync(LOG_PATH(), "utf8").split("\n").slice(-lines).join("\n")}\n`;
   } catch {

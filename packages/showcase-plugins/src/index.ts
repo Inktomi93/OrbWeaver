@@ -87,7 +87,7 @@ const BUNDLE_MTIME_MS = 331_257_600_000;
  *  a missing `ui.js` means "this one is Tier-S" (pack two entries). Collapsing them would make a typo'd
  *  `ui.js` filename silently ship a plugin with no client guest. */
 async function readOptionalEntry(slug: string, entry: string): Promise<Buffer | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — the header states the
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — the header states the
   // contract: a missing `ui.js` means "this bundle is Tier-S" (skip that entry), not a failure. Ends if this
   // entry becomes required rather than optional.
   try {
@@ -110,7 +110,7 @@ async function readOptionalEntry(slug: string, entry: string): Promise<Buffer | 
 async function readBundleAssets(slug: string): Promise<{ path: string; bytes: Uint8Array }[]> {
   const dir = join(BUNDLES_DIR, slug, PLUGIN_UI_ASSETS_DIR);
   let names: string[];
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a bundle with no
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a bundle with no
   // `ui/assets/` directory ships no bundle assets, which is every one authored before #820. Ends if the
   // directory becomes required rather than optional.
   try {
@@ -139,7 +139,7 @@ async function readBundleAssets(slug: string): Promise<{ path: string; bytes: Ui
  *  edge. */
 export async function packShowcaseBundle(slug: string): Promise<Uint8Array | null> {
   let read: Buffer[];
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — SCOPED to the read
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — SCOPED to the read
   // only (the comment below states why: a blanket catch around the whole function once turned a real fflate
   // refusal into a silent "bundle missing"). Ends if the zip step below is folded back into this try.
   try {
@@ -176,7 +176,7 @@ export async function packShowcaseBundle(slug: string): Promise<Uint8Array | nul
  *  a consumer has one absence to handle rather than two. */
 export async function readShowcaseManifest(slug: string): Promise<PluginManifest | null> {
   let raw: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — "this package ships
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — "this package ships
   // no such bundle" is the contract (the `packShowcaseBundle` arm one function up). Ends if a missing bundle
   // becomes a failure rather than an absence.
   try {

@@ -109,7 +109,7 @@ export function parseCel(source: string): CelProgram | CelParseError {
   if (utf8ByteLength(source) > CEL_MAX_SOURCE_BYTES) {
     return { kind: "cel-parse-error", code: "source-too-long", message: `CEL source exceeds the ${CEL_MAX_SOURCE_BYTES}-byte cap` };
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:err): documented contract "parseCel never throws" —
+  // @orb-waive caught-failure-ownership(err): documented contract "parseCel never throws" —
   // any parse error is returned as CelParseError data, consumed by every caller as the error arm of the
   // union. Ends if a caller stops handling the CelParseError arm.
   try {

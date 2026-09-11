@@ -69,7 +69,7 @@ function liftShapes(
 ): { readonly lifted: { readonly wire: WireTool; readonly shape: ZodRawShape }[] } | { readonly unliftable: UnliftableTool } {
   const lifted: { wire: WireTool; shape: ZodRawShape }[] = [];
   for (const wire of tools) {
-    // @orb-gate-ignore caught-failure-ownership(empty:err): a wire-tool schema that will not lift is PROPAGATED as a typed {unliftable} result naming the offending tool — all-or-nothing, so the failure is surfaced (never dropped) and no half-mounted tool surface results. Ends if the unliftable result stops reaching the mount decision.
+    // @orb-waive caught-failure-ownership(err): a wire-tool schema that will not lift is PROPAGATED as a typed {unliftable} result naming the offending tool — all-or-nothing, so the failure is surfaced (never dropped) and no half-mounted tool surface results. Ends if the unliftable result stops reaching the mount decision.
     try {
       lifted.push({ wire, shape: liftJsonSchema(wire.parameters).shape });
     } catch (err) {

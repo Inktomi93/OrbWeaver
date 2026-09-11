@@ -35,7 +35,7 @@ function stringList(v: unknown): string[] {
  */
 export function parseStGroupFile(bytes: Uint8Array, fileStem: string): ParsedStGroup | null {
   let raw: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): pure `JSON.parse` over untrusted import
+  // @orb-waive caught-failure-ownership(catch): pure `JSON.parse` over untrusted import
   // bytes — documented above: "Never throws: a malformed file is one skipped group, not an aborted import."
   try {
     raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));

@@ -86,7 +86,7 @@ export function snapDirtyIdentity(root: string): SnapRunIndex["identity"]["dirty
   const hash = createHash("sha256").update(status.raw).update("\0").update(trackedDelta.raw);
   for (const path of untracked) {
     hash.update("\0").update(path).update("\0");
-    // @orb-gate-ignore caught-failure-ownership(empty:error): unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.
+    // @orb-waive caught-failure-ownership(error): unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.
     try {
       hash.update(readFileSync(join(root, path)));
     } catch (error) {
@@ -125,7 +125,7 @@ export function snapCheckoutIdentity(root: string): {
 }
 
 export async function readSnapRunStartedAt(slotDir: string): Promise<string> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a missing/corrupt optional .inflight marker deliberately falls through to the slot birthtime, the documented lower-fidelity provenance source. Ends if birthtime is no longer recorded in run.json.
+  // @orb-waive caught-failure-ownership(catch): a missing/corrupt optional .inflight marker deliberately falls through to the slot birthtime, the documented lower-fidelity provenance source. Ends if birthtime is no longer recorded in run.json.
   try {
     const marker: unknown = JSON.parse(await readFile(join(slotDir, ".inflight"), "utf8"));
     if (typeof marker === "object" && marker !== null) {

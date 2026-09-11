@@ -97,7 +97,7 @@ export const gate: GateDescriptor = {
       }
       return;
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:error): every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.
+    // @orb-waive caught-failure-ownership(error): every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.
     try {
       const assets = verifyDevToolsAssetsSync(root);
       ctx.scan({ unit: "resource", candidates: assets.pin.resourceCount, scanned: assets.manifest.resources.length });

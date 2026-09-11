@@ -276,7 +276,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
 /** Every hook call takes this door, so throw-isolation and cost attribution can never disagree (#1107). */
 function guard(run: GateRun, phase: GatePhase, errors: ToolError[], fn: () => void): void {
   chargedPhase(run.clock, phase, () => {
-    // @orb-gate-ignore caught-failure-ownership(empty:err): pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.
+    // @orb-waive caught-failure-ownership(err): pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.
     try {
       fn();
     } catch (err) {

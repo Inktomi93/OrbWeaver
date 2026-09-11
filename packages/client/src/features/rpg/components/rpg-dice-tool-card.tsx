@@ -36,7 +36,7 @@ function parseDiceResult(raw: string | null): RollDiceToolResult | null {
     return null;
   }
   let json: unknown;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a roll_dice result is provenance-faithful; a malformed blob is the renderer's own fall-back-to-generic decision (a tool call is CANON — the record is never dropped, it renders in the generic ToolCallBlock below), so the parse leaves `json` unset for the schema to reject, never a swallow. Ends if the caller stops rendering the generic block on a null parse.
+  // @orb-waive caught-failure-ownership(catch): a roll_dice result is provenance-faithful; a malformed blob is the renderer's own fall-back-to-generic decision (a tool call is CANON — the record is never dropped, it renders in the generic ToolCallBlock below), so the parse leaves `json` unset for the schema to reject, never a swallow. Ends if the caller stops rendering the generic block on a null parse.
   try {
     json = JSON.parse(raw);
   } catch {

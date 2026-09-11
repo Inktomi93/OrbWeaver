@@ -82,7 +82,7 @@ export async function trpcOp(argv: readonly string[]): Promise<number> {
   });
   const text = await res.text();
   let pretty = text;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path.
+  // @orb-waive caught-failure-ownership(catch): a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path.
   try {
     pretty = JSON.stringify(JSON.parse(text), null, 2);
   } catch {

@@ -49,7 +49,7 @@ export async function doDown(deps: DownDeps = REAL_DOWN_DEPS): Promise<ExitCode>
 
   const logSizeAtSignal = safeSize(record.logPath);
   log(`SIGTERM → pid ${record.pid}; watching the bounded drain (${DRAIN_WATCH_MS / MS_PER_SECOND}s max)…`);
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes.
+  // @orb-waive caught-failure-ownership(error): ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes.
   try {
     process.kill(record.pid, "SIGTERM");
   } catch (error) {
@@ -65,7 +65,7 @@ export async function doDown(deps: DownDeps = REAL_DOWN_DEPS): Promise<ExitCode>
     log("shutdown: complete");
   } else {
     log(`the process did not report a clean shutdown within ${DRAIN_WATCH_MS / MS_PER_SECOND}s — escalating to SIGKILL on the process group.`);
-    // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes.
+    // @orb-waive caught-failure-ownership(error): ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes.
     try {
       process.kill(-record.pgid, "SIGKILL");
     } catch (error) {

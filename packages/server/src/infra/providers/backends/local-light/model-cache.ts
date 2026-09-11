@@ -214,6 +214,7 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
     }
     entry.disposed = true;
     // @swallowed-ok(promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
+    // @orb-waive caught-failure-ownership(entry.promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
     void entry.promise.then(dispose).catch(() => undefined);
   };
   const getEntry = (id: string): MemoEntry<T> => {
@@ -226,7 +227,7 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
     entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a load failure is recoverable, so a
     // rejected entry evicts itself once settled instead of poisoning the model for the process lifetime.
-    // @orb-gate-ignore caught-failure-ownership(promise:created): this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.
+    // @orb-waive caught-failure-ownership(created): this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.
     void created.catch(() => {
       if (entries.get(id) === entry) {
         entries.delete(id);

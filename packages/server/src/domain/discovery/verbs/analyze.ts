@@ -71,7 +71,7 @@ async function compareCharactersDeep(
     return result.items[0]?.text ?? "";
   };
   let narrative: ComparisonNarrative;
-  // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — only a validation failure
+  // @orb-waive caught-failure-ownership(err): narrow rethrow — only a validation failure
   // (`StructuredOutputError`) degrades to `narrative.degraded: true` (surfaced to the caller as data); any
   // engine/infra error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate.
   try {
@@ -128,7 +128,7 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   let answer: string;
   let grounded: boolean;
   let degraded: boolean;
-  // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — only a validation failure
+  // @orb-waive caught-failure-ownership(err): narrow rethrow — only a validation failure
   // (`StructuredOutputError`) degrades to `degraded: true` (surfaced to the caller as data); any engine/infra
   // error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate.
   try {

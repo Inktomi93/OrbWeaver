@@ -60,7 +60,7 @@ export function ChatListRowMenu({ actions, chatId, title, rowName, starred, arch
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    // @orb-gate-ignore caught-failure-ownership(promise:remove): useDeleteChat carries
+    // @orb-waive caught-failure-ownership(actions.remove): useDeleteChat carries
     // errorToast: "Couldn't delete the chat." — the toast is the surface. Ends if useDeleteChat drops errorToast.
     actions.remove({ chatId }).then(
       (): void => onDeleted?.(chatId),

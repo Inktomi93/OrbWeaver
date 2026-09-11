@@ -25,7 +25,7 @@ interface ModelsListResponse {
 export async function fetchEngineMaxModelLen(engine: VllmEngine, signal?: AbortSignal): Promise<number | null> {
   const url = `${engineBaseUrl(engine)}/v1/models`;
   let res: Response;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an engine /v1/models fetch failure returns null → the caller falls back to the env-owned context window; local engine, no auth/credential. Ends if null is read as a usable window.
+  // @orb-waive caught-failure-ownership(catch): an engine /v1/models fetch failure returns null → the caller falls back to the env-owned context window; local engine, no auth/credential. Ends if null is read as a usable window.
   try {
     res = await fetch(url, { method: "GET", ...(signal !== undefined ? { signal } : {}) });
   } catch {
@@ -34,7 +34,7 @@ export async function fetchEngineMaxModelLen(engine: VllmEngine, signal?: AbortS
   if (!res.ok) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(promise:json): a malformed /v1/models body collapses to null → env-owned window fallback; local engine data read, no auth/credential. Ends if null is read as a usable window.
+  // @orb-waive caught-failure-ownership(res.json): a malformed /v1/models body collapses to null → env-owned window fallback; local engine data read, no auth/credential. Ends if null is read as a usable window.
   const body = (await res.json().catch(() => null)) as ModelsListResponse | null;
   for (const entry of body?.data ?? []) {
     const len = entry.max_model_len;

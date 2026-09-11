@@ -82,7 +82,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
    *  destructive slot with the confirm copy below. */
   const handlers: Readonly<Record<OpenActionId, (() => void) | null>> = {
     openInRefinery: (): void => {
-      // @orb-gate-ignore caught-failure-ownership(promise:openRefinery): useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.
+      // @orb-waive caught-failure-ownership(openRefinery): useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.
       void openRefinery(characterId).catch(() => undefined);
     },
     archive: (): void => update.mutate({ characterId, input: { archived: !archived } }),

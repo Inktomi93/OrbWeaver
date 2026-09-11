@@ -89,7 +89,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
       return;
     }
     actionOwned.current = true;
-    // @orb-gate-ignore caught-failure-ownership(promise:work): every `work` this wraps (accept/decline/
+    // @orb-waive caught-failure-ownership(work): every `work` this wraps (accept/decline/
     // dismiss) carries its own errorToast — the toast is the surface. Ends if a new `work` caller lacks an errorToast.
     void work()
       .catch(() => undefined)

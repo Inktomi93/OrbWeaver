@@ -283,7 +283,7 @@ function DraftFetchModelsCheck({
     }
     const forDraft = currentDraftKey;
     const draft = keyValue.trim() === "" ? { baseUrl: draftBaseUrl } : { baseUrl: draftBaseUrl, key: keyValue.trim() };
-    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): an advisory-only reachability check —
+    // @orb-waive caught-failure-ownership(mutateAsync): an advisory-only reachability check —
     // the .catch below records a count of 0 for the same draft, which IS the rendered "unreachable" state.
     // Ends if the failure branch stops writing a distinguishable UI state.
     void fetchModels

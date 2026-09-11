@@ -99,7 +99,7 @@ async function runPrograms(programs: readonly CompilerProgram[], concurrency: nu
       if (program === undefined) {
         return;
       }
-      // @orb-gate-ignore caught-failure-ownership(empty:error): stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict.
+      // @orb-waive caught-failure-ownership(error): stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict.
       try {
         const child = await runner(program.config);
         results.push({ config: program.config, status: classifyTypecheckChild(child), ...child });

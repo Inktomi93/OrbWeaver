@@ -131,7 +131,7 @@ function cookies(input: readonly NetworkCookieInput[] | undefined, path: string,
 
 function formPairs(raw: string): readonly DiskSafeNameValue[] | null {
   const decode = (value: string): string | null => {
-    // @orb-gate-ignore caught-failure-ownership(default:catch): malformed form encoding is the negative parse result; the body caller turns null into an explicit malformed-form omission and never exposes the decoder error. Ends if null stops producing that omission.
+    // @orb-waive caught-failure-ownership(catch): malformed form encoding is the negative parse result; the body caller turns null into an explicit malformed-form omission and never exposes the decoder error. Ends if null stops producing that omission.
     try {
       return decodeURIComponent(value.replaceAll("+", " "));
     } catch {
@@ -242,7 +242,7 @@ function jsonValue(value: unknown, cursor: HarJsonCursor): RedactedJsonValue {
     : Object.keys(value)
         .toSorted()
         .map((key) => {
-          // @orb-gate-ignore caught-failure-ownership(empty:catch): a hostile property getter becomes an explicit unreadable event plus [OMITTED]; the caught error can contain the secret and must never cross this disk-safety boundary. Ends if either marker or receipt is removed.
+          // @orb-waive caught-failure-ownership(catch): a hostile property getter becomes an explicit unreadable event plus [OMITTED]; the caught error can contain the secret and must never cross this disk-safety boundary. Ends if either marker or receipt is removed.
           try {
             return [key, Reflect.get(value, key)] as const;
           } catch {
@@ -337,7 +337,7 @@ function sanitizeBodyText(
     if (raw === null) {
       return omittedBody(context, "unavailable", null, null);
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): invalid JSON becomes a typed malformed-json omission; parser messages are intentionally discarded because future runtimes may quote secret-bearing input. Ends if the omission stops owning the failure.
+    // @orb-waive caught-failure-ownership(catch): invalid JSON becomes a typed malformed-json omission; parser messages are intentionally discarded because future runtimes may quote secret-bearing input. Ends if the omission stops owning the failure.
     try {
       return { kind: "sanitized", text: sanitizeJson(JSON.parse(raw), `${context.path}.json`, context), params: null };
     } catch {
@@ -424,7 +424,7 @@ function fallback(limits: NetworkEvidenceLimits): DiskSafeNetworkEvidence {
 
 export function redactNetworkEvidence(input: RawNetworkEvidence, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeNetworkEvidence {
   const limits = resolveNetworkEvidenceLimits(overrides);
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a hostile proxy/getter at the outer trust boundary fails closed to one generic unreadable receipt; the caught value may itself contain a secret and is never logged or serialized. Ends if fallback stops being the terminal safe result.
+  // @orb-waive caught-failure-ownership(catch): a hostile proxy/getter at the outer trust boundary fails closed to one generic unreadable receipt; the caught value may itself contain a secret and is never logged or serialized. Ends if fallback stops being the terminal safe result.
   try {
     const events: NetworkLimitEvent[] = [];
     const context = { limits, events } satisfies HarRedactionContext;

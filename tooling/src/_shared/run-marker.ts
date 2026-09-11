@@ -133,7 +133,7 @@ export function processRunMarker(pid: number, read: (path: string) => Buffer = r
 }
 
 function readProcFile(pid: number, name: string, read: (path: string) => Buffer): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a pid that exits mid-scan (or another user's) answers null, which every caller reads as "not provably mine" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal.
+  // @orb-waive caught-failure-ownership(catch): a pid that exits mid-scan (or another user's) answers null, which every caller reads as "not provably mine" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal.
   try {
     return read(`/proc/${String(pid)}/${name}`).toString("utf8");
   } catch {
@@ -164,7 +164,7 @@ function markerFromProc(pid: number): string | null {
 
 /** A pid's parent, from `/proc/<pid>/status`. Used only to EXCLUDE — never to select a target. */
 function parentFromProc(pid: number): number | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them.
+  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them.
   try {
     const match = PPID_RE.exec(readFileSync(`/proc/${String(pid)}/status`, "utf8"));
     return match?.[1] === undefined ? null : Number(match[1]);
@@ -174,7 +174,7 @@ function parentFromProc(pid: number): number | null {
 }
 
 function aliveBySignal(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): `kill(pid, 0)` ASKS a question and throws to answer "no" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH.
+  // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS a question and throws to answer "no" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH.
   try {
     process.kill(pid, 0);
     return true;
@@ -190,7 +190,7 @@ function errnoIs(error: unknown, code: string): boolean {
 }
 
 function signalPid(pid: number, signal: NodeJS.Signals): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed.
+  // @orb-waive caught-failure-ownership(error): ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed.
   try {
     process.kill(pid, signal);
   } catch (error) {

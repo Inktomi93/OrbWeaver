@@ -44,7 +44,7 @@ const BLIND_MESSAGE =
  *  VIOLATION of this gate's contract, not a broken checker. */
 function judgeLedger(ctx: GateRunCtx, rel: string): number {
   let rows = 0;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): reported via ctx.report() as an UNPARSEABLE LEDGER violation, per the doc comment above — the gate's contract treats a parse failure as a finding, never a silent pass. Ends if ctx.report() stops being read as the gate's violation stream.
+  // @orb-waive caught-failure-ownership(error): reported via ctx.report() as an UNPARSEABLE LEDGER violation, per the doc comment above — the gate's contract treats a parse failure as a finding, never a silent pass. Ends if ctx.report() stops being read as the gate's violation stream.
   try {
     const ledger = readRatchetLedger(ctx.root, rel);
     for (const row of ledger.rows) {

@@ -60,7 +60,7 @@ export function readStageReaps(home: string): readonly StageReapEntry[] {
   if (!existsSync(path)) {
     return [];
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a truncated/garbage ledger reads as "no reaps recorded", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a truncated/garbage ledger reads as "no reaps recorded", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back.
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (!(isRecord(parsed) && parsed["v"] === REAPS_FILE_VERSION && Array.isArray(parsed["rows"]))) {

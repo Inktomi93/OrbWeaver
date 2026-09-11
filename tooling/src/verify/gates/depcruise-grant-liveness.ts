@@ -175,7 +175,7 @@ function reportFinding(ctx: GatePolicyContext, finding: Finding, message?: strin
  *  matching nothing, which makes it DEAD and therefore loud — dep-cruiser would reject it too. */
 function regexMatcher(source: string): (member: string) => boolean {
   let re: RegExp;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unparseable pattern matches nothing, so it
+  // @orb-waive caught-failure-ownership(catch): an unparseable pattern matches nothing, so it
   // surfaces through the DEAD arm with its own diagnostic rather than aborting the pass. Ends if this gate
   // grows a distinct "malformed pattern" arm.
   try {

@@ -229,7 +229,7 @@ export interface PatternLivenessOutcome {
  *  against the filesystem would answer differently depending on whether node_modules/dist/reports exist
  *  (and `__g_` fixtures are materialised for milliseconds mid-run by check-gates.int). */
 function trackedRepoPaths(root: string): readonly string[] {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): NOT a swallow — an empty corpus is the
+  // @orb-waive caught-failure-ownership(catch): NOT a swallow — an empty corpus is the
   // caller's LOUD blindness arm ("I could not measure", never "clean"), and every caller reds on it at
   // real-config scope. Throwing here would surface as an anonymous harness ToolError instead of the
   // diagnostic that names the config. Ends if a caller starts reading [] as "no members".
@@ -249,7 +249,7 @@ const DEPENDENCY_KEYS = ["dependencies", "devDependencies", "peerDependencies", 
  *  package.json still declares `echarts`, which is a tracked fact, not an install artifact. */
 function manifestDependencyNames(root: string, rel: string): readonly string[] {
   let parsed: Record<string, unknown>;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed package.json is the package
+  // @orb-waive caught-failure-ownership(catch): a malformed package.json is the package
   // manager's red, not this gate's subject — it contributes no names rather than aborting the pass. Ends
   // if this gate ever becomes the manifest validator.
   try {

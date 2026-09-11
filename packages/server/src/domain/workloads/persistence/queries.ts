@@ -137,7 +137,7 @@ export function toView(contributions: WorkloadContributions, row: WorkloadSelect
   }
   const base = toRowBase(row);
   let params: Record<string, unknown>;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented above — a params-schema failure
+  // @orb-waive caught-failure-ownership(catch): documented above — a params-schema failure
   // surfaces as a visible POISON row (`params: null, poison: true`) rather than vanishing from list/get,
   // never silently dropped.
   try {

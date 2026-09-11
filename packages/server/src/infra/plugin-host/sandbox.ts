@@ -709,7 +709,7 @@ export function boundHostFn(
       timer = setTimeout(() => reject(new Error(`${name} exceeded ${deadlineMs}ms host bound`)), deadlineMs);
       timer.unref();
     });
-    // @orb-gate-ignore caught-failure-ownership(promise:race): the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.
+    // @orb-waive caught-failure-ownership(Promise.race): the GUEST owns it — the rejection arm below reaches `deferred.reject(handle)`. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Guard-equivalent to the membrane's `attachAsync` by design (LOW-1). Ends if a disposed context gains a safe late-failure sink.
     void Promise.race([out, timeout])
       .then(
         (settled) => {

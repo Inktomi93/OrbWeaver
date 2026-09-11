@@ -124,7 +124,7 @@ async function probeAccountInfo(query: Query): Promise<VerifyAuthAccount | undef
     timer.unref();
   });
   let account: VerifyAuthAccount | undefined;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the account-identity enrichment is separate from the auth verdict (ok/apiKeySource come from reduceVerifyStream); a probe failure leaves account absent and can NEVER flip a failed verify to a fake success. Ends if the verdict ever derives from the account probe.
+  // @orb-waive caught-failure-ownership(catch): the account-identity enrichment is separate from the auth verdict (ok/apiKeySource come from reduceVerifyStream); a probe failure leaves account absent and can NEVER flip a failed verify to a fake success. Ends if the verdict ever derives from the account probe.
   try {
     const info = await Promise.race([query.accountInfo(), timeout]);
     account = info !== undefined ? toVerifyAuthAccount(info) : undefined;

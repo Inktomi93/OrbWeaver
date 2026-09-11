@@ -186,7 +186,7 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
     }
     acc.addDocument();
     touchedOwners.add(doc.ownerId);
-    // @orb-gate-ignore caught-failure-ownership(empty:error): bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.
+    // @orb-waive caught-failure-ownership(error): bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.
     try {
       const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc, signal) : doc;
       if (!isAborted(signal)) {

@@ -82,7 +82,7 @@ const PAINT_SETTLE_RESOURCE_MS = budget(PAINT_SETTLE_RESOURCE_BASE_MS);
 /** `everyImage`: `--full` shoots the whole scrollable page, so every image is IN the artifact and owes its
  *  decode; a viewport shot waits only for the images it will actually show. */
 async function waitForPaintSettle(page: Page, everyImage: boolean): Promise<void> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.
+  // @orb-waive caught-failure-ownership(catch): documented best-effort optimisation — a torn context makes the shot one frame stale, never absent, per the trailing comment. Ends if the shot stops happening regardless of this failure.
   try {
     // RAW STRING, not a function — the tooling program is DOM-less (document/requestAnimationFrame are
     // browser names), and a serialized function body picks up toolchain name-decoration; the string

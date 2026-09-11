@@ -129,7 +129,7 @@ function extractCardTags(raw: unknown): string[] {
 }
 
 function fromText(text: string, fallbackName: string): ParsedCard | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): pure `JSON.parse` over untrusted import text —
+  // @orb-waive caught-failure-ownership(catch): pure `JSON.parse` over untrusted import text —
   // no infra I/O in this try. A malformed card degrades to the consumed `null` result the caller checks.
   // Ends if this call gains a real infra step (then the infra half must escalate separately).
   try {

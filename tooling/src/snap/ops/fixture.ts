@@ -68,7 +68,7 @@ export function resolveFixtureTarget(
   const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
   const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
   let serverPort = FIXTURE_PORTS.server;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed.
+  // @orb-waive caught-failure-ownership(catch): documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed.
   try {
     const parsed = new URL(serverUrl);
     serverPort = parsed.port === "" ? FIXTURE_PORTS.server : Number(parsed.port);
@@ -87,7 +87,7 @@ function curlJson(url: string): unknown | null {
   if (res.status !== 0) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
+  // @orb-waive caught-failure-ownership(catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
   try {
     return JSON.parse(res.stdout);
   } catch {

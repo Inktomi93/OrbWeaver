@@ -376,7 +376,7 @@ function parseLogitBias(raw: string): Record<string, number> | undefined {
     return;
   }
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the doc comment above explains — an unparseable
+  // @orb-waive caught-failure-ownership(catch): the doc comment above explains — an unparseable
   // value returns undefined, which the caller treats as "not set", and the server re-validates via
   // userIntentSchema. Ends if the caller starts trusting this return without server-side re-validation.
   try {

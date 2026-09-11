@@ -67,7 +67,7 @@ export function runInLane<T>(key: string, job: () => Promise<T>): Promise<T> {
   const run = prior.then(job);
   // The tail NEVER rejects: a failed job must not become the next job's failure, and an un-handled rejection
   // stored in the Map would be reported as unhandled the moment the lane drains.
-  // @orb-gate-ignore caught-failure-ownership(promise:run): this swallow LOSES NOTHING — the rejection it
+  // @orb-waive caught-failure-ownership(run): this swallow LOSES NOTHING — the rejection it
   // drops from the TAIL is still owned in full by the caller, on `run`, which is returned below and which
   // every caller holds (`handle-event.ts` logs it inside its own job; `lore-write.ts` returns errors as data).
   // The catch exists so the NEXT job queued on this key is not failed by its predecessor. Ends if this
@@ -77,6 +77,7 @@ export function runInLane<T>(key: string, job: () => Promise<T>): Promise<T> {
   // @swallowed-ok(tail): the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to
   // trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result.
   // Ends if the sweep ever performs I/O or has an outcome a caller could act on.
+  // @orb-waive caught-failure-ownership(tail): the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result. Ends if the sweep ever performs I/O or has an outcome a caller could act on.
   tail
     .then(() => {
       // Only the LAST queued job clears the key — an earlier job's completion must not drop a lane that a

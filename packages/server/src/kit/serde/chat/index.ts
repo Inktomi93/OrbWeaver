@@ -705,7 +705,7 @@ export function classifyChat(messages: readonly ParsedChatMessage[]): ChatBucket
 }
 
 function parseJson(line: string): unknown {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null flows through asTyped(…, schema) at
+  // @orb-waive caught-failure-ownership(catch): null flows through asTyped(…, schema) at
   // both call sites, a typed validator that cleanly rejects it. Ends if a caller stops routing the return
   // through asTyped.
   try {

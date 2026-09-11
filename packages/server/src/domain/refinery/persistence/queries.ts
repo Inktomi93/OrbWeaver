@@ -270,7 +270,7 @@ function customRunViewOf(
   base: RunViewBase,
 ): RefineryRun | null {
   let lifted: z.ZodType;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.
+  // @orb-waive caught-failure-ownership(catch): self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.
   try {
     lifted = liftJsonSchema(config.schema);
   } catch {

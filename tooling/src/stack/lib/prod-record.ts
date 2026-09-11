@@ -11,7 +11,7 @@ export function serializeProdRecord(record: ProdRecord): string {
  *  never as a crash, exactly like snap-stage's `readActive`. */
 export function parseProdRecord(text: string): ProdRecord | null {
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): malformed pidfile JSON returns null and identity classification refuses any unproven live process. Ends if null can authorize a signal.
+  // @orb-waive caught-failure-ownership(catch): malformed pidfile JSON returns null and identity classification refuses any unproven live process. Ends if null can authorize a signal.
   try {
     parsed = JSON.parse(text);
   } catch {

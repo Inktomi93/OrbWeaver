@@ -217,7 +217,7 @@ export const MARKDOWN_SHIKI_PLUGIN: CodeHighlighterPlugin = {
   getSupportedLanguages: () => Object.keys(LANGUAGE_LOADERS) as never[],
   supportsLanguage: (language) => language in LANGUAGE_LOADERS,
   highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
-    // @orb-gate-ignore caught-failure-ownership(promise:highlightAsync): the unfired callback is the
+    // @orb-waive caught-failure-ownership(highlightAsync): the unfired callback is the
     // RESOLVED state, not a dropped one — re-derived against the vendor 2026-09-04 (#1498 item 2). Streamdown's
     // `HighlightedCodeBlockBody` seeds `useState(raw)` with a synchronous PLAIN-TEXT result (its `CodeBlock`
     // memoizes `{bg:"transparent", fg:"inherit", tokens: <one span per line>}` and passes it as `raw`, also as

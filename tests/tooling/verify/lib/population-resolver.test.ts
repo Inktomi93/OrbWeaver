@@ -12,6 +12,7 @@ test.describe("population vocabulary", () => {
       "@db": ["packages/db/src/"],
       "@contracts": ["packages/contracts/src/"],
       "@kit": ["packages/kit/src/"],
+      "@showcase": ["packages/showcase-plugins/src/"],
       "@tooling": ["tooling/src/"],
       "@tests": ["tests/"],
       "@scripts": ["scripts/"],

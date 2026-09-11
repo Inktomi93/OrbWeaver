@@ -67,7 +67,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         // carries `errorToast: "Couldn't set the chat background."`, which IS the handling — re-throwing would
         // reach the outer `.catch` below and re-open the double toast from the other side. Awaited (not
         // returned as a nested promise) so the outer `.finally` still releases the resolving flag on settle.
-        // @orb-gate-ignore caught-failure-ownership(default:catch): the header comment above explains — the
+        // @orb-waive caught-failure-ownership(catch): the header comment above explains — the
         // mutation carries errorToast: "Couldn't set the chat background.", which IS the handling; re-throwing
         // would reach the outer .catch and double-toast. Ends if the mutation drops its errorToast.
         try {

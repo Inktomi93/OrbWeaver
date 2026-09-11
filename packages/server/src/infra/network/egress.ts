@@ -106,7 +106,7 @@ export function installEgressFirewall(): void {
   );
   // Always allow the OIDC issuer host (LAN/private IP) — otherwise enabling the firewall breaks oidc mode.
   if (env.OIDC_ISSUER !== undefined) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
+    // @orb-waive caught-failure-ownership(catch): a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
     try {
       allowlist.add(new URL(env.OIDC_ISSUER).hostname.toLowerCase());
     } catch {
@@ -395,7 +395,7 @@ function closeAgent(agent: Agent | undefined): void {
 // (cancels the in-flight download when the initiating turn/workload aborts). Returns null on any
 // block/non-2xx/cap/timeout/network failure; the caller drops that one image.
 export async function fetchImageBytes(url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged.
+  // @orb-waive caught-failure-ownership(catch): an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged.
   try {
     const res = await safeFetch(url, {
       allowedHosts: ANY_HOST,

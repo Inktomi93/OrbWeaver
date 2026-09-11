@@ -45,7 +45,7 @@ function adminRequest(kind: SessionRequest["kind"], root: string, force: boolean
 /** The daemon's own status answer for a live row, or null when it did not answer (then the row speaks). */
 async function askStatus(home: string, root: string, row: SessionRow): Promise<Extract<SessionEvent, { kind: "status" }> | null> {
   let status: Extract<SessionEvent, { kind: "status" }> | null = null;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a live pid whose socket does not answer is REPORTED from its row with the "not answering" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.
+  // @orb-waive caught-failure-ownership(catch): a live pid whose socket does not answer is REPORTED from its row with the "not answering" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.
   try {
     await sessionRequest(
       sessionSocketPath(home, row.name),
@@ -136,7 +136,7 @@ async function closeSession(name: string, force: boolean): Promise<number> {
     return EXIT.toolError;
   }
   let answered = false;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.
+  // @orb-waive caught-failure-ownership(catch): a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.
   try {
     // The close grace, not the ping silence: a closing daemon is releasing a browser, and this is already
     // the number this file waits for that (#1508 — the door itself used to wait forever instead).

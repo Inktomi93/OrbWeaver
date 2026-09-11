@@ -14,7 +14,7 @@ import type { PluginToolCardState } from "@orb/contracts/plugin";
  *  verbatim — a plugin that returns prose legitimately has prose here), and a card binding `{ $state: "result" }`
  *  against prose should render that prose, not an empty node. */
 function parseJsonOrRaw(raw: string): unknown {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the doc comment above explains — a plugin returning legitimate prose must render as prose, not an empty node; the raw string is the provenance-faithful fallback the binding root renders, not a swallow. Ends if the binding root stops accepting a raw-string fallback.
+  // @orb-waive caught-failure-ownership(catch): the doc comment above explains — a plugin returning legitimate prose must render as prose, not an empty node; the raw string is the provenance-faithful fallback the binding root renders, not a swallow. Ends if the binding root stops accepting a raw-string fallback.
   try {
     return JSON.parse(raw) as unknown;
   } catch {

@@ -44,7 +44,7 @@ export function createEnabledRuleIndex(db: Db): EnabledRuleIndex {
     isStale: (): boolean => stale,
     reload: rebuild,
     refresh: async (): Promise<void> => {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): DELIBERATE ABSORBER. The owner is the STALE
+      // @orb-waive caught-failure-ownership(catch): DELIBERATE ABSORBER. The owner is the STALE
       // LATCH below plus the watcher front door's `healStaleIndexes` retry: the failure is surfaced as
       // fail-open reads (canon decides every event) and cleared by the next successful rebuild. Propagating
       // instead is the #1431 defect — it rejects a verb whose durable write already committed. Ends when the

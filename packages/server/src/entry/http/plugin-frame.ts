@@ -135,7 +135,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return c.json({ error: "missing CSRF header" }, FORBIDDEN);
     }
     let raw: unknown;
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.
+    // @orb-waive caught-failure-ownership(catch): client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.
     try {
       raw = await c.req.json();
     } catch {
@@ -147,7 +147,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     }
     const body = parsed.data;
     let frame: PluginFrameBody | null;
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): leak-free collapse — documented below: a foreign/unknown pluginId, "no such surface", and "grant revoked" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.
+    // @orb-waive caught-failure-ownership(catch): leak-free collapse — documented below: a foreign/unknown pluginId, "no such surface", and "grant revoked" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.
     try {
       frame = await deps.surfaces.getFrameBody({ caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId });
     } catch {

@@ -113,7 +113,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   };
 
   const reconcile = (attempt: number): void => {
-    // @orb-gate-ignore caught-failure-ownership(promise:query): the rejection drives the bounded retry above and
+    // @orb-waive caught-failure-ownership(query): the rejection drives the bounded retry above and
     // is deliberately never converted into a terminal outcome (#222) — the run's state stays whatever the stream
     // last said. Ends if a read failure needs to surface a distinct UI state.
     void trpcClient.workloads.get

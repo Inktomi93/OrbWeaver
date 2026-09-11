@@ -312,7 +312,7 @@ export async function wirePageDiagnostics(
   });
   await cdp.send("Log.enable");
   await wirePageNetwork(cdp, page, identity, options.network);
-  // @orb-gate-ignore caught-failure-ownership(empty:error): unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail.
+  // @orb-waive caught-failure-ownership(error): unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live. Ends if the limit record stops carrying the caught detail.
   try {
     await cdp.send("Audits.enable");
   } catch (error) {

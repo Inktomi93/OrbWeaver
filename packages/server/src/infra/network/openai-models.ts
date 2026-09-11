@@ -78,7 +78,7 @@ function endpointHeaders(args: FetchOpenAiModelsArgs): Record<string, string> {
 
 /** GET `{baseUrl}/models` on an OpenAI-compatible endpoint → the model id list. Best-effort; never throws. */
 export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<string[]> {
-  // @orb-gate-ignore caught-failure-ownership(default:err): a best-effort /models fetch collapses any failure to an empty catalog; the logged error is credential-scrubbed by value (redactKnownSecrets over apiKey + every header value), so no key leaks and no auth verdict rides on it. Ends if an unscrubbed error is logged or the list gates auth.
+  // @orb-waive caught-failure-ownership(err): a best-effort /models fetch collapses any failure to an empty catalog; the logged error is credential-scrubbed by value (redactKnownSecrets over apiKey + every header value), so no key leaks and no auth verdict rides on it. Ends if an unscrubbed error is logged or the list gates auth.
   try {
     const target = modelsTarget(args.baseUrl);
     const res = await safeFetch(target.url, {
@@ -141,7 +141,7 @@ function transportReason(err: unknown): string {
 export async function probeOpenAiEndpoint(args: FetchOpenAiModelsArgs, now: () => number): Promise<CredentialHealth> {
   const checkedAt = now();
   let target: { readonly url: string; readonly host: string };
-  // @orb-gate-ignore caught-failure-ownership(empty:err): an unpinnable/malformed baseUrl yields "unchecked" — never a green and never the strike-worthy "unreachable", so a config typo can neither pass a bad key as healthy nor auto-revoke a working one; the reason is credential-scrubbed by value. Ends if the catch ever returns "ok" or "unreachable".
+  // @orb-waive caught-failure-ownership(err): an unpinnable/malformed baseUrl yields "unchecked" — never a green and never the strike-worthy "unreachable", so a config typo can neither pass a bad key as healthy nor auto-revoke a working one; the reason is credential-scrubbed by value. Ends if the catch ever returns "ok" or "unreachable".
   try {
     target = modelsTarget(args.baseUrl);
   } catch (err) {

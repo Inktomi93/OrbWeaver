@@ -96,7 +96,7 @@ function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string):
 
 /** True iff `bytes` decodes as strict UTF-8 (the text-family fallback — no signature exists for text). */
 function isValidUtf8(bytes: Uint8Array): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — a `TextDecoder` decode failure means
+  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — a `TextDecoder` decode failure means
   // the bytes are not valid UTF-8, which IS the false answer this sniff owes; there is no other outcome the
   // fatal decode can produce. Ends if this stops being a pure boolean sniff.
   try {

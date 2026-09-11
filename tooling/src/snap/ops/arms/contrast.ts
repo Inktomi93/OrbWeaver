@@ -72,7 +72,7 @@ async function clearContrastCandidates(page: Page): Promise<void> {
   // cast would only smuggle the name past tsc, not resolve it. A string is never type-checked
   // against the wrong world. (Historical note: these strings were originally also dodging tsx's
   // keepNames function-serialization mangling — tsx was shed 2026-08-03; the lib reason stands alone.)
-  // @orb-gate-ignore caught-failure-ownership(promise:evaluate): best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.
+  // @orb-waive caught-failure-ownership(evaluate): best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.
   await page
     .evaluate(`(() => {
       for (const el of document.querySelectorAll(${JSON.stringify(`[${CONTRAST_MARK}]`)})) {

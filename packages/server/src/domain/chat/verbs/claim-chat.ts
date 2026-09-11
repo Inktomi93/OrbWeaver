@@ -179,7 +179,7 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
   const claim: ClaimChatOp = async (chatId) => {
     const incumbent = active.get(chatId);
     if (incumbent !== undefined) {
-      // @orb-gate-ignore caught-failure-ownership(promise:incumbent): retried, not swallowed — a failed
+      // @orb-waive caught-failure-ownership(incumbent): retried, not swallowed — a failed
       // incumbent claim is retried via `claim(chatId)`, whose returned promise is awaited here, so a final
       // rejection still propagates to this caller. Ends if the retry needs a bound (unbounded today).
       await incumbent.catch(() => claim(chatId));

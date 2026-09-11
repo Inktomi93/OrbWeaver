@@ -53,7 +53,7 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
     setLoading(true);
     setSuccess(false);
     setUploadError(null);
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the failure surfaces as the `uploadError` state the field renders. Ends if uploadError stops being rendered.
+    // @orb-waive caught-failure-ownership(catch): the failure surfaces as the `uploadError` state the field renders. Ends if uploadError stops being rendered.
     try {
       const stored = await upload(file);
       if (epoch !== uploadEpoch.current) {

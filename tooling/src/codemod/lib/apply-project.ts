@@ -96,7 +96,7 @@ function materializeCreatedFileParents(directories: readonly string[], repoRoot:
 function cleanupCreatedFileParents(created: readonly string[], repoRoot: string): void {
   const failures: string[] = [];
   for (const directory of created.toReversed()) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT is already-clean; other cleanup failures are retained and warned below while applyProject rethrows the original failure. Ends if those failures stop being surfaced.
+    // @orb-waive caught-failure-ownership(error): ENOENT is already-clean; other cleanup failures are retained and warned below while applyProject rethrows the original failure. Ends if those failures stop being surfaced.
     try {
       rmdirSync(directory);
     } catch (error) {

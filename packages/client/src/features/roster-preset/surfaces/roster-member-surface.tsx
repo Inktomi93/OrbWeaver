@@ -133,7 +133,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
     if (isStarting) {
       return; // one creation at a time.
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
+    // @orb-waive caught-failure-ownership(startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
     startChat({
       characterIds: roster.members.map((m) => m.characterId),
       anchorPersonaId: roster.anchorPersonaId,

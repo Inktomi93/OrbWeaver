@@ -34,7 +34,7 @@ function jwksAllowlistFromEnv(): string[] {
     return explicit;
   }
   if (env.OIDC_ISSUER !== undefined) {
-    // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty.
+    // @orb-waive caught-failure-ownership(catch): a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty.
     try {
       return [normalizeHost(new URL(env.OIDC_ISSUER).host)];
     } catch {

@@ -24,7 +24,7 @@ export async function captureEvals(page: Page, exprs: readonly string[]): Promis
   for (const expr of exprs) {
     let text: string;
     let failed = false;
-    // @orb-gate-ignore caught-failure-ownership(empty:e): captured into the EvalOutcome as `failed: true` + an "EVAL ERROR" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.
+    // @orb-waive caught-failure-ownership(e): captured into the EvalOutcome as `failed: true` + an "EVAL ERROR" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.
     try {
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);

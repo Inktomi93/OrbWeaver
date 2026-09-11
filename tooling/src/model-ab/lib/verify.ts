@@ -97,7 +97,7 @@ export function parseToolArguments(r: ChatResponse): string | null {
   if (first === undefined) {
     return "no tool_calls parsed";
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts ("arguments not valid JSON"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict.
+  // @orb-waive caught-failure-ownership(catch): the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts ("arguments not valid JSON"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict.
   try {
     const args = JSON.parse(first.function.arguments) as { sides?: unknown };
     return typeof args.sides === "number" ? null : "arguments missing sides";
@@ -107,7 +107,7 @@ export function parseToolArguments(r: ChatResponse): string | null {
 }
 
 export function parseStructured(r: ChatResponse): string | null {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): same verdict-string contract as parseToolArguments above — a parse failure returns the verdict "content is not the schema JSON" rather than swallowing it. Ends if the return type stops being read as the probe's verdict.
+  // @orb-waive caught-failure-ownership(catch): same verdict-string contract as parseToolArguments above — a parse failure returns the verdict "content is not the schema JSON" rather than swallowing it. Ends if the return type stops being read as the probe's verdict.
   try {
     const c = JSON.parse(r.choices?.[0]?.message?.content ?? "") as Record<string, unknown>;
     return c["name"] !== undefined && c["occupation"] !== undefined && c["mood"] !== undefined ? null : "schema fields missing";

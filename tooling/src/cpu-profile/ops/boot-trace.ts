@@ -82,7 +82,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
   }
   let active = true;
   const detachReported = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(promise:detach): detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.
+    // @orb-waive caught-failure-ownership(detach): detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.
     await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));
   };
   const abort = async (): Promise<void> => {
@@ -90,7 +90,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
       active = false;
       // Cleanup cannot replace the navigation/analyzer failure already leaving this block, but it is
       // still operator-visible: a failed Tracing.end can leave Chromium recording until session close.
-      // @orb-gate-ignore caught-failure-ownership(promise:stopTrace): warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.
+      // @orb-waive caught-failure-ownership(stopTrace): warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.
       await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));
     }
     await detachReported();

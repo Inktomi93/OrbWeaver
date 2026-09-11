@@ -133,7 +133,7 @@ async function previousRunWithSameName(root: string, current: SnapRunIndex): Pro
   const name = runOutName(current);
   let best: SnapRunIndex | null = null;
   for (const path of await localSnapRunIndexPaths(root)) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.
+    // @orb-waive caught-failure-ownership(catch): a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.
     try {
       const candidate = await readSnapRunIndex(path);
       const older = candidate.process.finishedAt < current.process.finishedAt;
@@ -149,7 +149,7 @@ async function previousRunWithSameName(root: string, current: SnapRunIndex): Pro
 }
 
 export async function printSnapReport(root: string, query: SnapReportQuery): Promise<number> {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.
+  // @orb-waive caught-failure-ownership(error): this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.
   try {
     const path = await resolveSnapRunIndex(root, query.target);
     const index = await readSnapRunIndex(path);
@@ -172,7 +172,7 @@ async function scanSnapRunIndices(root: string): Promise<SnapRunIndexScan> {
   for (const worktree of snapWorktreeRoots(root)) {
     for (const path of await localSnapRunIndexPaths(worktree)) {
       scanned += 1;
-      // @orb-gate-ignore caught-failure-ownership(empty:error): list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.
+      // @orb-waive caught-failure-ownership(error): list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.
       try {
         rows.push(await readSnapRunIndex(path));
       } catch (error) {

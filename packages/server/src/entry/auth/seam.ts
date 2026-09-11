@@ -120,7 +120,7 @@ export function readSessionCookie(headers: Headers): SessionToken | null {
       continue;
     }
     if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
-      // @orb-gate-ignore caught-failure-ownership(default:catch): a cookie value that fails to percent-decode is not a session token, and `null` here means exactly "no cookie session" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
+      // @orb-waive caught-failure-ownership(catch): a cookie value that fails to percent-decode is not a session token, and `null` here means exactly "no cookie session" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
       try {
         return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
       } catch {

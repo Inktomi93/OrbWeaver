@@ -65,7 +65,7 @@ export function registerPluginUi(app: Hono<PrincipalEnv>, deps: PluginUiPort): v
       return c.body(null, NOT_FOUND);
     }
     let source: string | null;
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes.
+    // @orb-waive caught-failure-ownership(catch): leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes.
     try {
       source = await deps.getUiBundle({ caller: principal, pluginId: parsed.data });
     } catch {

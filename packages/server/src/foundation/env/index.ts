@@ -174,7 +174,7 @@ function loadEnvFileWithOverride(override: boolean): void {
     return;
   }
   let raw: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a missing .env is a normal deploy state —
+  // @orb-waive caught-failure-ownership(catch): a missing .env is a normal deploy state —
   // envFileKeys stays empty, correctly consumed by authFallbackDeclaredInEnvFile as "not declared". Ends
   // if the loader stops treating a missing file as absence rather than an error.
   try {

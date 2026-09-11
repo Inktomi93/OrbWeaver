@@ -1,23 +1,36 @@
 // Generator for docs/reviews/caught-failure-ownership/population.json — the durable, LOSSLESS census of
-// every caught-failure site the `caught-failure-ownership` detector finds, with the ownership verdict each
+// every caught-failure site the `caught-failure-ownership` policy finds, with the ownership verdict each
 // one currently resolves to. It is a REVIEW RECORD, not a ratchet: no gate reads it, it suppresses nothing,
 // and there is no budget to hide behind (issue #751 — the owner banned any bulk allowlist/baseline here).
 // Every field is DERIVED (#569 — a derived classification beats a declared one), so no hand edit can mint a
 // verdict the tree does not earn, and `tests/tooling/verify/gates/caught-failure-ownership.test.ts` reds the
 // day the committed file and a fresh derivation disagree in EITHER direction.
+//
+// ── TWO READERS, ONE PRODUCER, AND NEITHER OWNS A PARSER (#1584) ─────────────────────────────────────────
+// The SITES come from the shared classifier `lib/caught-failure.ts` — the same `catchClauseSite` /
+// `promiseAbsorberSite` the policy reports from, so the artifact and the policy can never disagree about
+// what a site is. The WAIVER verdict comes from the CENTRAL ordinary-waiver engine
+// (`lib/ordinary-waiver.ts`) run over the same sources: this file does not parse a marker, does not own a
+// grammar, and cannot honour one the production engine would refuse. It only lifts the REASON text out of
+// a marker the engine already accepted as well-formed.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { SourceFile } from "ts-morph";
 import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
-import { caughtFailureReviewSites, gate } from "../../gates/caught-failure-ownership.ts";
-import { findGateIgnore, parseGateIgnoreMarker } from "../../lib/gate-ignore.ts";
+import type { CoordinatedGateFinding } from "../../contract/gate-authority.ts";
+import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source.ts";
+import { gate } from "../../gates/caught-failure-ownership.ts";
+import { CAUGHT_FAILURE_ARMS, caughtFailureReviewSites } from "../../lib/caught-failure.ts";
+import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
 // `harnessGlobs` and EXCLUDES `tooling/src/**`, which this gate scans. Deriving the census from it reported
 // 329 sites where the real run finds 448, and the undercount reads exactly like a smaller population. The
 // artifact must walk the SAME fileset the gate run walks, or it is a census of a different tree.
 import { projectCtx } from "../../lib/pass.ts";
+import { compilePopulation } from "../../lib/population-resolver.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline caught-failure-population");
 
@@ -27,91 +40,111 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-/** The verdict + its receipt. `enforced: false` means a live positioned `@swallowed-ok` (or a framework
- *  owner) already proves the site; otherwise a live caught-failure marker is the deliberate absorb, and
- *  anything left is UNPROVEN — the population this program exists to drive to zero. */
-function judge(
-  node: Parameters<typeof findGateIgnore>[0],
-  position: string,
-  enforced: boolean,
-  lines: readonly string[],
-): {
-  readonly verdict: CaughtFailureVerdict;
-  readonly reason: string | null;
-  readonly markerLine: number | null;
-} {
-  if (!enforced) {
-    return { verdict: "detached-owned", reason: null, markerLine: null };
-  }
-  const markerLine = findGateIgnore(node, gate.name, position);
-  if (markerLine === undefined) {
-    return { verdict: "unproven", reason: null, markerLine: null };
-  }
-  // `parseGateIgnoreMarker` is ANCHORED at `^//` (the mention fence) and the suppressor feeds it the COMMENT
-  // node's own text; a source LINE carries the indentation in front of it, so an un-trimmed line parses as
-  // "not a marker" and the reason comes back empty. That is the reader failing, never a reasonless marker —
-  // `findGateIgnore` only returns a line it already matched a WELL-FORMED marker on, so REFUSE rather than
-  // record a null and let the census read as a bare exemption.
-  const marker = parseGateIgnoreMarker((lines[markerLine - 1] ?? "").trimStart());
-  if (marker === undefined || marker.reason.length === 0) {
+interface DerivedSite {
+  readonly path: string;
+  readonly arm: string;
+  readonly position: string;
+  readonly line: number;
+  readonly column: number;
+  readonly snippet: string;
+}
+
+/** Every site in one file, already carrying the EXACT coordinates and token the policy reports — which is
+ *  also the position a `@orb-waive` marker must name. A site whose anchor is underivable REFUSES loudly: a
+ *  census row naming no position would read exactly like a waivable site that nobody waived. */
+function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
+  const lines = sf.getFullText().split(/\r?\n/u);
+  return caughtFailureReviewSites(sf).map((site) => {
+    if (site.anchor === undefined) {
+      throw new Error(
+        `caught-failure-population: the site at ${path}:${site.node.getStartLineNumber()} has no derivable waiver position. ` +
+          "The census cannot record a position the classifier did not produce — extend the anchor fallback in " +
+          "tooling/src/verify/lib/caught-failure.ts rather than recording a null.",
+      );
+    }
+    const { line, column } = sf.getLineAndColumnAtPos(site.node.getStart() + site.anchor.offset);
+    return { path, arm: site.arm, position: site.anchor.token, line, column, snippet: (lines[line - 1] ?? "").trim() };
+  });
+}
+
+/** The reason text out of a marker the ENGINE already validated. `waiverId` is `<path>:<line>:<column>` of
+ *  the marker comment, and the grammar puts the reason after the first `):` on that line. */
+function waiverReason(sf: SourceFile, markerLine: number): string {
+  const line = sf.getFullText().split(/\r?\n/u)[markerLine - 1] ?? "";
+  const at = line.indexOf("):");
+  const reason =
+    at === -1
+      ? ""
+      : line
+          .slice(at + 2)
+          .replace(/\*\/\s*$/u, "")
+          .trim();
+  if (reason.length === 0) {
     throw new Error(
-      `caught-failure-population: the suppressor honoured a marker at line ${markerLine} that this reader could not parse — ` +
-        "the census cannot record a reason it did not read. Re-derive the marker read in " +
+      `caught-failure-population: the central waiver engine honoured a marker at line ${markerLine} whose reason this reader ` +
+        "could not lift. The census cannot record a reason it did not read — re-derive the read in " +
         "tooling/src/verify/ops/gen/caught-failure-population.ts.",
     );
   }
-  return { verdict: "deliberate-absorb", reason: marker.reason, markerLine };
+  return reason;
 }
 
-/** Re-derive the whole census from the tree. ONE producer — the same `caughtFailureReviewSites` the gate
- *  reports from — so the artifact and the gate can never disagree about what a site is. */
+/** Re-derive the whole census from the tree. */
 export function deriveCaughtFailurePopulation(root: string): CaughtFailurePopulation {
+  const includes = compilePopulation(gate.population);
+  const files = projectCtx(root)
+    .files.map((sf) => ({ sf, path: relPath(root, sf.getFilePath()) }))
+    .filter(({ path }) => includes(path))
+    .toSorted((left, right) => left.path.localeCompare(right.path));
+  const sources: OrdinaryWaiverSource[] = files.map(({ sf, path }) => ({ kind: "typescript", path, sourceFile: sf }));
+  const byPath = new Map(files.map(({ sf, path }) => [path, sf]));
+  const sites = files.flatMap(({ sf, path }) => derivedSites(sf, path));
+  const findings: CoordinatedGateFinding[] = sites.map((site) => ({
+    file: site.path,
+    line: site.line,
+    column: site.column,
+    token: site.position,
+    policyId: gate.id,
+    severity: gate.severity,
+  }));
+  const match = createOrdinaryWaiverEngine({ sources, knownPolicies: [{ id: gate.id, authority: gate.authority, severity: gate.severity }] }).match(findings);
+
   const rows: CaughtFailureRow[] = [];
-  for (const sf of projectCtx(root).files) {
-    const path = relPath(root, sf.getFilePath());
-    if (gate.scanRoot !== undefined && !gate.scanRoot(path)) {
-      continue;
-    }
-    const sites = caughtFailureReviewSites(sf);
-    if (sites.length === 0) {
-      continue;
-    }
-    const lines = sf.getFullText().split(/\r?\n/u);
-    const ordinals = new Map<string, number>();
-    for (const site of sites) {
-      const ordinal = (ordinals.get(site.position) ?? 0) + 1;
-      ordinals.set(site.position, ordinal);
-      const verdict = judge(site.node, site.position, site.enforced, lines);
-      rows.push({
-        siteId: `${path}::${site.position}::${ordinal}`,
-        path,
-        line: site.node.getStartLineNumber(),
-        column: site.node.getStart() - site.node.getStartLinePos() + 1,
-        grammar: site.position.split(":")[0] ?? "",
-        position: site.position,
-        ordinal,
-        snippet: (lines[site.node.getStartLineNumber() - 1] ?? "").trim(),
-        ...verdict,
-      });
-    }
+  const ordinals = new Map<string, number>();
+  for (const [index, site] of sites.entries()) {
+    const key = `${site.path}::${site.position}`;
+    const ordinal = (ordinals.get(key) ?? 0) + 1;
+    ordinals.set(key, ordinal);
+    const waiverId = match.waiverIds[index] ?? null;
+    const markerLine = waiverId === null ? null : Number(waiverId.split(":").at(-2));
+    const verdict: CaughtFailureVerdict = markerLine === null ? "unproven" : "deliberate-absorb";
+    rows.push({
+      siteId: `${key}::${ordinal}`,
+      path: site.path,
+      line: site.line,
+      column: site.column,
+      grammar: site.arm,
+      position: site.position,
+      ordinal,
+      snippet: site.snippet,
+      verdict,
+      reason: markerLine === null ? null : waiverReason(byPath.get(site.path) as SourceFile, markerLine),
+      markerLine,
+    });
   }
   rows.sort((a, b) => a.siteId.localeCompare(b.siteId));
-  const byVerdict: Record<CaughtFailureVerdict, number> = { "deliberate-absorb": 0, "detached-owned": 0, unproven: 0 };
-  const byGrammar: Record<string, number> = {};
+  const byVerdict: Record<CaughtFailureVerdict, number> = { "deliberate-absorb": 0, unproven: 0 };
+  // Seeded from the homed arm tuple: an arm that produces ZERO rows must still appear with a 0, or the
+  // census silently loses a detector arm instead of showing it went quiet.
+  const byGrammar: Record<string, number> = Object.fromEntries(CAUGHT_FAILURE_ARMS.map((arm) => [arm, 0]));
   for (const row of rows) {
     byVerdict[row.verdict] += 1;
     byGrammar[row.grammar] = (byGrammar[row.grammar] ?? 0) + 1;
   }
   return {
-    gate: gate.name,
+    gate: gate.id,
     generatedBy: "tooling/src/verify/ops/gen/caught-failure-population.ts",
-    totals: {
-      sites: rows.length,
-      enforced: rows.length - byVerdict["detached-owned"],
-      reported: byVerdict.unproven,
-      byVerdict,
-      byGrammar,
-    },
+    totals: { sites: rows.length, reported: byVerdict.unproven, byVerdict, byGrammar },
     rows,
   };
 }

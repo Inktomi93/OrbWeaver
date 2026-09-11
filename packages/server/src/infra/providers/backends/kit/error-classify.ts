@@ -138,7 +138,7 @@ function parseBody(body: unknown): unknown {
 }
 
 function safeJsonParse(text: string): unknown {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): parsing a provider error body to detect a moderation block; an unparseable body collapses to null (not a moderation block) and classification falls through to the status table — no credential/auth decision, no leak. Ends if a null parse ever forces a green/authorized verdict.
+  // @orb-waive caught-failure-ownership(catch): parsing a provider error body to detect a moderation block; an unparseable body collapses to null (not a moderation block) and classification falls through to the status table — no credential/auth decision, no leak. Ends if a null parse ever forces a green/authorized verdict.
   try {
     return JSON.parse(text);
   } catch {

@@ -72,7 +72,7 @@ function describe(value: unknown): string {
   if (UNSTRINGIFIABLE_TYPES.has(typeof value)) {
     return String(value);
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unstringifiable console argument degrades to a
+  // @orb-waive caught-failure-ownership(catch): an unstringifiable console argument degrades to a
   // placeholder label — this is dev instrumentation and the record's other fields still carry the report. Ends if
   // this output ever feeds a data path rather than a bug-report bundle.
   try {

@@ -62,7 +62,7 @@ export function readHistory(root: string): readonly RunHistoryEntry[] {
     if (line.trim().length === 0) {
       continue;
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict.
+    // @orb-waive caught-failure-ownership(catch): documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict.
     try {
       out.push(JSON.parse(line) as RunHistoryEntry);
     } catch {
@@ -74,7 +74,7 @@ export function readHistory(root: string): readonly RunHistoryEntry[] {
 
 /** Append `entry`, trimming the file to the retained window. Never throws. */
 export function appendHistory(root: string, entry: RunHistoryEntry): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:err): printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing.
+  // @orb-waive caught-failure-ownership(err): printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing.
   try {
     ensureReportsDir(root);
     const path = reportsPath(root, HISTORY_FILE);

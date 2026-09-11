@@ -209,7 +209,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
   const distinct = askable.slice(0, designAuditSelectorProofCap());
   const proofs: SelectorProof[] = [];
   for (const selector of distinct) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as "not proven".
+    // @orb-waive caught-failure-ownership(catch): a selector the browser refuses to parse is reported as matches=-1, which the arm prints as UNPROVEN and counts as non-unique — the failure IS the published value. Ends if -1 stops being read as "not proven".
     try {
       proofs.push({ selector, matches: await page.locator(selector).count() });
     } catch {
@@ -220,7 +220,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
 }
 
 async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; readonly population: DomPopulation } | { readonly walkError: string }> {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.
+  // @orb-waive caught-failure-ownership(error): the walk throwing is an INSTRUMENT failure, returned as walkError and turned into walkFailureGap (exit 2) by the caller. Ends if walkError stops reaching the gap ladder.
   try {
     const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
     const accounting = samples.subjectAccounting;

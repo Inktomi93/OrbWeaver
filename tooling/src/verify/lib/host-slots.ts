@@ -59,7 +59,7 @@ function slotPath(dir: string, slot: number): string {
 }
 
 function readHolder(path: string): HostSlotHolder | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as "someone holds this".
+  // @orb-waive caught-failure-ownership(catch): the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as "someone holds this".
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (typeof parsed !== "object" || parsed === null) {
@@ -81,7 +81,7 @@ function readHolder(path: string): HostSlotHolder | null {
 }
 
 function defaultAlive(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH.
+  // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH.
   try {
     process.kill(pid, 0);
     return true;
@@ -188,7 +188,7 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
     const path = slotPath(input.dir, slot);
     // `wx` is the whole mechanism: an EXCLUSIVE create is atomic, so two runners racing this line cannot
     // both win. A pre-read-then-write would have a window exactly the size of the defect.
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the EEXIST throw IS "this slot is taken" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.
+    // @orb-waive caught-failure-ownership(catch): the EEXIST throw IS "this slot is taken" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.
     try {
       writeFileSync(path, input.body, { flag: "wx" });
       return slot;

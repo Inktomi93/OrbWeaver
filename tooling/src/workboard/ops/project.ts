@@ -38,7 +38,7 @@ function fetchProjectContext(): ProjectContext {
 
 function projectContext(fresh: boolean): ProjectContext {
   if (!fresh) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch.
+    // @orb-waive caught-failure-ownership(catch): the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch.
     try {
       const cached = JSON.parse(readFileSync(CACHE_FILE, "utf8")) as ProjectContext;
       if (cached.owner === PROJECT_OWNER && cached.projectNumber === PROJECT_NUMBER && typeof cached.projectId === "string" && Array.isArray(cached.fields)) {

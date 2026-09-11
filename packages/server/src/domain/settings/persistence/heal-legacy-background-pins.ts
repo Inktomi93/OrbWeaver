@@ -80,7 +80,7 @@ export async function healLegacyBackgroundPins(db: Db): Promise<number> {
   const rows = await db.select({ userId: userSettings.userId, config: userSettings.config, schemaVersion: userSettings.schemaVersion }).from(userSettings);
   let healed = 0;
   for (const row of rows) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable row is #471's territory, not
+    // @orb-waive caught-failure-ownership(catch): an unreadable row is #471's territory, not
     // this heal's — `requireIntactStoredConfig` throwing here is the SAME refusal `writeUserConfig` raises
     // at the user's own next write, so silently skipping it here duplicates no owner and drops no signal;
     // the boot wrapper (`entry/boot/heal-legacy-background-pins.ts`) already logs the count this heal DID

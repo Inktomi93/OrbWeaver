@@ -89,7 +89,7 @@ function parseRequest(arg: string): FireRequest {
 async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < deadlineMs) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline.
+    // @orb-waive caught-failure-ownership(catch): a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline.
     try {
       // Orb's liveness route is /healthz (entry/http/healthz.ts) — NOT neo's /api/healthz.
       const res = await fetch(`${baseUrl}/healthz`);
@@ -203,7 +203,7 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
 
   const teardown = (): void => {
     child.killGroup("SIGTERM");
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.
+    // @orb-waive caught-failure-ownership(catch): best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch {

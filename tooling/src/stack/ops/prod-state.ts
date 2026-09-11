@@ -73,7 +73,7 @@ export function resolvePort(fileEnv: Readonly<Record<string, string | undefined>
 // ── probes ───────────────────────────────────────────────────────────────────────────────────────────
 
 async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: boolean | null }> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.
+  // @orb-waive caught-failure-ownership(catch): health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     if (!res.ok) {
@@ -102,7 +102,7 @@ function readDebugToken(): string | null {
 
 /** Credential-free posture classification — never presents the token (see probeDebug #1). */
 async function probeDebugPosture(port: number): Promise<DebugPosture> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.
+  // @orb-waive caught-failure-ownership(catch): credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     return classifyDebugPosture(res.status);

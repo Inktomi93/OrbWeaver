@@ -105,7 +105,7 @@ export function PluginFrame({ pluginId, surfaceId, pluginName, title, hostCall, 
       return;
     }
     inFlight.current += 1;
-    // @orb-gate-ignore caught-failure-ownership(promise:hostCall): a rejection replies with the generic
+    // @orb-waive caught-failure-ownership(hostCall): a rejection replies with the generic
     // `refuse()` message by design (the contract's own note — the reason is an oracle a hostile document
     // does not get for free). Ends if the refusal reply is ever dropped.
     hostCall({ pluginId, fn: call.fn, args: call.args })

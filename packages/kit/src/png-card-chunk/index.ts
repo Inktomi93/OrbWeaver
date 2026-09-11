@@ -210,7 +210,7 @@ function decodeBase64Utf8(value: Uint8Array): string | null {
   if (bytes === null) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented — this module's shared fail-soft
+  // @orb-waive caught-failure-ownership(catch): documented — this module's shared fail-soft
   // null contract, consumed by every reader of decodeBase64Utf8 as "no value here". Ends if a caller
   // stops treating the null return as absent.
   try {
@@ -341,7 +341,7 @@ function concatChunks(parts: Uint8Array[]): Uint8Array {
  *  string when it doesn't parse as an object. */
 function stripSpecKeys(cardJson: string): string {
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented — falls back to the original string
+  // @orb-waive caught-failure-ownership(catch): documented — falls back to the original string
   // when it doesn't parse as an object, consumed by writeCardChunk's V2 chunk write. Ends if the fallback
   // stops being applied.
   try {
@@ -388,17 +388,17 @@ async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
   // Deliberately un-awaited: awaiting the write before draining the reader can deadlock on backpressure,
   // and on a corrupt stream BOTH sides reject — swallowing here leaves the reader as the one error path
   // (an unhandled rejection would take the process down).
-  // @orb-gate-ignore caught-failure-ownership(promise:write): documented above — the reader is the sole
+  // @orb-waive caught-failure-ownership(writer.write): documented above — the reader is the sole
   // error path; a write rejection would also surface on the reader's read(). Ends if the reader stops
   // being the consumed error path.
   void writer.write(compressed).catch(swallow);
-  // @orb-gate-ignore caught-failure-ownership(promise:close): same reasoning as the write above — the
+  // @orb-waive caught-failure-ownership(writer.close): same reasoning as the write above — the
   // reader is the sole error path. Ends if the reader stops being the consumed error path.
   void writer.close().catch(swallow);
 
   const reader = stream.readable.getReader();
   const parts: Uint8Array[] = [];
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented — corrupt zlib payload returns
+  // @orb-waive caught-failure-ownership(catch): documented — corrupt zlib payload returns
   // null per this module's fail-soft read contract (see the function doc). Ends if the caller stops
   // treating null as "not a valid card".
   try {

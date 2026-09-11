@@ -340,7 +340,7 @@ function ModelCell({
                 customModelsPending: fetchModels.isPending,
                 onOpen: (): void => {
                   if (customCredentialId !== null) {
-                    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the .catch below sets
+                    // @orb-waive caught-failure-ownership(mutateAsync): the .catch below sets
                     // customModels to an empty array, the picker's own "no models" render — optional-read-as-absent.
                     // Ends if the empty array is no longer distinguishable from a real empty catalog.
                     void fetchModels

@@ -168,7 +168,7 @@ export async function insertCharacterClaimingProvenance(
       .from(claimedBy)
       .where(and(eq(claimedBy.ownerId, values.ownerId), eq(claimedBy.importedFrom, values.importedFrom))),
   );
-  // @orb-gate-ignore caught-failure-ownership(default:err): the ONE absorbed arm is a LOST RACE, and it is
+  // @orb-waive caught-failure-ownership(err): the ONE absorbed arm is a LOST RACE, and it is
   // absorbed into this function's own return value rather than swallowed — `false` is the caller's contract
   // ("someone else claimed this key; converge on their row"), which is the same answer the sequential
   // find-before-mint path gives. Every violation with no provenance row behind it is classified and RETHROWN

@@ -87,7 +87,7 @@ function takeSpawnLock(opts: SpawnLockOpts): boolean {
  *  Exported for its own test: the stale arms must be proven to actually remove the file. */
 export function handleHeldSpawnLock(opts: SpawnLockOpts): boolean {
   let raw: string | null = null;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows.
+  // @orb-waive caught-failure-ownership(error): ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows.
   try {
     raw = readFileSync(opts.lockPath, "utf8");
   } catch (error) {
@@ -105,7 +105,7 @@ export function handleHeldSpawnLock(opts: SpawnLockOpts): boolean {
   }
   if (action === "break-stale") {
     opts.log(`breaking a stale spawn lock (${lockHolderText(holder)}).`);
-    // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows.
+    // @orb-waive caught-failure-ownership(error): ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows.
     try {
       unlinkSync(opts.lockPath);
     } catch (error) {
@@ -118,7 +118,7 @@ export function handleHeldSpawnLock(opts: SpawnLockOpts): boolean {
 }
 
 export function releaseSpawnLock(lockPath: string): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement.
+  // @orb-waive caught-failure-ownership(error): ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement.
   try {
     unlinkSync(lockPath);
   } catch (error) {

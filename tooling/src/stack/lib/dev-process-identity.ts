@@ -53,7 +53,7 @@ export function devStackIdentityFilePath(repoRoot: string): string {
 }
 
 export function parseDevStackIdentity(text: string): DevStackIdentity | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.
+  // @orb-waive caught-failure-ownership(catch): malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.
   try {
     const value = JSON.parse(text) as Partial<DevStackIdentity>;
     if (
@@ -83,7 +83,7 @@ export function parseDevStackIdentity(text: string): DevStackIdentity | null {
 }
 
 export function readDevStackIdentity(repoRoot: string): DevStackIdentity | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.
+  // @orb-waive caught-failure-ownership(catch): an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.
   try {
     const identity = parseDevStackIdentity(readFileSync(devStackIdentityFilePath(repoRoot), "utf8"));
     return identity?.repoRoot === path.resolve(repoRoot) ? identity : null;
@@ -138,7 +138,7 @@ function readLaunchIdEnv(readEnv: (key: string) => string | undefined): string |
  *  a running pid carries is proof of which launch started it. `null` = unreadable or absent, and both are
  *  "not provably ours" (fail-closed: an unreadable process can never authorize a signal). */
 export function readProcessLaunchId(pid: number, read: (procPath: string) => Buffer = (procPath) => readFileSync(procPath)): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.
+  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.
   try {
     const prefix = `${DEV_STACK_LAUNCH_ID_ENV}=`;
     const entry = read(`/proc/${pid}/environ`)
@@ -295,7 +295,7 @@ export function signalAdoptedDevStackGroup(
   if (adoption.kind !== "adoptable") {
     return adoption;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.
+  // @orb-waive caught-failure-ownership(error): ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.
   try {
     (opts.kill ?? process.kill)(-adoption.pgid, signal);
   } catch (error) {

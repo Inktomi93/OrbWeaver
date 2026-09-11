@@ -99,7 +99,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
     // promise, where a state read would be the stale capture that causes this class in the first place.
     const token = pickToken.current + 1;
     pickToken.current = token;
-    // @orb-gate-ignore caught-failure-ownership(promise:text): every failure arm here — the read, the JSON
+    // @orb-waive caught-failure-ownership(text): every failure arm here — the read, the JSON
     // parse and the ST reader's typed refusal — explicitly sets a detailed error state, a rendered failure
     // surface. Ends if any of those arms stops writing the error state.
     void file

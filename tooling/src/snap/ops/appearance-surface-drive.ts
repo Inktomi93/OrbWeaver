@@ -39,7 +39,7 @@ export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalR
   if (!result.ok) {
     instrumentRefusal(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the failure is CONVERTED, never swallowed — a bare `Timeout 5000ms exceeded` reached the matrix loop as an unattributed throw and the drive reported NO VERDICT with nothing naming which row, surface or subject was missing (#1104). Ends when the wait stops being able to fail.
+  // @orb-waive caught-failure-ownership(catch): the failure is CONVERTED, never swallowed — a bare `Timeout 5000ms exceeded` reached the matrix loop as an unattributed throw and the drive reported NO VERDICT with nothing naming which row, surface or subject was missing (#1104). Ends when the wait stops being able to fail.
   try {
     await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
   } catch {

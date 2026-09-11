@@ -53,7 +53,7 @@ export function validateAppearancePatch(patch: AppearancePatch, source: string):
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
  *  the path, never a silent "no such preset" that blames the caller for a broken file. */
 function readPresetFile(): PresetFile | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.
+  // @orb-waive caught-failure-ownership(catch): appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.
   try {
     return JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as PresetFile;
   } catch {

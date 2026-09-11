@@ -45,7 +45,7 @@ export function PersonaList(): ReactElement {
     setSeed.mutate({ section: "seeds", patch: { currentPersonaId: personaId } });
   };
   const onCreate = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
+    // @orb-waive caught-failure-ownership(catch): createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.
     try {
       const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
       setExpandedId(created.id);

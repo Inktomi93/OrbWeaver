@@ -116,7 +116,7 @@ async function probeCustomEndpointHealth(ctx: CredentialContext, args: ProbeCont
   // A malformed baseUrl can't reach `ctx.probeEndpoint` (its own URL parse would fail identically), so
   // treating it as non-local here just falls through to the normal strike path — never silently swallowed.
   const localEndpoint = ((): boolean => {
-    // @orb-gate-ignore caught-failure-ownership(default:catch): the comment above is the contract — a malformed baseUrl cannot reach `ctx.probeEndpoint` either (its own URL parse fails identically), so `false` here just routes to the normal strike path where the dial reports the real failure. This branch only classifies local-vs-remote; it never decides the health verdict. Ends if the local/LAN classification gains an effect the strike path does not cover.
+    // @orb-waive caught-failure-ownership(catch): the comment above is the contract — a malformed baseUrl cannot reach `ctx.probeEndpoint` either (its own URL parse fails identically), so `false` here just routes to the normal strike path where the dial reports the real failure. This branch only classifies local-vs-remote; it never decides the health verdict. Ends if the local/LAN classification gains an effect the strike path does not cover.
     try {
       return isLocalOrLanHost(new URL(endpoint.baseUrl).hostname);
     } catch {

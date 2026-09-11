@@ -183,7 +183,7 @@ function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason:
     onCompileFailure?.(key, complexity);
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:err): documented — null reported via
+  // @orb-waive caught-failure-ownership(err): documented — null reported via
   // onCompileFailure, caller falls back to a literal compile. Ends if the caller stops checking for null.
   try {
     return new RegExp(pattern, flags);
@@ -261,7 +261,7 @@ export function matchEntryKeys(keys: readonly string[], haystack: string, option
         return false;
       }
       const compiled = keyRegex(key, "regex", options.onKeyCompileFailure);
-      // @orb-gate-ignore caught-failure-ownership(default:err): documented above (#710) — a throw is
+      // @orb-waive caught-failure-ownership(err): documented above (#710) — a throw is
       // treated as a non-match (fail-closed) and reported through onKeyCompileFailure. Ends if the
       // report call is removed.
       try {

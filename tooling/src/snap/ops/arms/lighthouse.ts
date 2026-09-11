@@ -96,7 +96,7 @@ async function readinessRefusal(page: Page): Promise<LighthouseOutcome | null> {
 /** Wait for OUR chromium's `--remote-debugging-port` listener, then prove it is a browser endpoint. */
 async function awaitEndpoint(port: number): Promise<void> {
   for (let attempt = 0; attempt < ENDPOINT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing.
+    // @orb-waive caught-failure-ownership(catch): the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing.
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json/version`);
       if (response.ok) {

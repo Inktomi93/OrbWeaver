@@ -43,7 +43,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
   // anchor, and the room surface's own mount hook takes it from there.
   const { startChat } = useStartChat();
   const startChatWith = (characterId: CharacterId): void => {
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): useStartChat's mutation carries
+    // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
     // errorToast: "Couldn't start the chat." — the toast is the surface. Ends if useStartChat drops errorToast.
     startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };

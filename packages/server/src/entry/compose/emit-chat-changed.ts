@@ -18,7 +18,7 @@ export function createChatChangedEmitter(db: Db): EmitChatChanged {
   return async (chatId, options = {}): Promise<void> => {
     const payloadChatId = options.detail === true ? chatId : undefined;
     const recipients = new Set<UserId>(options.extraUserIds ?? []);
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort — documented below: a failed roster
+    // @orb-waive caught-failure-ownership(catch): best-effort — documented below: a failed roster
     // read fans only the pre-captured extras; the rest heals on the next client reconnect (this is a live-
     // notification fan-out, not the durable write itself). Ends if a client stops reconnect-healing.
     try {

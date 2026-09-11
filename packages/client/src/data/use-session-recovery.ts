@@ -75,7 +75,7 @@ export function useSessionRecovery(): SessionRecoveryState {
         ownsCompletion = false;
       };
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:bindDurableLocalToUser): rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.
+    // @orb-waive caught-failure-ownership(bindDurableLocalToUser): rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.
     void bindDurableLocalToUser(userId)
       .then(() => {
         if (ownsCompletion && durableLocalReadyFor(userId)) {

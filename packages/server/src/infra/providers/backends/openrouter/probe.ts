@@ -40,7 +40,7 @@ interface OrProbeClient {
  */
 export async function probeOpenRouterCredential(client: OrProbeClient, now: () => number, secrets: ProviderScrubSet): Promise<CredentialHealth> {
   const checkedAt = now();
-  // @orb-gate-ignore caught-failure-ownership(empty:err): a credential-probe failure is classified into a typed CredentialHealth (auth-class → revoked, else → unreachable), reason sanitized + secret-redacted by value; propagated as a verdict, never a false green, no secret leak. Ends if the catch can return "ok".
+  // @orb-waive caught-failure-ownership(err): a credential-probe failure is classified into a typed CredentialHealth (auth-class → revoked, else → unreachable), reason sanitized + secret-redacted by value; propagated as a verdict, never a false green, no secret leak. Ends if the catch can return "ok".
   try {
     await client.credits.getCredits();
     return { status: "ok", checkedAt };

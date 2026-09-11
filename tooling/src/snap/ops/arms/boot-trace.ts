@@ -58,7 +58,7 @@ export const BOOT_TRACE_ARM = {
             failure = "no owned page exists for the pre-navigation trace";
             return;
           }
-          // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
             rawTracePath = await artifactFile("boot-trace", "snap-boot", ".trace.json", {
               producer: "boot-trace",
@@ -82,7 +82,7 @@ export const BOOT_TRACE_ARM = {
           if (!opts.bootTrace || ctx.pageIndex !== 0 || active === null || rawTracePath === null) {
             return;
           }
-          // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
             receipt = await active.finish(rawTracePath);
           } catch (error) {
@@ -102,7 +102,7 @@ export const BOOT_TRACE_ARM = {
             failure ??= "trace never reached the post-navigation readiness boundary";
           }
           if (receipt !== null && receiptPath === null) {
-            // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+            // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
             try {
               receiptPath = await artifactFile("boot-trace", `${ctx.name}-boot`, ".json", {
                 producer: "boot-trace",

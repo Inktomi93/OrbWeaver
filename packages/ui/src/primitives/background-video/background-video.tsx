@@ -62,7 +62,7 @@ export function BackgroundVideo({ src, paused = false, className }: BackgroundVi
       return;
     }
     // A rejected play() (an autoplay-policy edge) is a no-op — muted playback is unconditionally allowed.
-    // @orb-gate-ignore caught-failure-ownership(promise:play): documented above — a rejected play() on a
+    // @orb-waive caught-failure-ownership(video.play): documented above — a rejected play() on a
     // muted, decorative background element is a genuine no-op per the autoplay spec. Ends if the element
     // stops being muted/decorative-only.
     void video.play().catch(() => undefined);

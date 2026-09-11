@@ -8,7 +8,7 @@ const redactedRequestUrlSchema = z.string().min(1).brand<"RedactedRequestUrl">()
 export type RedactedRequestUrl = z.infer<typeof redactedRequestUrlSchema>;
 
 export function redactedRequestUrl(raw: string): RedactedRequestUrl {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value.
+  // @orb-waive caught-failure-ownership(catch): an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes. Ends if the fallback stops being the only returned value.
   try {
     const url = new URL(raw);
     if (url.username !== "" || url.password !== "") {

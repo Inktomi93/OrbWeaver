@@ -352,7 +352,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busDupCheck(filterKeyName(filter));
       }
-      // @orb-gate-ignore caught-failure-ownership(promise:invalidateQueries): refetch failures surface on the queries' own error state; consume the aggregate Promise here.
+      // @orb-waive caught-failure-ownership(deps.queryClient.invalidateQueries): refetch failures surface on the queries' own error state; consume the aggregate Promise here.
       deps.queryClient.invalidateQueries(filter).catch(() => undefined);
     }
   };

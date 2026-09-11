@@ -46,12 +46,12 @@ export class GameSeedFlights {
     const result = Promise.withResolvers<GameSeedResult>();
     const flight = new GameSeedFlight(profile, title, result.promise);
     this.inFlight = flight;
-    // @orb-gate-ignore caught-failure-ownership(promise:promise): both arms only release the inFlight pointer for bookkeeping; the rejection itself propagates through the returned `flight.promise`, which the caller awaits. Ends if `run` stops returning `flight.promise` to its caller.
+    // @orb-waive caught-failure-ownership(flight.promise): both arms only release the inFlight pointer for bookkeeping; the rejection itself propagates through the returned `flight.promise`, which the caller awaits. Ends if `run` stops returning `flight.promise` to its caller.
     void flight.promise.then(
       () => this.release(flight),
       () => this.release(flight),
     );
-    // @orb-gate-ignore caught-failure-ownership(promise:resolve): feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object.
+    // @orb-waive caught-failure-ownership(Promise.resolve): feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object.
     void Promise.resolve().then(start).then(result.resolve, result.reject);
     return flight.promise;
   }

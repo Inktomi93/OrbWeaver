@@ -123,7 +123,7 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
       throw error;
     }
     let cleanupFailure: unknown = null;
-    // @orb-gate-ignore caught-failure-ownership(empty:cleanupError): the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.
+    // @orb-waive caught-failure-ownership(cleanupError): the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.
     try {
       await removeAndProveAbsent(baseUrl, created);
     } catch (cleanupError) {

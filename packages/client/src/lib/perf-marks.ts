@@ -11,7 +11,7 @@ export function perfMark(name: string): void {
 
 /** Measure `name` from a prior `perfMark(startMark)` to now. No-throw if the start mark is absent. */
 export function perfMeasure(name: string, startMark: string): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a missing start mark must never surface as an app-code throw — best-effort instrumentation only. Ends if perf marks become load-bearing for app logic.
+  // @orb-waive caught-failure-ownership(catch): a missing start mark must never surface as an app-code throw — best-effort instrumentation only. Ends if perf marks become load-bearing for app logic.
   try {
     performance.measure(`${NS}${name}`, `${NS}${startMark}`);
   } catch {
@@ -21,7 +21,7 @@ export function perfMeasure(name: string, startMark: string): void {
 
 /** Measure `name` from navigation start (`timeOrigin`) to now — for one-shot load metrics like app-ready. */
 export function perfMeasureFromLoad(name: string): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort instrumentation only — see perfMeasure above. Ends if perf marks become load-bearing for app logic.
+  // @orb-waive caught-failure-ownership(catch): best-effort instrumentation only — see perfMeasure above. Ends if perf marks become load-bearing for app logic.
   try {
     performance.measure(`${NS}${name}`);
   } catch {

@@ -253,7 +253,7 @@ async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined, hint: stri
   if (oidc === undefined) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): `null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.
+  // @orb-waive caught-failure-ownership(catch): `null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.
   try {
     const endpoint = (await oidc.getConfig()).serverMetadata().end_session_endpoint;
     if (typeof endpoint !== "string" || endpoint.length === 0) {

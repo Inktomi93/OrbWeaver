@@ -75,7 +75,7 @@ export function startSessionFreshness(deps: SessionFreshnessDeps): () => void {
       return;
     }
     probing = true;
-    // @orb-gate-ignore caught-failure-ownership(promise:probe): a rejection means unreachable, not signed out (see the interface doc) — the reject arm deliberately leaves the clock alone so the next visible edge retries. Ends if unreachable must be distinguished from signed-out here.
+    // @orb-waive caught-failure-ownership(deps.probe): a rejection means unreachable, not signed out (see the interface doc) — the reject arm deliberately leaves the clock alone so the next visible edge retries. Ends if unreachable must be distinguished from signed-out here.
     deps.probe().then(
       (authenticated) => {
         probing = false;

@@ -21,7 +21,7 @@ export function createResolveStreamAuthority(ctx: AutomationContext): Automation
     if (role === undefined) {
       throw new AutomationChatNotFoundError(chatId);
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): FAIL-CLOSED to the narrower `member` tier — a
+    // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED to the narrower `member` tier — a
     // caught `can()` refusal means a present-but-not-host member (the file header's injected-op-caller-gate
     // class), never a leak. Ends if `can()` grows a distinct infra-error class this narrowing must stop
     // swallowing.

@@ -50,7 +50,7 @@ async function buildFoldedTurnSafely(
   baseState: RpgSnapshotState,
   prose: ProseOverrides,
 ): Promise<Awaited<ReturnType<RpgContext["buildFoldedTurn"]>> | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:err): reported via `ctx.onFoldBuildFailed` (loud,
+  // @orb-waive caught-failure-ownership(err): reported via `ctx.onFoldBuildFailed` (loud,
   // per the function header's R1 doctrine) and returned as the consumed `null` terminal channel the flush's
   // fallback post-commit round checks. Ends if the fold mount becomes a required precondition.
   try {

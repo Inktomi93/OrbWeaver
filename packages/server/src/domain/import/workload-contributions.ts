@@ -125,7 +125,7 @@ async function rmContained(stagingRoot: string, target: string): Promise<void> {
   // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the
   // deletion hole — but a staged entry that turned into a link since the resolve is a tampering signal, and
   // deleting nothing is the safe response on a path this belt no longer recognizes.
-  // @orb-gate-ignore caught-failure-ownership(promise:lstat): both arms of this stat converge on "remove nothing" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.
+  // @orb-waive caught-failure-ownership(lstat): both arms of this stat converge on "remove nothing" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.
   const link = await lstat(resolved).catch(() => null);
   if (link === null || link.isSymbolicLink()) {
     return;

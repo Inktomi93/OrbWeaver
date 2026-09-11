@@ -44,7 +44,7 @@ export async function prepareMeasuredClick(page: Page, selector: string | null):
   if (selector === null) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:e): prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.
+  // @orb-waive caught-failure-ownership(e): prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.
   try {
     const loc = page.locator(selector).first();
     await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });

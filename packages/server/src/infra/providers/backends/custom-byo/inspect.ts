@@ -132,7 +132,7 @@ export async function inspectCustomByoEndpoint(args: {
       redirect: "manual",
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
-    // @orb-gate-ignore caught-failure-ownership(promise:readBodyPreview): a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.
+    // @orb-waive caught-failure-ownership(readBodyPreview): a diagnostic body-preview read failure collapses to an empty string (then secret-scrubbed by value); display-only enrichment, no credential/auth decision and no leak. Ends if the preview ever bypasses scrubbing or gates auth.
     const text = await readBodyPreview(res, secretScrubOverhang(secrets)).catch((): string => "");
     // Scrub secrets BEFORE display-eligibility: an echoing endpoint reflects the plaintext key back in the
     // body. The known literals we hold (the apiKey + any secret-valued custom header) are the primary belt.

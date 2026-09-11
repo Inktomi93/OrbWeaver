@@ -181,7 +181,7 @@ export function createPromptTransformIndex(deps: PromptTransformIndexDeps): Prom
     reload: reconcile,
     isStale: (): boolean => stale,
     refresh: async (): Promise<void> => {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): DELIBERATE ABSORBER, the enabled index's twin
+      // @orb-waive caught-failure-ownership(catch): DELIBERATE ABSORBER, the enabled index's twin
       // (`substrate/enabled-index.ts` carries the full argument). The owner is the stale latch plus the
       // watcher front door's retry; propagating would reject a rule mutation that already committed (#1431).
       // Ends when a transform registration stops being reconcilable from canon.

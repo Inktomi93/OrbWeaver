@@ -28,7 +28,7 @@ export interface SeedAssetBytes {
 }
 
 async function readBundled(relPath: string, mime: string): Promise<SeedAssetBytes | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a missing/unreadable
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a missing/unreadable
   // bundled asset means "this pack ships none for this handle" (`null`), so the caller skips ONE seed item
   // instead of failing the whole seed. Ends if the seed pack becomes required rather than best-effort.
   try {
@@ -53,7 +53,7 @@ export function readSeedGalleryPiece(handle: CharacterHandle): Promise<SeedAsset
  *  (`GET /api/export/chat/:id?format=jsonl`) produced for the live-generated conversation. `null` when the
  *  file is absent, so a missing transcript skips ONE example instead of failing the seed. */
 export async function readSeedDemoChat(slug: string): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — the header states the
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — the header states the
   // contract: a missing transcript skips ONE example instead of failing the seed. Ends if this transcript
   // becomes required rather than best-effort.
   try {

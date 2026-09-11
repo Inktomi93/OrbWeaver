@@ -40,7 +40,7 @@ function stateOf(record: ToolCallBlockRecord): ToolCallState {
 
 /** Attempt `JSON.parse` + pretty-print; on failure return the raw string verbatim — NEVER blank. */
 function prettyOrRaw(raw: string): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented above — on failure returns the raw
+  // @orb-waive caught-failure-ownership(catch): documented above — on failure returns the raw
   // string verbatim, NEVER blank, a clean display fallback. Ends if the verbatim fallback is removed.
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);

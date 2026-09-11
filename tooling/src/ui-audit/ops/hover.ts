@@ -336,7 +336,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     return notRunPass(samples, { kind: "not-applicable", reason: "no-hover-media" }, Date.now() - started);
   }
   const cdp = await page.context().newCDPSession(page);
-  // @orb-gate-ignore caught-failure-ownership(empty:e): printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.
+  // @orb-waive caught-failure-ownership(e): printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.
   try {
     await cdp.send("DOM.enable");
     await cdp.send("CSS.enable");

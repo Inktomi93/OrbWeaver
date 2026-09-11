@@ -94,7 +94,7 @@ function pluginMacroLegacyName(slug: string, guestName: string): string | null {
  *  has no value this turn. The caller turns `null` into an empty body rather than dropping the macro, so a
  *  reference to it still renders (as "") instead of re-emitting raw `{{…}}` bytes into the prompt. */
 async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, deadline: Promise<null>): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — a throw, a rejected invoke,
+  // @orb-waive caught-failure-ownership(catch): documented above — a throw, a rejected invoke,
   // or the deadline all mean the same thing to a render (this macro has no value this turn); the caller
   // renders `null` as an empty body. Ends if a guest failure needs to surface distinctly from a timeout.
   try {

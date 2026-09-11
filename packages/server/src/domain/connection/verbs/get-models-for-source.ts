@@ -107,7 +107,7 @@ async function maxProSubArm(ctx: ConnectionContext, params: GetModelsForSourcePa
 async function customOpenAiArm(ctx: ConnectionContext, params: GetModelsForSourceParams): Promise<SourceModelsResult> {
   let defaultModelId: string | null = null;
   let keyed = false;
-  // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — only `DomainNoCredentialError`
+  // @orb-waive caught-failure-ownership(err): narrow rethrow — only `DomainNoCredentialError`
   // (no key configured) is swallowed as `keyed: false`; any other failure rethrows below unhandled. Ends if
   // a new caller needs this key-presence check to distinguish "no key" from a resolve infra failure.
   try {

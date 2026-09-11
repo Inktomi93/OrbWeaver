@@ -58,7 +58,7 @@ function ctCacheDirFor(root: string, id: string): string {
 }
 
 function readLock(path: string): CtRunnerLockRecord | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as "someone holds this".
+  // @orb-waive caught-failure-ownership(catch): the FAILURE IS THE VERDICT — an unreadable lockfile is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the lock and PRINTS that it did. Surfacing it any other way wedges the tree on a half-written file. Ends if a caller starts reading `null` as "someone holds this".
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (typeof parsed !== "object" || parsed === null) {
@@ -84,7 +84,7 @@ function holderAlive(pid: number, alive: (pid: number) => boolean): boolean {
 }
 
 function defaultAlive(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.
+  // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.
   try {
     process.kill(pid, 0);
     return true;
@@ -191,7 +191,7 @@ export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): 
   let stolenFrom: number | null = null;
   // `wx` is the whole mechanism: an EXCLUSIVE create is atomic, so two runners racing this line cannot both
   // win. A pre-read-then-write would have a window exactly the size of the defect.
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the EEXIST throw IS "the lock is held" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: "busy"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.
+  // @orb-waive caught-failure-ownership(catch): the EEXIST throw IS "the lock is held" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: "busy"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.
   try {
     writeFileSync(lockPath, body, { flag: "wx" });
   } catch {

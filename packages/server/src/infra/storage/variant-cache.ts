@@ -61,7 +61,7 @@ export function createVariantCache(rootDir: string): VariantCache {
   return {
     read(ownerId, hash, variant): Promise<Uint8Array | undefined> {
       // Best-effort: a miss, unreadable file, or malformed key all resolve to undefined (recompute).
-      // @orb-gate-ignore caught-failure-ownership(promise:resolve): a best-effort variant-cache read where a miss, unreadable file, OR a rejected path-validation (unsafe owner / invalid hash throws INSIDE the .then, before any readFile) all collapse to undefined → recompute; no unvalidated path is ever read, and miss/error are indistinguishable → same recompute, so it cannot become a cross-owner read or existence oracle (path is owner-scoped). Ends if readFile runs on an unvalidated path.
+      // @orb-waive caught-failure-ownership(Promise.resolve): a best-effort variant-cache read where a miss, unreadable file, OR a rejected path-validation (unsafe owner / invalid hash throws INSIDE the .then, before any readFile) all collapse to undefined → recompute; no unvalidated path is ever read, and miss/error are indistinguishable → same recompute, so it cannot become a cross-owner read or existence oracle (path is owner-scoped). Ends if readFile runs on an unvalidated path.
       return Promise.resolve()
         .then(() => readFile(variantPath(ownerId, hash, variant)))
         .catch(() => undefined);

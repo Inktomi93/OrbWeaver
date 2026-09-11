@@ -299,7 +299,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:err): propagated — the HTTP entry boundary's own error
+    // @orb-waive caught-failure-ownership(err): propagated — the HTTP entry boundary's own error
     // mapper (`errorResponse`) answers the caller with the failure as a response; the inner catch (staging
     // cleanup) rethrows unconditionally. Never a silent swallow. Ends if this route stops being the terminal
     // HTTP handler.

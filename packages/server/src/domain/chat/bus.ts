@@ -129,7 +129,7 @@ const RING_CAPACITY = 256;
 async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the ground-truth probe failing means the db is
+  // @orb-waive caught-failure-ownership(catch): the ground-truth probe failing means the db is
   // unwell — fall through to the `live-fault` verdict, which the CALLER reports with the original `err`. Ends
   // if the probe grows its own retry/backoff (then it owns classifying its own failure).
   try {
@@ -183,7 +183,7 @@ type AppendOutcome =
  *  FLAG discussion and `handleAppendFailure`'s doc for why re-using the id is what makes the DB the arbiter. */
 async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBusEvent): Promise<AppendOutcome> {
   for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:err): `err` is handed to `handleAppendFailure`, which
+    // @orb-waive caught-failure-ownership(err): `err` is handed to `handleAppendFailure`, which
     // classifies it (classifyFailedAppend, ground-truth probe) and reports it (getLog().warn on a live retry,
     // getLog().error via reportTerminalDrop on the last attempt) per FLAG[emit-is-total] above — never
     // rethrown, never silently dropped, just not directly visible to the gate's own-file scan since the
@@ -220,7 +220,7 @@ const LIVE_APPEND_ATTEMPTS = 2;
  *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
  *  is too unwell to say. */
 async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the probe failing means the db is unwell — the
+  // @orb-waive caught-failure-ownership(catch): the probe failing means the db is unwell — the
   // `null` falls through to "we cannot prove it landed", which is the LOUD arm the CALLER reports with the
   // original `err` (never silent). Ends if this probe grows its own retry (then it owns its own failure).
   try {
@@ -323,7 +323,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
   const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
-    // @orb-gate-ignore caught-failure-ownership(default:err): same FLAG[emit-is-total] contract as `emit`
+    // @orb-waive caught-failure-ownership(err): same FLAG[emit-is-total] contract as `emit`
     // above — classifyFailedAppend classifies + reports, never rethrown. Ends if a caller needs the durable
     // write failure to propagate. NOT retried, unlike `emit`: the batch carries the caller's CLAIM statement,
     // which is single-consumption by construction — a replay could apply it twice.

@@ -38,7 +38,7 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   if (sealed === null) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.
+  // @orb-waive caught-failure-ownership(catch): the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.
   try {
     return ctx.openIdToken(sealed, sessionId);
   } catch {

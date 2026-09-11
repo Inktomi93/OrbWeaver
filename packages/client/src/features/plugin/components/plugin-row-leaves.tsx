@@ -61,7 +61,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
 
   const runCheck = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): useCheckForUpdates carries
+    // @orb-waive caught-failure-ownership(check.mutateAsync): useCheckForUpdates carries
     // errorToast: "Couldn't check for updates." — the toast is the surface; undefined just leaves the verdict
     // as-is. Ends if that mutation drops its errorToast.
     const results = await check.mutateAsync(undefined).catch(() => undefined);
@@ -86,7 +86,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   const applyUpgrade = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): both upgrade mutations carry
+    // @orb-waive caught-failure-ownership(upgrade.mutateAsync): both upgrade mutations carry
     // errorToast: serverReason("Couldn't update that plugin.") — the toast is the surface. Ends if either
     // mutation drops its errorToast.
     const updated = await upgrade.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
@@ -111,7 +111,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         intent="secondary"
         loading={check.isPending}
         onClick={(): void => {
-          // @orb-gate-ignore caught-failure-ownership(promise:runCheck): runCheck already catches its own
+          // @orb-waive caught-failure-ownership(runCheck): runCheck already catches its own
           // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
           // catching internally.
           void runCheck().catch(() => undefined);
@@ -126,7 +126,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           intent="primary"
           loading={upgrade.isPending}
           onClick={(): void => {
-            // @orb-gate-ignore caught-failure-ownership(promise:applyUpgrade): applyUpgrade already
+            // @orb-waive caught-failure-ownership(applyUpgrade): applyUpgrade already
             // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
             // if applyUpgrade stops catching internally.
             void applyUpgrade().catch(() => undefined);

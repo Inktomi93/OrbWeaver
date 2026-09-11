@@ -156,7 +156,7 @@ function projectFactForInstaller(fact: TriggerFact, readsHidden: boolean): Trigg
  *  isolated). `resolveFactVisibility` is fail-closed on `denied` OR a throwing read (a raced delete / a bad id). */
 async function deliverIfVisible(deps: VisibilityDeps, sub: PluginTriggerSubscriber, resolved: ResolvedTrigger): Promise<void> {
   let verdict: FactVisibility;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): FAIL-CLOSED — a raced delete / a bad id / any
+  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — a raced delete / a bad id / any
   // throwing visibility read collapses to `visible: false`, the same posture `resolveFactVisibility`'s own
   // fail-closed contract states (header, `ownsFactSubject` is fail-CLOSED). Never a leaked fact. Ends if the
   // gate needs to tell a raced-delete failure apart from a real denial.
