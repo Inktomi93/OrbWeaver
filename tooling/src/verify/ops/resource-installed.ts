@@ -45,6 +45,37 @@ function manifestPath(root: string, id: InstalledPackageId, seen: ReadonlySet<In
   return createRequire(base).resolve(`${definition.specifier}/package.json`);
 }
 
+/** Walk up from a resolved entry file to the directory that owns it. Used only when a package's `exports`
+ *  map refuses `./package.json` — see `installedPackageDirectory`. */
+function owningPackageDirectory(entry: string): string {
+  let directory = dirname(realpathSync(entry));
+  for (;;) {
+    if (statSync(join(directory, "package.json"), { throwIfNoEntry: false })?.isFile() === true) {
+      return directory;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) {
+      throw new Error(`no package manifest owns the resolved entry: ${entry}`);
+    }
+    directory = parent;
+  }
+}
+
+/** The resolved package DIRECTORY, for a composite door whose subject spans several installed files (the
+ *  vendor CSS surface). Exported so resolution has ONE home: a second `createRequire` base would be a second
+ *  answer to "where is this package", which is exactly what the `via` chain exists to prevent. Throws with
+ *  node's own message when the package is not installed; the caller owns the status.
+ *
+ *  A PACKAGE MAY REFUSE TO EXPORT ITS OWN MANIFEST, and that is what `directoryAnchor` is for — the
+ *  contract records the measurement. */
+export function installedPackageDirectory(root: string, id: InstalledPackageId): string {
+  const definition = INSTALLED_PACKAGE_DEFINITIONS[id];
+  if (definition.directoryAnchor !== undefined) {
+    return owningPackageDirectory(createRequire(resolve(root, definition.from)).resolve(`${definition.specifier}/${definition.directoryAnchor}`));
+  }
+  return realpathSync(dirname(manifestPath(root, id, new Set<InstalledPackageId>())));
+}
+
 function repoDirectory(root: string, directory: string): string | null {
   const rel = relative(realpathSync(root), realpathSync(directory));
   if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {

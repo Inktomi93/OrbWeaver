@@ -20,13 +20,20 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
     "authoredText",
     "authoredTree",
     "cssInventory",
+    "devtoolsClosure",
+    "documents",
+    "exactFiles",
     "installedPackage",
     "json",
+    "ledger",
+    "mirrorIndex",
     "nativeConfig",
     "packageMetadata",
     "productCss",
     "staticConfig",
+    "tokenContract",
     "trackedFiles",
+    "vendorCssSurface",
   ]);
   const first = invocation.host.packageMetadata("root");
   expect(first.status).toBe("missing");

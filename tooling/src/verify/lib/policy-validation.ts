@@ -12,8 +12,11 @@ import type { PopulationExpr } from "../contract/population.ts";
 import { NATIVE_CONFIG_RESOURCE_PATHS, PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { GATE_RESOURCE_REQUEST_KINDS, isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
+import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
 import { INSTALLED_PACKAGE_IDS, INSTALLED_PACKAGE_MODES } from "../contract/resource-installed.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
+import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertPopulationExpr } from "./population-resolver.ts";
@@ -225,8 +228,11 @@ export function assertGateResourceDeclarations(value: unknown): asserts value is
   }
 }
 
-function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string, string>> | undefined {
-  let ids: Readonly<Record<string, string>> | undefined;
+/** The id VOCABULARY per kind, keyed off each door's own closed definition object so this validator can
+ *  never drift from the door: a kind whose ids live in a definition record (mirror families, ledgers) is
+ *  admitted by its KEYS, which is all this check has ever needed. `undefined` means the kind takes no id. */
+function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string, unknown>> | undefined {
+  let ids: Readonly<Record<string, unknown>> | undefined;
   if (kind === "authored-tree") {
     ids = AUTHORED_TREE_PATHS;
   } else if (kind === "package-metadata") {
@@ -237,6 +243,12 @@ function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string,
     ids = NATIVE_CONFIG_RESOURCE_PATHS;
   } else if (kind === "json") {
     ids = JSON_RESOURCE_PATHS;
+  } else if (kind === "mirror-index") {
+    ids = MIRROR_FAMILY_DEFINITIONS;
+  } else if (kind === "ledger") {
+    ids = LEDGER_DEFINITIONS;
+  } else if (kind === "exact-file") {
+    ids = EXACT_RESOURCE_PATHS;
   }
   return ids;
 }

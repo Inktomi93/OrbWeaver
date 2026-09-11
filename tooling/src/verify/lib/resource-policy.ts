@@ -3,6 +3,7 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import type { ResourceFact } from "../contract/resource.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import type { AuthoredTextCorpus } from "../contract/resource-text.ts";
 import { resourceRequestIdentity } from "./resource-declaration.ts";
@@ -81,6 +82,33 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     }
     return acceptDemand({ kind: "authored-text" }, () => host.authoredText(paths));
   };
+  /** The exact-file door's own fence. The declaration is per ID while the call takes a LIST, so EVERY
+   *  demanded id is checked before the acquisition — otherwise a policy that declared one file could read a
+   *  second by widening its argument, and the widened read would arrive fully receipted. The refusal names
+   *  the undeclared id, never just the kind. */
+  const fencedExactFiles = (ids: readonly ExactResourceId[]): ResourceFact<ReadonlyMap<ExactResourceId, ExactFile>> => {
+    const [first] = ids;
+    if (first === undefined) {
+      context.receipt({ kind: "resource", source: "exact-file", resources: 0, unresolved: 1 });
+      throw new Error("exact files were demanded for zero ids");
+    }
+    const undeclared = ids.find((id) => !declaredRequests.has(resourceRequestIdentity({ kind: "exact-file", id })));
+    if (undeclared !== undefined) {
+      context.receipt({ kind: "resource", source: `exact-file:${undeclared}`, resources: 0, unresolved: 1 });
+      throw new Error(`resource request exact-file:${undeclared} is undeclared`);
+    }
+    // Consumption is marked for every demanded id, because every one of them was a declaration this call
+    // satisfied; crediting only the first would leave the rest reported as unconsumed requests.
+    return accept({ kind: "exact-file", id: first }, () => {
+      const fact = host.exactFiles(ids);
+      if (fact.status === "ready") {
+        for (const id of ids) {
+          onConsumed?.(resourceRequestIdentity({ kind: "exact-file", id }), []);
+        }
+      }
+      return fact;
+    });
+  };
   const bound: ResourceHost = {
     authoredTree: (id) => accept({ kind: "authored-tree", id }, () => host.authoredTree(id)),
     authoredCss: () => accept({ kind: "authored-css" }, () => host.authoredCss()),
@@ -95,6 +123,13 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     trackedFiles: () => accept({ kind: "tracked-files" }, () => host.trackedFiles()),
     json: (id) => accept({ kind: "json", id }, () => host.json(id)),
     installedPackage: (request) => accept({ kind: "installed-package", ...request }, () => host.installedPackage(request)),
+    mirrorIndex: (id) => accept({ kind: "mirror-index", id }, () => host.mirrorIndex(id)),
+    documents: () => accept({ kind: "documents" }, () => host.documents()),
+    ledger: (id) => accept({ kind: "ledger", id }, () => host.ledger(id)),
+    exactFiles: fencedExactFiles,
+    vendorCssSurface: () => accept({ kind: "vendor-css-surface" }, () => host.vendorCssSurface()),
+    tokenContract: () => accept({ kind: "token-contract" }, () => host.tokenContract()),
+    devtoolsClosure: () => accept({ kind: "devtools-closure" }, () => host.devtoolsClosure()),
     authoredPaths: (selectors) => acceptDemand({ kind: "authored-path" }, () => host.authoredPaths(selectors)),
     authoredText: fencedText,
   };

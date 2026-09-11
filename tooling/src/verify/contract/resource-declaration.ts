@@ -16,8 +16,11 @@
 // skipped declaration is exactly how a request that resolved nothing reads as a clean zero.
 import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "./resource-config.ts";
+import type { LedgerId } from "./resource-document.ts";
+import type { ExactResourceId } from "./resource-exact.ts";
 import type { InstalledPackageRequest } from "./resource-installed.ts";
 import type { JsonResourceId } from "./resource-json.ts";
+import type { MirrorFamilyId } from "./resource-mirror.ts";
 import type { AuthoredTreeId } from "./resource-tree.ts";
 
 export const GATE_RESOURCE_REQUEST_KINDS = [
@@ -30,6 +33,13 @@ export const GATE_RESOURCE_REQUEST_KINDS = [
   "tracked-files",
   "json",
   "installed-package",
+  "mirror-index",
+  "documents",
+  "ledger",
+  "exact-file",
+  "vendor-css-surface",
+  "token-contract",
+  "devtools-closure",
   "authored-path",
   "authored-text",
 ] as const;
@@ -52,6 +62,15 @@ export type GateResourceRequest =
   | { readonly kind: "tracked-files" }
   | { readonly kind: "json"; readonly id: JsonResourceId }
   | ({ readonly kind: "installed-package" } & InstalledPackageRequest)
+  | { readonly kind: "mirror-index"; readonly id: MirrorFamilyId }
+  | { readonly kind: "documents" }
+  | { readonly kind: "ledger"; readonly id: LedgerId }
+  /** ONE declaration PER ID, even though the door is called with a list: a policy that declared one exact
+   *  file must not be able to read a second by widening its argument. */
+  | { readonly kind: "exact-file"; readonly id: ExactResourceId }
+  | { readonly kind: "vendor-css-surface" }
+  | { readonly kind: "token-contract" }
+  | { readonly kind: "devtools-closure" }
   | { readonly kind: "authored-path" }
   | { readonly kind: "authored-text" };
 

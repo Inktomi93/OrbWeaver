@@ -28,7 +28,7 @@ export type InstalledPackageMode = (typeof INSTALLED_PACKAGE_MODES)[number];
 /** The closed id set is declared BEFORE the definitions so `via` can name a sibling id without the
  *  definitions object referencing its own inferred key type. The explicit `Record` annotation below then
  *  makes tsc force a definition for every id. */
-export const INSTALLED_PACKAGE_IDS = ["base-ui", "react-compiler", "playwright-test", "playwright-core"] as const;
+export const INSTALLED_PACKAGE_IDS = ["base-ui", "react-compiler", "playwright-test", "playwright-core", "streamdown"] as const;
 export type InstalledPackageId = (typeof INSTALLED_PACKAGE_IDS)[number];
 
 export interface InstalledPackageDefinition {
@@ -38,6 +38,13 @@ export interface InstalledPackageDefinition {
   readonly from: string;
   /** Resolve from ANOTHER installed id's manifest instead of a repo file. */
   readonly via?: InstalledPackageId;
+  /** An EXPORTED subpath to locate the package directory by, for a package whose `exports` map refuses
+   *  `./package.json`. Measured 2026-09-11: `streamdown` exports only `.` (import/types conditions, no
+   *  `require`) and `./styles.css`, so both the manifest resolution and a CJS resolve of the bare specifier
+   *  are ERR_PACKAGE_PATH_NOT_EXPORTED / "no exports main defined". The anchor keeps resolution inside
+   *  NODE's algorithm rather than guessing a `node_modules/<name>` path, which under pnpm is the symlink
+   *  rather than the store directory. */
+  readonly directoryAnchor?: string;
 }
 
 export const INSTALLED_PACKAGE_DEFINITIONS: Readonly<Record<InstalledPackageId, InstalledPackageDefinition>> = {
@@ -49,6 +56,9 @@ export const INSTALLED_PACKAGE_DEFINITIONS: Readonly<Record<InstalledPackageId, 
   "playwright-test": { specifier: "@playwright/test", from: "package.json" },
   /** The other half; reachable only from the resolved `@playwright/test` manifest under pnpm. */
   "playwright-core": { specifier: "playwright-core", from: "package.json", via: "playwright-test" },
+  /** The installed Markdown renderer whose bundled chunks are the ONLY writer of its `data-streamdown`
+   *  selectors — the vendor half of `css-selector-has-a-writer`, reached through `vendorCssSurface`. */
+  streamdown: { specifier: "streamdown", from: "packages/ui/package.json", directoryAnchor: "styles.css" },
 };
 
 export interface InstalledPackageMetadata {
