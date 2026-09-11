@@ -72,7 +72,23 @@ Use:
 
 - `lib/reference-fact.ts` for stable expressions, members, module origins, and declaration traces;
 - `lib/reference-fact-call.ts` and `lib/gate-contract-origin.ts` for callable origins and member aliases;
-- `lib/reference-fact-writes.ts` for assignment, destructuring, and argument-effect invalidation.
+- `lib/reference-fact-writes.ts` for assignment, destructuring, and argument-effect invalidation;
+- `lib/authored-key-set.ts` for the UNION of authored property names across branches, spreads of calls, and every
+  expression a factory returns — a KEY-SET question, which the value readers above structurally cannot answer.
+
+**Two measured limits of the shared origin readers, both of which look like a reader you need is missing** (2026-09-11):
+
+1. **`resolveStableExpression` treats a `CallExpression` / `ConditionalExpression` as a `dynamic` TERMINAL.** That is
+   correct for a VALUE reader — a call's value is not statically known — but those nodes are COMPOSITION points for a
+   reader asking about structure rather than value. The right move is to continue the walk at the refusal's own
+   `.node`, never to re-implement the alias hop below it; binding identity stays entirely the shared resolver's.
+2. **`resolveCallableOrigin` / `resolveModuleMemberOrigin` cannot reach a MODULE-LOCAL factory.** They answer "which
+   module EXPORT is this", so a non-exported `function f() {}` refuses as *"FunctionDeclaration is not a supported
+   module-member binding"*, and a local arrow resolves only through `resolveStableExpression` — which then refuses the
+   call per limit 1. Real code is full of module-local factories; all three in `domain/chat/persistence/canon-write.ts`
+   are. The fallback is the shared `lexicalReferenceSymbol(identifier).getDeclarations()` — exactly one declaration, or
+   `ambiguous`. Try the module-origin reader FIRST (it is what resolves cross-module factories, aliases and re-export
+   renames) and fall back only for the local case.
 
 ## Types and signatures
 
