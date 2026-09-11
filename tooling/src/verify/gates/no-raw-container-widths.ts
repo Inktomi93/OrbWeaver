@@ -1,8 +1,26 @@
+// Gate: no-raw-container-widths (UI-Architecture-and-Layout.md §4) — a hardcoded content width anywhere it
+// can reach the DOM as a class.
+//
+// THE SCAN IS UNFENCED (decided 2026-09-11, #1954): the visitor subscribes to every StringLiteral /
+// NoSubstitutionTemplateLiteral in the population and applies NO className/cn() ancestry test. That is
+// deliberate, and it is the same call `no-color-literals` records in its own header — in this repo the
+// majority of class strings never appear in a `className=` attribute at all: they live in `tv()` variant
+// maps, `cva`-style records, `cn()` argument lists and plain exported constants, and a carrier fence would
+// blind the gate to exactly that surface. The WIDTH_RE shape (`w-<digits>` / `max-w-[len]`) is
+// self-identifying enough to carry the unfenced scan's false-positive cost.
+//
+// The message used to assert the hit was "in className" — a context nothing ever verified, and false for
+// every tv()/constant hit this gate exists to catch. It is now context-free. The unfenced behaviour is
+// pinned by the non-JSX `mustFlag` row below, which is the whole point of stating it here: a header
+// claiming a fence the visitor never applies is a defect, and so is one claiming a scan nothing proves.
+//
+// This policy is ORDINARY, so the false positive has a door — `@orb-waive no-raw-container-widths(<the
+// offending class fragment>): <reason>` — and the reported position IS that fragment, not the literal.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =
-  'raw content width in className (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size="sm|md|lg">` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.';
+  'raw content width class (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size="sm|md|lg">` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.';
 
 const WIDTH_RE = /^(?:(?:max-|min-)?w-\[[^\]]+\]|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+))$/u;
 const WHITESPACE_RE = /\s+/u;
@@ -58,14 +76,20 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="w-[600px]" />;\n' },
-      expect: { count: 1 },
-      why: "w-[len]",
+      expect: { count: 1, token: "w-[600px]" },
+      why: "w-[len] — and the reported position is the class FRAGMENT, not the enclosing literal, which is what makes the ordinary waiver door spellable",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="max-w-96" />;\n' },
-      expect: { count: 1 },
+      expect: { count: 1, token: "max-w-96" },
       why: "max-w-96",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/x/x.ts": 'export const widths = { wide: "max-w-96" };\n' },
+      expect: { count: 1, token: "max-w-96" },
+      why: "THE UNFENCED SCAN (#1954): a bare class string in a plain record — no className attribute, no cn()/tv() call, no JSX in the file at all — still bites. This row is the pin for the header's unfenced claim; without it the gate could grow a carrier fence and every proof would stay green while tv() variant maps went unpoliced.",
     },
   ],
   mustPass: [
