@@ -37,16 +37,19 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
    sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
    claim in it before acting (two of note 522's were false within the hour).
-7. Know the doc layer before you brief anyone. `docs/reviews/gate-runtime/` holds 23 documents. Roughly thirteen are
-   completed-family EVIDENCE. Live detail the guide delegates to: `uncovered-gate-conversion-census.md` (per-gate
-   blocker, family, population, authority, source lines — the Phase D ordering source),
-   `resource-gate-access-patterns.md` (the 53-row resource manifest, Phase C), `exception-authority-census.md` (the
-   nine baseline ledgers' per-row disposition, Phase E), `shared-semantic-readers.md` (the M/O/G/V foundations — and
-   its binding constraint that those are COMPUTATION GROUPS, so a lane must prove real shared consumption before
-   naming a `family`), `ordinary-waiver-source-migration.md` §"Exact central grammar" plus its "Explicit
-   non-migrations" fence, and `checkpoint-2026-09-05.md`. Two of them were written on the dead ATOMIC
-   premise and carry superseded banners naming what is dead and what still binds; read the banner before citing the
-   doc it sits on, and brief a lane off the banner rather than the body. Constitution §0.1 makes a lane follow a doc
+7. **Know the doc layer before you brief anyone — the guide's opening section is the routing table, read it.** Of the
+   23 documents in `docs/reviews/gate-runtime/`, four are LIVE LAW the guide delegates to (which resource capability,
+   what blocks this gate, where this exemption table goes, what a marker is) and roughly thirteen are completed-family
+   evidence. **You will be tempted to re-derive an answer one of those four already holds. Do not** — that cost a full
+   session on 2026-09-11, four separate times, each caught by a lane or the owner rather than by me. Also live:
+   `shared-semantic-readers.md` (the M/O/G/V foundations, and its binding constraint that those are COMPUTATION GROUPS,
+   so a lane must prove real shared consumption before naming a `family`) and `checkpoint-2026-09-05.md` (whose
+   §"Resume order" and per-wave lessons list are dense with mechanism law that reads like a receipt).
+
+   **Apply the guide's STALENESS RULE to every one of them**: the gate program predates the type-worlds program
+   (#1351), so a 2026-09-05/06 document's "blocked", "required" or "missing" may have been satisfied or retired by
+   #1351 rather than by us. Re-derive against the tree before acting. Two carry superseded ATOMIC-premise banners —
+   read the banner before citing the body, and brief a lane off the banner. Constitution §0.1 makes a lane follow a doc
    over your brief, so an unbannered stale premise misbriefs silently.
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
@@ -133,7 +136,10 @@ tree tells you the moment a fix breaks a row.
    behavior and cannot be delegated to a script or a `scout`. Mechanically bounded so far: 2 ordinary policies carry
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
-2. **#1952 — identity arms, 24 of 86 remaining** (grep floor; ~26 true), batches of ~8 by family. Self-checking
+2. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
+   every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
+   dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
+   batches of ~8 by family, self-checking
    (guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
 3. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
    and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
@@ -312,6 +318,25 @@ idle composed-pass remeasurement; catalog re-attest.
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
+- **Read the document that owns the question before ruling on it.** Every correction of 2026-09-11 — the Phase C
+  capability set, biome's loader, `jsonc`'s consumer, a `JUDGMENT_DEFERRED` table's disposition — was already answered
+  in the review layer, and each was caught by a lane or the owner instead of by me. Quoting §12.5 correctly is not a
+  substitute for reading the census that already classified the row.
+- **A table's NAME is not evidence of its nature.** `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds two
+  PERMANENT geometry rulings, so it is reviewed-grant work, not marker translation — `exception-authority-census.md`
+  had read the rows and said so (`:113,142`). Read the rows and their reasons; that document classified 97 tables and
+  319 rows this way and is the routing answer for all of them.
+- **Fix the CLASS, not the instance.** A lane that removes one copy of a contract-hygiene defect has not closed it:
+  `f52492f44` dropped the one inert `ext: ["ts","tsx"]` it was holding while 32 policies, 4 fact providers and the
+  `TS-MORPH-CAPABILITIES.md` example that TEACHES the shape kept theirs. Sweep the corpus before crediting the fix, and
+  fix the doc example first — it is what propagates.
+- **A corrected message is not a verified message.** #1960 is a §5b criterion-2 defect on a message the exemplar wave
+  had just rewritten FOR criterion 2: the new text said "untagged template" where the visitor means "no-substitution",
+  which is wrong in both directions and hides a live interpolated-class-string escape. Probe the claim, do not re-read
+  the prose.
+- **The authoritative roster is `check:policy-conformance`, never a grep.** A bare `defineGate` search overcounts by
+  three — two modules carry it inside proof-fixture STRINGS and one inside a refusal comment. The honest shape test is
+  `^export const gate = defineGate(`, and the loader is better than both.
 - A SCOPED suite red is never baseline. The posture's red-by-construction list is exhaustive and covers nothing
   adjacent; re-derive any scoped family-test red on a clean tree and date it against the commit that broke it.
 - Grep the docs for the governing rule BEFORE recommending a contract change: guide §12.3 and

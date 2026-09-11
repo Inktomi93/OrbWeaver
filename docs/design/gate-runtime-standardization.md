@@ -6,7 +6,19 @@ updated: 2026-09-11
 
 # One ts-morph runtime for every Orb gate — the program guide (#1584)
 
-The single operating document for the gate-runtime standardization program: the transition model, the state of the tree, the proof rules, the order of work, the per-conversion procedure, the dispatch mechanics, and the contract itself. It supersedes [gate-config-system.md](gate-config-system.md) and every earlier resume or atomic-cutover order. Receipts for what is done live under [`docs/reviews/gate-runtime/`](../reviews/gate-runtime/) (family records, the checkpoint, the censuses); those are evidence, never a task roster — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster. Native Biome/ESLint/community rules continue to own generic ecosystem lint; every Orb-specific policy uses one ts-morph runtime and one capability contract. The exemplar gates to copy are in [exemplars-2026-09-11.md](../reviews/gate-runtime/exemplars-2026-09-11.md); `tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide and is not an input to a conversion.
+The single operating document for the gate-runtime standardization program: the transition model, the state of the tree, the proof rules, the order of work, the per-conversion procedure, the dispatch mechanics, and the contract itself. It supersedes [gate-config-system.md](gate-config-system.md) and every earlier resume or atomic-cutover order. Native Biome/ESLint/community rules continue to own generic ecosystem lint; every Orb-specific policy uses one ts-morph runtime and one capability contract. `tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide and is not an input to a conversion.
+
+**The review layer under [`docs/reviews/gate-runtime/`](../reviews/gate-runtime/) is not all one thing, and treating it as "evidence" cost a full session of re-deriving answers it already held.** Four of its documents are LIVE LAW this guide delegates to; the rest are completed-family evidence. **Before proposing a capability, a family, a table's disposition or a marker translation, read the one that owns the question:**
+
+| Question | The document that already answers it |
+| - | - |
+| what resource capability does the corpus need? | [`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 — eight families with their required surfaces as TypeScript, a per-gate access/scan/proof table, a `__g_` fixture-replacement destination per row, a keep-vs-move-behind-host map for ten helpers, and nine numbered prerequisites |
+| what blocks THIS gate, and what family is it? | [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md) — per-gate blocker class, family, population notation, authority and source-line receipts. **This is the Phase D ordering source**, not a filesystem grep: its blockers are shared readers and grant migration, which no `fs` test can see |
+| where does this exemption table / baseline / marker go? | [`exception-authority-census.md`](../reviews/gate-runtime/exception-authority-census.md) — 97 exemption tables, 319 rows, 25 sanctioned-home tables, 9 baselines and 11 duplicate grammars, each already classified as grant, waiver, warning debt, policy data or delete. **A table's NAME is not evidence of its nature** — `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds permanent rulings that belong under reviewed grants (`:113,142`) |
+| what is a marker, and what happens to this legacy grammar? | [`ordinary-waiver-source-migration.md`](../reviews/gate-runtime/ordinary-waiver-source-migration.md) §"Exact central grammar", §"Closed 11-grammar disposition", §"Explicit non-migrations". Its atomic-cutover framing is dead (see its banner); its grammar contract and per-grammar verdicts bind |
+| what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent |
+
+**THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s ~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
 
 ## 1. The decision that changed everything: mixed runtime, not atomic cutover
 
@@ -37,7 +49,7 @@ for exactly once; nothing vanishes from the roster.
 | - | - | - |
 | gate modules / final / legacy | 270 / 162 / 108 | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS by 3** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS and `runner-config-path-liveness` inside its refusal comment. The honest shape test is `^export const gate = defineGate(` |
 | converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. At least 12 are in that state, named across three lanes — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
-| ordinary policies with no positive `@orb-waive` identity arm | 24 of 86 (grep floor; ~26 true) | 32 landed across four lanes, each with a planted dead-position control. The floor also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm — so a grep OVERCOUNTS arms and this number is a floor, not a total |
+| ordinary policies with no positive `@orb-waive` identity arm | **0 of 86 — CLOSED** (#1952) | The last 22 landed 2026-09-11 across three lanes (`158c4993c`, `d660d6442`, `f52492f44`), every one an in-module `mustPass` so no lane touched a shared test file. A fresh-context verifier sampled seven across all three commits, flipped each marker to a dead token, and got the §4.2 `AUTHORITY ALARM … names a dead position` on all seven; each sampled fixture produces exactly one finding |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
@@ -48,10 +60,17 @@ for exactly once; nothing vanishes from the roster.
 | known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
 | NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
 
-Open rows: **#1952** (identity arms, 24 of 86 remaining), **#1930** (the capability fork — see playbook §2 Phase C, a
-design pass, not a backlog), #1946, #1922
-(sanctioned-home tables → grants, incl. `ALLOWLIST`/`CALLER_FREE_OPS`), #1950 (forge, the 13 mixed-hook splits — the
-only remaining forge-class work). At Verify awaiting a fresh-context verifier: #1941, #1948, #1953, #1954, #1955.
+Open rows: **#1930** (the ruled capability build — §11, and the design it implements is
+`resource-gate-access-patterns.md`), **#1922** (sanctioned-home tables → reviewed grants, one lane not pair-by-pair,
+incl. `ALLOWLIST`/`CALLER_FREE_OPS`), **#1950** (forge, the 13 mixed-hook splits — the only remaining forge-class work),
+#1946. Defects found by the 2026-09-11 exemplar wave and its verifier, none blocking a conversion: **#1956**
+(`css-family-ownership`'s real-tree manifest stale since 2026-09-07), **#1957** (two unwaivable finding classes — a
+paren in the position, and a file-constant position), **#1958** (`analysis: "syntax"` fences only `ctx.checker()`;
+blast radius currently zero, the gap is recurrence), **#1959** (`ext: ["ts","tsx"]` is inert and survives in 32
+policies, 4 providers and the `TS-MORPH-CAPABILITIES.md` example that teaches it), **#1960**
+(`no-media-queries-in-features` misses interpolated class strings and its message misnames the shape).
+DONE 2026-09-11 after a fresh-context verifier CONFIRMED: #1941, #1952, #1953, #1954, #1955. Still at Review, NOT
+covered by that verifier and not to be swept into it: **#1948**.
 Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
 Conversions themselves get no rows; they land as comments on #1584.
 
@@ -311,20 +330,27 @@ harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, 
 `no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
 `no-raw-zustand-persist`).
 
-**Remaining, 106 modules, by what blocks them.** Counts below are approximate and predate the current tree — re-derive
-with `pnpm gate:contract` before dispatching; the engineering in each row is durable, the numbers are not.
+**Remaining: 108 modules. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
+[`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md), one row per gate,
+and that document is the Phase D ordering source.** The shape below is for dispatch planning only; no bucket count in
+it is current.
 
-| Bucket | Approx. count | Blocker / prerequisite | Lane class |
-| - | -: | - | - |
-| resource-backed (`fsBacked`) run/visit/file gates: CSS family (14), config/compiler liveness, Base UI + installed/generated (7), documents/registries/ledgers (9), `db-structure`, test-presence pair, `tooling-instrument-proof` | \~40 | **Blocked on a DECISION, not on work.** #1930 proposes seven new capabilities derived from the eleven gates three lanes tripped over — against 106 remaining. Whether the contract grows at all, and by how much, is the Phase C fork (playbook §2): each capability costs a pass over four policing surfaces (`policy-conformance.ts`'s fixture runner, `gate-modernization`, `enforcement-registry-parity`, `policy-validation.ts`), and `gate:contract`'s simple tier is blind to what a gate READS, so "simple" is never "convertible" | forge design pass FIRST; executor per family only after the set is settled |
-| run-only pure-AST gates (whole-population evaluators) | \~21 | shared facts for registries/coverage/static values; several need `evaluate` on an existing provider | executor (Opus) |
-| direct-walking visitors and file hooks | \~35 | inversion into visitors + ancestor checks, or a shared reader; state into `create`; marker vocabulary translation | executor (Sonnet where the reader exists; Opus where a reader must be added) |
-| the 13 ruled mixed-hook modules (`tooling-argv-front-door`, `tooling-shared-plumbing`, `no-inline-union-redecl`, …) | 13 | multi-way splits touching `lib/reviewed-grants.ts` and exported coupled sites | forge (#1950) |
-| self-policing gates that read the gate corpus (`enforcement-registry-parity`, `gate-ignore-inventory`, `finding-overload-provenance`, `gate-modernization`, `dangling-refs`) | 5 | §5 items 1–5; two retire at legacy deletion | runtime lane |
+| Bucket | Lane class |
+| - | - |
+| resource-backed (`fsBacked`) run/visit/file gates: CSS family, config liveness, Base UI + installed/generated, documents/registries/ledgers, `db-structure`, the test-presence trio, `tooling-instrument-proof` | executor per family, as each capability lands (#1930) |
+| run-only whole-population evaluators | executor (Opus) — most want `evaluate` on a provider that already exists |
+| direct-walking visitors and file hooks | executor — inversion into visitors + ancestor checks, state into `create`, markers translated in-commit |
+| the 13 ruled mixed-hook modules (`tooling-argv-front-door`, `tooling-shared-plumbing`, `no-inline-union-redecl`, …) | forge (#1950); multi-way splits touching `lib/reviewed-grants.ts` and exported coupled sites |
+| self-policing gates that read the gate corpus (`enforcement-registry-parity`, `gate-ignore-inventory`, `finding-overload-provenance`, `gate-modernization`, `dangling-refs`) | runtime lane; two of them retire at legacy deletion rather than converting |
 
-Exact rosters: `pnpm gate:contract` (descriptor-wrapper findings = the legacy set), the per-gate blocker tables in
-`uncovered-gate-conversion-census.md`, and the 53-row resource manifest in `resource-gate-access-patterns.md`. None of
-those documents is a progress board; the loader and the census are.
+**A FILESYSTEM TEST IS NOT A CONVERTIBILITY TEST, and neither is `gate:contract`.** Measured 2026-09-11: 60 of the 108
+import no `node:fs`, reference no `node_modules`, and reach no fs-touching `lib/` reader — and that says nothing about
+whether they can convert. The census's blockers are SHARED READERS and GRANT MIGRATION, which no `fs` probe and no
+shape check can see: a module marked `X` there carries a gate-local table, sanction, deferred row, stale arm or custom
+marker, and its conversion needs a grant home before it needs a lane. `gate:contract`'s simple tier shape-matches the
+descriptor literal and is blind to what a gate READS. **Route Phase D families from the census, never from a grep.**
+Its own rule is the one that binds: *a row remains blocked when the required reader or ResourceHost fact does not yet
+exist.*
 
 ## 7. What constrains any order
 
