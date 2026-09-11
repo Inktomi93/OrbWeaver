@@ -21,7 +21,7 @@ import { scaledBudget } from "../_load-budget.ts";
 
 // WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
 // socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
-// @orb-gate-ignore test-determinism: the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
+// @orb-waive test-determinism(Date.now): the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
 const wallNowMs = (): number => Date.now();
 
 /** The child body: fork a DESCENDANT, publish both pids, then hang forever. The descendant is spawned

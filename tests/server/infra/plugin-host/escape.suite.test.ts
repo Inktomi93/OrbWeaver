@@ -14,7 +14,7 @@
 //
 // Elapsed time uses `process.hrtime()` (the test-determinism gate bans Date.now/performance.now/
 // process.hrtime), the same spelling sandbox.test.ts uses for the deadline-kill receipts — each call site
-// carries the shared `@orb-gate-ignore test-determinism` marker (#831), since the subject here IS elapsed
+// carries the shared `@orb-waive test-determinism(process.hrtime)` marker (#831), since the subject here IS elapsed
 // real time.
 
 import process from "node:process";
@@ -51,7 +51,7 @@ const MS_PER_SEC = 1000;
 const NS_PER_MS = 1_000_000;
 
 function elapsedMs(start: [number, number]): number {
-  // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — the monotonic clock is the instrument here, no frozen clock could measure a real DoS-deadline race (#831)
+  // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — the monotonic clock is the instrument here, no frozen clock could measure a real DoS-deadline race (#831)
   const [seconds, nanos] = process.hrtime(start);
   return seconds * MS_PER_SEC + nanos / NS_PER_MS;
 }
@@ -816,7 +816,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     if (!outcome.ok) {
       return;
     }
-    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — measuring the post-release job-pump CPU bound against a real wall clock, no frozen clock to inject (#831)
+    // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — measuring the post-release job-pump CPU bound against a real wall clock, no frozen clock to inject (#831)
     const started = process.hrtime();
     release(null);
     await vi.waitFor(() => expect(wrote).toContain("resumed"), { timeout: POLL_MS, interval: 5 });
