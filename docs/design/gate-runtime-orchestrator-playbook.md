@@ -100,19 +100,26 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
 **Phase B2 — make the CONVERTED corpus sound before converting more (owner, 2026-09-11: "I'd rather get our new
 gates in a pristine place before converting old ones"). Precedes C and D.**
 
-1. **#1955 — the LAST conformance failure.** `bus-fact-health`'s provider refuses over an isolated fixture, the same
-   class #1953 was. Until it lands, `structure:policy-conformance` exits 2 and cannot serve as a bar. Everything below
-   is cheaper once it is green, because a conversion then proves itself by landing. **Do this first.**
-2. **#1952 — identity arms, ~32 of 86 remaining**, batches of ~8 by family. Self-checking (guide §4.2), so cheap and
-   parallelisable. The `mustFlag`/`expect` half is CLOSED.
-3. **#1954 residue** — `bus-on-data-no-store-write` reports a token containing a paren, which the marker grammar
-   (`[^()\r\n]+`) cannot spell, so every waiver against it is malformed. One-line fix: report the bare identifier with
-   an offset. `persist-partialize` and `section-factory` are DONE.
-4. **Five converted modules have no family test** (`baseui-render-prop-composition`, `bus-on-data-no-store-write`,
-   `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`). Their declared rows now run via the
-   conformance stage, but their §4.2/§4.5 pins have no home.
-5. The two message overclaims the audit found beyond `no-color-literals`: the false "in className" context claim
-   repeats in `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`.
+**DONE 2026-09-11:** the conformance bar itself. `pnpm check:policy-conformance` is **0 failures, exit 0** at
+`097958302` (162 policies · 1,471 rows · ~10.7 s), down from 95 failures that morning. Both remaining failures were
+one class, closed by #1953 (`registry-fact`, per subject) and #1955 (`bus-fact` + `bus-definition-fact`, per
+provider): a provider receipting what it FOUND rather than what it MEASURED, which preempts its own `-health`
+accuser. The rule is guide §12.3. Also done: the `mustFlag`/`expect` half (39 rows, `cf38cd6df`), #1954 in full
+(`bus-on-data-no-store-write`'s unspellable paren token, plus the false "in className" claim in
+`no-raw-container-widths` / `no-raw-typography-in-features` / `no-raw-spacing-in-features`).
+
+**A conversion now proves itself by landing** — that is what B2 bought, and it is why D is cheap.
+
+1. **#1952 — identity arms, 24 of 86 remaining** (grep floor; ~26 true), batches of ~8 by family. Self-checking
+   (guide §4.2), so cheap and parallelisable. This is the last open B2 item that blocks nothing and compounds.
+2. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
+   pins have no home. Re-derive the list before dispatching — three lanes have been chipping at it; guide §2's row
+   names the last measured set.
+3. **Fenced modules whose fence no proof row exercises** (found by #1954, and the reason that row grew): deleting
+   `inClassCarrier` from `no-raw-spacing-in-features` and `no-raw-typography-in-features` left every pre-existing
+   proof row GREEN. A message or header that claims a narrowing owes a row that goes red when the narrowing is
+   deleted. Sweep the corpus for the same shape — it is cheap (delete the fence in a `cp`-backed copy, run
+   conformance, restore) and it is exactly the defect class the whole B2 phase exists to find.
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 

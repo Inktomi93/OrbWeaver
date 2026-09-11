@@ -41,19 +41,17 @@ for exactly once; nothing vanishes from the roster.
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | 162 final policies · 1,467 rows · **1 failure** (#1955) · ~10.5 s | `pnpm check:policy-conformance` at `a949cf1ac`; was 95 failures before the registry provider split |
+| whole-corpus conformance | 162 final policies · 1,471 rows · **0 failures**, exit 0 · ~10.7 s | `pnpm check:policy-conformance` at `097958302`. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | ResourceHost kinds beyond the seven — and whether they SHOULD exist is the Phase C fork, not a backlog (playbook §2); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, checkpoint "runtime follow-ups" |
 | known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
 | NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
 
-Open rows: **#1955** (the last conformance failure — a `bus-producers` provider refusing over an isolated fixture, the
-same class as #1953; until it clears the stage exits 2 and cannot be a bar), **#1952** (identity arms), **#1954**
-residue (`bus-on-data-no-store-write` reports a token containing a paren, which the marker grammar cannot spell),
-**#1930** (the capability fork — see playbook §2 Phase C, a design pass, not a backlog), #1946, #1922
+Open rows: **#1952** (identity arms, 24 of 86 remaining), **#1930** (the capability fork — see playbook §2 Phase C, a
+design pass, not a backlog), #1946, #1922
 (sanctioned-home tables → grants, incl. `ALLOWLIST`/`CALLER_FREE_OPS`), #1950 (forge, the 13 mixed-hook splits — the
-only remaining forge-class work). At Verify awaiting a fresh-context verifier: #1941, #1948, #1953, #1954.
+only remaining forge-class work). At Verify awaiting a fresh-context verifier: #1941, #1948, #1953, #1954, #1955.
 Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
 Conversions themselves get no rows; they land as comments on #1584.
 
@@ -123,6 +121,15 @@ family.
    (a statement's first identifier is weak identity). Before reaching for `messageIncludes`, check that the module
    emits more than one message — most converted modules pass a bare `report.*` and carry exactly one policy-level
    message, which makes any row `why` promising a "distinct message" a defect rather than a pinnable claim.
+
+   **A NARROWING is a claim, and it owes a row that dies without it.** A carrier fence, an ancestor guard, a context
+   predicate — anything that makes the policy flag LESS than its population — is invisible to a proof set built only
+   from positives and near-misses, because deleting the narrowing only ever ADDS findings at sites no row visits.
+   Measured on the corpus (#1954): deleting `inClassCarrier` from `no-raw-spacing-in-features` and
+   `no-raw-typography-in-features` left EVERY pre-existing row green in both modules. The test is two commands — cut
+   the narrowing in a `cp`-backed copy, run the module's rows, restore — and the fix is a `mustPass` row placing the
+   same literal OUTSIDE the fence. This is the one place a conversion owes a planted break for a row it did not
+   invent: §4.7 covers new properties, and this covers an old property nothing was ever shown to enforce.
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
@@ -231,15 +238,17 @@ This is no longer work; it is the substrate every lane now builds on. What it gu
   Exit classes unchanged: 0 clean, 1 violations, 2 tool error, 3 misuse.
 - **A converted policy is LIVE the moment it lands.** It no longer runs only where a family test imports it.
 - **Its proof rows run on the commit bar.** `structure:policy-conformance` is a STATIC stage (in `pnpm verify --list`,
-  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,459 rows
-  across 162 policies in ~10.5 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
+  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,471 rows
+  across 162 policies in ~10.7 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
   test is still owed for what the rows cannot express: the §4.2 identity arm driven through `runPolicyPass`, §4.3 grant
   identity, §4.5 refusal/receipt pins, and the §4.6 conversion differential.
 - **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
   policies, reviewed grants only final reviewed-grant policies.
 
-**Read the conformance stage's exit as a real verdict.** It is exit 2 only while a fact-provider defect is open
-(#1955); it is not baselined red the way the whole-tree checks are.
+**Read the conformance stage's exit as a real verdict — it is GREEN as of `097958302`, so it is now a bar.** It was
+never baselined red the way the whole-tree checks are; it exited 2 only while fact-provider defects were open, and
+those are closed. A red here is a regression, and the stage is the cheapest proof a conversion owes: land the module
+and its declared rows run.
 
 ## 6. What is done and what remains
 
@@ -445,7 +454,23 @@ summed receipt withholds all N subjects' consumers when any one subject fails, i
 healthy subject. `registry-fact.ts:300-304` sums `members` and `unresolved` across six kinds while every consumer reads
 one kind through `forKind`, which is why a fixture proving one kind is refused for the other five (#1953). Do not
 "fix" such a case by treating an unresolved subject as absent: §12.3's own rule is that unsupported syntax returns an
-unresolved fact or a tool error and NEVER returns absence, and collapsing the two silently blinds the consumer. Early/undeclared
+unresolved fact or a tool error and NEVER returns absence, and collapsing the two silently blinds the consumer.
+
+**A provider's receipt states what it MEASURED, never what it FOUND.** `members` is the denominator the provider
+actually walked — the authored sources admitted by its population — and `unresolved` is reserved for syntax the
+provider could not read. It is NOT the census the provider built. The reason is mechanical: `factReceiptFailures`
+(`lib/policy-pass.ts:641`) refuses `members === 0` or `unresolved > 0` and `withholdFactDependents` (`:679`) drops
+every consumer BEFORE `evaluate` runs. So a provider that receipts its findings preempts its own designated accuser —
+an empty or holed census becomes a FACT TOOL ERROR instead of reaching the `-health` policy whose whole job is to
+report it, and that policy's empty-corpus `mustFlag` arm can never execute. That was both of the last two conformance
+failures: `bus-producers` and `bus-definitions` each receipted their census (#1955), exactly as `registry-fact.ts` had
+summed six kinds' (#1953). The discriminator is cheap and mechanical — read every consumer's own `ctx.receipt` and its
+fail-closed throw; **if no consumer expresses its dependency through the provider's `unresolved`, the provider must
+not publish one.** Emptiness and holes belong in the fact's own `status`/`unresolved` FIELDS, which are delivered to
+consumers and judged by them. The refusal does not weaken: it moves to the provider's POPULATION phase (zero admitted
+paths), which is per-provider and fires strictly earlier. And a family with two providers has the defect twice — the
+`bus-definitions` twin only became visible once `bus-producers` was fixed, having until then swallowed the
+`bus rosters disagree` message a hard pin asserts. Early/undeclared
 reads, duplicate provider ids, selected-file consumers, unused dependencies, missing receipts and unconsumed resources
 refuse. The registry is invocation-local.
 
